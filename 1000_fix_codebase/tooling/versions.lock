@@ -191,7 +191,9 @@ VENDOR_OCA_STOCK_LOGISTICS_WAREHOUSE=PENDING-CLONE
 VENDOR_OCA_PURCHASE_WORKFLOW=PENDING-CLONE
 VENDOR_OCA_PARTNER_CONTACT=PENDING-CLONE
 VENDOR_OCA_CONTRACT=PENDING-CLONE
-VENDOR_OCA_L10N_BANGLADESH=PENDING-CLONE
+# P07 finding: no OCA/l10n-bangladesh repository exists. Bangladesh localisation
+# ships in Odoo core (vendor/odoo/addons/l10n_bd, covered by VENDOR_ODOO_COMMIT);
+# the statutory layer is first-party cd_tax_engine_bd.
 
 # --- End of [toolchain]/[vendor] --------------------------------------------
 
