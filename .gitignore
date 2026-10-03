@@ -20,7 +20,10 @@ vault/
 # --- Dependencies ---
 node_modules/
 .pnpm-store/
-vendor/
+# Root-anchored ONLY: 1000_fix_codebase/vendor is first-party content by design
+# (Odoo submodule + OCA subtrees — clone-budget.md, FF-03). A bare `vendor/`
+# pattern matched at every depth and ignored the pinned submodule.
+/vendor/
 
 # --- Python ---
 __pycache__/

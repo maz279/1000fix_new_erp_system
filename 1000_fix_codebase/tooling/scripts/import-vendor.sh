@@ -43,6 +43,10 @@ reporting-engine mis-builder stock-logistics-workflow stock-logistics-barcode \
 stock-logistics-warehouse purchase-workflow partner-contact contract \
 l10n-bangladesh"
 
+# P07 audit finding #2: recording pins INSIDE the loop (sed) left versions.lock
+# dirty, and the NEXT `git subtree add` aborted on the dirty tree after the very
+# first repo. Pins are collected and written once, after the loop.
+pin_updates=""
 for repo in $REPOS; do
   key="VENDOR_OCA_$(echo "$repo" | tr '[:lower:]-' '[:upper:]_')"
   dir="vendor/oca/$repo"
@@ -55,8 +59,14 @@ for repo in $REPOS; do
   pin=$(git log -1 --format=%H "--" "$dir" 2>/dev/null || true)
   cur=$(get_lock "$key")
   if [ "$cur" = "PENDING-CLONE" ]; then
-    sed -i "s|^$key=.*|$key=$pin|" tooling/versions.lock || true
+    pin_updates+="s|^$key=.*|$key=$pin|\n"
   fi
 done
+if [ -n "$pin_updates" ]; then
+  sed -i "$(printf '%b' "$pin_updates")" tooling/versions.lock
+  echo "import-vendor: OCA pins recorded in versions.lock"
+  git add tooling/versions.lock
+  git commit -m "chore(repo): vendor - OCA subtree pins recorded (import-vendor T02-T05)" || true
+fi
 
 echo "import-vendor: done. Verify with: tooling/scripts/check-vendor-clean.sh"
