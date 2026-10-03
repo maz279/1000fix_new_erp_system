@@ -76,12 +76,28 @@ Check { $r = try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8069/web/
         if (-not $r -or $r.StatusCode -ne 200) { throw 'SKIP: /web/login not serving - start with tasks.ps1 -Target run (containerised on Windows)' }
         'HTTP 200' } 6 'Odoo boot' 'tasks.ps1 -Target run; check logs for ERROR lines'
 
-# 7 - scaffolded cd_ module installs/uninstalls cleanly (OD-02 local)
+# 7 - first-party modules installed on the dev database (OD-02 local)
+# P07 audit: the Phase-3 kernel LANDED (32 modules install live) - the old
+# unconditional SKIP was stale. Now verifies every shipped cd_* module is in
+# state 'installed' on fix_dev, via the compose postgres.
 Check { if (-not (Test-Path vendor/odoo/odoo-bin)) { throw 'SKIP: vendor absent (see check 2)' }
-        throw 'SKIP: lands with the first Phase-3 kernel module (scaffold via tooling/generators/scaffold-cd-module.py)' } 7 'Module install (OD-02)' 'generate scaffold, make upgrade MODULE=cd_x, uninstall'
+        $shipped = (Get-ChildItem addons -Recurse -Filter __manifest__.py | Measure-Object).Count
+        $psql = @('compose', '-f', 'infra/compose/docker-compose.yml', '--env-file', '.env',
+                  'exec', '-T', 'postgres', 'psql', '-U', 'fix', '-d', 'fix_dev', '-tAc',
+                  "SELECT count(*) FROM ir_module_module WHERE name LIKE 'cd_%' AND state = 'installed'")
+        $installed = (& docker @psql 2>$null | Measure-Object -Line).Lines - 1
+        $installed = [int](& docker @psql 2>$null | Select-Object -First 1)
+        if ($installed -lt $shipped) { throw "only $installed/$shipped cd_* modules installed - run tasks.ps1 -Target odoo-init / odoo-install-wave1" }
+        "all $installed cd_* modules installed" } 7 'Module install (OD-02)' 'odoo-init + install wave; upgrade on code changes'
 
-# 8 - test-smoke green (under 3 minutes)
-Check { throw 'SKIP: test-smoke activates with Phase-3 kernel models (tooling/scripts/test-smoke.py)' } 8 'Smoke test' 'make test-smoke'
+# 8 - test-smoke green (under 3 minutes) - REAL since the Phase-7 bring-up
+Check { $py = Get-Command python -ErrorAction SilentlyContinue
+        $exe = if ($py) { $py.Source } else { 'py' }
+        $args = @(); if (-not $py) { $args = @('-3.12') }
+        $out = & $exe @args tooling/scripts/test-smoke.py 2>&1
+        if ($LASTEXITCODE -eq 4) { throw 'SKIP: ' + ($out | Select-Object -First 1) }
+        if ($LASTEXITCODE -ne 0) { throw ($out | Select-Object -Last 12 | Out-String) }
+        ($out | Select-String 'checks passed') -replace '.*test-smoke:', 'test-smoke:' } 8 'Smoke test' 'tasks.ps1 -Target run then test-smoke'
 
 # 9 - pre-commit green on a clean tree
 Check { $pc = Get-Command pre-commit -ErrorAction SilentlyContinue

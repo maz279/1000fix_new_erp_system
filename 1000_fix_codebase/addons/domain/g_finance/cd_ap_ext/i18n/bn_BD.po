@@ -55,3 +55,6 @@ msgstr "ভেন্ডর চালান রেফারেন্স"
 
 msgid "Vendor Invoices"
 msgstr "ভেন্ডর চালানসমূহ"
+
+msgid "Vendor Invoice"
+msgstr "বিক্রেতার চালান"

@@ -1,5 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_party_role,fix.party.role,model_fix_party_role,base.group_user,1,1,1,0
 access_fix_party_hierarchy,fix.party.hierarchy,model_fix_party_hierarchy,base.group_user,1,1,1,0
+access_fix_identity_document,fix.identity.document,model_fix_identity_document,base.group_user,1,1,1,0
 access_fix_consent,fix.consent,model_fix_consent,base.group_user,1,1,1,0
 access_fix_dedup_rule,fix.dedup.rule,model_fix_dedup_rule,base.group_user,1,1,1,0

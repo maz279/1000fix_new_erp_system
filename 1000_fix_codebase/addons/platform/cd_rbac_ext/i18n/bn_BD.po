@@ -94,3 +94,6 @@ msgstr "SoD নিয়ন্ত্রণসমূহ"
 
 msgid "Why these roles conflict"
 msgstr "কেন এই ভূমিকাগুলো দ্বন্দ্ব করে"
+
+msgid "Enabled Roles"
+msgstr "সক্রিয় ভূমিকাসমূহ"

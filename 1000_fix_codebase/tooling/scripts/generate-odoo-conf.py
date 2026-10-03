@@ -84,6 +84,9 @@ limit_time_real = 3600
 log_handler = odoo.addons.cd_:DEBUG
 # LOCAL ONLY - PE-002 forbids list_db=True elsewhere
 list_db = True
+# LOCAL ONLY - bind the loopback: a dev server with a change-me database
+# manager password must never be reachable from the network (P07 audit).
+http_interface = 127.0.0.1
 without_demo = False
 admin_passwd = {admin_passwd}
 http_port = {http_port}
