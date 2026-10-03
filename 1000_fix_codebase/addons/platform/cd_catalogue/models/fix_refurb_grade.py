@@ -29,9 +29,11 @@ class FixRefurbGrade(models.Model):
         default=lambda self: self.env.ref("base.BDT"))
     price_multiplier = fields.Float(
         string="Price Multiplier (e.g. 0.8 = 80% of new price)",
-        default=1.0, tracking=True,
+        default=1.0,
         help="Applied to the original product price to determine the "
-             "refurbished sale price. Not a Monetary field — it is a ratio.")
+             "refurbished sale price. Not a Monetary field — it is a ratio. "
+             "(tracking removed: Odoo 19 rejects the parameter on Float and "
+             "this model carries no chatter.)")
     warranty_days = fields.Integer(
         string="Refurb Warranty (days)",
         help="Warranty period for items sold at this grade")

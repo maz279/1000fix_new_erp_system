@@ -63,6 +63,10 @@ ignore-paths = ["^vendor/"]
 [tool.pytest.ini_options]
 testpaths = ["addons", "services", "libs"]
 addopts = "--cov --cov-report=term-missing -q"
+# Module tests import odoo.addons.* (bootstrapped by addons/conftest.py, which
+# also aliases bare addon names). Collection must use the DEFAULT prepend
+# mode: importlib mode derives dotted names from the rootdir and would import
+# the cd_* odoo packages under non-odoo.addons names (metaclass rejects).
 markers = [
     "financial: 100% coverage mandatory (DoD-03)",
     "tax: 100% coverage mandatory (DoD-03) - Mushak paths",

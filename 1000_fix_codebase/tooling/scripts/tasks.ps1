@@ -19,6 +19,10 @@ $compose = @('compose', '-f', 'infra/compose/docker-compose.yml', '--env-file', 
 
 function Compose([string[]]$Args) { & docker @compose @Args }
 function Run-Py([string]$Script, [string[]]$PyArgs = @()) {
+    # Odoo runs need the codebase root importable (the shared libs/ packages)
+    # and, for tests, the vendored odoo package itself. Without this the odoo
+    # targets died on "No module named 'libs/py'" (P07 verification finding).
+    $env:PYTHONPATH = "$root;$(Join-Path $root 'vendor\odoo')$([System.IO.Path]::PathSeparator)$env:PYTHONPATH"
     $py = Get-Command python -ErrorAction SilentlyContinue
     if (-not $py) { $py = Get-Command py -ErrorAction SilentlyContinue; & $py.Source -3.12 (Join-Path $root $Script) @PyArgs }
     else { & $py.Source (Join-Path $root $Script) @PyArgs }
@@ -26,7 +30,7 @@ function Run-Py([string]$Script, [string[]]$PyArgs = @()) {
 
 switch ($Target) {
     'help' {
-        Write-Host "targets: bootstrap up down reset odoo-conf db-create odoo-init odoo-install-wave1 run seed test-smoke doctor upgrade vendor verify-repo"
+        Write-Host "targets: bootstrap up down reset odoo-conf db-create odoo-init odoo-install-wave1 run seed test-smoke test-odoo doctor upgrade vendor verify-repo"
         Write-Host "options: -Profile core|auth|integration|field|observability|full   -Module cd_x (for upgrade)"
     }
     'bootstrap' {
@@ -74,6 +78,18 @@ switch ($Target) {
     'upgrade'      {
         if (-not $Module) { Write-Host 'upgrade requires -Module cd_x' -ForegroundColor Red; exit 2 }
         Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '-u', $Module, '--stop-after-init')
+    }
+    'test-odoo'    {
+        # The full module test estate (34 suites) under the runtime harness:
+        # addons/conftest.py bootstraps Odoo's module machinery (no database
+        # needed) so the suites can import odoo.addons.cd_* model classes.
+        $env:PYTHONPATH = "$root;$(Join-Path $root 'vendor\odoo')$([System.IO.Path]::PathSeparator)$env:PYTHONPATH"
+        $py = Get-Command python -ErrorAction SilentlyContinue
+        $pyExe = if ($py) { $py.Source } else { 'py' }
+        $pyArgs = @()
+        if (-not $py) { $pyArgs = @('-3.12') }
+        & $pyExe @pyArgs -m pytest addons --quiet -p no:cacheprovider -o 'addopts='
+        exit $LASTEXITCODE
     }
     'vendor'       { & powershell -ExecutionPolicy Bypass -File (Join-Path $root 'tooling\scripts\import-vendor.ps1'); exit $LASTEXITCODE }
     'verify-repo'  {

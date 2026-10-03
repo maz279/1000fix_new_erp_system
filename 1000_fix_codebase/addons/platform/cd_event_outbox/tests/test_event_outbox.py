@@ -6,27 +6,27 @@ class TestFixEventOutbox:
     """fix.event.outbox model tests."""
 
     def test_model_exists(self):
-        from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
+        from odoo.addons.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
         assert FixEventOutbox is not None
 
     def test_event_id_unique(self):
         """UUID event_id for idempotency (DI-05)."""
-        from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
+        from odoo.addons.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
         assert hasattr(FixEventOutbox, "_event_id_unique")  # Odoo 19 models.Constraint attr
 
     def test_emit_method(self):
         """AS-08: the emit() method writes to the outbox."""
-        from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
+        from odoo.addons.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
         assert 'emit' in dir(FixEventOutbox)
 
     def test_drain_pending_method(self):
         """The publisher drains pending events."""
-        from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
+        from odoo.addons.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
         assert 'drain_pending' in dir(FixEventOutbox)
 
     def test_status_selection(self):
         """Status includes pending/published/failed."""
-        from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
+        from odoo.addons.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
         assert 'status' in dir(FixEventOutbox)
 
 

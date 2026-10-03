@@ -4,12 +4,12 @@ import pytest
 
 class TestCustodyChain:
     def test_canonical_steps_ordered(self):
-        from addons.domain.e_supply_chain.cd_consignment.models.fix_consignment import CUSTODY_STEPS
+        from odoo.addons.cd_consignment.models.fix_consignment import CUSTODY_STEPS
         steps = [s[0] for s in CUSTODY_STEPS]
         assert steps.index("picked_up") < steps.index("delivered")
 
     def test_chain_break_compute_declared(self):
-        from addons.domain.e_supply_chain.cd_consignment.models.fix_consignment import FixConsignment
+        from odoo.addons.cd_consignment.models.fix_consignment import FixConsignment
         assert hasattr(FixConsignment, "_compute_chain")
 
     def test_monotonic_verification_logic(self):
@@ -27,13 +27,13 @@ class TestCustodyChain:
     def test_lost_raises_incident_event(self):
         import inspect
         source = inspect.getsource(
-            __import__("addons.domain.e_supply_chain.cd_consignment.models.fix_consignment",
+            __import__("odoo.addons.cd_consignment.models.fix_consignment",
                        fromlist=["FixConsignment"]).FixConsignment.action_report_lost)
         assert '"consignment.lost"' in source
 
     def test_skip_requires_named_exception(self):
         import inspect
         source = inspect.getsource(
-            __import__("addons.domain.e_supply_chain.cd_consignment.models.fix_consignment",
+            __import__("odoo.addons.cd_consignment.models.fix_consignment",
                        fromlist=["FixCustodyScan"]).FixCustodyScan)
         assert "named exception" in source
