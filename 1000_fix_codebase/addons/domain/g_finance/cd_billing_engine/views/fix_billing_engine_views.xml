@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine views — AR invoices, dunning, credit notes (Finance workspace). -->
+<odoo>
+
+    <record id="view_fix_ar_invoice_tree" model="ir.ui.view">
+        <field name="name">fix.ar.invoice.tree</field>
+        <field name="model">fix.ar.invoice</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'paid'" decoration-info="state == 'draft'">
+                <field name="invoice_date"/>
+                <field name="customer_id"/>
+                <field name="branch_id" optional="show"/>
+                <field name="taxable_amount"/>
+                <field name="vat_amount"/>
+                <field name="total_payable"/>
+                <field name="state" widget="badge"/>
+                <field name="mushak_id" optional="show"/>
+                <field name="generation_seconds" optional="hide" string="Gen (s)"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_ar_invoice_form" model="ir.ui.view">
+        <field name="name">fix.ar.invoice.form</field>
+        <field name="model">fix.ar.invoice</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,issued,paid,credited"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="invoice_date" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Invoice">
+                            <field name="customer_id"/>
+                            <field name="branch_id"/>
+                            <field name="source_model" readonly="1"/>
+                            <field name="source_id" readonly="1"/>
+                            <field name="mushak_id" readonly="1"/>
+                            <field name="generation_seconds" readonly="1"/>
+                        </group>
+                        <group string="Amounts">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="taxable_amount"/>
+                            <field name="vat_amount"/>
+                            <field name="total_payable"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <tree>
+                            <field name="description"/>
+                            <field name="taxable_amount"/>
+                            <field name="vat_amount"/>
+                            <field name="line_total"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_dunning_tree" model="ir.ui.view">
+        <field name="name">fix.dunning.tree</field>
+        <field name="model">fix.dunning</field>
+        <field name="arch" type="xml">
+            <tree decoration-danger="bucket == 'd90_plus'" decoration-warning="bucket in ('d61_90', 'd31_60')">
+                <field name="invoice_id"/>
+                <field name="overdue_amount"/>
+                <field name="days_overdue"/>
+                <field name="bucket"/>
+                <field name="step"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_ar_invoice" model="ir.actions.act_window">
+        <field name="name">AR Invoices</field>
+        <field name="res_model">fix.ar.invoice</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_dunning" model="ir.actions.act_window">
+        <field name="name">Collections &amp; Dunning</field>
+        <field name="res_model">fix.dunning</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_credit_note" model="ir.actions.act_window">
+        <field name="name">Credit Notes</field>
+        <field name="res_model">fix.credit.note</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_ar_invoice" name="AR Invoices"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_ar_invoice" sequence="50"/>
+    <menuitem id="menu_fix_dunning" name="Collections"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_dunning" sequence="60"/>
+    <menuitem id="menu_fix_credit_note" name="Credit Notes"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_credit_note" sequence="70"/>
+
+</odoo>

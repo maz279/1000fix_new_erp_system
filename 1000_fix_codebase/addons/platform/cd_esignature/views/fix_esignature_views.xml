@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_esignature views — envelopes under Party/Docs administration. -->
+<odoo>
+
+    <record id="view_fix_esignature_envelope_form" model="ir.ui.view">
+        <field name="name">fix.esignature.envelope.form</field>
+        <field name="model">fix.esignature.envelope</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,sent,partially_signed,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="document_id"/>
+                            <field name="evidence_hash" readonly="1"/>
+                            <field name="completed_at" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="signer_ids">
+                        <tree editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="partner_id"/>
+                            <field name="role_label"/>
+                            <field name="signed_at" readonly="1"/>
+                            <field name="signature_provider" readonly="1" optional="show"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_esignature_envelope_tree" model="ir.ui.view">
+        <field name="name">fix.esignature.envelope.tree</field>
+        <field name="model">fix.esignature.envelope</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'completed'">
+                <field name="name"/>
+                <field name="document_id" optional="show"/>
+                <field name="state" widget="badge"/>
+                <field name="completed_at" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_esignature_envelope" model="ir.actions.act_window">
+        <field name="name">E-Signature Envelopes</field>
+        <field name="res_model">fix.esignature.envelope</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_esignature" name="E-Signatures"
+              parent="cd_document_core.menu_fix_document_root"
+              action="action_fix_esignature_envelope" sequence="50"/>
+
+</odoo>

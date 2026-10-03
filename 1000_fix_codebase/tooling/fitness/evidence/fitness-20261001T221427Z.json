@@ -1,0 +1,214 @@
+{
+  "schema": "1000fix-erp/fitness-results/1",
+  "results": [
+    {
+      "suite": "FF-02",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-02",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_naming.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.131218+00:00"
+    },
+    {
+      "suite": "FF-03",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-03",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check-vendor-clean.sh (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.131218+00:00"
+    },
+    {
+      "suite": "FF-04",
+      "case": "check_ff17_layers.py",
+      "status": "PASS",
+      "duration_ms": 71,
+      "verifies": "FF-04",
+      "artefacts": [],
+      "message": "",
+      "remedy": "FF-17: OK - 8 platform manifest(s) checked, 0 layer violations",
+      "ran_at_utc": "2026-10-01T22:14:26.202402+00:00"
+    },
+    {
+      "suite": "FF-06",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-06",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_cross_table.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.203379+00:00"
+    },
+    {
+      "suite": "FF-09",
+      "case": "check_ff09_residency.py",
+      "status": "PASS",
+      "duration_ms": 74,
+      "verifies": "FF-09",
+      "artefacts": [],
+      "message": "",
+      "remedy": "FF-09: OK - no residency bypass paths; fix_residency is the sole client",
+      "ran_at_utc": "2026-10-01T22:14:26.277250+00:00"
+    },
+    {
+      "suite": "FF-19",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-19",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_event_schemas.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.278254+00:00"
+    },
+    {
+      "suite": "FF-20",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-20",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_model_registry.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.278254+00:00"
+    },
+    {
+      "suite": "FF-21",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-21",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_model_registry.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.279064+00:00"
+    },
+    {
+      "suite": "FF-22",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-22",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_model_registry.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.279064+00:00"
+    },
+    {
+      "suite": "FF-23",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-23",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_tests_present.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.280087+00:00"
+    },
+    {
+      "suite": "FF-25",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-25",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_translations.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.280087+00:00"
+    },
+    {
+      "suite": "FF-30",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-30",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_assets.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.280087+00:00"
+    },
+    {
+      "suite": "FF-32",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-32",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_demo_data.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.281079+00:00"
+    },
+    {
+      "suite": "FF-37",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-37",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_code_lists.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.281079+00:00"
+    },
+    {
+      "suite": "FF-13",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-13",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_api_budget.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:26.281079+00:00"
+    },
+    {
+      "suite": "FF-14",
+      "case": "../architecture-baseline/extract-dependency-graph.ps1",
+      "status": "PASS",
+      "duration_ms": 1001,
+      "verifies": "FF-14",
+      "artefacts": [],
+      "message": "",
+      "remedy": "[ ok ] dependency graph regenerated GREEN (warnings are recorded drift, not extraction failures).",
+      "ran_at_utc": "2026-10-01T22:14:27.281735+00:00"
+    },
+    {
+      "suite": "FF-27",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-27",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_portal_contract.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:27.282734+00:00"
+    },
+    {
+      "suite": "FF-16",
+      "case": "../scripts/check-cd-id.py",
+      "status": "PASS",
+      "duration_ms": 52,
+      "verifies": "FF-16",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check-cd-id: OK - all CD references resolve in the register (331 items)",
+      "ran_at_utc": "2026-10-01T22:14:27.335334+00:00"
+    },
+    {
+      "suite": "FF-26",
+      "case": "runner",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-26",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check script not present/allowed under tooling/: check_i18n_keys.py (visible, never silent)",
+      "ran_at_utc": "2026-10-01T22:14:27.335334+00:00"
+    }
+  ]
+}

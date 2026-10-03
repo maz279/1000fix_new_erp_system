@@ -1,0 +1,27 @@
+# Bengali (Bangladesh) translation for cd_esignature.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Document"
+msgstr "দলিল"
+
+msgid "E-Signatures"
+msgstr "ই-সিগনেচার"
+
+msgid "Signer"
+msgstr "স্বাক্ষরকারী"
+
+msgid "Signers"
+msgstr "স্বাক্ষরকারীগণ"
+
+msgid "Signs As"
+msgstr "যে পরিচয়ে স্বাক্ষর"
+
+msgid "Subject"
+msgstr "বিষয়"

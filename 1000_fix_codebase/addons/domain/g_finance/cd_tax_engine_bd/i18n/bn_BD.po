@@ -1,0 +1,102 @@
+# Bengali (Bangladesh) translation for cd_tax_engine_bd.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Amounts"
+msgstr "পরিমাণসমূহ"
+
+msgid "Customer BIN"
+msgstr "ক্রেতার BIN"
+
+msgid "Determination"
+msgstr "নির্ধারণ"
+
+msgid "Group By"
+msgstr "গ্রুপ অনুযায়ী"
+
+msgid "Input VAT"
+msgstr "ইনপুট ভ্যাট"
+
+msgid "Invoice"
+msgstr "চালান"
+
+msgid "Invoice Date"
+msgstr "চালানের তারিখ"
+
+msgid "Invoice Reference"
+msgstr "চালান রেফারেন্স"
+
+msgid "Mushak 6.3 No."
+msgstr "মুশক ৬.৩ নং"
+
+msgid "Mushak 6.3 Register"
+msgstr "মুশক ৬.৩ রেজিস্টার"
+
+msgid "NBR Confirmation"
+msgstr "এনবিআর নিশ্চিতকরণ"
+
+msgid "Net Payable"
+msgstr "নিট প্রদেয়"
+
+msgid "Nil"
+msgstr "শূন্য"
+
+msgid "Output VAT"
+msgstr "আউটপুট ভ্যাট"
+
+msgid "Parties"
+msgstr "পক্ষসমূহ"
+
+msgid "Rate (%)"
+msgstr "হার (%)"
+
+msgid "Source Event"
+msgstr "উৎস ইভেন্ট"
+
+msgid "Supplier BIN"
+msgstr "সরবরাহকারী BIN"
+
+msgid "TDS Return"
+msgstr "টিডিএস রিটার্ন"
+
+msgid "TDS Returns"
+msgstr "টিডিএস রিটার্নসমূহ"
+
+msgid "Tariff Code"
+msgstr "ট্যারিফ কোড"
+
+msgid "Taxable Value"
+msgstr "করযোগ্য মূল্য"
+
+msgid "Total Payable"
+msgstr "মোট প্রদেয়"
+
+msgid "Total Withheld"
+msgstr "মোট কর্তন"
+
+msgid "Treatment"
+msgstr "শ্রেণি নির্ধারণ"
+
+msgid "Truncated Fixed Base"
+msgstr "ট্রাংকেটেড নির্দিষ্ট ভিত্তি"
+
+msgid "Unposted"
+msgstr "অ-পোস্টকৃত"
+
+msgid "VAT"
+msgstr "ভ্যাট"
+
+msgid "VAT Returns"
+msgstr "ভ্যাট রিটার্নসমূহ"
+
+msgid "VAT Treatments"
+msgstr "ভ্যাট শ্রেণিসমূহ"
+
+msgid "Vendor Invoice"
+msgstr "ভেন্ডর চালান"

@@ -1,0 +1,10 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_service_order,fix.service.order,model_fix_service_order,base.group_user,1,1,1,0
+access_fix_work_order,fix.work.order,model_fix_work_order,base.group_user,1,1,1,0
+access_fix_work_order_part,fix.work.order.part,model_fix_work_order_part,base.group_user,1,1,1,1
+access_fix_estimate,fix.estimate,model_fix_estimate,base.group_user,1,1,1,0
+access_fix_estimate_line,fix.estimate.line,model_fix_estimate_line,base.group_user,1,1,1,1
+access_fix_qc_checklist,fix.qc.checklist,model_fix_qc_checklist,base.group_user,1,1,1,0
+access_fix_qc_item,fix.qc.item,model_fix_qc_item,base.group_user,1,1,1,1
+access_fix_sla_policy,fix.sla.policy,model_fix_sla_policy,base.group_user,1,1,1,0
+access_fix_diagnostic_node,fix.diagnostic.node,model_fix_diagnostic_node,base.group_user,1,1,1,0

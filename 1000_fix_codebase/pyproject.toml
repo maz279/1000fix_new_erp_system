@@ -1,0 +1,70 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# =============================================================================
+# Root Python configuration - P02-M08-T02/T03 (BE-002 4.1-4.6)
+# Ruff (format + lint, PYS-01) and mypy --strict (PYS-07/10/11) for everything;
+# pylint-odoo adds the Odoo defect classes over addons/ (SQL-02, XS-08).
+# Editor behaviour mirrors this (.vscode/settings.json) - or the two disagree
+# daily.
+# =============================================================================
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = ["vendor/**", "infra/odoo-data/**"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # import order
+    "B",        # bugbear
+    "UP",       # pyupgrade
+    "S",        # bandit-lite security (SQL-02 companion)
+    "C4",       # comprehensions
+    "SIM",      # simplification
+    "RUF",
+]
+ignore = ["E501"]  # formatter owns line length; long strings reported by B950 spirit
+
+[tool.ruff.lint.per-file-ignores]
+"db/seeds/**" = ["S311"]   # deterministic random is the point (fixed seed)
+
+[tool.mypy]
+python_version = "3.12"
+strict = true                       # PYS-07/10/11
+warn_unused_ignores = true
+warn_redundant_casts = true
+disallow_untyped_decorators = false  # Odoo decorators are untyped upstream
+exclude = "vendor/"
+# Odoo's ORM is untyped upstream; strictness holds on OUR code, with a
+# per-file opt-out that must carry a TODO(DBT-nnn) - review-only rule PYS-22
+# pattern applies.
+
+[[tool.mypy.overrides]]
+module = ["odoo.*", "odoo.addons.*"]
+ignore_missing_imports = true
+
+[tool.pylint.messages_control]
+# pylint-odoo profile over addons/ (P02-M08-T03). Odoo-specific plugins:
+# odoolint (manifest-completeness, translation-required, sql-injection,
+# compute-method correctness).
+disable = ["all"]
+enable = [
+    "odoolint",           # the OCA plugin set
+]
+
+[tool.pylint.master]
+load-plugins = ["pylint_odoo"]
+ignore-paths = ["^vendor/"]
+
+[tool.pytest.ini_options]
+testpaths = ["addons", "services", "libs"]
+addopts = "--cov --cov-report=term-missing -q"
+markers = [
+    "financial: 100% coverage mandatory (DoD-03)",
+    "tax: 100% coverage mandatory (DoD-03) - Mushak paths",
+    "residency: touches residency-classified fields (FF-09 review)",
+]

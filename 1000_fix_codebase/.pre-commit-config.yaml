@@ -1,0 +1,59 @@
+# =============================================================================
+# .pre-commit-config.yaml - P02-M08-T01 (XS-19: installed by make bootstrap,
+# NOT optional). CI re-runs every hook: bypassing locally only moves the
+# failure later.
+# XS-20: --no-verify is permitted ONLY on hotfix/* branches, and the next
+# commit on that branch must pass.
+# =============================================================================
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4            # pinned; line-pin rule per versions.lock [toolchain]
+    hooks:
+      - { id: ruff, args: [--fix] }        # PYS-01 lint
+      - { id: ruff-format }                # PYS-01 format
+
+  - repo: https://github.com/OCA/pylint-odoo
+    rev: v8.0.28
+    hooks:
+      - { id: pylint-odoo, files: ^addons/ }   # Odoo defect classes (SQL-02, XS-08)
+
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.24.0
+    hooks:
+      - { id: gitleaks }                   # XS-06 / SE-01 - full history in CI
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - { id: end-of-file-fixer }
+      - { id: mixed-line-ending, args: [--fix=lf] }          # XS-01
+      - { id: check-merge-conflict }
+      - { id: check-added-large-files, args: [--maxkb=512] } # REPO-30
+
+  - repo: local
+    hooks:
+      - id: eslint
+        name: eslint --max-warnings=0
+        entry: pnpm -w exec eslint --max-warnings=0
+        language: system
+        types: [ts]
+      - id: prettier
+        name: prettier --write
+        entry: pnpm -w exec prettier --write
+        language: system
+        types_or: [ts, tsx, json, css]
+      - id: dart-analyze
+        name: dart analyze --fatal-infos
+        entry: fvm dart analyze --fatal-infos
+        language: system
+        types: [dart]
+      - id: no-vendor-edit
+        name: FF-03 vendor clean
+        entry: bash tooling/scripts/check-vendor-clean.sh
+        language: system
+        pass_filenames: false
+      - id: cd-id-check
+        name: FF-16 CD identifier (form + membership) - Warning until G1
+        entry: python tooling/scripts/check-cd-id.py
+        language: system
+        types: [python, xml, markdown, yaml]

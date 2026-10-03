@@ -1,0 +1,58 @@
+// W1 component set — FormControl + Bengali text treatment (UX-001 §3.2, UX-007).
+// CFM-01: tokens only. The .o_fix_text_bn rule applies the Bengali-first font
+// stack everywhere customer-facing copy renders (TR-07/DE-17); Latin glyphs
+// fall through to the Latin family inside the same stack via CSS fallback.
+.o_fix_form_control {
+    display: flex;
+    flex-direction: column;
+    gap: $dimension-space-xs;
+    font-family: $typography-font-bengali-family, $typography-font-bengali-fallback;
+
+    label {
+        font-size: $typography-size-xs;
+        color: $color-text-secondary;
+        font-weight: $typography-weight-medium;
+    }
+    input, select, textarea {
+        min-height: $dimension-target-minimum;
+        padding: $dimension-space-sm $dimension-space-md;
+        border: $dimension-border-width solid $color-border-default;
+        border-radius: $dimension-border-radius-sm;
+        background: $color-surface-primary;
+        color: $color-text-primary;
+        font-size: $typography-size-sm;
+        line-height: $typography-lineheight-normal;
+        font-family: inherit;
+
+        &:focus {
+            border-color: $color-border-focus;
+            outline: none;
+        }
+        &:disabled {
+            color: $color-text-disabled;
+            background: $color-surface-secondary;
+        }
+    }
+    .o_fix_help {
+        font-size: $typography-size-xs;
+        color: $color-text-secondary;
+    }
+    .o_fix_error {
+        font-size: $typography-size-xs;
+        color: $color-status-error;
+        font-weight: $typography-weight-medium;
+    }
+}
+
+// Bengali-first text classes (UX-007 §2): every runtime realisation applies
+// the identical stack — family token, then its fallback token.
+.o_fix_text_bn {
+    font-family: $typography-font-bengali-family, $typography-font-bengali-fallback;
+    line-height: $typography-lineheight-loose; // conjunct shaping needs the loose box
+}
+.o_fix_text_latin {
+    font-family: $typography-font-latin-family, $typography-font-latin-fallback; /* latin-utility: Latin-only contexts (codes, Latin legal names) */
+}
+.o_fix_text_mono {
+    font-family: $typography-font-mono-family; // tracking refs, IMEIs, amounts
+}

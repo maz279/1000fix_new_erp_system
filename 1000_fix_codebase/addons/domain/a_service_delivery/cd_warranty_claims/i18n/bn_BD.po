@@ -1,0 +1,60 @@
+# Bengali (Bangladesh) translation for cd_warranty_claims.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Aggregate Claim Limit"
+msgstr "সমষ্টিগত দাবি সীমা"
+
+msgid "Amounts"
+msgstr "পরিমাণসমূহ"
+
+msgid "Brand"
+msgstr "ব্র্যান্ড"
+
+msgid "Catalogue Item"
+msgstr "ক্যাটালগ আইটেম"
+
+msgid "Claim"
+msgstr "দাবি"
+
+msgid "Claim Amount"
+msgstr "দাবির পরিমাণ"
+
+msgid "Claim No."
+msgstr "দাবি নং"
+
+msgid "Claims"
+msgstr "দাবিসমূহ"
+
+msgid "Customer Excess"
+msgstr "গ্রাহক অতিরিক্ত"
+
+msgid "Document"
+msgstr "দলিল"
+
+msgid "Evidence Pack"
+msgstr "প্রমাণ প্যাক"
+
+msgid "Pack OK"
+msgstr "প্যাক সম্পূর্ণ"
+
+msgid "Protection Product"
+msgstr "সুরক্ষা পণ্য"
+
+msgid "Protection Products"
+msgstr "সুরক্ষা পণ্যসমূহ"
+
+msgid "Remitted"
+msgstr "পরিশোধিত"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Warranty"
+msgstr "ওয়ারেন্টি"

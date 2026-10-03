@@ -1,0 +1,60 @@
+# Licence classification register - machine form of D-030 (P02-M08-T04)
+# Policy (TSS 18.5 / BE-007): AGPL, BSL, TSL and fair-code components
+# REQUIRE architecture approval. This file is the pipeline gate's data: any
+# dependency whose licence matches a restricted class without an approved
+# entry below FAILS the licence stage (release profile) and the dependency
+# scan (pre-merge).
+schema: 1000fix-erp/licence-register/1
+review_cadence: annual (D-030)
+restricted_classes: [AGPL-3.0-only, AGPL-3.0-and-later, BSL, TSL, fair-code, SSPL, BUSL]
+
+components:
+  # --- replaced under D-030 (source register: docs/decisions/D-030-*) ------
+  - name: ceph
+    licence: LGPL-2.1/3
+    status: approved            # D-028 replacement for MinIO
+  - name: apache/superset
+    licence: Apache-2.0
+    status: approved            # replaces Metabase (AGPL)
+  - name: apache/airflow
+    licence: Apache-2.0
+    status: approved            # replaces n8n (fair-code); INT-047 gap ADR condition recorded
+  - name: apache/kafka
+    licence: Apache-2.0
+    status: approved            # replaces Redpanda (BSL)
+
+  # --- remaining restricted-licence components, approved WITH conditions ----
+  - name: grafana
+    licence: AGPL-3.0-and-later
+    status: approved-with-condition
+    condition: internal operational monitoring only; never a multi-tenant offering
+  - name: loki
+    licence: AGPL-3.0-and-later
+    status: approved-with-condition
+    condition: behind the trust boundary; no third-party log service
+  - name: tempo
+    licence: AGPL-3.0-and-later
+    status: approved-with-condition
+    condition: same class as Loki
+  - name: meshcentral
+    licence: Apache-2.0
+    status: approved            # preferred arm of TC-031
+  - name: rustdesk
+    licence: AGPL-3.0-and-later
+    status: approved-with-condition
+    condition: self-hosted M05 remote support only; MeshCentral preferred where choice is neutral
+  - name: timescaledb
+    licence: Apache-2.0/TSL dual
+    status: approved-with-condition
+    condition: Apache-2.0-licensed features ONLY; TSL features must never be enabled (gate-tested)
+  - name: hashicorp/vault
+    licence: BUSL-1.1
+    status: not-approved
+    condition: use OpenBao (MPL-2.0) instead - the Wave 1 pick recorded in D-030
+  - name: openbao
+    licence: MPL-2.0
+    status: approved            # TC-039 Wave 1 pick
+  - name: redis
+    licence: BSD-3-Clause (<=7.2 only)
+    status: approved-with-condition
+    condition: pinned 7.2.x pending D-031; NO 7.4+/8.x image (RSALv2/SSPL/AGPLv3 tri-licence)

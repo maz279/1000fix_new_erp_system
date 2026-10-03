@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_contact_centre views — the Contact Centre workspace (P10 console, R1 slice). -->
+<odoo>
+
+    <record id="view_fix_conversation_tree" model="ir.ui.view">
+        <field name="name">fix.conversation.tree</field>
+        <field name="model">fix.conversation</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state in ('resolved_ai', 'resolved_agent')"
+                  decoration-info="state == 'with_ai'" decoration-warning="state == 'with_agent'">
+                <field name="started_at"/>
+                <field name="channel" widget="badge"/>
+                <field name="customer_id"/>
+                <field name="contact_identity" optional="show"/>
+                <field name="intent" optional="show"/>
+                <field name="state" widget="badge"/>
+                <field name="ai_resolved" optional="hide" string="AI"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_conversation_form" model="ir.ui.view">
+        <field name="name">fix.conversation.form</field>
+        <field name="model">fix.conversation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="new,with_ai,with_agent,resolved_agent"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="channel" readonly="1"/> — <field name="started_at" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Context">
+                            <field name="customer_id"/>
+                            <field name="contact_identity"/>
+                            <field name="intent"/>
+                            <field name="handoff_reason"/>
+                        </group>
+                        <group string="Resolution">
+                            <field name="ai_resolved" readonly="1"/>
+                            <field name="ended_at" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="turn_ids">
+                        <tree editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="speaker"/>
+                            <field name="lang" optional="show"/>
+                            <field name="text"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_assistant_intent_tree" model="ir.ui.view">
+        <field name="name">fix.assistant.intent.tree</field>
+        <field name="model">fix.assistant.intent</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn"/>
+                <field name="grounding" optional="show"/>
+                <field name="handoff_on_failure"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_conversation" model="ir.actions.act_window">
+        <field name="name">Conversations</field>
+        <field name="res_model">fix.conversation</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_assistant_intent" model="ir.actions.act_window">
+        <field name="name">Assistant Intents</field>
+        <field name="res_model">fix.assistant.intent</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_ws_contact" name="Contact Centre"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="120"/>
+    <menuitem id="menu_fix_conversation" name="Conversations"
+              parent="menu_ws_contact" action="action_fix_conversation" sequence="10"/>
+    <menuitem id="menu_fix_assistant_intent" name="Assistant Intents"
+              parent="menu_ws_contact" action="action_fix_assistant_intent" sequence="20"/>
+
+</odoo>

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "1000fix-erp/fitness-result/1",
+  "title": "Normalised fitness/CI result (RN-01..RN-04, P02-M08-T10)",
+  "required": ["suite", "case", "status", "duration_ms", "verifies", "ran_at_utc"],
+  "properties": {
+    "suite": {
+      "type": "string",
+      "description": "RN-01: the emitting suite (pipeline stage or fitness check id), e.g. 'pre-merge/9-architecture' or 'FF-03'"
+    },
+    "case": {
+      "type": "string",
+      "description": "RN-02: the case within the suite (file, module, scenario)"
+    },
+    "status": { "enum": ["PASS", "FAIL", "WARN", "SKIP"] },
+    "duration_ms": { "type": "number" },
+    "verifies": {
+      "type": "string",
+      "description": "RN-04: the requirement or fitness function this case verifies - FR-*, NFR-*, AS-*, FF-*. Empty means the case verifies nothing and is itself a finding."
+    },
+    "artefacts": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "RN-03: links to outputs (report files, logs, images)"
+    },
+    "message": { "type": "string" },
+    "remedy": { "type": "string", "description": "DE-18: printed on failure" },
+    "ran_at_utc": { "type": "string", "format": "date-time" }
+  }
+}

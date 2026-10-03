@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_token_queue,fix.token.queue,model_fix_token_queue,base.group_user,1,1,1,0
+access_fix_walkin_intake,fix.walkin.intake,model_fix_walkin_intake,base.group_user,1,1,1,0
+access_fix_cash_shift,fix.cash.shift,model_fix_cash_shift,base.group_user,1,1,1,0

@@ -1,0 +1,24 @@
+# FORKS.yaml — local modifications to vendored third-party code (AS-05 / FF-03)
+#
+# AN ENTRY REQUIRES DESIGN AUTHORITY APPROVAL (AR-007 section 5.4).
+# OD-05: no OCA fork without a FORKS.yaml entry. The vendor-clean check
+# (tooling/scripts/check-vendor-clean.*) reads this file; any git diff under
+# vendor/ without a matching entry here FAILS the build.
+#
+# Entry form (all fields mandatory; approval reference must be a GV-003
+# decision id):
+#
+#   - repo: OCA/web            # or odoo for vendor/odoo
+#     path: web_responsive     # module path inside the repo; repo root allowed
+#     reason: one sentence - the defect or gap being worked around
+#     upstream: link to the PR/issue pushing the change upstream
+#     exit_plan: how the fork disappears (upstream release, internal module, removal)
+#     approved_by: DA/GV-003 decision id
+#     added_in_release: R1
+#     review_by_release: R2    # the fork is RE-REVIEWED at this release; still
+#                              # unmerged upstream with no exit in sight is an
+#                              # escalation, not a renewal
+#
+# "A fork discovered at the Odoo 20 upgrade is a rewrite" (FF-03 rationale).
+# Keep this list EMPTY.
+forks: []

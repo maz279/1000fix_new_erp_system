@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_service_order — Bengali job-card QWeb report (P04-M08-T05, TR-07).
+
+  This is the report the conjunct-shaping regression check (doctor check 10)
+  renders: its labels are the conjunct-dense subset of the bn_BD.po set
+  (কর্তনযোগ্য খরচ, ব্যবধান, ডায়াগনস্টিক পথ, অনুমোদনকারী). A font or shaping
+  regression here is caught before a Mushak 6.3 invoice goes out.
+
+  AS-09: the template only READS fields; no business logic lives in the view.
+  BN-007: identifiers (order reference, S/N) stay ASCII; the customer name
+  renders name_bn when present (DE-17). Amounts print on the estimate, not
+  the job card — the card identifies work, the estimate prices it (AS-10).
+-->
+<odoo>
+
+    <record id="paperformat_fix_jobcard" model="report.paperformat">
+        <field name="name">1000FiX Job Card (A5)</field>
+        <field name="format">A5</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">6</field>
+        <field name="margin_bottom">6</field>
+        <field name="margin_left">5</field>
+        <field name="margin_right">5</field>
+        <field name="header_spacing">4</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <record id="action_report_fix_jobcard" model="ir.actions.report">
+        <field name="name">জব কার্ড / Job Card</field>
+        <field name="model">fix.service.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_service_order.report_jobcard</field>
+        <field name="report_file">cd_service_order.report_jobcard</field>
+        <field name="paperformat_id" ref="paperformat_fix_jobcard"/>
+        <field name="binding_model_id" ref="model_fix_service_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_jobcard">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page">
+                    <div class="header">
+                        <h1>১০০০FiX — সার্ভিস জব কার্ড</h1>
+                        <div class="ref-line">
+                            <span>অর্ডার রেফারেন্স:</span>
+                            <span class="mono" t-esc="doc.name"/>
+                            <span>তারিখ:</span>
+                            <span t-field="doc.create_date" t-options='{"format": "d MMMM, y"}'/>
+                        </div>
+                    </div>
+
+                    <table class="key-value">
+                        <tr>
+                            <th>গ্রাহক</th>
+                            <td t-esc="doc.customer_id.name_bn or doc.customer_id.display_name"/>
+                        </tr>
+                        <tr>
+                            <th>ফোন</th>
+                            <td t-esc="doc.customer_phone or ''"/>
+                        </tr>
+                        <tr>
+                            <th>ডিভাইস</th>
+                            <td>
+                                <span t-esc="doc.device_id.display_name or ''"/>
+                                <span class="mono" t-esc="doc.device_serial or ''"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>শাখা</th>
+                            <td t-esc="doc.branch_id.name_bn or doc.branch_id.display_name or ''"/>
+                        </tr>
+                        <tr t-if="doc.technician_id">
+                            <th>নিয়োজিত টেকনিশিয়ান</th>
+                            <td t-field="doc.technician_id.name"/>
+                        </tr>
+                        <tr>
+                            <th>ত্রুটির বিবরণ</th>
+                            <td t-field="doc.fault_description"/>
+                        </tr>
+                        <tr t-if="doc.legacy_reference">
+                            <th>লিগ্যাসি রেফারেন্স</th>
+                            <td class="mono" t-esc="doc.legacy_reference"/>
+                        </tr>
+                    </table>
+
+                    <div class="signatures">
+                        <div class="sig">গ্রাহকের স্বাক্ষর: ...............................</div>
+                        <div class="sig">কর্তৃপক্ষের স্বাক্ষর: ...............................</div>
+                    </div>
+
+                    <div class="footer">
+                        হটলাইন ১৬৭৪৩ · 1000fix.com
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+</odoo>

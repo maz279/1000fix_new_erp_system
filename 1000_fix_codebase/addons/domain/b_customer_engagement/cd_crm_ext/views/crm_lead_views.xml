@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_crm_ext — lead views (P04-M06 W1 workspace skeleton).
+  The party-kernel link is the point: a lead resolves to ONE res.partner with
+  a customer role (M33), never a free-text name. AS-09: conversion logic is a
+  model method (action_convert_to_service_order), never a view button with
+  side effects in attrs.
+-->
+<odoo>
+
+    <record id="crm_lead_view_form_fix" model="ir.ui.view">
+        <field name="name">crm.lead.form.fix.party.link</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[1]" position="inside">
+                <group string="Party Kernel (M33)">
+                    <field name="party_role_id"/>
+                    <field name="linked_partner_id"/>
+                    <field name="converted_service_order_id" readonly="1"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="crm_lead_view_tree_fix" model="ir.ui.view">
+        <field name="name">crm.lead.tree.fix.party.link</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//tree" position="inside">
+                <field name="linked_partner_id" optional="show"/>
+                <field name="converted_service_order_id" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem id="menu_fix_crm" name="Leads"
+              parent="cd_party_master.menu_fix_party_root"
+              action="crm.crm_lead_action_pipeline" sequence="40"/>
+
+</odoo>

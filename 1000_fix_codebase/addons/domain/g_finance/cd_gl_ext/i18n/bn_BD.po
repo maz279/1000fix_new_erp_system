@@ -1,0 +1,75 @@
+# Bengali (Bangladesh) translation for cd_gl_ext.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Asset Category"
+msgstr "সম্পদের শ্রেণি"
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Capitalisation Reference"
+msgstr "মূলধনীকরণ রেফারেন্স"
+
+msgid "Capitalised Amount"
+msgstr "মূলধনীকৃত পরিমাণ"
+
+msgid "Close Duration (days)"
+msgstr "সমাপ্তি সময় (দিন)"
+
+msgid "Close Steps"
+msgstr "সমাপ্তি ধাপসমূহ"
+
+msgid "Company"
+msgstr "কোম্পানি"
+
+msgid "Cost Centre"
+msgstr "খরচ কেন্দ্র"
+
+msgid "Evidence Reference"
+msgstr "প্রমাণের রেফারেন্স"
+
+msgid "Finance"
+msgstr "ফাইন্যান্স"
+
+msgid "Fixed Asset Seam"
+msgstr "স্থায়ী সম্পদ সংযোগ"
+
+msgid "Journal Item"
+msgstr "জার্নাল আইটেম"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Owning Role"
+msgstr "দায়িত্বপ্রাপ্ত ভূমিকা"
+
+msgid "Period"
+msgstr "পর্যায়"
+
+msgid "Period Close"
+msgstr "পর্যায় সমাপ্তি"
+
+msgid "Period End"
+msgstr "পর্যায় সমাপ্তি"
+
+msgid "Step"
+msgstr "ধাপ"
+
+msgid "Suspense (AR-006 section 5.4)"
+msgstr "সাসপেন্স (AR-006)"
+
+msgid "Suspense Closing"
+msgstr "সাসপেন্স শেষ"
+
+msgid "Suspense Opening"
+msgstr "সাসপেন্স শুরু"
+
+msgid "Target Day"
+msgstr "লক্ষ্য দিন"

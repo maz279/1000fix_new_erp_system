@@ -1,0 +1,3659 @@
+{
+ "root": "D:\\sofrware_project_5\\1000 fix\\1000fix_new_erp_system\\marketing\\ERP_Guide_Book_Library",
+ "coverage": [],
+ "documents": [
+  {
+   "file": "00_Start_Here/GB-000_ERP_Guide_Book_Library_Master_Index.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3187,
+     "Consolas": 353
+    },
+    "sizes": {
+     "7.0": 246,
+     "7.5": 677,
+     "8.0": 10,
+     "8.5": 445,
+     "9.0": 229,
+     "9.5": 1776,
+     "10.0": 6,
+     "11.0": 18,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 60,
+     "16.0": 63,
+     "21.0": 6,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 37,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 73,
+    "headings": 53,
+    "paragraphs": 221,
+    "chars": 49244,
+    "prose_blocks": 2935
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/CAT-A_Service_Delivery_and_Operations_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 4066,
+     "Consolas": 793
+    },
+    "sizes": {
+     "7.0": 69,
+     "7.5": 73,
+     "8.0": 2,
+     "8.5": 760,
+     "9.0": 264,
+     "9.5": 3568,
+     "10.0": 6,
+     "11.0": 35,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 32,
+     "16.0": 40,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 70,
+    "headings": 55,
+    "paragraphs": 219,
+    "chars": 73688,
+    "prose_blocks": 3715
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M01_Service_Request_and_Order_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2898,
+     "Consolas": 611
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 95,
+     "8.0": 4,
+     "8.5": 446,
+     "9.0": 439,
+     "9.5": 2326,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 108,
+    "headings": 78,
+    "paragraphs": 343,
+    "chars": 85594,
+    "prose_blocks": 2422,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M02_Field_Service_and_Dispatch_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2733,
+     "Consolas": 535
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 90,
+     "8.0": 4,
+     "8.5": 421,
+     "9.0": 383,
+     "9.5": 2173,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 106,
+    "headings": 76,
+    "paragraphs": 342,
+    "chars": 80461,
+    "prose_blocks": 2304,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M03_Service_Logistics_and_Reverse_Logistics_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2360,
+     "Consolas": 417
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 84,
+     "8.0": 4,
+     "8.5": 368,
+     "9.0": 315,
+     "9.5": 1810,
+     "10.0": 6,
+     "11.0": 45,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 101,
+    "headings": 75,
+    "paragraphs": 332,
+    "chars": 74044,
+    "prose_blocks": 2038,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M04_Branch_and_Front-Desk_Operations_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2330,
+     "Consolas": 408
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 86,
+     "8.0": 4,
+     "8.5": 350,
+     "9.0": 320,
+     "9.5": 1781,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 106,
+    "headings": 76,
+    "paragraphs": 341,
+    "chars": 72723,
+    "prose_blocks": 1930,
+    "source_tables": 31
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M05_Remote_Support_and_Managed_Services_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2557,
+     "Consolas": 502
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 95,
+     "8.0": 4,
+     "8.5": 415,
+     "9.0": 350,
+     "9.5": 1995,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 104,
+    "headings": 79,
+    "paragraphs": 342,
+    "chars": 79130,
+    "prose_blocks": 2214,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M06_Data_Services_and_Secure_Data_Handling_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2339,
+     "Consolas": 410
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 85,
+     "8.0": 4,
+     "8.5": 354,
+     "9.0": 312,
+     "9.5": 1797,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 101,
+    "headings": 76,
+    "paragraphs": 338,
+    "chars": 78507,
+    "prose_blocks": 1957,
+    "source_tables": 32
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/A_Service_Delivery_and_Operations/M31_Workshop_and_Depot_Repair_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2508,
+     "Consolas": 471
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 99,
+     "8.0": 9,
+     "8.5": 384,
+     "9.0": 346,
+     "9.5": 1944,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 105,
+    "headings": 76,
+    "paragraphs": 344,
+    "chars": 77728,
+    "prose_blocks": 2102,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/CAT-B_Customer_Engagement_and_Experience_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3858,
+     "Consolas": 715
+    },
+    "sizes": {
+     "7.0": 69,
+     "7.5": 80,
+     "8.0": 10,
+     "8.5": 754,
+     "9.0": 230,
+     "9.5": 3307,
+     "10.0": 6,
+     "11.0": 35,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 32,
+     "16.0": 40,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 69,
+    "headings": 55,
+    "paragraphs": 220,
+    "chars": 71007,
+    "prose_blocks": 3553
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M07_CRM_Sales_Pipeline_and_Account_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2446,
+     "Consolas": 455
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 97,
+     "8.0": 4,
+     "8.5": 369,
+     "9.0": 350,
+     "9.5": 1881,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 107,
+    "headings": 79,
+    "paragraphs": 345,
+    "chars": 74853,
+    "prose_blocks": 2081,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M10_Loyalty_Membership_and_Rewards_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2412,
+     "Consolas": 430
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 81,
+     "8.0": 4,
+     "8.5": 359,
+     "9.0": 341,
+     "9.5": 1858,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 107,
+    "headings": 78,
+    "paragraphs": 342,
+    "chars": 75252,
+    "prose_blocks": 2025,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M27_Omnichannel_Contact_Centre_and_Communications_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2622,
+     "Consolas": 510
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 109,
+     "8.0": 4,
+     "8.5": 407,
+     "9.0": 349,
+     "9.5": 2065,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 105,
+    "headings": 77,
+    "paragraphs": 343,
+    "chars": 79413,
+    "prose_blocks": 2214,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M32_Conversational_AI_and_Virtual_Assistant_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2337,
+     "Consolas": 433
+    },
+    "sizes": {
+     "7.0": 88,
+     "7.5": 68,
+     "8.0": 4,
+     "8.5": 349,
+     "9.0": 320,
+     "9.5": 1784,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 106,
+    "headings": 78,
+    "paragraphs": 344,
+    "chars": 75013,
+    "prose_blocks": 1915,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M33_Customer_and_Party_Master_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2670,
+     "Consolas": 520
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 107,
+     "8.0": 4,
+     "8.5": 400,
+     "9.0": 368,
+     "9.5": 2110,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 107,
+    "headings": 79,
+    "paragraphs": 347,
+    "chars": 86227,
+    "prose_blocks": 2235,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M34_Customer_Experience_Feedback_and_Complaints_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2461,
+     "Consolas": 485
+    },
+    "sizes": {
+     "7.0": 87,
+     "7.5": 75,
+     "8.0": 4,
+     "8.5": 370,
+     "9.0": 346,
+     "9.5": 1909,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 105,
+    "headings": 76,
+    "paragraphs": 342,
+    "chars": 75945,
+    "prose_blocks": 2025,
+    "source_tables": 32
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/B_Customer_Engagement_and_Experience/M35_Marketing_Campaigns_and_Demand_Generation_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2381,
+     "Consolas": 441
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 88,
+     "8.0": 4,
+     "8.5": 354,
+     "9.0": 342,
+     "9.5": 1836,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 103,
+    "headings": 77,
+    "paragraphs": 339,
+    "chars": 73051,
+    "prose_blocks": 1967,
+    "source_tables": 32
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/CAT-C_Commercial_Pricing_and_Revenue_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 5659,
+     "Consolas": 1041
+    },
+    "sizes": {
+     "7.0": 83,
+     "7.5": 112,
+     "8.0": 2,
+     "8.5": 1012,
+     "9.0": 247,
+     "9.5": 5098,
+     "10.0": 6,
+     "11.0": 44,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 36,
+     "16.0": 50,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 80,
+    "headings": 66,
+    "paragraphs": 249,
+    "chars": 117269,
+    "prose_blocks": 5168
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M08_Contract_Lifecycle_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2949,
+     "Consolas": 573
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 87,
+     "8.0": 4,
+     "8.5": 447,
+     "9.0": 398,
+     "9.5": 2388,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 103,
+    "headings": 77,
+    "paragraphs": 344,
+    "chars": 95508,
+    "prose_blocks": 2485,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M09_Warranty_Protection_Plans_and_Claims_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2999,
+     "Consolas": 592
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 104,
+     "8.0": 4,
+     "8.5": 457,
+     "9.0": 387,
+     "9.5": 2439,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 104,
+    "headings": 79,
+    "paragraphs": 350,
+    "chars": 96842,
+    "prose_blocks": 2503,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M11_Pricing_Rate_Cards_and_Dynamic_Pricing_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2773,
+     "Consolas": 513
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 68,
+     "8.0": 4,
+     "8.5": 418,
+     "9.0": 385,
+     "9.5": 2211,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 105,
+    "headings": 78,
+    "paragraphs": 348,
+    "chars": 89894,
+    "prose_blocks": 2299,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M12_Marketplace_and_Seller_Ecosystem_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3071,
+     "Consolas": 605
+    },
+    "sizes": {
+     "7.0": 44,
+     "7.5": 90,
+     "8.0": 4,
+     "8.5": 489,
+     "9.0": 393,
+     "9.5": 2495,
+     "10.0": 6,
+     "11.0": 52,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 82,
+    "paragraphs": 357,
+    "chars": 99612,
+    "prose_blocks": 2610,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M36_Quotation_Estimation_and_Tender_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2711,
+     "Consolas": 516
+    },
+    "sizes": {
+     "7.0": 81,
+     "7.5": 44,
+     "8.0": 4,
+     "8.5": 411,
+     "9.0": 377,
+     "9.5": 2153,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 103,
+    "headings": 78,
+    "paragraphs": 347,
+    "chars": 87253,
+    "prose_blocks": 2256,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M37_Product_and_Service_Catalogue_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2806,
+     "Consolas": 522
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 70,
+     "8.0": 4,
+     "8.5": 413,
+     "9.0": 403,
+     "9.5": 2240,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 108,
+    "headings": 77,
+    "paragraphs": 349,
+    "chars": 93585,
+    "prose_blocks": 2307,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M38_E-Commerce_and_Digital_Storefront_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2883,
+     "Consolas": 525
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 86,
+     "8.0": 4,
+     "8.5": 435,
+     "9.0": 360,
+     "9.5": 2324,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 104,
+    "headings": 78,
+    "paragraphs": 348,
+    "chars": 91580,
+    "prose_blocks": 2427,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M39_Subscription_and_Recurring_Revenue_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2642,
+     "Consolas": 495
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 81,
+     "8.0": 4,
+     "8.5": 391,
+     "9.0": 373,
+     "9.5": 2091,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 104,
+    "headings": 76,
+    "paragraphs": 343,
+    "chars": 85221,
+    "prose_blocks": 2184,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/C_Commercial_Pricing_and_Revenue/M40_Partner_Channel_Alliance_and_Franchise_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2805,
+     "Consolas": 523
+    },
+    "sizes": {
+     "7.0": 50,
+     "7.5": 84,
+     "8.0": 9,
+     "8.5": 408,
+     "9.0": 375,
+     "9.5": 2245,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 104,
+    "headings": 78,
+    "paragraphs": 354,
+    "chars": 91825,
+    "prose_blocks": 2308,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/D_Circular_and_Asset_Based_Business/CAT-D_Circular_and_Asset-Based_Business_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2118,
+     "Consolas": 359
+    },
+    "sizes": {
+     "7.0": 41,
+     "7.5": 69,
+     "8.0": 2,
+     "8.5": 388,
+     "9.0": 140,
+     "9.5": 1755,
+     "10.0": 6,
+     "11.0": 22,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 24,
+     "16.0": 20,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 49,
+    "headings": 38,
+    "paragraphs": 167,
+    "chars": 52247,
+    "prose_blocks": 1861
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/D_Circular_and_Asset_Based_Business/M13_Rental_and_Equipment-as-a-Service_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2829,
+     "Consolas": 533
+    },
+    "sizes": {
+     "7.0": 61,
+     "7.5": 94,
+     "8.0": 15,
+     "8.5": 413,
+     "9.0": 367,
+     "9.5": 2254,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 109,
+    "headings": 79,
+    "paragraphs": 362,
+    "chars": 99719,
+    "prose_blocks": 2367,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/D_Circular_and_Asset_Based_Business/M14_Trade-In_Refurbishment_and_Resale_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2870,
+     "Consolas": 530
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 103,
+     "8.0": 17,
+     "8.5": 413,
+     "9.0": 376,
+     "9.5": 2292,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 109,
+    "headings": 78,
+    "paragraphs": 365,
+    "chars": 100262,
+    "prose_blocks": 2370,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/D_Circular_and_Asset_Based_Business/M18_E-Waste_Recycling_and_Circular_Economy_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2638,
+     "Consolas": 470
+    },
+    "sizes": {
+     "7.0": 94,
+     "7.5": 53,
+     "8.0": 16,
+     "8.5": 375,
+     "9.0": 349,
+     "9.5": 2065,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 108,
+    "headings": 77,
+    "paragraphs": 363,
+    "chars": 96898,
+    "prose_blocks": 2149,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/CAT-E_Supply_Chain_and_Inventory_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3811,
+     "Consolas": 656
+    },
+    "sizes": {
+     "7.0": 62,
+     "7.5": 63,
+     "8.0": 2,
+     "8.5": 659,
+     "9.0": 221,
+     "9.5": 3348,
+     "10.0": 6,
+     "11.0": 31,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 30,
+     "16.0": 35,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 63,
+    "headings": 50,
+    "paragraphs": 205,
+    "chars": 91870,
+    "prose_blocks": 3384
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M15_Spare_Parts_and_Inventory_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3171,
+     "Consolas": 622
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 96,
+     "8.0": 8,
+     "8.5": 458,
+     "9.0": 452,
+     "9.5": 2578,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 117,
+    "headings": 80,
+    "paragraphs": 364,
+    "chars": 105960,
+    "prose_blocks": 2621,
+    "source_tables": 38
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M16_Procurement_and_Strategic_Sourcing_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2833,
+     "Consolas": 590
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 135,
+     "8.0": 9,
+     "8.5": 402,
+     "9.0": 409,
+     "9.5": 2270,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 110,
+    "headings": 77,
+    "paragraphs": 355,
+    "chars": 95209,
+    "prose_blocks": 2291,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M41_Warehouse_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2688,
+     "Consolas": 526
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 106,
+     "8.0": 7,
+     "8.5": 400,
+     "9.0": 384,
+     "9.5": 2119,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 77,
+    "paragraphs": 353,
+    "chars": 91011,
+    "prose_blocks": 2225,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M42_Supplier_Relationship_and_Performance_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2803,
+     "Consolas": 552
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 112,
+     "8.0": 30,
+     "8.5": 401,
+     "9.0": 407,
+     "9.5": 2206,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 359,
+    "chars": 97498,
+    "prose_blocks": 2230,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M43_Demand_Planning_and_Replenishment_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2623,
+     "Consolas": 506
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 112,
+     "8.0": 7,
+     "8.5": 382,
+     "9.0": 369,
+     "9.5": 2061,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 77,
+    "paragraphs": 355,
+    "chars": 96358,
+    "prose_blocks": 2124,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/E_Supply_Chain_and_Inventory/M44_Import_Trade_Compliance_and_Landed_Cost_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2847,
+     "Consolas": 584
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 132,
+     "8.0": 8,
+     "8.5": 405,
+     "9.0": 420,
+     "9.5": 2266,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 79,
+    "paragraphs": 362,
+    "chars": 104641,
+    "prose_blocks": 2259,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/CAT-F_Asset_Equipment_and_Facilities_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3577,
+     "Consolas": 612
+    },
+    "sizes": {
+     "7.0": 55,
+     "7.5": 54,
+     "8.0": 2,
+     "8.5": 611,
+     "9.0": 222,
+     "9.5": 3143,
+     "10.0": 6,
+     "11.0": 28,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 28,
+     "16.0": 30,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 59,
+    "headings": 46,
+    "paragraphs": 193,
+    "chars": 93568,
+    "prose_blocks": 3169
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/M17_Device_and_Customer_Asset_Registry_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3363,
+     "Consolas": 692
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 112,
+     "8.0": 8,
+     "8.5": 472,
+     "9.0": 492,
+     "9.5": 2770,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 118,
+    "headings": 80,
+    "paragraphs": 370,
+    "chars": 119991,
+    "prose_blocks": 2726,
+    "source_tables": 38
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/M45_Enterprise_Asset_and_Test_Equipment_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3078,
+     "Consolas": 603
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 111,
+     "8.0": 8,
+     "8.5": 436,
+     "9.0": 427,
+     "9.5": 2500,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 78,
+    "paragraphs": 363,
+    "chars": 112412,
+    "prose_blocks": 2495,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/M46_Fleet_and_Vehicle_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3032,
+     "Consolas": 597
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 89,
+     "8.0": 8,
+     "8.5": 434,
+     "9.0": 446,
+     "9.5": 2453,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 114,
+    "headings": 78,
+    "paragraphs": 363,
+    "chars": 110326,
+    "prose_blocks": 2467,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/M47_Facility_Branch_Infrastructure_and_Workplace_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3085,
+     "Consolas": 608
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 95,
+     "8.0": 8,
+     "8.5": 430,
+     "9.0": 456,
+     "9.5": 2505,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 115,
+    "headings": 78,
+    "paragraphs": 365,
+    "chars": 117748,
+    "prose_blocks": 2499,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/F_Asset_Equipment_and_Facilities/M48_IoT_Telemetry_and_Predictive_Maintenance_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3143,
+     "Consolas": 598
+    },
+    "sizes": {
+     "7.0": 71,
+     "7.5": 72,
+     "8.0": 8,
+     "8.5": 448,
+     "9.0": 418,
+     "9.5": 2567,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 115,
+    "headings": 78,
+    "paragraphs": 368,
+    "chars": 114738,
+    "prose_blocks": 2499,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/CAT-G_Finance_and_Treasury_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 5301,
+     "Consolas": 964
+    },
+    "sizes": {
+     "7.0": 98,
+     "7.5": 82,
+     "8.0": 2,
+     "8.5": 873,
+     "9.0": 298,
+     "9.5": 4779,
+     "10.0": 6,
+     "11.0": 38,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 34,
+     "16.0": 45,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 74,
+    "headings": 59,
+    "paragraphs": 233,
+    "chars": 133724,
+    "prose_blocks": 4746
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M19_Financial_Accounting_and_General_Ledger_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3133,
+     "Consolas": 626
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 89,
+     "8.0": 9,
+     "8.5": 437,
+     "9.0": 476,
+     "9.5": 2548,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 114,
+    "headings": 79,
+    "paragraphs": 361,
+    "chars": 106241,
+    "prose_blocks": 2520,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M20_Accounts_Receivable_Invoicing_and_Collections_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3252,
+     "Consolas": 647
+    },
+    "sizes": {
+     "7.0": 60,
+     "7.5": 84,
+     "8.0": 10,
+     "8.5": 459,
+     "9.0": 461,
+     "9.5": 2667,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 114,
+    "headings": 79,
+    "paragraphs": 365,
+    "chars": 114314,
+    "prose_blocks": 2688,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M49_Fixed_Assets_and_Capital_Investment_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2935,
+     "Consolas": 600
+    },
+    "sizes": {
+     "7.0": 72,
+     "7.5": 86,
+     "8.0": 10,
+     "8.5": 417,
+     "9.0": 428,
+     "9.5": 2366,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 111,
+    "headings": 77,
+    "paragraphs": 358,
+    "chars": 104833,
+    "prose_blocks": 2385,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M50_Treasury_Cash_and_Banking_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3188,
+     "Consolas": 685
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 112,
+     "8.0": 11,
+     "8.5": 452,
+     "9.0": 495,
+     "9.5": 2603,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 79,
+    "paragraphs": 365,
+    "chars": 113478,
+    "prose_blocks": 2615,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M51_Tax_and_Regulatory_Compliance_Bangladesh_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3238,
+     "Consolas": 674
+    },
+    "sizes": {
+     "7.0": 81,
+     "7.5": 81,
+     "8.0": 9,
+     "8.5": 450,
+     "9.0": 469,
+     "9.5": 2665,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 114,
+    "headings": 78,
+    "paragraphs": 361,
+    "chars": 116382,
+    "prose_blocks": 2596,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M52_Accounts_Payable_and_Employee_Expense_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3078,
+     "Consolas": 637
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 120,
+     "8.0": 11,
+     "8.5": 434,
+     "9.0": 452,
+     "9.5": 2499,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 360,
+    "chars": 109400,
+    "prose_blocks": 2514,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M53_Revenue_Recognition_Commission_and_Settlement_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3165,
+     "Consolas": 659
+    },
+    "sizes": {
+     "7.0": 122,
+     "7.5": 46,
+     "8.0": 10,
+     "8.5": 441,
+     "9.0": 451,
+     "9.5": 2597,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 111,
+    "headings": 77,
+    "paragraphs": 357,
+    "chars": 115022,
+    "prose_blocks": 2603,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/G_Finance_and_Treasury/M54_Cost_Accounting_Budgeting_and_FPandA_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3151,
+     "Consolas": 659
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 123,
+     "8.0": 9,
+     "8.5": 435,
+     "9.0": 470,
+     "9.5": 2574,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 363,
+    "chars": 112060,
+    "prose_blocks": 2555,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/CAT-H_People_and_Workforce_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 4354,
+     "Consolas": 802
+    },
+    "sizes": {
+     "7.0": 69,
+     "7.5": 85,
+     "8.0": 10,
+     "8.5": 784,
+     "9.0": 295,
+     "9.5": 3788,
+     "10.0": 6,
+     "11.0": 37,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 32,
+     "16.0": 40,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 76,
+    "headings": 57,
+    "paragraphs": 232,
+    "chars": 81709,
+    "prose_blocks": 3832
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M21_Core_HR_and_Employee_Lifecycle_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2441,
+     "Consolas": 455
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 88,
+     "8.0": 4,
+     "8.5": 371,
+     "9.0": 346,
+     "9.5": 1889,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 104,
+    "headings": 77,
+    "paragraphs": 341,
+    "chars": 75057,
+    "prose_blocks": 2010,
+    "source_tables": 32
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M22_Learning_Competency_and_Certification_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2481,
+     "Consolas": 476
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 98,
+     "8.0": 4,
+     "8.5": 368,
+     "9.0": 361,
+     "9.5": 1929,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 107,
+    "headings": 76,
+    "paragraphs": 343,
+    "chars": 76021,
+    "prose_blocks": 2014,
+    "source_tables": 32
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M55_Time_Attendance_and_Workforce_Scheduling_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2595,
+     "Consolas": 502
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 107,
+     "8.0": 6,
+     "8.5": 395,
+     "9.0": 357,
+     "9.5": 2032,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 107,
+    "headings": 79,
+    "paragraphs": 350,
+    "chars": 79748,
+    "prose_blocks": 2130,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M56_Payroll_Benefits_and_Statutory_Compliance_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2678,
+     "Consolas": 536
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 116,
+     "8.0": 4,
+     "8.5": 409,
+     "9.0": 369,
+     "9.5": 2117,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 107,
+    "headings": 78,
+    "paragraphs": 347,
+    "chars": 80295,
+    "prose_blocks": 2176,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M57_Performance_Incentives_and_Compensation_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2423,
+     "Consolas": 457
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 85,
+     "8.0": 4,
+     "8.5": 370,
+     "9.0": 355,
+     "9.5": 1868,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 106,
+    "headings": 77,
+    "paragraphs": 343,
+    "chars": 74273,
+    "prose_blocks": 2001,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M58_Talent_Acquisition_and_Onboarding_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2346,
+     "Consolas": 441
+    },
+    "sizes": {
+     "7.0": 50,
+     "7.5": 89,
+     "8.0": 4,
+     "8.5": 350,
+     "9.0": 334,
+     "9.5": 1805,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 104,
+    "headings": 76,
+    "paragraphs": 336,
+    "chars": 71902,
+    "prose_blocks": 1923,
+    "source_tables": 31
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/H_People_and_Workforce/M59_Health_Safety_and_Wellbeing_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2572,
+     "Consolas": 502
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 103,
+     "8.0": 4,
+     "8.5": 388,
+     "9.0": 365,
+     "9.5": 2017,
+     "10.0": 6,
+     "11.0": 46,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 106,
+    "headings": 76,
+    "paragraphs": 341,
+    "chars": 81688,
+    "prose_blocks": 2101,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/I_Governance_Risk_Quality_and_Knowledge/CAT-I_Governance_Risk_Quality_and_Knowledge_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2897,
+     "Consolas": 447
+    },
+    "sizes": {
+     "7.0": 48,
+     "7.5": 45,
+     "8.0": 2,
+     "8.5": 492,
+     "9.0": 171,
+     "9.5": 2493,
+     "10.0": 6,
+     "11.0": 26,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 26,
+     "16.0": 25,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 54,
+    "headings": 43,
+    "paragraphs": 186,
+    "chars": 66990,
+    "prose_blocks": 2527
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/I_Governance_Risk_Quality_and_Knowledge/M23_Quality_Management_System_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2942,
+     "Consolas": 572
+    },
+    "sizes": {
+     "7.0": 64,
+     "7.5": 76,
+     "8.0": 4,
+     "8.5": 426,
+     "9.0": 409,
+     "9.5": 2377,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 79,
+    "paragraphs": 355,
+    "chars": 98626,
+    "prose_blocks": 2400,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/I_Governance_Risk_Quality_and_Knowledge/M24_Document_Records_and_E-Signature_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2962,
+     "Consolas": 557
+    },
+    "sizes": {
+     "7.0": 47,
+     "7.5": 90,
+     "8.0": 4,
+     "8.5": 424,
+     "9.0": 396,
+     "9.5": 2401,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 110,
+    "headings": 78,
+    "paragraphs": 356,
+    "chars": 99556,
+    "prose_blocks": 2391,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/I_Governance_Risk_Quality_and_Knowledge/M60_Governance_Risk_and_Compliance_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2979,
+     "Consolas": 611
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 103,
+     "8.0": 16,
+     "8.5": 420,
+     "9.0": 445,
+     "9.5": 2407,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 78,
+    "paragraphs": 368,
+    "chars": 97874,
+    "prose_blocks": 2366,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/I_Governance_Risk_Quality_and_Knowledge/M61_Knowledge_Management_and_Technical_Library_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2705,
+     "Consolas": 497
+    },
+    "sizes": {
+     "7.0": 88,
+     "7.5": 43,
+     "8.0": 4,
+     "8.5": 386,
+     "9.0": 376,
+     "9.5": 2149,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 106,
+    "headings": 77,
+    "paragraphs": 353,
+    "chars": 94394,
+    "prose_blocks": 2200,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/J_Data_Analytics_and_Intelligence/CAT-J_Data_Analytics_and_Intelligence_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2667,
+     "Consolas": 417
+    },
+    "sizes": {
+     "7.0": 48,
+     "7.5": 47,
+     "8.0": 2,
+     "8.5": 465,
+     "9.0": 168,
+     "9.5": 2260,
+     "10.0": 6,
+     "11.0": 27,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 26,
+     "16.0": 25,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 55,
+    "headings": 44,
+    "paragraphs": 189,
+    "chars": 68775,
+    "prose_blocks": 2368
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/J_Data_Analytics_and_Intelligence/M25_Business_Intelligence_and_Reporting_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2653,
+     "Consolas": 455
+    },
+    "sizes": {
+     "7.0": 60,
+     "7.5": 58,
+     "8.0": 9,
+     "8.5": 383,
+     "9.0": 365,
+     "9.5": 2075,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 79,
+    "paragraphs": 363,
+    "chars": 89309,
+    "prose_blocks": 2124,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/J_Data_Analytics_and_Intelligence/M26_AI_ML_Services_and_Model_Operations_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3090,
+     "Consolas": 598
+    },
+    "sizes": {
+     "7.0": 96,
+     "7.5": 83,
+     "8.0": 16,
+     "8.5": 444,
+     "9.0": 386,
+     "9.5": 2503,
+     "10.0": 6,
+     "11.0": 51,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 110,
+    "headings": 81,
+    "paragraphs": 372,
+    "chars": 109464,
+    "prose_blocks": 2480,
+    "source_tables": 38
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/J_Data_Analytics_and_Intelligence/M62_Data_Platform_Warehouse_and_Governance_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2792,
+     "Consolas": 523
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 106,
+     "8.0": 11,
+     "8.5": 405,
+     "9.0": 387,
+     "9.5": 2204,
+     "10.0": 6,
+     "11.0": 51,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 111,
+    "headings": 81,
+    "paragraphs": 368,
+    "chars": 98861,
+    "prose_blocks": 2247,
+    "source_tables": 38
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/J_Data_Analytics_and_Intelligence/M63_Process_Automation_and_Workflow_Orchestration_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2757,
+     "Consolas": 526
+    },
+    "sizes": {
+     "7.0": 62,
+     "7.5": 107,
+     "8.0": 9,
+     "8.5": 396,
+     "9.0": 369,
+     "9.5": 2182,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 110,
+    "headings": 79,
+    "paragraphs": 364,
+    "chars": 98547,
+    "prose_blocks": 2169,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/CAT-K_Platform_and_Technology_Category_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 4560,
+     "Consolas": 818
+    },
+    "sizes": {
+     "7.0": 69,
+     "7.5": 72,
+     "8.0": 2,
+     "8.5": 767,
+     "9.0": 294,
+     "9.5": 4049,
+     "10.0": 6,
+     "11.0": 37,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 32,
+     "16.0": 40,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 22,
+    "headers": 2,
+    "footers": 2,
+    "images": 9,
+    "tables": 72,
+    "headings": 57,
+    "paragraphs": 234,
+    "chars": 108766,
+    "prose_blocks": 3981
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M28_Integration_API_and_Event_Platform_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2925,
+     "Consolas": 647
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 113,
+     "8.0": 7,
+     "8.5": 450,
+     "9.0": 456,
+     "9.5": 2345,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 80,
+    "paragraphs": 361,
+    "chars": 92548,
+    "prose_blocks": 2300,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M29_Identity_Access_and_Information_Security_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3174,
+     "Consolas": 700
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 143,
+     "8.0": 9,
+     "8.5": 464,
+     "9.0": 465,
+     "9.5": 2592,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 114,
+    "headings": 80,
+    "paragraphs": 365,
+    "chars": 99554,
+    "prose_blocks": 2466,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M30_Platform_Administration_and_Configuration_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3006,
+     "Consolas": 658
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 138,
+     "8.0": 9,
+     "8.5": 427,
+     "9.0": 462,
+     "9.5": 2428,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 79,
+    "paragraphs": 362,
+    "chars": 97632,
+    "prose_blocks": 2345,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M64_Master_Data_Management_and_Configuration_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2897,
+     "Consolas": 614
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 144,
+     "8.0": 9,
+     "8.5": 407,
+     "9.0": 427,
+     "9.5": 2325,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 360,
+    "chars": 99039,
+    "prose_blocks": 2245,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M65_Multi-Entity_Multi-Country_and_Localisation_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3082,
+     "Consolas": 671
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 131,
+     "8.0": 9,
+     "8.5": 414,
+     "9.0": 488,
+     "9.5": 2512,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 114,
+    "headings": 78,
+    "paragraphs": 362,
+    "chars": 98234,
+    "prose_blocks": 2274,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M66_Internal_IT_Service_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2972,
+     "Consolas": 678
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 202,
+     "8.0": 9,
+     "8.5": 409,
+     "9.0": 435,
+     "9.5": 2395,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 116,
+    "headings": 79,
+    "paragraphs": 365,
+    "chars": 99220,
+    "prose_blocks": 2296,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "01_Modules/K_Platform_and_Technology/M67_Project_Program_and_Portfolio_Management_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 3024,
+     "Consolas": 634
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 146,
+     "8.0": 9,
+     "8.5": 418,
+     "9.0": 436,
+     "9.5": 2450,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 78,
+    "paragraphs": 360,
+    "chars": 100700,
+    "prose_blocks": 2367,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P01_Customer_Self-Service_Portal_and_Mobile_Application_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2944,
+     "Consolas": 494
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 93,
+     "8.0": 4,
+     "8.5": 429,
+     "9.0": 352,
+     "9.5": 2359,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 119,
+    "headings": 80,
+    "paragraphs": 364,
+    "chars": 93424,
+    "prose_blocks": 2401,
+    "source_tables": 38
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P02_Technician_Mobile_Application_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2858,
+     "Consolas": 523
+    },
+    "sizes": {
+     "7.0": 80,
+     "7.5": 96,
+     "8.0": 4,
+     "8.5": 417,
+     "9.0": 347,
+     "9.5": 2278,
+     "10.0": 6,
+     "11.0": 50,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 117,
+    "headings": 80,
+    "paragraphs": 362,
+    "chars": 93310,
+    "prose_blocks": 2315,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P03_Admin_Operations_Portal_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2758,
+     "Consolas": 444
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 93,
+     "8.0": 4,
+     "8.5": 413,
+     "9.0": 287,
+     "9.5": 2206,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 356,
+    "chars": 87424,
+    "prose_blocks": 2262,
+    "source_tables": 34
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P04_Corporate_B2B_Portal_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2497,
+     "Consolas": 440
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 102,
+     "8.0": 4,
+     "8.5": 379,
+     "9.0": 319,
+     "9.5": 1934,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 109,
+    "headings": 78,
+    "paragraphs": 350,
+    "chars": 80951,
+    "prose_blocks": 2043,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P05_Vendor_and_Supplier_Portal_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2447,
+     "Consolas": 402
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 96,
+     "8.0": 4,
+     "8.5": 353,
+     "9.0": 316,
+     "9.5": 1880,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 113,
+    "headings": 79,
+    "paragraphs": 354,
+    "chars": 80792,
+    "prose_blocks": 1990,
+    "source_tables": 37
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P06_Analytics_and_Executive_Dashboard_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2395,
+     "Consolas": 402
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 97,
+     "8.0": 4,
+     "8.5": 378,
+     "9.0": 283,
+     "9.5": 1837,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 110,
+    "headings": 77,
+    "paragraphs": 352,
+    "chars": 79173,
+    "prose_blocks": 1933,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P07_Marketplace_Seller_Portal_and_Application_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2628,
+     "Consolas": 474
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 117,
+     "8.0": 4,
+     "8.5": 391,
+     "9.0": 331,
+     "9.5": 2060,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 78,
+    "paragraphs": 354,
+    "chars": 81882,
+    "prose_blocks": 2092,
+    "source_tables": 36
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P08_Brand_Partner_Portal_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2464,
+     "Consolas": 430
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 123,
+     "8.0": 4,
+     "8.5": 367,
+     "9.0": 300,
+     "9.5": 1901,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 110,
+    "headings": 78,
+    "paragraphs": 352,
+    "chars": 82912,
+    "prose_blocks": 1992,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P09_Logistics_and_Rider_Application_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2529,
+     "Consolas": 441
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 121,
+     "8.0": 4,
+     "8.5": 377,
+     "9.0": 307,
+     "9.5": 1961,
+     "10.0": 6,
+     "11.0": 49,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 113,
+    "headings": 79,
+    "paragraphs": 355,
+    "chars": 80408,
+    "prose_blocks": 2025,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P10_Contact_Centre_Agent_Console_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2526,
+     "Consolas": 430
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 100,
+     "8.0": 4,
+     "8.5": 371,
+     "9.0": 320,
+     "9.5": 1962,
+     "10.0": 6,
+     "11.0": 48,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 112,
+    "headings": 78,
+    "paragraphs": 354,
+    "chars": 78690,
+    "prose_blocks": 2026,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P11_Field_Auditor_and_Quality_Application_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2435,
+     "Consolas": 424
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 125,
+     "8.0": 4,
+     "8.5": 355,
+     "9.0": 296,
+     "9.5": 1881,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 24,
+    "headers": 2,
+    "footers": 2,
+    "images": 14,
+    "tables": 108,
+    "headings": 77,
+    "paragraphs": 350,
+    "chars": 79010,
+    "prose_blocks": 1931,
+    "source_tables": 33
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/P12_Partner_and_Referral_Portal_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 2438,
+     "Consolas": 436
+    },
+    "sizes": {
+     "7.0": 42,
+     "7.5": 126,
+     "8.0": 4,
+     "8.5": 355,
+     "9.0": 308,
+     "9.5": 1883,
+     "10.0": 6,
+     "11.0": 47,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 56,
+     "15.0": 1,
+     "16.0": 34,
+     "21.0": 6,
+     "23.0": 1,
+     "52.0": 2
+    },
+    "fields": 23,
+    "headers": 2,
+    "footers": 2,
+    "images": 13,
+    "tables": 111,
+    "headings": 77,
+    "paragraphs": 349,
+    "chars": 79584,
+    "prose_blocks": 1975,
+    "source_tables": 35
+   },
+   "findings": []
+  },
+  {
+   "file": "02_Portals_and_Applications/PORTALS_Portal_and_Application_Suite_Guide_Book.docx",
+   "stats": {
+    "sections": 2,
+    "fonts": {
+     "Calibri": 5871,
+     "Consolas": 1013
+    },
+    "sizes": {
+     "7.0": 104,
+     "7.5": 105,
+     "8.0": 2,
+     "8.5": 976,
+     "9.0": 270,
+     "9.5": 5265,
+     "10.0": 6,
+     "11.0": 39,
+     "11.5": 1,
+     "12.0": 1,
+     "12.5": 1,
+     "13.5": 42,
+     "16.0": 65,
+     "21.0": 5,
+     "23.0": 1,
+     "46.0": 1
+    },
+    "fields": 21,
+    "headers": 2,
+    "footers": 2,
+    "images": 8,
+    "tables": 85,
+    "headings": 64,
+    "paragraphs": 237,
+    "chars": 136696,
+    "prose_blocks": 5456
+   },
+   "findings": []
+  }
+ ]
+}

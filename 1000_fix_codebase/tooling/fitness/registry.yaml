@@ -1,0 +1,124 @@
+# =============================================================================
+# Fitness-function registry - Wave 1 set (P02-M08-T07/T08, AR-012 10)
+# Blocking checks live pre-merge from the first Phase 3 commit; Warning checks
+# carry burn-down targets; built-but-disabled checks exist so their promotion
+# is a flag flip, not a build (FG-04: one wave in reporting mode, then
+# blocking).
+# Runner: tooling/fitness/run.py (+ run.ps1 Windows entry) - emits RN-01..04
+# normalised results (tooling/fitness/result-schema.json).
+# =============================================================================
+schema: 1000fix-erp/fitness-registry/1
+wave: 1
+
+checks:
+  # --- BLOCKING (14): the Wave 1 set ---------------------------------------
+  - id: FF-02
+    name: module naming convention (AS-04)
+    blocking: true
+    stage: architecture
+    script: check_naming.py
+  - id: FF-03
+    name: vendor clean / no unauthorised fork (AS-05)
+    blocking: true
+    stage: architecture
+    script: check-vendor-clean.sh
+    rationale: must exist before the first line of code - an unauthorised vendor edit is effectively unrecoverable
+  - id: FF-04
+    name: layer discipline (AR-007 layers 3/4)
+    blocking: true
+    stage: architecture
+    script: check_ff17_layers.py
+  - id: FF-06
+    name: no cross-module table reads (AS-01)
+    blocking: true
+    stage: architecture
+    script: check_cross_table.py
+  - id: FF-09
+    name: residency single-client (libs/py/fix_residency only)
+    blocking: true
+    stage: model-registry
+    script: check_ff09_residency.py
+    rationale: must exist before the first line of code - a residency leak is a notifiable event
+  - id: FF-19
+    name: event payload schema conformance
+    blocking: true
+    stage: event
+    script: check_event_schemas.py
+  - id: FF-20
+    name: chatter mixins on transactional models (AS-02)
+    blocking: true
+    stage: model-registry
+    script: check_model_registry.py
+  - id: FF-21
+    name: company/OU fields on transactional models (AS-03)
+    blocking: true
+    stage: model-registry
+    script: check_model_registry.py
+  - id: FF-22
+    name: residency/S3 classification on new fields (AS-14)
+    blocking: true
+    stage: model-registry
+    script: check_model_registry.py
+  - id: FF-23
+    name: unit tests present per module
+    blocking: true
+    stage: unit
+    script: check_tests_present.py
+  - id: FF-25
+    name: Bengali translation completeness (DoD-08)
+    blocking: true
+    stage: localisation
+    script: check_translations.py
+  - id: FF-30
+    name: OWL asset build reproducibility
+    blocking: true
+    stage: build
+    script: check_assets.py
+  - id: FF-32
+    name: demo data correctness
+    blocking: true
+    stage: unit
+    script: check_demo_data.py
+  - id: FF-37
+    name: state sets registered in DA-009
+    blocking: true
+    stage: model-registry
+    script: check_code_lists.py
+    rationale: Wave 1 for exactly this reason - the first module shipping a state field must register it first
+
+  # --- WARNING (3): burn-down targets ---------------------------------------
+  - id: FF-13
+    name: API response-time budget
+    blocking: false
+    target: burn to zero by G3
+    stage: performance
+    script: check_api_budget.py
+  - id: FF-14
+    name: dependency reciprocity (R-03; extractor)
+    blocking: false
+    target: 53 known failures burn to zero by G2
+    stage: architecture
+    script: ../architecture-baseline/extract-dependency-graph.ps1
+  - id: FF-27
+    name: portal contract test coverage (PS-11)
+    blocking: false
+    target: rising
+    stage: contract
+    script: check_portal_contract.py
+
+  # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
+  - id: FF-16
+    name: CD identifier form + membership
+    blocking: false
+    enabled: true            # runs in Warning mode
+    promote_to_blocking_at: G1
+    promotion_flag: FF16_BLOCKING
+    stage: architecture
+    script: ../scripts/check-cd-id.py
+  - id: FF-26
+    name: i18n key completeness (portal side)
+    blocking: false
+    enabled: false           # built, disabled until portal code exists
+    promote_to_blocking_at: G3
+    stage: localisation
+    script: check_i18n_keys.py

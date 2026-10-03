@@ -1,0 +1,23 @@
+// W1 component set — StatusBadge (UX-001 §3.2 component contract).
+// CFM-01: consumes tokens only; no colour/size literal appears in this file.
+// The eight status tokens (UX-001 §5.4) map to MD-027 customer-facing states.
+.o_fix_status_badge {
+    display: inline-flex;
+    align-items: center;
+    gap: $dimension-space-xs;
+    padding: $dimension-space-xs $dimension-space-sm;
+    border-radius: $dimension-border-radius-sm;
+    font-family: $typography-font-bengali-family, $typography-font-bengali-fallback;
+    font-size: $typography-size-xs;
+    font-weight: $typography-weight-medium;
+    line-height: $typography-lineheight-normal; // expansion-safe line box for Bengali conjuncts
+
+    &.o_fix_status--success { color: $color-status-success; border: $dimension-border-width solid $color-status-success; }
+    &.o_fix_status--warning { color: $color-status-warning; border: $dimension-border-width solid $color-status-warning; }
+    &.o_fix_status--error   { color: $color-status-error;   border: $dimension-border-width solid $color-status-error; }
+    &.o_fix_status--urgent  { color: $color-status-urgent;  border: $dimension-border-width solid $color-status-urgent; }
+    &.o_fix_status--info    { color: $color-status-info;    border: $dimension-border-width solid $color-status-info; }
+    &.o_fix_status--neutral { color: $color-status-neutral; border: $dimension-border-width solid $color-status-neutral; }
+    &.o_fix_status--brand   { color: $color-status-brand;   border: $dimension-border-width solid $color-status-brand; }
+    &.o_fix_status--accent  { color: $color-status-accent;  border: $dimension-border-width solid $color-status-accent; }
+}

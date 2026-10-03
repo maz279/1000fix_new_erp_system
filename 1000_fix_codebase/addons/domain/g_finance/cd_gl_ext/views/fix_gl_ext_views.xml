@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_gl_ext views — M19 core workspace (finance console W3 slice). -->
+<odoo>
+
+    <record id="view_fix_period_close_tree" model="ir.ui.view">
+        <field name="name">fix.period.close.tree</field>
+        <field name="model">fix.period.close</field>
+        <field name="arch" type="xml">
+            <tree decoration-info="state == 'open'" decoration-warning="state == 'in_progress'"
+                  decoration-success="state == 'closed'">
+                <field name="period_end"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+                <field name="state" widget="badge"/>
+                <field name="suspense_closing"/>
+                <field name="close_duration_days" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_period_close_form" model="ir.ui.view">
+        <field name="name">fix.period.close.form</field>
+        <field name="model">fix.period.close</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="open,in_progress,ready_to_close,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="period_end" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Period">
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
+                            <field name="closed_at" readonly="1"/>
+                            <field name="close_duration_days" readonly="1"/>
+                        </group>
+                        <group string="Suspense (AR-006 section 5.4)">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="suspense_opening"/>
+                            <field name="suspense_closing"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <tree editable="bottom">
+                            <field name="sequence" widget="handle"/>
+                            <field name="name"/>
+                            <field name="owner_role"/>
+                            <field name="target_day"/>
+                            <field name="blocking"/>
+                            <field name="state"/>
+                            <field name="evidence_ref" optional="show"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_period_close" model="ir.actions.act_window">
+        <field name="name">Period Close</field>
+        <field name="res_model">fix.period.close</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_fixed_asset_seam" model="ir.actions.act_window">
+        <field name="name">Fixed Asset Seam</field>
+        <field name="res_model">fix.fixed.asset.seam</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- The Finance workspace menu (UX-002 workspace 7, W3 slice). -->
+    <menuitem id="menu_ws_finance" name="Finance"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="80"/>
+    <menuitem id="menu_fix_period_close" name="Period Close"
+              parent="menu_ws_finance" action="action_fix_period_close" sequence="10"/>
+    <menuitem id="menu_fix_fixed_asset_seam" name="Fixed Asset Seam"
+              parent="menu_ws_finance" action="action_fix_fixed_asset_seam" sequence="20"/>
+
+</odoo>

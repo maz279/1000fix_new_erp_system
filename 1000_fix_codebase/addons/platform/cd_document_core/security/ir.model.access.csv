@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_document,fix.document,model_fix_document,base.group_user,1,1,1,0
+access_fix_retention_class,fix.retention.class,model_fix_retention_class,base.group_user,1,0,0,0
+access_fix_document_template,fix.document.template,model_fix_document_template,base.group_user,1,1,1,0

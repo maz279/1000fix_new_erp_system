@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_contract_core views — the Contract workspace (UX-002 workspace 10, W4 slice). -->
+<odoo>
+
+    <record id="view_fix_contract_tree" model="ir.ui.view">
+        <field name="name">fix.contract.tree</field>
+        <field name="model">fix.contract</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'active'" decoration-warning="state == 'expiring'"
+                  decoration-muted="state in ('expired', 'terminated')">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="family"/>
+                <field name="date_end"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="annual_value"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_contract_form" model="ir.ui.view">
+        <field name="name">fix.contract.form</field>
+        <field name="model">fix.contract</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="pending_signature,active,expiring,expired,terminated"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="code" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Terms">
+                            <field name="name"/>
+                            <field name="family"/>
+                            <field name="customer_id"/>
+                            <field name="date_start"/>
+                            <field name="date_end"/>
+                        </group>
+                        <group string="Commercial">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="annual_value"/>
+                            <field name="escalation_pct"/>
+                            <field name="auto_renew"/>
+                            <field name="renewal_lead_days" invisible="not auto_renew"/>
+                            <field name="esignature_envelope_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Covered Assets">
+                            <field name="covered_device_ids">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="device_model_id"/>
+                                    <field name="warranty_status"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Entitlements">
+                            <field name="entitlement_ids">
+                                <tree editable="bottom" create="true">
+                                    <field name="entitlement_type"/>
+                                    <field name="device_id" optional="show"/>
+                                    <field name="quantity_included"/>
+                                    <field name="quantity_consumed" readonly="1"/>
+                                    <field name="quantity_remaining" readonly="1"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Contract SLAs">
+                            <field name="sla_policy_ids" widget="many2many_tags"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_pm_visit_tree" model="ir.ui.view">
+        <field name="name">fix.contract.pm.visit.tree</field>
+        <field name="model">fix.contract.pm.visit</field>
+        <field name="arch" type="xml">
+            <tree decoration-muted="state == 'completed'" decoration-info="state == 'scheduled'">
+                <field name="scheduled_date"/>
+                <field name="contract_id"/>
+                <field name="device_id"/>
+                <field name="service_order_id" optional="show"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_contract" model="ir.actions.act_window">
+        <field name="name">Contracts</field>
+        <field name="res_model">fix.contract</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_pm_visit" model="ir.actions.act_window">
+        <field name="name">PM Schedule</field>
+        <field name="res_model">fix.contract.pm.visit</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_ws_contract" name="Contracts"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="100"/>
+    <menuitem id="menu_fix_contract" name="All Contracts"
+              parent="menu_ws_contract" action="action_fix_contract" sequence="10"/>
+    <menuitem id="menu_fix_pm_visit" name="PM Schedule"
+              parent="menu_ws_contract" action="action_fix_pm_visit" sequence="20"/>
+
+</odoo>

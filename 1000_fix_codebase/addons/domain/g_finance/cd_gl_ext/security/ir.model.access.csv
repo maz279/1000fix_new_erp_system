@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_journal_dimension,fix.journal.dimension,model_fix_journal_dimension,base.group_user,1,1,1,0
+access_fix_period_close,fix.period.close,model_fix_period_close,base.group_user,1,1,1,0
+access_fix_period_close_line,fix.period.close.line,model_fix_period_close_line,base.group_user,1,1,1,1
+access_fix_fixed_asset_seam,fix.fixed.asset.seam,model_fix_fixed_asset_seam,base.group_user,1,1,1,0

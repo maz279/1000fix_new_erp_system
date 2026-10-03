@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription views — under the Contracts workspace. -->
+<odoo>
+
+    <record id="view_fix_subscription_tree" model="ir.ui.view">
+        <field name="name">fix.subscription.tree</field>
+        <field name="model">fix.subscription</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'active'" decoration-warning="state == 'past_due'">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="plan"/>
+                <field name="billing_cycle"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="recurring_amount"/>
+                <field name="next_invoice_date"/>
+                <field name="consolidated" optional="show"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_subscription_form" model="ir.ui.view">
+        <field name="name">fix.subscription.form</field>
+        <field name="model">fix.subscription</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="trial,active,past_due,paused,cancelled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="contract_id" optional="show"/>
+                            <field name="plan"/>
+                            <field name="billing_cycle"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="recurring_amount"/>
+                            <field name="start_date"/>
+                            <field name="next_invoice_date"/>
+                            <field name="consolidated"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_revenue_schedule_tree" model="ir.ui.view">
+        <field name="name">fix.revenue.schedule.tree</field>
+        <field name="model">fix.revenue.schedule</field>
+        <field name="arch" type="xml">
+            <tree decoration-muted="state == 'complete'">
+                <field name="description"/>
+                <field name="source_model" optional="show"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="total_amount"/>
+                <field name="recognized_amount"/>
+                <field name="start_date" optional="show"/>
+                <field name="end_date"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_subscription" model="ir.actions.act_window">
+        <field name="name">Subscriptions</field>
+        <field name="res_model">fix.subscription</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_revenue_schedule" model="ir.actions.act_window">
+        <field name="name">Revenue Schedules</field>
+        <field name="res_model">fix.revenue.schedule</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_subscription" name="Subscriptions"
+              parent="cd_contract_core.menu_ws_contract"
+              action="action_fix_subscription" sequence="30"/>
+    <menuitem id="menu_fix_revenue_schedule" name="Revenue Schedules"
+              parent="cd_gl_ext.menu_ws_finance"
+              action="action_fix_revenue_schedule" sequence="130"/>
+
+</odoo>

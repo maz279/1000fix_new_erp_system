@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_service_order — SLA policy + diagnostic tree views (P04-M03-T04/T05).
+  Masters for the fields the service-order core already referenced; the
+  clock engine (services/sla-engine, Phase 5) consumes the policy targets.
+-->
+<odoo>
+
+    <record id="view_fix_sla_policy_tree" model="ir.ui.view">
+        <field name="name">fix.sla.policy.tree</field>
+        <field name="model">fix.sla.policy</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="service_type"/>
+                <field name="priority"/>
+                <field name="response_hours"/>
+                <field name="resolution_hours"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_sla_policy_form" model="ir.ui.view">
+        <field name="name">fix.sla.policy.form</field>
+        <field name="model">fix.sla.policy</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="service_type"/>
+                            <field name="priority"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="response_hours"/>
+                            <field name="resolution_hours"/>
+                            <field name="escalation_template_id"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_sla_policy" model="ir.actions.act_window">
+        <field name="name">SLA Policies</field>
+        <field name="res_model">fix.sla.policy</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_sla_policy" name="SLA Policies"
+              parent="menu_ws_service_orders"
+              action="action_fix_sla_policy" sequence="20"/>
+
+    <record id="view_fix_diagnostic_node_tree" model="ir.ui.view">
+        <field name="name">fix.diagnostic.node.tree</field>
+        <field name="model">fix.diagnostic.node</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="parent_id"/>
+                <field name="is_terminal"/>
+                <field name="fault_code" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_diagnostic_node_form" model="ir.ui.view">
+        <field name="name">fix.diagnostic.node.form</field>
+        <field name="model">fix.diagnostic.node</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="parent_id"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="is_terminal" readonly="1"/>
+                            <field name="fault_code"
+                                   invisible="is_terminal == False"/>
+                            <field name="recommended_action"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Answers">
+                            <field name="children_ids">
+                                <tree>
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="is_terminal"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_diagnostic_node" model="ir.actions.act_window">
+        <field name="name">Diagnostic Trees</field>
+        <field name="res_model">fix.diagnostic.node</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_diagnostic_node" name="Diagnostic Trees"
+              parent="menu_ws_service_orders"
+              action="action_fix_diagnostic_node" sequence="30"/>
+
+</odoo>

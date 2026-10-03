@@ -1,0 +1,109 @@
+# 1000FiX ERP — Shared Security Schemes
+# Governed by IN-002 §7. Exactly three schemes. No contract declares a fourth.
+#
+# The FORBIDDEN GRANTS ARE FORBIDDEN BY OMISSION, and that is deliberate: an OpenAPI
+# document that does not declare `implicit` cannot generate a client that uses it.
+# This makes IN-001 AA-02 mechanical rather than aspirational, and it is the central
+# instruction of draft-ietf-oauth-v2-1-15 (Internet-Draft, 2 March 2026 — NOT an RFC;
+# see IN-001 §2.4 VC-02).
+#
+# CONFIDENTIAL — Internal Use Only
+# version: 1.0.0   date: 2026-08-18   owner: Integration Architect · Security Lead
+
+openapi: 3.1.0
+info:
+  title: 1000FiX Shared Security Schemes
+  version: 1.0.0
+paths: {}
+
+components:
+  securitySchemes:
+
+    oauthUser:
+      type: oauth2
+      description: >
+        Any flow with a human behind it — P01, P02, P03, P04, P07, P09, P10, P11, P12.
+        Authorization Code with PKCE ONLY, including for confidential clients.
+        `implicit` and `password` (ROPC) are not declared and must not be implemented.
+        Redirect URIs are matched EXACTLY — no wildcard, no prefix match (AA-04).
+        Refresh tokens are sender-constrained or single-use with rotation (AA-05).
+        Issued and introspected by M29 (LB-05); no module implements its own auth.
+      flows:
+        authorizationCode:
+          authorizationUrl: https://id.sandbox.1000fix.example/oauth2/authorize
+          tokenUrl: https://id.sandbox.1000fix.example/oauth2/token
+          refreshUrl: https://id.sandbox.1000fix.example/oauth2/token
+          scopes:
+            # ─────────────────────────────────────────────────────────────────
+            # x-scope-status: proposed  —  AP-005 §4.3 form, NOT YET RATIFIED.
+            # AUDIT-016 AP-05: "Not one scope name appears anywhere in the
+            # repository." FF-54 BLOCKS publication and credential issue while any
+            # operation carries `proposed`. IN-005 §5 ratifies these names.
+            # Derived per IN-002 §7.3: <resource>:<action>[:<qualifier>], where
+            # resource is the AR-008 aggregate — ~88 base scopes for 1,187 operations.
+            # `delete` is absent by design: DI-08 permits soft deletion only, so a
+            # DELETE operation requires `write` (IN-002 §4.4).
+            # ─────────────────────────────────────────────────────────────────
+            'service_order:read':            Read service orders within the credential's data scope
+            'service_order:write':           Create and update service orders within scope
+            'work_order:read':               Read work orders
+            'work_order:write':              Update work orders and record field evidence
+            'consignment:read':              Read consignments
+            'consignment:write':             Book and update consignments
+            'customer_asset:read':           Read registered customer devices
+            'customer_asset:write':          Register and update customer devices
+            'quotation:read':                Read quotations and estimates
+            'quotation:approve':             Accept, part-accept or reject an estimate
+            'warranty_claim:read':           Read warranty claims
+            'warranty_claim:write':          Create and update warranty claims
+            'invoice:read':                  Read invoices
+            'payment:write':                 Submit and confirm payments
+
+    oauthMachine:
+      type: oauth2
+      description: >
+        Machine-to-machine ONLY — the CON-03 portal platform, partner servers, batch jobs.
+        Never used for a flow with an end user behind it (AA-03, AP-005 SC-03).
+        Scopes are granted at credential issue FROM THE CONTRACT; widening is a commercial
+        and security decision with a recorded approval, never a support action.
+      flows:
+        clientCredentials:
+          tokenUrl: https://id.sandbox.1000fix.example/oauth2/token
+          scopes:
+            # x-scope-status: proposed — see above.
+            'service_order:read':                    Read service orders in scope
+            'service_order:write':                   Create service orders on behalf of a customer
+            'catalogue:read':                        Read the service and product catalogue
+            'branch:read':                           Read the branch directory
+            'warranty_claim:read:own_brand':         Read claims for the credential's own brand only
+            'warranty_claim:approve:own_brand':      Decide claims for the credential's own brand only
+            'invoice:read:own_org':                  Read invoices for the credential's own organisation
+            'invoice:export:own_org':                Export invoices for the own organisation, subject to EA-12
+            'platform_event:read':                   Read the event catalogue and schemas
+            'platform_event:write':                  Register schemas and manage subscriptions
+            'webhook_endpoint:read':                 Read registered webhook endpoints
+            'webhook_endpoint:write':                Register, test and rotate webhook endpoints
+
+    webhookSignature:
+      type: apiKey
+      in: header
+      name: webhook-signature
+      description: >
+        The ONLY family that does not authenticate by bearer token (AA-08). Applies to
+        /hooks/v1/* exclusively. The scheme is HMAC-SHA256 over
+        `webhook-id . webhook-timestamp . raw_body`, base64, prefixed `v1,` — aligned to
+        the Standard Webhooks specification because that is what a partner's existing
+        library already implements. Three headers travel together: webhook-id,
+        webhook-timestamp, webhook-signature. Tolerance 300 s in either direction.
+        Comparison is constant-time. Multi-signature is accepted during rotation.
+
+        DECLARED HERE AS apiKey BECAUSE OPENAPI 3.1 HAS NO SIGNATURE SCHEME TYPE.
+        This is a modelling limitation, not a design choice, and the full contract is
+        IN-006 §4. An OAS 3.1 document cannot express "these three headers are verified
+        together"; a reader must go to IN-006.
+
+        AUDIT-016 AP-04 (HIGH, OPEN): no repository document states an algorithm, header
+        set, signed-content construction, replay window, rotation behaviour or comparison
+        requirement. The scheme above is IN-006's ratification candidate. Until the CTO
+        and Security Lead ratify it, either the CON-03 portal accepts unverified POSTs
+        from W1, or each side implements a different scheme and the first delivery fails.

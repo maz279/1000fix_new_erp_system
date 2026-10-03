@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.working.calendar views (P03-M04-T03) -->
+<odoo>
+    <record id="view_fix_working_calendar_tree" model="ir.ui.view">
+        <field name="name">fix.working.calendar.tree</field>
+        <field name="model">fix.working.calendar</field>
+        <field name="arch" type="xml">
+            <tree string="Working Calendars">
+                <field name="name"/>
+                <field name="branch_id"/>
+                <field name="timezone"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_working_calendar_form" model="ir.ui.view">
+        <field name="name">fix.working.calendar.form</field>
+        <field name="model">fix.working.calendar</field>
+        <field name="arch" type="xml">
+            <form string="Working Calendar">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="branch_id"/>
+                            <field name="timezone"/>
+                        </group>
+                        <group>
+                            <field name="template_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_working_calendar" model="ir.actions.act_window">
+        <field name="name">Working Calendars</field>
+        <field name="res_model">fix.working.calendar</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_working_calendar" name="Working Calendars" parent="menu_fix_entity_root"
+              action="action_fix_working_calendar" sequence="40"/>
+</odoo>

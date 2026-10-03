@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_document_core views (P03-M07) -->
+<odoo>
+    <record id="view_fix_document_tree" model="ir.ui.view">
+        <field name="name">fix.document.tree</field>
+        <field name="model">fix.document</field>
+        <field name="arch" type="xml">
+            <tree string="Documents">
+                <field name="name"/>
+                <field name="document_type"/>
+                <field name="retention_class_id"/>
+                <field name="retention_expires"/>
+                <field name="is_residency_classified" widget="boolean_toggle"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'active'"
+                       decoration-danger="state in ('expired', 'pending_destruction')"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_document_form" model="ir.ui.view">
+        <field name="name">fix.document.form</field>
+        <field name="model">fix.document</field>
+        <field name="arch" type="xml">
+            <form string="Document">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="document_type"/>
+                            <field name="attachment_id"/>
+                            <field name="is_residency_classified" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="retention_class_id"/>
+                            <field name="retention_expires"/>
+                            <field name="isolation_tier"/>
+                            <field name="state"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_document" model="ir.actions.act_window">
+        <field name="name">Documents</field>
+        <field name="res_model">fix.document</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_document_root" name="Documents" sequence="40"/>
+    <menuitem id="menu_fix_document" name="All Documents" parent="menu_fix_document_root"
+              action="action_fix_document" sequence="10"/>
+
+    <record id="view_fix_document_template_tree" model="ir.ui.view">
+        <field name="name">fix.document.template.tree</field>
+        <field name="model">fix.document.template</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn" optional="show"/>
+                <field name="document_type"/>
+                <field name="report_ref"/>
+                <field name="bilingual"/>
+                <field name="requires_approval" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_document_template" model="ir.actions.act_window">
+        <field name="name">Document Templates</field>
+        <field name="res_model">fix.document.template</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_document_template" name="Templates" parent="menu_fix_document_root"
+              action="action_fix_document_template" sequence="20"/>
+</odoo>

@@ -1,0 +1,18 @@
+# Bengali (Bangladesh) translation for cd_corporate_portal.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Corporate Portal"
+msgstr "কর্পোরেট পোর্টাল"
+
+msgid "My Contracts"
+msgstr "আমার চুক্তিসমূহ"
+
+msgid "My Subscriptions"
+msgstr "আমার সাবস্ক্রিপশনসমূহ"

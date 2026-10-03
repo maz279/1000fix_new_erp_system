@@ -1,0 +1,43 @@
+# =============================================================================
+# 1000fix-erp - workstation system package set (P02-M01-T04, Windows)
+# =============================================================================
+# Native-Windows replacement for the Ubuntu apt package set (decision
+# D-WS-001). Versions are ALSO pinned in tooling/versions.lock (the lock is
+# authoritative; this file drives iteration and carries the per-package note).
+#
+# Format:  winget-id|version|note
+# The host build-dependency group of the Ubuntu baseline (libxml2-dev,
+# libxslt1-dev, libsasl2-dev, libldap2-dev, ...) is NOT needed here: Odoo and
+# its Python extension builds happen inside the Linux container (D-WS-001),
+# so the host carries only the toolchain, Docker, browsers and fonts.
+# =============================================================================
+
+# --- Source control (P02-M01-T07) --------------------------------------------
+# Floor 2.40 - BE-004 uses subtrees for 18 OCA repos + partial clone.
+Git.Git|2.55.0.5|git for Windows; carries Git Bash + git-lfs-capable core
+
+# --- Containers (P02-M01-T06) -------------------------------------------------
+# Docker Desktop bundles Docker Engine (>= 24 floor), Compose v2, Buildx.
+# Post-install: launch once to accept the licence and pick the backend
+# (WSL2 backend recommended; Hyper-V backend works "no-WSL" machines).
+Docker.DockerDesktop|4.93.0|Engine + Compose v2; start once to initialise
+
+# --- Language toolchain for host tooling scripts (P02-M01-T04) ---------------
+# Python 3.12.x exactly - the same minor line as the Odoo container runtime
+# and the pinned .python-version (P02-M02-T01 takes over pin management).
+Python.Python.3.12|3.12.10|host-side tooling only; Odoo runs containerised
+
+# --- Browsers (P02-M01-T09) ----------------------------------------------------
+# Two engines are required: Blink for primary portal work, Gecko as the
+# second engine where Bengali conjunct shaping differs (UX-005 / QA-008).
+Google.Chrome|154.0.8037.93|primary engine + DevTools
+Mozilla.Firefox|157.0|second engine
+
+# --- NOT installed on the host, by design (DE-01, Windows adaptation) ---------
+# PostgreSQL server -> container only          (port 5432 must stay free)
+# Redis            -> container only           (port 6379 must stay free)
+# Object storage   -> container only           (port 9000 must stay free)
+# wkhtmltopdf      -> via tooling/workstation/install-wkhtmltopdf.ps1 (T08),
+#                     NOT via winget (no pinned winget package exists).
+# Bengali fonts    -> via setup-workstation.ps1 font step (T05), hash-pinned
+#                     from upstream - not a winget package.

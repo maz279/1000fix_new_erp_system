@@ -1,0 +1,65 @@
+# =============================================================================
+# .github/settings.yml - branch protection, APPLIED AT FIRST PUSH (P02-M03-T05)
+# Probot Settings format: when this repository lands on the Company-controlled
+# GitHub host and the Settings app is installed, this file configures branch
+# protection EXACTLY as BE-003 3.3 requires - configured BEFORE the first
+# feature branch, not after (the roadmap's own instruction).
+# Manual equivalent (gh CLI) is in docs/guides/branch-protection.md.
+# =============================================================================
+repository:
+  name: 1000fix-erp
+  description: 1000FiX ERP System v2.0 - monorepo (BE-004)
+  private: true
+  has_issues: true
+  has_wiki: false
+  allow_squash_merge: true
+  allow_merge_commit: false        # linear history: squash or rebase only
+  allow_rebase_merge: true
+  delete_branch_on_merge: true
+
+branches:
+  - name: main
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 2
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      required_status_checks:
+        strict: true               # must be up to date with develop
+        contexts:
+          - precommit
+          - lint-type
+          - model-registry
+          - unit
+          - contract
+          - event
+          - security
+          - architecture
+          - localisation
+          - bundle
+          - accessibility
+      enforce_admins: true
+      restrictions: null
+      required_signatures: true    # signed commits are a protection precondition (P02-M02-T08)
+      allow_force_pushes: false
+      allow_deletions: false
+
+  - name: develop
+    protection:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+        dismiss_stale_reviews: true
+        require_code_owner_reviews: true
+      required_status_checks:
+        strict: true
+        contexts:
+          - precommit
+          - lint-type
+          - model-registry
+          - unit
+          - architecture
+      enforce_admins: false
+      restrictions: null
+      required_signatures: true
+      allow_force_pushes: false
+      allow_deletions: false

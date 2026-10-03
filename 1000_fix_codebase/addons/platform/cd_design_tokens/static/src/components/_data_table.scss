@@ -1,0 +1,34 @@
+// W1 component set — DataTable (UX-001 §3.2 component contract).
+// CFM-01: tokens only. Dense operational tables keep a comfortable row
+// minimum so Bengali two-line entries never clip (UX-007 expansion test).
+.o_fix_data_table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: $typography-font-bengali-family, $typography-font-bengali-fallback;
+    font-size: $typography-size-sm;
+    color: $color-text-primary;
+
+    thead th {
+        background: $color-surface-secondary;
+        color: $color-text-secondary;
+        font-weight: $typography-weight-medium;
+        padding: $dimension-space-sm $dimension-space-md;
+        text-align: start;
+        border-bottom: $dimension-border-width solid $color-border-strong;
+    }
+    tbody td {
+        padding: $dimension-space-sm $dimension-space-md;
+        border-bottom: $dimension-border-width solid $color-border-default;
+        line-height: $typography-lineheight-normal;
+    }
+    tbody tr:nth-child(even) {
+        background: $color-surface-secondary;
+    }
+    .o_fix_cell--numeric {
+        font-family: $typography-font-mono-family;
+        text-align: end;
+    }
+    .o_fix_row--breached .o_fix_status_badge {
+        box-shadow: $shadow-sm;
+    }
+}

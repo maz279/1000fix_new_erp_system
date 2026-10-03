@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_entity_config — the P03 portal shell root (P04-M06-T02).
+
+  UX-002 §6.2: fourteen role-scoped workspaces; the W1 slice lands six
+  (front desk, service orders, party master, device registry, catalogue,
+  administration — roadmap P04-M06-T03). This file declares ONLY the root:
+  each workspace menu is declared by its OWNING module (NVR-24 — one home
+  per object) and gated by the cd_rbac_ext workspace groups (NVR-22 — a
+  workspace the user cannot enter does not appear).
+
+  The root itself carries no group: cd_rbac_ext loads after this module, and
+  Odoo hides a parent whose children are all invisible — a user with no
+  workspace sees nothing, which is the correct outcome.
+-->
+<odoo>
+
+    <menuitem id="menu_fix_operations_root"
+              name="1000FiX Operations"
+              sequence="5"/>
+
+</odoo>

@@ -1,0 +1,45 @@
+{
+  "title": "1000FiX — Service-to-Cash (G3 watch)",
+  "uid": "fix-service-to-cash",
+  "schemaVersion": 39,
+  "tags": ["1000fix", "w3", "g3"],
+  "time": { "from": "now-24h", "to": "now" },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Invoice automation (G3-01: 100% within 5s)",
+      "targets": [{ "expr": "sum(rate(fix_invoice_generated_total[1h])) / sum(rate(fix_service_order_closed_total[1h]))" }],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [
+        { "color": "red", "value": null }, { "color": "yellow", "value": 0.95 }, { "color": "green", "value": 1.0 }
+      ]}}}
+    },
+    {
+      "type": "stat",
+      "title": "Payment auto-match rate (G3-02: >=90%)",
+      "targets": [{ "expr": "fix_reconciliation_match_rate" }],
+      "fieldConfig": { "defaults": { "thresholds": { "steps": [
+        { "color": "red", "value": null }, { "color": "yellow", "value": 0.8 }, { "color": "green", "value": 0.9 }
+      ]}}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Mushak issuance latency p95 (target < 5s)",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(fix_invoice_generation_seconds_bucket[1h])) by (le))" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Three-way match blocks (G3-06: blocked, never warned)",
+      "targets": [{ "expr": "sum(rate(fix_vendor_invoice_blocked_total[1h]))" }]
+    },
+    {
+      "type": "stat",
+      "title": "Notification delivery rate",
+      "targets": [{ "expr": "fix_notification_delivery_rate" }]
+    },
+    {
+      "type": "timeseries",
+      "title": "Outbox depth (AS-08 backlog)",
+      "targets": [{ "expr": "fix_event_outbox_pending" }]
+    }
+  ]
+}

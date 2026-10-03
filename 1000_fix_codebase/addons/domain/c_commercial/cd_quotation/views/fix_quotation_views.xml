@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_quotation views — the quotation lifecycle on the unified estimate. -->
+<odoo>
+
+    <record id="view_fix_estimate_form_quotation" model="ir.ui.view">
+        <field name="name">fix.estimate.form.quotation</field>
+        <field name="model">fix.estimate</field>
+        <field name="inherit_id" ref="cd_service_order.view_fix_estimate_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[1]" position="before">
+                <group string="Quotation (M36)">
+                    <group>
+                        <field name="quotation_state"/>
+                        <field name="valid_days"/>
+                        <field name="sent_at" readonly="1"/>
+                        <field name="accepted_at" readonly="1"/>
+                    </group>
+                    <group>
+                        <field name="tender_ref"/>
+                    </group>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_discount_approval_tree" model="ir.ui.view">
+        <field name="name">fix.discount.approval.tree</field>
+        <field name="model">fix.discount.approval</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'approved'" decoration-warning="state == 'pending'">
+                <field name="quotation_id"/>
+                <field name="discount_pct"/>
+                <field name="state" widget="badge"/>
+                <field name="approved_by" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_discount_approval" model="ir.actions.act_window">
+        <field name="name">Discount Approvals</field>
+        <field name="res_model">fix.discount.approval</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_discount_approval" name="Discount Approvals"
+              parent="cd_service_order.menu_ws_service_orders"
+              action="action_fix_discount_approval" sequence="50"/>
+
+</odoo>

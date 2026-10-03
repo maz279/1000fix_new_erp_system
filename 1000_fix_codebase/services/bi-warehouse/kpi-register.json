@@ -1,0 +1,32 @@
+{
+  "$comment": "M25 KPI register — P07-M07-T06 (BM-002: the 95 registered KPIs instrumented and surfaced; DoD-09 — every module's KPI visible in M25). Metric definitions are CONTENT, not code (T09: the RP-* files).",
+  "register": [
+    {"kpi": "KPI-001", "family": "service", "name": "First-time-fix rate", "source": "fact_service_orders", "owner": "M01"},
+    {"kpi": "KPI-002", "family": "service", "name": "SLA resolution compliance", "source": "fact_service_orders", "owner": "M01"},
+    {"kpi": "KPI-003", "family": "service", "name": "Rework rate (30-day)", "source": "fact_service_orders", "owner": "M01"},
+    {"kpi": "KPI-004", "family": "service", "name": "Avg intake-to-diagnostic minutes", "source": "fact_service_orders", "owner": "M04"},
+    {"kpi": "KPI-005", "family": "service", "name": "Walk-in 3-minute intake rate", "source": "fact_service_orders", "owner": "M04"},
+    {"kpi": "KPI-010", "family": "finance", "name": "Invoice automation rate (G3-01)", "source": "fact_invoices", "owner": "M20"},
+    {"kpi": "KPI-011", "family": "finance", "name": "Payment auto-match rate (G3-02)", "source": "fact_invoices", "owner": "M50"},
+    {"kpi": "KPI-012", "family": "finance", "name": "DSO (days sales outstanding)", "source": "fact_invoices", "owner": "M20"},
+    {"kpi": "KPI-013", "family": "finance", "name": "Month-end close duration (G3-04)", "source": "fix_period_close", "owner": "M19"},
+    {"kpi": "KPI-014", "family": "finance", "name": "VAT return net payable", "source": "fix_vat_return", "owner": "M51"},
+    {"kpi": "KPI-020", "family": "warranty", "name": "Claim auto-create within 24h (G4-01)", "source": "fact_warranty_claims", "owner": "M09"},
+    {"kpi": "KPI-021", "family": "warranty", "name": "First-submission approval rate (G4-02)", "source": "fact_warranty_claims", "owner": "M09"},
+    {"kpi": "KPI-022", "family": "warranty", "name": "Claim-to-remittance days", "source": "fact_warranty_claims", "owner": "M09"},
+    {"kpi": "KPI-030", "family": "contact", "name": "AI first-contact resolution (G4-05)", "source": "fact_conversations", "owner": "M32"},
+    {"kpi": "KPI-031", "family": "contact", "name": "Hotline capture rate (G4-04)", "source": "fact_conversations", "owner": "M27"},
+    {"kpi": "KPI-032", "family": "contact", "name": "Avg handle time (AHT)", "source": "fact_conversations", "owner": "M27"},
+    {"kpi": "KPI-040", "family": "cx", "name": "NPS", "source": "fact_nps", "owner": "M34"},
+    {"kpi": "KPI-041", "family": "cx", "name": "Complaint rate per 1k orders", "source": "fact_service_orders", "owner": "M34"},
+    {"kpi": "KPI-042", "family": "cx", "name": "Critical-complaint CAPA closure days", "source": "fact_nps", "owner": "M34"},
+    {"kpi": "KPI-050", "family": "supply", "name": "Supplier on-time %", "source": "fix_supplier_scorecard", "owner": "M42"},
+    {"kpi": "KPI-051", "family": "supply", "name": "Three-way match block rate", "source": "fact_invoices", "owner": "M52"},
+    {"kpi": "KPI-060", "family": "logistics", "name": "Custody chain breaks (G3-05)", "source": "fix_custody_scan", "owner": "M03"},
+    {"kpi": "KPI-070", "family": "notification", "name": "Delivery rate", "source": "notification_kpis", "owner": "M27"},
+    {"kpi": "KPI-071", "family": "notification", "name": "P95 delivery latency", "source": "notification_kpis", "owner": "M27"},
+    {"kpi": "KPI-072", "family": "notification", "name": "Opt-out rate", "source": "notification_kpis", "owner": "M27"}
+  ],
+  "note": "The full 95-KPI register is the BM-002 reconciliation: these rows are the W4-instrumented core; the reconciliation against the 250 KPIs in use is a data-governance action recorded at the gate.",
+  "dashboards": ["executive", "branch", "technician", "finance", "warranty"]
+}

@@ -1,0 +1,353 @@
+# 1000FiX ERP — Service Delivery Context, Event Contract
+# Bounded context 1 of 11 (IN-003 §5.1). Generated from the event registry.
+#
+# WHY ASYNCAPI AND NOT OPENAPI (IN-003 §5.3): multiple consumers of one message, ordering
+# and partitioning are not expressible in OpenAPI. Both are used, for different surfaces —
+# IN-002 describes the 1,187 synchronous operations, IN-003 the 988 events.
+#
+# CONFIDENTIAL — Internal Use Only
+
+asyncapi: 3.0.0
+
+info:
+  title: 1000FiX Service Delivery Events
+  version: 1.0.0
+  description: |
+    Domain events published and consumed by the `service-delivery` bounded context
+    (`AR-008` §5) — modules M01–M06 and M31.
+
+    **This document is generated from the registry** (`IN-003-D-01`). Editing it by hand
+    produces drift that `FF-59` fails. The registry is the source of truth; this is a view.
+
+    **Naming.** Every `event_type` uses convention A — `<aggregate>.<past_tense_verb>` —
+    per ADR-017, where the aggregate is one of the 22 `AR-008` §4.2 roots, **not** the
+    owning module's code. **ADR-017 is unratified** (`IN-003` Q-01), and **242 of the 988
+    declared events across the estate still use a convention-B module-code namespace**
+    (`ap.`, `gl.`, `wh.`, `mdm.`, `grc.`). They are scheduled for rename in Wave 1, while
+    the change is a text edit and no consumer exists.
+  license:
+    name: CONFIDENTIAL — Internal Use Only
+  contact:
+    name: Integration Architect, 1000FiX Services Limited
+
+servers:
+  redisStreams:
+    host: redis.sit.1000fix.internal:6379
+    protocol: redis
+    description: |
+      **Waves 1–5** (ADR-013). Already deployed for cache, sessions and locks; consumer
+      groups, at-least-once delivery and per-stream ordering are sufficient at W1–W5
+      volume, and it introduces **no new operational component in the heaviest wave**.
+  redpanda:
+    host: redpanda.sit.1000fix.internal:9092
+    protocol: kafka
+    description: |
+      **Wave 6 onward.** Durable retention, replay-from-timestamp, partition scaling and
+      external consumers. Migration is a **shared-consumer-library version bump**, not 67
+      module changes (`AR-009` §6.2), and `FF-28` forbids any module using a bus client
+      directly. Redpanda is BSL, converting to Apache-2.0 four years after each merge;
+      **Kafka is the registered fallback** (`TR-09`).
+
+defaultContentType: application/json
+
+channels:
+
+  domain:
+    address: domain
+    title: Domain channel — E1 business facts
+    description: |
+      Internal domain events. Retention 7 days on Redis, 30 days on Redpanda
+      (`AR-009` §6.3), overridden per event by its `retention_class`.
+
+      **Ordering is guaranteed per aggregate instance only, never globally**
+      (`AR-009` §4.2). Two events about the same service order arrive in order; an event
+      about a service order and one about an invoice have **no relative order**, and a
+      consumer that assumes one is defective. A consumer needing cross-aggregate order uses
+      `causation_id` to reconstruct the chain.
+    messages:
+      serviceOrderDelivered:
+        $ref: '#/components/messages/serviceOrderDelivered'
+      serviceOrderCompleted:
+        $ref: '#/components/messages/serviceOrderCompleted'
+      serviceOrderStatusChanged:
+        $ref: '#/components/messages/serviceOrderStatusChanged'
+
+  external:
+    address: external
+    title: External channel — E2 integration events, boundary-shaped
+    description: |
+      Domain events **reshaped for an external consumer, with fields removed at the
+      boundary** (`AR-009` §3.1 E2). Retention 30 days.
+
+      Consumed by the webhook dispatcher (`IN-006`) and by partner delivery. A CloudEvents
+      1.0 mapping is published in `IN-003` §5.4 for consumers whose tooling expects it;
+      **`actor` is deliberately withheld** — which internal user caused an event is not a
+      partner's business (`IP-10`).
+    messages:
+      serviceOrderStatusChangedExternal:
+        $ref: '#/components/messages/serviceOrderStatusChangedExternal'
+
+  platform:
+    address: platform
+    title: Platform channel — E3 infrastructure facts
+    description: |
+      Reserved `platform.` namespace, retention 30 days. Registered like any other event
+      (`IN-003-D-06`) but filtered out of the default catalogue view — navigability is a
+      rendering problem, not a registration problem.
+
+  dlqDomain:
+    address: dlq.domain
+    title: Dead-letter channel
+    description: |
+      **Documented, not subscribable.** Retention **90 days, never auto-purged**
+      (`AR-009` §6.3). A dead letter older than one hour is a **mandatory triage item**,
+      not a dashboard number. Resolution is: fix the consumer, then replay from the DLQ —
+      never edit and re-inject by hand.
+
+      **A silently discarded event is the failure mode the whole design exists to prevent.**
+
+operations:
+
+  sendServiceOrderDelivered:
+    action: send
+    channel:
+      $ref: '#/channels/domain'
+    title: M01 publishes service_order.delivered
+    description: |
+      Written to the outbox **in the same database transaction as the state change**
+      (`AS-08`, ADR-016). A relay publishes from the outbox and **marks after publishing,
+      never before** — a crash between the two then causes a duplicate, which is safe
+      because consumers are idempotent, rather than a loss, which is not.
+    messages:
+      - $ref: '#/channels/domain/messages/serviceOrderDelivered'
+
+  receiveServiceOrderDelivered:
+    action: receive
+    channel:
+      $ref: '#/channels/domain'
+    title: M20, M09, M27, M34, M25 consume service_order.delivered
+    description: |
+      Every consumer, without exception (`AR-009` §7):
+
+      | # | Rule |
+      |---|---|
+      | C-01 | **Idempotent** — records processed `event_id`s and ignores duplicates |
+      | C-02 | **Order-tolerant across aggregates** |
+      | C-03 | 3 attempts, exponential backoff, then dead-letter with alert |
+      | C-04 | **Never blocks the stream** — dead-letters and continues |
+      | C-05 | **Replayable** from a point in time with no side effect on other consumers |
+      | C-07 | **Declares its subscription in the registry**, so producers know who they break |
+      | C-09 | Filters on `company_id` / `operating_unit_id` where branch-scoped |
+
+      **Replay classes differ per consumer, not per event.** M25's warehouse load is `R1`;
+      M20's invoice creation is `R2` and carries its own already-done check; **M27's
+      customer notification is `R3`** and the replay service refuses it without an
+      explicit, named, logged operator override. That refusal is what stops a routine
+      replay from re-sending 40,000 SMS messages.
+    messages:
+      - $ref: '#/channels/domain/messages/serviceOrderDelivered'
+
+  sendServiceOrderStatusChanged:
+    action: send
+    channel:
+      $ref: '#/channels/domain'
+    title: M01 publishes the service_order.status_changed PROJECTION
+    description: |
+      **A declared projection** (`IN-003` §7.3.3), not a primitive fact. It rolls up the
+      sixteen fine-grained M01 `service_order.*` events into one coarse event for surfaces
+      that should not have to understand the state machine — P01, P04, P10 and the CON-03
+      portal contract.
+
+      **A projection is a legitimate design; an undocumented one is not** (`AP-01`). The
+      registration declares its source set in `emits_from[]`, and the projector is named
+      and owned by M01.
+
+      **A projection is `R1` and must never carry a side effect.**
+
+      `05-03` §3.3 lists this event in the CON-03 webhook contract, and it is one of the
+      **eight of eleven** CON-03 webhooks that **no module currently publishes**
+      (`IN-001` §9.2).
+    messages:
+      - $ref: '#/channels/domain/messages/serviceOrderStatusChanged'
+
+components:
+
+  messageTraits:
+    envelope:
+      description: |
+        **The `AR-009` §4 envelope, defined once and applied to every message.** Two of
+        these fields are routinely omitted and then missed: `correlation_id`, which turns a
+        two-day diagnosis into a twenty-minute one, and `causation_id`, which is what lets a
+        chain be reconstructed — booking → order created → dispatched → completed → invoiced.
+      headers:
+        type: object
+        properties:
+          partition_key:
+            type: string
+            description: '`aggregate.type` + `aggregate.id`. The ordering unit.'
+      payload:
+        type: object
+        required:
+          - event_id
+          - event_type
+          - schema_version
+          - occurred_at
+          - company_id
+          - actor
+          - correlation_id
+          - aggregate
+          - payload
+        properties:
+          event_id:
+            type: string
+            format: uuid
+            description: '**The idempotency key.** Consumers record processed ids and ignore duplicates.'
+          event_type:
+            type: string
+            pattern: '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'
+          schema_version:
+            type: string
+            pattern: '^[0-9]+\.[0-9]+$'
+          occurred_at:
+            type: string
+            format: date-time
+            description: '**When the fact happened**, not when it was published. UTC, always.'
+          company_id:
+            type: integer
+          operating_unit_id:
+            type: [integer, 'null']
+            description: 'Branch context. **Consumers filter on this**; without it every consumer sees every branch.'
+          actor:
+            type: object
+            required: [type]
+            properties:
+              type:
+                type: string
+                enum: [user, system, integration, job]
+              id:
+                type: [string, 'null']
+            description: 'Required for audit. **Withheld on the `external` channel** (IP-10).'
+          correlation_id:
+            type: string
+            format: uuid
+            description: 'The whole-journey identifier, injected by Kong and propagated across every hop.'
+          causation_id:
+            type: [string, 'null']
+            format: uuid
+            description: 'The `event_id` of the event that caused this one.'
+          aggregate:
+            type: object
+            required: [type, id]
+            properties:
+              type: { type: string }
+              id: { type: string }
+            description: '**The partition key.**'
+          payload:
+            type: object
+            description: 'Per the registered JSON Schema for this (event_type, schema_version).'
+
+  messages:
+
+    serviceOrderDelivered:
+      name: service_order.delivered
+      title: A serviced item was handed to the customer
+      summary: >
+        The billable event M20 consumes. Carries what was done; never an instruction to
+        raise an invoice (`AR-009` P-01, `IN-003` SC-05).
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        $ref: '../schemas/service_order.delivered.v1.json'
+      bindings:
+        kafka:
+          key:
+            type: string
+            description: '`aggregate.type` + `aggregate.id`'
+      x-registration:
+        producer_module: M01
+        consumers: [M20, M09, M27, M34, M25]
+        replay_class: R1
+        retention_class: operational_30d
+        pii_classification: personal
+        wave: W1
+
+    serviceOrderCompleted:
+      name: service_order.completed
+      title: Repair or service work completed
+      summary: >
+        **The most-referenced event in the estate — and no module's §12.3 declares it.**
+        `AR-009` §10.3 lists it among the 29 convention-A names in `05-03` §4.2 whose
+        producers now declare convention-B names for the same facts. It is cited in
+        `05-03` §4.2, `02-01` §7 as the worked example, `AP-003` content and multiple portal
+        specifications. That single line is the clearest illustration of what the convention
+        split costs, and it is resolved by the `RE-03` rename, not by registering a new event.
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        type: object
+        description: 'Schema pending RE-03. Registering it before the rename would create a duplicate.'
+      x-registration:
+        producer_module: 'M01 — DECLARATION PENDING RM-03/RE-03'
+        consumers: [M09, M15, M20, M23, M25, M27]
+        replay_class: R1
+        retention_class: operational_30d
+        status: 'NAME CORRECT, PRODUCER DECLARATION IN CONVENTION B'
+
+    serviceOrderStatusChanged:
+      name: service_order.status_changed
+      title: Coarse status projection for surfaces
+      summary: >
+        A declared projection of the sixteen M01 `service_order.*` events. Consumed by P01,
+        P04, P10 and the CON-03 portal contract. **Currently published by no module**
+        (`IN-001` §9.2, `IN-003` §7.3.3).
+      contentType: application/json
+      traits:
+        - $ref: '#/components/messageTraits/envelope'
+      payload:
+        type: object
+        additionalProperties: false
+        required: [service_order_id, from_state, to_state, changed_at, customer_safe_message]
+        properties:
+          service_order_id: { type: string }
+          from_state: { type: string }
+          to_state: { type: string }
+          changed_at: { type: string, format: date-time }
+          customer_safe_message:
+            type: string
+            description: >
+              Localised, customer-facing wording — **not** the internal state label.
+              `05-03` §3.3 requires it in the CON-03 webhook payload.
+          eta: { type: [string, 'null'], format: date-time }
+      x-registration:
+        producer_module: M01
+        projection_of: 16 M01 service_order.* events
+        consumers: [P01, P04, P10, CON-03]
+        replay_class: R1
+        retention_class: operational_30d
+        status: 'DESIGNED, NOT PUBLISHED — RE-05, Wave 1'
+
+    serviceOrderStatusChangedExternal:
+      name: service_order.status_changed
+      title: External (E2) shape of the status projection
+      summary: >
+        The same fact, **reshaped at the boundary**: `actor` removed, internal identifiers
+        replaced by the customer-facing tracking token, and no cost or margin field. This is
+        what `kind = E2` exists for.
+      contentType: application/json
+      payload:
+        type: object
+        additionalProperties: false
+        required: [tracking_token, to_state_label, changed_at]
+        properties:
+          tracking_token: { type: string }
+          to_state_label: { type: string }
+          changed_at: { type: string, format: date-time }
+          eta: { type: [string, 'null'], format: date-time }
+      x-registration:
+        kind: E2
+        channel: external
+        producer_module: M01
+        consumers: ['CON-03 portal platform']
+        cloudevents_mapping: 'IN-003 §5.4'

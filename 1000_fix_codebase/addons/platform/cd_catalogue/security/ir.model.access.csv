@@ -1,0 +1,8 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_catalogue_item,fix.catalogue.item,model_fix_catalogue_item,base.group_user,1,1,1,1
+access_fix_service_kit,fix.service.kit,model_fix_service_kit,base.group_user,1,1,1,1
+access_fix_service_kit_component,fix.service.kit.component,model_fix_service_kit_component,base.group_user,1,1,1,1
+access_fix_rental_sku,fix.rental.sku,model_fix_rental_sku,base.group_user,1,1,1,0
+access_fix_refurb_grade,fix.refurb.grade,model_fix_refurb_grade,base.group_user,1,0,0,0
+access_fix_brand,fix.brand,model_fix_brand,base.group_user,1,1,1,0
+access_fix_device_model,fix.device.model,model_fix_device_model,base.group_user,1,1,1,0

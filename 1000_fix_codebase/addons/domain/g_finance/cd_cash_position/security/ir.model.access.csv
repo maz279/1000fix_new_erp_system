@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_payment_execution,fix.payment.execution,model_fix_payment_execution,base.group_user,1,1,1,0
+access_fix_bank_statement_line,fix.bank.statement.line,model_fix_bank_statement_line,base.group_user,1,1,1,0
+access_fix_cash_position,fix.cash.position,model_fix_cash_position,base.group_user,1,1,1,0

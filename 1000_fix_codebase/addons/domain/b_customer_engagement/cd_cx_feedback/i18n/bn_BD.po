@@ -1,0 +1,30 @@
+# Bengali (Bangladesh) translation for cd_cx_feedback.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Complaints"
+msgstr "অভিযোগসমূহ"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Supplier Scorecards"
+msgstr "সরবরাহকারী স্কোরকার্ডসমূহ"
+
+msgid "Surveys"
+msgstr "সমীক্ষাসমূহ"
+
+msgid "Triggered"
+msgstr "ট্রিগার্ড"
+
+msgid "Vendor"
+msgstr "ভেন্ডর"

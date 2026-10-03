@@ -1,0 +1,42 @@
+# Alert rules — P06-M08-T07 (PE-008; SV-004 on-call).
+# Alert fatigue is a design defect: every alert here names an action, has
+# an owner, and a runbook line. Anything that cannot say what the responder
+# does does not belong in this file.
+groups:
+  - name: fix-service-to-cash
+    rules:
+      - alert: InvoiceAutomationGap
+        expr: sum(rate(fix_invoice_generated_total[30m])) / sum(rate(fix_service_order_closed_total[30m])) < 0.98
+        for: 15m
+        labels: { severity: critical, team: finance }
+        annotations:
+          summary: "Auto-invoicing below 98% of closed jobs (G3-01 risk)"
+          runbook: "Check the billing engine consumer and the approved-estimate gate; each failure raises its reason in fix.ar.invoice chatter."
+      - alert: PaymentMatchRateBelowGate
+        expr: fix_reconciliation_match_rate < 0.85
+        for: 1h
+        labels: { severity: warning, team: finance }
+        annotations:
+          summary: "Auto-match rate below 85% (G3-02 gate is 90%)"
+          runbook: "Review unmatched bank lines in the reconciliation service log; new narration patterns become new R-ladder rules."
+      - alert: OutboxBacklog
+        expr: fix_event_outbox_pending > 500
+        for: 10m
+        labels: { severity: critical, team: platform }
+        annotations:
+          summary: "Event outbox backlog above 500 (AS-08 drain failing)"
+          runbook: "Check the drain job; replay from the oldest pending event after the cause clears."
+      - alert: NotificationDeliveryDegraded
+        expr: fix_notification_delivery_rate < 0.9
+        for: 30m
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: "Notification delivery below 90%"
+          runbook: "Per-channel fallback register (IP-09) engages automatically; this alert is for the register's own health."
+      - alert: SuspenseNotCleared
+        expr: fix_gl_suspense_balance != 0 and on() (fix_period_close_imminent == 1)
+        for: 1h
+        labels: { severity: critical, team: finance }
+        annotations:
+          summary: "Inventory suspense non-zero approaching close (AR-006 section 5.4)"
+          runbook: "Reconcile P05-M01-T06's registered stub before the period closes — a close with suspense is refused by the model."

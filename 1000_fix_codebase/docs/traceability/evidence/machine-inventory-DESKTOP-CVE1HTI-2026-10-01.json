@@ -1,0 +1,87 @@
+{
+    "schema":  "1000fix-erp/machine-inventory/2",
+    "task":  "P02-M01-T01",
+    "host":  "DESKTOP-CVE1HTI",
+    "generatedUtc":  "2026-10-01T03:51:56.5561392Z",
+    "os":  {
+               "product":  "Windows 11",
+               "displayVersion":  "26H2",
+               "build":  26300,
+               "isServer":  false
+           },
+    "hardware":  {
+                     "cpuName":  "11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz",
+                     "cpuCores":  8,
+                     "cpuThreads":  16,
+                     "ramTotalGB":  64,
+                     "systemDiskSizeGB":  951,
+                     "systemDiskFreeGB":  426,
+                     "systemDiskBus":  "NVMe",
+                     "systemDiskMedia":  "SSD",
+                     "displays":  [
+                                      {
+                                          "Name":  "Intel(R) UHD Graphics",
+                                          "Width":  3840,
+                                          "Height":  2400
+                                      }
+                                  ]
+                 },
+    "classification":  "RECOMMENDED (full profile capable)",
+    "encryption":  "unknown",
+    "tools":  {
+                  "git":  "git version 2.56.0.windows.1",
+                  "docker":  "Docker version 29.8.0, build 88096ef",
+                  "compose":  "Docker Compose version v5.5.1",
+                  "python312":  "Python 3.12.10",
+                  "pythonOnPath":  "Python 3.12.10",
+                  "wkhtmltopdf":  "wkhtmltopdf 0.12.5 (with patched qt)"
+              },
+    "bengaliFonts":  {
+                         "notoSansBengali":  true,
+                         "nirmalaUI":  true
+                     },
+    "reservedPortListeners":  [
+                                  {
+                                      "Port":  5432,
+                                      "LocalAddress":  "::1",
+                                      "OwningProcess":  15348,
+                                      "ProcessName":  "wslrelay",
+                                      "IsDocker":  true
+                                  },
+                                  {
+                                      "Port":  5432,
+                                      "LocalAddress":  "::",
+                                      "OwningProcess":  26372,
+                                      "ProcessName":  "com.docker.backend",
+                                      "IsDocker":  true
+                                  },
+                                  {
+                                      "Port":  6379,
+                                      "LocalAddress":  "::1",
+                                      "OwningProcess":  15348,
+                                      "ProcessName":  "wslrelay",
+                                      "IsDocker":  true
+                                  },
+                                  {
+                                      "Port":  6379,
+                                      "LocalAddress":  "::",
+                                      "OwningProcess":  26372,
+                                      "ProcessName":  "com.docker.backend",
+                                      "IsDocker":  true
+                                  },
+                                  {
+                                      "Port":  9000,
+                                      "LocalAddress":  "::1",
+                                      "OwningProcess":  15348,
+                                      "ProcessName":  "wslrelay",
+                                      "IsDocker":  true
+                                  },
+                                  {
+                                      "Port":  9000,
+                                      "LocalAddress":  "::",
+                                      "OwningProcess":  26372,
+                                      "ProcessName":  "com.docker.backend",
+                                      "IsDocker":  true
+                                  }
+                              ]
+}

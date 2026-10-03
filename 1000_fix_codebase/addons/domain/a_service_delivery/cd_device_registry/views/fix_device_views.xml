@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_device_registry — device registry views (P04-M06 W1 workspace skeleton).
+  AS-09: views read and write fields; no business logic lives here.
+  Labels are the bn_BD.po source strings — the bn locale renders Bengali.
+-->
+<odoo>
+
+    <record id="view_fix_device_tree" model="ir.ui.view">
+        <field name="name">fix.device.tree</field>
+        <field name="model">fix.device</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="brand_id"/>
+                <field name="device_model_id"/>
+                <field name="owner_id"/>
+                <field name="warranty_status"/>
+                <field name="state"/>
+                <field name="branch_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_device_form" model="ir.ui.view">
+        <field name="name">fix.device.form</field>
+        <field name="model">fix.device</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" readonly="1"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Identity">
+                            <field name="device_model_id"/>
+                            <field name="brand_id"/>
+                            <field name="device_type"/>
+                            <field name="serial_number"/>
+                            <field name="imei_1"/>
+                            <field name="imei_2"/>
+                            <field name="mac_address"/>
+                        </group>
+                        <group string="Ownership">
+                            <field name="owner_id"/>
+                            <field name="purchase_date"/>
+                            <field name="purchase_channel"/>
+                            <field name="warranty_status"/>
+                            <field name="branch_id"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Warranty">
+                            <field name="warranty_id">
+                                <tree editable="bottom">
+                                    <field name="warranty_type"/>
+                                    <field name="start_date"/>
+                                    <field name="end_date"/>
+                                    <field name="deductible"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Device History">
+                            <field name="history_ids" readonly="1">
+                                <tree>
+                                    <field name="date"/>
+                                    <field name="event_type"/>
+                                    <field name="description"/>
+                                    <field name="service_order_id" optional="hide"/>
+                                    <field name="technician_id" optional="hide"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_device_search" model="ir.ui.view">
+        <field name="name">fix.device.search</field>
+        <field name="model">fix.device</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="serial_number"/>
+                <field name="imei_1"/>
+                <field name="owner_id"/>
+                <filter name="filter_in_warranty" string="In Warranty"
+                        domain="[('warranty_status', '=', 'active')]"/>
+                <filter name="filter_registered" string="Registered"
+                        domain="[('state', '=', 'registered')]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_brand" string="Brand"
+                            context="{'group_by': 'brand_id'}"/>
+                    <filter name="group_branch" string="Branch"
+                            context="{'group_by': 'branch_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fix_device" model="ir.actions.act_window">
+        <field name="name">Devices</field>
+        <field name="res_model">fix.device</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Register the first device</p>
+            <p>Every device is identified by serial/IMEI uniqueness and carries its warranty and ownership history.</p>
+        </field>
+    </record>
+
+    <!-- P04-M06-T03 — Device Registry workspace (UX-002: opens on the
+         device list; NVR-22 gated by the cd_rbac_ext workspace group). -->
+    <menuitem id="menu_ws_devices" name="Device Registry"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_ws_devices"
+              sequence="40"/>
+    <menuitem id="menu_fix_devices" name="Devices" parent="menu_ws_devices"
+              action="action_fix_device" sequence="10"/>
+
+</odoo>

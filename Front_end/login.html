@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Sign in — 1000 FiX ERP</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230E7A6E'/><text x='16' y='22' font-size='15' font-weight='800' fill='white' text-anchor='middle' font-family='Arial'>F</text></svg>"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&family=Noto+Sans+Bengali:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/tokens.css?v=2"/>
+<link rel="stylesheet" href="css/landing.css?v=2"/>
+</head>
+<body class="login">
+<div class="login-split">
+  <aside class="login-brand">
+    <div class="lb-logo"><span class="mark">F</span><span>1000 FiX ERP<br/><small style="font-weight:500;opacity:.7;font-size:11px">SERVICE OPERATIONS PLATFORM</small></span></div>
+    <div>
+      <h2>One platform,<br/>every service moment.</h2>
+      <p>Hotline 16743 to workshop bench, brand claim to Mushak 9.1 — 67 modules, 12 portals, one golden record per customer and device.</p>
+      <div class="lb-facts">
+        <div><b>823</b><span>screens</span></div>
+        <div><b>346</b><span>reports</span></div>
+        <div><b>12</b><span>portals</span></div>
+      </div>
+    </div>
+    <p style="margin-top:42px;font-size:11px;opacity:.55">ISO 9001:2015 · 51+ centres · 8 divisions<br/>© 2026 1000 FiX Services Ltd.</p>
+  </aside>
+  <main class="login-form-side">
+    <div class="login-card">
+      <h1>Sign in</h1>
+      <p class="sub">Use your 1000 FiX credentials — SSO (M29) with MFA.</p>
+
+      <div class="login-demo">
+        <b>▶ Demo — one click:</b> persona <b>Rahim Uddin · CTO / Super Admin</b><br/>
+        <button class="btn-hero" style="height:34px;font-size:13px;margin-top:9px;width:100%;justify-content:center" onclick="location.href='app.html'">Sign in as demo user ▸</button>
+      </div>
+
+      <form onsubmit="return fxLogin(event)">
+        <label>Work email
+          <input id="fx-email" type="email" value="demo@1000fix.com" autocomplete="username"/>
+        </label>
+        <label>Password
+          <input id="fx-pass" type="password" value="Prototype@2026" autocomplete="current-password"/>
+        </label>
+        <div id="fx-totp-row" style="display:none">
+          <label>Authenticator code (6 digits)
+            <div class="otp-row">
+              <input maxlength="1" inputmode="numeric" class="fx-otp"/><input maxlength="1" inputmode="numeric" class="fx-otp"/>
+              <input maxlength="1" inputmode="numeric" class="fx-otp"/><input maxlength="1" inputmode="numeric" class="fx-otp"/>
+              <input maxlength="1" inputmode="numeric" class="fx-otp"/><input maxlength="1" inputmode="numeric" class="fx-otp"/>
+            </div>
+          </label>
+          <p style="font-size:11px;color:var(--ok);margin:-6px 0 12px" id="fx-caps"></p>
+        </div>
+        <button class="btn-hero" id="fx-submit" type="submit" style="width:100%;justify-content:center;margin-top:4px">Continue ▸</button>
+      </form>
+
+      <div class="sso-row">
+        <button class="btn-ghost" onclick="fxToast('Microsoft SSO — corporate identity provider (M29 federation)')"> Microsoft SSO</button>
+        <button class="btn-ghost" onclick="fxToast('Google SSO — design preview')"> Google SSO</button>
+      </div>
+      <p class="login-foot">Forgot password · Terms · PDPA 2026 privacy notice<br/>Prototype — no real authentication; any credentials work.</p>
+    </div>
+  </main>
+</div>
+<div class="toast-host" id="toasts" style="position:fixed;bottom:18px;right:18px;display:flex;flex-direction:column;gap:8px"></div>
+<style>.toast{background:var(--ink-900);color:#fff;padding:10px 16px;border-radius:6px;box-shadow:var(--shadow-16);font-size:13px;animation:ti .2s ease}@keyframes ti{from{opacity:0;transform:translateY(6px)}}</style>
+<script>
+function fxToast(m){var h=document.getElementById('toasts');var e=document.createElement('div');e.className='toast';e.textContent=m;h.appendChild(e);setTimeout(function(){e.remove()},3600);}
+function fxLogin(ev){
+  ev.preventDefault();
+  var row = document.getElementById('fx-totp-row');
+  if (row.style.display === 'none') {
+    row.style.display = 'block';
+    document.getElementById('fx-submit').textContent = 'Sign in ✓';
+    fxToast('MFA required — enter any 6 digits (demo)');
+    var first = document.querySelector('.fx-otp'); if (first) first.focus();
+    return false;
+  }
+  fxToast('Signed in — opening workspace…');
+  setTimeout(function () { location.href = 'app.html'; }, 500);
+  return false;
+}
+/* TOTP auto-advance + caps-lock hint */
+document.querySelectorAll('.fx-otp').forEach(function (inp, i, all) {
+  inp.addEventListener('input', function () {
+    this.value = this.value.replace(/\D/g, '');
+    if (this.value && all[i + 1]) all[i + 1].focus();
+  });
+  inp.addEventListener('keydown', function (e) {
+    var code = Array.prototype.map.call(all, function (x) { return x.value; }).join('');
+    if (e.key === 'Enter' && code.length === 6) fxLogin(new Event('submit'));
+    if (e.key === 'Backspace' && !this.value && all[i - 1]) all[i - 1].focus();
+  });
+  inp.addEventListener('keyup', function (e) {
+    var caps = e.getModifierState && e.getModifierState('CapsLock');
+    document.getElementById('fx-caps').textContent = caps ? '⚠ Caps Lock is on' : '';
+  });
+});
+</script>
+</body>
+</html>

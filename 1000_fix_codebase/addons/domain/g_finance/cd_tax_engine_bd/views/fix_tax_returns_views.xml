@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_tax_engine_bd return views (P07-M04) — Finance workspace. -->
+<odoo>
+
+    <record id="view_fix_vat_return_tree" model="ir.ui.view">
+        <field name="name">fix.vat.return.tree</field>
+        <field name="model">fix.vat.return</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'filed'" decoration-muted="nil_return == True">
+                <field name="period"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="output_vat"/>
+                <field name="input_vat" optional="show"/>
+                <field name="net_payable"/>
+                <field name="nil_return" optional="show" string="Nil"/>
+                <field name="due_date"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_vat_return_form" model="ir.ui.view">
+        <field name="name">fix.vat.return.form</field>
+        <field name="model">fix.vat.return</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="period" readonly="1"/> — Mushak 9.1</h1></div>
+                    <group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_taxable"/>
+                            <field name="output_vat"/>
+                            <field name="input_vat"/>
+                            <field name="net_payable"/>
+                        </group>
+                        <group>
+                            <field name="nil_return"/>
+                            <field name="due_date" readonly="1"/>
+                            <field name="state"/>
+                            <field name="filed_at" readonly="1"/>
+                            <field name="nbr_confirmation"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_tds_return_tree" model="ir.ui.view">
+        <field name="name">fix.tds.return.tree</field>
+        <field name="model">fix.tds.return</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'filed'">
+                <field name="quarter"/>
+                <field name="fiscal_year"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="total_withheld"/>
+                <field name="deductor_count" optional="show"/>
+                <field name="due_date"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_vat_return" model="ir.actions.act_window">
+        <field name="name">VAT Returns</field>
+        <field name="res_model">fix.vat.return</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_tds_return" model="ir.actions.act_window">
+        <field name="name">TDS Returns</field>
+        <field name="res_model">fix.tds.return</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_vat_return" name="VAT Returns"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_vat_return" sequence="140"/>
+    <menuitem id="menu_fix_tds_return" name="TDS Returns"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_tds_return" sequence="150"/>
+
+</odoo>

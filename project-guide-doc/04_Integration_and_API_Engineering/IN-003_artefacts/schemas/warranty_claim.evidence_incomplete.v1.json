@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.1000fix.example/events/warranty_claim.evidence_incomplete/1.0.json",
+  "title": "warranty_claim.evidence_incomplete payload",
+  "description": "A CONTROL, NOT A CONVENIENCE. P08 T-05 uses this event to SUPPRESS claim submission when the evidence pack is incomplete against the brand's own rules, and gate G4-02's 90% first-submission approval target rests on that suppression.\n\nSTATUS: NO MODULE PUBLISHES THIS EVENT. Audit AP-01 (critical, AUDIT-016) identified it; AR-009 §10.5 confirmed it still unpublished after measuring all 988 declared events; IN-003 §7.4 confirms it a third time at 2026-08-18. 'An architectural control that is documented and unpublished is not a control' (AR-009 §10.5).\n\nThe schema is issued here so that the gap is a missing EMITTER, not a missing DESIGN. Registering it is RE-02, a Wave 1 item ahead of the bulk remediation. The 422 rule.evidence_incomplete response it must produce is already specified in IN-002_artefacts/commercial/openapi.yaml (submitWarrantyClaim).\n\nNAME: AP-01 called this 'claim.evidence_incomplete'. AR-008 §3 forbids the unqualified noun — 'claim' is ambiguous across warranty claims, insurance claims and marketplace disputes — so the registered name is qualified.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["warranty_claim_id", "brand_code", "evaluated_at", "missing", "rule_set_version"],
+
+  "x-registration": {
+    "event_type": "warranty_claim.evidence_incomplete",
+    "schema_version": "1.0",
+    "kind": "E1",
+    "aggregate": "warranty_claim",
+    "producer_module": "M09",
+    "consumers": ["P08", "M27", "M23"],
+    "ordering_guarantee": "per_aggregate_instance",
+    "replay_class": "R1",
+    "retention_class": "operational_30d",
+    "channel": "domain",
+    "pii_classification": "none",
+    "owning_context": "commercial",
+    "wave": "W1",
+    "emits_from": ["evidence_pending -> evidence_pending (re-evaluation)", "draft -> evidence_pending"],
+    "source_ref": "AUDIT-016 AP-01; P08 T-05; AR-009 §10.5; IN-003 §7.4",
+    "status": "DESIGNED, NOT PUBLISHED — RE-02, Wave 1",
+    "comment_on_pii": "none, deliberately. The payload names WHICH evidence items are absent, never their content, and carries no customer identifier — the claim id is sufficient for every consumer to resolve what it needs through an API. This keeps a high-frequency control event out of PDPA erasure scope entirely (IN-003 §4.3).",
+    "comment_on_replay_class": "R1. Re-evaluating completeness is idempotent and recomputable. It must NEVER acquire a side effect such as notifying the brand, which would make it R3 and unreplayable."
+  },
+
+  "properties": {
+    "warranty_claim_id": {
+      "type": "string",
+      "pattern": "^WC-[0-9]{8,12}$"
+    },
+    "brand_code": {
+      "type": "string",
+      "description": "The brand whose rule set was evaluated. Determines the data scope of every consumer — P08 sees only its own brand (AP-005 SC-02)."
+    },
+    "service_order": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string" }
+      }
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC."
+    },
+    "rule_set_version": {
+      "type": "string",
+      "description": "The version of the BRAND'S evidence rule set that was applied. Required because a claim refused today and accepted tomorrow must be explainable by a rule change rather than by inconsistency — and because a brand disputing a suppression will ask which rules were in force."
+    },
+    "missing": {
+      "type": "array",
+      "minItems": 1,
+      "description": "SC-06: enough for the consumer to act without a call-back. P08 renders this list directly to the brand partner, so each entry carries its own presentable label.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["evidence_code", "requirement"],
+        "properties": {
+          "evidence_code": {
+            "type": "string",
+            "description": "Controlled code for the evidence item, e.g. serial_plate_photograph."
+          },
+          "requirement": {
+            "type": "string",
+            "enum": ["mandatory", "conditional"],
+            "description": "conditional means required only because of another attribute of this claim; the reason is in condition_note."
+          },
+          "condition_note": { "type": ["string", "null"], "maxLength": 500 },
+          "rule": {
+            "type": ["string", "null"],
+            "description": "The 05-05 BRU- identifier. Machine-readable only — UI-004 E-06 forbids showing a rule identifier in user-facing text."
+          }
+        }
+      }
+    },
+    "present_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "How many required items ARE present, so a progress indicator does not need a second call."
+    },
+    "required_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "suppression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["submission_blocked", "rule_class"],
+      "description": "The control's effect, stated in the payload rather than inferred by each consumer — because two consumers inferring it differently is how a control becomes advisory.",
+      "properties": {
+        "submission_blocked": { "type": "boolean" },
+        "rule_class": {
+          "type": "string",
+          "enum": ["H", "A", "S", "C"],
+          "description": "H hard block · A approved override · S soft warning · C computed. For evidence completeness this is H: no human can override it, because the brand will reject the claim regardless. This is the field that tells a caller whether anyone with authority can unblock them (AP-006 §4.2)."
+        },
+        "override_role": {
+          "type": ["string", "null"],
+          "description": "Null when rule_class is H. Present only where an approved override exists."
+        }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "warranty_claim_id": "WC-00043912",
+      "brand_code": "BRD-004",
+      "service_order": { "id": "SO-00918234", "type": "service_order" },
+      "evaluated_at": "2026-08-18T11:02:47Z",
+      "rule_set_version": "BRD-004-EVID-2026.3",
+      "missing": [
+        {
+          "evidence_code": "serial_plate_photograph",
+          "requirement": "mandatory",
+          "condition_note": null,
+          "rule": "BRU-WPC-07"
+        },
+        {
+          "evidence_code": "fault_video",
+          "requirement": "conditional",
+          "condition_note": "Required for intermittent-fault claims on this brand.",
+          "rule": "BRU-WPC-09"
+        },
+        {
+          "evidence_code": "purchase_proof",
+          "requirement": "mandatory",
+          "condition_note": null,
+          "rule": "BRU-WPC-02"
+        }
+      ],
+      "present_count": 4,
+      "required_count": 7,
+      "suppression": {
+        "submission_blocked": true,
+        "rule_class": "H",
+        "override_role": null
+      }
+    }
+  ]
+}

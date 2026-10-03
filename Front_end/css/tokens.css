@@ -1,0 +1,168 @@
+/* =====================================================================
+   1000 FiX ERP — DESIGN TOKEN LAYER  (FIX-UXD-2026-001)
+   "SERVICE-TEAL FLUENT": Fluent-2 token architecture on the 1000 FiX
+   teal service ramp. One source of truth for shell, modules, portals
+   and report surfaces. Sunset-orange accent is RESERVED for marketing
+   surfaces (landing / login brand panel) and never appears inside
+   operational screens. Contrast pairs verified WCAG AA.
+   ===================================================================== */
+
+:root {
+  /* ---- Brand ramp — 1000 FiX service teal (16 steps) ------------------ */
+  --brand-10:  #04211E; --brand-20:  #07332E; --brand-30:  #0A453F;
+  --brand-40:  #0C544C; --brand-50:  #0E645B; --brand-60:  #0E7A6E;
+  --brand-70:  #0B8A7C; --brand-80:  #0F9C8E; --brand-90:  #2FB0A2;
+  --brand-100: #54C2B6; --brand-110: #7FD1C8; --brand-120: #A5DED7;
+  --brand-130: #C4E9E4; --brand-140: #DCF2EF; --brand-150: #EBF8F6;
+  --brand-160: #F4FBFA;
+
+  /* Interactive aliases (selected rows = LIGHT tints + ink; brand-60 only
+     with white text) */
+  --primary:        #0E7A6E;   /* brand-60 interactive primary            */
+  --primary-hover:  #0A5F56;   /* pressed / hover                         */
+  --primary-press:  #084A43;
+  --primary-dark:   #0A5F56;   /* selected-strong, white text              */
+  --primary-tint:   #EBF8F6;   /* selected-row tint                        */
+  --primary-wash:   #F4FBFA;   /* hover fill / page wash                   */
+
+  /* ---- Marketing brand (landing / login brand panel ONLY) -------------- */
+  --deep-950: #052E2A; --deep-900: #07332E; --deep-800: #0A453F;
+  --sun-600:  #D9480F; --sun-500:  #E8590C; --sun-400:  #F76707;
+  --sun-300:  #FFB380; --sun-100:  #FFE8D9; --sun-050:  #FFF4ED;
+  --paper:    #F7FBFA; --paper-2: #EDF5F3;
+
+  /* ---- Neutrals (Fluent-2 grey ramp, canonical values) ------------------ */
+  --grey-2:  #050505; --grey-8:  #141414; --grey-12: #1F1F1F;
+  --grey-14: #242424; --grey-16: #292929; --grey-20: #333333;
+  --grey-24: #3D3D3D; --grey-26: #424242; --grey-32: #525252;
+  --grey-38: #616161; --grey-44: #707070; --grey-50: #808080;
+  --grey-68: #ADADAD; --grey-74: #BDBDBD; --grey-82: #D1D1D1;
+  --grey-88: #E0E0E0; --grey-90: #E6E6E6; --grey-92: #EBEBEB;
+  --grey-94: #F0F0F0; --grey-96: #F5F5F5; --grey-98: #FAFAFA;
+  --grey-99: #FCFCFC;
+
+  --canvas:          #FAFAFA;
+  --surface:         #FFFFFF;
+  --surface-2:       #F5F5F5;
+  --surface-3:       #F0F0F0;
+  --stroke:          #E0E0E0;
+  --stroke-strong:   #D1D1D1;
+  --stroke-accessible: #616161;
+  --ink-900: #242424;
+  --ink-700: #424242;
+  --ink-500: #616161;
+  --ink-300: #BDBDBD;
+  --subtle-hover:   #F5F5F5;
+  --subtle-pressed: #E0E0E0;
+
+  /* ---- Status (verified triplets: fg / bold / bg / border) --------------- */
+  --ok:        #0E700E;  --ok-bold:   #107C10;  --ok-bg:   #F1FAF1;  --ok-border:   #C9EAC9;
+  --warn:      #BC4B09;  --warn-bold: #F7630C;  --warn-bg: #FFF9F5;  --warn-border: #FEE5D7;
+  --severe:    #A62D01;  --severe-bold: #DA3B01; --severe-bg: #F4BFAB;
+  --err:       #B10E1C;  --err-bold:  #C50F1F;  --err-bg:  #FDF3F4;  --err-border:  #F6D1D5;
+  --info:      #0E7A6E;  --info-bold: #0F9C8E;  --info-bg: #EBF8F6;  --info-border:  #A5DED7;
+  --neutral:   #424242;  --neutral-bg: #F5F5F5;
+
+  /* ---- Chart palette (8 max, directly labelled) -------------------------- */
+  --chart-1: #0F9C8E; --chart-2: #E8590C; --chart-3: #3F51B5; --chart-4: #6A4C93;
+  --chart-5: #B23A2E; --chart-6: #2E9BD6; --chart-7: #12885E; --chart-8: #8A8A8A;
+
+  /* ---- Module identity rails (decorative only, never text-bearing) ------- */
+  --rail-service:  #0F9C8E; --rail-customer: #E8590C; --rail-commercial: #6A4C93;
+  --rail-circular: #2E9BD6; --rail-supply:   #C77911; --rail-assets: #64748C;
+  --rail-finance:  #3F51B5; --rail-people:   #12885E; --rail-quality: #B23A2E;
+  --rail-insight:  #7986CB; --rail-platform: #6B7280;
+
+  /* ---- Typography --------------------------------------------------------- */
+  --font-ui: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui,
+             -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-bn: "Noto Sans Bengali", "SolaimanLipi", "Kalpurush", "Nikosh", sans-serif;
+  --font-stack: var(--font-ui);
+  --font-display: "Sora", "Inter", Georgia, serif;  /* marketing only */
+  --font-mono: "JetBrains Mono", Consolas, "Courier New", monospace;
+
+  --fs-100: 10px;  --lh-100: 14px;
+  --fs-200: 12px;  --lh-200: 16px;
+  --fs-300: 14px;  --lh-300: 20px;
+  --fs-400: 16px;  --lh-400: 22px;
+  --fs-500: 20px;  --lh-500: 28px;
+  --fs-600: 24px;  --lh-600: 32px;
+  --fs-700: 28px;  --lh-700: 36px;
+
+  --fw-regular: 400; --fw-medium: 500; --fw-semibold: 600; --fw-bold: 700;
+
+  /* ---- Space (4-px grid) ---------------------------------------------------- */
+  --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+  --s-5: 20px; --s-6: 24px; --s-8: 32px; --s-10: 40px; --s-12: 48px;
+
+  /* ---- Shape / depth ---------------------------------------------------------- */
+  --r-small: 2px;  --r-ctl: 4px;  --r-surface: 8px;  --r-flyout: 12px;  --r-pill: 999px;
+  --shadow-2:  0 0 2px rgba(4,33,30,.10), 0 1px 2px rgba(4,33,30,.14);
+  --shadow-4:  0 0 2px rgba(4,33,30,.10), 0 2px 4px rgba(4,33,30,.14);
+  --shadow-8:  0 0 2px rgba(4,33,30,.10), 0 4px 8px rgba(4,33,30,.16);
+  --shadow-16: 0 0 4px rgba(4,33,30,.10), 0 8px 16px rgba(4,33,30,.18);
+  --shadow-64: 0 0 8px rgba(4,33,30,.12), 0 32px 64px rgba(4,33,30,.22);
+
+  /* ---- Z-index ------------------------------------------------------------------ */
+  --z-sticky: 10; --z-flyout: 100; --z-dialog: 200; --z-toast: 300;
+
+  /* ---- Shell layout ----------------------------------------------------------------- */
+  --topbar-h: 48px;
+  --sitemap-w: 248px;
+  --sitemap-w-collapsed: 48px;
+  --tabrail-w: 48px;
+  --tabrail-w-open: 280px;
+  --factbox-w: 300px;
+  --statusbar-h: 28px;
+
+  /* ---- Density (rows) ------------------------------------------------------------------ */
+  --row-h: 40px;
+}
+
+/* Density modes — Compact grid text 12.7px = exactly 9.5pt */
+html[data-density="compact"] { --row-h: 32px; }
+html[data-density="relaxed"] { --row-h: 48px; }
+
+html.lang-bn { --font-stack: var(--font-bn); }
+html.lang-bn body { font-family: var(--font-bn), var(--font-ui); }
+
+/* ---- Focus (Fluent double ring) ---------------------------------------------------- */
+:where(button, a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-stroke-inner, #04211E);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 3px var(--focus-stroke-outer, #FFFFFF);
+  border-radius: var(--r-ctl);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Motion ------------------------------------------------------------------------ */
+:root {
+  --dur-fast: 120ms; --dur-normal: 200ms; --dur-med: 240ms; --dur-slow: 300ms;
+  --ease: cubic-bezier(.33, 0, .1, 1);
+  --curve-decelerate-max: cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+/* ---- Dark mode (interactive primary = brand-100 family, AA) ------------------------- */
+html[data-theme="dark"] {
+  --canvas: #1F1F1F; --surface: #292929; --surface-2: #242424;
+  --surface-3: #333333; --stroke: #3D3D3D; --stroke-strong: #4A4A4A;
+  --stroke-accessible: #8A8A8A;
+  --ink-900: #F5F5F5; --ink-700: #E0E0E0; --ink-500: #ADADAD; --ink-300: #6B6B6B;
+  --subtle-hover: #333333; --subtle-pressed: #3D3D3D;
+  --primary: #54C2B6; --primary-hover: #7FD1C8; --primary-press: #2FB0A2;
+  --primary-dark: #7FD1C8; --primary-tint: #0E3B35; --primary-wash: #0B312C;
+  --chart-1: #54C2B6; --chart-2: #F76707; --chart-3: #7986CB; --chart-4: #9D85C9;
+  --chart-5: #D96A5E; --chart-6: #6FB6E0; --chart-7: #3FB586; --chart-8: #9A9A9A;
+  --ok-bg: #122A12; --warn-bg: #33200F; --err-bg: #331416; --info-bg: #0E2E2A;
+  --shadow-2: 0 0 2px rgba(0,0,0,.4), 0 1px 2px rgba(0,0,0,.5);
+  --shadow-4: 0 0 2px rgba(0,0,0,.4), 0 2px 4px rgba(0,0,0,.5);
+  --shadow-16: 0 0 4px rgba(0,0,0,.5), 0 8px 16px rgba(0,0,0,.6);
+}

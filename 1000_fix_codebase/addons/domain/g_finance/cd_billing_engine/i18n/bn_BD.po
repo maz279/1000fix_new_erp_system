@@ -1,0 +1,69 @@
+# Bengali (Bangladesh) translation for cd_billing_engine.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "AR Invoices"
+msgstr "প্রাপ্য চালানসমূহ"
+
+msgid "Amounts"
+msgstr "পরিমাণসমূহ"
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Collections"
+msgstr "আদায়"
+
+msgid "Credit Amount"
+msgstr "ক্রেডিট পরিমাণ"
+
+msgid "Credit Notes"
+msgstr "ক্রেডিট নোটসমূহ"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "Gen (s)"
+msgstr "জেনারেশন (সে.)"
+
+msgid "Invoice"
+msgstr "চালান"
+
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+msgid "Mushak 6.3"
+msgstr "মুশক ৬.৩"
+
+msgid "Original Invoice"
+msgstr "মূল চালান"
+
+msgid "Overdue"
+msgstr "অতিমেয়াদি"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "Source ID"
+msgstr "উৎস আইডি"
+
+msgid "Source Model"
+msgstr "উৎস মডেল"
+
+msgid "Taxable Value"
+msgstr "করযোগ্য মূল্য"
+
+msgid "Total Payable"
+msgstr "মোট প্রদেয়"
+
+msgid "VAT"
+msgstr "ভ্যাট"

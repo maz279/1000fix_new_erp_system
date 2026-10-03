@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_ar_invoice,fix.ar.invoice,model_fix_ar_invoice,base.group_user,1,1,1,0
+access_fix_ar_invoice_line,fix.ar.invoice.line,model_fix_ar_invoice_line,base.group_user,1,1,1,1
+access_fix_dunning,fix.dunning,model_fix_dunning,base.group_user,1,1,1,0
+access_fix_credit_note,fix.credit.note,model_fix_credit_note,base.group_user,1,1,1,0

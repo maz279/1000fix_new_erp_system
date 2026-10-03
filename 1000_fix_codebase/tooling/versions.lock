@@ -1,0 +1,218 @@
+# =============================================================================
+# 1000fix-erp - tooling/versions.lock
+# =============================================================================
+# Single source of truth for every pinned tool version and binary digest.
+#
+# Governance:
+#   BE-007 "LX-03" - nothing is installed at "latest"; every version is pinned
+#   IR-07          - every dependency pinned to an exact version or digest
+#   DE-06          - image tags pinned by digest; ":latest" appears nowhere
+#   BE-001 section 4 - toolchain pins consumed by the workstation scripts
+#
+# FORMAT RULES (both runtimes parse this file - PowerShell and bash):
+#   * pin lines are PURE "KEY=VALUE" - NO inline comments after the value
+#   * anything after '#' on a pin line is stripped by the parsers, but do not
+#     rely on that: keep explanatory text on its own comment line
+#   * values may be quoted; both parsers trim double quotes
+#
+# PLATFORM BASELINE: pure native Windows per programme decision D-WS-001
+# (2026-09-30), which supersedes the Ubuntu workstation baseline of IR-002
+# P02-M01-T02 / BE-001-D-06 for this build. See
+# docs/decisions/D-WS-001-windows-native-workstation-baseline.md
+#
+# Verification date: 2026-09-30 - every pin checked against upstream sources
+# on this date (see docs/traceability/P02-M01.md, "Pin provenance").
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# [workstation.windows] - P02-M01 Workstation baseline (native Windows)
+# Consumers: setup-workstation.ps1, verify-workstation.ps1,
+#            machine-inventory.ps1, install-wkhtmltopdf.ps1
+# -----------------------------------------------------------------------------
+
+# --- Operating system floor (T02, Windows adaptation) ------------------------
+# Windows 10 22H2 (build 19045) or newer, including Windows 11 (22000+).
+# Docker Desktop 4.x requires Windows 10 64-bit 22H2+ at minimum.
+# SECURITY NOTE (2026-10): Windows 10 22H2 passed end of support in October
+# 2025 (ESU excepted). The FLOOR remains 19045 per D-WS-001, but verify T02
+# emits a WARN on Windows 10-range builds - Windows 11 is the target state.
+WORKSTATION_WINDOWS_MIN_BUILD=19045
+
+# --- winget-pinned system packages (T04, Windows adaptation) -----------------
+# Installed via: winget install --id <id> --version <ver> --exact --silent
+#
+# PIN SEMANTICS - read before "fixing" a version comparison:
+#   The pin is the version setup INSTALLS (exact, via winget --version) and
+#   the FLOOR that verify asserts (installed >= pin). Several packages
+#   self-update after install (git's updater, Chrome, Firefox) - a machine
+#   drifting ABOVE its pin is expected and still compliant. This is floor
+#   semantics, not a DE-06 violation: DE-06 governs CONTAINER IMAGE tags
+#   (digest-pinned, never ":latest"); workstation packages auto-update by
+#   their own updaters and are verified against the floor.
+WORKSTATION_WINGET_GIT_ID=Git.Git
+# floor 2.40 - BE-004 section 5 (subtrees for 18 OCA repos + partial clone)
+WORKSTATION_WINGET_GIT_VERSION=2.55.0.5
+WORKSTATION_WINGET_DOCKER_ID=Docker.DockerDesktop
+# bundles Docker Engine (>= 24 floor) + Compose v2 + BuildX
+WORKSTATION_WINGET_DOCKER_VERSION=4.93.0
+WORKSTATION_WINGET_PYTHON_ID=Python.Python.3.12
+# exact 3.12.x line - same minor as the Odoo container runtime
+WORKSTATION_WINGET_PYTHON_VERSION=3.12.10
+WORKSTATION_WINGET_CHROME_ID=Google.Chrome
+WORKSTATION_WINGET_CHROME_VERSION=154.0.8037.93
+WORKSTATION_WINGET_FIREFOX_ID=Mozilla.Firefox
+WORKSTATION_WINGET_FIREFOX_VERSION=157.0
+
+# --- Full-disk encryption (T03, Windows adaptation) --------------------------
+# LUKS is Linux-only; the Windows equivalent control is BitLocker on the OS
+# volume (same policy driver: DE-12 / SC-009 - no unencrypted workstation).
+WORKSTATION_ENCRYPTION_PROVIDER=BitLocker
+
+# --- Docker floors (T06) ------------------------------------------------------
+WORKSTATION_DOCKER_ENGINE_MIN_VERSION=24
+WORKSTATION_DOCKER_COMPOSE_MIN_MAJOR=2
+
+# --- git floor (T07) ----------------------------------------------------------
+WORKSTATION_GIT_MIN_VERSION=2.40
+
+# --- wkhtmltopdf (T08, Windows adaptation - D-WS-001 split-build ruling) -----
+# PRIMARY: patched-Qt 0.12.6.1-3 runs INSIDE the Odoo container image
+#          (Odoo itself is containerised on Windows; the container is Linux,
+#          so the jammy .deb below is the right artefact there).
+# HOST:    the last Windows binary upstream ever shipped is 0.12.5-1
+#          (msvc2015, win64) - a PATCHED build installed on the host for
+#          local QWeb->PDF checks outside the container. Upstream never
+#          released a Windows 0.12.6.x and no winget package exists.
+WORKSTATION_WKHTMLTOPDF_HOST_VERSION=0.12.5-1
+WORKSTATION_WKHTMLTOPDF_HOST_URL=https://github.com/wkhtmltopdf/wkhtmltopdf/releases/download/0.12.5/wkhtmltox-0.12.5-1.msvc2015-win64.exe
+WORKSTATION_WKHTMLTOPDF_HOST_SHA256=b5a60b8801a599b9097c5cc8b0d2b18d1709b119b9d88b960f1f38fad498dcd8
+WORKSTATION_WKHTMLTOPDF_PATCHED_MARKER=with patched qt
+WORKSTATION_WKHTMLTOPDF_CONTAINER_VERSION=0.12.6.1-3
+WORKSTATION_WKHTMLTOPDF_CONTAINER_URL_BASE=https://github.com/wkhtmltopdf/packaging/releases/download
+WORKSTATION_WKHTMLTOPDF_CONTAINER_SHA256_AMD64=4f723b2691ad8638a9df960e0421d346d7315083e3583a334f33362280ddba15
+WORKSTATION_WKHTMLTOPDF_CONTAINER_SHA256_ARM64=2095f20256661ebf0983b9311168596c9d012666e21a94bc24f304db6ac69ec5
+
+# --- Bengali fonts (T05, TR-07 - non-negotiable) -----------------------------
+# Primary: Noto Sans Bengali, full hinted family, hash-pinned from the
+# upstream notofonts release (installs per-user; no admin required).
+# Secondary: Windows ships "Nirmala UI" with full Bengali conjunct support
+# as part of the OS - presence verified, nothing downloaded.
+# NOTE: the Ubuntu package fonts-lohit-beng-bengali has no Windows
+# distribution (upstream publishes font sources only); Nirmala UI fills the
+# second-family role. Recorded in D-WS-001 and the traceability matrix.
+WORKSTATION_FONT_NOTO_BENGALI_VERSION=NotoSansBengali-v3.011
+WORKSTATION_FONT_NOTO_BENGALI_URL=https://github.com/notofonts/bengali/releases/download/NotoSansBengali-v3.011/NotoSansBengali-v3.011.zip
+WORKSTATION_FONT_NOTO_BENGALI_SHA256=2aca24bf71665e66c32e14862ee58857dd8b8b07b6321ec7c96f3121ad6683b1
+WORKSTATION_FONT_NOTO_BENGALI_FAMILY=Noto Sans Bengali
+WORKSTATION_FONT_WINDOWS_BENGALI_FAMILY=Nirmala UI
+
+# --- Host port hygiene (T10 / DE-01) -----------------------------------------
+# Nothing but the Docker backend and language toolchains listens on the host.
+# These ports must carry no NON-Docker listener at baseline time.
+# P07 audit: the core stack now binds 5433/6380/9002 host-side (5432/6379/9000
+# are held by a NEIGHBOURING project's Docker stack on this shared workstation —
+# Docker listeners, so the no-non-Docker-listener contract still holds for them).
+WORKSTATION_RESERVED_PORTS=5432,6379,9000,5433,6380,9002,8025,8100,8110
+
+# --- End of [workstation.windows] --------------------------------------------
+
+# -----------------------------------------------------------------------------
+# [app-platform] - P01-M02 technology-decision outputs (2026-10-01)
+# Consumers: P02-M02 (toolchain install) onward; verified by the version-
+#            currency ritual (tooling/version-currency/verify-version-currency.ps1)
+#            at every wave gate. Decisions recorded in docs/decisions/.
+# NOTE: container image digests are pinned when the Compose profiles are
+#            defined (P02-M05, DE-06); the values below are version baselines.
+# -----------------------------------------------------------------------------
+APP_PLATFORM_NEXTJS_BASELINE=16.3
+APP_PLATFORM_PAYLOAD_BASELINE=3.73
+# Node 20 LTS went EOL upstream 2026-04-30 (finding F-1, verification record
+# 2026-10-01): the toolchain installs Node 22 LTS (Payload 3.73 requires
+# >= 20.9, satisfied). Node 22 EOL 2027-04-30 is a standing watch item.
+APP_PLATFORM_NODE_LTS_MAJOR=22
+APP_PLATFORM_ODOO_BASELINE=19.0
+APP_PLATFORM_POSTGRESQL_MAJOR=17
+# Object store selected by D-028; image digest pinned at P02-M05-T02.
+APP_PLATFORM_OBJECT_STORE=ceph
+# Redis: NO 7.4+/8.x pin until D-031 is taken (licence finding F-2).
+APP_PLATFORM_REDIS_PIN_POLICY=7.2.x-or-valkey-pending-D-031
+# Mobile framework selected by D-027; React Native must never appear here.
+APP_PLATFORM_MOBILE_FRAMEWORK=flutter
+
+# -----------------------------------------------------------------------------
+# [toolchain] - P02-M02 (toolchain installation and pinning)
+# LOCK RULE (recorded decision): container images pin BYTES (digest, DE-06);
+# workstation toolchains pin LINES with floors enforced by doctor.ps1 check 1.
+# Rationale: toolchain runtimes self-update within their line via their own
+# package managers (nvm/fvm/uv); a stale patch pin is a worse failure mode
+# than a line pin with a doctor floor. Exact installed versions are recorded
+# back into this file by setup-toolchains.ps1 at bootstrap (provenance).
+# -----------------------------------------------------------------------------
+TOOLCHAIN_PYTHON=3.12.10
+# Node 20 LTS went EOL 2026-04-30 (finding F-1, CR-P01M02-04): line is 22.
+TOOLCHAIN_NODE_LTS=22
+TOOLCHAIN_PNPM_MAJOR=9
+TOOLCHAIN_UV_MAJOR=0.8
+# Flutter line 3.44 (D-027): Material/Cupertino extraction + Impeller default -
+# read the migration notes BEFORE pinning (roadmap P02-M02-T03 warning).
+TOOLCHAIN_FLUTTER_MAJOR=3.44
+TOOLCHAIN_GO_MAJOR=1.24
+TOOLCHAIN_GIT_MIN=2.40
+
+# -----------------------------------------------------------------------------
+# [vendor] - P02-M04 pins (OD-06: submodule pin + subtree commits verified
+# against this file in CI). PIN=PENDING-CLONE until import-vendor.ps1 runs;
+# the script writes the resolved commits back into this section.
+# -----------------------------------------------------------------------------
+VENDOR_ODOO_URL=https://github.com/odoo/odoo
+VENDOR_ODOO_BRANCH=19.0
+VENDOR_ODOO_COMMIT=643610127254ee77bbc756b6746739e9e9bb85ff
+# OCA subtrees - the 20 repositories enumerated by roadmap P02-M04-T03/T04/T05.
+# NOTE: the roadmap heading says "18 subtrees" but its own enumeration lists 20
+# (9 + 4 + 7). Discrepancy registered as CR-P02M04-01 against BE-004 section 5;
+# the enumeration is treated as authoritative until BE-004 rules.
+VENDOR_OCA_ORG=https://github.com/OCA
+VENDOR_OCA_FIELD_SERVICE=PENDING-CLONE
+VENDOR_OCA_HELPDESK=PENDING-CLONE
+VENDOR_OCA_MANAGEMENT_SYSTEM=PENDING-CLONE
+VENDOR_OCA_OPERATING_UNIT=PENDING-CLONE
+VENDOR_OCA_HR=PENDING-CLONE
+VENDOR_OCA_PAYROLL=PENDING-CLONE
+VENDOR_OCA_DMS=PENDING-CLONE
+VENDOR_OCA_SERVER_TOOLS=PENDING-CLONE
+VENDOR_OCA_WEB=PENDING-CLONE
+VENDOR_OCA_ACCOUNT_FINANCIAL_TOOLS=PENDING-CLONE
+VENDOR_OCA_ACCOUNT_FINANCIAL_REPORTING=PENDING-CLONE
+VENDOR_OCA_REPORTING_ENGINE=PENDING-CLONE
+VENDOR_OCA_MIS_BUILDER=PENDING-CLONE
+VENDOR_OCA_STOCK_LOGISTICS_WORKFLOW=PENDING-CLONE
+VENDOR_OCA_STOCK_LOGISTICS_BARCODE=PENDING-CLONE
+VENDOR_OCA_STOCK_LOGISTICS_WAREHOUSE=PENDING-CLONE
+VENDOR_OCA_PURCHASE_WORKFLOW=PENDING-CLONE
+VENDOR_OCA_PARTNER_CONTACT=PENDING-CLONE
+VENDOR_OCA_CONTRACT=PENDING-CLONE
+VENDOR_OCA_L10N_BANGLADESH=PENDING-CLONE
+
+# --- End of [toolchain]/[vendor] --------------------------------------------
+
+# [compose-digests] - written by resolve-digests.ps1 2026-10-03
+COMPOSE_DIGEST_postgres_17.4=sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+COMPOSE_DIGEST_redis_7.2.5=sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+COMPOSE_DIGEST_quay.io_ceph_ceph_v19.2.6=sha256:ff836bb28e7d0be0ec4dd22e79407174452a96e11ee62e9cdd1fa47f4bcc3bdc
+COMPOSE_DIGEST_axllent_mailpit_v1.22=sha256:f7f7c31de4de59540ad6515a0ca057a77525bca2069b6e747d873ca66c10fe08
+COMPOSE_DIGEST_quay.io_keycloak_keycloak_26.3.0=sha256:08a31919cfcd814bf1b465142b1a716c4d1a8830f772bb5c9dffcbd96de3fba6
+COMPOSE_DIGEST_edoburu_pgbouncer_v1.24.0-p0=sha256:a578416121c1c991caa1abb314736178236f03811a721e97a028a9824e436c2c
+COMPOSE_DIGEST_kong_3.9=sha256:92035d16d7ff86b7bc12fb1d0090d29357d924238b1880f78735f3f2fea6b631
+COMPOSE_DIGEST_apache_airflow_3.1.0=sha256:e81cb98fe4e5f60fadde8cc6a1c926a363720339062cd53db04b6442950ab9ee
+COMPOSE_DIGEST_traccar_traccar_6.7=sha256:621c8d6d46fdb990aa43224c6644947d2de52f20728bd71e21c0808d1012db1f
+COMPOSE_DIGEST_otel_opentelemetry-collector-contrib_0.116.0=sha256:70217a89d27c678ead44f196d80aa8c2717cb68d0301dbdc40331dbec0a3e605
+COMPOSE_DIGEST_prom_prometheus_v3.3.0=sha256:339ce86a59413be18d0e445472891d022725b4803fab609069110205e79fb2f1
+COMPOSE_DIGEST_grafana_grafana_11.6.0=sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb
+COMPOSE_DIGEST_grafana_loki_3.4.0=sha256:74b8ccbd6e4b4932874742cf3997389592389ea721b3f210aad266486b985a4c
+COMPOSE_DIGEST_grafana_tempo_2.7.0=sha256:12e904cc509a8e0bd87815e0bc719b6167933bc3f2532716a85811af967780f6
+
+COMPOSE_DIGEST_osrm_osrm-backend_v5.25.0=sha256:bdfa60e64ae1376bff6ff5605991be50600132a27469a4a9e77c23afd3a6d555
+COMPOSE_DIGEST_vroomvrp_vroom-docker_v1.13.0=sha256:2e417553320bf68a25f6614ba8bdc31b0b2fc1172f8c25518c4656f488031c2a
+DOCKERFILE_DIGEST_python_3.12.10-slim=sha256:fd95fa221297a88e1cf49c55ec1828edd7c5a428187e67b5d1805692d11588db
+
+COMPOSE_DIGEST_ceph_daemon_latest=sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586

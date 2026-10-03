@@ -1,0 +1,218 @@
+# Bengali (Bangladesh) translation for cd_service_order.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+msgid "Assigned Technician"
+msgstr "নিয়োজিত টেকনিশিয়ান"
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Checklist Items"
+msgstr "চেকলিস্ট আইটেম"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "Device"
+msgstr "ডিভাইস"
+
+msgid "Diagnostic Path"
+msgstr "ডায়াগনস্টিক পথ"
+
+msgid "Discount"
+msgstr "ছাড়"
+
+msgid "Estimate Valid Until"
+msgstr "আনুমানিক খরচ বৈধ থাকবে"
+
+msgid "Estimates"
+msgstr "আনুমানিক খরচ"
+
+msgid "Fault Code"
+msgstr "ত্রুটি কোড"
+
+msgid "Fault Description"
+msgstr "ত্রুটির বিবরণ"
+
+msgid "Grand Total"
+msgstr "সর্বমোট"
+
+msgid "Idempotency Key"
+msgstr "ইডেম্পোটেন্সি কী"
+
+msgid "Labour Total"
+msgstr "শ্রম খরচ মোট"
+
+msgid "Legacy Reference"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Order Reference"
+msgstr "অর্ডার রেফারেন্স"
+
+msgid "Part"
+msgstr "পার্টস"
+
+msgid "Parts Consumed"
+msgstr "ব্যবহৃত পার্টস"
+
+msgid "Parts Total"
+msgstr "পার্টস খরচ মোট"
+
+msgid "Phone"
+msgstr "ফোন"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "QC Checklists"
+msgstr "কিউসি চেকলিস্ট"
+
+msgid "QC Inspector"
+msgstr "কিউসি পরিদর্শক"
+
+msgid "S/N"
+msgstr "সিরিয়াল নম্বর"
+
+msgid "SLA Policy"
+msgstr "SLA নীতি"
+
+msgid "Service Catalogue Item"
+msgstr "সার্ভিস ক্যাটালগ আইটেম"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+msgid "Unit Cost"
+msgstr "একক ব্যয়"
+
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+msgid "VAT Amount"
+msgstr "ভ্যাটের পরিমাণ"
+
+msgid "VAT Rate (%)"
+msgstr "ভ্যাটের হার (%)"
+
+msgid "Work Order"
+msgstr "ওয়ার্ক অর্ডার"
+
+msgid "Answers / Children"
+msgstr "উত্তর / চাইল্ড"
+
+msgid "Company"
+msgstr "কোম্পানি"
+
+msgid "Escalation Template"
+msgstr "এসকালেশন টেমপ্লেট"
+
+msgid "Node Code"
+msgstr "নোড কোড"
+
+msgid "Parent Node"
+msgstr "ঊর্ধ্বতন নোড"
+
+msgid "Question / Symptom"
+msgstr "প্রশ্ন / উপসর্গ"
+
+msgid "Recommended Action"
+msgstr "সুপারিশকৃত পদক্ষেপ"
+
+msgid "Resolution Target (hours)"
+msgstr "সমাধানের লক্ষ্য (ঘণ্টা)"
+
+msgid "Response Target (hours)"
+msgstr "সাড়া দেওয়ার লক্ষ্য (ঘণ্টা)"
+
+msgid "SLA Code"
+msgstr "SLA কোড"
+
+msgid "Terminal Node"
+msgstr "টার্মিনাল নোড"
+
+msgid "Answers"
+msgstr "উত্তরসমূহ"
+
+msgid "Diagnostic Trees"
+msgstr "ডায়াগনস্টিক ট্রি"
+
+msgid "SLA Policies"
+msgstr "SLA নীতিমালা"
+
+msgid "Work Orders"
+msgstr "ওয়ার্ক অর্ডারসমূহ"
+
+msgid "Customer & Device"
+msgstr "গ্রাহক ও ডিভাইস"
+
+msgid "Fulfilment"
+msgstr "সম্পাদন"
+
+msgid "Group By"
+msgstr "গ্রুপ অনুযায়ী"
+
+msgid "Open Orders"
+msgstr "চলমান অর্ডার"
+
+msgid "SLA"
+msgstr "SLA"
+
+msgid "SLA Risk"
+msgstr "SLA ঝুঁকি"
+
+msgid "Service Delivery"
+msgstr "সার্ভিস ডেলিভারি"
+
+msgid "Service Orders"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "State"
+msgstr "অবস্থা"
+
+msgid "Order Category"
+msgstr "অর্ডারের শ্রেণি"
+
+msgid "Standard (Paid)"
+msgstr "স্ট্যান্ডার্ড (পেইড)"
+
+msgid "Warranty"
+msgstr "ওয়ারেন্টি"
+
+msgid "AMC / Contract"
+msgstr "এএমসি / চুক্তি"
+
+msgid "Rework"
+msgstr "পুনঃকার্য"
+
+msgid "Rework Of"
+msgstr "মূল অর্ডার"
+
+msgid "Customer Approval Ref"
+msgstr "গ্রাহকের অনুমোদন রেফারেন্স"
+
+msgid "Manager Approval"
+msgstr "ব্যবস্থাপকের অনুমোদন"
+
+msgid "SMS/OTP ref or signature id (BRU-SRM-07)"
+msgstr "এসএমএস/ওটিপি রেফারেন্স বা স্বাক্ষর আইডি (BRU-SRM-07)"

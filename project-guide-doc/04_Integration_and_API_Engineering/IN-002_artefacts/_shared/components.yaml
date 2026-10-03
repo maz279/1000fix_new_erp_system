@@ -1,0 +1,300 @@
+# 1000FiX ERP — Shared OpenAPI Components
+# Governed by IN-002 §5. Imported by all eleven bounded-context contracts.
+# A schema defined twice is a schema that will diverge (AP-006 EP-06 applied to types).
+#
+# CONFIDENTIAL — Internal Use Only
+# version: 1.0.0   date: 2026-08-18   owner: Integration Architect
+
+openapi: 3.1.0
+info:
+  title: 1000FiX Shared Components
+  version: 1.0.0
+  description: >
+    Component-only document. Not a servable API. Referenced by every context contract
+    via `$ref: '../_shared/components.yaml#/components/...'`.
+
+paths: {}
+
+components:
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # ENVELOPES                                                    IN-002 §5.1
+  # ─────────────────────────────────────────────────────────────────────────
+  schemas:
+
+    PageInfo:
+      type: object
+      description: >
+        Cursor pagination (API-05). Offset pagination is forbidden — an offset over a
+        mutating collection silently skips and repeats rows.
+      required: [limit, has_more]
+      properties:
+        cursor_next:
+          type: [string, "null"]
+          description: Opaque base64url cursor for the next page; null on the last page.
+        cursor_prev:
+          type: [string, "null"]
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 25
+        has_more:
+          type: boolean
+
+    Money:
+      type: object
+      description: >
+        AS-10 / IN-001 AC-04. Amount is a STRING decimal, never a float. A float cannot
+        represent BDT 0.10 exactly, and a reconciliation against a bank statement will
+        eventually disagree by paisa.
+      required: [amount, currency]
+      properties:
+        amount:
+          type: string
+          pattern: '^-?[0-9]{1,15}(\.[0-9]{1,4})?$'
+          examples: ["1234.50", "-89.0000"]
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217. BDT unless the operation states otherwise.
+          examples: ["BDT"]
+
+    Quantity:
+      type: object
+      required: [value, uom]
+      properties:
+        value:
+          type: string
+          pattern: '^-?[0-9]{1,12}(\.[0-9]{1,6})?$'
+        uom:
+          type: string
+          description: Unit of measure from the MD-* reference registers.
+
+    GeoPoint:
+      type: object
+      required: [lat, lon]
+      properties:
+        lat: { type: number, minimum: -90,  maximum: 90 }
+        lon: { type: number, minimum: -180, maximum: 180 }
+        accuracy_m: { type: [number, "null"], minimum: 0 }
+
+    PersonName:
+      type: object
+      description: >
+        IN-002-D-06 / BN-01. Paired fields, not one field with a language tag — a record
+        commonly holds both forms and a tag forces a choice the data does not make.
+      required: [full_name]
+      properties:
+        full_name:
+          type: string
+          maxLength: 200
+          description: Length is in CHARACTERS, not bytes (BN-02).
+        full_name_bn:
+          type: [string, "null"]
+          maxLength: 200
+      x-pii: personal
+
+    PhoneNumber:
+      type: string
+      description: >
+        E.164. Bangladesh mobile numbers match ^\+8801[3-9][0-9]{8}$; the wider pattern
+        admits international numbers for cross-border counterparties (M65).
+      pattern: '^\+[1-9][0-9]{7,14}$'
+      examples: ["+8801712345678"]
+      x-pii: personal
+
+    Address:
+      type: object
+      description: >
+        Bangladesh administrative shape. M65 owns the multi-country variant; this schema
+        deliberately does not generalise, because a generic address form loses the
+        division/district/upazila hierarchy that branch coverage and courier serviceability
+        both depend on.
+      required: [line_1, district]
+      properties:
+        line_1:      { type: string, maxLength: 200 }
+        line_1_bn:   { type: [string, "null"], maxLength: 200 }
+        line_2:      { type: [string, "null"], maxLength: 200 }
+        landmark:    { type: [string, "null"], maxLength: 200 }
+        union_ward:  { type: [string, "null"], maxLength: 100 }
+        upazila:     { type: [string, "null"], maxLength: 100 }
+        district:    { type: string, maxLength: 100 }
+        division:    { type: [string, "null"], maxLength: 100 }
+        postcode:    { type: [string, "null"], pattern: '^[0-9]{4}$' }
+        geo:
+          $ref: '#/components/schemas/GeoPoint'
+      x-pii: personal
+
+    Attachment:
+      type: object
+      description: >
+        Claim-check pattern (AR-009 P-05). A reference to object storage, never the bytes.
+      required: [id, filename, media_type, size_bytes]
+      properties:
+        id:         { type: string, format: uuid }
+        filename:   { type: string, maxLength: 255 }
+        media_type: { type: string }
+        size_bytes: { type: integer, minimum: 0 }
+        url:
+          type: [string, "null"]
+          format: uri
+          description: Short-lived, scoped download URL. Never a permanent public URL.
+        sha256:     { type: [string, "null"], pattern: '^[a-f0-9]{64}$' }
+
+    Reference:
+      type: object
+      description: >
+        How a resource in ANOTHER bounded context is named (IN-002 §3.1). The identifier
+        crosses the boundary; the schema does not.
+      required: [id, type]
+      properties:
+        id:      { type: string }
+        type:    { type: string, description: The AR-008 aggregate name. }
+        display: { type: [string, "null"], description: Human label, never parsed. }
+
+    AuditStamp:
+      type: object
+      readOnly: true
+      required: [created_at, updated_at]
+      properties:
+        created_at: { type: string, format: date-time }
+        created_by: { $ref: '#/components/schemas/Reference' }
+        updated_at: { type: string, format: date-time }
+        updated_by: { $ref: '#/components/schemas/Reference' }
+
+    Actor:
+      type: object
+      description: AR-009 §4 envelope actor. Required for audit.
+      required: [type]
+      properties:
+        type: { type: string, enum: [user, system, integration, job] }
+        id:   { type: [string, "null"] }
+
+    AsyncJobAccepted:
+      type: object
+      description: >
+        The 202 body (API-12, AP-006 export.accepted). Documented because callers treat
+        202 as an anomaly.
+      required: [job_id, job_url, status]
+      properties:
+        job_id:  { type: string, format: uuid }
+        job_url: { type: string, format: uri }
+        status:  { type: string, enum: [queued, running] }
+        estimated_completion_at: { type: [string, "null"], format: date-time }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # PARAMETERS                                                   IN-002 §5.2
+  # ─────────────────────────────────────────────────────────────────────────
+  parameters:
+
+    CursorParam:
+      name: cursor
+      in: query
+      required: false
+      schema: { type: string }
+      description: Opaque cursor from a previous page's `page.cursor_next`.
+
+    LimitParam:
+      name: limit
+      in: query
+      required: false
+      schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+
+    SortParam:
+      name: sort
+      in: query
+      required: false
+      schema: { type: string }
+      description: >
+        Comma-separated `field` or `-field`. Permitted fields are enumerated per
+        operation. Bengali fields declare their collation (BN-05).
+
+    FieldsParam:
+      name: fields
+      in: query
+      required: false
+      schema: { type: string }
+      description: >
+        Sparse fieldsets (API-06). Comma-separated property names. CANNOT widen scope —
+        requesting a field the credential may not see returns it absent, not an error
+        that confirms it exists.
+
+    IdempotencyKeyParam:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, format: uuid }
+      description: >
+        API-07 / IN-001 §6. Client-generated UUIDv4, required on every state-changing
+        operation. The gateway rejects `400 request.header_missing` if absent. Retention
+        is 24 h, or 7 days on money-moving operations (IN-001 ID-08).
+
+    AcceptLanguageParam:
+      name: Accept-Language
+      in: header
+      required: false
+      schema: { type: string, enum: [bn-BD, en], default: bn-BD }
+      description: API-11. Selects the language of `message`/`detail`. `code` is never translated.
+
+    IfMatchParam:
+      name: If-Match
+      in: header
+      required: false
+      schema: { type: string }
+      description: Optimistic concurrency (CA-02). Mismatch returns 412.
+
+    IfNoneMatchParam:
+      name: If-None-Match
+      in: header
+      required: false
+      schema: { type: string }
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # HEADERS                                                      IN-002 §5.3
+  # ─────────────────────────────────────────────────────────────────────────
+  headers:
+
+    XCorrelationId:
+      description: >
+        API-09 / NFR-092 (§7 tracing sense — see AP-02, the identifier is ambiguous in
+        05-06). Present on EVERY response, success or error.
+      required: true
+      schema: { type: string, format: uuid }
+
+    XRateLimitLimit:
+      schema: { type: integer }
+      description: Requests permitted in the current window.
+    XRateLimitRemaining:
+      schema: { type: integer }
+    XRateLimitReset:
+      schema: { type: integer }
+      description: Unix time at which the window resets.
+
+    RateLimit:
+      schema: { type: string }
+      description: >
+        IETF standard form, emitted IN ADDITION to X-RateLimit-* (AP-005 §4.7).
+        `reset` here is SECONDS REMAINING, not an absolute time — the two forms differ.
+      examples: { standard: { value: "limit=120, remaining=37, reset=42" } }
+    RateLimitPolicy:
+      schema: { type: string }
+      examples: { standard: { value: "120;w=60" } }
+
+    RetryAfter:
+      schema: { type: integer }
+      description: Seconds to wait. On 429 and 503 only.
+
+    IdempotencyReplayed:
+      schema: { type: boolean }
+      description: IN-001 ID-05. True when the stored response was returned unexecuted.
+
+    ETag:
+      schema: { type: string }
+
+    Deprecation:
+      schema: { type: string }
+      description: RFC 8594 form. Present on deprecated operations (IN-005 §7.2).
+    Sunset:
+      schema: { type: string }
+      description: HTTP-date, at least six months after Deprecation (API-02, FF-49).

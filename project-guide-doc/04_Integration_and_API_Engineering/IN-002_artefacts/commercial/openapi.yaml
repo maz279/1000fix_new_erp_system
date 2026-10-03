@@ -1,0 +1,425 @@
+# 1000FiX ERP — Commercial Context API
+# Bounded context 3 of 11 (IN-002 §3.1). Owning modules M08, M09, M11, M36–M40.
+# This exemplar covers the WARRANTY CLAIM DECISION PATH, because it is where the
+# hardest contract problems in the estate concentrate:
+#   · qualified scopes (own_brand) — a brand partner may decide only its own claims
+#   · the 403/404 rule under adversarial probing (IN-002-D-05, FF-51)
+#   · rule.* errors carrying BRU- identifiers and rule_class
+#   · claim.evidence_incomplete — AUDIT-016 AP-01's SUPPRESSION CONTROL, which is
+#     consumed by P08 T-05 and published by NO module (AR-009 §10.5)
+#
+# CONFIDENTIAL — Internal Use Only
+
+openapi: 3.1.0
+
+info:
+  title: 1000FiX Commercial API
+  version: 1.0.0
+  description: |
+    Contracts, warranty claims, pricing, quotations, catalogue and subscriptions — the
+    `commercial` bounded context (`AR-008` §5).
+
+    **This contract is consumed by 17+ brand partners.** Every operation is therefore
+    written to the stricter of the internal and partner-facing bars: `IP-10` minimisation,
+    `AP-012` field-level disclosure, and `EP-03` — an error never reveals the existence of
+    a record outside the caller's scope.
+
+    **Blocked dependency.** `warranty_claim.evidence_incomplete` is the event that
+    suppresses submission of an incomplete evidence pack. `AUDIT-016` `AP-01` classifies it
+    as a **control, not a convenience**, and `G4-02`'s 90% first-submission approval target
+    rests on that suppression. **No module publishes it** (`AR-009` §10.5). The
+    `submitWarrantyClaim` operation below therefore specifies the `422` that the control
+    must produce, so the contract states the intended behaviour even though the producing
+    side does not yet exist.
+  contact:
+    name: Integration Architect, 1000FiX Services Limited
+    email: integration-architecture@1000fix.example
+  license:
+    name: CONFIDENTIAL — Internal Use Only
+
+servers:
+  - url: https://sandbox.api.1000fix.example
+    description: Partner sandbox (the seventh environment — AUDIT-016 AP-12).
+
+externalDocs:
+  description: Brand partner integration guide
+  url: https://developer.1000fix.example/partners/brands
+
+tags:
+  - name: warranty-claims
+    description: Manufacturer warranty claims and their decisions.
+    x-family: brand
+    x-owning-module: M09
+  - name: quotations
+    description: Estimates and customer decisions.
+    x-family: customer
+    x-owning-module: M36
+
+security:
+  - oauthMachine: []
+
+paths:
+
+  /api/v1/warranty/claims:
+    get:
+      operationId: listWarrantyClaims
+      summary: List warranty claims within the credential's brand
+      tags: [warranty-claims]
+      x-scope: ['warranty_claim:read:own_brand']
+      x-scope-status: proposed
+      x-owning-module: M09
+      x-endpoint-class: standard-read
+      x-rate-limit-class: partner-standard
+      x-wave: W4
+      x-disclosure-ref: 'AP-012 §4.5 — brand partner counterparty register'
+      description: |
+        **`own_brand` is a data-scope qualifier, not a filter.** A credential scoped to
+        Brand A asking for Brand B's claims receives an empty result — never Brand B's
+        data, and never a different error that reveals Brand B's claims exist
+        (`AP-005` `SC-02`).
+
+        A request parameter can never widen scope (`EA-11`).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/FieldsParam'
+        - name: filter[state]
+          in: query
+          schema:
+            type: string
+            enum: [draft, evidence_pending, submitted, under_review, approved, part_approved, rejected, settled]
+        - name: filter[submitted_after]
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: A page of claims, bounded by the credential's brand.
+          headers:
+            X-Correlation-Id: { $ref: '../_shared/components.yaml#/components/headers/XCorrelationId' }
+            RateLimit: { $ref: '../_shared/components.yaml#/components/headers/RateLimit' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/WarrantyClaim' } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+    post:
+      operationId: createWarrantyClaim
+      summary: Raise a warranty claim
+      tags: [warranty-claims]
+      x-scope: ['warranty_claim:write']
+      x-scope-status: proposed
+      x-owning-module: M09
+      x-endpoint-class: write
+      x-rate-limit-class: partner-standard
+      x-wave: W4
+      x-retry-safe: false
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/AcceptLanguageParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WarrantyClaimCreate' }
+      responses:
+        '201':
+          description: Created in `evidence_pending`. Publishes `warranty_claim.created`.
+          headers:
+            Location: { required: true, schema: { type: string, format: uri } }
+            X-Correlation-Id: { $ref: '../_shared/components.yaml#/components/headers/XCorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarrantyClaim' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../_shared/errors.yaml#/components/responses/Conflict' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/warranty/claims/{warranty_claim_id}:
+    parameters:
+      - $ref: '#/components/parameters/WarrantyClaimId'
+    get:
+      operationId: getWarrantyClaim
+      summary: Retrieve one warranty claim
+      tags: [warranty-claims]
+      x-scope: ['warranty_claim:read:own_brand']
+      x-scope-status: proposed
+      x-owning-module: M09
+      x-endpoint-class: standard-read
+      x-rate-limit-class: partner-standard
+      x-wave: W4
+      description: |
+        **The adversarial case `FF-51` tests.** Three situations must be
+        indistinguishable to the caller:
+
+        | Situation | Response |
+        |---|---|
+        | Claim exists, belongs to another brand | `403 auth.out_of_scope` |
+        | Claim does not exist at all | `403 auth.out_of_scope` |
+        | Claim exists, belongs to this brand | `200` |
+
+        `404 resource.not_found` is **never** returned by this operation, because a `404`
+        would confirm that every other identifier the caller probes DOES exist. `AP-006`
+        `EP-03`: *"An error never reveals the existence of a record outside the caller's
+        scope."* The response bodies are byte-identical, including `correlation_id` shape
+        and response timing envelope.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IfNoneMatchParam'
+      responses:
+        '200':
+          description: The claim.
+          headers:
+            ETag: { $ref: '../_shared/components.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarrantyClaim' }
+        '304': { description: Not modified. }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/warranty/claims/{warranty_claim_id}/submit:
+    parameters:
+      - $ref: '#/components/parameters/WarrantyClaimId'
+    post:
+      operationId: submitWarrantyClaim
+      summary: Submit a claim to the brand
+      tags: [warranty-claims]
+      x-scope: ['warranty_claim:write']
+      x-scope-status: proposed
+      x-owning-module: M09
+      x-endpoint-class: write
+      x-rate-limit-class: partner-standard
+      x-wave: W4
+      x-retry-safe: false
+      description: |
+        **This operation carries a control, not a validation.** Submission is SUPPRESSED
+        when the evidence pack is incomplete against the brand's own rules — the mechanism
+        `P08` `T-05` depends on and that `G4-02`'s 90% first-submission approval target
+        rests on.
+
+        The suppression is signalled internally by `warranty_claim.evidence_incomplete`.
+        **`AUDIT-016` `AP-01` (critical) records that no module publishes this event**, and
+        `AR-009` §10.5 confirms it is still unpublished after measuring all 988 declared
+        events. **An architectural control that is documented and unpublished is not a
+        control.** The `422 rule.evidence_incomplete` response below is what the control
+        must produce; it is specified here so the contract states the intended behaviour
+        and the gap is visible rather than assumed away.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      responses:
+        '200':
+          description: Submitted. Publishes `warranty_claim.submitted`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarrantyClaim' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422':
+          description: |
+            Refused. The commonest case is `rule.evidence_incomplete` with
+            `details.missing[]` naming each absent evidence item against the brand's rule
+            set, and `rule_class: H` — a hard block that no human can override, because the
+            brand will reject the claim if it is submitted.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+              examples:
+                evidenceIncomplete:
+                  value:
+                    type: "https://developer.1000fix.example/errors/rule.evidence_incomplete"
+                    title: "Evidence pack is incomplete"
+                    status: 422
+                    code: "rule.evidence_incomplete"
+                    message: "Three evidence items are missing. Add them before submitting."
+                    details:
+                      rule: "BRU-WPC-07"
+                      rule_class: "H"
+                      missing:
+                        - "serial_plate_photograph"
+                        - "fault_video"
+                        - "purchase_proof"
+                    correlation_id: "3f2a19cd-4b17-4a02-9a6e-1de0c7f38b41"
+          x-retry-safe: false
+
+  /api/v1/warranty/claims/{warranty_claim_id}/decision:
+    parameters:
+      - $ref: '#/components/parameters/WarrantyClaimId'
+    post:
+      operationId: decideWarrantyClaim
+      summary: Decide a claim — approve, part-approve or reject
+      tags: [warranty-claims]
+      x-scope: ['warranty_claim:approve:own_brand']
+      x-scope-status: proposed
+      x-owning-module: M09
+      x-endpoint-class: write
+      x-rate-limit-class: partner-standard
+      x-wave: W4
+      x-retry-safe: false
+      description: |
+        **`approve` is a distinct scope from `write` and is never granted with it by
+        default** (`AP-005` `SC-05`). Several `05-04` §6 segregation rules depend on the
+        separation, and `SD-04` forbids declaring both on one operation unless the
+        operation genuinely does both.
+
+        A rejection here is what makes a credit note necessary when an SLA remedy applies —
+        `credit_note.issued` is `P04` `AC-10`'s mechanism and is one of `AP-01`'s three
+        safety-critical unpublished events.
+      security:
+        - oauthMachine: ['warranty_claim:approve:own_brand']
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/IfMatchParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [outcome]
+              properties:
+                outcome: { type: string, enum: [approved, part_approved, rejected] }
+                approved_amount: { $ref: '../_shared/components.yaml#/components/schemas/Money' }
+                reason_code:
+                  type: [string, "null"]
+                  description: Required when `outcome` is `rejected` or `part_approved`. From `MD-026`.
+                note: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        '200':
+          description: Decided. Publishes `warranty_claim.decided`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/WarrantyClaim' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../_shared/errors.yaml#/components/responses/Conflict' }
+        '412': { $ref: '../_shared/errors.yaml#/components/responses/PreconditionFailed' }
+        '422':
+          description: |
+            Refused. Includes `rule.over_approval_limit`, `rule.self_approval` and
+            `rule.sod_conflict` — the approval-endpoint class from `AP-006` §4.10.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+
+  /api/v1/quotations/{quotation_id}/decision:
+    parameters:
+      - name: quotation_id
+        in: path
+        required: true
+        schema: { type: string, pattern: '^QT-[0-9]{8,12}$' }
+    post:
+      operationId: decideQuotation
+      summary: Accept, part-accept or reject an estimate
+      tags: [quotations]
+      x-scope: ['quotation:approve']
+      x-scope-status: proposed
+      x-owning-module: M36
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      x-retry-safe: false
+      description: >
+        One of the ten `05-03` §3.2 CON-03 endpoints a module does declare. Publishes
+        `quotation.decided`, which M01 consumes (`M01` §12.1).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [outcome]
+              properties:
+                outcome: { type: string, enum: [accepted, part_accepted, rejected] }
+                accepted_line_ids:
+                  type: array
+                  items: { type: string }
+                  description: Required when `outcome` is `part_accepted`.
+                reason_code: { type: [string, "null"] }
+      responses:
+        '200':
+          description: Decision recorded.
+          content:
+            application/json:
+              schema: { type: object }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422':
+          description: |
+            Includes `state.terminal` where the estimate has expired — a reversal is a new
+            object, never an edit (`AP-003` `EV-02`).
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+
+components:
+
+  securitySchemes:
+    oauthUser:    { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthUser' }
+    oauthMachine: { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthMachine' }
+
+  parameters:
+    WarrantyClaimId:
+      name: warranty_claim_id
+      in: path
+      required: true
+      description: >
+        `AR-008` §3 forbids the unqualified form. `claim.submitted` is ambiguous across
+        warranty claims, insurance claims and marketplace disputes; `warranty_claim` is
+        required. The same ruling governs the event name.
+      schema: { type: string, pattern: '^WC-[0-9]{8,12}$' }
+
+  schemas:
+
+    WarrantyClaimCreate:
+      type: object
+      additionalProperties: false
+      required: [service_order, brand_code, fault_code]
+      properties:
+        service_order: { $ref: '../_shared/components.yaml#/components/schemas/Reference' }
+        brand_code:    { type: string }
+        fault_code:    { type: string }
+        serial:
+          type: string
+          x-pii: personal
+        purchase_date: { type: [string, "null"], format: date }
+        evidence:
+          type: array
+          items: { type: string, format: uuid }
+          description: Attachment identifiers. Completeness is evaluated by the brand's rule set.
+
+    WarrantyClaim:
+      type: object
+      required: [id, state, brand_code]
+      properties:
+        id:         { type: string }
+        state:      { type: string }
+        brand_code: { type: string }
+        service_order: { $ref: '../_shared/components.yaml#/components/schemas/Reference' }
+        claimed_amount:  { $ref: '../_shared/components.yaml#/components/schemas/Money' }
+        approved_amount: { $ref: '../_shared/components.yaml#/components/schemas/Money' }
+        evidence_complete:
+          type: boolean
+          description: >
+            Computed against the brand's rule set. When false, `submitWarrantyClaim`
+            returns `422 rule.evidence_incomplete`.
+        missing_evidence:
+          type: array
+          items: { type: string }
+        decided_at: { type: [string, "null"], format: date-time }
+        audit: { $ref: '../_shared/components.yaml#/components/schemas/AuditStamp' }

@@ -1,0 +1,96 @@
+# Bengali (Bangladesh) translation for cd_document_core.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "All Documents"
+msgstr "সকল দলিল"
+
+msgid "Applicable Document Types"
+msgstr "প্রযোজ্য দলিলের ধরন"
+
+msgid "Attachment"
+msgstr "সংযুক্তি"
+
+msgid "Document"
+msgstr "দলিল"
+
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+msgid "Linked Model"
+msgstr "সংযুক্ত মডেল"
+
+msgid "Linked Record ID"
+msgstr "সংযুক্ত রেকর্ড আইডি"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "Regulatory Basis"
+msgstr "নিয়ন্ত্রক ভিত্তি"
+
+msgid "Retention Class"
+msgstr "সংরক্ষণ শ্রেণি"
+
+msgid "Retention Expires"
+msgstr "সংরক্ষণ মেয়াদোত্তীর্ণ"
+
+msgid "Retention Period (years)"
+msgstr "সংরক্ষণ মেয়াদ (বছর)"
+
+msgid "Document Template"
+msgstr "দলিল টেমপ্লেট"
+
+msgid "Document Templates"
+msgstr "দলিল টেমপ্লেটসমূহ"
+
+msgid "Templates"
+msgstr "টেমপ্লেটসমূহ"
+
+msgid "QWeb Report XML ID"
+msgstr "QWeb রিপোর্ট XML আইডি"
+
+msgid "Signs As"
+msgstr "যে পরিচয়ে স্বাক্ষর"
+
+msgid "Bilingual"
+msgstr "দ্বিভাষিক"
+
+msgid "Requires Approval"
+msgstr "অনুমোদন প্রয়োজন"
+
+msgid "Invoice"
+msgstr "চালান"
+
+msgid "Receipt"
+msgstr "রসিদ"
+
+msgid "Statutory Notice"
+msgstr "সাংবিধানিক নোটিশ"
+
+msgid "Evidence Pack"
+msgstr "প্রমাণ প্যাক"
+
+msgid "Service Report"
+msgstr "সার্ভিস রিপোর্ট"
+
+msgid "Contract"
+msgstr "চুক্তি"
+
+msgid "Generated From"
+msgstr "হইতে উৎপন্ন"
+
+msgid "Legal Hold"
+msgstr "আইনি হোল্ড"
+
+msgid "Legal Hold Reason"
+msgstr "আইনি হোল্ডের কারণ"
+
+msgid "A bilingual template needs its Bengali name (AS-12)"
+msgstr "দ্বিভাষিক টেমপ্লেটের বাংলা নাম প্রয়োজন (AS-12)"

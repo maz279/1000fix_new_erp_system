@@ -1,0 +1,20 @@
+{
+  "name": "@1000fix/a11y-suite",
+  "private": true,
+  "description": "P04-M06-T07/T08 - axe-core WCAG audit + Bengali layout-under-expansion harness (UX-005, UX-007)",
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "test:axe": "playwright test --project=axe",
+    "test:expansion": "playwright test --project=expansion"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.10.2",
+    "@playwright/test": "1.63.0",
+    "@types/node": "26.6.4",
+    "typescript": "5.7.3"
+  },
+  "overrides": {
+    "playwright-core": "1.63.0"
+  }
+}

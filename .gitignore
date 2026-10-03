@@ -1,0 +1,49 @@
+# 1000fix_new_erp_system — root .gitignore
+# (deeper subtrees carry their own .gitignore, e.g. 1000_fix_codebase/.gitignore)
+
+# --- Tool-local state (never repository content) ---
+.mimosa/
+.zcode/
+.v2c/
+.video_agent/
+
+# --- Environment / secrets ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/*.key.example
+secrets/
+vault/
+
+# --- Dependencies ---
+node_modules/
+.pnpm-store/
+vendor/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.uv-cache/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# --- Database dumps / archives (never commit) ---
+*.dump
+*.sql.gz
+*.backup
+db/backups/
+
+# --- Editors / OS ---
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+nul

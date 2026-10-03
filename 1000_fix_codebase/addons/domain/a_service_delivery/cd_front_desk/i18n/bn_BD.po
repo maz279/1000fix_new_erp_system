@@ -1,0 +1,90 @@
+# Bengali (Bangladesh) translation for cd_front_desk.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Cash Advances"
+msgstr "নগদ অগ্রিম"
+
+msgid "Cash Payments"
+msgstr "নগদ পেমেন্ট"
+
+msgid "Cash Refunds"
+msgstr "নগদ ফেরত"
+
+msgid "Cash Shifts"
+msgstr "ক্যাশ শিফট"
+
+msgid "Closing Counted"
+msgstr "অন্তিম গণনা"
+
+msgid "Counter #"
+msgstr "কাউন্টার নম্বর"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "Customer & Device"
+msgstr "গ্রাহক ও ডিভাইস"
+
+msgid "Customer Statement (verbatim)"
+msgstr "গ্রাহকের বক্তব্য (হুবহু)"
+
+msgid "Customer Statement (verbatim) — what the customer said, unedited"
+msgstr "গ্রাহকের বক্তব্য (হুবহু) — গ্রাহক যা বলেছেন, পরিবর্তন ছাড়াই"
+
+msgid "Device"
+msgstr "ডিভাইস"
+
+msgid "Expected Closing"
+msgstr "প্রত্যাশিত অন্তিম পরিমাণ"
+
+msgid "Opening Float"
+msgstr "শুরুর নগদ (ওপেনিং ফ্লোট)"
+
+msgid "Queue"
+msgstr "কিউ"
+
+msgid "Reconciliation"
+msgstr "হিসাব মিলানো"
+
+msgid "Reported Fault"
+msgstr "জানানো ত্রুটি"
+
+msgid "S/N or IMEI (Input)"
+msgstr "সিরিয়াল নম্বর বা IMEI (ইনপুট)"
+
+msgid "Scan or type S/N / IMEI"
+msgstr "সিরিয়াল নম্বর / IMEI স্ক্যান বা লিখুন"
+
+msgid "Service Intake"
+msgstr "সার্ভিস ইনটেক"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Shift"
+msgstr "শিফট"
+
+msgid "Shift Operator"
+msgstr "শিফট পরিচালক"
+
+msgid "Token"
+msgstr "টোকেন"
+
+msgid "Token Queue"
+msgstr "টোকেন কিউ"
+
+msgid "Variance"
+msgstr "ব্যবধান"
+
+msgid "Walk-in Intake"
+msgstr "ওয়াক-ইন ইনটেক"

@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_warranty_claims views — the Warranty workspace (UX-002 workspace 11, W4 slice). -->
+<odoo>
+
+    <record id="view_fix_warranty_claim_tree" model="ir.ui.view">
+        <field name="name">fix.warranty.claim.tree</field>
+        <field name="model">fix.warranty.claim</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state in ('approved', 'remitted')"
+                  decoration-danger="state == 'rejected'"
+                  decoration-warning="evidence_complete == False">
+                <field name="claim_no"/>
+                <field name="created_at" optional="show"/>
+                <field name="brand_id"/>
+                <field name="device_id" optional="show"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="claim_amount"/>
+                <field name="evidence_complete" string="Pack OK"/>
+                <field name="state" widget="badge"/>
+                <field name="submission_deadline" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_warranty_claim_form" model="ir.ui.view">
+        <field name="name">fix.warranty.claim.form</field>
+        <field name="model">fix.warranty.claim</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,in_review,approved,remitted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="claim_no" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Claim">
+                            <field name="service_order_id"/>
+                            <field name="brand_id"/>
+                            <field name="warranty_product_id" optional="show"/>
+                            <field name="submission_deadline" readonly="1"/>
+                            <field name="submitted_at" readonly="1"/>
+                            <field name="decided_at" readonly="1"/>
+                            <field name="rejection_reason" readonly="1"
+                                   invisible="state != 'rejected'"/>
+                        </group>
+                        <group string="Amounts">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="claim_amount"/>
+                            <field name="remittance_amount" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Evidence Pack">
+                            <field name="evidence_ids">
+                                <tree editable="bottom">
+                                    <field name="requirement_key"/>
+                                    <field name="document_id"/>
+                                </tree>
+                            </field>
+                            <group>
+                                <field name="evidence_complete" readonly="1"/>
+                                <field name="missing_evidence" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_warranty_product_tree" model="ir.ui.view">
+        <field name="name">fix.warranty.product.tree</field>
+        <field name="model">fix.warranty.product</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="name"/>
+                <field name="product_type"/>
+                <field name="catalogue_item_id" optional="show"/>
+                <field name="duration_months"/>
+                <field name="waiting_days"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="claim_limit"/>
+                <field name="excess_amount"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_warranty_claim" model="ir.actions.act_window">
+        <field name="name">Warranty Claims</field>
+        <field name="res_model">fix.warranty.claim</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_warranty_product" model="ir.actions.act_window">
+        <field name="name">Warranty Products</field>
+        <field name="res_model">fix.warranty.product</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_ws_warranty" name="Warranty"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="110"/>
+    <menuitem id="menu_fix_warranty_claim" name="Claims"
+              parent="menu_ws_warranty" action="action_fix_warranty_claim" sequence="10"/>
+    <menuitem id="menu_fix_warranty_product" name="Protection Products"
+              parent="menu_ws_warranty" action="action_fix_warranty_product" sequence="20"/>
+
+</odoo>

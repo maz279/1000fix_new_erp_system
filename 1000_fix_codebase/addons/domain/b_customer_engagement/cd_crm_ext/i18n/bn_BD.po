@@ -1,0 +1,23 @@
+# Bengali (Bangladesh) translation for cd_crm_ext.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Converted Service Order"
+msgstr "রূপান্তরিত সার্ভিস অর্ডার"
+
+msgid "Linked Party"
+msgstr "সংযুক্ত পার্টি"
+
+msgid "Party Role (Customer)"
+msgstr "পার্টি ভূমিকা (গ্রাহক)"
+
+msgid "Leads"
+msgstr "লিড"
+
+msgid "Party Kernel (M33)"
+msgstr "পার্টি কার্নেল (M33)"

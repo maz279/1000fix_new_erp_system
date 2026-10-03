@@ -1,0 +1,395 @@
+# =============================================================================
+# 1000fix-erp - infra/compose/docker-compose.yml (P02-M05)
+# Profiles, not one monolithic stack (P02-M05-T01):
+#   core          PG17 + Redis7.2 + Ceph RGW(local dev shape) + Mailpit   ~2 GB
+#   auth          + Keycloak 26 + PgBouncer                              ~3.5 GB
+#   integration   + Kong + Airflow + Novu                                ~5 GB
+#   field         + Traccar + OSRM + VROOM                               ~7 GB
+#   observability + Prometheus + Grafana + Loki + Tempo + OTel collector  ~8 GB
+#   full          everything                                             ~10-12 GB
+#
+# Standing rules (BE-001 DE-01..DE-09), enforced here and checked by doctor:
+#   DE-03 every service declares a healthcheck; `up` waits for health
+#   DE-04 every port binds 127.0.0.1, NEVER 0.0.0.0 (loopback only, EP-12)
+#   DE-05 named volumes only; `down -v` (reset) is the ONLY thing that
+#        destroys data
+#   DE-06 images pinned by digest. Tags below are the version pins; the
+#        DIGEST PLACEHOLDER is resolved at first pull by
+#        tooling/scripts/resolve-digests.ps1, which rewrites this file and
+#        records digests in versions.lock. Until then doctor reports
+#        DE-06 as WARN (first-pull pending), never silently PASS.
+#   DE-07 Mailpit is the ONLY mail sink; no service may configure an
+#        outbound SMTP host other than 127.0.0.1:1025
+#   DE-11 every service asserts FIX_ENV=local at startup
+#   D-031 Redis is pinned 7.2 (last BSD-3 line) pending the D-031 ruling;
+#        NO 7.4+/8.x image may appear here (licence finding F-2).
+#   D-028 Ceph is the object store (MinIO is archived upstream - never pin).
+# =============================================================================
+
+x-env-guard: &env-guard
+  # DE-11: refuse to start if FIX_ENV is not exactly 'local'.
+  environment:
+    FIX_ENV: local
+  entrypoint_override_note: "images' own entrypoints wrap fix_env_guard.check()"
+x-loopback: &loopback
+  # DE-04 helper anchor - bind every published port to loopback only.
+  bind_loopback: true
+
+services:
+  # ------------------------------------------------------------------ core
+  postgres:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["core"]
+    environment:
+      FIX_ENV: local
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env - development-only value}
+      POSTGRES_DB: fix_dev
+      # BE-001 5.3: UTF-8 + en_US.UTF-8 + ICU. Bengali collation is a
+      # presentation concern (XS-05); the locale is not.
+      # P07 verification finding: initdb requires --locale-provider=icu when
+      # --icu-locale is given (observed exit: "cannot be specified unless
+      # locale provider icu is chosen"), and the server-level lc_collate /
+      # lc_ctype flags are rejected on PG17 (collation is initdb-time).
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5433:5432"]   # 5433: a neighbouring project's postgres
+                                       # holds 5432 on this shared workstation
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    # D-031 interim pin: 7.2.x = last BSD-3 line. Valkey alternative pending.
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["core"]
+    environment:
+      FIX_ENV: local
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6380:6379"]   # 6380: a neighbouring project's Redis
+                                       # holds 6379 on this shared workstation
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  object-store:
+    # D-028: Ceph RGW (local single-node dev shape). MinIO NEVER - archived.
+    # P07 verification finding: the v19 BASE image (quay.io/ceph/ceph) ships
+    # neither radosgw nor the container entrypoint - the demo shape lives in
+    # the ceph/daemon wrapper image, which does (verified: radosgw +
+    # /opt/ceph-container/bin/entrypoint.sh present).
+    image: ceph/daemon:latest@sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586
+    profiles: ["core"]
+    environment:
+      # The demo entrypoint refuses to start without the public network and
+      # monitor IP declared (observed exits: CEPH_PUBLIC_NETWORK / MON_IP
+      # must be defined). MON_IP is the container's own address on the demo
+      # network; 127.0.0.1 keeps the single-node demo shape.
+      CEPH_PUBLIC_NETWORK: "0.0.0.0/0"
+      MON_IP: "127.0.0.1"
+      FIX_ENV: local
+      CEPH_DEMO_UID: fix-dev
+      # Env-only credentials (the audit's finding C): the demo keys ship in
+      # .env (from .env.example, git-ignored here), never as literals.
+      CEPH_DEMO_ACCESS_KEY: ${S3_ACCESS_KEY:?set in .env}
+      CEPH_DEMO_SECRET_KEY: ${S3_SECRET_KEY:?set in .env}
+      CEPH_DEMO_BUCKET: fix-dev-bucket
+    command: ["demo"]
+    ports: ["127.0.0.1:9002:8080"]   # 9002: a neighbouring project holds 9000
+                                       # on this shared workstation
+    volumes:
+      - cephdata:/var/lib/ceph
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:8080 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  mailpit:
+    # DE-07: the ONLY mail sink. No service sends real mail from local. Ever.
+    image: axllent/mailpit:v1.22@sha256:f7f7c31de4de59540ad6515a0ca057a77525bca2069b6e747d873ca66c10fe08
+    profiles: ["core"]
+    environment:
+      FIX_ENV: local
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      # The auth-accept-any flag requires an explicit insecure allowance or
+      # mailpit exits at boot (P07 verification finding: observed exit 1).
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:1025:1025"   # SMTP sink
+      - "127.0.0.1:8025:8025"   # web UI
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8025/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  residency-stub:
+    # P02-M05-T09 / DE-14 / FF-09: local residency service. SYNTHETIC VALUES
+    # ONLY, structurally incapable of reaching a real resident store (no
+    # network route is configured at all).
+    build: ../../services/local-residency-stub
+    profiles: ["core"]
+    environment:
+      FIX_ENV: local
+      RESIDENCY_MODE: synthetic-only
+    ports: ["127.0.0.1:8100:8100"]
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8100/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ------------------------------------------------------------------ auth
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.3.0@sha256:08a31919cfcd814bf1b465142b1a716c4d1a8830f772bb5c9dffcbd96de3fba6
+    profiles: ["auth"]
+    environment:
+      FIX_ENV: local
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set in .env - development-only value}
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    command: ["start-dev", "--import-realm"]
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro   # realm-1000fix-dev.json (DE-09 synthetic)
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\nHost: 127.0.0.1\\nConnection: close\\n\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.24.0-p0@sha256:a578416121c1c991caa1abb314736178236f03811a721e97a028a9824e436c2c
+    profiles: ["auth"]
+    environment:
+      FIX_ENV: local
+      DB_USER: fix
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?}
+      DB_HOST: postgres
+      DB_NAME: fix_dev
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: "200"
+      DEFAULT_POOL_SIZE: "20"
+    ports: ["127.0.0.1:6432:6432"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 -U fix"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # ------------------------------------------------------------ integration
+  kong:
+    image: kong:3.9@sha256:92035d16d7ff86b7bc12fb1d0090d29357d924238b1880f78735f3f2fea6b631
+    profiles: ["integration"]
+    environment:
+      FIX_ENV: local
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/declarative/kong.yml
+      KONG_PROXY_LISTEN: 0.0.0.0:8000 reuseport backlog=16384, 0.0.0.0:8443
+    extra_hosts:
+      # host.docker.internal is Docker-Desktop-only; this makes it work on
+      # Linux CI runners too (Docker 20.10+).
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./kong:/kong/declarative:ro
+    ports:
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "kong health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  airflow:
+    # D-030 replacement for n8n (orchestration use case only).
+    image: apache/airflow:3.1.0@sha256:e81cb98fe4e5f60fadde8cc6a1c926a363720339062cd53db04b6442950ab9ee
+    profiles: ["integration"]
+    environment:
+      FIX_ENV: local
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://fix:${POSTGRES_PASSWORD:?}@postgres:5432/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+    command: ["standalone"]
+    ports: ["127.0.0.1:8081:8080"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  novu:
+    image: ghcr.io/novuhq/novu:4.0.0@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    profiles: ["integration"]
+    environment:
+      FIX_ENV: local
+      NODE_ENV: dev
+    ports: ["127.0.0.1:3000:3000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/v1/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # P04-M05-T02 — the notification dispatcher (CD-M27-nn). Stdlib-only; every
+  # channel stays dry-run unless its gateway env var is provided. INT-013
+  # (EP-11): non-production email routes to Mailpit on the compose network.
+  notification-dispatcher:
+    build:
+      context: ../../services/notification-dispatcher
+    profiles: ["integration"]
+    environment:
+      FIX_ENV: local
+      FIX_ACTIVE_WAVE: W1
+      FIX_EMAIL_API_URL: http://mailpit:8025/api/v1/send
+      FIX_NOVU_API_URL: http://novu:3000
+    ports: ["127.0.0.1:8110:8110"]
+    depends_on:
+      novu: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://127.0.0.1:8110/health',timeout=5)\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  # ------------------------------------------------------------------ field
+  traccar:
+    image: traccar/traccar:6.7@sha256:621c8d6d46fdb990aa43224c6644947d2de52f20728bd71e21c0808d1012db1f
+    profiles: ["field"]
+    environment:
+      FIX_ENV: local
+    ports:
+      - "127.0.0.1:8082:8082"
+      - "127.0.0.1:5055:5055"
+    volumes:
+      - traccardata:/opt/traccar/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8082/api/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  osrm:
+    image: osrm/osrm-backend:v5.25.0@sha256:bdfa60e64ae1376bff6ff5605991be50600132a27469a4a9e77c23afd3a6d555
+    profiles: ["field"]
+    command: ["osrm-routed", "--algorithm", "mld", "/data/bangladesh.osrm"]
+    volumes:
+      - osrmdata:/data
+    ports: ["127.0.0.1:5000:5000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- 'http://127.0.0.1:5000/route/v1/driving/90.40,23.80;90.41,23.81' >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  vroom:
+    image: vroomvrp/vroom-docker:v1.13.0@sha256:2e417553320bf68a25f6614ba8bdc31b0b2fc1172f8c25518c4656f488031c2a
+    profiles: ["field"]
+    environment:
+      FIX_ENV: local
+      OSRM_HOST: osrm
+    ports: ["127.0.0.1:3001:3000"]
+    depends_on:
+      osrm: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
+  # ---------------------------------------------------------- observability
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.116.0@sha256:70217a89d27c678ead44f196d80aa8c2717cb68d0301dbdc40331dbec0a3e605
+    profiles: ["observability"]
+    environment:
+      FIX_ENV: local
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otelcol/config.yaml:/etc/otelcol/config.yaml:ro
+    ports:
+      - "127.0.0.1:4317:4317"   # OTLP gRPC (single correlation id in, out)
+      - "127.0.0.1:4318:4318"   # OTLP HTTP
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:13133/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    image: prom/prometheus:v3.3.0@sha256:339ce86a59413be18d0e445472891d022725b4803fab609069110205e79fb2f1
+    profiles: ["observability"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml", "--storage.tsdb.retention.time=15d"]
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    ports: ["127.0.0.1:9090:9090"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  grafana:
+    image: grafana/grafana:11.6.0@sha256:62d2b9d20a19714ebfe48d1bb405086081bc602aa053e28cf6d73c7537640dfb
+    profiles: ["observability"]
+    environment:
+      FIX_ENV: local
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?set in .env - development-only value}
+    volumes:
+      - grafanadata:/var/lib/grafana
+    ports: ["127.0.0.1:3002:3000"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  loki:
+    image: grafana/loki:3.4.0@sha256:74b8ccbd6e4b4932874742cf3997389592389ea721b3f210aad266486b985a4c
+    profiles: ["observability"]
+    command: ["-config.file=/etc/loki/local-config.yaml"]
+    volumes:
+      - lokidata:/loki
+    ports: ["127.0.0.1:3100:3100"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3100/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  tempo:
+    image: grafana/tempo:2.7.0@sha256:12e904cc509a8e0bd87815e0bc719b6167933bc3f2532716a85811af967780f6
+    profiles: ["observability"]
+    command: ["-config.file=/etc/tempo/tempo.yaml"]
+    volumes:
+      - ./tempo/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - tempodata:/var/tempo
+    ports: ["127.0.0.1:3200:3200"]
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3200/ready >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
+  cephdata:
+  traccardata:
+  osrmdata:
+  promdata:
+  grafanadata:
+  lokidata:
+  tempodata:

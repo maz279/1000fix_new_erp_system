@@ -1,0 +1,48 @@
+# Bengali (Bangladesh) translation for cd_consignment.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Chain"
+msgstr "চেইন"
+
+msgid "Chain Broken"
+msgstr "চেইন ভাঙা"
+
+msgid "Consignment No."
+msgstr "কনসাইনমেন্ট নং"
+
+msgid "Consignments"
+msgstr "কনসাইনমেন্টসমূহ"
+
+msgid "Custody Chain"
+msgstr "কাস্টডি চেইন"
+
+msgid "Destination"
+msgstr "গন্তব্য"
+
+msgid "Device Serial"
+msgstr "ডিভাইস সিরিয়াল"
+
+msgid "Location"
+msgstr "অবস্থান"
+
+msgid "Origin"
+msgstr "উৎস"
+
+msgid "Purchase Order"
+msgstr "ক্রয় আদেশ"
+
+msgid "Rider"
+msgstr "রাইডার"
+
+msgid "Scanned By"
+msgstr "স্ক্যানকারী"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"

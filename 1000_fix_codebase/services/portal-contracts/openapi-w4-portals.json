@@ -1,0 +1,73 @@
+{
+  "$comment": "P07-M09-T07 — OpenAPI operations the four W4 portals consume (IN-002 burn-down from 1,152 outstanding; authored here, the burn-down is reported at the gate).",
+  "openapi": "3.1.0",
+  "info": {
+    "title": "1000FiX Portal API — P04/P08/P10/P06 (W4 slice)",
+    "version": "1.0.0-w4"
+  },
+  "servers": [{"url": "https://api.1000fix.com/v1"}],
+  "paths": {
+    "/corporate/estate": {
+      "get": {
+        "summary": "P04: the corporate asset estate (multi-site)",
+        "parameters": [{"name": "customer_ref", "in": "query", "required": true, "schema": {"type": "string"}}],
+        "responses": {"200": {"description": "Estate listing"}}
+      }
+    },
+    "/corporate/invoices/consolidated": {
+      "get": {
+        "summary": "P04: consolidated B2B invoices (M39)",
+        "responses": {"200": {"description": "Consolidated invoice list"}}
+      }
+    },
+    "/corporate/service-requests": {
+      "post": {
+        "summary": "P04: service requests at scale",
+        "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ServiceRequest"}}}},
+        "responses": {"201": {"description": "Created"}, "422": {"description": "Rejected — server-side validation (AS-09)"}}
+      }
+    },
+    "/brand/claims": {
+      "get": {"summary": "P08: claim submission + status (M09)", "responses": {"200": {"description": "Claims"}}}
+    },
+    "/brand/claims/{claim_no}/status": {
+      "get": {"summary": "P08: claim status (webhook-fed)", "responses": {"200": {"description": "Status"}}}
+    },
+    "/brand/reconciliation": {
+      "get": {"summary": "P08: remittance reconciliation (flagged mismatches)", "responses": {"200": {"description": "Reconciliation"}}}
+    },
+    "/contact/conversations": {
+      "get": {"summary": "P10: the unified agent queue", "responses": {"200": {"description": "Queue"}}}
+    },
+    "/contact/conversations/{id}/transcript": {
+      "get": {"summary": "P10: transcript + customer 360 context", "responses": {"200": {"description": "Transcript"}}}
+    },
+    "/contact/handoff": {
+      "post": {"summary": "P10: AI-to-agent handoff with full context", "responses": {"200": {"description": "Handed off"}}}
+    },
+    "/analytics/dashboards": {
+      "get": {"summary": "P06: embedded dashboard registry (R5)", "responses": {"200": {"description": "Dashboards"}}}
+    },
+    "/analytics/kpis": {
+      "get": {"summary": "P06: the KPI register surface (M25)", "responses": {"200": {"description": "KPIs"}}}
+    }
+  },
+  "components": {
+    "schemas": {
+      "ServiceRequest": {
+        "type": "object",
+        "required": ["device_serial", "fault_description", "site_ref"],
+        "properties": {
+          "device_serial": {"type": "string"},
+          "fault_description": {"type": "string"},
+          "site_ref": {"type": "string"},
+          "order_category": {"type": "string", "enum": ["standard", "warranty", "amc"]}
+        }
+      }
+    }
+  },
+  "x-contract-tests": {
+    "PS-11": "an invalid payload posted directly to the API must be REJECTED — the proof that business rules are not in portal code (P07-M09-T08)",
+    "event-reconciliation": "the 69 unpublished portal-consumed events (T06) are dispositioned per event: rename, project, or register"
+  }
+}

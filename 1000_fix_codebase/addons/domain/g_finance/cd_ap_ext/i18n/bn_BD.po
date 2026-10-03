@@ -1,0 +1,57 @@
+# Bengali (Bangladesh) translation for cd_ap_ext.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "3-Way"
+msgstr "থ্রি-ওয়ে"
+
+msgid "Claimed Amount"
+msgstr "দাবিকৃত পরিমাণ"
+
+msgid "Employee"
+msgstr "কর্মী"
+
+msgid "Expense Claims"
+msgstr "ব্যয় দাবিসমূহ"
+
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "Purchase Order"
+msgstr "ক্রয় আদেশ"
+
+msgid "Subtotal"
+msgstr "উপমোট"
+
+msgid "TDS Deducted"
+msgstr "TDS কর্তন"
+
+msgid "Three-Way Match"
+msgstr "থ্রি-ওয়ে ম্যাচ"
+
+msgid "Total Payable"
+msgstr "মোট প্রদেয়"
+
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+msgid "Vendor"
+msgstr "ভেন্ডর"
+
+msgid "Vendor Invoice Ref"
+msgstr "ভেন্ডর চালান রেফারেন্স"
+
+msgid "Vendor Invoices"
+msgstr "ভেন্ডর চালানসমূহ"

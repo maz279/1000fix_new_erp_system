@@ -1,0 +1,70 @@
+event_type,consuming_portals,consumer_count,triage_class,confidence,published_candidate,proposed_owning_module
+allocation.changed,P12,1,UNADJUDICATED,cross-namespace candidate,authority_matrix.changed; config.changed; cost_center.changed,M40
+assist.suggestion_available,P10,1,D3,no candidate,,M27
+audit.assigned,P11,1,UNADJUDICATED,cross-namespace candidate,account.assigned; conversation.assigned; vehicle.assigned,M23
+audit.checklist_version_published,P11,1,D3,no candidate,,M23
+audit.rescheduled,P11,1,D3,no candidate,,M23
+benefit_schedule.changed,P12,1,UNADJUDICATED,cross-namespace candidate,authority_matrix.changed; config.changed; cost_center.changed,M40
+campaign.performance_published,P12,1,D3,no candidate,,M40
+capa.closed,P08,1,UNADJUDICATED,cross-namespace candidate,branch.closed; loop_case.closed; project.closed,M23
+capa.due_for_verification,P11,1,D3,no candidate,,M23
+certification.expired,P07,1,UNADJUDICATED,cross-namespace candidate,contract.expired; points.expired; quotation.expired,M22
+certification.expiring,P02 P07 P08,3,UNADJUDICATED,cross-namespace candidate,authorisation.expiring; membership.expiring; warranty.expiring,M22
+claim.evidence_incomplete,P08,1,D3,no candidate,,M09
+claim.status_changed,P01,1,D2,shape,entity.status_changed; party.status_changed; site.status_changed,M09
+commission.calculated,P12,1,UNADJUDICATED,cross-namespace candidate,incentive.calculated,M40
+complaint.reference_issued,P10,1,D3,no candidate,,M27
+consignment.assigned,P09,1,UNADJUDICATED,cross-namespace candidate,account.assigned; conversation.assigned; vehicle.assigned,M03
+consignment.booked,P05,1,D3,no candidate,,M03
+consignment.reassigned,P09,1,D3,no candidate,,M03
+consignment.rescheduled,P09,1,D3,no candidate,,M03
+cpaas.degraded,P10,1,UNADJUDICATED,cross-namespace candidate,forecast.degraded,M27
+credit_note.issued,P04,1,D1,verified,ar.credit_note_issued,M53
+dataset.quality_failed,P06,1,UNADJUDICATED,cross-namespace candidate,mdm.quality_failed,M62
+dataset.refreshed,P06,1,UNADJUDICATED,cross-namespace candidate,environment.refreshed; scorecard.refreshed,M62
+deal_registration.decided,P12,1,UNADJUDICATED,cross-namespace candidate,claim.decided; dispute.decided; quotation.decided,M40
+dispatch.job_assigned,P02,1,D3,no candidate,,M02
+dispatch.job_reassigned,P02,1,D3,no candidate,,M02
+dispatch.technician_en_route,P01,1,D2,shape,,M02
+entitlement.threshold_crossed,P04,1,D3,no candidate,,M08
+equipment.audit_variance_computed,P11,1,D1,verified,equipment.audit_completed,M45
+estimate.issued,P01,1,D1,verified,estimate.created,M36
+estimate.revised,P01,1,D1,verified,estimate.created,M36
+ewaste.batch_transferred,P05,1,D1,verified,ewaste.batched,M18
+incentive.updated,P02,1,D2,shape,account_plan.updated; party.updated,M57
+integration.degraded,P03,1,UNADJUDICATED,cross-namespace candidate,forecast.degraded,M28
+interaction.routed,P10,1,D3,no candidate,,M27
+interaction.transferred,P10,1,UNADJUDICATED,cross-namespace candidate,asset.transferred; ewaste.transferred,M27
+invoice.blocked,P05,1,UNADJUDICATED,cross-namespace candidate,claim.blocked; project.blocked; requisition.blocked,M20
+invoice.issued,P04,1,UNADJUDICATED,cross-namespace candidate,certification.issued; equipment.issued; offer.issued,M20
+lead.status_changed,P12,1,D2,shape,entity.status_changed; party.status_changed; site.status_changed,M07
+loyalty.points_expiring,P01,1,D3,no candidate,,M10
+loyalty.tier_changed,P01,1,UNADJUDICATED,cross-namespace candidate,partner.tier_changed,M10
+model.published,P06,1,UNADJUDICATED,cross-namespace candidate,announcement.published; catalogue.published; exchange_rate.published,M26
+mp.bid_unsuccessful,P07,1,D3,no candidate,,M12
+mp.dispute_opened,P07,1,D3,no candidate,,M12
+mp.dispute_resolved,P07,1,UNADJUDICATED,cross-namespace candidate,ar.dispute_resolved,M12
+mp.job_awarded,P07,1,D3,no candidate,,M12
+mp.job_broadcast,P07,1,D3,no candidate,,M12
+mp.scorecard_published,P07,1,UNADJUDICATED,cross-namespace candidate,supplier.scorecard_published,M12
+mp.seller_approved,P07,1,D3,no candidate,,M12
+mp.seller_rejected,P07,1,D3,no candidate,,M12
+partner.declined,P12,1,UNADJUDICATED,cross-namespace candidate,quotation.declined; signature.declined; work_order.declined,M40
+payment.executed,P05,1,D3,no candidate,,M20
+payment.received,P01 P08 P09 P10,4,UNADJUDICATED,cross-namespace candidate,bulletin.received; complaint.received; goods.received,M20
+payout.executed,P12,1,D1,verified,payout.instructed,M53
+policy.updated,P07,1,D2,shape,account_plan.updated; party.updated,M60
+project.milestone_reached,P04,1,D1,verified,project.milestone_accepted,M67
+purchase_order.issued,P05,1,UNADJUDICATED,cross-namespace candidate,certification.issued; equipment.issued; offer.issued,M16
+queue.sla_breached,P10,1,UNADJUDICATED,cross-namespace candidate,contract.sla_breached; facility.sla_breached; it.sla_breached,M27
+recall.execution_updated,P08,1,D3,no candidate,,M09
+refund.processed,P01,1,D3,no candidate,,
+rfq.issued,P05,1,UNADJUDICATED,cross-namespace candidate,certification.issued; equipment.issued; offer.issued,M16
+service_order.status_changed,P01 P04 P10,3,D2,shape,entity.status_changed; party.status_changed; site.status_changed,M01
+service_order.updated,P02,1,D2,shape,account_plan.updated; party.updated,M01
+settlement.completed,P07,1,D1,verified,settlement.reconciled,M53
+settlement.released,P07,1,D1,verified,settlement.payout_released,M53
+sla.at_risk,P03 P04 P06 P09,4,D1,verified,sla.warning,M01
+stock.consignment_reconciled,P08,1,D1,verified,stock.consignment_consumed,M15
+stock.count_variance_computed,P11,1,D1,verified,stock.count_completed,M15
+user.scope_changed,P06,1,D3,no candidate,,M29

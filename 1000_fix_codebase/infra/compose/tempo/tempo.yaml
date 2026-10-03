@@ -1,0 +1,19 @@
+# Tempo - local trace storage (P02-M08-T09, observability profile).
+# Local is deliberately single-node, in-memory-to-disk, no WAL tuning -
+# a developer sees a trace end to end; performance is a prod concern.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc: { endpoint: 127.0.0.1:4317 }
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal

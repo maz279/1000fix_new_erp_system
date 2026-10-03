@@ -1,0 +1,44 @@
+# OpenTelemetry Collector - local config (P02-M08-T09).
+# One correlation id across every hop: OTLP in (gRPC 4317 / HTTP 4318),
+# fanned out to Tempo (traces), Prometheus (metrics), Loki (logs).
+# A developer must be able to see a trace locally before instrumenting for
+# production (PE-008 / NFR-092).
+receivers:
+  otlp:
+    protocols:
+      grpc: { endpoint: 127.0.0.1:4317 }
+      http: { endpoint: 127.0.0.1:4318 }
+
+processors:
+  batch: { timeout: 2s, send_batch_size: 256 }
+  # The correlation id travels as trace id; resource attributes tag every
+  # signal with the environment so local data can never be confused with prod.
+  resource:
+    attributes:
+      - key: fix.env
+        value: local
+        action: upsert
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls: { insecure: true }
+  prometheus:
+    endpoint: 127.0.0.1:8889
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      processors: [resource, batch]
+      exporters: [loki]

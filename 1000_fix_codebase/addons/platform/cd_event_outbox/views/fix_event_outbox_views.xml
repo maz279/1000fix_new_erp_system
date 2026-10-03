@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.event.outbox views (P03-M03-T02, AS-08) -->
+<odoo>
+    <record id="view_fix_event_outbox_tree" model="ir.ui.view">
+        <field name="name">fix.event.outbox.tree</field>
+        <field name="model">fix.event.outbox</field>
+        <field name="arch" type="xml">
+            <tree string="Event Outbox" create="false" edit="false">
+                <field name="create_date"/>
+                <field name="event_type"/>
+                <field name="aggregate"/>
+                <field name="aggregate_id"/>
+                <field name="status" widget="badge"
+                       decoration-success="status == 'published'"
+                       decoration-warning="status == 'pending'"
+                       decoration-danger="status == 'failed'"/>
+                <field name="publish_attempts"/>
+                <field name="published_at"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_event_outbox_form" model="ir.ui.view">
+        <field name="name">fix.event.outbox.form</field>
+        <field name="model">fix.event.outbox</field>
+        <field name="arch" type="xml">
+            <form string="Event Outbox Entry" create="false" edit="false">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="event_id" readonly="1"/>
+                            <field name="event_type"/>
+                            <field name="aggregate"/>
+                            <field name="aggregate_id"/>
+                            <field name="status"/>
+                        </group>
+                        <group>
+                            <field name="publish_attempts"/>
+                            <field name="published_at"/>
+                            <field name="last_error"/>
+                        </group>
+                    </group>
+                    <group string="Payload">
+                        <field name="payload" widget="ace" options="{'mode': 'json'}"/>
+                    </group>
+                    <group string="Metadata">
+                        <field name="metadata_json" widget="ace" options="{'mode': 'json'}"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_event_outbox" model="ir.actions.act_window">
+        <field name="name">Event Outbox</field>
+        <field name="res_model">fix.event.outbox</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_event_outbox_root" name="Integration Platform" sequence="20"/>
+    <menuitem id="menu_fix_event_outbox" name="Event Outbox" parent="menu_fix_event_outbox_root"
+              action="action_fix_event_outbox" sequence="10"/>
+</odoo>

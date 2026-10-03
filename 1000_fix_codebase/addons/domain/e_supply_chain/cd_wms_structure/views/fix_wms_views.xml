@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_wms_structure views — warehouses under the procurement workspace. -->
+<odoo>
+
+    <record id="view_fix_warehouse_tree" model="ir.ui.view">
+        <field name="name">fix.warehouse.tree</field>
+        <field name="model">fix.warehouse</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="branch_id" optional="show"/>
+                <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_warehouse_form" model="ir.ui.view">
+        <field name="name">fix.warehouse.form</field>
+        <field name="model">fix.warehouse</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="branch_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
+                        </group>
+                    </group>
+                    <field name="zone_ids">
+                        <tree>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="zone_type"/>
+                            <field name="reservable" widget="boolean_toggle"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_warehouse" model="ir.actions.act_window">
+        <field name="name">Warehouses</field>
+        <field name="res_model">fix.warehouse</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_warehouse" name="Warehouses"
+              parent="cd_requisition.menu_ws_procurement"
+              action="action_fix_warehouse" sequence="40"/>
+
+</odoo>

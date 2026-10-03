@@ -1,0 +1,441 @@
+{
+    "schema":  "1000fix-erp/version-currency-record/1",
+    "ranAtUtc":  "2026-10-01T06:34:53.0642438Z",
+    "mode":  "online",
+    "warnDays":  365,
+    "ok":  42,
+    "warnings":  1,
+    "failures":  0,
+    "results":  [
+                    {
+                        "Id":  "watch-minio/minio",
+                        "Name":  "minio/minio",
+                        "Status":  "OK",
+                        "Detail":  "still archived upstream (as the register expects)",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:42.3898131Z"
+                    },
+                    {
+                        "Id":  "L1-odoo",
+                        "Name":  "Odoo Community Edition",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:42.7170733Z"
+                    },
+                    {
+                        "Id":  "L2-oca",
+                        "Name":  "OCA subtrees (18 repositories)",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: Pins verified per-subtree at P02-M04-T06 against versions.lock; not individually network-checkable here.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:42.7274448Z"
+                    },
+                    {
+                        "Id":  "L3-free",
+                        "Name":  "Free third-party Odoo modules",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: TSS section 6 register; adoption rule applies per module.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:42.7284500Z"
+                    },
+                    {
+                        "Id":  "TC-010",
+                        "Name":  "PostgreSQL",
+                        "Status":  "OK",
+                        "Detail":  "cycle 17 EOL 2029-11-08 - 1134 days of margin",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:42.8100133Z"
+                    },
+                    {
+                        "Id":  "TC-011",
+                        "Name":  "PgBouncer",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:43.1290172Z"
+                    },
+                    {
+                        "Id":  "TC-012",
+                        "Name":  "Redis / Valkey (D-031 pending)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:43.4409515Z"
+                    },
+                    {
+                        "Id":  "TC-013",
+                        "Name":  "Nginx",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:43.8066933Z"
+                    },
+                    {
+                        "Id":  "TC-014",
+                        "Name":  "Docker / K3s",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:44.1315210Z"
+                    },
+                    {
+                        "Id":  "TC-015",
+                        "Name":  "Keycloak",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:44.4661512Z"
+                    },
+                    {
+                        "Id":  "TC-016",
+                        "Name":  "Kong Gateway (OSS)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:44.7947061Z"
+                    },
+                    {
+                        "Id":  "TC-017",
+                        "Name":  "Workflow orchestration (was n8n)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:45.1665666Z"
+                    },
+                    {
+                        "Id":  "TC-018",
+                        "Name":  "Novu",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:45.4835228Z"
+                    },
+                    {
+                        "Id":  "TC-019",
+                        "Name":  "Object storage (was MinIO)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:45.7796345Z"
+                    },
+                    {
+                        "Id":  "TC-020",
+                        "Name":  "Traccar",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:46.1167485Z"
+                    },
+                    {
+                        "Id":  "TC-021",
+                        "Name":  "OSRM",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:46.4355330Z"
+                    },
+                    {
+                        "Id":  "TC-022",
+                        "Name":  "VROOM",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:46.7400133Z"
+                    },
+                    {
+                        "Id":  "TC-023",
+                        "Name":  "TimescaleDB",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:47.0443497Z"
+                    },
+                    {
+                        "Id":  "TC-024",
+                        "Name":  "Grafana",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:47.3564858Z"
+                    },
+                    {
+                        "Id":  "TC-025",
+                        "Name":  "OpenTelemetry Collector",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:47.6752522Z"
+                    },
+                    {
+                        "Id":  "TC-026",
+                        "Name":  "Prometheus",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:47.9841995Z"
+                    },
+                    {
+                        "Id":  "TC-027",
+                        "Name":  "Loki",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:48.2853107Z"
+                    },
+                    {
+                        "Id":  "TC-028",
+                        "Name":  "Tempo",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:48.6148891Z"
+                    },
+                    {
+                        "Id":  "TC-029",
+                        "Name":  "BI (was Metabase)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:48.9234974Z"
+                    },
+                    {
+                        "Id":  "TC-030",
+                        "Name":  "Mayan EDMS",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:49.2581169Z"
+                    },
+                    {
+                        "Id":  "TC-031",
+                        "Name":  "Remote support (MeshCentral / RustDesk)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:49.5583853Z"
+                    },
+                    {
+                        "Id":  "TC-032",
+                        "Name":  "Wazuh",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:49.8872884Z"
+                    },
+                    {
+                        "Id":  "TC-033",
+                        "Name":  "osquery",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:50.1949975Z"
+                    },
+                    {
+                        "Id":  "TC-034",
+                        "Name":  "Event bus W6+ (was Redpanda)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:50.5108181Z"
+                    },
+                    {
+                        "Id":  "TC-035",
+                        "Name":  "MLflow",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:50.8167213Z"
+                    },
+                    {
+                        "Id":  "TC-036",
+                        "Name":  "Ollama",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:51.1392876Z"
+                    },
+                    {
+                        "Id":  "TC-037",
+                        "Name":  "ClickHouse",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:51.4771839Z"
+                    },
+                    {
+                        "Id":  "TC-038",
+                        "Name":  "ClamAV",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:51.8008754Z"
+                    },
+                    {
+                        "Id":  "TC-039",
+                        "Name":  "Secrets vault (Vault / OpenBao)",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:52.1160834Z"
+                    },
+                    {
+                        "Id":  "APP-nextjs",
+                        "Name":  "Next.js",
+                        "Status":  "OK",
+                        "Detail":  "cycle 16: no EOL announced upstream yet (endoflife.date reports eol=false)",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:52.3697467Z"
+                    },
+                    {
+                        "Id":  "APP-payload",
+                        "Name":  "Payload CMS",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:52.6711573Z"
+                    },
+                    {
+                        "Id":  "APP-node",
+                        "Name":  "Node.js",
+                        "Status":  "WARN",
+                        "Detail":  "baseline cycle 22 EOL 2027-04-30 - within 365 days",
+                        "Remedies":  [
+                                         "Schedule the re-baseline at the next gate; name the decision that owns it (see the decision column)."
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:52.7041369Z"
+                    },
+                    {
+                        "Id":  "APP-python",
+                        "Name":  "Python",
+                        "Status":  "OK",
+                        "Detail":  "cycle 3.12 EOL 2028-10-31 - 761 days of margin",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:52.7264093Z"
+                    },
+                    {
+                        "Id":  "APP-flutter",
+                        "Name":  "Flutter",
+                        "Status":  "OK",
+                        "Detail":  "repo active",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:53.0507234Z"
+                    },
+                    {
+                        "Id":  "L6-cpaas",
+                        "Name":  "Cloud telephony / CPaaS (TC-070)",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: Asterisk/FreePBX assessed viable but requires carrier expertise; revisit at renewal.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:53.0527163Z"
+                    },
+                    {
+                        "Id":  "L6-esign",
+                        "Name":  "Qualified e-signature (TC-071)",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: Accredited trust-service status is the point; no OSS equivalent.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:53.0537244Z"
+                    },
+                    {
+                        "Id":  "L6-kyc",
+                        "Name":  "Identity verification / KYC (TC-072)",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: Requires an accredited data source; no OSS equivalent exists.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:53.0557225Z"
+                    },
+                    {
+                        "Id":  "L6-rmm",
+                        "Name":  "Endpoint RMM agent (TC-073)",
+                        "Status":  "OK",
+                        "Detail":  "manual fact verified 0 day(s) ago: Deferred to a Wave 5 pilot; Wazuh + osquery cover monitoring.",
+                        "Remedies":  [
+
+                                     ],
+                        "CheckedUtc":  "2026-10-01T06:34:53.0577248Z"
+                    }
+                ]
+}

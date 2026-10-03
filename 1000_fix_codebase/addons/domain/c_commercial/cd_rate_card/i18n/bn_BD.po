@@ -1,0 +1,33 @@
+# Bengali (Bangladesh) translation for cd_rate_card.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Contract No."
+msgstr "চুক্তি নং"
+
+msgid "Minimum Tier"
+msgstr "সর্বনিম্ন স্তর"
+
+msgid "Product Code"
+msgstr "পণ্য কোড"
+
+msgid "Rate (VAT-exclusive)"
+msgstr "হার (ভ্যাট-বাদে)"
+
+msgid "Rate Cards"
+msgstr "রেট কার্ডসমূহ"
+
+msgid "Rate Line Name"
+msgstr "রেট লাইনের নাম"
+
+msgid "Valid From"
+msgstr "হইতে বৈধ"
+
+msgid "Valid To"
+msgstr "পর্যন্ত বৈধ"

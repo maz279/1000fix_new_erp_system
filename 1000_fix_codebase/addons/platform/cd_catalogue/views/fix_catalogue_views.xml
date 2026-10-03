@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_catalogue views (P03-M06) -->
+<odoo>
+    <record id="view_fix_catalogue_tree" model="ir.ui.view">
+        <field name="name">fix.catalogue.item.tree</field>
+        <field name="model">fix.catalogue.item</field>
+        <field name="arch" type="xml">
+            <tree string="Catalogue Items">
+                <field name="product_tmpl_id"/>
+                <field name="item_type"/>
+                <field name="brand_id"/>
+                <field name="category_id"/>
+                <field name="is_warranty_eligible" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_catalogue_form" model="ir.ui.view">
+        <field name="name">fix.catalogue.item.form</field>
+        <field name="model">fix.catalogue.item</field>
+        <field name="arch" type="xml">
+            <form string="Catalogue Item">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="product_tmpl_id"/>
+                            <field name="item_type"/>
+                            <field name="category_id"/>
+                            <field name="brand_id"/>
+                        </group>
+                        <group>
+                            <field name="is_warranty_eligible" widget="boolean_toggle"/>
+                            <field name="requires_brand_authorisation" widget="boolean_toggle"/>
+                            <field name="is_out_of_scope" widget="boolean_toggle"/>
+                            <field name="standard_labour_time"/>
+                        </group>
+                    </group>
+                    <field name="device_model_ids" widget="many2many_tags"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_brand_tree" model="ir.ui.view">
+        <field name="name">fix.brand.tree</field>
+        <field name="model">fix.brand</field>
+        <field name="arch" type="xml">
+            <tree string="Brands">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="authorised"/>
+                <field name="authorisation_expiry"/>
+                <field name="model_count"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_catalogue" model="ir.actions.act_window">
+        <field name="name">Catalogue Items</field>
+        <field name="res_model">fix.catalogue.item</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_brand" model="ir.actions.act_window">
+        <field name="name">Brands</field>
+        <field name="res_model">fix.brand</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- P04-M06-T03 — the Catalogue workspace menu (UX-002 NVR-22 gated;
+         opens on Items — the workspace's work list, NVR-19). -->
+    <menuitem id="menu_fix_catalogue_root" name="Catalogue"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_ws_catalogue"
+              sequence="60"/>
+    <menuitem id="menu_fix_catalogue" name="Items" parent="menu_fix_catalogue_root"
+              action="action_fix_catalogue" sequence="10"/>
+    <menuitem id="menu_fix_brand" name="Brands" parent="menu_fix_catalogue_root"
+              action="action_fix_brand" sequence="20"/>
+</odoo>

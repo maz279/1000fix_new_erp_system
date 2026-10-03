@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_tax_engine_bd — the Mushak 6.3 statutory tax invoice (P06-M02-T03).
+
+  Statutory content per the VAT & SD Act 2012 and NBR form Mushak 6.3:
+  supplier and buyer name/address/BIN, description, quantity, unit price,
+  discount, VAT shown SEPARATELY per line, total in figures and words.
+  Bengali rendering with correct conjunct shaping is a STATUTORY
+  requirement (TR-07): this report renders through the reference-checked
+  Bengali font path (doctor check 10).
+-->
+<odoo>
+
+    <record id="paperformat_fix_mushak" model="report.paperformat">
+        <field name="name">Mushak 6.3 (A4 portrait)</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">8</field>
+        <field name="margin_bottom">8</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_spacing">6</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <record id="action_report_fix_mushak" model="ir.actions.report">
+        <field name="name">মুশক ৬.৩ / Mushak 6.3</field>
+        <field name="model">fix.mushak.register</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_tax_engine_bd.report_mushak63</field>
+        <field name="report_file">cd_tax_engine_bd.report_mushak63</field>
+        <field name="paperformat_id" ref="paperformat_fix_mushak"/>
+        <field name="binding_model_id" ref="model_fix_mushak_register"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_mushak63">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page mushak63">
+                    <div class="mushak-header">
+                        <h1>মুশক ৬.৩ — কর চালানপত্র</h1>
+                        <h2>Mushak 6.3 — Tax Invoice</h2>
+                        <div class="ref-line">
+                            <span>চালান নং / Invoice No.:</span>
+                            <span class="mono" t-esc="doc.mushak_no"/>
+                            <span>তারিখ / Date:</span>
+                            <span t-field="doc.invoice_date" t-options='{"format": "d/M/y"}'/>
+                        </div>
+                    </div>
+
+                    <table class="parties">
+                        <tr>
+                            <th>বিক্রেতা / Seller</th>
+                            <th>ক্রেতা / Buyer</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div t-esc="doc.supplier_name"/>
+                                <div class="mono" t-esc="'BIN: ' + doc.supplier_bin"/>
+                            </td>
+                            <td>
+                                <div t-esc="doc.customer_name"/>
+                                <div class="mono" t-if="doc.customer_bin"
+                                     t-esc="'BIN: ' + doc.customer_bin"/>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="mushak-lines">
+                        <thead>
+                            <tr>
+                                <th>বিবরণ / Description</th>
+                                <th>করযোগ্য মূল্য / Taxable Value</th>
+                                <th>ভ্যাট / VAT</th>
+                                <th>মোট / Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td t-esc="doc.invoice_ref"/>
+                                <td class="numeric" t-field="doc.taxable_amount"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                <td class="numeric" t-field="doc.vat_amount"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                                <td class="numeric" t-field="doc.total_payable"
+                                    t-options='{"widget": "monetary", "display_currency": doc.currency_id}'/>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div class="signature-row">
+                        <div>গ্রাহকের স্বাক্ষর / Customer signature: .......................</div>
+                        <div>বিক্রেতার স্বাক্ষর ও সিল / Seller signature &amp; seal: .......................</div>
+                    </div>
+
+                    <div class="mushak-footer">
+                        এই চালানপত্র ভ্যাট ও সম্পূরক শুল্ক আইন ২০১২ এর অধীনে ইস্যুকৃত।
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+</odoo>

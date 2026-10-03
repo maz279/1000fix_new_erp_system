@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.entity views (P03-M04-T01) -->
+<odoo>
+    <record id="view_fix_entity_tree" model="ir.ui.view">
+        <field name="name">fix.entity.tree</field>
+        <field name="model">fix.entity</field>
+        <field name="arch" type="xml">
+            <tree string="Legal Entities">
+                <field name="code"/>
+                <field name="legal_name"/>
+                <field name="legal_name_bn"/>
+                <field name="branch_count"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_entity_form" model="ir.ui.view">
+        <field name="name">fix.entity.form</field>
+        <field name="model">fix.entity</field>
+        <field name="arch" type="xml">
+            <form string="Legal Entity">
+                <sheet>
+                    <widget name="web_ribbon" title="Archived" bg_color="text-bg-danger" invisible="active"/>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="legal_name"/>
+                            <field name="legal_name_bn"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="company_id"/>
+                            <field name="country_id"/>
+                            <field name="currency_id"/>
+                            <field name="branch_count"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Branches" name="branches">
+                            <field name="branch_ids">
+                                <tree editable="bottom">
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="zone_id"/>
+                                    <field name="operating_unit_id"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_entity" model="ir.actions.act_window">
+        <field name="name">Legal Entities</field>
+        <field name="res_model">fix.entity</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_entity_root" name="Platform Administration" sequence="10"/>
+    <menuitem id="menu_fix_entity" name="Legal Entities" parent="menu_fix_entity_root"
+              action="action_fix_entity" sequence="10"/>
+</odoo>

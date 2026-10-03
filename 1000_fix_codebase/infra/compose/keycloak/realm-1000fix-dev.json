@@ -1,0 +1,122 @@
+{
+  "realm": "1000fix-dev",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "resetPasswordAllowed": false,
+
+  "_1000fix_note": "DE-09 - SYNTHETIC realm, generated from the role register. Never exported from a real environment. Every user below is synthetic (passwords are development-only literal values (Keycloak realm-import does not substitute env vars in JSON - values are read literally). These credentials work only on 127.0.0.1 and grant nothing outside the local Docker network).",
+
+  "roles": {
+    "realm": [
+      { "name": "fix_admin", "description": "Synthetic platform administrator" },
+      { "name": "fix_branch_manager", "description": "Synthetic branch manager (5 branches seeded)" },
+      { "name": "fix_technician", "description": "Synthetic field technician" },
+      { "name": "fix_back_office", "description": "Synthetic back-office operator" },
+      { "name": "fix_finance", "description": "Synthetic finance viewer (M19 paths)" },
+      { "name": "fix_auditor", "description": "Synthetic read-only auditor" }
+    ]
+  },
+
+  "users": [
+    {
+      "username": "synth-admin",
+      "enabled": true,
+      "email": "synth-admin@local.invalid",
+      "emailVerified": true,
+      "firstName": "Synthetic",
+      "lastName": "Admin",
+      "realmRoles": ["fix_admin"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-admin" }]
+    },
+    {
+      "username": "synth-branch-dhaka",
+      "enabled": true,
+      "email": "synth-branch-dhaka@local.invalid",
+      "emailVerified": true,
+      "firstName": "Dhaka",
+      "lastName": "Manager",
+      "realmRoles": ["fix_branch_manager"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-branch" }]
+    },
+    {
+      "username": "synth-branch-chattogram",
+      "enabled": true,
+      "email": "synth-branch-chattogram@local.invalid",
+      "emailVerified": true,
+      "firstName": "Chattogram",
+      "lastName": "Manager",
+      "realmRoles": ["fix_branch_manager"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-branch" }]
+    },
+    {
+      "username": "synth-tech-01",
+      "enabled": true,
+      "email": "synth-tech-01@local.invalid",
+      "emailVerified": true,
+      "firstName": "Tek",
+      "lastName": "One",
+      "realmRoles": ["fix_technician"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-tech" }]
+    },
+    {
+      "username": "synth-tech-02",
+      "enabled": true,
+      "email": "synth-tech-02@local.invalid",
+      "emailVerified": true,
+      "firstName": "Tek",
+      "lastName": "Two",
+      "realmRoles": ["fix_technician"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-tech" }]
+    },
+    {
+      "username": "synth-backoffice",
+      "enabled": true,
+      "email": "synth-backoffice@local.invalid",
+      "emailVerified": true,
+      "firstName": "Back",
+      "lastName": "Office",
+      "realmRoles": ["fix_back_office"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-backoffice" }]
+    },
+    {
+      "username": "synth-finance",
+      "enabled": true,
+      "email": "synth-finance@local.invalid",
+      "emailVerified": true,
+      "firstName": "Fin",
+      "lastName": "Ance",
+      "realmRoles": ["fix_finance"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-finance" }]
+    },
+    {
+      "username": "synth-auditor",
+      "enabled": true,
+      "email": "synth-auditor@local.invalid",
+      "emailVerified": true,
+      "firstName": "Aud",
+      "lastName": "Itor",
+      "realmRoles": ["fix_auditor"],
+      "credentials": [{ "type": "password", "temporary": false, "value": "synthetic-dev-password-auditor" }]
+    }
+  ],
+
+  "clients": [
+    {
+      "clientId": "fix-odoo-local",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://127.0.0.1:8069/oidc/callback"],
+      "webOrigins": ["http://127.0.0.1:8069"]
+    },
+    {
+      "clientId": "fix-portal-local",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "redirectUris": ["http://127.0.0.1:3000/*"],
+      "webOrigins": ["http://127.0.0.1:3000"]
+    }
+  ]
+}

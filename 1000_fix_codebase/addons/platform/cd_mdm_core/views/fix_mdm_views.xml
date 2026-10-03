@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_mdm_core views (P03-M07) -->
+<odoo>
+    <record id="view_fix_mdm_change_request_tree" model="ir.ui.view">
+        <field name="name">fix.mdm.change.request.tree</field>
+        <field name="model">fix.mdm.change.request</field>
+        <field name="arch" type="xml">
+            <tree string="MDM Change Requests">
+                <field name="reference"/>
+                <field name="title"/>
+                <field name="model_name"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'approved'"
+                       decoration-warning="state in ('submitted', 'under_review')"
+                       decoration-danger="state == 'rejected'"/>
+                <field name="priority"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_mdm_change_request_form" model="ir.ui.view">
+        <field name="name">fix.mdm.change.request.form</field>
+        <field name="model">fix.mdm.change.request</field>
+        <field name="arch" type="xml">
+            <form string="MDM Change Request">
+                <header>
+                    <button name="action_submit" type="object" string="Submit"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_approve" type="object" string="Approve"
+                            invisible="state not in ('submitted', 'under_review')" class="btn-primary"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state not in ('submitted', 'under_review')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="reference"/>
+                            <field name="title"/>
+                            <field name="model_name"/>
+                            <field name="record_id"/>
+                            <field name="priority"/>
+                        </group>
+                        <group>
+                            <field name="submitted_by"/>
+                            <field name="reviewed_by"/>
+                            <field name="reviewed_at"/>
+                        </group>
+                    </group>
+                    <group string="Proposed Changes">
+                        <field name="proposed_changes" widget="ace" options="{'mode': 'json'}"/>
+                    </group>
+                    <group string="Current Values">
+                        <field name="current_values" widget="ace" options="{'mode': 'json'}"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_mdm_change_request" model="ir.actions.act_window">
+        <field name="name">MDM Change Requests</field>
+        <field name="res_model">fix.mdm.change.request</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- Match + golden-record rules: the M64 engine's configuration surface
+         (BRU-MDM-15: M64 stores the rules; the engine executes them). -->
+    <record id="view_fix_mdm_match_rule_tree" model="ir.ui.view">
+        <field name="name">fix.mdm.match.rule.tree</field>
+        <field name="model">fix.mdm.match.rule</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="model_name"/>
+                <field name="field_name"/>
+                <field name="match_type"/>
+                <field name="weight"/>
+                <field name="normalize"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_mdm_match_rule" model="ir.actions.act_window">
+        <field name="name">Match Rules</field>
+        <field name="res_model">fix.mdm.match.rule</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="view_fix_mdm_golden_rule_tree" model="ir.ui.view">
+        <field name="name">fix.mdm.golden.rule.tree</field>
+        <field name="model">fix.mdm.golden.rule</field>
+        <field name="arch" type="xml">
+            <tree editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="model_name"/>
+                <field name="field_name"/>
+                <field name="strategy"/>
+                <field name="description" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_mdm_golden_rule" model="ir.actions.act_window">
+        <field name="name">Golden Record Rules</field>
+        <field name="res_model">fix.mdm.golden.rule</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_mdm_root" name="Master Data Governance" sequence="50"/>
+    <menuitem id="menu_fix_mdm_change_request" name="Change Requests" parent="menu_fix_mdm_root"
+              action="action_fix_mdm_change_request" sequence="10"/>
+    <menuitem id="menu_fix_mdm_match_rule" name="Match Rules" parent="menu_fix_mdm_root"
+              action="action_fix_mdm_match_rule" sequence="20"/>
+    <menuitem id="menu_fix_mdm_golden_rule" name="Golden Record Rules" parent="menu_fix_mdm_root"
+              action="action_fix_mdm_golden_rule" sequence="30"/>
+</odoo>

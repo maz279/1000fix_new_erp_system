@@ -1,0 +1,14 @@
+# Prometheus - local scrape config (P02-M08-T09, observability profile).
+# Scrapes: self, the OTel collector's prometheus exporter (all app metrics),
+# postgres via the collector. 15-day retention set in the compose command.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 30s
+  external_labels:
+    fix_env: local
+
+scrape_configs:
+  - job_name: prometheus
+    static_configs: [{ targets: ["127.0.0.1:9090"] }]
+  - job_name: otel-collector
+    static_configs: [{ targets: ["otel-collector:8889"] }]

@@ -1,0 +1,52 @@
+# M62 W4 dimensional model (P07-M07-T03/T04) — dbt-style conformed model.
+# ClickHouse arrives W8; W4 runs on the read replica (LB-06: T11 reads
+# OLTP only downstream — NO analytics write ever touches the primary).
+#
+# Conformed dimensions and fact tables per DA-007 / 05-02 §9.
+
+version: "2"
+
+models:
+  - name: dim_date
+    description: "Conformed calendar dimension (Asia/Dhaka, BD holidays from the country pack)"
+    columns:
+      - name: date_key
+        tests: [unique, not_null]
+  - name: dim_branch
+    description: "Branch dimension conformed to M30 (entity/zone/OU attributes)"
+    columns:
+      - name: branch_key
+        tests: [unique, not_null]
+  - name: dim_customer
+    description: "Party dimension (customer roles only; PII minimised — no classified data in the warehouse)"
+    columns:
+      - name: customer_key
+        tests: [unique, not_null]
+  - name: dim_device
+    description: "Device dimension (model/brand/type/warranty status)"
+    columns:
+      - name: device_key
+        tests: [unique, not_null]
+  - name: dim_technician
+    description: "Technician dimension (certifications, branch)"
+  - name: fact_service_orders
+    description: "Grain: one row per service order. The service-delivery backbone fact."
+    columns:
+      - name: order_key
+        tests: [unique, not_null]
+      - name: order_category
+        tests: [accepted_values: {values: [standard, warranty, amc, rework]}]
+  - name: fact_invoices
+    description: "Grain: one row per AR invoice (Mushak-paired)"
+    columns:
+      - name: invoice_key
+        tests: [unique, not_null]
+  - name: fact_warranty_claims
+    description: "Grain: one row per claim (G4-01/G4-02 evidence source)"
+    columns:
+      - name: claim_key
+        tests: [unique, not_null]
+  - name: fact_conversations
+    description: "Grain: one row per conversation (G4-04/G4-05 evidence source)"
+  - name: fact_nps
+    description: "Grain: one row per survey response"

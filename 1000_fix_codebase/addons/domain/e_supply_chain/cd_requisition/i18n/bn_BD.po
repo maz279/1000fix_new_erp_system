@@ -1,0 +1,63 @@
+# Bengali (Bangladesh) translation for cd_requisition.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Deliver-to Branch"
+msgstr "ডেলিভি শাখা"
+
+msgid "Estimated Amount"
+msgstr "আনুমানিক পরিমাণ"
+
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+msgid "Order Date"
+msgstr "অর্ডারের তারিখ"
+
+msgid "Ordered"
+msgstr "অর্ডিত"
+
+msgid "PO Reference"
+msgstr "PO রেফারেন্স"
+
+msgid "Procurement"
+msgstr "প্রকিউরমেন্ট"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "Purchase Order"
+msgstr "ক্রয় আদেশ"
+
+msgid "Purchase Orders"
+msgstr "ক্রয় আদেশসমূহ"
+
+msgid "Received"
+msgstr "গৃহীত"
+
+msgid "Requested By"
+msgstr "অনুরোধকারী"
+
+msgid "Requesting Branch"
+msgstr "অনুরোধকারী শাখা"
+
+msgid "Requisitions"
+msgstr "ক্রয় অনুরোধসমূহ"
+
+msgid "Total"
+msgstr "মোট"
+
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+msgid "Vendor"
+msgstr "ভেন্ডর"

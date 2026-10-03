@@ -1,0 +1,37 @@
+# 1000fix-erp — .editorconfig (https://editorconfig.org)
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.py]
+indent_size = 4
+# Python: Ruff formats (PYS-01); docstrings and comments follow the same rules.
+
+[*.{js,ts,tsx,jsx}]
+indent_size = 2
+
+[*.dart]
+indent_size = 2
+
+[*.md]
+# Trailing spaces are significant in Markdown line breaks only; keep trimmed.
+trim_trailing_whitespace = false
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.{ps1,psm1}]
+end_of_line = crlf
+indent_size = 4
+
+[Makefile]
+indent_style = tab
+
+[*.go]
+indent_style = tab

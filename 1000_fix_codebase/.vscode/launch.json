@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Odoo (local)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/vendor/odoo/odoo-bin",
+      "args": ["-c", "infra/odoo-conf/local.conf", "-d", "fix_dev"],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    },
+    {
+      "name": "Odoo test — current file",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/vendor/odoo/odoo-bin",
+      "args": [
+        "-c", "infra/odoo-conf/local.conf",
+        "-d", "fix_test",
+        "--test-enable",
+        "--test-tags", "${fileBasenameNoExtension}",
+        "--stop-after-init"
+      ],
+      "console": "integratedTerminal",
+      "justMyCode": false
+    }
+  ],
+  "_comment": "justMyCode:false matters - most debugging happens inside vendor/odoo or an OCA module, which is precisely the reading AS-05 depends on. Windows note (D-WS-001): Odoo runs in the dev container; the same two configurations attach to it via debugpy inside the container - see docs/guides/devtools-workflow.md section 5."
+}

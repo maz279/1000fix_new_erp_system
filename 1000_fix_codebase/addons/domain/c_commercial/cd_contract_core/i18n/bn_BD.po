@@ -1,0 +1,60 @@
+# Bengali (Bangladesh) translation for cd_contract_core.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "All Contracts"
+msgstr "সকল চুক্তি"
+
+msgid "Annual Escalation (%)"
+msgstr "বার্ষিক বৃদ্ধি (%)"
+
+msgid "Annual Value"
+msgstr "বার্ষিক মূল্য"
+
+msgid "Commercial"
+msgstr "বাণিজ্যিক"
+
+msgid "Contract No."
+msgstr "চুক্তি নং"
+
+msgid "Contract SLAs"
+msgstr "চুক্তি SLA"
+
+msgid "Contracts"
+msgstr "চুক্তিসমূহ"
+
+msgid "Covered Assets"
+msgstr "আচ্ছাদিত সম্পদ"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "E-Signature"
+msgstr "ই-সিগনেচার"
+
+msgid "Entitlements"
+msgstr "এনটাইটেলমেন্ট"
+
+msgid "PM Schedule"
+msgstr "পিএম সময়সূচি"
+
+msgid "Product Family"
+msgstr "পণ্য পরিবার"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Specific Asset"
+msgstr "নির্দিষ্ট সম্পদ"
+
+msgid "Terms"
+msgstr "শর্তাবলী"
+
+msgid "Title"
+msgstr "শিরোনাম"

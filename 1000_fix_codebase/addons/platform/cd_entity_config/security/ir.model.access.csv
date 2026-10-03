@@ -1,0 +1,13 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_entity,fix.entity,model_fix_entity,base.group_user,1,1,1,0
+access_fix_branch,fix.branch,model_fix_branch,base.group_user,1,1,1,0
+access_fix_zone,fix.zone,model_fix_zone,base.group_user,1,1,1,0
+access_fix_geofence,fix.geofence,model_fix_geofence,base.group_user,1,1,1,0
+access_fix_working_calendar,fix.working.calendar,model_fix_working_calendar,base.group_user,1,1,1,0
+access_fix_feature_flag,fix.feature.flag,model_fix_feature_flag,base.group_user,1,0,0,0
+access_fix_bd_address,fix.bd.address,model_fix_bd_address,base.group_user,1,0,0,0
+access_fix_country_pack,fix.country.pack,model_fix_country_pack,base.group_user,1,0,0,0
+access_fix_notification_config,fix.notification.config,model_fix_notification_config,base.group_user,1,1,1,0
+access_fix_working_calendar_line,fix.working.calendar.line,model_fix_working_calendar_line,base.group_user,1,1,1,0
+access_fix_working_calendar_holiday,fix.working.calendar.holiday,model_fix_working_calendar_holiday,base.group_user,1,1,1,0
+access_fix_country_pack_line,fix.country.pack.line,model_fix_country_pack_line,base.group_user,1,0,0,0

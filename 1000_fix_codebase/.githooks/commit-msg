@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# =============================================================================
+# commit-msg hook - P02-M03-T07 / BE-003 section 5.1 / CDR-08
+# Enforces: <type>(<scope>): <subject>
+#   type   in: feat fix docs style refactor test chore perf
+#   scope  in: a CD identifier or unit prefix present in the register
+#          (CD-M01-01, CD-M01), or the two recorded root exceptions
+#          (repo, release) per this repository's AGENTS.md.
+# The register source is tooling/cd-register.yaml (BE-005 section 6).
+# Installed via: git config core.hooksPath .githooks  (done by bootstrap)
+# XS-20: --no-verify is permitted only on hotfix/* branches.
+# =============================================================================
+set -eu
+msg_file="$1"
+header=$(head -n1 "$msg_file")
+
+fail() { echo "commit-msg: $1" >&2; echo "  expected: <type>(<scope>): <subject>  e.g. feat(CD-M01-01): add split-order action" >&2; exit 1; }
+
+# Merge/revert/fixup commits carry their own format - let git handle them.
+case "$header" in
+  "Merge "*|"Revert "*|"fixup! "*"squash! "*) exit 0 ;;
+esac
+
+echo "$header" | grep -qE '^(feat|fix|docs|style|refactor|test|chore|perf)\(([^)]+)\): .+' || fail "type missing or malformed: $header"
+scope=$(echo "$header" | sed -E 's/^[a-z]+\(([^)]+)\): .*/\1/')
+subject=$(echo "$header" | sed -E 's/^[a-z]+\([^)]+\): //')
+
+# Root exceptions (AGENTS.md): repository-level and release commits.
+if [ "$scope" != "repo" ] && [ "$scope" != "release" ]; then
+  case "$scope" in
+    CD-*) ;;
+    *) fail "scope '$scope' is not a CD identifier (CD-<UNIT>-<nn>), unit prefix (CD-<UNIT>) or a root exception (repo|release)" ;;
+  esac
+  reg="tooling/cd-register.yaml"
+  if [ -f "$reg" ]; then
+    if ! grep -q -- "$scope" "$reg"; then
+      # Unit-prefix scope: accept if any item of that unit is registered.
+      unit="${scope%%-[0-9]*}"
+      if ! grep -q -- "$unit" "$reg"; then
+        fail "scope '$scope' is NOT in BE-005 section 6 (CDR-08: an identifier may not appear in a commit unless it is in the register)"
+      fi
+    fi
+  else
+    echo "commit-msg: WARNING - cd-register.yaml not found; scope membership not verified (FF-16 in Warning mode)" >&2
+  fi
+fi
+
+# 50/72 rule (BE-003 section 5.1)
+len=$(printf '%s' "$subject" | wc -c)
+if [ "$len" -gt 50 ]; then
+  echo "commit-msg: WARNING - subject is $len chars (budget 50)" >&2
+fi
+exit 0

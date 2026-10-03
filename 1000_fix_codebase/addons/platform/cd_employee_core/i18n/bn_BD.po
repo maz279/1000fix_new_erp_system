@@ -1,0 +1,39 @@
+# Bengali (Bangladesh) translation for cd_employee_core.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Additional Roles"
+msgstr "অতিরিক্ত ভূমিকা"
+
+msgid "Assigned Branch"
+msgstr "নিযুক্ত শাখা"
+
+msgid "Employee Code"
+msgstr "কর্মী কোড"
+
+msgid "Joined Date"
+msgstr "যোগদানের তারিখ"
+
+msgid "Keycloak User ID"
+msgstr "Keycloak ব্যবহারকারী আইডি"
+
+msgid "Left Date"
+msgstr "ত্যাগের তারিখ"
+
+msgid "Linked Party"
+msgstr "সংযুক্ত পার্টি"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "Party Role (Employee)"
+msgstr "পার্টি ভূমিকা (কর্মী)"
+
+msgid "Primary Business Role (M29)"
+msgstr "প্রধান ব্যবসায়িক ভূমিকা (M29)"

@@ -1,0 +1,92 @@
+[
+    {
+        "Check":  "T01",
+        "Name":  "Hardware baseline",
+        "Status":  "PASS",
+        "Detail":  "meets RECOMMENDED - 8c/16t, 64 GB RAM, 951 GB NVMe disk (SSD), 1 display(s)",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T02",
+        "Name":  "Operating system",
+        "Status":  "PASS",
+        "Detail":  "Windows 11 build 26300 (26H2) - native Windows is the sanctioned baseline under D-WS-001",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T03",
+        "Name":  "Full-disk encryption",
+        "Status":  "WARN",
+        "Detail":  "status indeterminate from this shell (manage-bde needs elevation).",
+        "Remedies":  [
+                         "Re-run this script from an elevated PowerShell window to get a definitive T03 verdict."
+                     ]
+    },
+    {
+        "Check":  "T04",
+        "Name":  "Package set",
+        "Status":  "PASS",
+        "Detail":  "every pinned package installed at (or above) its pin.",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T05",
+        "Name":  "Bengali fonts",
+        "Status":  "PASS",
+        "Detail":  "Noto Sans Bengali + Nirmala UI registered (two conjunct-capable families).",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T06",
+        "Name":  "Docker Engine",
+        "Status":  "PASS",
+        "Detail":  "Docker version 29.8.0, build 88096ef; Docker Compose version v5.5.1; engine reachable",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T07",
+        "Name":  "git",
+        "Status":  "PASS",
+        "Detail":  "git version 2.56.0.windows.1",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T08",
+        "Name":  "wkhtmltopdf",
+        "Status":  "PASS",
+        "Detail":  "wkhtmltopdf 0.12.5 (with patched qt) (resolved via PATH; PATH registry wired)",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T09",
+        "Name":  "Browsers",
+        "Status":  "PASS",
+        "Detail":  "chrome: C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe ; firefox: C:\\Program Files\\Mozilla Firefox\\firefox.exe",
+        "Remedies":  [
+
+                     ]
+    },
+    {
+        "Check":  "T10",
+        "Name":  "Reserved ports",
+        "Status":  "WARN",
+        "Detail":  "Docker-managed listeners hold :5432=wslrelay :5432=com.docker.backend :6379=wslrelay :6379=com.docker.backend :9000=wslrelay :9000=com.docker.backend",
+        "Remedies":  [
+                         "Identify the publishing container:  docker ps --filter publish=5432  - then stop that stack, or remap it. When the 1000fix-erp stack binds 127.0.0.1:5432 the collision will refuse the bind."
+                     ]
+    }
+]

@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.1000fix.example/events/service_order.delivered/1.0.json",
+  "title": "service_order.delivered payload",
+  "description": "Published by M01 when a repaired or serviced item is handed to the customer and the handover evidence is recorded. This is the BILLABLE EVENT M20 consumes (M01 §12.2). It carries what was done; it never carries an instruction to raise an invoice (IN-003 SC-05, AR-009 P-01).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["service_order_id", "delivered_at", "delivery_mode", "billable_summary", "handover"],
+
+  "x-registration": {
+    "event_type": "service_order.delivered",
+    "schema_version": "1.0",
+    "kind": "E1",
+    "aggregate": "service_order",
+    "producer_module": "M01",
+    "consumers": ["M20", "M09", "M27", "M34", "M25"],
+    "ordering_guarantee": "per_aggregate_instance",
+    "replay_class": "R1",
+    "retention_class": "operational_30d",
+    "channel": "domain",
+    "pii_classification": "personal",
+    "owning_context": "service-delivery",
+    "wave": "W1",
+    "emits_from": ["in_progress -> delivered", "ready -> delivered"],
+    "source_ref": "M01_Service_Request_and_Order_Management.md §12.3",
+    "comment_on_replay_class": "R1 because every consumer of this event is an idempotent projection or a guarded creation. M20's invoice creation is R2 and carries its own already-done check; it is the CONSUMER that declares its class, not the event.",
+    "comment_on_retention": "operational_30d, NOT financial_7y. The event is the trigger; the INVOICE it causes is the financial record and carries the 7-year obligation. Classifying the trigger as financial would place 30 days of routine operational traffic under a statutory hold."
+  },
+
+  "properties": {
+    "service_order_id": {
+      "type": "string",
+      "pattern": "^SO-[0-9]{8,12}$",
+      "description": "The aggregate identifier. Also the partition key component (AR-009 §4.2)."
+    },
+    "delivered_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 UTC. WHEN THE HANDOVER HAPPENED, not when the event was published (AR-009 occurred_at semantics). For an offline capture this is the field-captured time, which the client wins on under AR-010's authority matrix."
+    },
+    "delivery_mode": {
+      "type": "string",
+      "enum": ["walk_in", "on_site", "pick_and_drop", "remote"],
+      "description": "Open enumeration under SC-11: a value may be added within this schema_version, so every consumer must carry a default branch."
+    },
+
+    "customer": {
+      "$ref": "#/$defs/Reference",
+      "description": "Identifier and type only. NEVER a nested customer representation (SC-10) — an event that embeds half the database becomes a snapshot with a stale fuse."
+    },
+    "customer_asset": { "$ref": "#/$defs/Reference" },
+    "branch": { "$ref": "#/$defs/Reference" },
+
+    "handover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["received_by_name", "signature_attachment_id"],
+      "description": "Custody transfer evidence. Retained for the legal evidence period by the DOCUMENT retention rule, not by this event's retention class.",
+      "properties": {
+        "received_by_name": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Length is in CHARACTERS, not bytes — a 200-character Bengali name is ~600 bytes in UTF-8 (IN-002 BN-02).",
+          "x-pii": "personal"
+        },
+        "received_by_name_bn": {
+          "type": ["string", "null"],
+          "maxLength": 200,
+          "x-pii": "personal"
+        },
+        "signature_attachment_id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "Claim check (AR-009 P-05). A reference to object storage — the signature image never travels on the bus, in the DLQ, or into a consumer's inbox."
+        },
+        "geo": { "$ref": "#/$defs/GeoPoint" }
+      }
+    },
+
+    "billable_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lines", "total"],
+      "description": "SC-06: enough for M20 to raise an invoice WITHOUT calling back. An event that forces every consumer to fetch the record has moved the coupling, not removed it (AR-009 P-02).",
+      "properties": {
+        "lines": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "code", "quantity", "unit_price", "line_total"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["labour", "part", "callout", "adjustment"] },
+              "code": { "type": "string", "description": "From MD-020 (services) or the parts master." },
+              "description": { "type": ["string", "null"], "maxLength": 500 },
+              "quantity": { "$ref": "#/$defs/Quantity" },
+              "unit_price": { "$ref": "#/$defs/Money" },
+              "line_total": { "$ref": "#/$defs/Money" },
+              "tax_code": { "type": ["string", "null"] },
+              "warranty_covered": {
+                "type": "boolean",
+                "description": "Drives whether M09 raises a claim and whether M20 bills the customer or the brand."
+              }
+            }
+          }
+        },
+        "total": { "$ref": "#/$defs/Money" },
+        "currency_note": {
+          "type": ["string", "null"],
+          "description": "Present only where the order was priced in a currency other than BDT (M65)."
+        }
+      }
+    },
+
+    "entitlement": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "description": "Present where a contract or warranty covered part or all of the work.",
+      "properties": {
+        "contract": { "$ref": "#/$defs/Reference" },
+        "consumed_units": { "$ref": "#/$defs/Quantity" },
+        "warranty_claim_eligible": { "type": "boolean" }
+      }
+    },
+
+    "quality": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "qc_passed": { "type": "boolean" },
+        "rework_of": {
+          "$ref": "#/$defs/Reference",
+          "description": "Set when this order is rework of a previous one — the linkage M23 and M57 need for attribution."
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "Money": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["amount", "currency"],
+      "description": "AS-10 / AR-009 P-06 / IN-003 SC-02. STRING decimal, never a float — a float cannot represent BDT 0.10 exactly and a bank reconciliation will eventually disagree by paisa.",
+      "properties": {
+        "amount": { "type": "string", "pattern": "^-?[0-9]{1,15}(\\.[0-9]{1,4})?$" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+      }
+    },
+    "Quantity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value", "uom"],
+      "properties": {
+        "value": { "type": "string", "pattern": "^-?[0-9]{1,12}(\\.[0-9]{1,6})?$" },
+        "uom": { "type": "string" }
+      }
+    },
+    "GeoPoint": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["lat", "lon"],
+      "properties": {
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "accuracy_m": { "type": ["number", "null"], "minimum": 0 }
+      }
+    },
+    "Reference": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "required": ["id", "type"],
+      "description": "SC-10. A cross-aggregate reference carries an identifier and a type, never a nested representation.",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "description": "The AR-008 aggregate name." }
+      }
+    }
+  },
+
+  "examples": [
+    {
+      "service_order_id": "SO-00918234",
+      "delivered_at": "2026-08-18T09:14:22Z",
+      "delivery_mode": "walk_in",
+      "customer": { "id": "CUS-0044213", "type": "party" },
+      "customer_asset": { "id": "DEV-0294817", "type": "customer_asset" },
+      "branch": { "id": "BR-017", "type": "branch" },
+      "handover": {
+        "received_by_name": "Example Customer",
+        "received_by_name_bn": null,
+        "signature_attachment_id": "9f3c2b18-4a55-4d90-8c31-77b0a1e5d240",
+        "geo": { "lat": 23.7806, "lon": 90.4074, "accuracy_m": 12 }
+      },
+      "billable_summary": {
+        "lines": [
+          {
+            "kind": "labour",
+            "code": "SVC-DIAG-01",
+            "description": "Diagnostic and board-level repair",
+            "quantity": { "value": "1", "uom": "each" },
+            "unit_price": { "amount": "1800.00", "currency": "BDT" },
+            "line_total": { "amount": "1800.00", "currency": "BDT" },
+            "tax_code": "VAT-15",
+            "warranty_covered": false
+          },
+          {
+            "kind": "part",
+            "code": "PRT-SCR-4419",
+            "quantity": { "value": "1", "uom": "each" },
+            "unit_price": { "amount": "4250.00", "currency": "BDT" },
+            "line_total": { "amount": "4250.00", "currency": "BDT" },
+            "tax_code": "VAT-15",
+            "warranty_covered": true
+          }
+        ],
+        "total": { "amount": "6050.00", "currency": "BDT" }
+      },
+      "entitlement": {
+        "contract": { "id": "CTR-000812", "type": "contract" },
+        "consumed_units": { "value": "1", "uom": "incident" },
+        "warranty_claim_eligible": true
+      },
+      "quality": { "qc_passed": true, "rework_of": null }
+    }
+  ]
+}

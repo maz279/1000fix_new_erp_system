@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.branch views (P03-M04-T01) -->
+<odoo>
+    <record id="view_fix_branch_tree" model="ir.ui.view">
+        <field name="name">fix.branch.tree</field>
+        <field name="model">fix.branch</field>
+        <field name="arch" type="xml">
+            <tree string="Branches">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn"/>
+                <field name="entity_id"/>
+                <field name="zone_id"/>
+                <field name="operating_unit_id"/>
+                <field name="calendar_id"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_branch_form" model="ir.ui.view">
+        <field name="name">fix.branch.form</field>
+        <field name="model">fix.branch</field>
+        <field name="arch" type="xml">
+            <form string="Branch">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="name_bn"/>
+                            <field name="entity_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="operating_unit_id"/>
+                            <field name="zone_id"/>
+                            <field name="calendar_id"/>
+                            <field name="manager_id"/>
+                            <field name="phone"/>
+                            <field name="email"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_branch" model="ir.actions.act_window">
+        <field name="name">Branches</field>
+        <field name="res_model">fix.branch</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_branch" name="Branches" parent="menu_fix_entity_root"
+              action="action_fix_branch" sequence="20"/>
+</odoo>

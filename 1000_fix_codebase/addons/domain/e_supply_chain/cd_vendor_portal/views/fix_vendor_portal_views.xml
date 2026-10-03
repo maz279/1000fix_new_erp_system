@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_vendor_portal — P05 Vendor & Supplier Portal W3 slice (P06-M09-T01/T02/T03).
+
+  Built on Odoo Portal (QWeb) — runtime R3 plus the R2 Bootstrap-derived
+  SCSS bundle. Vendor-facing: PO acknowledgement (M16's surface), delivery
+  confirmation, and invoice submission feeding the M52 three-way match —
+  BLOCKED when unmatched, the gate criterion (G3-06).
+-->
+<odoo>
+
+    <!-- Vendor portal users: the portal group plus the vendor-portal role gate -->
+    <record id="group_fix_vendor_portal" model="res.groups">
+        <field name="name">P05 Vendor Portal</field>
+        <field name="category_id" ref="cd_rbac_ext.module_category_fix_portal"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="comment">P05 access: vendors see their own POs, deliveries and invoice submissions only (EA-05 scoping via record rules).</field>
+    </record>
+
+    <!-- EA-05: a vendor sees only records where they are the vendor -->
+    <record id="rule_fix_vendor_po_self" model="ir.rule">
+        <field name="name">P05: vendors see their own POs</field>
+        <field name="model_id" ref="cd_requisition.model_fix_purchase_order"/>
+        <field name="groups" eval="[(4, ref('group_fix_vendor_portal'))]"/>
+        <field name="domain_force">[('vendor_id.partner_share', '=', True)]</field>
+    </record>
+
+    <!-- Portal views: the R3 (QWeb) surface -->
+    <record id="view_fix_po_portal_form" model="ir.ui.view">
+        <field name="name">fix.purchase.order.portal.form</field>
+        <field name="model">fix.purchase.order</field>
+        <field name="arch" type="xml">
+            <form create="false" edit="false">
+                <sheet>
+                    <h1><field name="name" readonly="1"/></h1>
+                    <group>
+                        <group>
+                            <field name="date_order" readonly="1"/>
+                            <field name="amount_total" readonly="1"/>
+                            <field name="state" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <tree>
+                            <field name="product_id"/>
+                            <field name="description" optional="show"/>
+                            <field name="qty_ordered"/>
+                            <field name="qty_received"/>
+                            <field name="unit_price"/>
+                        </tree>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_po_portal" model="ir.actions.act_window">
+        <field name="name">My Purchase Orders</field>
+        <field name="res_model">fix.purchase.order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="domain">[('state', 'in', ('sent', 'acknowledged', 'partially_received', 'received'))]</field>
+        <field name="groups_id" eval="[(4, ref('group_fix_vendor_portal'))]"/>
+    </record>
+
+    <menuitem id="menu_vendor_portal_root" name="Vendor Portal"
+              sequence="55" web_icon="cd_vendor_portal,static/description/icon.png"/>
+    <menuitem id="menu_vendor_portal_pos" name="My Purchase Orders"
+              parent="menu_vendor_portal_root"
+              action="action_fix_po_portal" sequence="10"/>
+
+    <!-- T03: vendor invoice submission feeding the three-way match.
+         The portal action creates fix.vendor.invoice rows in draft; the
+         matcher (cd_ap_ext) decides matched/blocked — blocked invoices are
+         VISIBLE to the vendor with their block reason (a rejected invoice
+         the vendor cannot see becomes a support ticket). -->
+    <record id="action_fix_vendor_invoice_portal" model="ir.actions.act_window">
+        <field name="name">My Invoice Submissions</field>
+        <field name="res_model">fix.vendor.invoice</field>
+        <field name="view_mode">tree,form</field>
+        <field name="groups_id" eval="[(4, ref('group_fix_vendor_portal'))]"/>
+    </record>
+
+    <menuitem id="menu_vendor_portal_invoices" name="My Invoices"
+              parent="menu_vendor_portal_root"
+              action="action_fix_vendor_invoice_portal" sequence="20"/>
+
+</odoo>

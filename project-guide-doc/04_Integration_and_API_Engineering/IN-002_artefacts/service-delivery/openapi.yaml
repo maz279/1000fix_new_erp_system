@@ -1,0 +1,848 @@
+# 1000FiX ERP — Service Delivery Context API
+# Bounded context 1 of 11 (IN-002 §3.1). Owning modules M01–M06, M31.
+# This exemplar realises the full M01 §12.4 API table — 14 operations — plus the
+# /customer-assets resolution of the M17/M49 ownership contest (IN-001 §11.2).
+#
+# CONFIDENTIAL — Internal Use Only
+
+openapi: 3.1.0
+
+info:
+  title: 1000FiX Service Delivery API
+  version: 1.0.0
+  description: |
+    Service orders, work orders, consignments and workshop jobs — the `service-delivery`
+    bounded context (`AR-008` §5).
+
+    **Base path is resource-scoped** per ruling `IN-001-D-01`. The twelve API families
+    (`AR-001` §7.1) are policy groupings realised as Kong consumer groups and the
+    `x-family` tag extension — **not** path prefixes. Only 38 of 978 declared module paths
+    were ever consumer-scoped, and a consumer-scoped path encourages exactly the shortcut
+    `API-10` forbids.
+
+    **Performance classes** (`05-03` §5.3), declared per operation as `x-endpoint-class`:
+
+    | class | p50 | p95 | p99 |
+    |---|---|---|---|
+    | `status-lookup` | 80 ms | 250 ms | 500 ms |
+    | `standard-read` | 150 ms | 400 ms | 800 ms |
+    | `write` | 200 ms | 500 ms | 1,000 ms |
+    | `search` | 200 ms | 600 ms | 1,200 ms |
+    | `availability` | 300 ms | 800 ms | 1,500 ms |
+
+    **Status of this file.** Hand-authored ahead of code, as a generator fixture
+    (`IN-002-D-02`). Every operation carries `x-scope-status: proposed`; publication is
+    blocked by `FF-54` until `IN-005` §5 ratifies the scope vocabulary.
+  contact:
+    name: Integration Architect, 1000FiX Services Limited
+    email: integration-architecture@1000fix.example
+  license:
+    name: CONFIDENTIAL — Internal Use Only
+
+servers:
+  - url: https://sandbox.api.1000fix.example
+    description: >
+      Partner sandbox. AUDIT-016 AP-12 records this as a SEVENTH environment that
+      TS-001 §4.7 does not have — it specifies six (DEV, CI, SIT, UAT, PERF, TRAIN) and
+      records that none is provisioned. UAT emphatically cannot serve: a partner
+      exercising flows there changes the data business super-users are signing against.
+  - url: https://sit.api.1000fix.internal
+    description: System integration test.
+
+externalDocs:
+  description: Developer portal — service delivery
+  url: https://developer.1000fix.example/service-delivery
+
+tags:
+  - name: service-orders
+    description: The order object nine business lines share (`AR-001` §6.6).
+    x-family: customer
+    x-owning-module: M01
+  - name: tracking
+    description: Public, tokenised order tracking.
+    x-family: customer
+    x-owning-module: M01
+  - name: customer-assets
+    description: >
+      Registered customer devices. RESOLVES the M17/M49 contest recorded in
+      `IN-001` §11.2 — `/api/v1/assets` was declared by BOTH M17 (customer devices) and
+      M49 (capitalised fixed assets). They are different resources with the same name,
+      the same defect class as `claim.submitted` vs `warranty_claim.submitted`
+      (`AR-008` §3). M17 takes `/customer-assets`; M49 takes `/fixed-assets` in the
+      `asset` context.
+    x-family: customer
+    x-owning-module: M17
+
+security:
+  - oauthUser: []
+
+paths:
+
+  /api/v1/service-orders:
+    post:
+      operationId: createServiceOrder
+      summary: Create a service order
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      x-retry-safe: false
+      description: |
+        Creates a service order from any channel — web, app, contact centre, branch or
+        marketplace award. Publishes `service_order.created` through the transactional
+        outbox in the **same** transaction (`AS-08`, `AR-009` §5).
+
+        **Idempotency is mandatory.** A timeout on this operation means the outcome is
+        UNKNOWN, not failed. Resubmit with the SAME `Idempotency-Key` (`IN-001` §7.3).
+      security:
+        - oauthUser: ['service_order:write']
+        - oauthMachine: ['service_order:write']
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/AcceptLanguageParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ServiceOrderCreate' }
+      responses:
+        '201':
+          description: Created.
+          headers:
+            Location:
+              required: true
+              schema: { type: string, format: uri }
+            X-Correlation-Id: { $ref: '../_shared/components.yaml#/components/headers/XCorrelationId' }
+            Idempotency-Replayed: { $ref: '../_shared/components.yaml#/components/headers/IdempotencyReplayed' }
+            ETag: { $ref: '../_shared/components.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../_shared/errors.yaml#/components/responses/Conflict' }
+        '413': { $ref: '../_shared/errors.yaml#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+        '503': { $ref: '../_shared/errors.yaml#/components/responses/ServiceUnavailable' }
+
+    get:
+      operationId: listServiceOrders
+      summary: List service orders within the caller's data scope
+      tags: [service-orders]
+      x-scope: ['service_order:read']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: standard-read
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: |
+        **The result set is bounded by the credential's data scope, enforced server-side**
+        (`API-10`, `AR-001` `LB-05`). A `filter[...]` parameter can narrow it; nothing can
+        widen it (`AP-005` `SC-02`).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/SortParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/FieldsParam'
+        - name: filter[state]
+          in: query
+          schema:
+            type: string
+            enum: [draft, classified, diagnosed, estimated, approved, in_progress, on_hold, ready, delivered, closed, cancelled]
+          description: States are `MD-027`'s controlled labels.
+        - name: filter[promised_before]
+          in: query
+          schema: { type: string, format: date-time }
+      responses:
+        '200':
+          description: A page of service orders.
+          headers:
+            X-Correlation-Id: { $ref: '../_shared/components.yaml#/components/headers/XCorrelationId' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServiceOrder' }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/service-orders/{service_order_id}:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    get:
+      operationId: getServiceOrder
+      summary: Retrieve one service order
+      tags: [service-orders]
+      x-scope: ['service_order:read']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: standard-read
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: |
+        **`403` is returned both for a record outside the caller's data scope and for a
+        record that does not exist** (`IN-002-D-05`). The two responses are byte-identical.
+        `404` is reserved for records the caller WOULD be entitled to see. Tested
+        adversarially by `FF-51`.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IfNoneMatchParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/FieldsParam'
+      responses:
+        '200':
+          description: The service order.
+          headers:
+            ETag: { $ref: '../_shared/components.yaml#/components/headers/ETag' }
+            X-Correlation-Id: { $ref: '../_shared/components.yaml#/components/headers/XCorrelationId' }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '304': { description: Not modified. }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../_shared/errors.yaml#/components/responses/NotFound' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/service-orders/{service_order_id}/status:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    get:
+      operationId: getServiceOrderStatus
+      summary: Lightweight status for a tracking page
+      tags: [service-orders]
+      x-scope: ['service_order:read']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: status-lookup
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        Deliberately separate from `getServiceOrder` so a tracking page — the highest-volume
+        read in the estate — sits in the 80 ms/250 ms class rather than dragging the full
+        representation.
+      responses:
+        '200':
+          description: Status only.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrderStatus' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/service-orders/{service_order_id}/transition:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: transitionServiceOrder
+      summary: Execute a state transition with guard evaluation
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      x-retry-safe: false
+      description: |
+        Guards are evaluated server-side. A refused transition returns `422` with
+        `state.transition_invalid` and `details.allowed_transitions`, so the client never
+        has to encode the state machine (`PS-11` — no business rule client-side).
+
+        **Every declared transition emits an event through the outbox** — asserted in CI by
+        `FF-04` (`AR-009` §5.5). A transition with no event, or an event with no transition,
+        fails the build.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/IfMatchParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [to_state]
+              additionalProperties: false
+              properties:
+                to_state: { type: string }
+                reason_code:
+                  type: [string, "null"]
+                  description: From `MD-026` reason codes.
+                note: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        '200':
+          description: Transition applied.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '409': { $ref: '../_shared/errors.yaml#/components/responses/Conflict' }
+        '412': { $ref: '../_shared/errors.yaml#/components/responses/PreconditionFailed' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/service-orders/{service_order_id}/hold:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: holdServiceOrder
+      summary: Place an order on hold with a reason
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              additionalProperties: false
+              properties:
+                reason_code: { type: string }
+                expected_release_at: { type: [string, "null"], format: date-time }
+      responses:
+        '200':
+          description: On hold. Publishes `service_order.on_hold`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/service-orders/{service_order_id}/diagnosis:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: submitServiceOrderDiagnosis
+      summary: Submit a diagnostic result
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        Submitted from P02 (technician) or P03. Offline-captured diagnoses arrive through
+        the command journal (`/api/v1/platform/sync`), not this endpoint — see `AR-010`.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fault_codes, repair_level]
+              additionalProperties: false
+              properties:
+                fault_codes:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+                  description: From the `M37` fault taxonomy.
+                repair_level: { type: string }
+                notes: { type: [string, "null"], maxLength: 4000 }
+                notes_bn: { type: [string, "null"], maxLength: 4000 }
+      responses:
+        '200':
+          description: Recorded. Publishes `service_order.diagnosed`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/service-orders/{service_order_id}/evidence:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: attachServiceOrderEvidence
+      summary: Attach photographs and documents
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        Multipart upload. The stored representation is an `Attachment` reference
+        (claim check) — the bytes never travel on the event bus (`AR-009` P-05).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file, kind]
+              properties:
+                file: { type: string, format: binary }
+                kind:
+                  type: string
+                  enum: [intake_photo, fault_photo, completion_photo, signature, document]
+                captured_at: { type: [string, "null"], format: date-time }
+                geo: { $ref: '../_shared/components.yaml#/components/schemas/GeoPoint' }
+      responses:
+        '201':
+          description: Attached.
+          content:
+            application/json:
+              schema: { $ref: '../_shared/components.yaml#/components/schemas/Attachment' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '413': { $ref: '../_shared/errors.yaml#/components/responses/PayloadTooLarge' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/service-orders/{service_order_id}/handover:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: recordServiceOrderHandover
+      summary: Record handover with signature
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        Publishes `service_order.delivered`, which is the billable event M20 consumes.
+        This is a custody transfer and its evidence is retained for the legal evidence
+        period (`AR-009` §8.4).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [received_by, signature_attachment_id]
+              additionalProperties: false
+              properties:
+                received_by: { $ref: '../_shared/components.yaml#/components/schemas/PersonName' }
+                signature_attachment_id: { type: string, format: uuid }
+                handover_at: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Handover recorded.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/service-orders/{service_order_id}/reschedule:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: rescheduleServiceOrder
+      summary: Reschedule within policy
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        One of the ten `05-03` §3.2 CON-03 endpoints that a module DOES declare
+        (`IN-001` §9.2 — twelve of the twenty-two do not).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [requested_slot_start]
+              additionalProperties: false
+              properties:
+                requested_slot_start: { type: string, format: date-time }
+                reason_code: { type: [string, "null"] }
+      responses:
+        '200':
+          description: Rescheduled.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422':
+          $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity'
+
+  /api/v1/service-orders/{service_order_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/ServiceOrderId'
+    post:
+      operationId: cancelServiceOrder
+      summary: Cancel within policy
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: portal
+      x-wave: W1
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason_code]
+              additionalProperties: false
+              properties:
+                reason_code: { type: string }
+                note: { type: [string, "null"], maxLength: 2000 }
+      responses:
+        '200':
+          description: Cancelled. Publishes `service_order.cancelled`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ServiceOrder' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422': { $ref: '../_shared/errors.yaml#/components/responses/UnprocessableEntity' }
+
+  /api/v1/service-orders/search:
+    get:
+      operationId: searchServiceOrders
+      summary: Multi-attribute and full-text search
+      tags: [service-orders]
+      x-scope: ['service_order:read']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: search
+      x-rate-limit-class: partner-standard
+      x-wave: W1
+      description: >
+        Full-text search over Bengali and English. Collation is declared per sortable
+        field (`BN-05`) because Bengali collation is not codepoint order.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string, minLength: 2, maxLength: 200 }
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: Search results, bounded by data scope.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data:
+                    type: array
+                    items: { $ref: '#/components/schemas/ServiceOrder' }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/service-orders/bulk:
+    post:
+      operationId: submitServiceOrderBulk
+      summary: Bulk operation submission
+      tags: [service-orders]
+      x-scope: ['service_order:write']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: write
+      x-rate-limit-class: bulk
+      x-wave: W1
+      description: >
+        Asynchronous by design (`API-12`). Returns `202` with a `job_url`. The `bulk`
+        rate-limit class is separate so a bulk job cannot exhaust an interactive quota
+        (`AP-005` §4.7, `RL-04`).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation, items]
+              additionalProperties: false
+              properties:
+                operation: { type: string, enum: [create, reschedule, cancel] }
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 1000
+                  items: { type: object }
+      responses:
+        '202':
+          description: Accepted for asynchronous processing.
+          content:
+            application/json:
+              schema: { $ref: '../_shared/components.yaml#/components/schemas/AsyncJobAccepted' }
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '413': { $ref: '../_shared/errors.yaml#/components/responses/PayloadTooLarge' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/diagnostic-templates:
+    get:
+      operationId: listDiagnosticTemplates
+      summary: Template retrieval for offline caching
+      tags: [service-orders]
+      x-scope: ['service_order:read']
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: standard-read
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: >
+        Cached by P02 for the 24-hour offline guarantee (`NFR-047`, `AR-010`).
+        Declares a long `Cache-Control` because templates are reference data (`CA-03`).
+      responses:
+        '200':
+          description: Templates.
+          headers:
+            ETag: { $ref: '../_shared/components.yaml#/components/headers/ETag' }
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { type: object } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+
+  /api/v1/tracking/{tracking_token}:
+    parameters:
+      - name: tracking_token
+        in: path
+        required: true
+        schema: { type: string, minLength: 24, maxLength: 64 }
+    get:
+      operationId: getPublicTracking
+      summary: Public tokenised tracking view
+      tags: [tracking]
+      security: []
+      x-scope: []
+      x-scope-status: proposed
+      x-owning-module: M01
+      x-endpoint-class: status-lookup
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: |
+        **The only unauthenticated operation in the estate** (`IN-001` `AA-01`). It is a
+        **capability URL**, not an open API: the token is unguessable, single-order,
+        revocable and expires.
+
+        Returns a **customer-safe projection only** — no internal identifiers, no cost,
+        no technician personal data beyond a first name and photograph the technician has
+        consented to publish. Bot protection applies (`NFR-068`); a tripped request
+        receives `403 auth.bot_blocked`, not `429` (`AP-005` §4.10).
+      responses:
+        '200':
+          description: Customer-safe tracking projection.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PublicTracking' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../_shared/errors.yaml#/components/responses/NotFound' }
+        '410':
+          description: The tracking token has expired or been revoked.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+        '429': { $ref: '../_shared/errors.yaml#/components/responses/TooManyRequests' }
+
+  /api/v1/customer-assets:
+    get:
+      operationId: listCustomerAssets
+      summary: List registered customer devices
+      tags: [customer-assets]
+      x-scope: ['customer_asset:read']
+      x-scope-status: proposed
+      x-owning-module: M17
+      x-endpoint-class: standard-read
+      x-rate-limit-class: portal
+      x-wave: W2
+      description: |
+        **Renamed from `/api/v1/assets` to resolve the ownership contest** recorded in
+        `IN-001` §11.2: M17 (customer devices) and M49 (capitalised fixed assets) both
+        declared `/api/v1/assets` and `/api/v1/assets/{id}`. They are different resources
+        that happened to share a word. M49 takes `/api/v1/fixed-assets` in the `asset`
+        context. Adjudication belongs in `AR-005` (`IN-001` `RI-04`); this file records the
+        proposed resolution so the contract is not written against an ambiguity.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+        - name: filter[serial]
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: A page of customer assets.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CustomerAsset' } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+
+components:
+
+  securitySchemes:
+    oauthUser:    { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthUser' }
+    oauthMachine: { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthMachine' }
+
+  parameters:
+    ServiceOrderId:
+      name: service_order_id
+      in: path
+      required: true
+      description: >
+        `PR-01` — named for the thing identified, not `{id}`. The estate's module tables
+        use `{id}` 350 times, which is ambiguous the moment two resources appear in one path.
+      schema: { type: string, pattern: '^SO-[0-9]{8,12}$' }
+      examples:
+        canonical: { value: "SO-00918234" }
+
+  schemas:
+
+    ServiceOrderCreate:
+      type: object
+      additionalProperties: false
+      required: [customer, channel, service_type_code, delivery_mode]
+      properties:
+        customer:
+          $ref: '../_shared/components.yaml#/components/schemas/Reference'
+        customer_asset:
+          $ref: '../_shared/components.yaml#/components/schemas/Reference'
+        channel:
+          type: string
+          enum: [web, app, contact_centre, branch, marketplace, corporate_bulk, partner]
+        service_type_code:
+          type: string
+          description: From `MD-020` service types. `validation.reference_invalid` names the register.
+        delivery_mode:
+          type: string
+          enum: [walk_in, on_site, pick_and_drop, remote]
+        fault_description:    { type: [string, "null"], maxLength: 4000 }
+        fault_description_bn: { type: [string, "null"], maxLength: 4000 }
+        service_address:
+          $ref: '../_shared/components.yaml#/components/schemas/Address'
+        requested_slot_start: { type: [string, "null"], format: date-time }
+        attachments:
+          type: array
+          maxItems: 10
+          items: { type: string, format: uuid }
+
+    ServiceOrder:
+      type: object
+      required: [id, state, channel, created_at]
+      properties:
+        id:              { type: string, pattern: '^SO-[0-9]{8,12}$' }
+        state:           { type: string }
+        channel:         { type: string }
+        customer:        { $ref: '../_shared/components.yaml#/components/schemas/Reference' }
+        customer_asset:  { $ref: '../_shared/components.yaml#/components/schemas/Reference' }
+        service_type_code: { type: string }
+        delivery_mode:   { type: string }
+        promised_at:     { type: [string, "null"], format: date-time }
+        tracking_token:
+          type: [string, "null"]
+          description: Capability token for `getPublicTracking`. Revocable.
+        estimate_total:  { $ref: '../_shared/components.yaml#/components/schemas/Money' }
+        approved_total:  { $ref: '../_shared/components.yaml#/components/schemas/Money' }
+        sla:
+          type: object
+          properties:
+            clock_state: { type: string, enum: [running, paused, breached, met] }
+            due_at:      { type: [string, "null"], format: date-time }
+        audit: { $ref: '../_shared/components.yaml#/components/schemas/AuditStamp' }
+      # NOTE: additionalProperties is deliberately NOT false on responses (BD-03) —
+      # a consumer must tolerate added fields, because additive change is non-breaking.
+
+    ServiceOrderStatus:
+      type: object
+      required: [id, state, updated_at]
+      properties:
+        id:         { type: string }
+        state:      { type: string }
+        state_label:
+          type: string
+          description: Localised by Accept-Language. Never parsed.
+        updated_at: { type: string, format: date-time }
+        eta:        { type: [string, "null"], format: date-time }
+
+    PublicTracking:
+      type: object
+      description: >
+        Customer-safe projection. Deliberately narrow — `IP-10` minimisation applies to a
+        surface with no authentication more strongly than anywhere else.
+      required: [state_label, updated_at]
+      properties:
+        state_label: { type: string }
+        updated_at:  { type: string, format: date-time }
+        eta:         { type: [string, "null"], format: date-time }
+        technician:
+          type: [object, "null"]
+          properties:
+            first_name: { type: string }
+            photo_url:  { type: [string, "null"], format: uri }
+        branch_name: { type: [string, "null"] }
+
+    CustomerAsset:
+      type: object
+      required: [id, kind]
+      properties:
+        id:     { type: string }
+        kind:   { type: string }
+        brand:  { type: [string, "null"] }
+        model:  { type: [string, "null"] }
+        serial:
+          type: [string, "null"]
+          x-pii: personal
+        imei:
+          type: [string, "null"]
+          x-pii: personal
+          description: >
+            Screened against the stolen-device blocklist (`INT-036`) on trade-in. Not
+            residency-classified, unlike NID/TIN/biometric templates which never appear in
+            an API payload and are reached only through CD-233 (`AR-001` `LB-08`).
+        warranty_expiry: { type: [string, "null"], format: date }
+        audit: { $ref: '../_shared/components.yaml#/components/schemas/AuditStamp' }

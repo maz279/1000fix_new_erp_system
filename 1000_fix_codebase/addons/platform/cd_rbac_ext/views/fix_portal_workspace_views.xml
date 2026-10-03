@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_rbac_ext — the Administration workspace (P04-M06-T03).
+
+  UX-002 workspace 14 (System console), W1 slice. Declared HERE because the
+  workspace gate is a cd_rbac_ext group and the entity/security menu trees
+  live in modules that load before the groups exist (cd_entity_config cannot
+  depend on cd_rbac_ext — the dependency runs the other way).
+
+  Re-parenting existing menuitems by full external id is the standard Odoo
+  override: the administration workspace is a VIEW of existing menus, and
+  NVR-24 still holds — each object keeps exactly one home.
+-->
+<odoo>
+
+    <menuitem id="menu_ws_administration" name="Administration"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="group_ws_administration"
+              sequence="70"/>
+
+    <!-- Entity configuration tree → administration workspace, role-gated. -->
+    <menuitem id="cd_entity_config.menu_fix_entity_root"
+              name="Entity Configuration"
+              parent="menu_ws_administration"
+              groups="group_ws_administration"
+              sequence="10"/>
+
+    <!-- Security & access (roles, SoD, tiers) → administration workspace. -->
+    <menuitem id="menu_fix_security_root"
+              name="Security &amp; Access"
+              parent="menu_ws_administration"
+              groups="group_ws_administration"
+              sequence="20"/>
+
+</odoo>

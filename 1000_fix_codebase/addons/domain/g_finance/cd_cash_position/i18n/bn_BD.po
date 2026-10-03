@@ -1,0 +1,57 @@
+# Bengali (Bangladesh) translation for cd_cash_position.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Amount"
+msgstr "পরিমাণ"
+
+msgid "Bank"
+msgstr "ব্যাংক"
+
+msgid "Bank Reference"
+msgstr "ব্যাংক রেফারেন্স"
+
+msgid "Bank Statements"
+msgstr "ব্যাংক স্টেটমেন্ট"
+
+msgid "Branch Drawers"
+msgstr "শাখা ড্রয়ার"
+
+msgid "Cash Position"
+msgstr "নগদ অবস্থান"
+
+msgid "Matched Invoice"
+msgstr "মিলিত চালান"
+
+msgid "Matched Payment"
+msgstr "মিলিত পেমেন্ট"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Payee"
+msgstr "প্রাপক"
+
+msgid "Payment Executions"
+msgstr "পেমেন্ট নির্বাহনসমূহ"
+
+msgid "Pending Payments"
+msgstr "অপেক্ষমাণ পেমেন্ট"
+
+msgid "Position"
+msgstr "অবস্থান"
+
+msgid "Source ID"
+msgstr "উৎস আইডি"
+
+msgid "Source Model"
+msgstr "উৎস মডেল"
+
+msgid "Total Position"
+msgstr "মোট অবস্থান"

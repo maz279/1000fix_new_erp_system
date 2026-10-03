@@ -1,0 +1,54 @@
+# Bengali (Bangladesh) translation for cd_contact_centre.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "AI"
+msgstr "এআই"
+
+msgid "Assistant Intents"
+msgstr "সহকারী অভিপ্রায়সমূহ"
+
+msgid "Bengali Utterances"
+msgstr "বাংলা উচ্চারণ"
+
+msgid "Contact Centre"
+msgstr "যোগাযোগ কেন্দ্র"
+
+msgid "Contact Identity"
+msgstr "যোগাযোগ পরিচয়"
+
+msgid "Context"
+msgstr "প্রসঙ্গ"
+
+msgid "Conversations"
+msgstr "কথোপকথনসমূহ"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "English"
+msgstr "ইংরেজি"
+
+msgid "English Utterances"
+msgstr "ইংরেজি উচ্চারণ"
+
+msgid "Grounding (live ERP data)"
+msgstr "গ্রাউন্ডিং (লাইভ ইআরপি ডেটা)"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "Resolution"
+msgstr "সমাধান"
+
+msgid "Transcript"
+msgstr "ট্রান্সক্রিপ্ট"
+
+msgid "বাংলা"
+msgstr "বাংলা"

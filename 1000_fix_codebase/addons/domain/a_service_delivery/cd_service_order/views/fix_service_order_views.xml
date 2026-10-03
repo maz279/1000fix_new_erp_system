@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_service_order — service order views (P04-M06 W1 workspace skeleton).
+  AS-09: no business logic in views. AS-06: the 14-state machine renders as a
+  statusbar; transitions are model methods, never view attrs. The job-card
+  report (TR-07) binds through report/report_jobcard.xml.
+-->
+<odoo>
+
+    <record id="view_fix_service_order_tree" model="ir.ui.view">
+        <field name="name">fix.service.order.tree</field>
+        <field name="model">fix.service.order</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="device_serial" optional="show"/>
+                <field name="branch_id"/>
+                <field name="technician_id" optional="show"/>
+                <field name="service_type" optional="hide"/>
+                <field name="priority" widget="badge"
+                       decoration-danger="priority in ('urgent', 'emergency')"
+                       decoration-warning="priority == 'high'"/>
+                <field name="is_rework" optional="show" string="Rework"/>
+                <field name="state" widget="badge"
+                       decoration-success="state in ('ready', 'delivered', 'closed')"
+                       decoration-danger="state in ('qc_failed', 'cancelled')"/>
+                <field name="sla_resolution_deadline" optional="show"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_service_order_form" model="ir.ui.view">
+        <field name="name">fix.service.order.form</field>
+        <field name="model">fix.service.order</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <!-- AS-06: statusbar only — buttons call model methods -->
+                    <field name="state" widget="statusbar" statusbar_visible="draft,intake,diagnostic,estimate_pending,estimate_sent,awaiting_approval,approved,in_repair,qc_pending,ready,delivered,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Customer &amp; Device">
+                            <field name="customer_id"/>
+                            <field name="customer_phone"/>
+                            <field name="device_id"/>
+                            <field name="device_serial"/>
+                            <field name="order_category"
+                                   decoration-danger="order_category == 'warranty'"/>
+                            <field name="catalog_item_id"/>
+                            <field name="fault_description"/>
+                        </group>
+                        <group string="Fulfilment">
+                            <field name="service_type"/>
+                            <field name="priority"/>
+                            <field name="branch_id"/>
+                            <field name="technician_id"/>
+                            <field name="legacy_reference"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
+                        </group>
+                        <group string="SLA">
+                            <field name="sla_policy_id"/>
+                            <field name="sla_response_deadline" readonly="1"/>
+                            <field name="sla_resolution_deadline" readonly="1"/>
+                            <field name="sla_clock_paused" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Estimates">
+                            <field name="estimate_ids">
+                                <tree>
+                                    <field name="version"/>
+                                    <field name="state"/>
+                                    <field name="grand_total"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="Work Orders">
+                            <field name="work_order_ids">
+                                <tree>
+                                    <field name="name"/>
+                                    <field name="state"/>
+                                </tree>
+                            </field>
+                        </page>
+                        <page string="QC Checklists">
+                            <field name="qc_checklist_ids">
+                                <tree>
+                                    <field name="inspector_id"/>
+                                    <field name="state"/>
+                                    <field name="all_passed"/>
+                                </tree>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_service_order_search" model="ir.ui.view">
+        <field name="name">fix.service.order.search</field>
+        <field name="model">fix.service.order</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="device_serial"/>
+                <field name="legacy_reference"/>
+                <filter name="filter_open" string="Open Orders"
+                        domain="[('state', 'not in', ('closed', 'cancelled'))]"/>
+                <filter name="filter_breaching" string="SLA Risk"
+                        domain="[('state', 'not in', ('closed', 'cancelled')), ('sla_resolution_deadline', '&lt;', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
+                <group expand="0" string="Group By">
+                    <filter name="group_branch" string="Branch" context="{'group_by': 'branch_id'}"/>
+                    <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
+                    <filter name="group_technician" string="Technician" context="{'group_by': 'technician_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fix_service_order" model="ir.actions.act_window">
+        <field name="name">Service Orders</field>
+        <field name="res_model">fix.service.order</field>
+        <field name="view_mode">tree,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Create the first service order</p>
+            <p>Intake to delivery across the 14-state machine, with SLA clocks and estimates.</p>
+        </field>
+    </record>
+
+    <!-- P04-M06-T03 — Service Orders workspace (UX-002 workshop console's W1
+         slice: opens on the order list; NVR-22 role-gated). -->
+    <menuitem id="menu_ws_service_orders" name="Service Orders"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_ws_service_orders"
+              sequence="20"/>
+    <menuitem id="menu_fix_service_orders" name="Service Orders"
+              parent="menu_ws_service_orders"
+              action="action_fix_service_order" sequence="10"/>
+
+</odoo>

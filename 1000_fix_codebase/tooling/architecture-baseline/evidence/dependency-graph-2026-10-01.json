@@ -1,0 +1,342 @@
+{
+    "schema":  "1000fix-erp/dependency-graph/1",
+    "ranAtUtc":  "2026-10-01T10:01:14.2850926Z",
+    "nodes":  67,
+    "edges":  447,
+    "mutualPairs":  [
+                        "M24\u003c-\u003eM60",
+                        "M29\u003c-\u003eM30",
+                        "M37\u003c-\u003eM64",
+                        "M12\u003c-\u003eM53",
+                        "M41\u003c-\u003eM44",
+                        "M49\u003c-\u003eM54",
+                        "M28\u003c-\u003eM29",
+                        "M28\u003c-\u003eM30",
+                        "M50\u003c-\u003eM52",
+                        "M33\u003c-\u003eM64",
+                        "M51\u003c-\u003eM52",
+                        "M51\u003c-\u003eM65",
+                        "M20\u003c-\u003eM50",
+                        "M20\u003c-\u003eM51",
+                        "M21\u003c-\u003eM29",
+                        "M27\u003c-\u003eM32",
+                        "M16\u003c-\u003eM42",
+                        "M16\u003c-\u003eM52"
+                    ],
+    "mutualCount":  18,
+    "violations":  [
+                       {
+                           "From":  "M24",
+                           "WaveFrom":  "W3",
+                           "To":  "M60",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M53",
+                           "WaveFrom":  "W4",
+                           "To":  "M12",
+                           "WaveTo":  "W7"
+                       },
+                       {
+                           "From":  "M29",
+                           "WaveFrom":  "W1",
+                           "To":  "M21",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M37",
+                           "WaveFrom":  "W1",
+                           "To":  "M64",
+                           "WaveTo":  "W2"
+                       },
+                       {
+                           "From":  "M22",
+                           "WaveFrom":  "W5",
+                           "To":  "M61",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M07",
+                           "WaveFrom":  "W1",
+                           "To":  "M11",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M07",
+                           "WaveFrom":  "W1",
+                           "To":  "M36",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M41",
+                           "WaveFrom":  "W3",
+                           "To":  "M44",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M42",
+                           "WaveFrom":  "W4",
+                           "To":  "M23",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M10",
+                           "WaveFrom":  "W2",
+                           "To":  "M11",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M10",
+                           "WaveFrom":  "W2",
+                           "To":  "M20",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M63",
+                           "WaveFrom":  "W3",
+                           "To":  "M27",
+                           "WaveTo":  "W4"
+                       },
+                       {
+                           "From":  "M52",
+                           "WaveFrom":  "W3",
+                           "To":  "M21",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M52",
+                           "WaveFrom":  "W3",
+                           "To":  "M51",
+                           "WaveTo":  "W4"
+                       },
+                       {
+                           "From":  "M02",
+                           "WaveFrom":  "W2",
+                           "To":  "M22",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M02",
+                           "WaveFrom":  "W2",
+                           "To":  "M46",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M02",
+                           "WaveFrom":  "W2",
+                           "To":  "M55",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M17",
+                           "WaveFrom":  "W2",
+                           "To":  "M24",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M49",
+                           "WaveFrom":  "W5",
+                           "To":  "M54",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M15",
+                           "WaveFrom":  "W2",
+                           "To":  "M19",
+                           "WaveTo":  "W3"
+                       },
+                       {
+                           "From":  "M33",
+                           "WaveFrom":  "W1",
+                           "To":  "M64",
+                           "WaveTo":  "W2"
+                       },
+                       {
+                           "From":  "M51",
+                           "WaveFrom":  "W4",
+                           "To":  "M65",
+                           "WaveTo":  "W9"
+                       },
+                       {
+                           "From":  "M20",
+                           "WaveFrom":  "W3",
+                           "To":  "M51",
+                           "WaveTo":  "W4"
+                       },
+                       {
+                           "From":  "M34",
+                           "WaveFrom":  "W4",
+                           "To":  "M23",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M04",
+                           "WaveFrom":  "W1",
+                           "To":  "M17",
+                           "WaveTo":  "W2"
+                       },
+                       {
+                           "From":  "M01",
+                           "WaveFrom":  "W1",
+                           "To":  "M17",
+                           "WaveTo":  "W2"
+                       },
+                       {
+                           "From":  "M32",
+                           "WaveFrom":  "W4",
+                           "To":  "M26",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M32",
+                           "WaveFrom":  "W4",
+                           "To":  "M61",
+                           "WaveTo":  "W6"
+                       },
+                       {
+                           "From":  "M16",
+                           "WaveFrom":  "W3",
+                           "To":  "M42",
+                           "WaveTo":  "W4"
+                       },
+                       {
+                           "From":  "M31",
+                           "WaveFrom":  "W2",
+                           "To":  "M22",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M31",
+                           "WaveFrom":  "W2",
+                           "To":  "M23",
+                           "WaveTo":  "W5"
+                       },
+                       {
+                           "From":  "M31",
+                           "WaveFrom":  "W2",
+                           "To":  "M45",
+                           "WaveTo":  "W5"
+                       }
+                   ],
+    "violationCount":  32,
+    "inDegreeTop":  [
+                        {
+                            "module":  "M29",
+                            "indegree":  53
+                        },
+                        {
+                            "module":  "M33",
+                            "indegree":  41
+                        },
+                        {
+                            "module":  "M28",
+                            "indegree":  37
+                        },
+                        {
+                            "module":  "M30",
+                            "indegree":  28
+                        },
+                        {
+                            "module":  "M24",
+                            "indegree":  23
+                        },
+                        {
+                            "module":  "M37",
+                            "indegree":  21
+                        },
+                        {
+                            "module":  "M17",
+                            "indegree":  17
+                        },
+                        {
+                            "module":  "M21",
+                            "indegree":  15
+                        },
+                        {
+                            "module":  "M19",
+                            "indegree":  14
+                        },
+                        {
+                            "module":  "M11",
+                            "indegree":  13
+                        }
+                    ],
+    "reciprocityFailures":  {
+                                "M24":  8,
+                                "M27":  3,
+                                "M25":  1,
+                                "M33":  24,
+                                "M21":  12,
+                                "M19":  4,
+                                "M64":  1
+                            },
+    "reciprocityTotal":  53,
+    "blanketModules":  [
+                           "M28",
+                           "M29",
+                           "M30",
+                           "M65"
+                       ],
+    "checks":  [
+                   {
+                       "Id":  "N",
+                       "Claim":  "nodes = 67 modules with module_id",
+                       "Measured":  "67 nodes; blanket-phrase modules: M28,M29,M30,M65",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Node-count drift: a module without module_id frontmatter is invisible to the graph - fix the spec header (MR-01)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.1247614Z"
+                   },
+                   {
+                       "Id":  "E",
+                       "Claim":  "edges = 447 declared DEP edges",
+                       "Measured":  "447 edges",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Edge-count drift vs AR-006: specifications changed since the AR-006 run - re-run the analysis, update AR-006 figures under change control, and re-check the 32-violation register against the new count."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.1478631Z"
+                   },
+                   {
+                       "Id":  "INDEG",
+                       "Claim":  "top in-degree M29:53 M33:41 M28:37",
+                       "Measured":  "top5: M29:53 M33:41 M28:37 M30:28 M24:23",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "In-degree drift changes the kernel argument - re-cost the affected module and re-check MV movements."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.1713100Z"
+                   },
+                   {
+                       "Id":  "MUT",
+                       "Claim":  "mutual pairs = 18",
+                       "Measured":  "18 mutual: M24\u003c-\u003eM60 M29\u003c-\u003eM30 M37\u003c-\u003eM64 M12\u003c-\u003eM53 M41\u003c-\u003eM44 M49\u003c-\u003eM54 M28\u003c-\u003eM29 M28\u003c-\u003eM30 M50\u003c-\u003eM52 M33\u003c-\u003eM64 M51\u003c-\u003eM52 M51\u003c-\u003eM65 M20\u003c-\u003eM50 M20\u003c-\u003eM51 M21\u003c-\u003eM29 M27\u003c-\u003eM32 M16\u003c-\u003eM42 M16\u003c-\u003eM52",
+                       "Status":  "PASS",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.1943990Z"
+                   },
+                   {
+                       "Id":  "VIOL",
+                       "Claim":  "wave-order violations = 32",
+                       "Measured":  "32 violations (prerequisite in a later wave)",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Violation-count drift: the disposition register (STUB/MOVE/NOT-A-PREREQ/ACCEPT) must be re-derived - see wave-violations.csv and P01-M04-T05."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.2061921Z"
+                   },
+                   {
+                       "Id":  "RECIP",
+                       "Claim":  "reciprocity failures = 55; by module M33:22 M21:11 M24:8 M19:4 M27:3",
+                       "Measured":  "total 53; top: M33:24 M21:12 M24:8 M19:4 M27:3 M64:1",
+                       "Status":  "WARN",
+                       "Remedies":  [
+                                        "R-03: reciprocity must become a CI check (P01-M04-T06) or 67 files edited by many authors drift again within a wave."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:14.2320476Z"
+                   }
+               ]
+}

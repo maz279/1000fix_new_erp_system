@@ -1,0 +1,26 @@
+title = "gitleaks config - 1000fix-erp (XS-06/SE-01: pre-commit AND full history in CI)"
+
+[extend]
+# Baseline rules + Odoo-specific patterns on top.
+useDefault = true
+
+[[rules]]
+id = "bd-nid-number"
+description = "Bangladesh NID (10/17 digit) - residency-classified, never in code"
+regex = '''\b(?:\d[ -]?){16}\d\b|\b(?:\d[ -]?){9}\d\b'''
+tags = ["residency", "pii"]
+# The synthetic seed range is exempted via .gitleaksignore (reserved prefix).
+
+[[rules]]
+id = "bd-tin-number"
+description = "Bangladesh TIN - residency-classified"
+regex = '''\bTIN[: ]*\d{9,12}\b'''
+tags = ["residency", "pii"]
+
+[[allowlist]]
+description = "Reserved synthetic seed prefix (db/seeds) - deterministic fakes by design"
+paths = ['''db/seeds/''', '''services/local-residency-stub/''']
+
+[allowlist]
+description = "commit hashes and image digests are not secrets"
+regexes = ['''sha256:[a-f0-9]{64}''', '''\b[0-9a-f]{40}\b''']

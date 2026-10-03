@@ -1,0 +1,66 @@
+# Bengali (Bangladesh) translation for cd_mdm_core.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Approve"
+msgstr "অনুমোদন"
+
+msgid "Change Requests"
+msgstr "পরিবর্তনের অনুরোধ"
+
+msgid "Current Values"
+msgstr "বর্তমান মানসমূহ"
+
+msgid "Current Values (JSON)"
+msgstr "বর্তমান মানসমূহ (JSON)"
+
+msgid "Field"
+msgstr "ফিল্ড"
+
+msgid "MDM Change Request"
+msgstr "MDM পরিবর্তনের অনুরোধ"
+
+msgid "MDM Change Requests"
+msgstr "MDM পরিবর্তনের অনুরোধসমূহ"
+
+msgid "Master Data Governance"
+msgstr "মাস্টার ডেটা গভর্নেন্স"
+
+msgid "Proposed Changes"
+msgstr "প্রস্তাবিত পরিবর্তন"
+
+msgid "Proposed Changes (JSON)"
+msgstr "প্রস্তাবিত পরিবর্তন (JSON)"
+
+msgid "Reference"
+msgstr "রেফারেন্স"
+
+msgid "Reject"
+msgstr "প্রত্যাখ্যান"
+
+msgid "Source Priority Order"
+msgstr "উৎসের অগ্রাধিকার ক্রম"
+
+msgid "Submit"
+msgstr "জমা দিন"
+
+msgid "Target Model"
+msgstr "লক্ষ্য মডেল"
+
+msgid "Target Record ID"
+msgstr "লক্ষ্য রেকর্ড আইডি"
+
+msgid "Match Rules"
+msgstr "ম্যাচ রুলসমূহ"
+
+msgid "Golden Record Rules"
+msgstr "গোল্ডেন রেকর্ড রুলসমূহ"
+
+msgid "Source Priority Order"
+msgstr "উৎসের অগ্রাধিকার ক্রম"

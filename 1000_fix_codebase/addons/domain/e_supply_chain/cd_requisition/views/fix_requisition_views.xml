@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_requisition views — procurement console W3 slice. -->
+<odoo>
+
+    <record id="view_fix_purchase_order_tree" model="ir.ui.view">
+        <field name="name">fix.purchase.order.tree</field>
+        <field name="model">fix.purchase.order</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="state == 'received'" decoration-info="state in ('draft', 'sent')">
+                <field name="name"/>
+                <field name="date_order"/>
+                <field name="vendor_id"/>
+                <field name="branch_id" optional="show"/>
+                <field name="amount_total"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_purchase_order_form" model="ir.ui.view">
+        <field name="name">fix.purchase.order.form</field>
+        <field name="model">fix.purchase.order</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,sent,acknowledged,partially_received,received,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="vendor_id"/>
+                            <field name="branch_id"/>
+                            <field name="date_order" readonly="1"/>
+                            <field name="acknowledged_at" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount_total"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <tree editable="bottom">
+                            <field name="product_id"/>
+                            <field name="description" optional="show"/>
+                            <field name="qty_ordered"/>
+                            <field name="qty_received" readonly="1"/>
+                            <field name="unit_price"/>
+                            <field name="line_total" sum="Total"/>
+                        </tree>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_requisition_tree" model="ir.ui.view">
+        <field name="name">fix.requisition.tree</field>
+        <field name="model">fix.requisition</field>
+        <field name="arch" type="xml">
+            <tree decoration-danger="urgency == 'emergency'" decoration-warning="urgency == 'urgent'">
+                <field name="description"/>
+                <field name="requested_by"/>
+                <field name="branch_id" optional="show"/>
+                <field name="estimate_amount"/>
+                <field name="urgency" widget="badge"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_purchase_order" model="ir.actions.act_window">
+        <field name="name">Purchase Orders</field>
+        <field name="res_model">fix.purchase.order</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_requisition" model="ir.actions.act_window">
+        <field name="name">Requisitions</field>
+        <field name="res_model">fix.requisition</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- The Procurement workspace menu (UX-002 workspace 6, W3 slice). -->
+    <menuitem id="menu_ws_procurement" name="Procurement"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="90"/>
+    <menuitem id="menu_fix_purchase_orders" name="Purchase Orders"
+              parent="menu_ws_procurement" action="action_fix_purchase_order" sequence="10"/>
+    <menuitem id="menu_fix_requisitions" name="Requisitions"
+              parent="menu_ws_procurement" action="action_fix_requisition" sequence="20"/>
+
+</odoo>

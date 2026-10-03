@@ -1,0 +1,24 @@
+# Bengali (Bangladesh) translation for cd_quotation.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Discount (%)"
+msgstr "ছাড় (%)"
+
+msgid "Discount Approvals"
+msgstr "ছাড় অনুমোদনসমূহ"
+
+msgid "Quotation"
+msgstr "কোটেশন"
+
+msgid "Quotation (M36)"
+msgstr "কোটেশন (M36)"
+
+msgid "Tender Reference"
+msgstr "টেন্ডার রেফারেন্স"

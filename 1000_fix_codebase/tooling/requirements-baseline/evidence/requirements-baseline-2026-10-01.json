@@ -1,0 +1,284 @@
+{
+    "schema":  "1000fix-erp/requirements-baseline/1",
+    "ranAtUtc":  "2026-10-01T10:01:13.2518116Z",
+    "estateRoot":  "D:\\software_project_development\\software_project\\Software_Project_14\\1000 fix\\1000fix_new_erp_system",
+    "denominator":  {
+                        "moduleRows":  2989,
+                        "portalRows":  358,
+                        "total":  3347,
+                        "duplicates":  0,
+                        "swr":  42,
+                        "population":  3389
+                    },
+    "layerPresence":  {
+                          "L4":  100,
+                          "L1":  110,
+                          "L6":  13,
+                          "L5":  3078,
+                          "L3":  33,
+                          "L2":  107
+                      },
+    "layerPresencePct":  {
+                             "L2":  3.2,
+                             "L1":  3.3,
+                             "L4":  3,
+                             "L6":  0.4,
+                             "L5":  92,
+                             "L3":  1
+                         },
+    "dispositions":  [
+                         {
+                             "name":  "build-class(extend|build)",
+                             "count":  3073
+                         },
+                         {
+                             "name":  "fit",
+                             "count":  123
+                         },
+                         {
+                             "name":  "configure",
+                             "count":  98
+                         },
+                         {
+                             "name":  "undetermined(no-layer)",
+                             "count":  40
+                         },
+                         {
+                             "name":  "buy",
+                             "count":  13
+                         }
+                     ],
+    "waves":  {
+                  "W3":  467,
+                  "W1":  358,
+                  "W5":  532,
+                  "W8":  72,
+                  "W6":  415,
+                  "W9":  36,
+                  "W4":  533,
+                  "W7":  310,
+                  "W2":  338
+              },
+    "multiWaveRows":  286,
+    "nfr":  {
+                "unique":  122,
+                "subIds":  [
+                               "NFR-086a",
+                               "NFR-086b",
+                               "NFR-086c"
+                           ]
+            },
+    "rules":  {
+                  "bru055":  140,
+                  "moduleRuleRows":  1330,
+                  "m40":  20,
+                  "m42":  20,
+                  "acRows":  1568
+              },
+    "m66m67":  {
+                   "m66Rows":  30,
+                   "m67Rows":  32
+               },
+    "checks":  [
+                   {
+                       "Id":  "T01",
+                       "Claim":  "4 primary documents, 17,680 lines",
+                       "Measured":  "4 files, 17680 lines",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "A line-count drift means the reading basis moved: re-read the delta and re-stamp (CR-02/CR-03)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:09.2859523Z"
+                   },
+                   {
+                       "Id":  "T02",
+                       "Claim":  "79 delivery-unit specs (67 M + 12 P); governance files separate",
+                       "Measured":  "67 M + 12 P = 79 specs; 19 governance files",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Spec-count drift: new/removed units must go through BE-005 6 register change control before the baseline moves (CR-03)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:09.3169565Z"
+                   },
+                   {
+                       "Id":  "T03a",
+                       "Claim":  "CR-01: 2,989 module rows",
+                       "Measured":  "2989",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Module-row drift vs the 2026-08-18 count: the requirement set changed - recount, re-stamp and record the change under RQ-005 control (CR-03)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.2341232Z"
+                   },
+                   {
+                       "Id":  "T03b",
+                       "Claim":  "CR-01: 358 portal rows",
+                       "Measured":  "358",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Portal-row drift vs the 2026-08-18 count: same remedy as T03a."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.2361210Z"
+                   },
+                   {
+                       "Id":  "T03c",
+                       "Claim":  "CR-01: 3,347 total rows, 0 duplicates",
+                       "Measured":  "3347 total, 0 duplicate ids",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Duplicate requirement ids break the RTM key - renumber under RR-002 insertion rules before any traceability work."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.2381333Z"
+                   },
+                   {
+                       "Id":  "T03d",
+                       "Claim":  "42 SWR supplements -\u003e population 3,389",
+                       "Measured":  "42 SWR -\u003e 3389",
+                       "Status":  "PASS",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.2670840Z"
+                   },
+                   {
+                       "Id":  "T04a",
+                       "Claim":  "02-05 1: L1 28% L2 24% L3 4% L4 17% L5 25% L6 2%",
+                       "Measured":  "L1 3.3% L2 3.2% L3 1% L4 3% L5 92% L6 0.4% (presence; slashed rows count in each)",
+                       "Status":  "WARN",
+                       "Remedies":  [
+                                        "QUANTIFIED CONTRADICTION: the 02-05 1 figures describe solution/layer composition, not the requirement-row distribution - measured rows are L5-dominant. RQ-003 2.2 already records that module 16.1 percentages contradict 5 in every sampled module; this run is the first full-population measurement. Record the measured histogram as the fit-gap basis and re-check the roadmap T04 expectation (56% fit-or-configure) against it - it does not hold at requirement level (see T04b)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.9382076Z"
+                   },
+                   {
+                       "Id":  "T04b",
+                       "Claim":  "fit-or-configure share (L1+L2+L3 presence) ~56%",
+                       "Measured":  "7.5% (roadmap signal, not a gate)",
+                       "Status":  "INFO",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.9406162Z"
+                   },
+                   {
+                       "Id":  "T04c",
+                       "Claim":  "every requirement row carries a Layer value",
+                       "Measured":  "40 rows without a layer",
+                       "Status":  "WARN",
+                       "Remedies":  [
+                                        "Rows without a layer disposition to undetermined - counted, never defaulted (RQ-003 3). Assign layers before the fit-gap register is accepted."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:11.9425943Z"
+                   },
+                   {
+                       "Id":  "T06a",
+                       "Claim":  "122 unique NFR ids (001..122)",
+                       "Measured":  "122 unique (NFR-001..NFR-122)",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "NFR population drift: reconcile against RQ-006 3.3 (the five-duplicate resolution) before baselining."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.6370763Z"
+                   },
+                   {
+                       "Id":  "T06b",
+                       "Claim":  "sub-identifiers are exactly NFR-086a/b/c",
+                       "Measured":  "NFR-086a NFR-086b NFR-086c",
+                       "Status":  "PASS",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.6400843Z"
+                   },
+                   {
+                       "Id":  "T06c",
+                       "Claim":  "RQ-006 carries the five-duplicate resolution",
+                       "Measured":  "present",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "RQ-006 3.3 is the resolution rule - restore it before NFR baselining."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.6475453Z"
+                   },
+                   {
+                       "Id":  "T08",
+                       "Claim":  "every spec carries wave frontmatter (79/79)",
+                       "Measured":  "single-wave rows by wave: W1=358 W2=338 W3=467 W4=533 W5=532 W6=415 W7=310 W8=72 W9=36; multi-wave(module-split) rows: 286; no-wave rows: 0",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Specs without wave frontmatter cannot be allocated - complete the frontmatter from the module register (02-02)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.6777467Z"
+                   },
+                   {
+                       "Id":  "T08b",
+                       "Claim":  "unallocated claim: 1,816 (54%) at REQUIREMENT level",
+                       "Measured":  "module-granularity is complete on disk (0 no-wave rows); the 1,816 is requirement-level allocation status held in the programme tool - the per-requirement split inside 286 multi-wave module rows + 42 SWR is the residual worklist",
+                       "Status":  "INFO",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.6817324Z"
+                   },
+                   {
+                       "Id":  "T09a",
+                       "Claim":  "05-05 catalogue = 140 BRU rules",
+                       "Measured":  "140 unique BRU ids",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "If the BRU pattern or count drifts, reconcile with RQ-009 (which carries the 140-rule and 20/67-coverage audit figures)."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.8167503Z"
+                   },
+                   {
+                       "Id":  "T09b",
+                       "Claim":  "module 9 rule rows = 1,330",
+                       "Measured":  "1330 rows (pattern: BRU- table rows in section 9)",
+                       "Status":  "PASS",
+                       "Remedies":  [
+                                        "Row-pattern basis differs from id-unique basis; record the measured value with its pattern in the rules baseline note."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.8191538Z"
+                   },
+                   {
+                       "Id":  "T09c",
+                       "Claim":  "RQ-009 claims M40/M42 carry 41/27 rules in their specs",
+                       "Measured":  "measured on disk: M40=20, M42=20 BRU section-9 rows - RQ-009 figure discrepancy, reconcile (RG-08)",
+                       "Status":  "WARN",
+                       "Remedies":  [
+                                        "RQ-009 cites 41 (M40) and 27 (M42) rules; the specifications carry 20 each under the BRU-row pattern. Either RQ-009 counts a different rule form or its figure is stale - reconcile before the rules baseline is accepted."
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.8201575Z"
+                   },
+                   {
+                       "Id":  "T09d",
+                       "Claim":  "acceptance criteria population = 1,568 (module 17)",
+                       "Measured":  "1568 AC-nn table rows across 79 specs (ids are module-local: AC-01..AC-nn per spec)",
+                       "Status":  "PASS",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.8979200Z"
+                   },
+                   {
+                       "Id":  "T10a",
+                       "Claim":  "M66 exists, 30 requirement rows; M67 exists, 32 rows",
+                       "Measured":  "M66=30 rows, M67=32 rows",
+                       "Status":  "PASS",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.9333955Z"
+                   },
+                   {
+                       "Id":  "T10b",
+                       "Claim":  "02-02 3 says M66/M67 specs \"not written\" (the CR target)",
+                       "Measured":  "captured: | M66 | Internal IT Service Management | `ITS` | ★ New | P2 | W6 | CTO | 22 *(est.)* | 11 PW *(est.)* | — | | | M67 | Project, Program \u0026 Portfolio Management | ",
+                       "Status":  "INFO",
+                       "Remedies":  [
+
+                                    ],
+                       "CheckedUtc":  "2026-10-01T10:01:12.9474094Z"
+                   }
+               ]
+}

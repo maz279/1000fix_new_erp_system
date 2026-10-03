@@ -1,0 +1,45 @@
+# Bengali (Bangladesh) translation for cd_event_outbox.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Aggregate"
+msgstr "অ্যাগ্রিগেট"
+
+msgid "Aggregate ID"
+msgstr "অ্যাগ্রিগেট আইডি"
+
+msgid "Event ID"
+msgstr "ইভেন্ট আইডি"
+
+msgid "Event Outbox"
+msgstr "ইভেন্ট আউটবক্স"
+
+msgid "Event Outbox Entry"
+msgstr "ইভেন্ট আউটবক্স এন্ট্রি"
+
+msgid "Event Type"
+msgstr "ইভেন্টের ধরন"
+
+msgid "Integration Platform"
+msgstr "ইন্টিগ্রেশন প্ল্যাটফর্ম"
+
+msgid "Metadata"
+msgstr "মেটাডেটা"
+
+msgid "Metadata (JSON)"
+msgstr "মেটাডেটা (JSON)"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Payload"
+msgstr "পেলোড"
+
+msgid "Payload (JSON)"
+msgstr "পেলোড (JSON)"

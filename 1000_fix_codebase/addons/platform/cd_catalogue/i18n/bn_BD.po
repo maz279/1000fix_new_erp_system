@@ -1,0 +1,123 @@
+# Bengali (Bangladesh) translation for cd_catalogue.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "1000FiX Authorised"
+msgstr "1000FiX অনুমোদিত"
+
+msgid "Authorisation Expiry"
+msgstr "অনুমোদনের মেয়াদ"
+
+msgid "Brand"
+msgstr "ব্র্যান্ড"
+
+msgid "Brand Code"
+msgstr "ব্র্যান্ড কোড"
+
+msgid "Brands"
+msgstr "ব্র্যান্ডসমূহ"
+
+msgid "Catalogue"
+msgstr "ক্যাটালগ"
+
+msgid "Catalogue Item"
+msgstr "ক্যাটালগ আইটেম"
+
+msgid "Catalogue Items"
+msgstr "ক্যাটালগ আইটেমসমূহ"
+
+msgid "Compatible Device Models"
+msgstr "সামঞ্জস্যপূর্ণ ডিভাইস মডেল"
+
+msgid "Components"
+msgstr "উপাদানসমূহ"
+
+msgid "Currency"
+msgstr "মুদ্রা"
+
+msgid "Daily Rate"
+msgstr "দৈনিক ভাড়া"
+
+msgid "Description"
+msgstr "বিবরণ"
+
+msgid "Description (Bengali)"
+msgstr "বিবরণ (বাংলা)"
+
+msgid "Device Models"
+msgstr "ডিভাইস মডেলসমূহ"
+
+msgid "Estimated Cost"
+msgstr "আনুমানিক ব্যয়"
+
+msgid "Estimated Time (hours)"
+msgstr "আনুমানিক সময় (ঘণ্টা)"
+
+msgid "Items"
+msgstr "আইটেমসমূহ"
+
+msgid "Maximum Rental Duration (days)"
+msgstr "সর্বোচ্চ ভাড়ার মেয়াদ (দিন)"
+
+msgid "Model Code"
+msgstr "মডেল কোড"
+
+msgid "Monthly Rate"
+msgstr "মাসিক ভাড়া"
+
+msgid "Name"
+msgstr "নাম"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "New Warranty (months)"
+msgstr "নতুন ওয়ারেন্টি (মাস)"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Price Multiplier (e.g. 0.8 = 80% of new price)"
+msgstr "মূল্য গুণক (যেমন 0.8 = নতুন মূল্যের ৮০%)"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "Product Category"
+msgstr "পণ্য শ্রেণি"
+
+msgid "Product Name (Bengali)"
+msgstr "পণ্যের নাম (বাংলা)"
+
+msgid "Product Template"
+msgstr "পণ্য টেমপ্লেট"
+
+msgid "Refurb Warranty (days)"
+msgstr "রিফার্ব ওয়ারেন্টি (দিন)"
+
+msgid "Security Deposit"
+msgstr "নিরাপত্তা জামানত"
+
+msgid "Service Kits"
+msgstr "সার্ভিস কিট"
+
+msgid "Standard Cost"
+msgstr "প্রচলিত ব্যয়"
+
+msgid "Standard Labour Time (hours)"
+msgstr "প্রচলিত শ্রম সময় (ঘণ্টা)"
+
+msgid "Support Portal URL"
+msgstr "সাপোর্ট পোর্টাল URL"
+
+msgid "Time Allocation (hours)"
+msgstr "সময় বণ্টন (ঘণ্টা)"
+
+msgid "Weekly Rate"
+msgstr "সাপ্তাহিক ভাড়া"

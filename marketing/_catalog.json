@@ -1,0 +1,7866 @@
+{
+ "areas": [
+  {
+   "id": "A01",
+   "en": "Home",
+   "bn": "হোম",
+   "mods": []
+  },
+  {
+   "id": "A02",
+   "en": "Service Operations",
+   "bn": "সার্ভিস অপারেশন",
+   "mods": [
+    {
+     "mid": "M01",
+     "en": "Service Requests & Orders",
+     "bn": "সার্ভিস অর্ডার",
+     "desc": "Master record of every service need from 12 intake channels — lifecycle, entitlement, estimates, SLA.",
+     "groups": [
+      {
+       "en": "Intake & Channels",
+       "screens": [
+        "M01-board",
+        "M01-all",
+        "M01-intake",
+        "M01-channels",
+        "M01-hotline"
+       ]
+      },
+      {
+       "en": "Order Lifecycle",
+       "screens": [
+        "M01-order",
+        "M01-types",
+        "M01-wip",
+        "M01-holds",
+        "M01-rework"
+       ]
+      },
+      {
+       "en": "Diagnosis & Estimates",
+       "screens": [
+        "M01-templates",
+        "M01-fault",
+        "M01-estimates",
+        "M01-thresholds"
+       ]
+      },
+      {
+       "en": "Entitlement & SLA",
+       "screens": [
+        "M01-entitle",
+        "M01-sla",
+        "M01-esc",
+        "M01-sla-rep"
+       ]
+      },
+      {
+       "en": "Quality & Release",
+       "screens": [
+        "M01-qc",
+        "M01-reports",
+        "M01-rwty"
+       ]
+      }
+     ],
+     "reports": [
+      "Daily Intake by Channel",
+      "WIP Ageing by Branch",
+      "SLA Compliance & Escalations",
+      "Estimate Conversion Funnel",
+      "Rework & Repeat-Fault Analysis",
+      "Order Cycle-Time (TAT) Distribution",
+      "Uncollected Device Register"
+     ],
+     "forms": [
+      "Service Order (12 channels, 34 fields)",
+      "Estimate Request",
+      "Hold / Release Reason",
+      "QC Checklist Result"
+     ],
+     "freg": {
+      "src": 128,
+      "sub": [
+       [
+        "1",
+        "Omni-Channel Intake (12 channels)",
+        14
+       ],
+       [
+        "2",
+        "Lifecycle State Machine",
+        9
+       ],
+       [
+        "3",
+        "Entitlement Evaluation",
+        8
+       ],
+       [
+        "4",
+        "Complaint & Fault Coding",
+        10
+       ],
+       [
+        "5",
+        "Diagnostic Templates",
+        7
+       ],
+       [
+        "6",
+        "Estimate & Approval Loop",
+        12
+       ],
+       [
+        "7",
+        "Assignment Handoff",
+        6
+       ],
+       [
+        "8",
+        "SLA Policy / Clock / Escalation",
+        13
+       ],
+       [
+        "9",
+        "Hold Management",
+        5
+       ],
+       [
+        "10",
+        "QC Checkpoints & Rework",
+        11
+       ],
+       [
+        "11",
+        "Service Reports & Repair Warranty",
+        12
+       ],
+       [
+        "12",
+        "Ops Boards & WIP Analysis",
+        11
+       ],
+       [
+        "13",
+        "API & Domain Events",
+        10
+       ]
+      ]
+     },
+     "subCount": 13
+    },
+    {
+     "mid": "M02",
+     "en": "Field Service & Dispatch",
+     "bn": "ফিল্ড সার্ভিস ও ডিসপ্যাচ",
+     "desc": "AI dispatch board, route optimisation, technician app (24h offline), GPS tracking, field evidence & payments.",
+     "groups": [
+      {
+       "en": "Dispatch Console",
+       "screens": [
+        "M02-dispatch",
+        "M02-map",
+        "M02-unassigned",
+        "M02-sla-risk"
+       ]
+      },
+      {
+       "en": "Work Orders",
+       "screens": [
+        "M02-wo",
+        "M02-record",
+        "M02-exceptions",
+        "M02-crews"
+       ]
+      },
+      {
+       "en": "Routing & Territories",
+       "screens": [
+        "M02-zones",
+        "M02-routes",
+        "M02-territory"
+       ]
+      },
+      {
+       "en": "Technician App (P02)",
+       "screens": [
+        "M02-day",
+        "M02-offline",
+        "M02-evidence",
+        "M02-vanstock"
+       ]
+      },
+      {
+       "en": "Safety & Payments",
+       "screens": [
+        "M02-loneworker",
+        "M02-panic",
+        "M02-fieldpay",
+        "M02-cashrec"
+       ]
+      }
+     ],
+     "reports": [
+      "Dispatch Performance by Zone",
+      "Travel-Time Analysis",
+      "Jobs per Technician",
+      "Field Exception Summary",
+      "Van Stock Variance",
+      "On-Site Payment Reconciliation"
+     ],
+     "forms": [
+      "Field Work Order",
+      "Field Exception Report",
+      "Crew Assignment",
+      "Route Plan"
+     ],
+     "freg": {
+      "src": 106,
+      "sub": [
+       [
+        "1",
+        "Candidate Scoring & Assignment",
+        14
+       ],
+       [
+        "2",
+        "Dispatch Board",
+        10
+       ],
+       [
+        "3",
+        "Route Optimisation & Re-optimisation",
+        9
+       ],
+       [
+        "4",
+        "Territory / Zone / Geofence",
+        8
+       ],
+       [
+        "5",
+        "Work-Order Lifecycle",
+        9
+       ],
+       [
+        "6",
+        "Technician Mobile App",
+        18
+       ],
+       [
+        "7",
+        "Offline Sync & Conflict Resolution",
+        7
+       ],
+       [
+        "8",
+        "GPS Tracking & ETA",
+        7
+       ],
+       [
+        "9",
+        "Field Evidence Capture",
+        6
+       ],
+       [
+        "10",
+        "Van Stock",
+        5
+       ],
+       [
+        "11",
+        "On-Site Payment",
+        6
+       ],
+       [
+        "12",
+        "Field Safety",
+        7
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M31",
+     "en": "Workshop & Depot Repair",
+     "bn": "ওয়ার্কশপ মেরামত",
+     "desc": "Bench repair L1/L2/L3, serial genealogy, burn-in testing, workshop costing and knowledge capture.",
+     "groups": [
+      {
+       "en": "Repair Orders",
+       "screens": [
+        "M31-orders",
+        "M31-record",
+        "M31-transfer"
+       ]
+      },
+      {
+       "en": "Bench Board",
+       "screens": [
+        "M31-benches",
+        "M31-benchmaster",
+        "M31-levels"
+       ]
+      },
+      {
+       "en": "Execution",
+       "screens": [
+        "M31-diag",
+        "M31-parts",
+        "M31-testing"
+       ]
+      },
+      {
+       "en": "Costing & Knowledge",
+       "screens": [
+        "M31-costing",
+        "M31-throughput",
+        "M31-methods"
+       ]
+      }
+     ],
+     "reports": [
+      "Bench Utilisation by Workshop",
+      "Repair Cycle Time by Level",
+      "Internal Rework Loop Analysis",
+      "Workshop Cost per Repair",
+      "Parts Genealogy Trace",
+      "Burn-In Failure Report"
+     ],
+     "forms": [
+      "Repair Order",
+      "Bench Allocation",
+      "Test Protocol Result",
+      "Workshop Transfer"
+     ],
+     "freg": {
+      "src": 76,
+      "sub": [
+       [
+        "1",
+        "Repair Order Creation",
+        8
+       ],
+       [
+        "2",
+        "Workshop & Bench Master",
+        9
+       ],
+       [
+        "3",
+        "Bench Allocation & Queue",
+        10
+       ],
+       [
+        "4",
+        "Repair-Level Routing",
+        7
+       ],
+       [
+        "5",
+        "Diagnosis & Execution",
+        13
+       ],
+       [
+        "6",
+        "Parts Consumption & Genealogy",
+        8
+       ],
+       [
+        "7",
+        "Testing & Burn-In",
+        8
+       ],
+       [
+        "8",
+        "Rework & Transfers",
+        6
+       ],
+       [
+        "9",
+        "Repair Costing",
+        7
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M03",
+     "en": "Service Logistics (Pick & Drop)",
+     "bn": "সার্ভিস লজিস্টিক",
+     "desc": "Multi-leg consignments, unbroken chain of custody, POD with OTP, rider app, courier partners, COD.",
+     "groups": [
+      {
+       "en": "Consignments",
+       "screens": [
+        "M03-cons",
+        "M03-record",
+        "M03-journeys",
+        "M03-manifest"
+       ]
+      },
+      {
+       "en": "Custody & POD",
+       "screens": [
+        "M03-custody",
+        "M03-pod",
+        "M03-seals"
+       ]
+      },
+      {
+       "en": "Riders & Fleet",
+       "screens": [
+        "M03-riders",
+        "M03-routes",
+        "M03-app"
+       ]
+      },
+      {
+       "en": "Courier Partners",
+       "screens": [
+        "M03-couriers",
+        "M03-bookings",
+        "M03-recon"
+       ]
+      },
+      {
+       "en": "Exceptions & Billing",
+       "screens": [
+        "M03-exc",
+        "M03-charges",
+        "M03-cod"
+       ]
+      }
+     ],
+     "reports": [
+      "Consignment Cycle Time",
+      "Custody Exception Register",
+      "Courier Performance (Pathao/RedX/Steadfast)",
+      "COD Settlement Report",
+      "Reverse Logistics Volume",
+      "Damage & Insurance Claims"
+     ],
+     "forms": [
+      "Consignment (5 types)",
+      "Rider Shift Open/Close",
+      "Courier Booking",
+      "Damage Claim"
+     ],
+     "freg": {
+      "src": 93,
+      "sub": [
+       [
+        "1",
+        "Consignment Creation (5 types)",
+        10
+       ],
+       [
+        "2",
+        "Multi-Leg Journeys",
+        8
+       ],
+       [
+        "3",
+        "Item Manifest",
+        7
+       ],
+       [
+        "4",
+        "Chain of Custody",
+        12
+       ],
+       [
+        "5",
+        "POD (OTP/Signature/Photo)",
+        8
+       ],
+       [
+        "6",
+        "Packaging & Sealing",
+        5
+       ],
+       [
+        "7",
+        "Scheduling & Windows",
+        6
+       ],
+       [
+        "8",
+        "Rider Assignment & App",
+        10
+       ],
+       [
+        "9",
+        "Courier Partners",
+        9
+       ],
+       [
+        "10",
+        "Charging & Waivers",
+        6
+       ],
+       [
+        "11",
+        "Reverse Flows",
+        5
+       ],
+       [
+        "12",
+        "COD & Claims",
+        7
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M04",
+     "en": "Branch & Front-Desk",
+     "bn": "শাখা ও ফ্রন্ট ডেস্ক",
+     "desc": "Counter operations at 51+ centres — token queue, device custody, cash drawer, shift close, counter sales.",
+     "groups": [
+      {
+       "en": "Queue & Token",
+       "screens": [
+        "M04-queue",
+        "M04-counter",
+        "M04-priority"
+       ]
+      },
+      {
+       "en": "Device Custody",
+       "screens": [
+        "M04-storage",
+        "M04-handover",
+        "M04-uncollected"
+       ]
+      },
+      {
+       "en": "Cash & Shift",
+       "screens": [
+        "M04-drawer",
+        "M04-payments",
+        "M04-shift",
+        "M04-banking"
+       ]
+      },
+      {
+       "en": "Counter Sales",
+       "screens": [
+        "M04-sales",
+        "M04-kiosk"
+       ]
+      },
+      {
+       "en": "Branch Ops",
+       "screens": [
+        "M04-checklists",
+        "M04-dashboard",
+        "M04-receipts"
+       ]
+      }
+     ],
+     "reports": [
+      "Branch Daily Cash Summary",
+      "Token Wait-Time Distribution",
+      "Uncollected Device Ageing",
+      "Counter Sales by Category",
+      "Shift Variance Register",
+      "Branch Comparison League"
+     ],
+     "forms": [
+      "Token Issue",
+      "Device Storage Assignment",
+      "Shift Open/Close",
+      "Counter Sale",
+      "Handover (ID verified)"
+     ],
+     "freg": {
+      "src": 95,
+      "sub": [
+       [
+        "1",
+        "Token & Queue",
+        12
+       ],
+       [
+        "2",
+        "Counter Workstation",
+        14
+       ],
+       [
+        "3",
+        "Device Storage & Retrieval",
+        10
+       ],
+       [
+        "4",
+        "Collection & Handover",
+        9
+       ],
+       [
+        "5",
+        "Counter Sales",
+        8
+       ],
+       [
+        "6",
+        "Cash Drawer",
+        12
+       ],
+       [
+        "7",
+        "Payment Capture",
+        9
+       ],
+       [
+        "8",
+        "Shift Operations",
+        10
+       ],
+       [
+        "9",
+        "Banking & Deposits",
+        5
+       ],
+       [
+        "10",
+        "Branch Admin",
+        6
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M05",
+     "en": "Remote Support & MSP",
+     "bn": "রিমোট সাপোর্ট ও এমএসপি",
+     "desc": "Managed IT services — remote sessions, monitored estate, alert-to-ticket, runbooks, patching, SLA credits.",
+     "groups": [
+      {
+       "en": "Remote Sessions",
+       "screens": [
+        "M05-sessions",
+        "M05-console"
+       ]
+      },
+      {
+       "en": "Monitored Estate",
+       "screens": [
+        "M05-estate",
+        "M05-health",
+        "M05-alerts"
+       ]
+      },
+      {
+       "en": "Service Desk",
+       "screens": [
+        "M05-tickets",
+        "M05-oncall",
+        "M05-runbooks"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M05-patching",
+        "M05-windows",
+        "M05-problem"
+       ]
+      },
+      {
+       "en": "Client Reporting",
+       "screens": [
+        "M05-sla",
+        "M05-reviews"
+       ]
+      }
+     ],
+     "reports": [
+      "MSP SLA Attainment by Client",
+      "Remote Resolution Rate",
+      "Patch Compliance Report",
+      "Alert-to-Ticket Conversion",
+      "Backup & Restore Test Log",
+      "SLA Credit Register"
+     ],
+     "forms": [
+      "Remote Session (consent recorded)",
+      "MSP Ticket",
+      "Change Record",
+      "Maintenance Window"
+     ],
+     "freg": {
+      "src": 93,
+      "sub": [
+       [
+        "1",
+        "Remote Sessions",
+        10
+       ],
+       [
+        "2",
+        "Monitored Estate",
+        12
+       ],
+       [
+        "3",
+        "Metrics & Health Scoring",
+        9
+       ],
+       [
+        "4",
+        "Alerting Engine",
+        11
+       ],
+       [
+        "5",
+        "On-Call & Escalation",
+        7
+       ],
+       [
+        "6",
+        "Runbooks & Remediation",
+        8
+       ],
+       [
+        "7",
+        "Patch Management",
+        9
+       ],
+       [
+        "8",
+        "MSP Service Desk",
+        13
+       ],
+       [
+        "9",
+        "Client Reporting",
+        9
+       ],
+       [
+        "10",
+        "Onboarding Projects",
+        5
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M06",
+     "en": "Data Services & Recovery",
+     "bn": "ডেটা সেবা ও রিকভারি",
+     "desc": "Data recovery case management, sealed media custody, secure destruction with certificates, backup plans.",
+     "groups": [
+      {
+       "en": "Recovery Cases",
+       "screens": [
+        "M06-cases",
+        "M06-record",
+        "M06-attempts"
+       ]
+      },
+      {
+       "en": "Media Custody",
+       "screens": [
+        "M06-custody",
+        "M06-cleanroom",
+        "M06-inventory"
+       ]
+      },
+      {
+       "en": "Quotation & Handover",
+       "screens": [
+        "M06-eval",
+        "M06-quotes",
+        "M06-handover"
+       ]
+      },
+      {
+       "en": "Backup & Destruction",
+       "screens": [
+        "M06-backup",
+        "M06-destroy",
+        "M06-certs"
+       ]
+      }
+     ],
+     "reports": [
+      "Recovery Success by Specialism",
+      "Case Cycle Time",
+      "Data Service Revenue",
+      "Destruction & Purge Audit",
+      "Backup Restore-Test Compliance"
+     ],
+     "forms": [
+      "Recovery Case",
+      "Media Intake (sealed)",
+      "Firm Quotation",
+      "Destruction Request (dual control)"
+     ],
+     "freg": {
+      "src": 75,
+      "sub": [
+       [
+        "1",
+        "Case Management (7 specialisms)",
+        12
+       ],
+       [
+        "2",
+        "Media Chain of Custody",
+        11
+       ],
+       [
+        "3",
+        "Evaluation & Quotation",
+        8
+       ],
+       [
+        "4",
+        "Methodology Logging",
+        6
+       ],
+       [
+        "5",
+        "Attempt Tracking",
+        5
+       ],
+       [
+        "6",
+        "Recovered-Data Inventory",
+        5
+       ],
+       [
+        "7",
+        "Secure Handover & Purge",
+        7
+       ],
+       [
+        "8",
+        "Backup Plans",
+        6
+       ],
+       [
+        "9",
+        "Secure Destruction",
+        9
+       ],
+       [
+        "10",
+        "Access Control & Audit",
+        6
+       ]
+      ]
+     },
+     "subCount": 10
+    }
+   ]
+  },
+  {
+   "id": "A03",
+   "en": "Customer Experience",
+   "bn": "গ্রাহক অভিজ্ঞতা",
+   "mods": [
+    {
+     "mid": "M33",
+     "en": "Customer & Party Master",
+     "bn": "গ্রাহক মাস্টার",
+     "desc": "Single golden record for every party — roles, hierarchies, OTP verification, consent, segments, credit.",
+     "groups": [
+      {
+       "en": "Party Records",
+       "screens": [
+        "M33-directory",
+        "M33-party",
+        "M33-360",
+        "M33-hierarchy"
+       ]
+      },
+      {
+       "en": "Identity & Verification",
+       "screens": [
+        "M33-identity",
+        "M33-otp",
+        "M33-approval"
+       ]
+      },
+      {
+       "en": "Data Quality",
+       "screens": [
+        "M33-dedupe",
+        "M33-merge",
+        "M33-quality"
+       ]
+      },
+      {
+       "en": "Consent & Rights",
+       "screens": [
+        "M33-consent",
+        "M33-dsr"
+       ]
+      },
+      {
+       "en": "Segments & Credit",
+       "screens": [
+        "M33-segments",
+        "M33-credit",
+        "M33-status"
+       ]
+      }
+     ],
+     "reports": [
+      "Customer Growth by District",
+      "Data Quality Scorecard",
+      "Duplicate Merge Audit",
+      "Consent Coverage Report",
+      "Credit Exposure by Segment",
+      "Corporate Hierarchy Map"
+     ],
+     "forms": [
+      "Party (multi-role)",
+      "Address with GPS",
+      "Identity Document",
+      "Credit Profile",
+      "Merge Request"
+     ],
+     "freg": {
+      "src": 100,
+      "sub": [
+       [
+        "1",
+        "Party Record & Roles",
+        12
+       ],
+       [
+        "2",
+        "Classification",
+        7
+       ],
+       [
+        "3",
+        "Account Hierarchy",
+        8
+       ],
+       [
+        "4",
+        "Addresses (BD structure + GPS)",
+        7
+       ],
+       [
+        "5",
+        "Identity & OTP",
+        9
+       ],
+       [
+        "6",
+        "Registration Approval",
+        6
+       ],
+       [
+        "7",
+        "Deduplication & Merge",
+        11
+       ],
+       [
+        "8",
+        "Golden Record & Quality",
+        9
+       ],
+       [
+        "9",
+        "Consent & DSR",
+        13
+       ],
+       [
+        "10",
+        "Segments",
+        5
+       ],
+       [
+        "11",
+        "Credit Profile",
+        8
+       ],
+       [
+        "12",
+        "Status Lifecycle",
+        5
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M07",
+     "en": "CRM & Sales Pipeline",
+     "bn": "সিআরএম ও বিক্রয়",
+     "desc": "Leads, opportunities, corporate account plans, QBRs, renewals T-90, cross-sell and win/loss.",
+     "groups": [
+      {
+       "en": "Leads",
+       "screens": [
+        "M07-leads",
+        "M07-scoring",
+        "M07-sources"
+       ]
+      },
+      {
+       "en": "Pipeline",
+       "screens": [
+        "M07-opps",
+        "M07-kanban",
+        "M07-forecast"
+       ]
+      },
+      {
+       "en": "Accounts",
+       "screens": [
+        "M07-accounts",
+        "M07-plans",
+        "M07-qbr",
+        "M07-activities"
+       ]
+      },
+      {
+       "en": "Renewals & Growth",
+       "screens": [
+        "M07-t90",
+        "M07-crosssell",
+        "M07-winloss"
+       ]
+      }
+     ],
+     "reports": [
+      "Pipeline by Stream",
+      "Funnel Conversion",
+      "Win Rate by Source",
+      "Account Manager Scorecard",
+      "Renewal Risk Report",
+      "Cross-Sell Attach Rate"
+     ],
+     "forms": [
+      "Lead",
+      "Opportunity",
+      "Activity (call/visit/meeting)",
+      "Account Plan"
+     ],
+     "freg": {
+      "src": 79,
+      "sub": [
+       [
+        "1",
+        "Lead Capture & Qualification",
+        12
+       ],
+       [
+        "2",
+        "Opportunity Stages",
+        10
+       ],
+       [
+        "3",
+        "Pipeline & Forecasting",
+        9
+       ],
+       [
+        "4",
+        "Account Plans & Stakeholders",
+        9
+       ],
+       [
+        "5",
+        "Account-Manager Assignment",
+        6
+       ],
+       [
+        "6",
+        "QBR Programme",
+        7
+       ],
+       [
+        "7",
+        "Activities",
+        8
+       ],
+       [
+        "8",
+        "Renewal Pipeline",
+        6
+       ],
+       [
+        "9",
+        "Cross-Sell / Upsell",
+        7
+       ],
+       [
+        "10",
+        "Competitor Intelligence",
+        5
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M10",
+     "en": "Loyalty & Rewards",
+     "bn": "লয়্যালটি ও পুরস্কার",
+     "desc": "Privilege tiers, points ledger, wallet, vouchers, referral programme, alliance benefits, liability.",
+     "groups": [
+      {
+       "en": "Programme",
+       "screens": [
+        "M10-tiers",
+        "M10-enrol",
+        "M10-alliance"
+       ]
+      },
+      {
+       "en": "Points & Wallet",
+       "screens": [
+        "M10-ledger",
+        "M10-wallet",
+        "M10-redemption"
+       ]
+      },
+      {
+       "en": "Vouchers & Referrals",
+       "screens": [
+        "M10-vouchers",
+        "M10-referral",
+        "M10-fraud"
+       ]
+      },
+      {
+       "en": "Finance",
+       "screens": [
+        "M10-liability",
+        "M10-profit"
+       ]
+      }
+     ],
+     "reports": [
+      "Member Growth & Tier Mix",
+      "Points Earn/Burn Analysis",
+      "Referral Funnel",
+      "Voucher Usage & Fraud",
+      "Programme P&L"
+     ],
+     "forms": [
+      "Tier Configuration",
+      "Voucher Campaign",
+      "Points Adjustment",
+      "Referral Code"
+     ],
+     "freg": {
+      "src": 63,
+      "sub": [
+       [
+        "1",
+        "Tiers & Enrolment",
+        10
+       ],
+       [
+        "2",
+        "Benefit Engine",
+        9
+       ],
+       [
+        "3",
+        "Points Ledger",
+        9
+       ],
+       [
+        "4",
+        "Wallet",
+        7
+       ],
+       [
+        "5",
+        "Vouchers & Coupons",
+        9
+       ],
+       [
+        "6",
+        "Referrals",
+        7
+       ],
+       [
+        "7",
+        "Alliance Benefits",
+        5
+       ],
+       [
+        "8",
+        "Liability & Breakage",
+        7
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M34",
+     "en": "CX, Feedback & Complaints",
+     "bn": "অভিজ্ঞতা ও অভিযোগ",
+     "desc": "CSAT/NPS/CES surveys, closed feedback loop, complaint SLA & escalation, goodwill authority, VoC analytics.",
+     "groups": [
+      {
+       "en": "Surveys",
+       "screens": [
+        "M34-design",
+        "M34-responses",
+        "M34-throttle"
+       ]
+      },
+      {
+       "en": "Complaints",
+       "screens": [
+        "M34-complaints",
+        "M34-record",
+        "M34-escalation",
+        "M34-goodwill"
+       ]
+      },
+      {
+       "en": "Closed Loop",
+       "screens": [
+        "M34-detractor",
+        "M34-journey"
+       ]
+      },
+      {
+       "en": "Voice of Customer",
+       "screens": [
+        "M34-voc",
+        "M34-reviews",
+        "M34-byybranch"
+       ]
+      }
+     ],
+     "reports": [
+      "CSAT by Branch & Technician",
+      "NPS Trend & Drivers",
+      "Complaint Category Pareto",
+      "Closed-Loop Effectiveness",
+      "Review Sentiment Summary"
+     ],
+     "forms": [
+      "Survey",
+      "Complaint",
+      "Goodwill Credit",
+      "Detractor Follow-up"
+     ],
+     "freg": {
+      "src": 69,
+      "sub": [
+       [
+        "1",
+        "Survey Design & Distribution",
+        10
+       ],
+       [
+        "2",
+        "CSAT / NPS / CES",
+        7
+       ],
+       [
+        "3",
+        "Multi-Parameter Ratings",
+        6
+       ],
+       [
+        "4",
+        "Closed Feedback Loop",
+        9
+       ],
+       [
+        "5",
+        "Complaint Management",
+        14
+       ],
+       [
+        "6",
+        "Categorisation & SLA",
+        8
+       ],
+       [
+        "7",
+        "Compensation & Goodwill",
+        6
+       ],
+       [
+        "8",
+        "VoC Analytics",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M27",
+     "en": "Contact Centre (16743)",
+     "bn": "কল সেন্টার ১৬৭৪৩",
+     "desc": "Unified voice + digital conversations, skills routing, agent desktop with Customer-360 pop, notifications for the ERP.",
+     "groups": [
+      {
+       "en": "Unified Queue",
+       "screens": [
+        "M27-queue",
+        "M27-conversations",
+        "M27-routing"
+       ]
+      },
+      {
+       "en": "Agent Desktop (P10)",
+       "screens": [
+        "M27-desktop",
+        "M27-states",
+        "M27-dispositions"
+       ]
+      },
+      {
+       "en": "Channels",
+       "screens": [
+        "M27-voice",
+        "M27-digital",
+        "M27-outbound"
+       ]
+      },
+      {
+       "en": "Notification Hub",
+       "screens": [
+        "M27-templates",
+        "M27-delivery",
+        "M27-preferences"
+       ]
+      },
+      {
+       "en": "Quality & WFM",
+       "screens": [
+        "M27-qa",
+        "M27-wfm"
+       ]
+      }
+     ],
+     "reports": [
+      "Channel Mix & Volumes",
+      "Service Level by Interval",
+      "AHT & FCR by Disposition",
+      "Notification Delivery by Channel",
+      "QA Score Distribution"
+     ],
+     "forms": [
+      "IVR Flow",
+      "Notification Template",
+      "Disposition Code",
+      "Outbound List"
+     ],
+     "freg": {
+      "src": 87,
+      "sub": [
+       [
+        "1",
+        "Voice & IVR",
+        12
+       ],
+       [
+        "2",
+        "Digital Channels",
+        12
+       ],
+       [
+        "3",
+        "Unified Conversation Object",
+        8
+       ],
+       [
+        "4",
+        "Queue & Routing",
+        9
+       ],
+       [
+        "5",
+        "Agent Desktop",
+        10
+       ],
+       [
+        "6",
+        "Workforce Management",
+        7
+       ],
+       [
+        "7",
+        "Quality Monitoring",
+        9
+       ],
+       [
+        "8",
+        "ERP Notification Service",
+        14
+       ],
+       [
+        "9",
+        "Consent Enforcement",
+        6
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M32",
+     "en": "Conversational AI (Bengali)",
+     "bn": "কথোপকথন এআই",
+     "desc": "Bengali-first assistant — intent recognition, RAG on live ERP data, authenticated actions, human handoff.",
+     "groups": [
+      {
+       "en": "Assistant",
+       "screens": [
+        "M32-chat",
+        "M32-sessions"
+       ]
+      },
+      {
+       "en": "Understanding",
+       "screens": [
+        "M32-intents",
+        "M32-entities",
+        "M32-dialogue"
+       ]
+      },
+      {
+       "en": "Grounding & Safety",
+       "screens": [
+        "M32-rag",
+        "M32-guardrails",
+        "M32-handoff"
+       ]
+      },
+      {
+       "en": "Agent Assist",
+       "screens": [
+        "M32-assist",
+        "M32-analytics"
+       ]
+      }
+     ],
+     "reports": [
+      "Intent Coverage & FCR",
+      "Handoff Reasons",
+      "Guard-Rail Intervention Log",
+      "Bengali vs English Performance",
+      "Assistant CSAT"
+     ],
+     "forms": [
+      "Intent",
+      "Dialogue Flow",
+      "Guard-Rail Rule"
+     ],
+     "freg": {
+      "src": 62,
+      "sub": [
+       [
+        "1",
+        "Intent Recognition (bn/en/mixed)",
+        9
+       ],
+       [
+        "2",
+        "Entity Extraction",
+        7
+       ],
+       [
+        "3",
+        "Dialogue Management",
+        8
+       ],
+       [
+        "4",
+        "RAG Grounding",
+        7
+       ],
+       [
+        "5",
+        "Authenticated Actions",
+        6
+       ],
+       [
+        "6",
+        "Guard Rails",
+        7
+       ],
+       [
+        "7",
+        "Handoff Decision",
+        5
+       ],
+       [
+        "8",
+        "Agent Assistance",
+        6
+       ],
+       [
+        "9",
+        "Analytics",
+        7
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M35",
+     "en": "Marketing Campaigns",
+     "bn": "মার্কেটিং ক্যাম্পেইন",
+     "desc": "Segment-driven journeys, offer selection, A/B & attribution, seasonal templates, co-marketing with partners.",
+     "groups": [
+      {
+       "en": "Campaigns",
+       "screens": [
+        "M35-campaigns",
+        "M35-approval"
+       ]
+      },
+      {
+       "en": "Journeys",
+       "screens": [
+        "M35-journeys",
+        "M35-triggers"
+       ]
+      },
+      {
+       "en": "Offers & Content",
+       "screens": [
+        "M35-offers",
+        "M35-content",
+        "M35-ads"
+       ]
+      },
+      {
+       "en": "Measurement",
+       "screens": [
+        "M35-ab",
+        "M35-attribution",
+        "M35-roi"
+       ]
+      }
+     ],
+     "reports": [
+      "Campaign Funnel by Channel",
+      "Attribution & ROI",
+      "Seasonal Template Performance",
+      "Co-Marketing Partner Report",
+      "Lead-to-Order Conversion"
+     ],
+     "forms": [
+      "Campaign",
+      "Journey (multi-step)",
+      "Offer",
+      "Creative Asset"
+     ],
+     "freg": {
+      "src": 58,
+      "sub": [
+       [
+        "1",
+        "Campaign Planning & Approval",
+        8
+       ],
+       [
+        "2",
+        "Audience from Segments",
+        6
+       ],
+       [
+        "3",
+        "Journey Orchestration",
+        10
+       ],
+       [
+        "4",
+        "Content & Offers",
+        8
+       ],
+       [
+        "5",
+        "Experimentation",
+        7
+       ],
+       [
+        "6",
+        "Budget & Attribution",
+        8
+       ],
+       [
+        "7",
+        "Portal Advertising",
+        5
+       ],
+       [
+        "8",
+        "Co-Marketing",
+        6
+       ]
+      ]
+     },
+     "subCount": 8
+    }
+   ]
+  },
+  {
+   "id": "A04",
+   "en": "Commercial & Revenue",
+   "bn": "বাণিজ্যিক ও রাজস্ব",
+   "mods": [
+    {
+     "mid": "M37",
+     "en": "Product & Service Catalogue",
+     "bn": "পণ্য ও সেবা ক্যাটালগ",
+     "desc": "Everything sellable — unified item master, rBOM, standard repair time, fault taxonomy, 14 contract families.",
+     "groups": [
+      {
+       "en": "Item Master",
+       "screens": [
+        "M37-items",
+        "M37-item",
+        "M37-taxonomy",
+        "M37-hierarchy"
+       ]
+      },
+      {
+       "en": "Service Definitions",
+       "screens": [
+        "M37-services",
+        "M37-rbom",
+        "M37-srt",
+        "M37-kits"
+       ]
+      },
+      {
+       "en": "Compatibility & Faults",
+       "screens": [
+        "M37-brandmodel",
+        "M37-fault",
+        "M37-parts-id"
+       ]
+      },
+      {
+       "en": "Plans & Templates",
+       "screens": [
+        "M37-contract-tpl",
+        "M37-protection",
+        "M37-rental-sku"
+       ]
+      },
+      {
+       "en": "Governance",
+       "screens": [
+        "M37-approval",
+        "M37-lifecycle",
+        "M37-publication"
+       ]
+      }
+     ],
+     "reports": [
+      "Catalogue Coverage by Brand",
+      "rBOM Completeness",
+      "SRT Calibration Variance",
+      "Item Margin Analysis",
+      "Deprecated Items Register",
+      "Bilingual Content Gaps"
+     ],
+     "forms": [
+      "Catalogue Item (9 types)",
+      "Service Definition",
+      "rBOM Line",
+      "Fault Code",
+      "Protection Product Template"
+     ],
+     "freg": {
+      "src": 120,
+      "sub": [
+       [
+        "1",
+        "Unified Item Master",
+        14
+       ],
+       [
+        "2",
+        "Typed Taxonomy",
+        6
+       ],
+       [
+        "3",
+        "Service Definition",
+        11
+       ],
+       [
+        "4",
+        "rBOM & SRT",
+        12
+       ],
+       [
+        "5",
+        "Repair Operations",
+        8
+       ],
+       [
+        "6",
+        "Kits & Bundles",
+        6
+       ],
+       [
+        "7",
+        "Product Hierarchy & Variants",
+        8
+       ],
+       [
+        "8",
+        "Brand-Model-Device Master",
+        9
+       ],
+       [
+        "9",
+        "Fault Taxonomy",
+        10
+       ],
+       [
+        "10",
+        "Part Identity",
+        9
+       ],
+       [
+        "11",
+        "Contract & Protection Templates",
+        10
+       ],
+       [
+        "12",
+        "Tax & Rev-Rec Classification",
+        7
+       ],
+       [
+        "13",
+        "Lifecycle & Governance",
+        10
+       ]
+      ]
+     },
+     "subCount": 13
+    },
+    {
+     "mid": "M11",
+     "en": "Pricing & Rate Cards",
+     "bn": "মূল্য ও রেট কার্ড",
+     "desc": "Price engine (item×customer×channel×date), labour rate cards, brand reimbursement rates, discount governance.",
+     "groups": [
+      {
+       "en": "Price Books",
+       "screens": [
+        "M11-books",
+        "M11-engine",
+        "M11-versions"
+       ]
+      },
+      {
+       "en": "Rate Cards",
+       "screens": [
+        "M11-labour",
+        "M11-parts",
+        "M11-brand",
+        "M11-adjust"
+       ]
+      },
+      {
+       "en": "Governance",
+       "screens": [
+        "M11-discounts",
+        "M11-floors",
+        "M11-promos"
+       ]
+      },
+      {
+       "en": "Analytics",
+       "screens": [
+        "M11-simulate",
+        "M11-realised"
+       ]
+      }
+     ],
+     "reports": [
+      "Realised Price vs Card",
+      "Discount Register by Approver",
+      "Rate-Card Utilisation",
+      "Margin by Service Line",
+      "Promotion Effectiveness",
+      "Brand Reimbursement Recovery"
+     ],
+     "forms": [
+      "Price Book",
+      "Rate Card",
+      "Discount Policy",
+      "Promotion",
+      "Price Simulation Request"
+     ],
+     "freg": {
+      "src": 97,
+      "sub": [
+       [
+        "1",
+        "Pricing Engine",
+        12
+       ],
+       [
+        "2",
+        "Price Books",
+        10
+       ],
+       [
+        "3",
+        "Rate Cards",
+        11
+       ],
+       [
+        "4",
+        "Parts Pricing",
+        9
+       ],
+       [
+        "5",
+        "Customer/Contract Pricing",
+        8
+       ],
+       [
+        "6",
+        "Brand Reimbursement",
+        7
+       ],
+       [
+        "7",
+        "Discount Governance",
+        10
+       ],
+       [
+        "8",
+        "Promotions",
+        7
+       ],
+       [
+        "9",
+        "Adjustment Rules",
+        8
+       ],
+       [
+        "10",
+        "Simulation & Trace",
+        7
+       ],
+       [
+        "11",
+        "Versioning & Approval",
+        8
+       ]
+      ]
+     },
+     "subCount": 11
+    },
+    {
+     "mid": "M36",
+     "en": "Quotations & Tenders",
+     "bn": "কোটেশন ও টেন্ডার",
+     "desc": "Estimate build-up to customer quotation, multi-channel approval loop, e-signature, tender & competitive bids.",
+     "groups": [
+      {
+       "en": "Estimates",
+       "screens": [
+        "M36-estimates",
+        "M36-buildup"
+       ]
+      },
+      {
+       "en": "Quotations",
+       "screens": [
+        "M36-quotes",
+        "M36-record",
+        "M36-versions",
+        "M36-esign"
+       ]
+      },
+      {
+       "en": "Approval Loop",
+       "screens": [
+        "M36-loop",
+        "M36-internal",
+        "M36-declined"
+       ]
+      },
+      {
+       "en": "Tenders",
+       "screens": [
+        "M36-tenders",
+        "M36-compliance",
+        "M36-bonds"
+       ]
+      }
+     ],
+     "reports": [
+      "Quote Conversion by Channel",
+      "Approval Cycle Time",
+      "Decline Reasons Pareto",
+      "Tender Win/Loss",
+      "Margin on Approved Quotes"
+     ],
+     "forms": [
+      "Estimate",
+      "Quotation (versioned)",
+      "Tender Bid",
+      "Counter-Offer"
+     ],
+     "freg": {
+      "src": 86,
+      "sub": [
+       [
+        "1",
+        "Estimate Build-Up",
+        10
+       ],
+       [
+        "2",
+        "Quotation Object",
+        12
+       ],
+       [
+        "3",
+        "Versioning",
+        7
+       ],
+       [
+        "4",
+        "Approval Routing",
+        9
+       ],
+       [
+        "5",
+        "Customer Approval Loop (8 channels)",
+        13
+       ],
+       [
+        "6",
+        "Partial Accept & Counter",
+        6
+       ],
+       [
+        "7",
+        "e-Signature",
+        6
+       ],
+       [
+        "8",
+        "Declined Handling",
+        6
+       ],
+       [
+        "9",
+        "Tender & Bid",
+        9
+       ],
+       [
+        "10",
+        "Templates & Bilingual Gen",
+        8
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M08",
+     "en": "Contract Lifecycle (AMC)",
+     "bn": "চুক্তি ব্যবস্থাপনা",
+     "desc": "14 contract families — entitlement definition/consumption, PM schedules, SLA credits, amendments, renewals.",
+     "groups": [
+      {
+       "en": "Contract Register",
+       "screens": [
+        "M08-contracts",
+        "M08-record",
+        "M08-families",
+        "M08-master"
+       ]
+      },
+      {
+       "en": "Coverage & Entitlement",
+       "screens": [
+        "M08-scope",
+        "M08-entitle",
+        "M08-balance"
+       ]
+      },
+      {
+       "en": "Service Commitments",
+       "screens": [
+        "M08-sla",
+        "M08-pm",
+        "M08-auto-work"
+       ]
+      },
+      {
+       "en": "Change & Renewal",
+       "screens": [
+        "M08-amend",
+        "M08-renewals",
+        "M08-termination",
+        "M08-churn"
+       ]
+      },
+      {
+       "en": "Financials",
+       "screens": [
+        "M08-pricing",
+        "M08-profit"
+       ]
+      }
+     ],
+     "reports": [
+      "Contract Base Movement",
+      "Entitlement Consumption by Client",
+      "SLA Credit Register",
+      "PM Compliance Report",
+      "Renewal Pipeline & Risk",
+      "Contract P&L"
+     ],
+     "forms": [
+      "Contract (14 families)",
+      "Amendment",
+      "Asset Attach/Detach",
+      "Renewal Quote",
+      "PM Schedule"
+     ],
+     "freg": {
+      "src": 108,
+      "sub": [
+       [
+        "1",
+        "Template-Driven Creation",
+        12
+       ],
+       [
+        "2",
+        "Parties & Approval",
+        8
+       ],
+       [
+        "3",
+        "Coverage Scope",
+        10
+       ],
+       [
+        "4",
+        "Entitlement Engine",
+        14
+       ],
+       [
+        "5",
+        "SLA & Service Credits",
+        10
+       ],
+       [
+        "6",
+        "PM Schedules",
+        9
+       ],
+       [
+        "7",
+        "Amendments",
+        8
+       ],
+       [
+        "8",
+        "Renewal Governance",
+        9
+       ],
+       [
+        "9",
+        "Churn & Win-Back",
+        6
+       ],
+       [
+        "10",
+        "Pricing & Profitability",
+        10
+       ],
+       [
+        "11",
+        "Documents & Signature",
+        7
+       ],
+       [
+        "12",
+        "Obligation Calendar",
+        5
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M09",
+     "en": "Warranty & Claims",
+     "bn": "ওয়ারেন্টি ও ক্লেইম",
+     "desc": "Warranty register, entitlement \"who pays\", brand claims with auto evidence packs, recalls, protection plans.",
+     "groups": [
+      {
+       "en": "Warranty Register",
+       "screens": [
+        "M09-register",
+        "M09-validate",
+        "M09-repair-wty",
+        "M09-transfer"
+       ]
+      },
+      {
+       "en": "Brand Claims",
+       "screens": [
+        "M09-claims",
+        "M09-record",
+        "M09-evidence",
+        "M09-brandrules",
+        "M09-recon"
+       ]
+      },
+      {
+       "en": "Protection Plans",
+       "screens": [
+        "M09-protection",
+        "M09-policies",
+        "M09-reserves"
+       ]
+      },
+      {
+       "en": "Recalls & Fraud",
+       "screens": [
+        "M09-recalls",
+        "M09-fraud"
+       ]
+      }
+     ],
+     "reports": [
+      "Claim Ageing by Brand",
+      "Reimbursement Cycle Time",
+      "Claim Rejection Analysis",
+      "Evidence Completeness",
+      "Loss Ratio by Product",
+      "Recall Coverage Report"
+     ],
+     "forms": [
+      "Brand Claim",
+      "Protection Policy",
+      "Claim Appeal",
+      "Recall Campaign"
+     ],
+     "freg": {
+      "src": 108,
+      "sub": [
+       [
+        "1",
+        "Warranty Register",
+        12
+       ],
+       [
+        "2",
+        "Manufacturer Validation",
+        8
+       ],
+       [
+        "3",
+        "Repair Warranty",
+        8
+       ],
+       [
+        "4",
+        "Entitlement Evaluation",
+        9
+       ],
+       [
+        "5",
+        "Protection Products",
+        13
+       ],
+       [
+        "6",
+        "Claim Assessment",
+        9
+       ],
+       [
+        "7",
+        "Evidence Assembly",
+        9
+       ],
+       [
+        "8",
+        "Brand Submission",
+        10
+       ],
+       [
+        "9",
+        "Decisions & Appeals",
+        9
+       ],
+       [
+        "10",
+        "Reconciliation",
+        8
+       ],
+       [
+        "11",
+        "Recalls",
+        7
+       ],
+       [
+        "12",
+        "Fraud Detection",
+        6
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M39",
+     "en": "Subscriptions & Recurring",
+     "bn": "সাবস্ক্রিপশন",
+     "desc": "Zuora-class billing — schedules, usage rating, proration, dunning, MRR/ARR/churn/NRR metrics.",
+     "groups": [
+      {
+       "en": "Subscriptions",
+       "screens": [
+        "M39-subs",
+        "M39-record",
+        "M39-plans"
+       ]
+      },
+      {
+       "en": "Rating & Billing",
+       "screens": [
+        "M39-usage",
+        "M39-runs",
+        "M39-proration"
+       ]
+      },
+      {
+       "en": "Payments",
+       "screens": [
+        "M39-autopay",
+        "M39-dunning"
+       ]
+      },
+      {
+       "en": "Metrics",
+       "screens": [
+        "M39-mrr",
+        "M39-cohorts",
+        "M39-forecast"
+       ]
+      }
+     ],
+     "reports": [
+      "MRR Waterfall",
+      "Churn & NRR Cohorts",
+      "Usage vs Committed",
+      "Billing Exception Log",
+      "Deferred Revenue Bridge"
+     ],
+     "forms": [
+      "Subscription",
+      "Billing Schedule",
+      "Plan Change",
+      "Dunning Step"
+     ],
+     "freg": {
+      "src": 92,
+      "sub": [
+       [
+        "1",
+        "Subscription Object",
+        10
+       ],
+       [
+        "2",
+        "Billing Schedules",
+        9
+       ],
+       [
+        "3",
+        "Charge Models",
+        10
+       ],
+       [
+        "4",
+        "Quantity & Proration",
+        12
+       ],
+       [
+        "5",
+        "Usage Rating",
+        8
+       ],
+       [
+        "6",
+        "Billing Runs",
+        11
+       ],
+       [
+        "7",
+        "Credits & Adjustments",
+        7
+       ],
+       [
+        "8",
+        "Suspend / Cancel / Renew",
+        9
+       ],
+       [
+        "9",
+        "Autopay & Dunning",
+        8
+       ],
+       [
+        "10",
+        "Metrics & Forecast",
+        8
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M38",
+     "en": "E-Commerce Storefront",
+     "bn": "ই-কমার্স",
+     "desc": "Online storefront — compatibility filtering, mixed carts, service booking as commerce, bKash/Nagad/card checkout.",
+     "groups": [
+      {
+       "en": "Storefront",
+       "screens": [
+        "M38-storefront",
+        "M38-merch",
+        "M38-compat"
+       ]
+      },
+      {
+       "en": "Cart & Checkout",
+       "screens": [
+        "M38-carts",
+        "M38-checkout",
+        "M38-delivery"
+       ]
+      },
+      {
+       "en": "Orders",
+       "screens": [
+        "M38-orders",
+        "M38-returns",
+        "M38-stock"
+       ]
+      },
+      {
+       "en": "Commerce Marketing",
+       "screens": [
+        "M38-promos",
+        "M38-recovery"
+       ]
+      }
+     ],
+     "reports": [
+      "Funnel & Conversion",
+      "Payment Method Mix",
+      "Refurb GMV by Grade",
+      "Delivery Performance",
+      "RMA & Returns Report",
+      "Abandonment Recovery Rate"
+     ],
+     "forms": [
+      "Online Order",
+      "RMA Request",
+      "Storefront Slot",
+      "Delivery Slot"
+     ],
+     "freg": {
+      "src": 92,
+      "sub": [
+       [
+        "1",
+        "Storefront & Browse",
+        12
+       ],
+       [
+        "2",
+        "Merchandising",
+        7
+       ],
+       [
+        "3",
+        "Cart",
+        9
+       ],
+       [
+        "4",
+        "Checkout & Payments",
+        14
+       ],
+       [
+        "5",
+        "Online Orders",
+        9
+       ],
+       [
+        "6",
+        "Stock Exposure",
+        6
+       ],
+       [
+        "7",
+        "Returns & RMA",
+        9
+       ],
+       [
+        "8",
+        "B2B Commerce",
+        11
+       ],
+       [
+        "9",
+        "Recovery & Analytics",
+        9
+       ],
+       [
+        "10",
+        "Service Booking Commerce",
+        6
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M12",
+     "en": "Marketplace & Sellers",
+     "bn": "মার্কেটপ্লেস",
+     "desc": "Freelance engineer / shop ecosystem — KYC, listings, job broadcast & bidding, commission, wallets, disputes.",
+     "groups": [
+      {
+       "en": "Sellers",
+       "screens": [
+        "M12-sellers",
+        "M12-kyc",
+        "M12-agreements"
+       ]
+      },
+      {
+       "en": "Supply",
+       "screens": [
+        "M12-listings",
+        "M12-stock",
+        "M12-training"
+       ]
+      },
+      {
+       "en": "Job Market",
+       "screens": [
+        "M12-broadcast",
+        "M12-bids",
+        "M12-oversight"
+       ]
+      },
+      {
+       "en": "Money",
+       "screens": [
+        "M12-commission",
+        "M12-wallet",
+        "M12-fees"
+       ]
+      },
+      {
+       "en": "Trust",
+       "screens": [
+        "M12-reviews",
+        "M12-disputes",
+        "M12-trust"
+       ]
+      }
+     ],
+     "reports": [
+      "Supply-Demand Liquidity",
+      "Fill Rate & Time-to-Accept",
+      "Commission Revenue",
+      "Dispute Rate & Outcomes",
+      "Seller Scorecard Distribution"
+     ],
+     "forms": [
+      "Seller Application",
+      "Listing",
+      "Payout Run",
+      "Dispute Case"
+     ],
+     "freg": {
+      "src": 101,
+      "sub": [
+       [
+        "1",
+        "Seller Registration & KYC",
+        12
+       ],
+       [
+        "2",
+        "Agreements & Tiers",
+        7
+       ],
+       [
+        "3",
+        "Listings",
+        9
+       ],
+       [
+        "4",
+        "Job Broadcast & Bidding",
+        14
+       ],
+       [
+        "5",
+        "Execution Oversight",
+        10
+       ],
+       [
+        "6",
+        "Ratings",
+        6
+       ],
+       [
+        "7",
+        "Performance Consequences",
+        6
+       ],
+       [
+        "8",
+        "Disputes",
+        9
+       ],
+       [
+        "9",
+        "Commission & Fees",
+        10
+       ],
+       [
+        "10",
+        "Wallet & Payouts",
+        10
+       ],
+       [
+        "11",
+        "Trust & Safety",
+        8
+       ]
+      ]
+     },
+     "subCount": 11
+    },
+    {
+     "mid": "M40",
+     "en": "Partner & Channel",
+     "bn": "পার্টনার ও চ্যানেল",
+     "desc": "Brand partnerships (17+), alliances, referral partners, deal registration, resellers, franchise management.",
+     "groups": [
+      {
+       "en": "Partner Master",
+       "screens": [
+        "M40-partners",
+        "M40-brand",
+        "M40-authorisation"
+       ]
+      },
+      {
+       "en": "Programmes",
+       "screens": [
+        "M40-alliance",
+        "M40-referral",
+        "M40-dealreg",
+        "M40-reseller",
+        "M40-franchise"
+       ]
+      },
+      {
+       "en": "Commercial",
+       "screens": [
+        "M40-rebates",
+        "M40-comarketing",
+        "M40-conflict"
+       ]
+      },
+      {
+       "en": "Performance",
+       "screens": [
+        "M40-health",
+        "M40-ranking"
+       ]
+      }
+     ],
+     "reports": [
+      "Partner Revenue Contribution",
+      "Referral Conversion",
+      "Brand Audit Calendar",
+      "Rebate Accruals",
+      "Channel Conflict Log"
+     ],
+     "forms": [
+      "Partner",
+      "Deal Registration",
+      "Rebate Scheme",
+      "Franchise Agreement"
+     ],
+     "freg": {
+      "src": 80,
+      "sub": [
+       [
+        "1",
+        "Partner Master",
+        10
+       ],
+       [
+        "2",
+        "Recruitment & Onboarding",
+        8
+       ],
+       [
+        "3",
+        "Brand Relations",
+        9
+       ],
+       [
+        "4",
+        "Alliances",
+        6
+       ],
+       [
+        "5",
+        "Referrals",
+        8
+       ],
+       [
+        "6",
+        "Deal Registration",
+        7
+       ],
+       [
+        "7",
+        "Resellers",
+        6
+       ],
+       [
+        "8",
+        "Franchise",
+        9
+       ],
+       [
+        "9",
+        "Commercial Terms",
+        8
+       ],
+       [
+        "10",
+        "Performance",
+        9
+       ]
+      ]
+     },
+     "subCount": 10
+    }
+   ]
+  },
+  {
+   "id": "A05",
+   "en": "Circular Economy",
+   "bn": "সার্কুলার ইকোনমি",
+   "mods": [
+    {
+     "mid": "M13",
+     "en": "Rental & EaaS",
+     "bn": "ভাড়া ও ইকুইপমেন্ট",
+     "desc": "8 asset categories — fleet register, availability, agreements & deposits, damage recovery, utilisation.",
+     "groups": [
+      {
+       "en": "Fleet",
+       "screens": [
+        "M13-fleet",
+        "M13-availability",
+        "M13-kits"
+       ]
+      },
+      {
+       "en": "Booking",
+       "screens": [
+        "M13-reservations",
+        "M13-agreements",
+        "M13-deposits"
+       ]
+      },
+      {
+       "en": "Lifecycle",
+       "screens": [
+        "M13-condition",
+        "M13-damage",
+        "M13-turnaround"
+       ]
+      },
+      {
+       "en": "Analytics",
+       "screens": [
+        "M13-utilisation",
+        "M13-retire"
+       ]
+      }
+     ],
+     "reports": [
+      "Utilisation by Category",
+      "Damage & Loss Rate",
+      "Rental P&L",
+      "Late Return Analysis",
+      "Deposit Reconciliation"
+     ],
+     "forms": [
+      "Reservation",
+      "Rental Agreement (e-sign)",
+      "Condition Report",
+      "Damage Assessment"
+     ],
+     "freg": {
+      "src": 78,
+      "sub": [
+       [
+        "1",
+        "Fleet Register",
+        9
+       ],
+       [
+        "2",
+        "Availability & Reservation",
+        12
+       ],
+       [
+        "3",
+        "Agreements",
+        10
+       ],
+       [
+        "4",
+        "Deposits & Waivers",
+        8
+       ],
+       [
+        "5",
+        "Condition & Damage",
+        10
+       ],
+       [
+        "6",
+        "Returns & Recovery",
+        8
+       ],
+       [
+        "7",
+        "In-Rental Support",
+        7
+       ],
+       [
+        "8",
+        "Turnaround & PM",
+        7
+       ],
+       [
+        "9",
+        "Analytics",
+        7
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M14",
+     "en": "Trade-In & Refurbishment",
+     "bn": "ট্রেড-ইন ও রিফার্বিশ",
+     "desc": "Automated valuation, provenance screening, refurb work orders, A-D grading, harvest-to-parts, resale.",
+     "groups": [
+      {
+       "en": "Trade-In",
+       "screens": [
+        "M14-intake",
+        "M14-valuation",
+        "M14-provenance",
+        "M14-settlement"
+       ]
+      },
+      {
+       "en": "Refurbishment",
+       "screens": [
+        "M14-orders",
+        "M14-qa",
+        "M14-grading",
+        "M14-harvest"
+       ]
+      },
+      {
+       "en": "Resale",
+       "screens": [
+        "M14-stock",
+        "M14-listings",
+        "M14-wty",
+        "M14-economics"
+       ]
+      }
+     ],
+     "reports": [
+      "Trade-In Margin by Model",
+      "Refurb Cost per Grade",
+      "Ageing & Markdown",
+      "Resale Channel Performance",
+      "Harvest Yield"
+     ],
+     "forms": [
+      "Trade-In Request",
+      "Valuation Offer",
+      "Refurb Work Order",
+      "Grading Result"
+     ],
+     "freg": {
+      "src": 84,
+      "sub": [
+       [
+        "1",
+        "Intake (5 channels)",
+        9
+       ],
+       [
+        "2",
+        "Valuation Engine",
+        9
+       ],
+       [
+        "3",
+        "Provenance Screening",
+        7
+       ],
+       [
+        "4",
+        "Settlement",
+        8
+       ],
+       [
+        "5",
+        "Bulk Buy-Back",
+        6
+       ],
+       [
+        "6",
+        "Destruction Gate",
+        4
+       ],
+       [
+        "7",
+        "Refurbishment Orders",
+        11
+       ],
+       [
+        "8",
+        "Grading & QA",
+        11
+       ],
+       [
+        "9",
+        "Resale",
+        10
+       ],
+       [
+        "10",
+        "Harvesting",
+        9
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M18",
+     "en": "E-Waste & Recycling",
+     "bn": "ই-বর্জ্য ও রিসাইক্লিং",
+     "desc": "Collection network, triage & disposition, certified partners, statutory DoE/BTRC returns, impact reporting.",
+     "groups": [
+      {
+       "en": "Collection",
+       "screens": [
+        "M18-collections",
+        "M18-events"
+       ]
+      },
+      {
+       "en": "Processing",
+       "screens": [
+        "M18-triage",
+        "M18-batches",
+        "M18-battery"
+       ]
+      },
+      {
+       "en": "Partners & Compliance",
+       "screens": [
+        "M18-partners",
+        "M18-certificates",
+        "M18-returns"
+       ]
+      },
+      {
+       "en": "Impact",
+       "screens": [
+        "M18-impact",
+        "M18-esg"
+       ]
+      }
+     ],
+     "reports": [
+      "Collection Volume Trend",
+      "Disposition Mix",
+      "Material Recovery",
+      "Compliance Evidence Pack",
+      "Impact & Diversion Report"
+     ],
+     "forms": [
+      "Collection Booking",
+      "Triage Decision",
+      "Batch Transfer Note",
+      "Disposal Record"
+     ],
+     "freg": {
+      "src": 64,
+      "sub": [
+       [
+        "1",
+        "Collection Network",
+        10
+       ],
+       [
+        "2",
+        "Chain of Custody",
+        8
+       ],
+       [
+        "3",
+        "Triage & Disposition",
+        9
+       ],
+       [
+        "4",
+        "Destruction Gate",
+        4
+       ],
+       [
+        "5",
+        "Certified Partners",
+        7
+       ],
+       [
+        "6",
+        "Batches & Transfers",
+        8
+       ],
+       [
+        "7",
+        "Certificates",
+        6
+       ],
+       [
+        "8",
+        "Statutory Returns",
+        5
+       ],
+       [
+        "9",
+        "Impact Reporting",
+        7
+       ]
+      ]
+     },
+     "subCount": 9
+    }
+   ]
+  },
+  {
+   "id": "A06",
+   "en": "Supply Chain",
+   "bn": "সরবরাহ শৃঙ্খল",
+   "mods": [
+    {
+     "mid": "M15",
+     "en": "Spare Parts & Inventory",
+     "bn": "স্পেয়ার পার্টস ও ইনভেন্টরি",
+     "desc": "Stock ledger across 6 ownership classes — serial/lot trace, van stock, valuation, transfers, counts.",
+     "groups": [
+      {
+       "en": "Stock Ledger",
+       "screens": [
+        "M15-onhand",
+        "M15-ownership",
+        "M15-movements",
+        "M15-network"
+       ]
+      },
+      {
+       "en": "Traceability",
+       "screens": [
+        "M15-serials",
+        "M15-genealogy"
+       ]
+      },
+      {
+       "en": "Van Stock",
+       "screens": [
+        "M15-van",
+        "M15-replen",
+        "M15-recon"
+       ]
+      },
+      {
+       "en": "Control",
+       "screens": [
+        "M15-counts",
+        "M15-transfers",
+        "M15-quarantine",
+        "M15-rtv"
+       ]
+      },
+      {
+       "en": "Valuation & Analysis",
+       "screens": [
+        "M15-valuation",
+        "M15-ageing",
+        "M15-abc"
+       ]
+      }
+     ],
+     "reports": [
+      "Stock Valuation by Class",
+      "Inventory Accuracy Audit",
+      "Ageing & Dead Stock",
+      "Van Stock Variance",
+      "Transfer Performance",
+      "ABC Segmentation"
+     ],
+     "forms": [
+      "Goods Receipt (inspection gate)",
+      "Stock Issue",
+      "Transfer Request",
+      "Cycle Count",
+      "Scrap Order"
+     ],
+     "freg": {
+      "src": 107,
+      "sub": [
+       [
+        "1",
+        "On-Hand & Classes",
+        12
+       ],
+       [
+        "2",
+        "Location Hierarchy",
+        8
+       ],
+       [
+        "3",
+        "Ownership Segregation",
+        9
+       ],
+       [
+        "4",
+        "Reservations",
+        7
+       ],
+       [
+        "5",
+        "Issue / Return / Consumption",
+        10
+       ],
+       [
+        "6",
+        "Van Stock",
+        11
+       ],
+       [
+        "7",
+        "Serial & Lot Trace",
+        10
+       ],
+       [
+        "8",
+        "Valuation",
+        8
+       ],
+       [
+        "9",
+        "Goods Receipt",
+        7
+       ],
+       [
+        "10",
+        "Counting",
+        9
+       ],
+       [
+        "11",
+        "Ageing & Analysis",
+        8
+       ],
+       [
+        "12",
+        "Transfers & RTV",
+        8
+       ]
+      ]
+     },
+     "subCount": 12
+    },
+    {
+     "mid": "M41",
+     "en": "Warehouse Management",
+     "bn": "ওয়্যারহাউস ব্যবস্থাপনা",
+     "desc": "Physical execution — bins & slots, directed put-away, wave picking, packing, RF mobile, task interleaving.",
+     "groups": [
+      {
+       "en": "Structure",
+       "screens": [
+        "M41-zones",
+        "M41-slotting"
+       ]
+      },
+      {
+       "en": "Inbound",
+       "screens": [
+        "M41-docks",
+        "M41-receiving",
+        "M41-putaway"
+       ]
+      },
+      {
+       "en": "Outbound",
+       "screens": [
+        "M41-waves",
+        "M41-picking",
+        "M41-packing",
+        "M41-staging"
+       ]
+      },
+      {
+       "en": "Floor Ops",
+       "screens": [
+        "M41-rf",
+        "M41-tasks",
+        "M41-counting"
+       ]
+      }
+     ],
+     "reports": [
+      "Throughput by Shift",
+      "Pick Accuracy Trend",
+      "Wave Cycle Time",
+      "Labour Productivity",
+      "Bin Utilisation Heatmap"
+     ],
+     "forms": [
+      "Bin",
+      "Wave Template",
+      "Dock Appointment",
+      "Packing Station Config"
+     ],
+     "freg": {
+      "src": 78,
+      "sub": [
+       [
+        "1",
+        "Physical Structure",
+        8
+       ],
+       [
+        "2",
+        "Slotting",
+        7
+       ],
+       [
+        "3",
+        "Inbound & Put-Away",
+        12
+       ],
+       [
+        "4",
+        "Wave Planning",
+        9
+       ],
+       [
+        "5",
+        "Picking",
+        11
+       ],
+       [
+        "6",
+        "Packing & Staging",
+        8
+       ],
+       [
+        "7",
+        "Replenishment",
+        6
+       ],
+       [
+        "8",
+        "RF Execution",
+        8
+       ],
+       [
+        "9",
+        "Labour & Analytics",
+        9
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M16",
+     "en": "Procurement & Sourcing",
+     "bn": "ক্রয় ও সোর্সিং",
+     "desc": "Demand-to-PO, RFQ with normalised comparison, three-way match, blanket orders, expediting, spend analysis.",
+     "groups": [
+      {
+       "en": "Requisitions",
+       "screens": [
+        "M16-prs",
+        "M16-consol"
+       ]
+      },
+      {
+       "en": "Sourcing",
+       "screens": [
+        "M16-rfqs",
+        "M16-compare",
+        "M16-award"
+       ]
+      },
+      {
+       "en": "Orders",
+       "screens": [
+        "M16-pos",
+        "M16-blanket",
+        "M16-expedite"
+       ]
+      },
+      {
+       "en": "Receiving & Match",
+       "screens": [
+        "M16-grn",
+        "M16-inspection",
+        "M16-match"
+       ]
+      },
+      {
+       "en": "Analysis",
+       "screens": [
+        "M16-spend",
+        "M16-pricehist",
+        "M16-rtv"
+       ]
+      }
+     ],
+     "reports": [
+      "Spend by Category & Vendor",
+      "Match Exception Pareto",
+      "OTD by Vendor",
+      "Price Variance Alert",
+      "Maverick Spend",
+      "PO Cycle Time"
+     ],
+     "forms": [
+      "Purchase Requisition",
+      "RFQ",
+      "Purchase Order",
+      "GRN",
+      "RTV Request"
+     ],
+     "freg": {
+      "src": 88,
+      "sub": [
+       [
+        "1",
+        "Demand Intake",
+        8
+       ],
+       [
+        "2",
+        "Requisition & Approval",
+        10
+       ],
+       [
+        "3",
+        "Consolidation",
+        6
+       ],
+       [
+        "4",
+        "RFQ & Bidding",
+        12
+       ],
+       [
+        "5",
+        "PO Lifecycle",
+        11
+       ],
+       [
+        "6",
+        "Blanket Orders",
+        6
+       ],
+       [
+        "7",
+        "Expediting",
+        7
+       ],
+       [
+        "8",
+        "GRN & Inspection",
+        9
+       ],
+       [
+        "9",
+        "3-Way Match",
+        10
+       ],
+       [
+        "10",
+        "Spend Analysis",
+        9
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M42",
+     "en": "Supplier Relationship",
+     "bn": "সরবরাহকারী সম্পর্ক",
+     "desc": "Supplier qualification gate, scorecards, corrective actions, risk assessment, compliance screening.",
+     "groups": [
+      {
+       "en": "Register",
+       "screens": [
+        "M42-suppliers",
+        "M42-segments",
+        "M42-docs"
+       ]
+      },
+      {
+       "en": "Qualification",
+       "screens": [
+        "M42-qualification",
+        "M42-gate",
+        "M42-requal"
+       ]
+      },
+      {
+       "en": "Performance",
+       "screens": [
+        "M42-scorecards",
+        "M42-cars",
+        "M42-reviews"
+       ]
+      },
+      {
+       "en": "Risk & Compliance",
+       "screens": [
+        "M42-risk",
+        "M42-screening"
+       ]
+      }
+     ],
+     "reports": [
+      "Supplier Scorecard League",
+      "CAR Closure Performance",
+      "Risk Heat Map",
+      "Contract Coverage",
+      "Compliance Screening Log"
+     ],
+     "forms": [
+      "Supplier Profile",
+      "Qualification Questionnaire",
+      "CAR",
+      "Risk Assessment"
+     ],
+     "freg": {
+      "src": 71,
+      "sub": [
+       [
+        "1",
+        "Supplier Profiles",
+        9
+       ],
+       [
+        "2",
+        "Segmentation",
+        6
+       ],
+       [
+        "3",
+        "Qualification",
+        10
+       ],
+       [
+        "4",
+        "Documents & Validity",
+        8
+       ],
+       [
+        "5",
+        "Contracts & Price Lists",
+        7
+       ],
+       [
+        "6",
+        "Scorecards",
+        9
+       ],
+       [
+        "7",
+        "Corrective Actions",
+        7
+       ],
+       [
+        "8",
+        "Risk Assessment",
+        9
+       ],
+       [
+        "9",
+        "Compliance Screening",
+        6
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M43",
+     "en": "Demand Planning",
+     "bn": "চাহিদা পরিকল্পনা",
+     "desc": "Forecast orchestration with MAPE tracking, safety stock, reorder policies, multi-echelon rebalancing.",
+     "groups": [
+      {
+       "en": "Forecasting",
+       "screens": [
+        "M43-history",
+        "M43-models",
+        "M43-accuracy"
+       ]
+      },
+      {
+       "en": "Policies",
+       "screens": [
+        "M43-segments",
+        "M43-safety",
+        "M43-leadtime"
+       ]
+      },
+      {
+       "en": "Execution",
+       "screens": [
+        "M43-planned",
+        "M43-rebalance",
+        "M43-vanpar"
+       ]
+      },
+      {
+       "en": "Simulation",
+       "screens": [
+        "M43-whatif"
+       ]
+      }
+     ],
+     "reports": [
+      "Forecast Accuracy by Class",
+      "Stockout Root Causes",
+      "Excess & Obsolescence Exposure",
+      "Rebalancing Savings",
+      "New-Part Introduction"
+     ],
+     "forms": [
+      "Review Cycle",
+      "Policy Assignment",
+      "Rebalance Proposal"
+     ],
+     "freg": {
+      "src": 58,
+      "sub": [
+       [
+        "1",
+        "History & Cleansing",
+        7
+       ],
+       [
+        "2",
+        "Segmentation",
+        6
+       ],
+       [
+        "3",
+        "Forecast Orchestration",
+        8
+       ],
+       [
+        "4",
+        "Accuracy Tracking",
+        6
+       ],
+       [
+        "5",
+        "Safety Stock & ROP",
+        9
+       ],
+       [
+        "6",
+        "Lead-Time",
+        5
+       ],
+       [
+        "7",
+        "Planned Orders",
+        6
+       ],
+       [
+        "8",
+        "Multi-Echelon Rebalancing",
+        7
+       ],
+       [
+        "9",
+        "What-If",
+        4
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M44",
+     "en": "Import & Trade Compliance",
+     "bn": "আমদানি ও বাণিজ্য",
+     "desc": "LC/TT lifecycle, HS classification, ASYCUDA Bill of Entry, duty cascade, landed-cost allocation.",
+     "groups": [
+      {
+       "en": "Orders & Finance",
+       "screens": [
+        "M44-orders",
+        "M44-proforma",
+        "M44-lc",
+        "M44-incoterms"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M44-hs",
+        "M44-irc",
+        "M44-lca"
+       ]
+      },
+      {
+       "en": "Shipping & Customs",
+       "screens": [
+        "M44-docs",
+        "M44-arrival",
+        "M44-boe",
+        "M44-duty"
+       ]
+      },
+      {
+       "en": "Costing",
+       "screens": [
+        "M44-landed",
+        "M44-cf"
+       ]
+      }
+     ],
+     "reports": [
+      "Landed Cost by Shipment",
+      "Duty & Tax Cascade",
+      "Cycle-Time Analysis",
+      "Demurrage Avoidance",
+      "FX Exposure"
+     ],
+     "forms": [
+      "Import Order",
+      "LC Application",
+      "HS Ruling Request",
+      "Bill of Entry"
+     ],
+     "freg": {
+      "src": 64,
+      "sub": [
+       [
+        "1",
+        "Import Order Lifecycle",
+        9
+       ],
+       [
+        "2",
+        "LC & Payments",
+        10
+       ],
+       [
+        "3",
+        "HS Classification",
+        7
+       ],
+       [
+        "4",
+        "Eligibility & IRC",
+        5
+       ],
+       [
+        "5",
+        "Shipping & Insurance",
+        8
+       ],
+       [
+        "6",
+        "Port & Customs",
+        9
+       ],
+       [
+        "7",
+        "Duty Computation",
+        8
+       ],
+       [
+        "8",
+        "Landed Cost",
+        8
+       ]
+      ]
+     },
+     "subCount": 8
+    }
+   ]
+  },
+  {
+   "id": "A07",
+   "en": "Assets & Facilities",
+   "bn": "সম্পদ ও সুবিধা",
+   "mods": [
+    {
+     "mid": "M17",
+     "en": "Device & Asset Registry",
+     "bn": "ডিভাইস রেজিস্ট্রি",
+     "desc": "Permanent identity per device — multi-identifier model, custody chain, service history, parts genealogy, estates.",
+     "groups": [
+      {
+       "en": "Registry",
+       "screens": [
+        "M17-assets",
+        "M17-asset",
+        "M17-360",
+        "M17-identifiers",
+        "M17-merge"
+       ]
+      },
+      {
+       "en": "History",
+       "screens": [
+        "M17-history",
+        "M17-genealogy",
+        "M17-rework"
+       ]
+      },
+      {
+       "en": "Custody",
+       "screens": [
+        "M17-custody",
+        "M17-ownership"
+       ]
+      },
+      {
+       "en": "Corporate Estates",
+       "screens": [
+        "M17-estates",
+        "M17-bulk"
+       ]
+      },
+      {
+       "en": "Coverage",
+       "screens": [
+        "M17-wty",
+        "M17-pm"
+       ]
+      }
+     ],
+     "reports": [
+      "Installed Base by Brand/Model",
+      "Repeat-Fault Pareto",
+      "Estate Coverage by Client",
+      "Custody Exceptions",
+      "Data Quality Scorecard"
+     ],
+     "forms": [
+      "Asset (6 identifiers)",
+      "Estate Assignment",
+      "Ownership Transfer",
+      "Condition Grading"
+     ],
+     "freg": {
+      "src": 96,
+      "sub": [
+       [
+        "1",
+        "Identity & Resolution",
+        14
+       ],
+       [
+        "2",
+        "Configuration & Components",
+        8
+       ],
+       [
+        "3",
+        "Ownership & Custody",
+        12
+       ],
+       [
+        "4",
+        "Service History",
+        9
+       ],
+       [
+        "5",
+        "Parts Genealogy",
+        7
+       ],
+       [
+        "6",
+        "Repeat-Fault Detection",
+        6
+       ],
+       [
+        "7",
+        "Warranty Projection",
+        7
+       ],
+       [
+        "8",
+        "Corporate Estates",
+        12
+       ],
+       [
+        "9",
+        "Bulk Registration",
+        7
+       ],
+       [
+        "10",
+        "Condition & EOL Routing",
+        8
+       ],
+       [
+        "11",
+        "Data Quality",
+        6
+       ]
+      ]
+     },
+     "subCount": 11
+    },
+    {
+     "mid": "M45",
+     "en": "Enterprise Assets & Test Equipment",
+     "bn": "এন্টারপ্রাইজ সম্পদ",
+     "desc": "Test instruments & tools — calibration management, tool crib issue/return, fitness states, usage per job.",
+     "groups": [
+      {
+       "en": "Register",
+       "screens": [
+        "M45-register",
+        "M45-classes",
+        "M45-kits"
+       ]
+      },
+      {
+       "en": "Custody",
+       "screens": [
+        "M45-issue",
+        "M45-transfer",
+        "M45-audits"
+       ]
+      },
+      {
+       "en": "Calibration",
+       "screens": [
+        "M45-calibration",
+        "M45-certificates",
+        "M45-oos",
+        "M45-retro"
+       ]
+      },
+      {
+       "en": "Maintenance",
+       "screens": [
+        "M45-pm",
+        "M45-usage"
+       ]
+      }
+     ],
+     "reports": [
+      "Calibration Compliance Report",
+      "Equipment Utilisation",
+      "Tool Loss & Write-Off",
+      "Cost of Ownership"
+     ],
+     "forms": [
+      "Equipment",
+      "Calibration Record",
+      "Issue/Return",
+      "Write-Off"
+     ],
+     "freg": {
+      "src": 64,
+      "sub": [
+       [
+        "1",
+        "Register & Classification",
+        10
+       ],
+       [
+        "2",
+        "Issue / Custody / Transfer",
+        11
+       ],
+       [
+        "3",
+        "Kit Management",
+        6
+       ],
+       [
+        "4",
+        "Calibration Management",
+        16
+       ],
+       [
+        "5",
+        "PM & Repair",
+        8
+       ],
+       [
+        "6",
+        "Usage Capture",
+        6
+       ],
+       [
+        "7",
+        "Verification & Loss",
+        7
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M46",
+     "en": "Fleet & Vehicles",
+     "bn": "ফ্লিট ও যানবাহন",
+     "desc": "Vans & bikes — statutory documents with expiry control, fuel efficiency, telematics, cost per km.",
+     "groups": [
+      {
+       "en": "Register",
+       "screens": [
+        "M46-vehicles",
+        "M46-drivers",
+        "M46-assign"
+       ]
+      },
+      {
+       "en": "Statutory",
+       "screens": [
+        "M46-docs",
+        "M46-renewal"
+       ]
+      },
+      {
+       "en": "Operations",
+       "screens": [
+        "M46-preuse",
+        "M46-pm",
+        "M46-fuel",
+        "M46-telematics"
+       ]
+      },
+      {
+       "en": "Safety & Cost",
+       "screens": [
+        "M46-accidents",
+        "M46-behaviour",
+        "M46-cost"
+       ]
+      }
+     ],
+     "reports": [
+      "Fleet Availability",
+      "Fuel Efficiency Trend",
+      "Maintenance Cost per Vehicle",
+      "Statutory Compliance Register",
+      "Incident Summary"
+     ],
+     "forms": [
+      "Vehicle",
+      "Driver",
+      "Fuel Transaction",
+      "Accident Report",
+      "PM Service"
+     ],
+     "freg": {
+      "src": 62,
+      "sub": [
+       [
+        "1",
+        "Vehicle Register",
+        8
+       ],
+       [
+        "2",
+        "Statutory Documents",
+        9
+       ],
+       [
+        "3",
+        "Drivers",
+        8
+       ],
+       [
+        "4",
+        "Assignment & Pool",
+        6
+       ],
+       [
+        "5",
+        "Pre-Use & PM",
+        9
+       ],
+       [
+        "6",
+        "Fuel & Odometer",
+        8
+       ],
+       [
+        "7",
+        "Telematics",
+        5
+       ],
+       [
+        "8",
+        "Accidents & Insurance",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M47",
+     "en": "Facility & Branch Infrastructure",
+     "bn": "সুবিধা ও শাখা",
+     "desc": "51+ sites — lease administration, statutory licences, utilities, branch infrastructure, safety equipment.",
+     "groups": [
+      {
+       "en": "Sites",
+       "screens": [
+        "M47-sites",
+        "M47-occupancy"
+       ]
+      },
+      {
+       "en": "Leases",
+       "screens": [
+        "M47-leases",
+        "M47-dates"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M47-licences",
+        "M47-utilities"
+       ]
+      },
+      {
+       "en": "Infrastructure",
+       "screens": [
+        "M47-infra",
+        "M47-pm",
+        "M47-wo"
+       ]
+      },
+      {
+       "en": "Safety",
+       "screens": [
+        "M47-safety",
+        "M47-security",
+        "M47-opening"
+       ]
+      }
+     ],
+     "reports": [
+      "Cost per Site / per Job",
+      "Lease Expiry Register",
+      "Licence Compliance",
+      "Utilities Variance",
+      "Facility Work Order Performance"
+     ],
+     "forms": [
+      "Site",
+      "Lease",
+      "Licence",
+      "Facility Work Order",
+      "Safety Inspection"
+     ],
+     "freg": {
+      "src": 71,
+      "sub": [
+       [
+        "1",
+        "Site Register",
+        7
+       ],
+       [
+        "2",
+        "Lease Administration",
+        11
+       ],
+       [
+        "3",
+        "Statutory Compliance",
+        9
+       ],
+       [
+        "4",
+        "Utilities",
+        6
+       ],
+       [
+        "5",
+        "Infrastructure Assets",
+        9
+       ],
+       [
+        "6",
+        "Building PM",
+        7
+       ],
+       [
+        "7",
+        "Work Orders",
+        6
+       ],
+       [
+        "8",
+        "Safety & Security",
+        10
+       ],
+       [
+        "9",
+        "Open / Close Projects",
+        6
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M48",
+     "en": "IoT Telemetry & Predictive",
+     "bn": "আইওটি ও পূর্বাভাস",
+     "desc": "TimescaleDB hypertables, threshold alerting, asset health scoring, failure prediction, prescriptive routing.",
+     "groups": [
+      {
+       "en": "Ingestion",
+       "screens": [
+        "M48-streams",
+        "M48-adapters",
+        "M48-health"
+       ]
+      },
+      {
+       "en": "Alerting",
+       "screens": [
+        "M48-alerts",
+        "M48-lifecycle"
+       ]
+      },
+      {
+       "en": "Intelligence",
+       "screens": [
+        "M48-scores",
+        "M48-failure",
+        "M48-rul",
+        "M48-routing"
+       ]
+      },
+      {
+       "en": "Governance",
+       "screens": [
+        "M48-consent"
+       ]
+      }
+     ],
+     "reports": [
+      "Telemetry Coverage",
+      "Alert Storm Analysis",
+      "Prediction Outcome Tracking",
+      "Stream Quality Report"
+     ],
+     "forms": [
+      "Stream Binding",
+      "Alert Rule",
+      "Downsampling Policy"
+     ],
+     "freg": {
+      "src": 51,
+      "sub": [
+       [
+        "1",
+        "Stream Registry & Onboarding",
+        8
+       ],
+       [
+        "2",
+        "Protocol Adapters",
+        7
+       ],
+       [
+        "3",
+        "Ingestion & Storage",
+        9
+       ],
+       [
+        "4",
+        "Threshold Alerting",
+        8
+       ],
+       [
+        "5",
+        "Health Scoring",
+        6
+       ],
+       [
+        "6",
+        "Failure Prediction",
+        7
+       ],
+       [
+        "7",
+        "Prescriptive Routing",
+        6
+       ]
+      ]
+     },
+     "subCount": 7
+    }
+   ]
+  },
+  {
+   "id": "A08",
+   "en": "Finance & Treasury",
+   "bn": "অর্থ ও কোষাগার",
+   "mods": [
+    {
+     "mid": "M19",
+     "en": "Financial Accounting & GL",
+     "bn": "আর্থিক হিসাব",
+     "desc": "Chart of accounts, 7-dimension model, subledger posting engine, July–June close, statutory statements.",
+     "groups": [
+      {
+       "en": "Ledger",
+       "screens": [
+        "M19-coa",
+        "M19-journals",
+        "M19-je",
+        "M19-tb",
+        "M19-dimensions"
+       ]
+      },
+      {
+       "en": "Close",
+       "screens": [
+        "M19-close",
+        "M19-periods"
+       ]
+      },
+      {
+       "en": "Statements",
+       "screens": [
+        "M19-bs",
+        "M19-pl",
+        "M19-cf",
+        "M19-consol"
+       ]
+      },
+      {
+       "en": "Controls",
+       "screens": [
+        "M19-suspense",
+        "M19-recon",
+        "M19-audit"
+       ]
+      }
+     ],
+     "reports": [
+      "Trial Balance",
+      "P&L (BFRS)",
+      "Balance Sheet",
+      "Cash Flow",
+      "Dimensional P&L by Branch",
+      "Close Checklist Report"
+     ],
+     "forms": [
+      "Journal Entry (manual/recurring)",
+      "Allocation Rule",
+      "Intercompany Charge"
+     ],
+     "freg": {
+      "src": 91,
+      "sub": [
+       [
+        "1",
+        "CoA & Dimensions",
+        12
+       ],
+       [
+        "2",
+        "Journals",
+        11
+       ],
+       [
+        "3",
+        "Subledger Posting Engine",
+        12
+       ],
+       [
+        "4",
+        "Fiscal Calendar & Close",
+        10
+       ],
+       [
+        "5",
+        "Multi-Entity & Consolidation",
+        9
+       ],
+       [
+        "6",
+        "Multi-Currency",
+        7
+       ],
+       [
+        "7",
+        "Statutory Statements",
+        9
+       ],
+       [
+        "8",
+        "Audit & Retention",
+        7
+       ],
+       [
+        "9",
+        "Accrual Framework",
+        8
+       ],
+       [
+        "10",
+        "Controls & SoD",
+        6
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M20",
+     "en": "AR, Invoicing & Collections",
+     "bn": "প্রাপ্য ও ইনভয়েসিং",
+     "desc": "Billable events from every module, Mushak 6.3 invoices, bKash/Nagad/card receipts, dunning, ageing.",
+     "groups": [
+      {
+       "en": "Invoicing",
+       "screens": [
+        "M20-invoices",
+        "M20-invoice",
+        "M20-events",
+        "M20-consolidated",
+        "M20-brand"
+       ]
+      },
+      {
+       "en": "Receipts",
+       "screens": [
+        "M20-receipts",
+        "M20-links",
+        "M20-allocation"
+       ]
+      },
+      {
+       "en": "Credit Control",
+       "screens": [
+        "M20-credit",
+        "M20-dunning",
+        "M20-disputes",
+        "M20-refunds"
+       ]
+      },
+      {
+       "en": "Analysis",
+       "screens": [
+        "M20-aging",
+        "M20-leakage",
+        "M20-statements"
+       ]
+      }
+     ],
+     "reports": [
+      "AR Ageing by Segment",
+      "Dunning Effectiveness",
+      "Payment Method Mix",
+      "Invoice Accuracy",
+      "Brand Receivable Ageing",
+      "Collections Productivity"
+     ],
+     "forms": [
+      "Invoice Request",
+      "Receipt",
+      "Credit Note",
+      "Refund",
+      "Payment Link"
+     ],
+     "freg": {
+      "src": 99,
+      "sub": [
+       [
+        "1",
+        "Billable-Event Intake",
+        12
+       ],
+       [
+        "2",
+        "Invoice Assembly",
+        12
+       ],
+       [
+        "3",
+        "Mushak 6.3 Rendering",
+        8
+       ],
+       [
+        "4",
+        "Delivery Channels",
+        6
+       ],
+       [
+        "5",
+        "Receipt Capture (8 methods)",
+        14
+       ],
+       [
+        "6",
+        "Matching & Allocation",
+        11
+       ],
+       [
+        "7",
+        "Credit Control",
+        9
+       ],
+       [
+        "8",
+        "Dunning & Collections",
+        12
+       ],
+       [
+        "9",
+        "Credit Notes & Refunds",
+        8
+       ],
+       [
+        "10",
+        "Leakage Detection",
+        7
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M52",
+     "en": "AP & Employee Expense",
+     "bn": "প্রদেয় ও ব্যয়",
+     "desc": "Vendor invoices with 3-way match, TDS/VDS at source, employee expenses & advances, payment runs.",
+     "groups": [
+      {
+       "en": "Vendor Payables",
+       "screens": [
+        "M52-bills",
+        "M52-match",
+        "M52-approval"
+       ]
+      },
+      {
+       "en": "Payments",
+       "screens": [
+        "M52-runs",
+        "M52-tds",
+        "M52-notes"
+       ]
+      },
+      {
+       "en": "Employee Expense",
+       "screens": [
+        "M52-claims",
+        "M52-advances",
+        "M52-perdiem",
+        "M52-policy"
+       ]
+      },
+      {
+       "en": "Analysis",
+       "screens": [
+        "M52-aging",
+        "M52-grni"
+       ]
+      }
+     ],
+     "reports": [
+      "AP Ageing",
+      "TDS Deduction Register",
+      "Payment Run Summary",
+      "Expense by Category",
+      "GRNI Reconciliation",
+      "Duplicate Prevention Log"
+     ],
+     "forms": [
+      "Vendor Bill",
+      "Expense Claim",
+      "Employee Advance",
+      "Debit Note"
+     ],
+     "freg": {
+      "src": 82,
+      "sub": [
+       [
+        "1",
+        "Invoice Capture",
+        10
+       ],
+       [
+        "2",
+        "Matching",
+        11
+       ],
+       [
+        "3",
+        "Approval",
+        8
+       ],
+       [
+        "4",
+        "Payable Ledger",
+        8
+       ],
+       [
+        "5",
+        "Payment Runs",
+        9
+       ],
+       [
+        "6",
+        "TDS/VDS",
+        9
+       ],
+       [
+        "7",
+        "Employee Expenses",
+        14
+       ],
+       [
+        "8",
+        "Advances & Cards",
+        8
+       ],
+       [
+        "9",
+        "GRNI",
+        5
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M50",
+     "en": "Treasury & Banking",
+     "bn": "কোষাগার ও ব্যাংক",
+     "desc": "Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.",
+     "groups": [
+      {
+       "en": "Cash",
+       "screens": [
+        "M50-position",
+        "M50-branchcash",
+        "M50-ridercod",
+        "M50-petty"
+       ]
+      },
+      {
+       "en": "Banking",
+       "screens": [
+        "M50-accounts",
+        "M50-statements",
+        "M50-recon"
+       ]
+      },
+      {
+       "en": "Execution",
+       "screens": [
+        "M50-beftn",
+        "M50-cheques",
+        "M50-mfs"
+       ]
+      },
+      {
+       "en": "Settlement",
+       "screens": [
+        "M50-gateway",
+        "M50-cit"
+       ]
+      },
+      {
+       "en": "Planning",
+       "screens": [
+        "M50-forecast",
+        "M50-facilities",
+        "M50-fx"
+       ]
+      }
+     ],
+     "reports": [
+      "Daily Cash Position",
+      "Bank Reconciliation Summary",
+      "Gateway Settlement Reconciliation",
+      "COD Settlement Report",
+      "13-Week Cash Forecast",
+      "Bank Charges Analysis"
+     ],
+     "forms": [
+      "Bank Statement Import",
+      "Payment Instruction",
+      "Cash Deposit",
+      "Imprest Top-Up"
+     ],
+     "freg": {
+      "src": 88,
+      "sub": [
+       [
+        "1",
+        "Bank Masters",
+        7
+       ],
+       [
+        "2",
+        "Statement & Recon",
+        13
+       ],
+       [
+        "3",
+        "Cash Position & Consolidation",
+        12
+       ],
+       [
+        "4",
+        "Payment Execution",
+        13
+       ],
+       [
+        "5",
+        "Gateway/MFS Settlement",
+        11
+       ],
+       [
+        "6",
+        "Forecasting",
+        8
+       ],
+       [
+        "7",
+        "Facilities & Trade Finance",
+        12
+       ],
+       [
+        "8",
+        "FX",
+        5
+       ],
+       [
+        "9",
+        "Controls",
+        7
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M51",
+     "en": "Tax & Regulatory (BD)",
+     "bn": "কর ও ভ্যাট",
+     "desc": "VAT 15%, Mushak 6.1–9.1 registers & returns, TDS/VDS, challans, NID capture, statutory calendar.",
+     "groups": [
+      {
+       "en": "VAT",
+       "screens": [
+        "M51-mushak61",
+        "M51-mushak62",
+        "M51-mushak63",
+        "M51-vat91",
+        "M51-challans",
+        "M51-input"
+       ]
+      },
+      {
+       "en": "Withholding",
+       "screens": [
+        "M51-tds",
+        "M51-vds",
+        "M51-certs"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M51-determination",
+        "M51-nid",
+        "M51-calendar",
+        "M51-audit"
+       ]
+      }
+     ],
+     "reports": [
+      "Mushak 9.1 Return Draft",
+      "VAT Reconciliation",
+      "TDS Annual Summary",
+      "SD & AT Liability",
+      "Marketplace VAT Model",
+      "Statutory Compliance Calendar"
+     ],
+     "forms": [
+      "Mushak 6.3 Entry",
+      "TDS Entry",
+      "Challan",
+      "Tax Adjustment"
+     ],
+     "freg": {
+      "src": 78,
+      "sub": [
+       [
+        "1",
+        "Determination Service",
+        9
+       ],
+       [
+        "2",
+        "VAT Output/Input",
+        12
+       ],
+       [
+        "3",
+        "Mushak Registers",
+        11
+       ],
+       [
+        "4",
+        "VAT Return 9.1",
+        8
+       ],
+       [
+        "5",
+        "VDS",
+        7
+       ],
+       [
+        "6",
+        "TDS",
+        12
+       ],
+       [
+        "7",
+        "Challans & Certificates",
+        7
+       ],
+       [
+        "8",
+        "NID & Cash Controls",
+        4
+       ],
+       [
+        "9",
+        "Calendar & Audit",
+        8
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M53",
+     "en": "Revenue Recognition & Settlement",
+     "bn": "রাজস্ব ও নিষ্পত্তি",
+     "desc": "Performance obligations, contract balances, commission ledger, seller/partner payouts, clawbacks, escrow.",
+     "groups": [
+      {
+       "en": "Revenue",
+       "screens": [
+        "M53-obligations",
+        "M53-schedules",
+        "M53-contract"
+       ]
+      },
+      {
+       "en": "Commission",
+       "screens": [
+        "M53-ledger",
+        "M53-schemes"
+       ]
+      },
+      {
+       "en": "Settlements",
+       "screens": [
+        "M53-payouts",
+        "M53-sellers",
+        "M53-partners",
+        "M53-escrow"
+       ]
+      }
+     ],
+     "reports": [
+      "Deferred Revenue Bridge",
+      "Rev-Rec by Stream",
+      "Commission Accrual",
+      "Payout Reconciliation",
+      "Clawback Register"
+     ],
+     "forms": [
+      "Revenue Schedule",
+      "Payout Run",
+      "Clawback",
+      "Commission Scheme"
+     ],
+     "freg": {
+      "src": 74,
+      "sub": [
+       [
+        "1",
+        "Performance Obligations",
+        10
+       ],
+       [
+        "2",
+        "Allocation & SSP",
+        8
+       ],
+       [
+        "3",
+        "Schedules & Triggers",
+        12
+       ],
+       [
+        "4",
+        "Modifications & Reversals",
+        8
+       ],
+       [
+        "5",
+        "Principal vs Agent",
+        5
+       ],
+       [
+        "6",
+        "Commission Ledger",
+        8
+       ],
+       [
+        "7",
+        "Seller Settlement",
+        10
+       ],
+       [
+        "8",
+        "Partner Payouts",
+        7
+       ],
+       [
+        "9",
+        "Escrow & Clawbacks",
+        6
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M49",
+     "en": "Fixed Assets & Capex",
+     "bn": "স্থায়ী সম্পদ ও ক্যাপেক্স",
+     "desc": "Capex requests to retirement — CWIP, dual-book depreciation (accounting + tax Third Schedule), verification.",
+     "groups": [
+      {
+       "en": "Capex",
+       "screens": [
+        "M49-requests",
+        "M49-budget"
+       ]
+      },
+      {
+       "en": "Register",
+       "screens": [
+        "M49-register",
+        "M49-cwip",
+        "M49-transfer"
+       ]
+      },
+      {
+       "en": "Depreciation",
+       "screens": [
+        "M49-dep",
+        "M49-schedules"
+       ]
+      },
+      {
+       "en": "Lifecycle",
+       "screens": [
+        "M49-impairment",
+        "M49-disposal",
+        "M49-verify"
+       ]
+      }
+     ],
+     "reports": [
+      "Fixed Asset Movement Schedule",
+      "Depreciation (Dual Book)",
+      "NBV by Category",
+      "Capex vs Budget",
+      "Disposal Gains/Losses"
+     ],
+     "forms": [
+      "Capex Request",
+      "Asset Capitalisation",
+      "Transfer",
+      "Disposal"
+     ],
+     "freg": {
+      "src": 66,
+      "sub": [
+       [
+        "1",
+        "Capex & Approval",
+        9
+       ],
+       [
+        "2",
+        "Register & Capitalisation",
+        11
+       ],
+       [
+        "3",
+        "Componentisation",
+        5
+       ],
+       [
+        "4",
+        "Dual-Book Depreciation",
+        12
+       ],
+       [
+        "5",
+        "Revaluation & Impairment",
+        7
+       ],
+       [
+        "6",
+        "Transfers & Custody",
+        6
+       ],
+       [
+        "7",
+        "Verification & Tagging",
+        7
+       ],
+       [
+        "8",
+        "Disposal",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M54",
+     "en": "Costing, Budget & FP&A",
+     "bn": "ব্যয়, বাজেট ও এফপিএ",
+     "desc": "Allocation cycles, job & contract costing, 14-stream business-line profitability, branch league, budgets.",
+     "groups": [
+      {
+       "en": "Costing",
+       "screens": [
+        "M54-pools",
+        "M54-allocation",
+        "M54-jobs",
+        "M54-loaded"
+       ]
+      },
+      {
+       "en": "Profitability",
+       "screens": [
+        "M54-streams",
+        "M54-branches",
+        "M54-customers",
+        "M54-unitecon"
+       ]
+      },
+      {
+       "en": "Budgeting",
+       "screens": [
+        "M54-budgets",
+        "M54-workflow",
+        "M54-bva"
+       ]
+      },
+      {
+       "en": "Planning",
+       "screens": [
+        "M54-rolling",
+        "M54-scenario",
+        "M54-board"
+       ]
+      }
+     ],
+     "reports": [
+      "Business-Line P&L (14)",
+      "Branch League Table",
+      "Budget vs Actual",
+      "Job Margin Distribution",
+      "Customer Profitability Deciles",
+      "Unit Economics per Repair"
+     ],
+     "forms": [
+      "Budget Version",
+      "Allocation Rule",
+      "Scenario"
+     ],
+     "freg": {
+      "src": 70,
+      "sub": [
+       [
+        "1",
+        "Cost Model",
+        9
+       ],
+       [
+        "2",
+        "Allocation Cycles",
+        10
+       ],
+       [
+        "3",
+        "Job & Contract Costing",
+        11
+       ],
+       [
+        "4",
+        "Business-Line Profitability",
+        9
+       ],
+       [
+        "5",
+        "Branch & Channel Profitability",
+        8
+       ],
+       [
+        "6",
+        "Budgeting",
+        11
+       ],
+       [
+        "7",
+        "Variance & Forecast",
+        8
+       ],
+       [
+        "8",
+        "Board Pack",
+        4
+       ]
+      ]
+     },
+     "subCount": 8
+    }
+   ]
+  },
+  {
+   "id": "A09",
+   "en": "People & Workforce",
+   "bn": "জনবল",
+   "mods": [
+    {
+     "mid": "M21",
+     "en": "Core HR & Lifecycle",
+     "bn": "মানবসম্পদ",
+     "desc": "Hire-to-retire, Labour Act documents (appointment letter, ID card, service book), org structure, ESS/MSS.",
+     "groups": [
+      {
+       "en": "Employee Master",
+       "screens": [
+        "M21-directory",
+        "M21-employee",
+        "M21-orgchart",
+        "M21-positions"
+       ]
+      },
+      {
+       "en": "Lifecycle",
+       "screens": [
+        "M21-hire",
+        "M21-transfer",
+        "M21-exit",
+        "M21-movement"
+       ]
+      },
+      {
+       "en": "Documents",
+       "screens": [
+        "M21-appointment",
+        "M21-servicebook",
+        "M21-nominees"
+       ]
+      },
+      {
+       "en": "Self-Service",
+       "screens": [
+        "M21-ess"
+       ]
+      }
+     ],
+     "reports": [
+      "Headcount & Movement",
+      "Attrition Analysis",
+      "Probation Conversion",
+      "Establishment Register",
+      "Org Distribution"
+     ],
+     "forms": [
+      "Employee",
+      "Transfer",
+      "Promotion",
+      "Exit Clearance"
+     ],
+     "freg": {
+      "src": 70,
+      "sub": [
+       [
+        "1",
+        "Employee Master",
+        12
+       ],
+       [
+        "2",
+        "Employment Contracts",
+        7
+       ],
+       [
+        "3",
+        "Org Structure",
+        9
+       ],
+       [
+        "4",
+        "Lifecycle Events",
+        12
+       ],
+       [
+        "5",
+        "Statutory Documents",
+        7
+       ],
+       [
+        "6",
+        "Dependants & Nominees",
+        5
+       ],
+       [
+        "7",
+        "ESS / MSS",
+        9
+       ],
+       [
+        "8",
+        "Exit Process",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M55",
+     "en": "Time, Attendance & Scheduling",
+     "bn": "সময় ও শিফট",
+     "desc": "Biometric + geofenced mobile capture, moon-dependent holidays, rosters, availability published to dispatch.",
+     "groups": [
+      {
+       "en": "Capture",
+       "screens": [
+        "M55-daily",
+        "M55-devices",
+        "M55-geofence",
+        "M55-exc"
+       ]
+      },
+      {
+       "en": "Working Time",
+       "screens": [
+        "M55-rules",
+        "M55-holidays"
+       ]
+      },
+      {
+       "en": "Leave",
+       "screens": [
+        "M55-leave",
+        "M55-balances",
+        "M55-calendar"
+       ]
+      },
+      {
+       "en": "Scheduling",
+       "screens": [
+        "M55-shifts",
+        "M55-rosters",
+        "M55-oncall",
+        "M55-availability"
+       ]
+      }
+     ],
+     "reports": [
+      "Attendance Summary",
+      "Overtime Analysis",
+      "Leave Utilisation",
+      "Roster vs Actual",
+      "Coverage Gaps"
+     ],
+     "forms": [
+      "Leave Request",
+      "Roster",
+      "Shift Pattern",
+      "Exception Regularisation"
+     ],
+     "freg": {
+      "src": 74,
+      "sub": [
+       [
+        "1",
+        "Capture (4 modes)",
+        12
+       ],
+       [
+        "2",
+        "Working Time & OT",
+        9
+       ],
+       [
+        "3",
+        "Leave",
+        10
+       ],
+       [
+        "4",
+        "Holidays",
+        5
+       ],
+       [
+        "5",
+        "Shifts & Rosters",
+        13
+       ],
+       [
+        "6",
+        "On-Call",
+        6
+       ],
+       [
+        "7",
+        "Availability Publication",
+        7
+       ],
+       [
+        "8",
+        "Verification & Lock",
+        6
+       ],
+       [
+        "9",
+        "Timesheets",
+        6
+       ]
+      ]
+     },
+     "subCount": 9
+    },
+    {
+     "mid": "M56",
+     "en": "Payroll & Statutory",
+     "bn": "বেতন ও সুবিধা",
+     "desc": "BD gross-to-net engine, tax slabs AY26-27, PF, gratuity ≥30 days/yr, festival bonus, BEFTN bank files.",
+     "groups": [
+      {
+       "en": "Payroll Engine",
+       "screens": [
+        "M56-runs",
+        "M56-structures",
+        "M56-payslips",
+        "M56-offcycle"
+       ]
+      },
+      {
+       "en": "Statutory",
+       "screens": [
+        "M56-tax",
+        "M56-pf",
+        "M56-gratuity",
+        "M56-bonus"
+       ]
+      },
+      {
+       "en": "Disbursement",
+       "screens": [
+        "M56-beftn",
+        "M56-certificates"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M56-returns",
+        "M56-settlement"
+       ]
+      }
+     ],
+     "reports": [
+      "Salary Register",
+      "Payroll Cost Allocation",
+      "Tax Deduction Summary",
+      "PF & Gratuity Provisions",
+      "Payroll Variance"
+     ],
+     "forms": [
+      "Salary Structure",
+      "Payroll Run",
+      "Bonus Run",
+      "Final Settlement"
+     ],
+     "freg": {
+      "src": 82,
+      "sub": [
+       [
+        "1",
+        "Gross-to-Net Engine",
+        14
+       ],
+       [
+        "2",
+        "BD Income Tax",
+        12
+       ],
+       [
+        "3",
+        "Provident Fund",
+        7
+       ],
+       [
+        "4",
+        "Gratuity",
+        7
+       ],
+       [
+        "5",
+        "Bonus & Encashment",
+        7
+       ],
+       [
+        "6",
+        "Loans & Advances",
+        6
+       ],
+       [
+        "7",
+        "Runs & Off-Cycle",
+        9
+       ],
+       [
+        "8",
+        "BEFTN & Payslips",
+        8
+       ],
+       [
+        "9",
+        "Returns & Certificates",
+        7
+       ],
+       [
+        "10",
+        "Final Settlement",
+        5
+       ]
+      ]
+     },
+     "subCount": 10
+    },
+    {
+     "mid": "M57",
+     "en": "Performance & Incentives",
+     "bn": "পারফরম্যান্স ও প্রণোদনা",
+     "desc": "Goal cascades, KPI attribution to payroll, technician incentive schemes, calibration, recognition.",
+     "groups": [
+      {
+       "en": "Performance",
+       "screens": [
+        "M57-goals",
+        "M57-kpis",
+        "M57-reviews",
+        "M57-calibration",
+        "M57-pips"
+       ]
+      },
+      {
+       "en": "Incentives",
+       "screens": [
+        "M57-schemes",
+        "M57-calc",
+        "M57-recognition"
+       ]
+      },
+      {
+       "en": "Compensation",
+       "screens": [
+        "M57-comp",
+        "M57-succession"
+       ]
+      }
+     ],
+     "reports": [
+      "Rating Distribution",
+      "Incentive Payout by Scheme",
+      "Technician Scorecards",
+      "Calibration Summary",
+      "PIP Outcomes"
+     ],
+     "forms": [
+      "Goal",
+      "Review",
+      "Incentive Scheme",
+      "Recognition"
+     ],
+     "freg": {
+      "src": 58,
+      "sub": [
+       [
+        "1",
+        "Goals & KPIs",
+        11
+       ],
+       [
+        "2",
+        "Review Cycles",
+        10
+       ],
+       [
+        "3",
+        "Multi-Source Feedback",
+        6
+       ],
+       [
+        "4",
+        "Rating & Calibration",
+        8
+       ],
+       [
+        "5",
+        "Incentive Design & Calculation",
+        12
+       ],
+       [
+        "6",
+        "Recognition",
+        4
+       ],
+       [
+        "7",
+        "Compensation Review",
+        7
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M22",
+     "en": "Learning & Certification",
+     "bn": "প্রশিক্ষণ ও সার্টিফিকেশন",
+     "desc": "Competency framework, brand certification register with expiry, hard block on expired certification at dispatch.",
+     "groups": [
+      {
+       "en": "Competency",
+       "screens": [
+        "M22-framework",
+        "M22-matrix",
+        "M22-assessments"
+       ]
+      },
+      {
+       "en": "Certifications",
+       "screens": [
+        "M22-register",
+        "M22-expiry",
+        "M22-eligibility"
+       ]
+      },
+      {
+       "en": "Training",
+       "screens": [
+        "M22-catalogue",
+        "M22-paths",
+        "M22-schedule",
+        "M22-ojt"
+       ]
+      },
+      {
+       "en": "Evidence",
+       "screens": [
+        "M22-iso"
+       ]
+      }
+     ],
+     "reports": [
+      "Certification Coverage by Brand",
+      "Expiry Forecast",
+      "Training Effectiveness",
+      "Skill-Gap Heatmap",
+      "Audit Evidence Pack"
+     ],
+     "forms": [
+      "Certification",
+      "Course",
+      "Learning Path",
+      "Assessment"
+     ],
+     "freg": {
+      "src": 52,
+      "sub": [
+       [
+        "1",
+        "Competency Framework",
+        8
+       ],
+       [
+        "2",
+        "Skill Matrix & Assessment",
+        10
+       ],
+       [
+        "3",
+        "Certification Register",
+        12
+       ],
+       [
+        "4",
+        "Training Delivery",
+        12
+       ],
+       [
+        "5",
+        "OJT & Mentoring",
+        5
+       ],
+       [
+        "6",
+        "Evidence & Analytics",
+        5
+       ]
+      ]
+     },
+     "subCount": 6
+    },
+    {
+     "mid": "M58",
+     "en": "Talent Acquisition",
+     "bn": "নিয়োগ",
+     "desc": "Requisitions vs budget, structured interviews, practical technician assessments, pre-boarding, PDPA erasure.",
+     "groups": [
+      {
+       "en": "Requisitions",
+       "screens": [
+        "M58-reqs",
+        "M58-approval"
+       ]
+      },
+      {
+       "en": "Sourcing",
+       "screens": [
+        "M58-postings",
+        "M58-candidates"
+       ]
+      },
+      {
+       "en": "Selection",
+       "screens": [
+        "M58-interviews",
+        "M58-practical",
+        "M58-checks",
+        "M58-offers"
+       ]
+      },
+      {
+       "en": "Onboarding",
+       "screens": [
+        "M58-preboard",
+        "M58-first90"
+       ]
+      }
+     ],
+     "reports": [
+      "Funnel & Conversion",
+      "Time-to-Fill by Role",
+      "Source Effectiveness",
+      "First-90 Retention",
+      "Practical Assessment Results"
+     ],
+     "forms": [
+      "Requisition",
+      "Candidate",
+      "Interview Evaluation",
+      "Offer"
+     ],
+     "freg": {
+      "src": 50,
+      "sub": [
+       [
+        "1",
+        "Workforce Planning & Requisition",
+        9
+       ],
+       [
+        "2",
+        "Sourcing",
+        7
+       ],
+       [
+        "3",
+        "Screening",
+        6
+       ],
+       [
+        "4",
+        "Interviews & Assessments",
+        11
+       ],
+       [
+        "5",
+        "Checks & Offers",
+        7
+       ],
+       [
+        "6",
+        "Pre-Boarding",
+        4
+       ],
+       [
+        "7",
+        "Onboarding Orchestration",
+        6
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M59",
+     "en": "Health, Safety & Wellbeing",
+     "bn": "স্বাস্থ্য ও নিরাপত্তা",
+     "desc": "Hazard register, lone-worker safety, battery/electrical hazards, statutory accident clock, safety committee.",
+     "groups": [
+      {
+       "en": "Risk",
+       "screens": [
+        "M59-hazards",
+        "M59-jsa",
+        "M59-ppe"
+       ]
+      },
+      {
+       "en": "Incidents",
+       "screens": [
+        "M59-report",
+        "M59-investigate",
+        "M59-statutory"
+       ]
+      },
+      {
+       "en": "Field Safety",
+       "screens": [
+        "M59-loneworker",
+        "M59-road",
+        "M59-battery"
+       ]
+      },
+      {
+       "en": "Programme",
+       "screens": [
+        "M59-drills",
+        "M59-committee",
+        "M59-wellbeing"
+       ]
+      }
+     ],
+     "reports": [
+      "Incident Statistics",
+      "Leading Indicators",
+      "Statutory Compliance",
+      "PPE Compliance",
+      "Drill Calendar Coverage"
+     ],
+     "forms": [
+      "Incident Report",
+      "JSA",
+      "PPE Issue",
+      "Return-to-Work"
+     ],
+     "freg": {
+      "src": 60,
+      "sub": [
+       [
+        "1",
+        "Hazard Register & Risk",
+        9
+       ],
+       [
+        "2",
+        "Procedures & Permits",
+        7
+       ],
+       [
+        "3",
+        "Incident Management",
+        13
+       ],
+       [
+        "4",
+        "Statutory Notification",
+        5
+       ],
+       [
+        "5",
+        "PPE",
+        5
+       ],
+       [
+        "6",
+        "Field & Road Safety",
+        8
+       ],
+       [
+        "7",
+        "Training & Drills",
+        6
+       ],
+       [
+        "8",
+        "Health & Wellbeing",
+        7
+       ]
+      ]
+     },
+     "subCount": 8
+    }
+   ]
+  },
+  {
+   "id": "A10",
+   "en": "Quality & Governance",
+   "bn": "গুণগতমান ও গভর্নেন্স",
+   "mods": [
+    {
+     "mid": "M23",
+     "en": "Quality Management (ISO)",
+     "bn": "কোয়ালিটি ম্যানেজমেন্ট",
+     "desc": "ISO 9001:2015 operating system — process register, NCRs, CAPA with verification, audits, management review.",
+     "groups": [
+      {
+       "en": "Framework",
+       "screens": [
+        "M23-policy",
+        "M23-processes",
+        "M23-checklists",
+        "M23-gates"
+       ]
+      },
+      {
+       "en": "Nonconformance",
+       "screens": [
+        "M23-ncr",
+        "M23-rca",
+        "M23-capa"
+       ]
+      },
+      {
+       "en": "Audits",
+       "screens": [
+        "M23-internal",
+        "M23-external",
+        "M23-review"
+       ]
+      },
+      {
+       "en": "Analytics",
+       "screens": [
+        "M23-stat",
+        "M23-copq"
+       ]
+      }
+     ],
+     "reports": [
+      "NCR & CAPA Register",
+      "Audit Programme Status",
+      "Repeat-Failure Escalation",
+      "CoPQ Analysis",
+      "Management Review Pack"
+     ],
+     "forms": [
+      "NCR",
+      "CAPA",
+      "Audit Finding",
+      "Checklist Template"
+     ],
+     "freg": {
+      "src": 78,
+      "sub": [
+       [
+        "1",
+        "Policy & Objectives",
+        6
+       ],
+       [
+        "2",
+        "Process Register",
+        7
+       ],
+       [
+        "3",
+        "Checklists & Gates",
+        10
+       ],
+       [
+        "4",
+        "NCR Management",
+        12
+       ],
+       [
+        "5",
+        "RCA & CAPA",
+        14
+       ],
+       [
+        "6",
+        "Audit Programme",
+        13
+       ],
+       [
+        "7",
+        "Management Review",
+        7
+       ],
+       [
+        "8",
+        "Statistics & CoPQ",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M60",
+     "en": "Governance, Risk & Compliance",
+     "bn": "গভর্নেন্স ও ঝুঁকি",
+     "desc": "Enterprise risk register, internal control testing, SoD rules, licence register, PDPA governance, whistleblowing.",
+     "groups": [
+      {
+       "en": "Risk",
+       "screens": [
+        "M60-register",
+        "M60-appetite"
+       ]
+      },
+      {
+       "en": "Controls",
+       "screens": [
+        "M60-framework",
+        "M60-testing",
+        "M60-sod",
+        "M60-authority"
+       ]
+      },
+      {
+       "en": "Compliance",
+       "screens": [
+        "M60-obligations",
+        "M60-licences",
+        "M60-policies"
+       ]
+      },
+      {
+       "en": "Legal & Data",
+       "screens": [
+        "M60-legal",
+        "M60-pdpa",
+        "M60-whistle"
+       ]
+      }
+     ],
+     "reports": [
+      "Risk Heat Map",
+      "Control Deficiency Log",
+      "Licence Expiry Register",
+      "Attestation Status",
+      "Board Risk Pack"
+     ],
+     "forms": [
+      "Risk",
+      "Control Test",
+      "Licence",
+      "Policy",
+      "Whistleblow Report"
+     ],
+     "freg": {
+      "src": 70,
+      "sub": [
+       [
+        "1",
+        "Risk Register",
+        12
+       ],
+       [
+        "2",
+        "Control Framework & Testing",
+        14
+       ],
+       [
+        "3",
+        "SoD & Authority",
+        8
+       ],
+       [
+        "4",
+        "Compliance Obligations",
+        9
+       ],
+       [
+        "5",
+        "Policy Governance",
+        6
+       ],
+       [
+        "6",
+        "Legal & IP",
+        7
+       ],
+       [
+        "7",
+        "PDPA Governance",
+        9
+       ],
+       [
+        "8",
+        "Whistleblowing",
+        5
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M24",
+     "en": "Documents & E-Signature",
+     "bn": "দলিল ও ই-স্বাক্ষর",
+     "desc": "Auto-filing from transactions, bilingual OCR search, e-signature envelopes, retention 5–10y, evidence packs.",
+     "groups": [
+      {
+       "en": "Repository",
+       "screens": [
+        "M24-browser",
+        "M24-search"
+       ]
+      },
+      {
+       "en": "Workflows",
+       "screens": [
+        "M24-controlled",
+        "M24-generation"
+       ]
+      },
+      {
+       "en": "E-Signature",
+       "screens": [
+        "M24-envelopes",
+        "M24-audit"
+       ]
+      },
+      {
+       "en": "Retention",
+       "screens": [
+        "M24-retention",
+        "M24-holds",
+        "M24-disposal"
+       ]
+      }
+     ],
+     "reports": [
+      "Retention Compliance",
+      "Signature Status",
+      "Repository Growth",
+      "Access Audit Export"
+     ],
+     "forms": [
+      "Upload",
+      "Signature Envelope",
+      "Share Token",
+      "Retention Policy"
+     ],
+     "freg": {
+      "src": 56,
+      "sub": [
+       [
+        "1",
+        "Repository & Integrity",
+        7
+       ],
+       [
+        "2",
+        "Auto-Filing",
+        6
+       ],
+       [
+        "3",
+        "Classification & Search",
+        9
+       ],
+       [
+        "4",
+        "Versioning & Control",
+        7
+       ],
+       [
+        "5",
+        "E-Signature",
+        10
+       ],
+       [
+        "6",
+        "Retention & Holds",
+        10
+       ],
+       [
+        "7",
+        "Evidence Packs",
+        7
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M61",
+     "en": "Knowledge & Technical Library",
+     "bn": "জ্ঞান ও কারিগরি লাইব্রেরি",
+     "desc": "Repair procedures & fault→fix, troubleshooting trees, offline distribution to technician app, brand bulletins.",
+     "groups": [
+      {
+       "en": "Authoring",
+       "screens": [
+        "M61-articles",
+        "M61-trees",
+        "M61-review"
+       ]
+      },
+      {
+       "en": "Technical Library",
+       "screens": [
+        "M61-manuals",
+        "M61-media"
+       ]
+      },
+      {
+       "en": "Distribution",
+       "screens": [
+        "M61-context",
+        "M61-offline"
+       ]
+      },
+      {
+       "en": "Feedback",
+       "screens": [
+        "M61-health",
+        "M61-bulletins"
+       ]
+      }
+     ],
+     "reports": [
+      "Coverage Analysis",
+      "Article Usage & Usefulness",
+      "Gap Report by Brand/Model",
+      "Contribution Leaderboard"
+     ],
+     "forms": [
+      "Article",
+      "Troubleshooting Tree",
+      "Bulletin"
+     ],
+     "freg": {
+      "src": 48,
+      "sub": [
+       [
+        "1",
+        "Authoring & Versioning",
+        8
+       ],
+       [
+        "2",
+        "Troubleshooting Trees",
+        7
+       ],
+       [
+        "3",
+        "Technical Library",
+        7
+       ],
+       [
+        "4",
+        "Search & Surfacing",
+        7
+       ],
+       [
+        "5",
+        "Offline Distribution",
+        5
+       ],
+       [
+        "6",
+        "Feedback & Health",
+        6
+       ],
+       [
+        "7",
+        "Brand Bulletins",
+        4
+       ],
+       [
+        "8",
+        "Expertise Mapping",
+        4
+       ]
+      ]
+     },
+     "subCount": 8
+    }
+   ]
+  },
+  {
+   "id": "A11",
+   "en": "Insights & Intelligence",
+   "bn": "বিশ্লেষণ ও বুদ্ধিমত্তা",
+   "mods": [
+    {
+     "mid": "M25",
+     "en": "Business Intelligence",
+     "bn": "বিজনেস ইন্টেলিজেন্স",
+     "desc": "Role dashboards, standard report library, embedded analytics, scheduled bursting, spreadsheet retirement.",
+     "groups": [
+      {
+       "en": "Executive",
+       "screens": [
+        "M25-ceo",
+        "M25-coo",
+        "M25-cfo",
+        "M25-ccO"
+       ]
+      },
+      {
+       "en": "Functional",
+       "screens": [
+        "M25-service",
+        "M25-branch",
+        "M25-finance",
+        "M25-people",
+        "M25-quality"
+       ]
+      },
+      {
+       "en": "Self-Service",
+       "screens": [
+        "M25-datasets",
+        "M25-builder"
+       ]
+      },
+      {
+       "en": "Operations",
+       "screens": [
+        "M25-schedules",
+        "M25-alerts"
+       ]
+      }
+     ],
+     "reports": [
+      "Executive Pack",
+      "Branch League",
+      "Service KPI Pack",
+      "Finance Pack",
+      "People Pack",
+      "Any dashboard → export"
+     ],
+     "forms": [
+      "Dashboard",
+      "Distribution Schedule",
+      "Alert Subscription"
+     ],
+     "freg": {
+      "src": 58,
+      "sub": [
+       [
+        "1",
+        "Role Dashboards",
+        12
+       ],
+       [
+        "2",
+        "Standard Report Library",
+        10
+       ],
+       [
+        "3",
+        "Self-Service",
+        8
+       ],
+       [
+        "4",
+        "Distribution & Alerting",
+        9
+       ],
+       [
+        "5",
+        "Embedded Analytics",
+        7
+       ],
+       [
+        "6",
+        "Mobile",
+        5
+       ],
+       [
+        "7",
+        "Lifecycle & Usage",
+        7
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M26",
+     "en": "AI/ML Services (14 models)",
+     "bn": "এআই/এমএল সেবা",
+     "desc": "Dispatch scoring 70% auto-assign, fault classification from Bengali text, demand MAPE<22%, trade-in valuation.",
+     "groups": [
+      {
+       "en": "Portfolio",
+       "screens": [
+        "M26-models",
+        "M26-registry"
+       ]
+      },
+      {
+       "en": "Operations",
+       "screens": [
+        "M26-deploy",
+        "M26-monitor",
+        "M26-fallback"
+       ]
+      },
+      {
+       "en": "Governance",
+       "screens": [
+        "M26-governance",
+        "M26-bias",
+        "M26-cards"
+       ]
+      },
+      {
+       "en": "Generative",
+       "screens": [
+        "M26-genai",
+        "M26-ocr"
+       ]
+      }
+     ],
+     "reports": [
+      "Model Performance Pack",
+      "Override Analysis",
+      "Drift Report",
+      "Fairness Summary"
+     ],
+     "forms": [
+      "Model Version",
+      "Evaluation Gate",
+      "Guard-Rail Config"
+     ],
+     "freg": {
+      "src": 58,
+      "sub": [
+       [
+        "1",
+        "Portfolio & Governance",
+        10
+       ],
+       [
+        "2",
+        "Training Pipelines",
+        8
+       ],
+       [
+        "3",
+        "Evaluation Gates",
+        7
+       ],
+       [
+        "4",
+        "Deployment & Monitoring",
+        11
+       ],
+       [
+        "5",
+        "Explainability",
+        5
+       ],
+       [
+        "6",
+        "GenAI & RAG",
+        9
+       ],
+       [
+        "7",
+        "Bengali NLP & OCR",
+        8
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M62",
+     "en": "Data Platform & Governance",
+     "bn": "ডেটা প্ল্যাটফর্ম",
+     "desc": "Medallion lakehouse, dimensional model, semantic metric registry (one certified number), lineage, masking.",
+     "groups": [
+      {
+       "en": "Pipelines",
+       "screens": [
+        "M62-ingestion",
+        "M62-medallion",
+        "M62-backfill"
+       ]
+      },
+      {
+       "en": "Modelling",
+       "screens": [
+        "M62-dimensional",
+        "M62-contracts"
+       ]
+      },
+      {
+       "en": "Governance",
+       "screens": [
+        "M62-metrics",
+        "M62-catalog",
+        "M62-quality",
+        "M62-observability"
+       ]
+      },
+      {
+       "en": "Security",
+       "screens": [
+        "M62-masking",
+        "M62-retention"
+       ]
+      }
+     ],
+     "reports": [
+      "Data Quality Scorecard",
+      "Freshness SLA",
+      "Lineage Coverage",
+      "Cost per Domain"
+     ],
+     "forms": [
+      "Data Contract",
+      "Metric Definition",
+      "Quality Test"
+     ],
+     "freg": {
+      "src": 62,
+      "sub": [
+       [
+        "1",
+        "Ingestion",
+        10
+       ],
+       [
+        "2",
+        "Medallion & Transformation",
+        9
+       ],
+       [
+        "3",
+        "Dimensional Model",
+        10
+       ],
+       [
+        "4",
+        "Semantic Layer",
+        9
+       ],
+       [
+        "5",
+        "Quality & Observability",
+        10
+       ],
+       [
+        "6",
+        "Catalogue & Lineage",
+        8
+       ],
+       [
+        "7",
+        "Security & Cost",
+        6
+       ]
+      ]
+     },
+     "subCount": 7
+    },
+    {
+     "mid": "M63",
+     "en": "Process Automation",
+     "bn": "প্রসেস অটোমেশন",
+     "desc": "Workflow engine with approval chains, DoA matrix, business-rule repository, unified task inbox, escalation.",
+     "groups": [
+      {
+       "en": "Engine",
+       "screens": [
+        "M63-definitions",
+        "M63-monitor",
+        "M63-jobs"
+       ]
+      },
+      {
+       "en": "Approvals",
+       "screens": [
+        "M63-doa",
+        "M63-substitution"
+       ]
+      },
+      {
+       "en": "Rules",
+       "screens": [
+        "M63-rules",
+        "M63-simulation"
+       ]
+      },
+      {
+       "en": "Task Inbox",
+       "screens": [
+        "M63-inbox"
+       ]
+      }
+     ],
+     "reports": [
+      "Automation Rate by Process",
+      "Approval Cycle Time",
+      "Escalation Analysis",
+      "Rule Change Log"
+     ],
+     "forms": [
+      "Workflow Definition",
+      "Approval Chain",
+      "Business Rule"
+     ],
+     "freg": {
+      "src": 54,
+      "sub": [
+       [
+        "1",
+        "Workflow Engine",
+        11
+       ],
+       [
+        "2",
+        "Approval Chains",
+        10
+       ],
+       [
+        "3",
+        "DoA Matrix",
+        6
+       ],
+       [
+        "4",
+        "Business Rules",
+        9
+       ],
+       [
+        "5",
+        "Scheduled & Event Jobs",
+        7
+       ],
+       [
+        "6",
+        "Task Inbox",
+        5
+       ],
+       [
+        "7",
+        "Audit & Performance",
+        6
+       ]
+      ]
+     },
+     "subCount": 7
+    }
+   ]
+  },
+  {
+   "id": "A12",
+   "en": "Platform & Technology",
+   "bn": "প্ল্যাটফর্ম ও প্রযুক্তি",
+   "mods": [
+    {
+     "mid": "M28",
+     "en": "Integration, API & Events",
+     "bn": "ইন্টিগ্রেশন ও এপিআই",
+     "desc": "API gateway, 47 external connectors (bKash/Nagad/SSLCOMMERZ/Google Maps/Traccar), event bus, offline sync.",
+     "groups": [
+      {
+       "en": "Gateway",
+       "screens": [
+        "M28-apis",
+        "M28-consumers",
+        "M28-quotas"
+       ]
+      },
+      {
+       "en": "Events",
+       "screens": [
+        "M28-topics",
+        "M28-schemas",
+        "M28-dlq",
+        "M28-replay"
+       ]
+      },
+      {
+       "en": "Connectors",
+       "screens": [
+        "M28-external",
+        "M28-health"
+       ]
+      },
+      {
+       "en": "Sync",
+       "screens": [
+        "M28-offline",
+        "M28-conflicts"
+       ]
+      }
+     ],
+     "reports": [
+      "API Usage by Consumer",
+      "Event Delivery SLO",
+      "Connector Latency",
+      "DLQ Analysis",
+      "Webhook Success Rate"
+     ],
+     "forms": [
+      "API Consumer",
+      "Event Subscription",
+      "Connector Credential"
+     ],
+     "freg": {
+      "src": 70,
+      "sub": [
+       [
+        "1",
+        "Gateway",
+        10
+       ],
+       [
+        "2",
+        "Versioning & Portals",
+        6
+       ],
+       [
+        "3",
+        "Outbox & Event Bus",
+        12
+       ],
+       [
+        "4",
+        "Subscriptions & DLQ",
+        9
+       ],
+       [
+        "5",
+        "Webhooks",
+        5
+       ],
+       [
+        "6",
+        "Connector Framework (47)",
+        12
+       ],
+       [
+        "7",
+        "Offline Sync",
+        10
+       ],
+       [
+        "8",
+        "Reconciliation",
+        6
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M29",
+     "en": "Identity, Access & Security",
+     "bn": "পরিচয় ও নিরাপত্তা",
+     "desc": "MFA everywhere, 6 data-isolation tiers T0–T5, field-level permissions, SoD enforcement, immutable audit.",
+     "groups": [
+      {
+       "en": "Identity",
+       "screens": [
+        "M29-users",
+        "M29-sessions",
+        "M29-jml"
+       ]
+      },
+      {
+       "en": "Access",
+       "screens": [
+        "M29-roles",
+        "M29-record",
+        "M29-fields",
+        "M29-cert"
+       ]
+      },
+      {
+       "en": "Data Protection",
+       "screens": [
+        "M29-classification",
+        "M29-residency",
+        "M29-keys"
+       ]
+      },
+      {
+       "en": "Monitoring",
+       "screens": [
+        "M29-audit",
+        "M29-privileged",
+        "M29-incidents"
+       ]
+      }
+     ],
+     "reports": [
+      "Access Review Pack",
+      "Privileged Session Log",
+      "Sensitive-Data Access",
+      "SoD Test Results",
+      "Authentication Trends"
+     ],
+     "forms": [
+      "User",
+      "Role",
+      "Record Rule",
+      "Access Request"
+     ],
+     "freg": {
+      "src": 78,
+      "sub": [
+       [
+        "1",
+        "Identity Lifecycle",
+        10
+       ],
+       [
+        "2",
+        "Authentication & MFA",
+        11
+       ],
+       [
+        "3",
+        "Roles & Record Rules",
+        14
+       ],
+       [
+        "4",
+        "Field Permissions & SoD",
+        11
+       ],
+       [
+        "5",
+        "Certification",
+        5
+       ],
+       [
+        "6",
+        "Privileged Access",
+        8
+       ],
+       [
+        "7",
+        "Data Protection",
+        10
+       ],
+       [
+        "8",
+        "Monitoring & Response",
+        9
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M30",
+     "en": "Platform Administration",
+     "bn": "প্ল্যাটফর্ম প্রশাসন",
+     "desc": "Legal entities, 51+ branch register with <1-day provisioning, config registry, feature flags, health console.",
+     "groups": [
+      {
+       "en": "Organisation",
+       "screens": [
+        "M30-entities",
+        "M30-branches",
+        "M30-provisioning",
+        "M30-zones"
+       ]
+      },
+      {
+       "en": "Configuration",
+       "screens": [
+        "M30-params",
+        "M30-flags",
+        "M30-calendars"
+       ]
+      },
+      {
+       "en": "Operations",
+       "screens": [
+        "M30-jobs",
+        "M30-health",
+        "M30-env",
+        "M30-backup"
+       ]
+      },
+      {
+       "en": "Comms",
+       "screens": [
+        "M30-announcements",
+        "M30-release"
+       ]
+      }
+     ],
+     "reports": [
+      "Config Change Log",
+      "Job Success Rate",
+      "Environment Inventory",
+      "Branch Provisioning Time"
+     ],
+     "forms": [
+      "Branch",
+      "Config Parameter",
+      "Feature Flag",
+      "Announcement"
+     ],
+     "freg": {
+      "src": 64,
+      "sub": [
+       [
+        "1",
+        "Entity & Branch Register",
+        12
+       ],
+       [
+        "2",
+        "Provisioning",
+        8
+       ],
+       [
+        "3",
+        "Configuration Registry",
+        10
+       ],
+       [
+        "4",
+        "Feature Flags",
+        6
+       ],
+       [
+        "5",
+        "Jobs & Queues",
+        7
+       ],
+       [
+        "6",
+        "Health & Observability",
+        7
+       ],
+       [
+        "7",
+        "Backup / DR / Archival",
+        7
+       ],
+       [
+        "8",
+        "Announcements & Release",
+        7
+       ]
+      ]
+     },
+     "subCount": 8
+    },
+    {
+     "mid": "M64",
+     "en": "Master Data Management",
+     "bn": "মাস্টার ডেটা",
+     "desc": "Domain ownership, stewardship workflow as only change path, DQ rule engine, golden-record survivorship.",
+     "groups": [
+      {
+       "en": "Governance",
+       "screens": [
+        "M64-domains",
+        "M64-stewardship"
+       ]
+      },
+      {
+       "en": "Quality",
+       "screens": [
+        "M64-rules",
+        "M64-scoring",
+        "M64-dedupe"
+       ]
+      },
+      {
+       "en": "Reference Data",
+       "screens": [
+        "M64-codelists",
+        "M64-xref"
+       ]
+      },
+      {
+       "en": "Change",
+       "screens": [
+        "M64-impact",
+        "M64-lineage"
+       ]
+      }
+     ],
+     "reports": [
+      "Data Quality by Domain",
+      "Stewardship SLA",
+      "Merge/Unmerge Audit",
+      "Code List Versions"
+     ],
+     "forms": [
+      "Steward Request",
+      "DQ Rule",
+      "Code List Entry"
+     ],
+     "freg": {
+      "src": 52,
+      "sub": [
+       [
+        "1",
+        "Domain Register",
+        6
+       ],
+       [
+        "2",
+        "Stewardship",
+        9
+       ],
+       [
+        "3",
+        "DQ Rules & Scoring",
+        11
+       ],
+       [
+        "4",
+        "Deduplication & Survivorship",
+        10
+       ],
+       [
+        "5",
+        "Reference Data",
+        8
+       ],
+       [
+        "6",
+        "Hierarchy & Lineage",
+        8
+       ]
+      ]
+     },
+     "subCount": 6
+    },
+    {
+     "mid": "M65",
+     "en": "Multi-Entity & Localisation",
+     "bn": "বহু-সত্তা ও স্থানীয়করণ",
+     "desc": "Country packs, bn-BD ICU collation & phonetic input, lakh/crore grouping, residency rules, expansion gateways.",
+     "groups": [
+      {
+       "en": "Localisation",
+       "screens": [
+        "M65-bengali",
+        "M65-translations",
+        "M65-locales"
+       ]
+      },
+      {
+       "en": "Country Packs",
+       "screens": [
+        "M65-packs",
+        "M65-jurisdictions"
+       ]
+      },
+      {
+       "en": "Multi-Entity",
+       "screens": [
+        "M65-entities",
+        "M65-intercompany"
+       ]
+      },
+      {
+       "en": "Expansion",
+       "screens": [
+        "M65-gateways",
+        "M65-assessment"
+       ]
+      }
+     ],
+     "reports": [
+      "Translation Completeness",
+      "Country Pack Inventory",
+      "Cross-Border Transfer Log"
+     ],
+     "forms": [
+      "Country Pack",
+      "Locale Pack",
+      "Jurisdiction Rule"
+     ],
+     "freg": {
+      "src": 48,
+      "sub": [
+       [
+        "1",
+        "Country Packs",
+        12
+       ],
+       [
+        "2",
+        "Locale & Translation",
+        9
+       ],
+       [
+        "3",
+        "Bengali-Specific",
+        8
+       ],
+       [
+        "4",
+        "Currency & Address",
+        7
+       ],
+       [
+        "5",
+        "Jurisdiction & Residency",
+        7
+       ],
+       [
+        "6",
+        "Expansion",
+        5
+       ]
+      ]
+     },
+     "subCount": 6
+    },
+    {
+     "mid": "M66",
+     "en": "Internal IT Service",
+     "bn": "অভ্যন্তরীণ আইটি সেবা",
+     "desc": "Employee service catalogue, incidents & changes, IT asset lifecycle, licence optimisation, CMDB.",
+     "groups": [
+      {
+       "en": "Service Desk",
+       "screens": [
+        "M66-catalogue",
+        "M66-incidents",
+        "M66-problems",
+        "M66-changes"
+       ]
+      },
+      {
+       "en": "Assets",
+       "screens": [
+        "M66-assets",
+        "M66-licences",
+        "M66-cmdb"
+       ]
+      },
+      {
+       "en": "Employee IT",
+       "screens": [
+        "M66-onboard"
+       ]
+      }
+     ],
+     "reports": [
+      "Ticket SLA Performance",
+      "Licence Utilisation",
+      "Asset Lifecycle Status",
+      "Change Success Rate"
+     ],
+     "forms": [
+      "Incident",
+      "Change",
+      "Asset",
+      "Service Request"
+     ],
+     "freg": {
+      "src": 52,
+      "sub": [
+       [
+        "1",
+        "Service Catalogue",
+        7
+       ],
+       [
+        "2",
+        "Incident & Problem",
+        12
+       ],
+       [
+        "3",
+        "Change & Release",
+        9
+       ],
+       [
+        "4",
+        "IT Asset Management",
+        10
+       ],
+       [
+        "5",
+        "Licence Optimisation",
+        7
+       ],
+       [
+        "6",
+        "CMDB",
+        7
+       ]
+      ]
+     },
+     "subCount": 6
+    },
+    {
+     "mid": "M67",
+     "en": "Projects & Portfolio",
+     "bn": "প্রকল্প ও পোর্টফোলিও",
+     "desc": "Branch openings, rollouts, bulk decommissions — WBS, earned value, milestone billing, portfolio stage gates.",
+     "groups": [
+      {
+       "en": "Portfolio",
+       "screens": [
+        "M67-portfolio",
+        "M67-templates"
+       ]
+      },
+      {
+       "en": "Delivery",
+       "screens": [
+        "M67-projects",
+        "M67-record",
+        "M67-wbs",
+        "M67-resources"
+       ]
+      },
+      {
+       "en": "Financials",
+       "screens": [
+        "M67-evm",
+        "M67-billing",
+        "M67-profit"
+       ]
+      },
+      {
+       "en": "Risk",
+       "screens": [
+        "M67-risks",
+        "M67-gates"
+       ]
+      }
+     ],
+     "reports": [
+      "Portfolio Health",
+      "Earned Value Analysis",
+      "Milestone Billing Register",
+      "Resource Utilisation",
+      "Benefits Realisation"
+     ],
+     "forms": [
+      "Project (6 types)",
+      "Milestone",
+      "Task",
+      "Stage Gate Review"
+     ],
+     "freg": {
+      "src": 54,
+      "sub": [
+       [
+        "1",
+        "Project Object & WBS",
+        12
+       ],
+       [
+        "2",
+        "Scheduling & Baselines",
+        9
+       ],
+       [
+        "3",
+        "Resources",
+        8
+       ],
+       [
+        "4",
+        "Cost & Earned Value",
+        10
+       ],
+       [
+        "5",
+        "Milestone Billing",
+        6
+       ],
+       [
+        "6",
+        "Risk & Gates",
+        9
+       ]
+      ]
+     },
+     "subCount": 6
+    }
+   ]
+  }
+ ],
+ "personas": [
+  {
+   "id": "super",
+   "name": "Rahim Uddin",
+   "role": "CTO / Super Admin",
+   "initials": "RU",
+   "approvals": [
+    [
+     "PR-2026-4188",
+     "Procurement",
+     "৳ 2.4 L — test equipment",
+     "#/record/M16-pos/PO-2026-4182"
+    ],
+    [
+     "QT-2418",
+     "Quotation",
+     "Corporate AMC ৳ 14.2 L",
+     "#/record/M36-record/QT-2418"
+    ],
+    [
+     "CFG-318",
+     "Config change",
+     "Auto-assign threshold",
+     "#/screen/M30-params"
+    ]
+   ],
+   "worklist": [
+    [
+     "37 orders",
+     "SLA at-risk",
+     "#/screen/M01-sla"
+    ],
+    [
+     "6 WOs",
+     "Unassigned > 15 min",
+     "#/screen/M02-unassigned"
+    ],
+    [
+     "38 docs",
+     "Certifications expiring",
+     "#/screen/M22-expiry"
+    ],
+    [
+     "14 claims",
+     "Awaiting brand decision",
+     "#/screen/M09-claims"
+    ]
+   ]
+  },
+  {
+   "id": "ops",
+   "name": "Nusrat Jahan",
+   "role": "Operations Manager",
+   "initials": "NJ",
+   "approvals": [
+    [
+     "RO-5412",
+     "L3 routing",
+     "Board-level specialist",
+     "#/record/M31-record/RO-5412"
+    ],
+    [
+     "EXC-208",
+     "Field exception",
+     "Customer absent ×2",
+     "#/screen/M02-exceptions"
+    ]
+   ],
+   "worklist": [
+    [
+     "148 consignments",
+     "In transit",
+     "#/screen/M03-cons"
+    ],
+    [
+     "212 units",
+     "On bench",
+     "#/screen/M31-benches"
+    ],
+    [
+     "8 waves",
+     "Warehouse open",
+     "#/screen/M41-waves"
+    ],
+    [
+     "24 near-miss",
+     "HSE reports",
+     "#/screen/M59-report"
+    ]
+   ]
+  },
+  {
+   "id": "finance",
+   "name": "Abdul Karim",
+   "role": "Finance Manager",
+   "initials": "AK",
+   "approvals": [
+    [
+     "JE-2026-61842",
+     "Journal",
+     "Accrual ৳ 8.4 L",
+     "#/screen/M19-je"
+    ],
+    [
+     "RUN-251",
+     "Payment run",
+     "৳ 42.6 L · 62 vendors",
+     "#/screen/M52-runs"
+    ],
+    [
+     "INV-C-881",
+     "Credit note",
+     "Goodwill ৳ 1,200",
+     "#/screen/M20-refunds"
+    ]
+   ],
+   "worklist": [
+    [
+     "Close day 2",
+     "Month-end console",
+     "#/screen/M19-close"
+    ],
+    [
+     "32 exceptions",
+     "Bank recon",
+     "#/screen/M50-recon"
+    ],
+    [
+     "৳ 84 L",
+     "Overdue > 60d",
+     "#/screen/M20-aging"
+    ],
+    [
+     "14 docs",
+     "TDS certificates due",
+     "#/screen/M51-certs"
+    ]
+   ]
+  },
+  {
+   "id": "branch",
+   "name": "Sumaiya Akter",
+   "role": "Branch Manager — Dhanmondi",
+   "initials": "SA",
+   "approvals": [
+    [
+     "TKN-4182",
+     "Priority token",
+     "VIP customer",
+     "#/screen/M04-queue"
+    ],
+    [
+     "HD-118",
+     "Hold release",
+     "Customer travelling",
+     "#/screen/M01-holds"
+    ]
+   ],
+   "worklist": [
+    [
+     "412 tokens",
+     "Today queue",
+     "#/screen/M04-queue"
+    ],
+    [
+     "৳ 2.14 L",
+     "Drawer + banking",
+     "#/screen/M04-shift"
+    ],
+    [
+     "8 devices",
+     "Uncollected > 7d",
+     "#/screen/M04-uncollected"
+    ],
+    [
+     "2 CARs",
+     "Store variance",
+     "#/screen/M15-recon"
+    ]
+   ]
+  }
+ ],
+ "journeys": [
+  {
+   "id": "J01",
+   "en": "Customer books an on-site repair (P01 → payment)",
+   "steps": [
+    {
+     "who": "P01 · Customer",
+     "what": "Customer opens app / portal, Bengali UI, picks device + symptom",
+     "route": "#/portals"
+    },
+    {
+     "who": "M33 · Party",
+     "what": "Identity via OTP — golden record matched or created",
+     "route": "#/record/M33-party/CUS-104283"
+    },
+    {
+     "who": "M37 · Catalogue",
+     "what": "Service resolved with upfront price + slot (≤3 steps)",
+     "route": "#/screen/M37-services"
+    },
+    {
+     "who": "M01 · Order",
+     "what": "Service Order created — entitlement evaluated (warranty/AMC/membership)",
+     "route": "#/record/M01-order/SO-2026-14838"
+    },
+    {
+     "who": "M02 · Dispatch",
+     "what": "AI scores candidates → assigned → ETA published to customer",
+     "route": "#/screen/M02-dispatch"
+    },
+    {
+     "who": "P02 · Technician",
+     "what": "Job accepted, navigation, photos w/ GPS, fix, e-sign",
+     "route": "#/portals"
+    },
+    {
+     "who": "M01 · QC",
+     "what": "Quality checkpoint gate → repair warranty issued",
+     "route": "#/screen/M01-qc"
+    },
+    {
+     "who": "M20 · Invoice",
+     "what": "Mushak 6.3 invoice + bKash link → paid",
+     "route": "#/record/M20-invoice/INV-2026-28441"
+    },
+    {
+     "who": "M34 · Feedback",
+     "what": "CSAT survey → detractor loop if ≤3",
+     "route": "#/screen/M34-responses"
+    }
+   ]
+  },
+  {
+   "id": "J02",
+   "en": "Walk-in branch repair (counter → bench → collection)",
+   "steps": [
+    {
+     "who": "M04 · Counter",
+     "what": "Token issued, fast intake, device condition photos",
+     "route": "#/screen/M04-counter"
+    },
+    {
+     "who": "M01 · Order",
+     "what": "Workshop order — estimate if out-of-warranty",
+     "route": "#/screen/M01-order"
+    },
+    {
+     "who": "M31 · Bench",
+     "what": "L1/L2/L3 routing; parts from branch store",
+     "route": "#/screen/M31-benches"
+    },
+    {
+     "who": "M15 · Parts",
+     "what": "Serial-tracked consumption; consignment hard block respected",
+     "route": "#/screen/M15-serials"
+    },
+    {
+     "who": "M31 · Test",
+     "what": "Test protocol + burn-in → release",
+     "route": "#/screen/M31-testing"
+    },
+    {
+     "who": "M04 · Collection",
+     "what": "SMS + WhatsApp notify → ID-verified handover",
+     "route": "#/screen/M04-handover"
+    },
+    {
+     "who": "M04 · Cash",
+     "what": "Payment captured at counter, drawer reconciled at shift close",
+     "route": "#/screen/M04-shift"
+    }
+   ]
+  },
+  {
+   "id": "J03",
+   "en": "Pick & drop logistics round trip",
+   "steps": [
+    {
+     "who": "P01 · Booking",
+     "what": "Customer books pick & drop with slot",
+     "route": "#/portals"
+    },
+    {
+     "who": "M03 · Consignment",
+     "what": "Multi-leg journey planned; seal number issued",
+     "route": "#/record/M03-record/CS-31244"
+    },
+    {
+     "who": "P09 · Rider",
+     "what": "Scan + OTP + photos at every custody handover",
+     "route": "#/portals"
+    },
+    {
+     "who": "M31 · Workshop",
+     "what": "Repair executed under custody state ON BENCH",
+     "route": "#/screen/M31-orders"
+    },
+    {
+     "who": "M03 · Return",
+     "what": "Delivery leg with OTP + signature + COD if due",
+     "route": "#/screen/M03-pod"
+    },
+    {
+     "who": "M50 · Settlement",
+     "what": "Rider COD reconciled at end of shift",
+     "route": "#/screen/M50-ridercod"
+    }
+   ]
+  },
+  {
+   "id": "J04",
+   "en": "Brand warranty claim → reimbursement",
+   "steps": [
+    {
+     "who": "M01 · Order",
+     "what": "Warranty order — entitlement says brand pays",
+     "route": "#/screen/M01-entitle"
+    },
+    {
+     "who": "M09 · Claim",
+     "what": "Auto-created on delivery; evidence pack assembled <5 min",
+     "route": "#/screen/M09-evidence"
+    },
+    {
+     "who": "M24 · Evidence",
+     "what": "Photos, diagnostics, parts genealogy, certification proof",
+     "route": "#/screen/M24-envelopes"
+    },
+    {
+     "who": "P08 · Brand",
+     "what": "Partner reviews → approve / part-approve / info-request",
+     "route": "#/portals"
+    },
+    {
+     "who": "M20 · AR",
+     "what": "Receivable raised on approval",
+     "route": "#/screen/M20-brand"
+    },
+    {
+     "who": "M09 · Recon",
+     "what": "Remittance matched — reconciliation per brand",
+     "route": "#/screen/M09-recon"
+    }
+   ]
+  },
+  {
+   "id": "J05",
+   "en": "Corporate AMC: contract → PM schedule → consolidated invoice",
+   "steps": [
+    {
+     "who": "M07 · CRM",
+     "what": "Opportunity won → contract template selected",
+     "route": "#/screen/M07-opps"
+    },
+    {
+     "who": "M08 · Contract",
+     "what": "14 families — entitlement & SLA defined",
+     "route": "#/record/M08-record/AMC-2118"
+    },
+    {
+     "who": "M17 · Estate",
+     "what": "Assets bulk-registered site/department/user",
+     "route": "#/screen/M17-bulk"
+    },
+    {
+     "who": "M08 · PM",
+     "what": "Preventive schedules auto-generate work",
+     "route": "#/screen/M08-pm"
+    },
+    {
+     "who": "P04 · Client",
+     "what": "Bulk requests validated against coverage",
+     "route": "#/portals"
+    },
+    {
+     "who": "M20 · Billing",
+     "what": "Consolidated monthly invoice + SLA credits",
+     "route": "#/screen/M20-consolidated"
+    }
+   ]
+  },
+  {
+   "id": "J06",
+   "en": "Parts stockout → replenishment → payment",
+   "steps": [
+    {
+     "who": "M15 · Alert",
+     "what": "Stock breaches reorder point",
+     "route": "#/screen/M15-onhand"
+    },
+    {
+     "who": "M43 · Planning",
+     "what": "Forecast + safety stock → planned order",
+     "route": "#/screen/M43-planned"
+    },
+    {
+     "who": "M16 · PR → RFQ",
+     "what": "Requisition approved; RFQ to qualified suppliers",
+     "route": "#/screen/M16-rfqs"
+    },
+    {
+     "who": "M42 · Gate",
+     "what": "Supplier must be qualified & active",
+     "route": "#/screen/M42-gate"
+    },
+    {
+     "who": "P05 · Vendor",
+     "what": "Vendor acknowledges PO, sends ASN",
+     "route": "#/portals"
+    },
+    {
+     "who": "M41 · Receive",
+     "what": "Scan receiving + inspection gate",
+     "route": "#/screen/M41-receiving"
+    },
+    {
+     "who": "M16 · Match",
+     "what": "3-way match → release to AP",
+     "route": "#/screen/M16-match"
+    },
+    {
+     "who": "M52 · Pay",
+     "what": "Payment run with TDS at source",
+     "route": "#/screen/M52-runs"
+    }
+   ]
+  },
+  {
+   "id": "J07",
+   "en": "Trade-in → refurbish → graded online resale",
+   "steps": [
+    {
+     "who": "M14 · Intake",
+     "what": "Portal valuation — firm 48h offer",
+     "route": "#/screen/M14-valuation"
+    },
+    {
+     "who": "M14 · Provenance",
+     "what": "IMEI / serial screening",
+     "route": "#/screen/M14-provenance"
+    },
+    {
+     "who": "M06 · Gate",
+     "what": "Data-bearing? destruction certificate mandatory",
+     "route": "#/screen/M06-destroy"
+    },
+    {
+     "who": "M31 · Refurb",
+     "what": "Work order, QA incl. battery health",
+     "route": "#/screen/M14-qa"
+    },
+    {
+     "who": "M14 · Grade",
+     "what": "A–D grading with supervisor override",
+     "route": "#/screen/M14-grading"
+    },
+    {
+     "who": "M38 · Resale",
+     "what": "Listing live on storefront with disclosure report",
+     "route": "#/screen/M14-listings"
+    }
+   ]
+  },
+  {
+   "id": "J08",
+   "en": "Marketplace seller: onboarding → job → payout",
+   "steps": [
+    {
+     "who": "M12 · KYC",
+     "what": "NID + trade licence + references verified",
+     "route": "#/screen/M12-kyc"
+    },
+    {
+     "who": "M12 · Agreement",
+     "what": "Digital agreement + fee acceptance",
+     "route": "#/screen/M12-agreements"
+    },
+    {
+     "who": "P07 · Seller",
+     "what": "Profile, listings, own stock",
+     "route": "#/portals"
+    },
+    {
+     "who": "M12 · Broadcast",
+     "what": "Job broadcast to matching sellers → bidding",
+     "route": "#/screen/M12-broadcast"
+    },
+    {
+     "who": "M02 · Oversight",
+     "what": "Execution QC identical to in-house standards",
+     "route": "#/screen/M12-oversight"
+    },
+    {
+     "who": "M53 · Payout",
+     "what": "Commission deducted → wallet → payout run",
+     "route": "#/screen/M53-payouts"
+    }
+   ]
+  },
+  {
+   "id": "J09",
+   "en": "Data recovery case (sealed custody → certificate)",
+   "steps": [
+    {
+     "who": "M06 · Intake",
+     "what": "Case with specialism routing; media sealed",
+     "route": "#/screen/M06-cases"
+    },
+    {
+     "who": "M06 · Custody",
+     "what": "Dual-control custody ledger",
+     "route": "#/screen/M06-custody"
+    },
+    {
+     "who": "M06 · Evaluation",
+     "what": "Free evaluation → firm quotation",
+     "route": "#/screen/M06-eval"
+    },
+    {
+     "who": "M06 · Recovery",
+     "what": "Attempts logged; cleanroom if needed",
+     "route": "#/screen/M06-attempts"
+    },
+    {
+     "who": "M06 · Handover",
+     "what": "Secure handover + verified purge certificate",
+     "route": "#/screen/M06-handover"
+    }
+   ]
+  },
+  {
+   "id": "J10",
+   "en": "Month-end close → VAT 9.1 filing",
+   "steps": [
+    {
+     "who": "M19 · Close",
+     "what": "3-day close console across 53 branches",
+     "route": "#/screen/M19-close"
+    },
+    {
+     "who": "M50 · Cash",
+     "what": "Branch cash & rider COD consolidated",
+     "route": "#/screen/M50-branchcash"
+    },
+    {
+     "who": "M19 · Statements",
+     "what": "P&L · BS · CF rendered bilingually",
+     "route": "#/screen/M19-pl"
+    },
+    {
+     "who": "M51 · VAT",
+     "what": "Mushak registers → 9.1 return → A-Challan",
+     "route": "#/screen/M51-vat91"
+    },
+    {
+     "who": "M19 · Seal",
+     "what": "Period locked; audit trail sealed",
+     "route": "#/screen/M19-periods"
+    }
+   ]
+  }
+ ],
+ "portals": [
+  {
+   "id": "P01",
+   "name": "Customer Self-Service & App",
+   "audience": "Individual customers",
+   "scale": "250 K+/mo",
+   "stack": "Next.js 15 + RN",
+   "features": [
+    "OTP register & devices",
+    "≤3-step booking & slots",
+    "live tracking + technician ETA",
+    "approvals & e-sign",
+    "bKash/Nagad/card pay",
+    "loyalty & shop",
+    "Bengali AI assistant"
+   ]
+  },
+  {
+   "id": "P02",
+   "name": "Technician Mobile App",
+   "audience": "Field & workshop technicians",
+   "scale": "200–400",
+   "stack": "Flutter",
+   "features": [
+    "day queue + geofenced clock-in",
+    "offline 24h + 30s sync",
+    "diagnostic trees & fault coding",
+    "van stock scan-consume",
+    "field evidence + e-sign",
+    "panic alert",
+    "100% Bengali UI"
+   ]
+  },
+  {
+   "id": "P03",
+   "name": "Admin Operations Portal",
+   "audience": "Back-office & branch staff",
+   "scale": "150–250",
+   "stack": "Odoo OWL 2",
+   "features": [
+    "15 role workspaces",
+    "dispatch console & live map",
+    "branch & workshop consoles",
+    "≤4 clicks to any record",
+    "bulk actions",
+    "keyboard-first"
+   ]
+  },
+  {
+   "id": "P04",
+   "name": "Corporate B2B Portal",
+   "audience": "Corporate & government",
+   "scale": "500–2,000",
+   "stack": "Next.js 15",
+   "features": [
+    "multi-user approval chains",
+    "estate management",
+    "bulk CSV requests",
+    "SLA & credit visibility",
+    "consolidated billing",
+    "scoped analytics"
+   ]
+  },
+  {
+   "id": "P05",
+   "name": "Vendor & Supplier Portal",
+   "audience": "Vendors · couriers · recyclers",
+   "scale": "200–500",
+   "stack": "Odoo + Next.js",
+   "features": [
+    "onboarding & documents",
+    "RFQ response",
+    "PO acknowledge + ASN",
+    "invoice match status",
+    "scorecard",
+    "logistics & recycling flows"
+   ]
+  },
+  {
+   "id": "P06",
+   "name": "Analytics & Executive",
+   "audience": "Management",
+   "scale": "25–60",
+   "stack": "Metabase + Grafana",
+   "features": [
+    "executive cockpit",
+    "branch league table",
+    "real-time ops board",
+    "self-service on certified data",
+    "scheduled bursting",
+    "threshold alerts"
+   ]
+  },
+  {
+   "id": "P07",
+   "name": "Marketplace Seller App",
+   "audience": "Engineers & shops",
+   "scale": "500–2,000",
+   "stack": "Next.js + RN",
+   "features": [
+    "KYC & agreement",
+    "listings & stock",
+    "job broadcast & bidding",
+    "earnings & payouts",
+    "performance scorecard",
+    "growth tools"
+   ]
+  },
+  {
+   "id": "P08",
+   "name": "Brand Partner Portal",
+   "audience": "17+ brand partners",
+   "scale": "50–150",
+   "stack": "Next.js 15",
+   "features": [
+    "claim review & bulk decisions",
+    "evidence packs",
+    "reconciliation & remittance",
+    "consignment parts",
+    "rate cards",
+    "our performance on their brand"
+   ]
+  },
+  {
+   "id": "P09",
+   "name": "Logistics & Rider App",
+   "audience": "Riders & coordinators",
+   "scale": "50–200",
+   "stack": "Flutter",
+   "features": [
+    "optimised manifest",
+    "scan + OTP collection",
+    "transit exceptions",
+    "identity-verified delivery",
+    "COD reconciliation",
+    "full offline"
+   ]
+  },
+  {
+   "id": "P10",
+   "name": "Contact Centre Console",
+   "audience": "Agents & supervisors",
+   "scale": "30–80",
+   "stack": "Next.js 15",
+   "features": [
+    "unified queue (voice→social)",
+    "Customer-360 screen pop",
+    "act-in-conversation",
+    "AI suggested replies",
+    "wrap-up coding",
+    "live supervision"
+   ]
+  },
+  {
+   "id": "P11",
+   "name": "Field Auditor & Quality",
+   "audience": "Auditors & regional managers",
+   "scale": "20–60",
+   "stack": "Flutter",
+   "features": [
+    "assigned audits & checklists",
+    "offline evidence capture",
+    "cash & stock spot checks",
+    "CAPA verification",
+    "auditee signature",
+    "on-device report"
+   ]
+  },
+  {
+   "id": "P12",
+   "name": "Partner & Referral Portal",
+   "audience": "Alliance partners & referrers",
+   "scale": "100–500",
+   "stack": "Next.js 15",
+   "features": [
+    "application & approval",
+    "referral links & tracking",
+    "earnings & payouts",
+    "co-marketing assets",
+    "reseller allocation",
+    "performance ranking"
+   ]
+  }
+ ]
+}

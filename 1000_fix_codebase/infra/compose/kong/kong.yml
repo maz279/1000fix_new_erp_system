@@ -1,0 +1,24 @@
+# Kong - declarative local config (P02-M05-T03, integration profile).
+# DB-less mode: this file IS the gateway config. Local shape mirrors the
+# portal contract surface (CON-03): customer portal -> Odoo backend service,
+# everything loopback (DE-04).
+_format_version: "3.0"
+
+services:
+  - name: odoo-backend
+    url: http://host.docker.internal:8069
+    routes:
+      - name: odoo-api
+        paths: ["/api/odoo"]
+        strip_path: true
+  - name: portal-customer
+    url: http://host.docker.internal:3000
+    routes:
+      - name: portal-web
+        paths: ["/"]
+
+plugins:
+  - name: rate-limiting
+    config:
+      minute: 300
+      policy: local

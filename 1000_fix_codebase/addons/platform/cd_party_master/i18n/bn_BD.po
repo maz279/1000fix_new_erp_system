@@ -1,0 +1,126 @@
+# Bengali (Bangladesh) translation for cd_party_master.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Active Branches"
+msgstr "সক্রিয় শাখাসমূহ"
+
+msgid "Checksum Valid"
+msgstr "চেকসাম বৈধ"
+
+msgid "Child Party"
+msgstr "অধীন পার্টি"
+
+msgid "Company"
+msgstr "কোম্পানি"
+
+msgid "Consent"
+msgstr "সম্মতি"
+
+msgid "Consent Records"
+msgstr "সম্মতির রেকর্ড"
+
+msgid "Dedup Rules"
+msgstr "ডিডুপ নিয়ম"
+
+msgid "Document Number"
+msgstr "দলিল নম্বর"
+
+msgid "Expiry Date"
+msgstr "মেয়াদোত্তীর্ণের তারিখ"
+
+msgid "Fuzzy Threshold"
+msgstr "ফাজি থ্রেশহোল্ড"
+
+msgid "Granted At"
+msgstr "প্রদানের সময়"
+
+msgid "Identity Documents"
+msgstr "পরিচয়পত্রসমূহ"
+
+msgid "Issuing Country"
+msgstr "ইস্যুকারী দেশ"
+
+msgid "Match Fields"
+msgstr "মিলের ফিল্ড"
+
+msgid "Model"
+msgstr "মডেল"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Parent Party"
+msgstr "ঊর্ধ্বতন পার্টি"
+
+msgid "Parties"
+msgstr "পার্টিসমূহ"
+
+msgid "Party"
+msgstr "পার্টি"
+
+msgid "Party Kernel (M33)"
+msgstr "পার্টি কার্নেল (M33)"
+
+msgid "Party Master"
+msgstr "পার্টি মাস্টার"
+
+msgid "Party Role"
+msgstr "পার্টি ভূমিকা"
+
+msgid "Party Roles"
+msgstr "পার্টি ভূমিকাসমূহ"
+
+msgid "Primary Document"
+msgstr "প্রধান দলিল"
+
+msgid "Proof Reference"
+msgstr "প্রমাণের রেফারেন্স"
+
+msgid "Related Parties (as child)"
+msgstr "সম্পর্কিত পার্টি (অধীন হিসেবে)"
+
+msgid "Related Parties (as parent)"
+msgstr "সম্পর্কিত পার্টি (ঊর্ধ্বতন হিসেবে)"
+
+msgid "Role Since"
+msgstr "ভূমিকা থেকে"
+
+msgid "Roles"
+msgstr "ভূমিকাসমূহ"
+
+msgid "Rule Name"
+msgstr "নিয়মের নাম"
+
+msgid "Signed form ID / OTP session / legacy batch"
+msgstr "স্বাক্ষরিত ফর্ম আইডি / OTP সেশন / লিগ্যাসি ব্যাচ"
+
+msgid "Since"
+msgstr "হইতে"
+
+msgid "Until"
+msgstr "পর্যন্ত"
+
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+msgid "Withdrawn At"
+msgstr "প্রত্যাহারের সময়"
+
+msgid "phone,name_normalized"
+msgstr "phone,name_normalized"
+
+msgid "নাম (বাংলা)"
+msgstr "নাম (বাংলা)"
+
+msgid "Party Relations"
+msgstr "পার্টি সম্পর্কসমূহ"

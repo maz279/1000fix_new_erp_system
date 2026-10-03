@@ -1,0 +1,105 @@
+# Bengali (Bangladesh) translation for cd_device_registry.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Brand"
+msgstr "ব্র্যান্ড"
+
+msgid "Current Owner"
+msgstr "বর্তমান মালিক"
+
+msgid "Date"
+msgstr "তারিখ"
+
+msgid "Deductible"
+msgstr "কর্তনযোগ্য খরচ"
+
+msgid "Device"
+msgstr "ডিভাইস"
+
+msgid "Device History"
+msgstr "ডিভাইস ইতিহাস"
+
+msgid "Device Model"
+msgstr "ডিভাইস মডেল"
+
+msgid "Device Registry"
+msgstr "ডিভাইস রেজিস্ট্রি"
+
+msgid "Device Type"
+msgstr "ডিভাইসের ধরন"
+
+msgid "Devices"
+msgstr "ডিভাইসসমূহ"
+
+msgid "End Date"
+msgstr "শেষ তারিখ"
+
+msgid "From"
+msgstr "হইতে"
+
+msgid "Group By"
+msgstr "গ্রুপ অনুযায়ী"
+
+msgid "IMEI 1"
+msgstr "IMEI ১"
+
+msgid "IMEi 2 (Dual SIM)"
+msgstr "IMEI ২ (ডুয়াল সিম)"
+
+msgid "Identity"
+msgstr "পরিচয়"
+
+msgid "In Warranty"
+msgstr "ওয়ারেন্টির অধীনে"
+
+msgid "MAC Address"
+msgstr "MAC অ্যাড্রেস"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Ownership"
+msgstr "মালিকানা"
+
+msgid "Proof Document"
+msgstr "প্রমাণ দলিল"
+
+msgid "Purchase Date"
+msgstr "ক্রয়ের তারিখ"
+
+msgid "Registered"
+msgstr "নিবন্ধিত"
+
+msgid "Registered At"
+msgstr "নিবন্ধনের সময়"
+
+msgid "Serial Number"
+msgstr "সিরিয়াল নম্বর"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Start Date"
+msgstr "শুরুর তারিখ"
+
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+msgid "To"
+msgstr "প্রতি"
+
+msgid "Transfer Date"
+msgstr "হস্তান্তরের তারিখ"
+
+msgid "Warranty"
+msgstr "ওয়ারেন্টি"

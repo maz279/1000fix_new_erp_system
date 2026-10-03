@@ -1,0 +1,59 @@
+# Twelve-environment ladder (P02-M09-T09; PE-002 4.2 ruling, PE-002-D-01)
+# Data rules are BINDING: violating an environment's data rule is a gate
+# failure, not a configuration choice. NFR-086c is absolute - non-production
+# NEVER holds unmasked residency-classified data in any region.
+schema: 1000fix-erp/environments/1
+environments:
+  - name: local
+    purpose: developer workstation (Docker Compose profiles)
+    data: generated-synthetic-only
+    residency_classified: never          # impossible by construction (residency stub is synthetic-only)
+  - name: ci
+    purpose: ephemeral per run
+    data: versioned-snapshot-restore     # DB-01..04: restore, never generate
+    residency_classified: never
+  - name: dev
+    purpose: shared integration target for develop
+    data: synthetic + anonymised-sample
+    residency_classified: never
+  - name: sit
+    purpose: system integration test across real modules
+    data: full TS-002 set, moving
+    residency_classified: never
+  - name: uat
+    purpose: business acceptance
+    data: full TS-002 set, frozen-for-cycle
+    residency_classified: never
+  - name: perf
+    purpose: performance at 1.5x peak (DoD-14)
+    data: production-shaped volumes
+    residency_classified: never-masked
+  - name: staging
+    purpose: release-candidate rehearsal
+    data: production-clone-masked         # masking runs INSIDE the clone job (NFR-086c)
+    residency_classified: never-masked
+  - name: training
+    purpose: super-user and end-user training
+    data: curated scenario, resettable per cohort
+    residency_classified: never
+  - name: sandbox
+    purpose: external partner certification
+    data: synthetic-only-externally-reachable
+    residency_classified: never
+  - name: migration-staging
+    purpose: production-class migration rehearsal AT PRODUCTION VOLUME (not "staging")
+    data: production-volume clone
+    residency_classified: masked
+  - name: prod
+    purpose: live
+    data: live
+    residency_classified: yes-Z4-only     # the only environment holding classified data
+  - name: dr
+    purpose: warm standby, RPO<=15min, RTO<=2h
+    data: streaming replica
+    residency_classified: yes-bangladesh-resident-standby
+
+rules:
+  three_environment_split: "sit, uat and staging are THREE environments and may not be merged before the G4 gate (PE-002-D-02)"
+  snapshot_seeding: "ci databases are seeded by restoring a VERSIONED snapshot artefact (DB-02) - never by running a generator"
+  ladder: "local sits below staging; staging is already masked - the local rule is 'never bring it', not 'mask it' (DE-12)"

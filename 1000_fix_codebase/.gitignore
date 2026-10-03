@@ -1,0 +1,83 @@
+# 1000fix-erp — .gitignore
+
+# --- Git LFS stubs (machine-local, auto-installed into the shared hooksPath) ---
+.githooks/post-checkout
+.githooks/post-commit
+.githooks/post-merge
+.githooks/pre-push
+
+# --- Environment / secrets (DE-10: .env NEVER committed; copy .env.example) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+!**/*.key.example
+secrets/
+vault/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.uv-cache/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# --- Node / pnpm ---
+node_modules/
+.pnpm-store/
+.turbo/
+.next/
+out/
+*.tsbuildinfo
+
+# --- Dart / Flutter ---
+.dart_tool/
+.flutter-plugins*
+.fvm/
+apps/mobile/*/.fvm/
+build/
+
+# --- Go ---
+bin/
+*.test
+
+# --- Odoo runtime artefacts (generated, never committed) ---
+infra/odoo-conf/local.conf
+*.session
+filestore/
+odoo.log*
+
+# --- Database dumps NEVER belong here (DE-12/DE-15: security incident) ---
+*.dump
+*.sql.gz
+*.backup
+db/backups/
+
+# --- Editors / OS ---
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+nul
+
+# --- Local evidence / scratch ---
+tmp/
+scratch/
+*.local
+
+# --- Tool-local state (never repository content) ---
+.mimosa/
+.zcode/

@@ -1,0 +1,252 @@
+# 1000FiX ERP — Shared Error Model
+# Governed by IN-002 §6. Ruling IN-002-D-03: the body is an RFC 9457 Problem Details
+# object carrying API-04's four fields as extension members. API-04 is not changed; it
+# is embedded — because 90 codes are bound into UI-004 and the BN-009…BN-013 Bengali
+# bundles, and replacing `code`/`message` would invalidate all of it for no gain.
+#
+# The code REGISTER is AP-006 (+ AP-005 §4.10) — 90 codes across 12 domains at
+# 2026-08-18 14:40 (+06). This file references it; it never defines a code (ER-01).
+#
+# CONFIDENTIAL — Internal Use Only
+# version: 1.0.0   date: 2026-08-18   owner: Integration Architect
+
+openapi: 3.1.0
+info:
+  title: 1000FiX Shared Error Model
+  version: 1.0.0
+paths: {}
+
+components:
+
+  schemas:
+
+    Problem:
+      type: object
+      description: >
+        RFC 9457 Problem Details. Content type is always `application/problem+json`.
+        Callers branch on `code`, NEVER on `message`/`detail` and never on HTTP status
+        alone (AP-006 EP-01). `message` may be reworded or retranslated without notice;
+        `code` may not.
+      required: [type, title, status, code, message, correlation_id]
+      properties:
+
+        # ---- RFC 9457 members -------------------------------------------------
+        type:
+          type: string
+          format: uri
+          description: >
+            Stable URI derived from `code`, resolving to the developer-portal page for
+            this condition. This is what gives an EXTERNAL reader a route to the
+            explanation — the gap AUDIT-016 AP-15 recorded (zero resolvable links in a
+            category with five external audiences).
+          examples: ["https://developer.1000fix.com/errors/srm.warranty_inactive"]
+        title:
+          type: string
+          description: Short, stable per `code`, NOT localised.
+          examples: ["Warranty is not active for this device"]
+        status:
+          type: integer
+          description: Duplicates the HTTP status so a body surviving a proxy stays interpretable.
+          minimum: 100
+          maximum: 599
+        detail:
+          type: [string, "null"]
+          description: Equals `message`. Localised by Accept-Language.
+        instance:
+          type: [string, "null"]
+          description: The request path. NOT the correlation id.
+
+        # ---- API-04 members, embedded ----------------------------------------
+        code:
+          type: string
+          pattern: '^[a-z_]+\.[a-z_]+$'
+          description: >
+            THE CONTRACT. `<domain>.<condition>`, lower snake case, permanent once
+            published (AP-006 CG-01). One of the 90 registered in AP-006 / AP-005 §4.10.
+          examples: ["srm.warranty_inactive", "auth.out_of_scope", "idempotency.key_expired"]
+        message:
+          type: string
+          description: >
+            Human-readable, localised (bn-BD | en). NEVER parsed. Every message states a
+            remedy the caller can act on (AP-006 EP-02).
+        details:
+          type: [object, "null"]
+          description: >
+            Machine-readable context. Field names are stable; new fields may be added
+            within a version. Never contains internal detail — no table names, no model
+            names, no stack traces, no SQL (AP-006 EP-04).
+          properties:
+            rule:
+              type: string
+              description: The 05-05 BRU- identifier, when the error is a business-rule violation.
+            rule_class:
+              type: string
+              enum: [H, A, S, C]
+              description: >
+                H hard · A approved override · S soft warning · C computed.
+                This is what tells a caller whether a human with authority can unblock it.
+            errors:
+              type: array
+              description: Field-level failures for `validation.failed`.
+              items:
+                type: object
+                required: [field, reason]
+                properties:
+                  field:  { type: string, description: JSON Pointer to the failing property. }
+                  reason: { type: string }
+                  code:   { type: string }
+          additionalProperties: true
+        correlation_id:
+          type: string
+          format: uuid
+          description: Also present as the X-Correlation-Id header (API-09).
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # RESPONSES — every contract $refs these. Inlining an error schema fails FF-52.
+  # x-retry-safe is normative and carried from AP-006's retry column (ER-05).
+  # Changing it is a BREAKING change (AP-006 CG-06).
+  # ─────────────────────────────────────────────────────────────────────────
+  responses:
+
+    BadRequest:
+      description: >
+        Malformed or invalid request. `request.*` and `validation.*` domains.
+        Never used for authorisation failures.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          examples:
+            validationFailed:
+              value:
+                type: "https://developer.1000fix.com/errors/validation.failed"
+                title: "Validation failed"
+                status: 400
+                code: "validation.failed"
+                message: "One or more fields failed validation."
+                details:
+                  errors:
+                    - field: "/customer/phone"
+                      reason: "Bangladesh mobile numbers must match +8801XXXXXXXXX"
+                      code: "validation.format_invalid"
+                correlation_id: "7c1f4b2e-9a33-4f61-8b7d-2e5c1a09d4f6"
+      x-retry-safe: false
+
+    Unauthorized:
+      description: >
+        Authentication absent, invalid, expired or revoked. `auth.token_*`,
+        `auth.credential_expired`, `auth.environment_mismatch`. NOT authorisation.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: conditional
+
+    Forbidden:
+      description: >
+        Authenticated and not permitted. IN-002-D-05 — this response covers BOTH
+        "you lack the scope" AND "that record is outside your data scope", and the two
+        are byte-identical for an out-of-scope record and a non-existent one. An error
+        must never reveal that a record outside the caller's scope exists
+        (AP-006 EP-03, AP-005 SC-02). Tested adversarially by FF-51.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          examples:
+            outOfScope:
+              value:
+                type: "https://developer.1000fix.com/errors/auth.out_of_scope"
+                title: "Not available to this credential"
+                status: 403
+                code: "auth.out_of_scope"
+                message: "This record is not available to your credential. Check the identifier."
+                correlation_id: "7c1f4b2e-9a33-4f61-8b7d-2e5c1a09d4f6"
+      x-retry-safe: false
+
+    NotFound:
+      description: >
+        The resource does not exist AND the caller would be entitled to see it if it did.
+        Reserved narrowly — see Forbidden.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: false
+
+    Conflict:
+      description: >
+        `idempotency.key_reused_different_body`, `idempotency.in_flight`,
+        `resource.conflict`, `resource.already_exists`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        Retry-After: { $ref: './components.yaml#/components/headers/RetryAfter' }
+      x-retry-safe: conditional
+
+    PreconditionFailed:
+      description: If-Match precondition failed (CA-02).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: conditional
+
+    PayloadTooLarge:
+      description: "`request.payload_too_large`. Use the bulk endpoint (API-12)."
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: false
+
+    UnprocessableEntity:
+      description: >
+        Well-formed but semantically refused. `state.*`, `rule.*`, `data.*`, `export.*`.
+        This is where BUSINESS RULES live — a rule violation is never a 400 and never a 409.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+          examples:
+            hardRule:
+              value:
+                type: "https://developer.1000fix.com/errors/rule.sod_conflict"
+                title: "Segregation of duties conflict"
+                status: 422
+                code: "rule.sod_conflict"
+                message: "A different person must approve this. You raised it."
+                details: { rule: "SOD-04", rule_class: "H" }
+                correlation_id: "7c1f4b2e-9a33-4f61-8b7d-2e5c1a09d4f6"
+      x-retry-safe: false
+
+    TooManyRequests:
+      description: "`ratelimit.exceeded`, `ratelimit.quota_exhausted`, `export.rate_limited`."
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        Retry-After: { $ref: './components.yaml#/components/headers/RetryAfter' }
+      x-retry-safe: true
+
+    UnavailableForLegalReasons:
+      description: >
+        `data.residency_restricted`. The field is residency-classified under NFR-086 /
+        NFR-099 and cannot be returned to this caller or region. NOT resolvable by the
+        caller. Reached only through the residency service CD-233 (AR-001 LB-08).
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: false
+
+    InternalServerError:
+      description: "`platform.unexpected`. Anything the estate has a code for is not this."
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      x-retry-safe: conditional
+
+    ServiceUnavailable:
+      description: >
+        `platform.maintenance`, `dependency.timeout`, `dependency.unavailable`,
+        `dependency.fallback_engaged`, `auth.introspection_unavailable`.
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+      headers:
+        Retry-After: { $ref: './components.yaml#/components/headers/RetryAfter' }
+      x-retry-safe: true

@@ -1,0 +1,39 @@
+# cd_cash_position tests — M50 core (P06-M04).
+import inspect
+import pytest
+
+
+class TestPaymentExecution:
+    def test_idempotent_on_source_key(self):
+        """DI-04: a replayed payment.requested never double-pays."""
+        from addons.domain.g_finance.cd_cash_position.models.fix_cash_position import FixPaymentExecution
+        constraints = [c[0] for c in (FixPaymentExecution._sql_constraints or [])]
+        assert "request_key_unique" in constraints
+
+    def test_execution_publishes_confirmation(self):
+        source = inspect.getsource(
+            __import__("addons.domain.g_finance.cd_cash_position.models.fix_cash_position",
+                       fromlist=["FixPaymentExecution"]).FixPaymentExecution.action_execute)
+        assert '"payment.executed"' in source
+
+    def test_consumes_events_not_calls(self):
+        source = inspect.getsource(
+            __import__("addons.domain.g_finance.cd_cash_position.models.fix_cash_position",
+                       fromlist=["FixPaymentExecution"]).FixPaymentExecution.consume_payment_requested)
+        assert "payment.requested" in source or "payload" in source
+
+
+class TestBankReconciliation:
+    def test_match_states(self):
+        from addons.domain.g_finance.cd_cash_position.models.fix_cash_position import FixBankStatementLine
+        states = dict(FixBankStatementLine._fields["match_state"].selection)
+        assert set(states) == {"unmatched", "auto", "manual"}
+
+
+class TestCashPosition:
+    def test_consumes_m04_drawers(self):
+        """T07: the position sums open fix.cash.shift expected closings."""
+        source = inspect.getsource(
+            __import__("addons.domain.g_finance.cd_cash_position.models.fix_cash_position",
+                       fromlist=["FixCashPosition"]).FixCashPosition._compute_drawers)
+        assert "fix.cash.shift" in source

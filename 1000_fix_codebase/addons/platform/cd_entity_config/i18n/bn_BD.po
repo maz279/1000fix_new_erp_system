@@ -1,0 +1,252 @@
+# Bengali (Bangladesh) translation for cd_entity_config.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "1000FiX Operations"
+msgstr "1000FiX অপারেশন্স"
+
+msgid "Address"
+msgstr "ঠিকানা"
+
+msgid "Archived"
+msgstr "সংরক্ষণাগারভুক্ত"
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Branch Code"
+msgstr "শাখা কোড"
+
+msgid "Branch Manager"
+msgstr "শাখা ব্যবস্থাপক"
+
+msgid "Branch Name"
+msgstr "শাখার নাম"
+
+msgid "Branch Name (Bengali)"
+msgstr "শাখার নাম (বাংলা)"
+
+msgid "Branches"
+msgstr "শাখাসমূহ"
+
+msgid "Calendar Name"
+msgstr "ক্যালেন্ডারের নাম"
+
+msgid "Code"
+msgstr "কোড"
+
+msgid "Combined Cap (non-transactional)"
+msgstr "সম্মিলিত সীমা (অ-লেনদেন)"
+
+msgid "Company"
+msgstr "কোম্পানি"
+
+msgid "Configuration"
+msgstr "কনফিগারেশন"
+
+msgid "Country"
+msgstr "দেশ"
+
+msgid "Country Data Packs"
+msgstr "দেশ ডেটা প্যাক"
+
+msgid "Currency"
+msgstr "মুদ্রা"
+
+msgid "Date (holiday packs)"
+msgstr "তারিখ (ছুটির প্যাক)"
+
+msgid "Description"
+msgstr "বিবরণ"
+
+msgid "Dispatch Zone"
+msgstr "ডিসপ্যাচ জোন"
+
+msgid "Dispatch Zones"
+msgstr "ডিসপ্যাচ জোনসমূহ"
+
+msgid "District"
+msgstr "জেলা"
+
+msgid "District (Bengali)"
+msgstr "জেলা (বাংলা)"
+
+msgid "Division"
+msgstr "বিভাগ"
+
+msgid "Division (Bengali)"
+msgstr "বিভাগ (বাংলা)"
+
+msgid "Email"
+msgstr "ইমেইল"
+
+msgid "Enabled Branches"
+msgstr "সক্রিয় শাখাসমূহ"
+
+msgid "Enabled Roles"
+msgstr "সক্রিয় ভূমিকাসমূহ"
+
+msgid "Entity"
+msgstr "প্রতিষ্ঠান"
+
+msgid "Entity Code"
+msgstr "প্রতিষ্ঠান কোড"
+
+msgid "Feature Flag"
+msgstr "ফিচার ফ্ল্যাগ"
+
+msgid "Feature Flags"
+msgstr "ফিচার ফ্ল্যাগসমূহ"
+
+msgid "Frequency Cap (7-day rolling)"
+msgstr "ফ্রিকোয়েন্সি সীমা (৭ দিন রোলিং)"
+
+msgid "From"
+msgstr "হইতে"
+
+msgid "From (hour)"
+msgstr "শুরু (ঘণ্টা)"
+
+msgid "Geofence Name"
+msgstr "জিওফেন্সের নাম"
+
+msgid "Geofences"
+msgstr "জিওফেন্সসমূহ"
+
+msgid "Geometry (JSON)"
+msgstr "জ্যামিতি (JSON)"
+
+msgid "Holiday"
+msgstr "ছুটি"
+
+msgid "Holiday (Bengali)"
+msgstr "ছুটি (বাংলা)"
+
+msgid "Holidays"
+msgstr "ছুটিসমূহ"
+
+msgid "House/Building"
+msgstr "বাড়ি/ভবন"
+
+msgid "Key"
+msgstr "কী"
+
+msgid "Landmark"
+msgstr "ল্যান্ডমার্ক"
+
+msgid "Legal Entities"
+msgstr "আইনি প্রতিষ্ঠানসমূহ"
+
+msgid "Legal Entity"
+msgstr "আইনি প্রতিষ্ঠান"
+
+msgid "Legal Name"
+msgstr "আইনি নাম"
+
+msgid "Legal Name (Bengali)"
+msgstr "আইনি নাম (বাংলা)"
+
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+msgid "Loaded At"
+msgstr "লোডের সময়"
+
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+msgid "Name (English)"
+msgstr "নাম (ইংরেজি)"
+
+msgid "Notification Configuration"
+msgstr "নোটিফিকেশন কনফিগারেশন"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Pack Code"
+msgstr "প্যাক কোড"
+
+msgid "Pack Name"
+msgstr "প্যাকের নাম"
+
+msgid "Parent Code"
+msgstr "ঊর্ধ্বতন কোড"
+
+msgid "Phone"
+msgstr "ফোন"
+
+msgid "Platform Administration"
+msgstr "প্ল্যাটফর্ম প্রশাসন"
+
+msgid "Policy (NT-003)"
+msgstr "নীতি (NT-003)"
+
+msgid "Postcode"
+msgstr "পোস্টকোড"
+
+msgid "Primary Operating Unit"
+msgstr "প্রধান পরিচালন ইউনিট"
+
+msgid "Scope"
+msgstr "পরিসর"
+
+msgid "Send Window"
+msgstr "প্রেরণ সময়সীমা"
+
+msgid "Stale Discard (hours)"
+msgstr "পুরানো বাতিল (ঘণ্টা)"
+
+msgid "Street/Road"
+msgstr "রাস্তা/সড়ক"
+
+msgid "Template"
+msgstr "টেমপ্লেট"
+
+msgid "To"
+msgstr "প্রতি"
+
+msgid "To (hour)"
+msgstr "শেষ (ঘণ্টা)"
+
+msgid "Union/Ward"
+msgstr "ইউনিয়ন/ওয়ার্ড"
+
+msgid "Upazila/Thana"
+msgstr "উপজেলা/থানা"
+
+msgid "Upazila/Thana (Bengali)"
+msgstr "উপজেলা/থানা (বাংলা)"
+
+msgid "Version"
+msgstr "সংস্করণ"
+
+msgid "Weekday"
+msgstr "সপ্তাহের দিন"
+
+msgid "Working Calendar"
+msgstr "ওয়ার্কিং ক্যালেন্ডার"
+
+msgid "Working Calendars"
+msgstr "ওয়ার্কিং ক্যালেন্ডারসমূহ"
+
+msgid "Working Hours"
+msgstr "কর্মঘণ্টা"
+
+msgid "Zone"
+msgstr "জোন"
+
+msgid "Zone Code"
+msgstr "জোন কোড"
+
+msgid "Zone Name"
+msgstr "জোনের নাম"
+
+msgid "Zone Name (Bengali)"
+msgstr "জোনের নাম (বাংলা)"

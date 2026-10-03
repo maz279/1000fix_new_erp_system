@@ -1,0 +1,36 @@
+# Bengali (Bangladesh) translation for cd_subscription.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Contract"
+msgstr "চুক্তি"
+
+msgid "Customer"
+msgstr "গ্রাহক"
+
+msgid "Deferred Amount"
+msgstr "স্থগিত পরিমাণ"
+
+msgid "Recognized"
+msgstr "স্বীকৃত"
+
+msgid "Recurring Amount"
+msgstr "পুনরাবৃত্ত পরিমাণ"
+
+msgid "Revenue Schedules"
+msgstr "রাজস্ব সময়সূচি"
+
+msgid "Source ID"
+msgstr "উৎস আইডি"
+
+msgid "Source Model"
+msgstr "উৎস মডেল"
+
+msgid "Subscriptions"
+msgstr "সাবস্ক্রিপশনসমূহ"

@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>1000 FiX ERP — 67-Module Service Platform · Dynamics-365-grade Prototype</title>
+<meta name="description" content="Interactive front-end prototype of the 1000 FiX ERP: 67 modules, 12 portals, 823 screens, 346 reports, 5,100 functions — zero-build, open in any browser."/>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230E7A6E'/><text x='16' y='22' font-size='15' font-weight='800' fill='white' text-anchor='middle' font-family='Arial'>F</text></svg>"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;600&display=swap" rel="stylesheet"/>
+<link rel="stylesheet" href="css/tokens.css?v=2"/>
+<link rel="stylesheet" href="css/landing.css?v=2"/>
+</head>
+<body class="land">
+<nav class="land-nav">
+  <div class="wrap">
+    <a class="land-logo" href="#top">
+      <span class="mark">F</span>
+      <span>1000 FiX ERP<small>SERVICE OPERATIONS PLATFORM · 1000FIX.COM · 16743</small></span>
+    </a>
+    <div class="land-links">
+      <a href="#journeys">Journeys</a><a href="#modules">67 Modules</a><a href="#portals">12 Portals</a><a href="#design">Design</a>
+    </div>
+    <button class="land-lang" onclick="FXLandLang()">বাংলা / EN</button>
+    <a class="btn-hero" href="login.html">Sign in ▸</a>
+  </div>
+</nav>
+
+<header class="hero" id="top">
+  <div class="wrap">
+    <div>
+      <span class="pill"><i></i><span data-i18n="live">Interactive prototype · v1.0 · September 2026</span></span>
+      <h1><span data-i18n="h1a">The complete ERP for Bangladesh's</span> <em data-i18n="h1b">largest service network</em><span data-i18n="h1c"> — from</span> <span class="accent" data-i18n="h1d">hotline ring to reimbursement.</span></h1>
+      <p class="lede" data-i18n="lede">A Dynamics-365-grade, zero-build interactive prototype of the 1000 FiX integrated platform: 67 modules across service operations, circular economy, BD statutory finance, and AI — every screen, form, report and journey clickable.</p>
+      <p class="bn-line">বাংলা: ৬৭টি মডিউল, ১২টি পোর্টাল, ৮২৩টি স্ক্রিন — সবই ক্লিকযোগ্য।</p>
+      <div class="hero-cta">
+        <a class="btn-hero" href="login.html">Open the workspace ▸</a>
+        <a class="btn-ghost" href="app.html">Skip to app (demo)</a>
+        <a class="btn-ghost" href="#modules">Tour the modules</a>
+      </div>
+      <div class="hero-facts">
+        <div><b>67</b><span data-i18n="f1">modules · 11 categories</span></div>
+        <div><b>823</b><span data-i18n="f2">screens, all live</span></div>
+        <div><b>346</b><span data-i18n="f3">built-in reports</span></div>
+        <div><b>5,100</b><span data-i18n="f4">functions registered</span></div>
+        <div><b>12</b><span data-i18n="f5">portals P01–P12</span></div>
+      </div>
+    </div>
+    <div class="hero-mock" aria-hidden="true">
+      <div class="mock">
+        <div class="mock-top"><span class="dot">F</span><span style="font-weight:600">1000 FiX ERP</span>
+          <span class="mock-search">🔍 Search modules, screens, records… (Alt+Q)</span></div>
+        <div class="mock-body">
+          <div class="mock-nav"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="mock-main">
+            <div class="mock-kpis">
+              <div class="mock-kpi"><span>Open orders</span><b>1,284</b><u>▲ +62 today</u></div>
+              <div class="mock-kpi"><span>SLA compliance</span><b>96.2%</b><u>▲ +0.8pt</u></div>
+              <div class="mock-kpi"><span>First-time fix</span><b>88.1%</b><u>▲ +1.2pt</u></div>
+            </div>
+            <div class="mock-chart">
+              <b style="font-size:9px;color:var(--ink-500)">REVENUE BY MONTH · ৳ CRORE (FY 2026-27)</b>
+              <div class="mock-bars">
+                <i style="height:38%"></i><i style="height:52%"></i><i style="height:46%"></i><i style="height:60%"></i>
+                <i style="height:72%"></i><i style="height:66%"></i><i style="height:82%"></i><i style="height:94%"></i>
+              </div>
+            </div>
+            <div class="mock-rows">
+              <div class="mock-row"><b>SO-2026-14838</b> Dell Latitude · no-power <span class="tag">IN PROGRESS</span></div>
+              <div class="mock-row"><b>WO-9218</b> Jamil H. · en route · ETA 14 min <span class="tag">EN ROUTE</span></div>
+              <div class="mock-row"><b>INV-2026-28441</b> ৳ 4,830 · bKash <span class="tag">PAID</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="stats-band">
+  <div class="wrap">
+    <div><b>51+</b><span data-i18n="s1">service centres, 8 divisions</span></div>
+    <div><b>250 K+</b><span data-i18n="s2">customers per month</span></div>
+    <div><b>284</b><span data-i18n="s3">field & bench technicians</span></div>
+    <div><b>17+</b><span data-i18n="s4">authorised brand partners</span></div>
+    <div><b>ISO 9001</b><span data-i18n="s5">:2015 certified operations</span></div>
+    <div><b>14</b><span data-i18n="s6">revenue streams modelled</span></div>
+  </div>
+</div>
+
+<section class="land-sec" id="journeys">
+  <div class="wrap">
+    <h2 data-i18n="jh">Ten end-to-end journeys, not screenshots</h2>
+    <p class="sec-sub" data-i18n="js">Every journey is navigable inside the prototype — each step deep-links to the exact screen that executes it, across portals and modules.</p>
+    <div class="j-steps" id="j-strip"></div>
+  </div>
+</section>
+
+<section class="land-sec" style="background:var(--surface);border-block:1px solid var(--stroke)" id="pillars">
+  <div class="wrap">
+    <h2 data-i18n="ph">Built like an enterprise platform</h2>
+    <p class="sec-sub" data-i18n="ps">The prototype follows the same architecture principles as the production target: navigation is data, every number has a home, and nothing is a dead end.</p>
+    <div class="pillars">
+      <div class="pillar"><div class="ic">🧭</div><h3 data-i18n="p1t">Navigation is data</h3><p data-i18n="p1d">One nav payload (67 modules, 278 groups) drives the left nav, 12 mega menus, Tell-ME search, A–Z directory, coverage audit and tabs — edit data, the whole UI re-shapes.</p></div>
+      <div class="pillar"><div class="ic">▦</div><h3 data-i18n="p2t">13 screen archetypes</h3><p data-i18n="p2d">Grid with filter pane & saved views · details-master with BPF workflow & FactBox · consoles with steppers & gauges · dashboards · 360s · report viewers · form modals with validation.</p></div>
+      <div class="pillar"><div class="ic">🔍</div><h3 data-i18n="p3t">Tell-ME global search</h3><p data-i18n="p3d">One index over modules, screens, 278 sub-modules, 346 reports, 266 forms, live records and actions — English and বাংলা, every result clickable.</p></div>
+      <div class="pillar"><div class="ic">🇧🇩</div><h3 data-i18n="p4t">Bangladesh-native</h3><p data-i18n="p4d">Mushak 6.1–9.1, TDS/VDS, BEFTN, A-Challan; bKash/Nagad/SSLCOMMERZ; ৳ lakh/crore; 8 divisions → 64 districts; Bengali-first customer & field surfaces.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="land-sec" id="modules">
+  <div class="wrap">
+    <h2 data-i18n="mh">The full 67-module map</h2>
+    <p class="sec-sub" data-i18n="ms">Authored from the ERP Module Catalogue Master Register (02-02) — categories A to K, exactly as specified. Click any card to open that area's first module.</p>
+    <div class="area-grid" id="area-grid"></div>
+  </div>
+</section>
+
+<section class="portal-band" id="portals">
+  <div class="wrap">
+    <h2 data-i18n="pth">Twelve portals, one design system</h2>
+    <p class="sec-sub" data-i18n="pts">P01 customer app to P12 partner portal — SSO via M29, APIs via M28, Bengali default on customer and field surfaces, WCAG 2.1 AA.</p>
+    <div class="p-cards" id="p-cards"></div>
+  </div>
+</section>
+
+<section class="land-sec" id="design">
+  <div class="wrap">
+    <h2 data-i18n="dh">Service-Teal Fluent design language</h2>
+    <p class="sec-sub" data-i18n="ds">A 16-step teal ramp on the Fluent-2 token architecture: AA-verified status triplets, 8-colour charts, 3 densities, dark mode, double-ring focus — and sunset-orange reserved for marketing only.</p>
+    <div class="area-grid">
+      <div class="area-card"><div class="head"><i>🎨</i><div><b>Tokens layer</b><span class="bn">css/tokens.css — single source of truth</span></div></div><ul><li>brand-10…160</li><li>grey-2…99</li><li>status triplets</li><li>density ×3</li><li>dark mode</li></ul></div>
+      <div class="area-card"><div class="head"><i>📶</i><div><b>Accessibility</b><span class="bn">WCAG 2.1 AA</span></div></div><ul><li>AA pairs verified</li><li>double-ring focus</li><li>reduced motion</li><li>keyboard-first</li><li>ARIA roles</li></ul></div>
+      <div class="area-card"><div class="head"><i>🌗</i><div><b>Runtime surfaces</b><span class="bn">instant theme / density / বাংলা</span></div></div><ul><li>light + dark</li><li>compact 9.5pt grid</li><li>EN ↔ বাংলা</li><li>print stylesheet</li><li>320px responsive</li></ul></div>
+      <div class="area-card"><div class="head"><i>⚡</i><div><b>Zero dependencies</b><span class="bn">no build step, no CDN calls at runtime</span></div></div><ul><li>pure HTML/CSS/JS</li><li>SVG charts</li><li>hash router</li><li>localStorage session</li><li>file:// friendly</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<div class="status-strip">
+  <div class="wrap">
+    <span><b data-i18n="st1">VALIDATED:</b> <span data-i18n="st2">823/823 screens render clean · 346/346 report viewers · 36/36 system routes · search EN+বাংলা</span></span>
+    <span style="margin-left:auto" data-i18n="st3">Demo persona: <b>demo@1000fix.com</b> · one-click sign-in on the login page</span>
+  </div>
+</div>
+
+<footer class="land-foot">
+  <div class="wrap">
+    <span>1000 FiX Services Ltd. · 586/1 Begum Rokeya Sarani, Mirpur, Dhaka-1216 · Hotline <b>16743</b></span>
+    <span data-i18n="ft">FIX-UXD-2026-001 · interactive design artefact — sample data, not production</span>
+  </div>
+</footer>
+
+<script src="js/nav_data.js?v=2"></script>
+<script src="js/nav_data2.js?v=2"></script>
+<script src="js/nav_data3.js?v=2"></script>
+<script src="js/demo_data.js?v=2"></script>
+<script>
+/* landing renders live from the same nav payload as the app */
+(function () {
+var AREA_ICONS = { A02:'🚐', A03:'💬', A04:'🧾', A05:'♻️', A06:'🧰', A07:'📱', A08:'💰', A09:'👥', A10:'✅', A11:'📊', A12:'🛠️' };
+var strip = document.getElementById('j-strip');
+window.FX_DEMO.JOURNEYS.forEach(function (j) {
+  var d = document.createElement('div'); d.className = 'j-cell';
+  d.innerHTML = '<b>' + j.en.split('(')[0].trim() + '</b><span>' + j.steps.length + ' steps · ' +
+    j.steps.length + ' linked screens</span>';
+  strip.appendChild(d);
+});
+var grid = document.getElementById('area-grid');
+window.FX_AREAS.forEach(function (a) {
+  if (!a.mods.length) return;
+  var scr = a.mods.reduce(function (n, m) { return n + window.FX_MODULES[m].groups.reduce(function (x, g) { return x + g.screens.length; }, 0); }, 0);
+  var d = document.createElement('a'); d.className = 'area-card'; d.href = 'app.html#/workspace/' + a.mods[0];
+  d.innerHTML = '<div class="head"><i>' + (AREA_ICONS[a.id] || '▦') + '</i><div><b>' + a.en + '</b><span class="bn">' + a.bn + ' · ' + a.mods.length + ' modules · ' + scr + ' screens</span></div></div>' +
+    '<ul>' + a.mods.map(function (m) { return '<li>' + m + '</li>'; }).join('') + '</ul>';
+  grid.appendChild(d);
+});
+var pc = document.getElementById('p-cards');
+window.FX_DEMO.PORTALS.forEach(function (p) {
+  var d = document.createElement('div'); d.className = 'p-card';
+  d.innerHTML = '<span class="pid">' + p[0] + '</span><b>' + p[1] + '</b><span>' + p[2] + ' · ' + p[3] + '</span>';
+  pc.appendChild(d);
+});
+
+/* EN / বাংলা toggle for the marketing surface */
+var LAND_I18N = {
+  bn: {
+    live:'ইন্টারঅ্যাক্টিভ প্রোটোটাইপ · v১.০ · সেপ্টেম্বর ২০২৬',
+    h1a:'বাংলাদেশের সবচেয়ে বড় সার্ভিস নেটওয়ার্কের জন্য', h1b:'সম্পূর্ণ ইআরপি', h1c:' —', h1d:'হটলাইন থেকে রিম্বার্সমেন্ট পর্যন্ত।',
+    lede:'১০০০ ফিক্স ইন্টিগ্রেটেড প্ল্যাটফর্মের ডায়নামিক্স-৩৬৫-মানের ইন্টারঅ্যাক্টিভ প্রোটোটাইপ: সার্ভিস অপারেশন, সার্কুলার ইকোনমি, বিডি স্ট্যাটুটরি ফাইন্যান্স ও এআই জুড়ে ৬৭টি মডিউল।',
+    f1:'মডিউল · ১১ ক্যাটাগরি', f2:'স্ক্রিন, সবই লাইভ', f3:'বিল্ট-ইন রিপোর্ট', f4:'ফাংশন রেজিস্টার্ড', f5:'পোর্টাল P01–P12',
+    s1:'সার্ভিস সেন্টার, ৮ বিভাগ', s2:'মাসিক গ্রাহক', s3:'ফিল্ড ও বেঞ্চ টেকনিশিয়ান', s4:'অথরাইজড ব্র্যান্ড পার্টনার', s5:'সার্টিফাইড অপারেশন', s6:'রাজস্ব স্ট্রিম মডেলড',
+    jh:'স্ক্রিনশট নয় — দশটি সম্পূর্ণ যাত্রা', js:'প্রোটোটাইপের ভেতরে প্রতিটি যাত্রা নেভিগেবল — প্রতিটি ধাপ সেই স্ক্রিনে সরাসরি লিংক করে যা এটি চালায়।',
+    ph:'এন্টারপ্রাইজ প্ল্যাটফর্মের মতো নির্মিত', ps:'প্রোটোটাইপটি প্রোডাকশন লক্ষ্যের মতো একই স্থাপত্য নীতি অনুসরণ করে: নেভিগেশন ডেটা, প্রতিটি সংখ্যার ঘর আছে, আর কোনো মৃত প্রান্ত নেই।',
+    p1t:'নেভিগেশন ডেটা', p1d:'একটি নেভ পেলোড (৬৭ মডিউল, ২৭৮ গ্রুপ) বাম নেভ, ১২টি মেগা মেনু, টেল-মি সার্চ, ডিরেক্টরি, কভারেজ অডিট ও ট্যাব চালায়।',
+    p2t:'১৩টি স্ক্রিন আর্কিটাইপ', p2d:'ফিল্টার পেনসহ গ্রিড · BPF ওয়ার্কফ্লো ও ফ্যাক্টবক্সসহ ডিটেইলস-মাস্টার · স্টেপারসহ কনসোল · ড্যাশবোর্ড · ৩৬০ · রিপোর্ট ভিউয়ার · ভ্যালিডেশনসহ ফর্ম।',
+    p3t:'টেল-মি গ্লোবাল সার্চ', p3d:'মডিউল, স্ক্রিন, ২৭৮ উপ-মডিউল, ৩৪৬ রিপোর্ট, ২৬৬ ফর্ম, লাইভ রেকর্ড ও অ্যাকশনের এক ইনডেক্স — ইংরেজি ও বাংলা।',
+    p4t:'বাংলাদেশ-নেটিভ', p4d:'মুশক ৬.১–৯.১, টিডিএস/ভিডিএস, বিইএফটিএন; বিকাশ/নগদ/এসএসএলকমার্স; ৮ বিভাগ → ৬৪ জেলা; গ্রাহক ও ফিল্ড পৃষ্ঠে বাংলা-প্রথম।',
+    mh:'সম্পূর্ণ ৬৭-মডিউল মানচিত্র', ms:'ইআরপি মডিউল ক্যাটালগ মাস্টার রেজিস্টার (০২-০২) থেকে — ক্যাটাগরি A থেকে K, ঠিক স্পেসিফিকেশন অনুযায়ী।',
+    pth:'বারোটি পোর্টাল, এক ডিজাইন সিস্টেম', pts:'P01 গ্রাহক অ্যাপ থেকে P12 পার্টনার পোর্টাল — M29-এ SSO, M28-এ API, WCAG 2.1 AA।',
+    dh:'সার্ভিস-টিল ফ্লুয়েন্ট ডিজাইন', ds:'ফ্লুয়েন্ট-২ টোকেন স্থাপত্যে ১৬-স্টেপ টিল র‌্যাম্প: AA-ভেরিফায়েড স্ট্যাটাস, ৮-রঙ চার্ট, ৩ ঘনত্ব, ডার্ক মোড।',
+    st1:'যাচাইকৃত:', st2:'৮২৩/৮২৩ স্ক্রিন · ৩৪৬/৩৪৬ রিপোর্ট ভিউয়ার · ৩৬/৩৬ রুট', st3:'ডেমো: demo@1000fix.com — লগইন পেজে এক-ক্লিক',
+    ft:'FIX-UXD-2026-001 · ইন্টারঅ্যাক্টিভ ডিজাইন আর্টিফ্যাক্ট — নমুনা ডেটা',
+    jn1:' ধাপ · লিংকড স্ক্রিন'
+  },
+  en: { jn1:' steps · linked screens' }
+};
+var lang = 'en';
+window.FXLandLang = function () {
+  lang = lang === 'en' ? 'bn' : 'en';
+  document.body.classList.toggle('lang-bn', lang === 'bn');
+  document.querySelectorAll('[data-i18n]').forEach(function (el) {
+    var k = el.dataset.i18n;
+    if (lang === 'bn') {
+      if (!el.dataset.orig) el.dataset.orig = el.textContent;   /* keep English source */
+      if (LAND_I18N.bn[k]) el.textContent = LAND_I18N.bn[k];
+    } else if (el.dataset.orig !== undefined) {
+      el.textContent = el.dataset.orig;                          /* restore English */
+      el.removeAttribute('data-orig');
+    }
+  });
+  document.querySelectorAll('.j-cell span').forEach(function (el, i) {
+    var j = window.FX_DEMO.JOURNEYS[i];
+    if (j) el.textContent = j.steps.length + (lang === 'bn' ? LAND_I18N.bn.jn1 : LAND_I18N.en.jn1);
+  });
+};
+})();
+</script>
+</body>
+</html>

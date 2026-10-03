@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_cx_feedback views — CX under the Party workspace; scorecards under Procurement. -->
+<odoo>
+
+    <record id="view_fix_complaint_tree" model="ir.ui.view">
+        <field name="name">fix.complaint.tree</field>
+        <field name="model">fix.complaint</field>
+        <field name="arch" type="xml">
+            <tree decoration-danger="severity == 'critical'" decoration-warning="severity == 'major'">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="category" optional="show"/>
+                <field name="severity" widget="badge"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_complaint_form" model="ir.ui.view">
+        <field name="name">fix.complaint.form</field>
+        <field name="model">fix.complaint</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="new,investigating,ncr_raised,root_cause,capa_open,verification,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="service_order_id" optional="show"/>
+                            <field name="category"/>
+                            <field name="severity"/>
+                        </group>
+                        <group>
+                            <field name="ncr_stub_ref" readonly="1"/>
+                            <field name="capa_stub_ref" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="description"/>
+                    <field name="resolution" optional="show"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_survey_tree" model="ir.ui.view">
+        <field name="name">fix.survey.tree</field>
+        <field name="model">fix.survey</field>
+        <field name="arch" type="xml">
+            <tree decoration-muted="state in ('expired', 'pending')">
+                <field name="create_date" string="Triggered"/>
+                <field name="customer_id"/>
+                <field name="service_order_id" optional="show"/>
+                <field name="rating" widget="badge"
+                       decoration-success="rating in ('5', '4')"
+                       decoration-danger="rating in ('1', '2')"/>
+                <field name="nps_score" optional="show"/>
+                <field name="state" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_scorecard_tree" model="ir.ui.view">
+        <field name="name">fix.supplier.scorecard.tree</field>
+        <field name="model">fix.supplier.scorecard</field>
+        <field name="arch" type="xml">
+            <tree decoration-success="score >= 80" decoration-warning="score &lt; 60">
+                <field name="period"/>
+                <field name="vendor_id"/>
+                <field name="po_count" optional="show"/>
+                <field name="lines_on_time" optional="hide"/>
+                <field name="lines_late" optional="hide"/>
+                <field name="on_time_pct"/>
+                <field name="rejection_count" optional="show"/>
+                <field name="score"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_complaint" model="ir.actions.act_window">
+        <field name="name">Complaints</field>
+        <field name="res_model">fix.complaint</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_survey" model="ir.actions.act_window">
+        <field name="name">Service Surveys</field>
+        <field name="res_model">fix.survey</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_supplier_scorecard" model="ir.actions.act_window">
+        <field name="name">Supplier Scorecards</field>
+        <field name="res_model">fix.supplier.scorecard</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_complaint" name="Complaints"
+              parent="cd_party_master.menu_fix_party_root"
+              action="action_fix_complaint" sequence="60"/>
+    <menuitem id="menu_fix_survey" name="Surveys"
+              parent="cd_party_master.menu_fix_party_root"
+              action="action_fix_survey" sequence="70"/>
+    <menuitem id="menu_fix_supplier_scorecard" name="Supplier Scorecards"
+              parent="cd_requisition.menu_ws_procurement"
+              action="action_fix_supplier_scorecard" sequence="50"/>
+
+</odoo>

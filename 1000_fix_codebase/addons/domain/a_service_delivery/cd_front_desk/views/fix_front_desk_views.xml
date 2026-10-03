@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_front_desk — front desk views (P04-M06 W1 workspace skeleton).
+  G1-02: walk-in intake under 3 minutes. The views are deliberately flat:
+  token queue -> intake -> cash shift reconciliation. AS-09: logic in models.
+-->
+<odoo>
+
+    <!-- Token queue -->
+    <record id="view_fix_token_queue_tree" model="ir.ui.view">
+        <field name="name">fix.token.queue.tree</field>
+        <field name="model">fix.token.queue</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="token_display"/>
+                <field name="branch_id"/>
+                <field name="customer_id"/>
+                <field name="counter_number"/>
+                <field name="state"/>
+                <field name="service_order_id"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_token_queue" model="ir.actions.act_window">
+        <field name="name">Token Queue</field>
+        <field name="res_model">fix.token.queue</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <!-- P04-M06-T03 — Service Intake workspace (UX-002 workspace 1: opens on
+         the token queue, NVR-19; NVR-22 role-gated). G1-02's 3-minute intake
+         lives here. -->
+    <menuitem id="menu_ws_front_desk" name="Service Intake"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_ws_front_desk"
+              sequence="10"/>
+    <menuitem id="menu_fix_token_queue" name="Token Queue"
+              parent="menu_ws_front_desk" action="action_fix_token_queue" sequence="10"/>
+
+    <!-- Walk-in intake -->
+    <record id="view_fix_walkin_intake_form" model="ir.ui.view">
+        <field name="name">fix.walkin.intake.form</field>
+        <field name="model">fix.walkin.intake</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="token_id" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Queue">
+                            <field name="token_id"/>
+                            <field name="branch_id"/>
+                        </group>
+                        <group string="Customer &amp; Device">
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="device_serial_input"
+                                   placeholder="Scan or type S/N / IMEI"/>
+                            <field name="service_order_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Reported Fault">
+                        <field name="customer_statement" nolabel="1" colspan="2"
+                               placeholder="Customer Statement (verbatim) — what the customer said, unedited"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_walkin_intake_tree" model="ir.ui.view">
+        <field name="name">fix.walkin.intake.tree</field>
+        <field name="model">fix.walkin.intake</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="intake_start"/>
+                <field name="token_id"/>
+                <field name="branch_id"/>
+                <field name="customer_id"/>
+                <field name="service_order_id"/>
+                <field name="handover_complete" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_walkin_intake" model="ir.actions.act_window">
+        <field name="name">Walk-in Intake</field>
+        <field name="res_model">fix.walkin.intake</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_walkin_intake" name="Walk-in Intake"
+              parent="menu_ws_front_desk"
+              action="action_fix_walkin_intake" sequence="20"/>
+
+    <!-- Cash shift reconciliation (AS-10: monetary fields only) -->
+    <record id="view_fix_cash_shift_form" model="ir.ui.view">
+        <field name="name">fix.cash.shift.form</field>
+        <field name="model">fix.cash.shift</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" readonly="1"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="shift_date" readonly="1"/> <field name="shift_type" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Shift">
+                            <field name="branch_id"/>
+                            <field name="operator_id"/>
+                            <field name="company_id" groups="base.group_multi_company" readonly="1"/>
+                            <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit" readonly="1"/>
+                        </group>
+                        <group string="Reconciliation">
+                            <field name="opening_float"/>
+                            <field name="cash_payments"/>
+                            <field name="cash_refunds"/>
+                            <field name="cash_advances"/>
+                            <field name="expected_closing" readonly="1"/>
+                            <field name="closing_counted"/>
+                            <field name="variance" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_cash_shift_tree" model="ir.ui.view">
+        <field name="name">fix.cash.shift.tree</field>
+        <field name="model">fix.cash.shift</field>
+        <field name="arch" type="xml">
+            <tree>
+                <field name="shift_date"/>
+                <field name="shift_type"/>
+                <field name="branch_id"/>
+                <field name="operator_id"/>
+                <field name="expected_closing"/>
+                <field name="closing_counted"/>
+                <field name="variance"/>
+                <field name="state"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_cash_shift" model="ir.actions.act_window">
+        <field name="name">Cash Shifts</field>
+        <field name="res_model">fix.cash.shift</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_cash_shift" name="Cash Shifts"
+              parent="menu_ws_front_desk"
+              action="action_fix_cash_shift" sequence="30"/>
+
+</odoo>

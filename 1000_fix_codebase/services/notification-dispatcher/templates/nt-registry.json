@@ -1,0 +1,185 @@
+{
+  "$schema": "./nt-registry.schema.json",
+  "registry": "NT — notification content templates",
+  "source_of_truth": "project_content/04_Notification_and_Messaging (26 files, NT-001…NT-026)",
+  "governance": "NT-026 — template changes are Content Design Lead decisions, logged there, never edited here",
+  "rule_engine": {
+    "one_event_one_decision": "NT-001 §opening — every module publishes an event; exactly one component (this dispatcher) decides how it is delivered",
+    "consent_classes": {
+      "security":      {"window": "24/7", "frequency_cap": null, "sms_route": "masking", "dnd_reachable": true},
+      "transactional": {"window": "24/7", "frequency_cap": null, "sms_route": "masking", "dnd_reachable": true},
+      "service":       {"window": "08:00-21:00", "frequency_cap": {"per_class": 3, "all_non_transactional": 4, "rolling_days": 7}, "sms_route": "masking", "dnd_reachable": true},
+      "marketing":     {"window": "10:00-20:00", "frequency_cap": {"per_class": 2, "all_non_transactional": 4, "rolling_days": 7}, "sms_route": "non-masking", "dnd_reachable": false}
+    },
+    "held_not_dropped": "QH-02 — out-of-window service/marketing messages are held",
+    "stale_held_discarded": "QH-03 — a held message that is stale when the window opens is discarded, not sent late",
+    "timezone": "Asia/Dhaka (QH-04 — no per-customer timezone)",
+    "bd_rules": {
+      "BD-01": "consent_class determines the SMS route — misclassification is a route-suspension risk",
+      "BD-02": "a marketing message never uses the masking route",
+      "BD-03": "an order-status message never carries a promotional line — doing so reclassifies the whole message",
+      "BD-04": "traffic routes through BTRC-listed aggregators only",
+      "BD-05": "the masking sender ID '1000FiX' registration is tracked in NT-026"
+    },
+    "fallbacks": {
+      "sms_undeliverable": "retry once, then fall back to the next channel in the matrix (NT-001 §4)",
+      "push_not_delivered": "fall back to SMS for CH-04 act-now events",
+      "email_bounce": "flag the address, notify the account owner, fall back to SMS",
+      "all_channels_failed": "raise an operational task — never silently drop (NT-021)"
+    },
+    "language_default": "bn — language comes from fix.party.preferred_language (MD-013), defaulting to Bengali (PS-03)",
+    "sms_segment_warning": "Bengali SMS is UCS-2, segmenting at 70 characters, not 160 (CG-010 BC-05)"
+  },
+  "event_matrix": {
+    "comment": "NT-001 §2.3/§2.4 — W1 rows carry bodies below; later-wave rows carry template IDs only until their wave loads",
+    "service.order.booking_received":  {"channels": {"customer": ["sms", "in_app"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-018", "NT-010"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.technician_assigned": {"channels": {"customer": ["sms"], "technician": ["push"]}, "templates": ["NT-004", "NT-016"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.technician_enroute":  {"channels": {"customer": ["sms", "push"]}, "templates": ["NT-004", "NT-015"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.device_received":     {"channels": {"customer": ["sms"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-010"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.estimate_ready":      {"channels": {"customer": ["sms", "push", "email"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-009"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.estimate_approved":   {"channels": {"customer": ["sms"], "technician": ["push"]}, "templates": ["NT-004", "NT-016"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.estimate_declined":   {"channels": {"customer": ["sms"], "technician": ["push"], "branch": ["in_app"]}, "templates": ["NT-004", "NT-016", "NT-018"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.awaiting_parts":      {"channels": {"customer": ["sms"], "branch": ["in_app"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-010"], "consent_class": "service", "wave": "W1"},
+    "service.order.ready_for_collection": {"channels": {"customer": ["sms", "push", "email"], "branch": ["in_app"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-009"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.completed":           {"channels": {"customer": ["sms", "email"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-009"], "consent_class": "transactional", "wave": "W1"},
+    "service.order.sla_breached":        {"channels": {"customer": ["sms"], "branch": ["in_app"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-020"], "consent_class": "transactional", "wave": "W1", "internal_name": "delayed (customer-facing MD-027 wording)"},
+    "service.order.cancelled":           {"channels": {"customer": ["sms", "email"], "technician": ["push"], "branch": ["in_app"], "corporate_admin": ["email"]}, "templates": ["NT-004", "NT-009"], "consent_class": "transactional", "wave": "W1"},
+    "payment.received":     {"channels": {"customer": ["sms", "email"]}, "templates": ["NT-004", "NT-009"], "consent_class": "transactional", "wave": "W1"},
+    "payment.overdue":      {"channels": {"customer": ["sms"]}, "templates": ["NT-006"], "consent_class": "service", "wave": "W2"},
+    "security.otp_requested": {"channels": {"audience_any": ["sms"]}, "templates": ["NT-007"], "consent_class": "security", "wave": "W1"},
+    "security.new_device_signin": {"channels": {"audience_any": ["sms", "email"]}, "templates": ["NT-007"], "consent_class": "security", "wave": "W2"},
+    "contract.renewal_due":  {"channels": {"corporate_admin": ["email"]}, "templates": ["NT-010"], "consent_class": "service", "wave": "W2"},
+    "warranty.claim_decision": {"channels": {"warranty_officer": ["in_app", "email"]}, "templates": ["NT-013", "NT-018"], "consent_class": "transactional", "wave": "W2"},
+    "procurement.po_issued": {"channels": {"vendor": ["email"]}, "templates": ["NT-011"], "consent_class": "transactional", "wave": "W3"},
+    "marketplace.job_broadcast": {"channels": {"seller": ["push", "sms"]}, "templates": ["NT-012"], "consent_class": "transactional", "wave": "W3"},
+    "marketplace.payout_released": {"channels": {"seller": ["sms", "email"]}, "templates": ["NT-012"], "consent_class": "transactional", "wave": "W3"},
+    "logistics.manifest_assigned": {"channels": {"rider": ["push"]}, "templates": ["NT-017"], "consent_class": "transactional", "wave": "W3"},
+    "hr.certification_expiring": {"channels": {"employee": ["email"], "manager": ["email"]}, "templates": ["NT-014"], "consent_class": "service", "wave": "W4"},
+    "approval.requested":   {"channels": {"approver": ["push", "email"]}, "templates": ["NT-022"], "consent_class": "transactional", "wave": "W2"},
+    "system.integration_failed": {"channels": {"on_call": ["alert"]}, "templates": ["NT-021"], "consent_class": "security", "wave": "W1"},
+    "feedback.service_completed": {"channels": {"customer": ["sms"]}, "templates": ["NT-024"], "consent_class": "service", "wave": "W2", "send_delay": "deferred — never at completion time"},
+    "marketing.campaign":   {"channels": {"customer": ["sms", "email"]}, "templates": ["NT-023"], "consent_class": "marketing", "wave": "W2", "requires_consent": true}
+  },
+  "bodies": {
+    "comment": "W1 lifecycle copy. Status wording is the MD-027 customer-facing column, never the internal state key (T-06). Variables are {{mustache}} with source fields per CG-008 NT-c.",
+    "booking_received": {
+      "event": "service.order.booking_received", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, your service booking is confirmed. Tracking ID {{tracking_ref}}. Hotline 16743. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার সার্ভিস বুকিং নিশ্চিত হয়েছে। ট্র্যাকিং আইডি {{tracking_ref}}। হটলাইন 16743। -1000FiX"
+    },
+    "technician_assigned": {
+      "event": "service.order.technician_assigned", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "technician_name": "hr.employee.name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, technician {{technician_name}} is assigned to your job {{tracking_ref}}. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার কাজের জন্য ({{tracking_ref}}) টেকনিশিয়ান {{technician_name}} নিয়োজিত হয়েছেন। -1000FiX"
+    },
+    "technician_enroute": {
+      "event": "service.order.technician_enroute", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "eta": "fix.service.order.eta"},
+      "en": "Dear {{customer_name}}, your technician is on the way (ETA {{eta}}). -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার টেকনিশিয়ান পথে আছেন (সম্ভাব্য সময় {{eta}})। -1000FiX"
+    },
+    "device_received": {
+      "event": "service.order.device_received", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref", "branch_name": "fix.branch.name"},
+      "en": "Dear {{customer_name}}, we received your device at {{branch_name}}. Tracking ID {{tracking_ref}}. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার ডিভাইস {{branch_name}} শাখায় গৃহীত হয়েছে। ট্র্যাকিং আইডি {{tracking_ref}}। -1000FiX"
+    },
+    "estimate_ready": {
+      "event": "service.order.estimate_ready", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref", "amount": "fix.estimate.total_amount (BN-007 Bengali numerals)"},
+      "en": "Dear {{customer_name}}, your repair estimate for {{tracking_ref}} is {{amount}}. Approve by replying or calling 16743. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, {{tracking_ref}} এর মেরামতের আনুমানিক খরচ {{amount}}। অনুমোদনের জন্য কল করুন 16743। -1000FiX"
+    },
+    "estimate_approved": {
+      "event": "service.order.estimate_approved", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, your estimate for {{tracking_ref}} is approved. Repair starts now. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, {{tracking_ref}} এর খরচ অনুমোদিত হয়েছে। মেরামত শুরু হয়েছে। -1000FiX"
+    },
+    "estimate_declined": {
+      "event": "service.order.estimate_declined", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, your estimate for {{tracking_ref}} was declined as requested. Collection details follow. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার অনুরোধে {{tracking_ref}} এর আনুমানিক খরচ বাতিল করা হয়েছে। ডিভাইস সংগ্রহের বিবরণ পরে জানানো হবে। -1000FiX"
+    },
+    "awaiting_parts": {
+      "event": "service.order.awaiting_parts", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, your repair {{tracking_ref}} awaits a part. We will update you. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার মেরামত ({{tracking_ref}}) পার্টসের অপেক্ষায় আছে। আপডেট জানানো হবে। -1000FiX"
+    },
+    "ready_for_collection": {
+      "event": "service.order.ready_for_collection", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref", "branch_name": "fix.branch.name"},
+      "en": "Dear {{customer_name}}, your device {{tracking_ref}} is ready for collection at {{branch_name}}. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার ডিভাইস ({{tracking_ref}}) {{branch_name}} শাখায় সংগ্রহের জন্য প্রস্তুত। -1000FiX"
+    },
+    "completed": {
+      "event": "service.order.completed", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, service {{tracking_ref}} is completed and delivered. Thank you. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, সার্ভিস ({{tracking_ref}}) সম্পন্ন ও বুঝিয়ে দেওয়া হয়েছে। ধন্যবাদ। -1000FiX"
+    },
+    "sla_breached": {
+      "event": "service.order.sla_breached", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref", "new_eta": "fix.service.order.eta"},
+      "en": "Dear {{customer_name}}, your repair {{tracking_ref}} is delayed. New expected time {{new_eta}}. We apologise. Hotline 16743. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার মেরামত ({{tracking_ref}}) বিলম্বিত হচ্ছে। নতুন সম্ভাব্য সময় {{new_eta}}। দুঃখিত। হটলাইন 16743। -1000FiX"
+    },
+    "cancelled": {
+      "event": "service.order.cancelled", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, booking {{tracking_ref}} is cancelled as requested. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, আপনার অনুরোধে বুকিং ({{tracking_ref}}) বাতিল করা হয়েছে। -1000FiX"
+    },
+    "otp_requested": {
+      "event": "security.otp_requested", "template_id": "NT-007", "channel": "sms",
+      "variables": {"code": "otp (never logged, never in KPIs)", "valid_minutes": "otp ttl"},
+      "en": "{{code}} is your 1000FiX verification code. Valid {{valid_minutes}} minutes. Never share it.",
+      "bn": "{{code}} আপনার 1000FiX যাচাইকরণ কোড। {{valid_minutes}} মিনিট বৈধ। কারও সাথে শেয়ার করবেন না।"
+    },
+    "payment_received": {
+      "event": "payment.received", "template_id": "NT-004", "channel": "sms",
+      "variables": {"customer_name": "fix.party.display_name", "amount": "payment amount (BN-007)", "tracking_ref": "fix.service.order.tracking_ref"},
+      "en": "Dear {{customer_name}}, we received {{amount}} for {{tracking_ref}}. Thank you. -1000FiX",
+      "bn": "প্রিয় {{customer_name}}, {{tracking_ref}} এর জন্য {{amount}} গ্রহণ করা হয়েছে। ধন্যবাদ। -1000FiX"
+    },
+    "integration_failed": {
+      "event": "system.integration_failed", "template_id": "NT-021", "channel": "alert",
+      "variables": {"integration": "integration id", "error": "error summary"},
+      "en": "[P0] Integration {{integration}} failing: {{error}}. On-call engaged per IP-09 fallback register.",
+      "bn": "[P0] ইন্টিগ্রেশন {{integration}} ব্যর্থ: {{error}}। IP-09 ফলব্যাক অনুযায়ী অন-কল নিয়োজিত।"
+    }
+  },
+  "library_files_comment": "The 26 governance/content files this registry summarises. Bodies above are the W1 machine-readable subset; the full copy library loads from these files at build time (P04-M05-T07).",
+  "library_files": {
+    "NT-001": "Notification Strategy and Event-Channel Matrix",
+    "NT-002": "Notification Preference and Consent Copy",
+    "NT-003": "Quiet Hours, Throttling and Frequency Policy",
+    "NT-004": "SMS Template Library — Customer",
+    "NT-005": "SMS Template Library — Technician and Field",
+    "NT-006": "SMS Template Library — Finance and Collections",
+    "NT-007": "OTP and Security Message Library",
+    "NT-008": "WhatsApp Business Template Library",
+    "NT-009": "Email Template Library — Customer Transactional",
+    "NT-010": "Email Template Library — Corporate and B2B",
+    "NT-011": "Email Template Library — Vendor and Supplier",
+    "NT-012": "Email Template Library — Seller and Partner",
+    "NT-013": "Email Template Library — Brand Partner Claims",
+    "NT-014": "Email Template Library — Internal and HR",
+    "NT-015": "Push Notification Library — P01 Customer App",
+    "NT-016": "Push Notification Library — P02 Technician App",
+    "NT-017": "Push Notification Library — P09 Rider App",
+    "NT-018": "In-App Notification and Inbox Copy",
+    "NT-019": "IVR and Voice Prompt Scripts",
+    "NT-020": "Escalation and SLA Breach Notification Library",
+    "NT-021": "System Integration and Job Failure Alert Library",
+    "NT-022": "Approval Request and Reminder Library",
+    "NT-023": "Marketing and Lifecycle Campaign Message Library",
+    "NT-024": "Survey, Feedback and NPS Invitation Library",
+    "NT-025": "Notification Failure and Fallback Copy",
+    "NT-026": "Message Template Governance and Change Log"
+  }
+}

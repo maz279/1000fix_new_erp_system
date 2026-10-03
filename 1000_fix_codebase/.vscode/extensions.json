@@ -1,0 +1,30 @@
+{
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "charliermarsh.ruff",
+    "ms-azuretools.vscode-docker",
+    "redhat.vscode-xml",
+    "dart-code.flutter",
+    "dart-code.dart-code",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "eamodie.gitlens",
+    "humao.rest-client",
+    "redhat.vscode-yaml",
+    "tamasfe.even-better-toml",
+    "usernamehw.errorlens",
+    "Gruntfuggly.todo-tree",
+    "ryanluker.vscode-coverage-gutters",
+    "DavidAnson.vscode-markdownlint",
+    "bierner.markdown-mermaid",
+    "github.vscode-github-actions",
+    "ms-playwright.playwright"
+  ],
+  "unwantedRecommendations": [
+    "ms-python.black-formatter",
+    "ms-python.autopep8",
+    "ms-python.pylint",
+    "ms-vscode.vscode-typescript-tslint-plugin"
+  ]
+}

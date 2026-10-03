@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_rbac_ext views (P03-M02) — roles, isolation tiers, SoD controls -->
+<odoo>
+    <record id="view_fix_role_tree" model="ir.ui.view">
+        <field name="name">fix.role.tree</field>
+        <field name="model">fix.role</field>
+        <field name="arch" type="xml">
+            <tree string="Business Roles">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn"/>
+                <field name="keycloak_role"/>
+                <field name="active" widget="boolean_toggle"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_role_form" model="ir.ui.view">
+        <field name="name">fix.role.form</field>
+        <field name="model">fix.role</field>
+        <field name="arch" type="xml">
+            <form string="Business Role">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="name_bn"/>
+                            <field name="keycloak_role"/>
+                            <field name="group_id"/>
+                            <field name="active" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="tier_ids" widget="many2many_tags"/>
+                            <field name="operating_unit_ids" widget="many2many_tags"/>
+                        </group>
+                    </group>
+                    <field name="description"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_sod_control_tree" model="ir.ui.view">
+        <field name="name">fix.sod.control.tree</field>
+        <field name="model">fix.sod.control</field>
+        <field name="arch" type="xml">
+            <tree string="SoD Controls">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="role_a_id"/>
+                <field name="role_b_id"/>
+                <field name="conflict_action" widget="badge"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="action_fix_role" model="ir.actions.act_window">
+        <field name="name">Business Roles</field>
+        <field name="res_model">fix.role</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_sod" model="ir.actions.act_window">
+        <field name="name">SoD Controls</field>
+        <field name="res_model">fix.sod.control</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <record id="action_fix_isolation_tier" model="ir.actions.act_window">
+        <field name="name">Isolation Tiers</field>
+        <field name="res_model">fix.isolation.tier</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_security_root" name="Security &amp; Access" sequence="60"/>
+    <menuitem id="menu_fix_role" name="Roles" parent="menu_fix_security_root"
+              action="action_fix_role" sequence="10"/>
+    <menuitem id="menu_fix_sod" name="SoD Controls" parent="menu_fix_security_root"
+              action="action_fix_sod" sequence="20"/>
+    <menuitem id="menu_fix_isolation_tier" name="Isolation Tiers" parent="menu_fix_security_root"
+              action="action_fix_isolation_tier" sequence="30"/>
+</odoo>

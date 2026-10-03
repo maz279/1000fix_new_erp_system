@@ -1,0 +1,62 @@
+# 1000fix-erp — .gitattributes (XS-01: LF everywhere; linguist overrides)
+# core.autocrlf MUST be false (BE-004 section 4; P02-M02-T07).
+
+* text=auto eol=lf
+*.py text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.dart text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.xml text eol=lf
+*.csv text eol=lf
+*.sh text eol=lf
+*.sql text eol=lf
+*.toml text eol=lf
+*.lock text eol=lf
+*.conf text eol=lf
+# Windows-only tooling stays CRLF-native only where the tool requires it
+*.ps1 text eol=crlf
+*.psm1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.xlsx binary
+*.zip binary
+*.gz binary
+
+# Git LFS patterns (P02-M02-T07): large binaries tracked by pointer, not blob.
+# Activate once the repository lands on a host with LFS: git lfs install.
+# Until then these stay plain-binary (the repo is small); the patterns are
+# committed now so the moment LFS is needed, the routes already exist.
+*.psd filter=lfs diff=lfs merge=lfs -text
+*.ai filter=lfs diff=lfs merge=lfs -text
+*.mp4 filter=lfs diff=lfs merge=lfs -text
+*.mov filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text
+*.safetensors filter=lfs diff=lfs merge=lfs -text
+docs/guides/reference/*.png filter=lfs diff=lfs merge=lfs -text
+
+# Linguist: vendored third-party code must not pollute language stats
+vendor/** linguist-vendored
+vendor/odoo/** linguist-vendored
+vendor/oca/** linguist-vendored
+# Generated artefacts are documentation, not code
+docs/p01-m03/registers/** linguist-generated
+docs/p01-m04/registers/** linguist-generated
+tooling/cd-register.yaml linguist-generated
+# Bengali reference image and fixtures
+*.bn.png linguist-vendored

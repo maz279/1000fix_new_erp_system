@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.feature.flag views (P03-M04-T05, OPS-06) -->
+<odoo>
+    <record id="view_fix_feature_flag_tree" model="ir.ui.view">
+        <field name="name">fix.feature.flag.tree</field>
+        <field name="model">fix.feature.flag</field>
+        <field name="arch" type="xml">
+            <tree string="Feature Flags">
+                <field name="key"/>
+                <field name="name"/>
+                <field name="enabled" widget="boolean_toggle"/>
+                <field name="scope"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_fix_feature_flag_form" model="ir.ui.view">
+        <field name="name">fix.feature.flag.form</field>
+        <field name="model">fix.feature.flag</field>
+        <field name="arch" type="xml">
+            <form string="Feature Flag">
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="key"/>
+                            <field name="name"/>
+                            <field name="enabled" widget="boolean_toggle"/>
+                        </group>
+                        <group>
+                            <field name="scope"/>
+                            <field name="branch_ids" widget="many2many_tags"
+                                   invisible="scope != 'branch'"/>
+                            <field name="role_ids" widget="many2many_tags"
+                                   invisible="scope != 'role'"/>
+                            <field name="default_for_new"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_feature_flag" model="ir.actions.act_window">
+        <field name="name">Feature Flags</field>
+        <field name="res_model">fix.feature.flag</field>
+        <field name="view_mode">tree,form</field>
+    </record>
+
+    <menuitem id="menu_fix_feature_flag" name="Feature Flags" parent="menu_fix_entity_root"
+              action="action_fix_feature_flag" sequence="50"/>
+</odoo>

@@ -1,0 +1,602 @@
+# 1000FiX ERP — Platform Context API
+# Bounded context 11 of 11 (IN-002 §3.1). Owning modules M25, M26, M28–M30, M62–M65.
+#
+# This exemplar issues THE THREE WEBHOOK-MANAGEMENT ENDPOINTS AUDIT-016 AP-04 FOUND
+# MISSING. Extraction found "no webhook management endpoint registered anywhere":
+# M28 §12.5 lists eighteen platform endpoints — schemas, catalogue, subscriptions, dead
+# letters, replay, APIs, consumers, credentials, integrations, health, fallback test,
+# sync, reconciliation, trace — and NONE for webhook endpoint registration, testing or
+# secret rotation, despite FR-IPF-034 requiring a registry and fix_webhook_endpoint
+# existing as an entity.
+#
+# CONFIDENTIAL — Internal Use Only
+
+openapi: 3.1.0
+
+info:
+  title: 1000FiX Platform API
+  version: 1.0.0
+  description: |
+    The event platform, schema registry, webhook registry and integration health surface —
+    the `platform` bounded context (`AR-008` §5), realised by M28.
+
+    **M28 publishes only platform events. It transports every business event and authors
+    none.** The `platform.` namespace is reserved for E3 infrastructure facts
+    (`AR-009` §3.1) and is retained for 30 days.
+
+    **This context is the largest by operation count** — approximately **190 of the 1,187
+    operations** (`IN-002` §11.2) — and it is needed at **W1**, because the gateway
+    validates tokens from the first request and the CON-03 portal is live from W1.
+    `IN-002` Q-03 records that ownership of the ~172 operations beyond M28's declared 18
+    is unassigned.
+  contact:
+    name: Integration Architect, 1000FiX Services Limited
+    email: integration-architecture@1000fix.example
+  license:
+    name: CONFIDENTIAL — Internal Use Only
+
+servers:
+  - url: https://sandbox.api.1000fix.example
+    description: Partner sandbox.
+
+externalDocs:
+  description: Developer portal — platform
+  url: https://developer.1000fix.example/platform
+
+tags:
+  - name: webhook-endpoints
+    description: >
+      **New in this issue.** Closes the registration half of `AUDIT-016` `AP-04`.
+    x-family: partner
+    x-owning-module: M28
+  - name: events
+    description: Schema registry, living catalogue, subscriptions, dead letters, replay.
+    x-family: admin
+    x-owning-module: M28
+  - name: integrations
+    description: The 47-integration register with health and fallback state.
+    x-family: admin
+    x-owning-module: M28
+
+security:
+  - oauthMachine: []
+
+paths:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # THE THREE MISSING ENDPOINTS — AUDIT-016 AP-04
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  /api/v1/platform/webhook-endpoints:
+    post:
+      operationId: registerWebhookEndpoint
+      summary: Register a webhook endpoint and receive its signing secret
+      tags: [webhook-endpoints]
+      x-scope: ['webhook_endpoint:write']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: write
+      x-rate-limit-class: partner-standard
+      x-wave: W1
+      x-retry-safe: false
+      description: |
+        **Closes the first third of `AUDIT-016` `AP-04`.** `FR-IPF-034` requires a webhook
+        registry and `fix_webhook_endpoint` exists as an entity, but no endpoint to manage
+        it was registered anywhere in the repository.
+
+        The **signing secret is returned exactly once**, in this response, and is never
+        retrievable again (`AP-004` `SIG-08`). It is stored in the vault (`IP-07`,
+        `NFR-062`) and never logged. A consumer that loses it rotates
+        (`rotateWebhookSecret`); it cannot be read back.
+
+        **The URL is validated before registration**: it must be HTTPS, it must not resolve
+        to a private or link-local address, and it must answer a challenge — otherwise a
+        registration becomes a server-side request forgery primitive.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [url, event_types]
+              properties:
+                url:
+                  type: string
+                  format: uri
+                  pattern: '^https://'
+                  description: HTTPS only. Validated for reachability and non-private resolution.
+                event_types:
+                  type: array
+                  minItems: 1
+                  items: { type: string }
+                  description: >
+                    Event names from the `IN-003` registry. An unregistered name is
+                    rejected — a subscription to an event nobody publishes is silently
+                    dead, which is the failure `IN-003` `G-04` exists to prevent.
+                description: { type: [string, "null"], maxLength: 200 }
+      responses:
+        '201':
+          description: Registered. The `signing_secret` is present ONLY in this response.
+          headers:
+            Location: { required: true, schema: { type: string, format: uri } }
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/WebhookEndpoint'
+                  - type: object
+                    required: [signing_secret]
+                    properties:
+                      signing_secret:
+                        type: string
+                        description: Returned once. Never retrievable. Never logged.
+        '400': { $ref: '../_shared/errors.yaml#/components/responses/BadRequest' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '422':
+          description: >
+            Includes `validation.reference_invalid` where an `event_types` entry is not in
+            the `IN-003` registry, and a rejection where the URL fails reachability or
+            resolves to a private address.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+
+    get:
+      operationId: listWebhookEndpoints
+      summary: List the caller's registered webhook endpoints
+      tags: [webhook-endpoints]
+      x-scope: ['webhook_endpoint:read']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: standard-read
+      x-rate-limit-class: partner-standard
+      x-wave: W1
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+      responses:
+        '200':
+          description: A page of endpoints. `signing_secret` is never present.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/WebhookEndpoint' } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+
+  /api/v1/platform/webhook-endpoints/{webhook_endpoint_id}/test:
+    parameters:
+      - $ref: '#/components/parameters/WebhookEndpointId'
+    post:
+      operationId: testWebhookEndpoint
+      summary: Send a signed test delivery
+      tags: [webhook-endpoints]
+      x-scope: ['webhook_endpoint:write']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: write
+      x-rate-limit-class: sandbox
+      x-wave: W1
+      description: |
+        **Closes the second third of `AP-04`.** Sends a fully signed delivery carrying a
+        synthetic payload, so a consumer can verify its signature implementation before a
+        real event depends on it.
+
+        The response reports what the consumer returned, including its latency and body —
+        which is how the commonest implementation error is diagnosed: **verifying against a
+        re-serialised body instead of the raw bytes** (`AP-004` `SIG-03`). Re-serialising
+        changes whitespace and key order and breaks the signature.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                event_type:
+                  type: string
+                  default: platform.webhook_test
+      responses:
+        '200':
+          description: Test delivered; the consumer's response is reported.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [delivered, consumer_status]
+                properties:
+                  delivered: { type: boolean }
+                  consumer_status: { type: integer }
+                  consumer_latency_ms: { type: integer }
+                  consumer_body_excerpt: { type: [string, "null"], maxLength: 500 }
+                  webhook_id: { type: string, format: uuid }
+                  signature_headers_sent:
+                    type: array
+                    items: { type: string }
+                    examples: [["webhook-id", "webhook-timestamp", "webhook-signature"]]
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../_shared/errors.yaml#/components/responses/NotFound' }
+
+  /api/v1/platform/webhook-endpoints/{webhook_endpoint_id}/rotate-secret:
+    parameters:
+      - $ref: '#/components/parameters/WebhookEndpointId'
+    post:
+      operationId: rotateWebhookSecret
+      summary: Rotate the signing secret with an overlap window
+      tags: [webhook-endpoints]
+      x-scope: ['webhook_endpoint:write']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: write
+      x-rate-limit-class: partner-standard
+      x-wave: W1
+      x-retry-safe: false
+      description: |
+        **Closes the final third of `AP-04`.** During the overlap window, deliveries carry
+        **more than one signature**, space-separated in `webhook-signature`, and the
+        consumer accepts the delivery if **any** verifies (`AP-004` `SIG-07`).
+
+        **Without an overlap, every rotation is an outage on the consumer's side** — which
+        is why a rotation endpoint without this behaviour would close the finding in name
+        only.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                overlap_hours:
+                  type: integer
+                  minimum: 1
+                  maximum: 168
+                  default: 24
+      responses:
+        '200':
+          description: Rotated. The new secret is present ONLY in this response.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [signing_secret, overlap_until]
+                properties:
+                  signing_secret: { type: string }
+                  overlap_until:  { type: string, format: date-time }
+                  previous_secret_valid_until: { type: string, format: date-time }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '404': { $ref: '../_shared/errors.yaml#/components/responses/NotFound' }
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # EXISTING M28 §12.5 SURFACE — four of the eighteen, as exemplars
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  /api/v1/platform/events/schemas:
+    post:
+      operationId: registerEventSchema
+      summary: Register an event schema
+      tags: [events]
+      x-scope: ['platform_event:write']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: write
+      x-rate-limit-class: bulk
+      x-wave: W1
+      description: |
+        `IN-003` `G-01`: an event is registered **before** the code that emits it merges.
+
+        The compatibility check runs here, not only in CI: a new version must be backward
+        compatible with the registered one, or it is rejected. Additive changes keep the
+        `schema_version`; anything else requires a new version and a dual-publish period
+        (`AR-009` §8).
+
+        **The registry carries 988 registrations** (`AR-009` §10.1) — which is why the
+        catalogue is generated from it rather than maintained by hand.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EventSchemaRegistration' }
+      responses:
+        '201':
+          description: Registered. Publishes `platform.schema_registered`.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventSchemaRegistration' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+        '409':
+          description: A registration for this `event_type` and `schema_version` already exists.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+        '422':
+          description: >
+            The proposed schema is not backward compatible with the registered one, or the
+            event has no declared consumer (`IN-003` `G-03` — an event with no consumer is
+            a defect), or the name violates ADR-017 convention A.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+
+  /api/v1/platform/events/catalogue:
+    get:
+      operationId: getEventCatalogue
+      summary: The living event catalogue with producers and consumers
+      tags: [events]
+      x-scope: ['platform_event:read']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: standard-read
+      x-rate-limit-class: partner-standard
+      x-wave: W1
+      description: |
+        `M28` `FR-IPF-032`'s living catalogue, **generated from the registry**
+        (`AR-009` `D-A9-02`).
+
+        `05-03` §4.2 is **not** this catalogue. It is a curated cross-cutting subset —
+        64 events against 988 declared, **6.5%** — and `AR-009` `D-A9-01` formally rules it
+        partial. **No consumer specification should be written against it.**
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+        - name: filter[aggregate]
+          in: query
+          schema: { type: string }
+        - name: filter[producer_module]
+          in: query
+          schema: { type: string, pattern: '^M[0-9]{2}$' }
+        - name: filter[unconsumed]
+          in: query
+          schema: { type: boolean }
+          description: >
+            `true` lists events with no declared consumer — a defect class under
+            `IN-003` `G-03`, surfaced deliberately rather than hidden.
+      responses:
+        '200':
+          description: A page of the catalogue.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/EventSchemaRegistration' } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+
+  /api/v1/platform/events/dead-letters/{event_id}/replay:
+    parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: replayDeadLetter
+      summary: Replay one dead-lettered event
+      tags: [events]
+      x-scope: ['platform_event:write']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: write
+      x-rate-limit-class: bulk
+      x-wave: W1
+      x-retry-safe: false
+      description: |
+        **Replay is refused for an `R3` consumer without an explicit, named, logged
+        operator override** (`AR-009` §7.2). Every consumer declares a replay class in the
+        `IN-003` registry:
+
+        | Class | Behaviour on replay |
+        |---|---|
+        | `R1` idempotent projection | Safe — recompute from scratch |
+        | `R2` guarded side effect | Safe only with an already-done check |
+        | `R3` external side effect | **Never replayed without an operator decision** |
+
+        `R3` covers SMS and WhatsApp sends, payment execution, brand claim submission and
+        BEFTN file generation. **This is what stops a routine replay from re-sending 40,000
+        SMS messages.** A DLQ is never auto-purged: a silently discarded event is the exact
+        failure mode the whole design exists to prevent.
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/IdempotencyKeyParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [reason]
+              properties:
+                reason: { type: string, maxLength: 500 }
+                r3_override:
+                  type: boolean
+                  default: false
+                  description: >
+                    Required to be `true` for an `R3` consumer. The override, the operator
+                    and the reason are recorded and published as `platform.event_replayed`.
+      responses:
+        '202':
+          description: Replay accepted. Publishes `platform.event_replayed`.
+          content:
+            application/json:
+              schema: { $ref: '../_shared/components.yaml#/components/schemas/AsyncJobAccepted' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403':
+          description: >
+            Includes the `R3` refusal — the consumer has an external side effect and
+            `r3_override` was not set. `auth.step_up_required` where the operator has not
+            step-up authenticated.
+          content:
+            application/problem+json:
+              schema: { $ref: '../_shared/errors.yaml#/components/schemas/Problem' }
+          x-retry-safe: false
+        '404': { $ref: '../_shared/errors.yaml#/components/responses/NotFound' }
+
+  /api/v1/platform/integrations:
+    get:
+      operationId: listIntegrations
+      summary: The 47-integration register with health and fallback state
+      tags: [integrations]
+      x-scope: ['platform_event:read']
+      x-scope-status: proposed
+      x-owning-module: M28
+      x-endpoint-class: standard-read
+      x-rate-limit-class: portal
+      x-wave: W1
+      description: |
+        The register specified in `IN-001` §10.2. Each row carries pattern, owner, timeout,
+        retry, breaker state, fallback, last drill date, credential expiry, `AP-012`
+        disclosure status, residency position and processor-contract reference.
+
+        **Measured state at 2026-08-18 14:40 (+06):** 47 integrations declared, 47
+        technology assignments, **12 P0**, **0 with a tested fallback**, and **9 of 53
+        counterparties with a `Determined` disclosure register** (`AP-012`). An integration
+        may not reach production while its disclosure rows are `Undetermined`
+        (`AP-012` `DS-01`, `IN-001` `LC-01`).
+      parameters:
+        - $ref: '../_shared/components.yaml#/components/parameters/CursorParam'
+        - $ref: '../_shared/components.yaml#/components/parameters/LimitParam'
+        - name: filter[priority]
+          in: query
+          schema: { type: string, enum: [P0, P1, P2, P3] }
+        - name: filter[breaker_state]
+          in: query
+          schema: { type: string, enum: [closed, half_open, open] }
+      responses:
+        '200':
+          description: A page of the integration register.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data, page]
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/IntegrationRegisterRow' } }
+                  page: { $ref: '../_shared/components.yaml#/components/schemas/PageInfo' }
+        '401': { $ref: '../_shared/errors.yaml#/components/responses/Unauthorized' }
+        '403': { $ref: '../_shared/errors.yaml#/components/responses/Forbidden' }
+
+components:
+
+  securitySchemes:
+    oauthUser:    { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthUser' }
+    oauthMachine: { $ref: '../_shared/security.yaml#/components/securitySchemes/oauthMachine' }
+
+  parameters:
+    WebhookEndpointId:
+      name: webhook_endpoint_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+  schemas:
+
+    WebhookEndpoint:
+      type: object
+      required: [id, url, event_types, state]
+      properties:
+        id:  { type: string, format: uuid }
+        url: { type: string, format: uri }
+        event_types: { type: array, items: { type: string } }
+        state:
+          type: string
+          enum: [active, disabled_by_consumer, disabled_by_platform]
+          description: >
+            `disabled_by_platform` after **five consecutive delivery failures**
+            (`05-03` §7, `AP-004` §4.6). Publishes `platform.webhook_endpoint_disabled`
+            and notifies the endpoint's owner. Re-enablement is deliberate, not automatic.
+        consecutive_failures: { type: integer, minimum: 0 }
+        last_delivery_at:     { type: [string, "null"], format: date-time }
+        secret_rotates_at:    { type: [string, "null"], format: date-time }
+        audit: { $ref: '../_shared/components.yaml#/components/schemas/AuditStamp' }
+
+    EventSchemaRegistration:
+      type: object
+      required: [event_type, schema_version, aggregate, producer_module, replay_class, retention_class]
+      properties:
+        event_type:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*\.[a-z][a-z0-9_]*$'
+          description: >
+            `<aggregate>.<past_tense_verb>`, ADR-017 convention A. The aggregate is one of
+            the 22 roots in `AR-008` §4.2 — **not** the owning module's code. Roughly 245
+            declared events currently use module-code namespaces (`ap.`, `gl.`, `wh.`,
+            `mdm.`) and are scheduled for rename in W1 while it is still free
+            (`AR-009` §3.3).
+        schema_version:  { type: string, pattern: '^[0-9]+\.[0-9]+$' }
+        aggregate:       { type: string }
+        producer_module: { type: string, pattern: '^M[0-9]{2}$' }
+        consumers:
+          type: array
+          items: { type: string }
+          minItems: 1
+          description: >
+            `IN-003` `G-03`: **an event with no declared consumer is a defect** — either a
+            consumer is missing or the event should not exist.
+        ordering_guarantee:
+          type: string
+          enum: [per_aggregate_instance, none]
+          description: Never global (`AR-009` §4.2).
+        replay_class:    { type: string, enum: [R1, R2, R3] }
+        retention_class: { type: string, enum: [financial_7y, personal_5y, evidence, operational_30d, platform_30d] }
+        payload_schema:
+          type: object
+          description: JSON Schema 2020-12 document for the payload.
+        deprecated_at: { type: [string, "null"], format: date-time }
+        replaced_by:   { type: [string, "null"] }
+
+    IntegrationRegisterRow:
+      type: object
+      required: [int_id, name, pattern, priority, owning_module]
+      properties:
+        int_id:   { type: string, pattern: '^INT-[0-9]{3}$' }
+        name:     { type: string }
+        counterparty_legal_entity: { type: [string, "null"] }
+        pattern:  { type: string, enum: [P1_sync, P2_async_command, P3_domain_event, P4_webhook, P5_batch_file] }
+        priority: { type: string, enum: [P0, P1, P2, P3] }
+        wave:     { type: string, pattern: '^W[1-9]$' }
+        owning_module: { type: string }
+        icd_ref:  { type: [string, "null"], description: 'The IN-004 section that is this integration''s ICD.' }
+        timeout_ms:      { type: [integer, "null"] }
+        breaker_state:   { type: string, enum: [closed, half_open, open] }
+        fallback:        { type: [string, "null"] }
+        fallback_last_drill_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            `NFR-050` requires every P0 integration to have a **documented, tested** manual
+            fallback. A P0 integration whose fallback has not been exercised is a wave-gate
+            failure, not a risk (`AR-001` §7.2, `IN-001` `FB-02`).
+        disclosure_status:
+          type: string
+          enum: [Determined, Undetermined]
+          description: '`AP-012`. `Undetermined` blocks production (`DS-01`).'
+        residency_position: { type: [string, "null"] }
+        processor_contract_ref:
+          type: [string, "null"]
+          description: >
+            `NFR-098` requires equivalent obligations flowed by contract to every processor
+            and sub-processor. `AUDIT-016` `AP-08`: **no processor-contract inventory
+            exists**, so there is no contract list to check against.
+        credential_expires_at: { type: [string, "null"], format: date-time }

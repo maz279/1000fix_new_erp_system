@@ -1,0 +1,96 @@
+# Bengali (Bangladesh) translation for cd_rbac_ext.
+# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+
+msgid "Administration"
+msgstr "প্রশাসন"
+
+msgid "Business Role"
+msgstr "ব্যবসায়িক ভূমিকা"
+
+msgid "Business Roles"
+msgstr "ব্যবসায়িক ভূমিকাসমূহ"
+
+msgid "Company"
+msgstr "কোম্পানি"
+
+msgid "Data Isolation Tiers"
+msgstr "ডেটা আইসোলেশন স্তর"
+
+msgid "Description"
+msgstr "বিবরণ"
+
+msgid "Entity Configuration"
+msgstr "প্রতিষ্ঠান কনফিগারেশন"
+
+msgid "Field"
+msgstr "ফিল্ড"
+
+msgid "Isolation Tiers"
+msgstr "আইসোলেশন স্তরসমূহ"
+
+msgid "Keycloak Realm Role"
+msgstr "Keycloak রিয়েল্ম ভূমিকা"
+
+msgid "Model"
+msgstr "মডেল"
+
+msgid "NID Number"
+msgstr "NID নম্বর"
+
+msgid "Odoo Group"
+msgstr "Odoo গ্রুপ"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Operating Units"
+msgstr "পরিচালন ইউনিটসমূহ"
+
+msgid "Record Rule Domain"
+msgstr "রেকর্ড রুল ডোমেইন"
+
+msgid "Residency Reference"
+msgstr "রেসিডেন্সি রেফারেন্স"
+
+msgid "Role A"
+msgstr "ভূমিকা ক"
+
+msgid "Role B"
+msgstr "ভূমিকা খ"
+
+msgid "Role Code (R-nn)"
+msgstr "ভূমিকা কোড (R-nn)"
+
+msgid "Role Name"
+msgstr "ভূমিকার নাম"
+
+msgid "Role Name (Bengali)"
+msgstr "ভূমিকার নাম (বাংলা)"
+
+msgid "Roles"
+msgstr "ভূমিকাসমূহ"
+
+msgid "Roles with Access"
+msgstr "অ্যাক্সেসপ্রাপ্ত ভূমিকাসমূহ"
+
+msgid "Scope (OUs)"
+msgstr "পরিসর (OU)"
+
+msgid "Security & Access"
+msgstr "নিরাপত্তা ও অ্যাক্সেস"
+
+msgid "SoD Code"
+msgstr "SoD কোড"
+
+msgid "SoD Controls"
+msgstr "SoD নিয়ন্ত্রণসমূহ"
+
+msgid "Why these roles conflict"
+msgstr "কেন এই ভূমিকাগুলো দ্বন্দ্ব করে"
