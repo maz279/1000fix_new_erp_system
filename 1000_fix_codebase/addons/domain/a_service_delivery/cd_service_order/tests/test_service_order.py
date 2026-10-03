@@ -22,7 +22,7 @@ class TestFixServiceOrder:
     def test_idempotency_key_unique(self):
         """DI-04: a retried POST must not create two orders."""
         from addons.domain.a_service_delivery.cd_service_order.models.fix_service_order import FixServiceOrder
-        assert any("idempotency_key_unique" in str(c) for c in FixServiceOrder._sql_constraints)
+        assert hasattr(FixServiceOrder, "_idempotency_key_unique")  # Odoo 19 models.Constraint attr
 
     def test_sla_fields_present(self):
         from addons.domain.a_service_delivery.cd_service_order.models.fix_service_order import FixServiceOrder

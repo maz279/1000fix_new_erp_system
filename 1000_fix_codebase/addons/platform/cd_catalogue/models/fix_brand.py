@@ -15,9 +15,9 @@ class FixBrand(models.Model):
     _description = "Brand Master"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "name"
-    _sql_constraints = [
-        ("name_unique", "unique(name)", "Brand name must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _name_unique = models.Constraint('UNIQUE (name)', 'Brand name must be unique')
 
     name = fields.Char(required=True, tracking=True)
     name_bn = fields.Char(string="Name (Bengali)", help="DE-17")

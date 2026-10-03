@@ -4,7 +4,7 @@
     <!-- T2 branch-scoped: users see records for their operating units only -->
     <record id="rule_fix_branch_t2_own_ou" model="ir.rule">
         <field name="name">Fix Branch: T2 branch-scoped (own OU only)</field>
-        <field ref="base.group_user" name="groups"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="model_id" ref="model_fix_branch"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="perm_read" eval="True"/>

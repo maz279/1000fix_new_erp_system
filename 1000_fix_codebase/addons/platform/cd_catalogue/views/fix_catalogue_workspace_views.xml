@@ -10,12 +10,12 @@
         <field name="name">fix.service.kit.tree</field>
         <field name="model">fix.service.kit</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
                 <field name="catalogue_item_id"/>
                 <field name="company_id" groups="base.group_multi_company"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -39,10 +39,10 @@
                     <notebook>
                         <page string="Components">
                             <field name="component_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="product_id"/>
                                     <field name="quantity"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Description">
@@ -62,7 +62,7 @@
     <record id="action_fix_service_kit" model="ir.actions.act_window">
         <field name="name">Service Kits</field>
         <field name="res_model">fix.service.kit</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_service_kit" name="Service Kits"
@@ -73,7 +73,7 @@
         <field name="name">fix.device.model.tree</field>
         <field name="model">fix.device.model</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="brand_id"/>
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
@@ -81,7 +81,7 @@
                 <field name="device_type"/>
                 <field name="discontinued" optional="hide"/>
                 <field name="parts_available" optional="hide"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -119,7 +119,7 @@
     <record id="action_fix_device_model" model="ir.actions.act_window">
         <field name="name">Device Models</field>
         <field name="res_model">fix.device.model</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_device_model" name="Device Models"

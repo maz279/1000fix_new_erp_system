@@ -31,9 +31,9 @@ class FixAutomation(models.Model):
     _name = "fix.automation"
     _description = "Business Automation"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "AUT code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'AUT code must be unique')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)
@@ -107,10 +107,9 @@ class FixApprovalMatrix(models.Model):
     _name = "fix.approval.matrix"
     _description = "Approval Authority Matrix"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("domain_threshold_unique", "unique(decision_domain, currency_id)",
-         "One threshold per decision domain and currency"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _domain_threshold_unique = models.Constraint('UNIQUE (decision_domain, currency_id)', 'One threshold per decision domain and currency')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

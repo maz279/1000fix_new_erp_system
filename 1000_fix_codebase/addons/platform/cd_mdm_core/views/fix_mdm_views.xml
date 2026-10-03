@@ -5,7 +5,7 @@
         <field name="name">fix.mdm.change.request.tree</field>
         <field name="model">fix.mdm.change.request</field>
         <field name="arch" type="xml">
-            <tree string="MDM Change Requests">
+            <list string="MDM Change Requests">
                 <field name="reference"/>
                 <field name="title"/>
                 <field name="model_name"/>
@@ -14,7 +14,7 @@
                        decoration-warning="state in ('submitted', 'under_review')"
                        decoration-danger="state == 'rejected'"/>
                 <field name="priority"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -66,7 +66,7 @@
     <record id="action_fix_mdm_change_request" model="ir.actions.act_window">
         <field name="name">MDM Change Requests</field>
         <field name="res_model">fix.mdm.change.request</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- Match + golden-record rules: the M64 engine's configuration surface
@@ -75,7 +75,7 @@
         <field name="name">fix.mdm.match.rule.tree</field>
         <field name="model">fix.mdm.match.rule</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="sequence" widget="handle"/>
                 <field name="model_name"/>
                 <field name="field_name"/>
@@ -83,34 +83,34 @@
                 <field name="weight"/>
                 <field name="normalize"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_mdm_match_rule" model="ir.actions.act_window">
         <field name="name">Match Rules</field>
         <field name="res_model">fix.mdm.match.rule</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="view_fix_mdm_golden_rule_tree" model="ir.ui.view">
         <field name="name">fix.mdm.golden.rule.tree</field>
         <field name="model">fix.mdm.golden.rule</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="sequence" widget="handle"/>
                 <field name="model_name"/>
                 <field name="field_name"/>
                 <field name="strategy"/>
                 <field name="description" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_mdm_golden_rule" model="ir.actions.act_window">
         <field name="name">Golden Record Rules</field>
         <field name="res_model">fix.mdm.golden.rule</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_mdm_root" name="Master Data Governance" sequence="50"/>

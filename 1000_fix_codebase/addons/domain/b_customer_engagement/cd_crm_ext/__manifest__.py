@@ -14,7 +14,7 @@ explicitly in the backlog (P04-M04-T08).
     "author": "1000FiX Services Ltd",
     "category": "Customer Engagement/CRM",
     "depends": ["base", "mail", "crm", "cd_entity_config", "cd_party_master",
-                 "cd_event_outbox"],
+                 "cd_event_outbox", "cd_service_order"],
     "data": ["security/ir.model.access.csv", "views/crm_lead_views.xml"],
     "installable": True,
     "application": False,

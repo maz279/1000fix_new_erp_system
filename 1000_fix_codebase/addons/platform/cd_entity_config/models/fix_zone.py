@@ -10,9 +10,9 @@ class FixZone(models.Model):
     _name = "fix.zone"
     _description = "Dispatch Zone"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Zone code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Zone code must be unique')
 
     name = fields.Char(string="Zone Name", required=True, tracking=True)
     name_bn = fields.Char(string="Zone Name (Bengali)", help="DE-17 Bengali-first")

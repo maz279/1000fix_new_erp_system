@@ -69,10 +69,9 @@ class FixCatalogueItem(models.Model):
         help="True for items that only a brand-authorised technician may handle")
     active = fields.Boolean(default=True, tracking=True)
 
-    _sql_constraints = [
-        ("product_tmpl_unique", "unique(product_tmpl_id)",
-         "Each product.template maps to exactly one catalogue item"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _product_tmpl_unique = models.Constraint('UNIQUE (product_tmpl_id)', 'Each product.template maps to exactly one catalogue item')
 
     # Event emission (AS-08)
     @api.model_create_multi

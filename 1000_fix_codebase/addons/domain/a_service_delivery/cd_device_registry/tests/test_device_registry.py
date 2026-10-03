@@ -9,11 +9,11 @@ class TestFixDevice:
 
     def test_serial_unique_constraint(self):
         from addons.domain.a_service_delivery.cd_device_registry.models.fix_device import FixDevice
-        assert any("serial_unique" in str(c) for c in FixDevice._sql_constraints)
+        assert hasattr(FixDevice, "_serial_unique")  # Odoo 19 models.Constraint attr
 
     def test_imei1_unique_constraint(self):
         from addons.domain.a_service_delivery.cd_device_registry.models.fix_device import FixDevice
-        assert any("imei1_unique" in str(c) for c in FixDevice._sql_constraints)
+        assert hasattr(FixDevice, "_imei1_unique")  # Odoo 19 models.Constraint attr
 
     def test_imei_format_constraint(self):
         from addons.domain.a_service_delivery.cd_device_registry.models.fix_device import FixDevice

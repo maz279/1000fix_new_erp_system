@@ -9,7 +9,7 @@ class TestFixCatalogueItem:
 
     def test_product_tmpl_unique(self):
         from addons.platform.cd_catalogue.models.fix_catalogue_item import FixCatalogueItem
-        assert any("product_tmpl_unique" in str(c) for c in FixCatalogueItem._sql_constraints)
+        assert hasattr(FixCatalogueItem, "_product_tmpl_unique")  # Odoo 19 models.Constraint attr
 
 
 class TestFixServiceKit:
@@ -47,7 +47,7 @@ class TestFixBrand:
 
     def test_name_unique(self):
         from addons.platform.cd_catalogue.models.fix_brand import FixBrand
-        assert any("name_unique" in str(c) for c in FixBrand._sql_constraints)
+        assert hasattr(FixBrand, "_name_unique")  # Odoo 19 models.Constraint attr
 
 
 class TestFixDeviceModel:
@@ -57,4 +57,4 @@ class TestFixDeviceModel:
 
     def test_brand_name_unique(self):
         from addons.platform.cd_catalogue.models.fix_device_model import FixDeviceModel
-        assert any("brand_name_unique" in str(c) for c in FixDeviceModel._sql_constraints)
+        assert hasattr(FixDeviceModel, "_brand_name_unique")  # Odoo 19 models.Constraint attr

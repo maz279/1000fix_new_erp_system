@@ -127,10 +127,9 @@ class FixRevenueSchedule(models.Model):
     state = fields.Selection(
         [("active", "Active"), ("complete", "Complete"), ("cancelled", "Cancelled")],
         default="active", required=True, tracking=True)
-    _sql_constraints = [
-        ("source_schedule_unique", "unique(source_model, source_id)",
-         "One recognition schedule per source document"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _source_schedule_unique = models.Constraint('UNIQUE (source_model, source_id)', 'One recognition schedule per source document')
 
     @api.constrains("start_date", "end_date", "total_amount")
     def _check_schedule(self):

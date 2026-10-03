@@ -5,6 +5,10 @@ from pathlib import Path
 
 VIEWS = (Path(__file__).resolve().parents[1] / "views"
          / "fix_vendor_portal_views.xml").read_text(encoding="utf-8")
+# The portal group lives in security/ (loads before ir.model.access.csv);
+# the scoping test reads BOTH files.
+SECURITY = (Path(__file__).resolve().parents[1] / "security"
+            / "fix_vendor_portal_security.xml").read_text(encoding="utf-8")
 
 
 class TestVendorScoping(unittest.TestCase):
@@ -16,8 +20,8 @@ class TestVendorScoping(unittest.TestCase):
     def test_portal_group_extends_portal_not_internal(self):
         # Quote-agnostic: the XML legitimately writes ref('base.group_portal')
         # single-quoted inside eval="..." attributes.
-        self.assertRegex(VIEWS, r"""ref\(["']base\.group_portal["']\)""")
-        self.assertNotRegex(VIEWS, r"""ref\(["']base\.group_user["']\)""")
+        self.assertRegex(SECURITY, r"""ref\(["']base\.group_portal["']\)""")
+        self.assertNotRegex(SECURITY, r"""ref\(["']base\.group_user["']\)""")
 
 
 class TestThreeWayFeed(unittest.TestCase):

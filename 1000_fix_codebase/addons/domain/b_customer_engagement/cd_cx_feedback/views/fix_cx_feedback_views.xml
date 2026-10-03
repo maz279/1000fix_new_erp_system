@@ -6,13 +6,13 @@
         <field name="name">fix.complaint.tree</field>
         <field name="model">fix.complaint</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="severity == 'critical'" decoration-warning="severity == 'major'">
+            <list decoration-danger="severity == 'critical'" decoration-warning="severity == 'major'">
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="category" optional="show"/>
                 <field name="severity" widget="badge"/>
                 <field name="state" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -54,7 +54,7 @@
         <field name="name">fix.survey.tree</field>
         <field name="model">fix.survey</field>
         <field name="arch" type="xml">
-            <tree decoration-muted="state in ('expired', 'pending')">
+            <list decoration-muted="state in ('expired', 'pending')">
                 <field name="create_date" string="Triggered"/>
                 <field name="customer_id"/>
                 <field name="service_order_id" optional="show"/>
@@ -63,7 +63,7 @@
                        decoration-danger="rating in ('1', '2')"/>
                 <field name="nps_score" optional="show"/>
                 <field name="state" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -71,7 +71,7 @@
         <field name="name">fix.supplier.scorecard.tree</field>
         <field name="model">fix.supplier.scorecard</field>
         <field name="arch" type="xml">
-            <tree decoration-success="score >= 80" decoration-warning="score &lt; 60">
+            <list decoration-success="score >= 80" decoration-warning="score &lt; 60">
                 <field name="period"/>
                 <field name="vendor_id"/>
                 <field name="po_count" optional="show"/>
@@ -80,26 +80,26 @@
                 <field name="on_time_pct"/>
                 <field name="rejection_count" optional="show"/>
                 <field name="score"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_complaint" model="ir.actions.act_window">
         <field name="name">Complaints</field>
         <field name="res_model">fix.complaint</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_survey" model="ir.actions.act_window">
         <field name="name">Service Surveys</field>
         <field name="res_model">fix.survey</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_supplier_scorecard" model="ir.actions.act_window">
         <field name="name">Supplier Scorecards</field>
         <field name="res_model">fix.supplier.scorecard</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_complaint" name="Complaints"
@@ -108,8 +108,11 @@
     <menuitem id="menu_fix_survey" name="Surveys"
               parent="cd_party_master.menu_fix_party_root"
               action="action_fix_survey" sequence="70"/>
+    <!-- Layer rule: b_customer_engagement must not parent menus on
+         e_supply_chain modules (live-install finding: unresolvable xmlid at
+         install). The supplier scorecard hangs off the operations root. -->
     <menuitem id="menu_fix_supplier_scorecard" name="Supplier Scorecards"
-              parent="cd_requisition.menu_ws_procurement"
-              action="action_fix_supplier_scorecard" sequence="50"/>
+              parent="cd_entity_config.menu_fix_operations_root"
+              action="action_fix_supplier_scorecard" sequence="70"/>
 
 </odoo>

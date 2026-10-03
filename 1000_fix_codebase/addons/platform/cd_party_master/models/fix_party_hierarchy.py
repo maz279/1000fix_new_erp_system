@@ -26,10 +26,9 @@ class FixPartyHierarchy(models.Model):
                                "close with a date, never a delete")
     company_id = fields.Many2one("res.company", string="Company", required=True,
                                  default=lambda self: self.env.company)
-    _sql_constraints = [
-        ("parent_child_type_unique", "unique(parent_id, child_id, relation_type)",
-         "The same relation between the same parties exists once"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _parent_child_type_unique = models.Constraint('UNIQUE (parent_id, child_id, relation_type)', 'The same relation between the same parties exists once')
 
     @api.constrains("parent_id", "child_id")
     def _check_no_self(self):

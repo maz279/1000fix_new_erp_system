@@ -6,7 +6,7 @@
         <field name="name">fix.conversation.tree</field>
         <field name="model">fix.conversation</field>
         <field name="arch" type="xml">
-            <tree decoration-success="state in ('resolved_ai', 'resolved_agent')"
+            <list decoration-success="state in ('resolved_ai', 'resolved_agent')"
                   decoration-info="state == 'with_ai'" decoration-warning="state == 'with_agent'">
                 <field name="started_at"/>
                 <field name="channel" widget="badge"/>
@@ -15,7 +15,7 @@
                 <field name="intent" optional="show"/>
                 <field name="state" widget="badge"/>
                 <field name="ai_resolved" optional="hide" string="AI"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -44,12 +44,12 @@
                         </group>
                     </group>
                     <field name="turn_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="speaker"/>
                             <field name="lang" optional="show"/>
                             <field name="text"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -65,27 +65,27 @@
         <field name="name">fix.assistant.intent.tree</field>
         <field name="model">fix.assistant.intent</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="name_bn"/>
                 <field name="grounding" optional="show"/>
                 <field name="handoff_on_failure"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_conversation" model="ir.actions.act_window">
         <field name="name">Conversations</field>
         <field name="res_model">fix.conversation</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_assistant_intent" model="ir.actions.act_window">
         <field name="name">Assistant Intents</field>
         <field name="res_model">fix.assistant.intent</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_ws_contact" name="Contact Centre"

@@ -18,8 +18,7 @@ class TestFixEntity:
     def test_code_unique_constraint(self):
         """SQL constraint: code_unique on fix.entity."""
         from addons.platform.cd_entity_config.models.fix_entity import FixEntity
-        constraints = FixEntity._sql_constraints
-        assert any("code_unique" in str(c) for c in constraints)
+        assert hasattr(FixEntity, "_code_unique")  # Odoo 19 models.Constraint attr
 
     def test_bengali_name_field(self):
         """DE-17: legal_name_bn field exists."""

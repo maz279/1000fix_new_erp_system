@@ -24,10 +24,9 @@ class FixRateCard(models.Model):
     _description = "Rate Card"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "product_code, min_tier"
-    _sql_constraints = [
-        ("product_tier_unique", "unique(product_code, min_tier, contract_no)",
-         "One rate per product, tier and contract"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _product_tier_unique = models.Constraint('UNIQUE (product_code, min_tier, contract_no)', 'One rate per product, tier and contract')
 
     name = fields.Char(string="Rate Line Name", compute="_compute_name", store=True)
     product_code = fields.Char(string="Product Code", required=True, index=True,

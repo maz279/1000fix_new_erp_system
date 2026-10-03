@@ -22,10 +22,9 @@ class FixWarehouse(models.Model):
     branch_id = fields.Many2one("fix.branch", string="Branch", index=True)
     zone_ids = fields.One2many("fix.warehouse.zone", "warehouse_id", string="Zones")
     active = fields.Boolean(default=True)
-    _sql_constraints = [
-        ("code_company_unique", "unique(code, company_id)",
-         "Warehouse code must be unique per company"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_company_unique = models.Constraint('UNIQUE (code, company_id)', 'Warehouse code must be unique per company')
 
 
 class FixWarehouseZone(models.Model):
@@ -52,10 +51,9 @@ class FixWarehouseZone(models.Model):
     reservable = fields.Boolean(compute="_compute_reservable", store=True,
                                 help="False for quarantine/blocked zones — BRU-INV-08")
     bin_ids = fields.One2many("fix.warehouse.bin", "zone_id", string="Bins")
-    _sql_constraints = [
-        ("code_warehouse_unique", "unique(code, warehouse_id)",
-         "Zone code must be unique within the warehouse"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_warehouse_unique = models.Constraint('UNIQUE (code, warehouse_id)', 'Zone code must be unique within the warehouse')
 
     @api.depends("zone_type")
     def _compute_reservable(self):

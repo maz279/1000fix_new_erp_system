@@ -52,6 +52,7 @@ bin/
 
 # --- Odoo runtime artefacts (generated, never committed) ---
 infra/odoo-conf/local.conf
+infra/odoo-conf/local.resolved.conf
 *.session
 filestore/
 odoo.log*

@@ -16,7 +16,7 @@ CD-M63-01/02/04: process automation.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Operations/Automation",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
+    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_rbac_ext"],
     "data": ["security/ir.model.access.csv", "views/fix_workflow_engine_views.xml"],
     "installable": True,
     "application": False,

@@ -10,9 +10,9 @@ class FixEntity(models.Model):
     _description = "Legal Entity"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Entity code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Entity code must be unique')
 
     # AS-02: chatter mixins mandatory
     # AS-03: company_id + operating_unit_id on transactional models
@@ -36,9 +36,8 @@ class FixEntity(models.Model):
     branch_ids = fields.One2many("fix.branch", "entity_id", string="Branches")
     branch_count = fields.Integer(compute="_compute_branch_count", store=True)
 
-    _sql_constraints_company = [
-        ("company_unique", "unique(company_id)", "Each res.company maps to exactly one fix.entity"),
-    ]
+    _company_unique = models.Constraint("UNIQUE (company_id)",
+        "Each res.company maps to exactly one fix.entity")
 
     @api.depends("branch_ids")
     def _compute_branch_count(self):

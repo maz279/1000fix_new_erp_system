@@ -20,7 +20,7 @@ CD-M52-01: the accounts-payable core.
     "category": "Finance/Payables",
     "depends": ["base", "mail", "account", "product", "hr", "cd_entity_config",
                  "cd_employee_core", "cd_event_outbox", "cd_tax_engine_bd",
-                 "cd_requisition"],
+                 "cd_requisition", "cd_gl_ext"],
     "data": ["security/ir.model.access.csv", "views/fix_ap_ext_views.xml"],
     "installable": True,
     "application": False,

@@ -6,14 +6,14 @@
         <field name="name">fix.automation.tree</field>
         <field name="model">fix.automation</field>
         <field name="arch" type="xml">
-            <tree decoration-info="engine == 'airflow'" decoration-warning="engine == 'domain_service'">
+            <list decoration-info="engine == 'airflow'" decoration-warning="engine == 'domain_service'">
                 <field name="code"/>
                 <field name="trigger"/>
                 <field name="engine" widget="badge"/>
                 <field name="engine_ref" optional="show"/>
                 <field name="failure_policy" optional="hide"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -50,26 +50,26 @@
         <field name="name">fix.approval.matrix.tree</field>
         <field name="model">fix.approval.matrix</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="decision_domain"/>
                 <field name="currency_id" invisible="1"/>
                 <field name="threshold"/>
                 <field name="approver_role"/>
                 <field name="notes" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_automation" model="ir.actions.act_window">
         <field name="name">Automation Register</field>
         <field name="res_model">fix.automation</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_approval_matrix" model="ir.actions.act_window">
         <field name="name">Approval Matrix</field>
         <field name="res_model">fix.approval.matrix</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_automation" name="Automation Register"

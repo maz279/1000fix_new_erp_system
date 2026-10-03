@@ -1,0 +1,18 @@
+<!--
+  fix.feature.flag role scoping - the cd_rbac_ext side of the layer split
+  (the base model cannot reference fix.role; live-install finding). Adds the
+  role_ids column to the base flag form where fix.role exists.
+-->
+<odoo>
+    <record id="view_fix_feature_flag_form_roles" model="ir.ui.view">
+        <field name="name">fix.feature.flag.form.roles</field>
+        <field name="model">fix.feature.flag</field>
+        <field name="inherit_id" ref="cd_entity_config.view_fix_feature_flag_form"/>
+        <field name="arch" type="xml">
+            <field name="branch_ids" position="after">
+                <field name="role_ids" widget="many2many_tags"
+                       invisible="scope != 'role'"/>
+            </field>
+        </field>
+    </record>
+</odoo>

@@ -16,10 +16,9 @@ class FixPaymentExecution(models.Model):
     _name = "fix.payment.execution"
     _description = "Payment Execution"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("request_key_unique", "unique(source_model, source_id)",
-         "A payment request is executed exactly once — DI-04 idempotency"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _request_key_unique = models.Constraint('UNIQUE (source_model, source_id)', 'A payment request is executed exactly once — DI-04 idempotency')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

@@ -11,9 +11,9 @@ class FixSodControl(models.Model):
     _name = "fix.sod.control"
     _description = "Segregation of Duties Control"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "SoD control code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'SoD control code must be unique')
 
     code = fields.Char(string="SoD Code", required=True, size=10)
     name = fields.Char(string="Description", required=True)

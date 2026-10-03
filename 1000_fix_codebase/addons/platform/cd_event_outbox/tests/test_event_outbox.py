@@ -12,8 +12,7 @@ class TestFixEventOutbox:
     def test_event_id_unique(self):
         """UUID event_id for idempotency (DI-05)."""
         from addons.platform.cd_event_outbox.models.fix_event_outbox import FixEventOutbox
-        constraints = FixEventOutbox._sql_constraints
-        assert any("event_id_unique" in str(c) for c in constraints)
+        assert hasattr(FixEventOutbox, "_event_id_unique")  # Odoo 19 models.Constraint attr
 
     def test_emit_method(self):
         """AS-08: the emit() method writes to the outbox."""

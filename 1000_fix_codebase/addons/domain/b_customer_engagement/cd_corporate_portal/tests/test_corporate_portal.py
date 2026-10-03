@@ -6,6 +6,8 @@ import yaml
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
 VIEWS = (MODULE / "views" / "fix_corporate_portal_views.xml").read_text(encoding="utf-8")
+# The portal group lives in security/ (loads before ir.model.access.csv).
+SECURITY = (MODULE / "security" / "fix_corporate_portal_security.xml").read_text(encoding="utf-8")
 
 
 class TestEa05Scoping(unittest.TestCase):
@@ -14,8 +16,8 @@ class TestEa05Scoping(unittest.TestCase):
         self.assertIn("ir.rule", VIEWS)
 
     def test_portal_group_not_internal(self):
-        self.assertIn("ref('base.group_portal')", VIEWS)
-        self.assertNotIn("ref('base.group_user')", VIEWS)
+        self.assertIn("ref('base.group_portal')", SECURITY)
+        self.assertNotIn("ref('base.group_user')", SECURITY)
 
 
 class TestApiSurface(unittest.TestCase):

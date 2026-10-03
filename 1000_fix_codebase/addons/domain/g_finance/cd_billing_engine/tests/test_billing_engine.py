@@ -11,8 +11,7 @@ class TestAutoInvoice:
     def test_source_unique_constraint(self):
         """The auto-generation guard: one invoice per source document."""
         from addons.domain.g_finance.cd_billing_engine.models.fix_billing_engine import FixArInvoice
-        assert "source_key_unique" in dict(FixArInvoice._sql_constraints or []) or any(
-            c[0] == "source_key_unique" for c in FixArInvoice._sql_constraints)
+        assert hasattr(FixArInvoice, "_source_key_unique")  # Odoo 19 models.Constraint attr
 
     def test_closed_only_gate(self):
         """BRU-SRM-05: the method refuses non-closed orders."""

@@ -6,12 +6,12 @@
         <field name="name">fix.warehouse.tree</field>
         <field name="model">fix.warehouse</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="code"/>
                 <field name="name"/>
                 <field name="branch_id" optional="show"/>
                 <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -33,12 +33,12 @@
                         </group>
                     </group>
                     <field name="zone_ids">
-                        <tree>
+                        <list>
                             <field name="code"/>
                             <field name="name"/>
                             <field name="zone_type"/>
                             <field name="reservable" widget="boolean_toggle"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -53,7 +53,7 @@
     <record id="action_fix_warehouse" model="ir.actions.act_window">
         <field name="name">Warehouses</field>
         <field name="res_model">fix.warehouse</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_warehouse" name="Warehouses"

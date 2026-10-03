@@ -16,7 +16,7 @@ order against a device, permanently.
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Registry",
     "depends": ["base", "mail", "cd_entity_config", "cd_catalogue", "cd_party_master",
-                 "cd_document_core", "cd_event_outbox"],
+                 "cd_document_core", "cd_event_outbox", "cd_employee_core"],
     "data": ["security/ir.model.access.csv", "views/fix_device_views.xml"],
     "installable": True,
     "application": False,

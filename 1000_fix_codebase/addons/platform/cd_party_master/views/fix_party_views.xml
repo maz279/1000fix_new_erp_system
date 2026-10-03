@@ -5,7 +5,7 @@
         <field name="name">fix.party.role.tree</field>
         <field name="model">fix.party.role</field>
         <field name="arch" type="xml">
-            <tree string="Party Roles">
+            <list string="Party Roles">
                 <field name="partner_id"/>
                 <field name="role_type"/>
                 <field name="role_status" widget="badge"
@@ -14,7 +14,7 @@
                        decoration-danger="role_status in ('suspended', 'terminated')"/>
                 <field name="since"/>
                 <field name="company_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -51,26 +51,26 @@
         <field name="name">fix.identity.document.tree</field>
         <field name="model">fix.identity.document</field>
         <field name="arch" type="xml">
-            <tree string="Identity Documents" create="false">
+            <list string="Identity Documents" create="false">
                 <field name="partner_id"/>
                 <field name="document_type"/>
                 <field name="checksum_valid" widget="boolean_toggle"/>
                 <field name="verification_status" widget="badge"/>
                 <field name="expiry_date"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_party_role" model="ir.actions.act_window">
         <field name="name">Party Roles</field>
         <field name="res_model">fix.party.role</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_identity_document" model="ir.actions.act_window">
         <field name="name">Identity Documents</field>
         <field name="res_model">fix.identity.document</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- P04-M06-T03 — the Party Master workspace menu (UX-002 NVR-22 gated;

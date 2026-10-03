@@ -6,7 +6,7 @@
         <field name="name">fix.mushak.register.tree</field>
         <field name="model">fix.mushak.register</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="mushak_no"/>
                 <field name="invoice_date"/>
                 <field name="customer_name"/>
@@ -14,7 +14,7 @@
                 <field name="vat_amount"/>
                 <field name="total_payable"/>
                 <field name="posted" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -68,7 +68,7 @@
                 <field name="customer_name"/>
                 <field name="customer_bin"/>
                 <filter name="filter_unposted" string="Unposted" domain="[('posted', '=', False)]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="group_date" string="Invoice Date" context="{'group_by': 'invoice_date:month'}"/>
                 </group>
             </search>
@@ -78,28 +78,28 @@
     <record id="action_fix_mushak_register" model="ir.actions.act_window">
         <field name="name">Mushak 6.3 Register</field>
         <field name="res_model">fix.mushak.register</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="view_fix_vat_treatment_tree" model="ir.ui.view">
         <field name="name">fix.vat.treatment.tree</field>
         <field name="model">fix.vat.treatment</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="treatment_type"/>
                 <field name="rate"/>
                 <field name="truncated_base" optional="hide"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_vat_treatment" model="ir.actions.act_window">
         <field name="name">VAT Treatments</field>
         <field name="res_model">fix.vat.treatment</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_mushak_register" name="Mushak 6.3 Register"

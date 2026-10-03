@@ -5,12 +5,12 @@
         <field name="name">fix.feature.flag.tree</field>
         <field name="model">fix.feature.flag</field>
         <field name="arch" type="xml">
-            <tree string="Feature Flags">
+            <list string="Feature Flags">
                 <field name="key"/>
                 <field name="name"/>
                 <field name="enabled" widget="boolean_toggle"/>
                 <field name="scope"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -30,8 +30,7 @@
                             <field name="scope"/>
                             <field name="branch_ids" widget="many2many_tags"
                                    invisible="scope != 'branch'"/>
-                            <field name="role_ids" widget="many2many_tags"
-                                   invisible="scope != 'role'"/>
+                            <!-- role_ids column: added by cd_rbac_ext view extension -->
                             <field name="default_for_new"/>
                         </group>
                     </group>
@@ -48,7 +47,7 @@
     <record id="action_fix_feature_flag" model="ir.actions.act_window">
         <field name="name">Feature Flags</field>
         <field name="res_model">fix.feature.flag</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_feature_flag" name="Feature Flags" parent="menu_fix_entity_root"

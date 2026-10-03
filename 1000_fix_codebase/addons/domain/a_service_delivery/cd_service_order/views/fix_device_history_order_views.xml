@@ -1,0 +1,19 @@
+<!--
+  fix.device.history order column - the cd_service_order side of the layer
+  split. cd_device_registry sits below this module, so the history->order
+  pointer (and its tree column) is added HERE, extending the standalone
+  history tree (cross-model injection through the embedded form tree is not
+  resolvable by view integrity).
+-->
+<odoo>
+    <record id="view_fix_device_history_tree_order" model="ir.ui.view">
+        <field name="name">fix.device.history.tree.order</field>
+        <field name="model">fix.device.history</field>
+        <field name="inherit_id" ref="cd_device_registry.view_fix_device_history_tree"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='branch_id']" position="before">
+                <field name="service_order_id" optional="hide"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

@@ -11,21 +11,21 @@
         <field name="name">fix.token.queue.tree</field>
         <field name="model">fix.token.queue</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="token_display"/>
                 <field name="branch_id"/>
                 <field name="customer_id"/>
                 <field name="counter_number"/>
                 <field name="state"/>
                 <field name="service_order_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_token_queue" model="ir.actions.act_window">
         <field name="name">Token Queue</field>
         <field name="res_model">fix.token.queue</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- P04-M06-T03 — Service Intake workspace (UX-002 workspace 1: opens on
@@ -77,21 +77,21 @@
         <field name="name">fix.walkin.intake.tree</field>
         <field name="model">fix.walkin.intake</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="intake_start"/>
                 <field name="token_id"/>
                 <field name="branch_id"/>
                 <field name="customer_id"/>
                 <field name="service_order_id"/>
                 <field name="handover_complete" optional="hide"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_walkin_intake" model="ir.actions.act_window">
         <field name="name">Walk-in Intake</field>
         <field name="res_model">fix.walkin.intake</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_walkin_intake" name="Walk-in Intake"
@@ -142,7 +142,7 @@
         <field name="name">fix.cash.shift.tree</field>
         <field name="model">fix.cash.shift</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="shift_date"/>
                 <field name="shift_type"/>
                 <field name="branch_id"/>
@@ -151,14 +151,14 @@
                 <field name="closing_counted"/>
                 <field name="variance"/>
                 <field name="state"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_cash_shift" model="ir.actions.act_window">
         <field name="name">Cash Shifts</field>
         <field name="res_model">fix.cash.shift</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_cash_shift" name="Cash Shifts"

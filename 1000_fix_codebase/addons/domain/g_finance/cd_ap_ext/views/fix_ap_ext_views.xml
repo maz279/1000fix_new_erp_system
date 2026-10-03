@@ -6,7 +6,7 @@
         <field name="name">fix.vendor.invoice.tree</field>
         <field name="model">fix.vendor.invoice</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="match_state == 'blocked'" decoration-success="match_state == 'matched'">
+            <list decoration-danger="match_state == 'blocked'" decoration-success="match_state == 'matched'">
                 <field name="invoice_date"/>
                 <field name="vendor_id"/>
                 <field name="invoice_ref"/>
@@ -14,7 +14,7 @@
                 <field name="tds_amount" optional="show"/>
                 <field name="total_payable"/>
                 <field name="match_state" widget="badge" string="3-Way"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -41,7 +41,7 @@
                     <notebook>
                         <page string="Lines">
                             <field name="line_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="product_id"/>
                                     <field name="description"/>
                                     <field name="quantity"/>
@@ -49,7 +49,7 @@
                                     <field name="line_total" sum="Total"/>
                                     <field name="tds_category"/>
                                     <field name="tds_exempt" optional="hide"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Three-Way Match">
@@ -73,26 +73,26 @@
         <field name="name">fix.expense.claim.tree</field>
         <field name="model">fix.expense.claim</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="expense_date"/>
                 <field name="employee_id"/>
                 <field name="description"/>
                 <field name="amount"/>
                 <field name="state" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_vendor_invoice" model="ir.actions.act_window">
         <field name="name">Vendor Invoices</field>
         <field name="res_model">fix.vendor.invoice</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_expense_claim" model="ir.actions.act_window">
         <field name="name">Expense Claims</field>
         <field name="res_model">fix.expense.claim</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_vendor_invoice" name="Vendor Invoices"

@@ -20,13 +20,13 @@
                         </group>
                     </group>
                     <field name="signer_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="partner_id"/>
                             <field name="role_label"/>
                             <field name="signed_at" readonly="1"/>
                             <field name="signature_provider" readonly="1" optional="show"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -42,19 +42,19 @@
         <field name="name">fix.esignature.envelope.tree</field>
         <field name="model">fix.esignature.envelope</field>
         <field name="arch" type="xml">
-            <tree decoration-success="state == 'completed'">
+            <list decoration-success="state == 'completed'">
                 <field name="name"/>
                 <field name="document_id" optional="show"/>
                 <field name="state" widget="badge"/>
                 <field name="completed_at" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_esignature_envelope" model="ir.actions.act_window">
         <field name="name">E-Signature Envelopes</field>
         <field name="res_model">fix.esignature.envelope</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_esignature" name="E-Signatures"

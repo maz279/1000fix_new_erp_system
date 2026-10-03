@@ -48,9 +48,9 @@ class FixEventOutbox(models.Model):
     last_error = fields.Text(readonly=True)
     published_at = fields.Datetime(readonly=True)
 
-    _sql_constraints = [
-        ("event_id_unique", "unique(event_id)", "Event ID must be globally unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _event_id_unique = models.Constraint('UNIQUE (event_id)', 'Event ID must be globally unique')
 
     @api.model
     def emit(self, event_type: str, aggregate: str, aggregate_id: int,

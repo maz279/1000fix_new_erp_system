@@ -17,9 +17,9 @@ class FixIsolationTier(models.Model):
     _name = "fix.isolation.tier"
     _description = "Data Isolation Tier"
     _order = "code"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Tier code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Tier code must be unique')
 
     code = fields.Selection(
         [("T0", "T0 - Public"), ("T1", "T1 - Internal"),

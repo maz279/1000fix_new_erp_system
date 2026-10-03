@@ -10,9 +10,9 @@ class FixDocumentTemplate(models.Model):
     _name = "fix.document.template"
     _description = "Document Template"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Template code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Template code must be unique')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

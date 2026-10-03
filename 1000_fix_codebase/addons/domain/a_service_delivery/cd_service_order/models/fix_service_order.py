@@ -137,10 +137,9 @@ class FixServiceOrder(models.Model):
 
     active = fields.Boolean(default=True)
 
-    _sql_constraints = [
-        ("idempotency_key_unique", "unique(idempotency_key)",
-         "An order with this idempotency key already exists (DI-04 idempotency)."),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _idempotency_key_unique = models.Constraint('UNIQUE (idempotency_key)', 'An order with this idempotency key already exists (DI-04 idempotency).')
 
     @api.model
     def _read_group_states(self, states, domain, order):

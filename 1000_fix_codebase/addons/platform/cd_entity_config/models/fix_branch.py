@@ -10,9 +10,9 @@ class FixBranch(models.Model):
     _description = "Branch"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "entity_id, code"
-    _sql_constraints = [
-        ("code_entity_unique", "unique(code, entity_id)", "Branch code must be unique within an entity"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_entity_unique = models.Constraint('UNIQUE (code, entity_id)', 'Branch code must be unique within an entity')
 
     code = fields.Char(string="Branch Code", required=True, size=10, tracking=True)
     name = fields.Char(string="Branch Name", required=True, tracking=True)
@@ -34,7 +34,11 @@ class FixBranch(models.Model):
                                  help="Bangladesh address hierarchy")
     phone = fields.Char(string="Phone")
     email = fields.Char(string="Email")
-    manager_id = fields.Many2one("hr.employee", string="Branch Manager")
+    # Layer rule (FF-17 / live-install finding): this PLATFORM module cannot
+    # depend on Odoo hr, so the manager is the accountable LOGIN user here;
+    # cd_employee_core extends fix.branch with the HR-grade employee pointer
+    # (employee_manager_id -> hr.employee) where hr actually exists.
+    manager_id = fields.Many2one("res.users", string="Branch Manager")
     active = fields.Boolean(default=True, tracking=True)
     calendar_id = fields.Many2one("fix.working.calendar", string="Working Calendar",
                                   help="M02's W2 availability stub reads this")

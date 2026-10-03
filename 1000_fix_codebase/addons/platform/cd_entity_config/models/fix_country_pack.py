@@ -11,9 +11,9 @@ class FixCountryPack(models.Model):
     _name = "fix.country.pack"
     _description = "Country Data Pack"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Pack code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Pack code must be unique')
 
     name = fields.Char(string="Pack Name", required=True, tracking=True)
     code = fields.Char(string="Pack Code", required=True, size=16,
@@ -48,7 +48,6 @@ class FixCountryPackLine(models.Model):
     name_bn = fields.Char(string="Name (Bengali)", required=True,
                           help="DE-17: Bengali is not optional for place names")
     date_value = fields.Date(string="Date (holiday packs)")
-    _sql_constraints = [
-        ("pack_code_unique", "unique(pack_id, code)",
-         "Code appears once per pack"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _pack_code_unique = models.Constraint('UNIQUE (pack_id, code)', 'Code appears once per pack')

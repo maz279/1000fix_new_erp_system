@@ -7,7 +7,7 @@
         <field name="name">fix.rate.card.tree</field>
         <field name="model">fix.rate.card</field>
         <field name="arch" type="xml">
-            <tree editable="bottom">
+            <list editable="bottom">
                 <field name="product_code"/>
                 <field name="line_type"/>
                 <field name="min_tier"/>
@@ -17,18 +17,18 @@
                 <field name="valid_from" optional="hide"/>
                 <field name="valid_to" optional="hide"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_rate_card" model="ir.actions.act_window">
         <field name="name">Rate Cards</field>
         <field name="res_model">fix.rate.card</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_rate_card" name="Rate Cards"
-              parent="cd_service_order.menu_ws_service_orders"
+              parent="cd_entity_config.menu_fix_operations_root"
               action="action_fix_rate_card" sequence="40"/>
 
 </odoo>

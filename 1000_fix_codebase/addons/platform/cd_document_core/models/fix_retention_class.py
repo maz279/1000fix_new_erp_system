@@ -14,9 +14,9 @@ class FixRetentionClass(models.Model):
     _description = "Retention Class"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Retention code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Retention code must be unique')
 
     code = fields.Char(required=True, size=10,
                        help="Short code, e.g. FIN-7Y, HR-5Y, CUST-3Y")

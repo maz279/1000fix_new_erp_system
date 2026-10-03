@@ -17,8 +17,7 @@ class TestRateCard:
 
     def test_unique_per_product_tier_contract(self):
         from addons.domain.c_commercial.cd_rate_card.models.fix_rate_card import FixRateCard
-        names = [c[0] for c in (FixRateCard._sql_constraints or [])]
-        assert "product_tier_unique" in names
+        assert hasattr(FixRateCard, "_product_tier_unique")  # Odoo 19 models.Constraint attr
 
     def test_projects_to_engine_line(self):
         import inspect

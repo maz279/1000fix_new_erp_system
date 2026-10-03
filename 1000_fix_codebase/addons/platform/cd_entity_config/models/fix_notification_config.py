@@ -20,10 +20,9 @@ class FixNotificationConfig(models.Model):
     _name = "fix.notification.config"
     _description = "Notification Configuration"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("consent_class_channel_unique", "unique(consent_class, channel)",
-         "One configuration row per consent class and channel"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _consent_class_channel_unique = models.Constraint('UNIQUE (consent_class, channel)', 'One configuration row per consent class and channel')
 
     name = fields.Char(string="Configuration", compute="_compute_name", store=True)
     consent_class = fields.Selection(

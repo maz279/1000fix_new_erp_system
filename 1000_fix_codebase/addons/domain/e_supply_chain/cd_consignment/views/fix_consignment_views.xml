@@ -6,7 +6,7 @@
         <field name="name">fix.consignment.tree</field>
         <field name="model">fix.consignment</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="chain_broken or state == 'lost'" decoration-success="state in ('delivered', 'returned')">
+            <list decoration-danger="chain_broken or state == 'lost'" decoration-success="state in ('delivered', 'returned')">
                 <field name="name"/>
                 <field name="scheduled_date"/>
                 <field name="consignment_type"/>
@@ -14,7 +14,7 @@
                 <field name="state" widget="badge"/>
                 <field name="chain_broken" string="Chain" widget="boolean_toggle"/>
                 <field name="custody_summary" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -44,14 +44,14 @@
                         </group>
                     </group>
                     <field name="custody_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="scanned_at"/>
                             <field name="step"/>
                             <field name="scanned_by"/>
                             <field name="location_branch_id" optional="show"/>
                             <field name="device_serial" optional="show"/>
                             <field name="exception_reason"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -66,7 +66,7 @@
     <record id="action_fix_consignment" model="ir.actions.act_window">
         <field name="name">Consignments</field>
         <field name="res_model">fix.consignment</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_consignment" name="Consignments"

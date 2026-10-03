@@ -9,9 +9,9 @@ class FixRefurbGrade(models.Model):
     _name = "fix.refurb.grade"
     _description = "Refurbishment Grade"
     _order = "sequence"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Grade code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Grade code must be unique')
 
     sequence = fields.Integer(default=10)
     code = fields.Selection(

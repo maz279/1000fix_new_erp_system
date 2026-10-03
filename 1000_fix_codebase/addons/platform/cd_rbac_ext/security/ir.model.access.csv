@@ -3,3 +3,4 @@ access_fix_role,fix.role,model_fix_role,base.group_user,1,1,1,0
 access_fix_isolation_tier,fix.isolation.tier,model_fix_isolation_tier,base.group_user,1,0,0,0
 access_fix_sod_control,fix.sod.control,model_fix_sod_control,base.group_user,1,1,1,0
 access_fix_field_rule,fix.field.rule,model_fix_field_rule,base.group_user,1,1,1,1
+access_fix_identity_document,fix.identity.document,model_fix_identity_document,base.group_user,1,1,1,0

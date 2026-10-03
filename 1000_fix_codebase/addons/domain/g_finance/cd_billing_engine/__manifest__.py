@@ -19,7 +19,7 @@ CD-M20-01: the M20 accounts-receivable core.
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
     "depends": ["base", "mail", "account", "product", "cd_entity_config",
-                 "cd_event_outbox", "cd_tax_engine_bd", "cd_service_order"],
+                 "cd_event_outbox", "cd_tax_engine_bd", "cd_service_order", "cd_gl_ext"],
     "data": ["security/ir.model.access.csv", "views/fix_billing_engine_views.xml"],
     "installable": True,
     "application": False,

@@ -15,9 +15,9 @@ class FixSlaPolicy(models.Model):
     _name = "fix.sla.policy"
     _description = "SLA Policy"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "SLA policy code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'SLA policy code must be unique')
 
     code = fields.Char(string="SLA Code", required=True, size=16)
     name = fields.Char(string="SLA Policy", required=True)
@@ -79,9 +79,9 @@ class FixDiagnosticNode(models.Model):
     company_id = fields.Many2one("res.company", string="Company", required=True,
                                  default=lambda self: self.env.company)
     active = fields.Boolean(default=True)
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Diagnostic node code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Diagnostic node code must be unique')
 
     @api.depends("children_ids")
     def _compute_is_terminal(self):

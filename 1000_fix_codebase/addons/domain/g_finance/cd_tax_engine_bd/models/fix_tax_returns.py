@@ -20,10 +20,9 @@ class FixVatReturn(models.Model):
     _description = "VAT Return (Mushak 9.1)"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "period desc"
-    _sql_constraints = [
-        ("company_period_unique", "unique(company_id, period)",
-         "One VAT return per company and period"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _company_period_unique = models.Constraint('UNIQUE (company_id, period)', 'One VAT return per company and period')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)
@@ -119,10 +118,9 @@ class FixTdsReturn(models.Model):
     _name = "fix.tds.return"
     _description = "TDS Return (quarterly)"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("company_quarter_unique", "unique(company_id, quarter)",
-         "One TDS return per company and quarter"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _company_quarter_unique = models.Constraint('UNIQUE (company_id, quarter)', 'One TDS return per company and quarter')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)
@@ -167,8 +165,9 @@ class FixWithholdingCertificate(models.Model):
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)
-    vendor_invoice_id = fields.Many2one("fix.vendor.invoice", string="Vendor Invoice",
-                                        required=True, ondelete="cascade")
+    # vendor_invoice_id (fix.vendor.invoice, required) is defined by cd_ap_ext
+    # (fix_withholding_certificate_ext): cd_ap_ext depends on THIS module, so
+    # the pointer to M52's invoice lives on the AP side (cycle finding).
     quarter = fields.Char(related="fix_tds_return_id.quarter", store=False)
     fix_tds_return_id = fields.Many2one("fix.tds.return", string="TDS Return",
                                         index=True, ondelete="set null")

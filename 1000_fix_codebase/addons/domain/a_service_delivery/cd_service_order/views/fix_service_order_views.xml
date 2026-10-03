@@ -11,7 +11,7 @@
         <field name="name">fix.service.order.tree</field>
         <field name="model">fix.service.order</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="device_serial" optional="show"/>
@@ -26,7 +26,7 @@
                        decoration-success="state in ('ready', 'delivered', 'closed')"
                        decoration-danger="state in ('qc_failed', 'cancelled')"/>
                 <field name="sla_resolution_deadline" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -73,28 +73,28 @@
                     <notebook>
                         <page string="Estimates">
                             <field name="estimate_ids">
-                                <tree>
+                                <list>
                                     <field name="version"/>
                                     <field name="state"/>
                                     <field name="grand_total"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Work Orders">
                             <field name="work_order_ids">
-                                <tree>
+                                <list>
                                     <field name="name"/>
                                     <field name="state"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="QC Checklists">
                             <field name="qc_checklist_ids">
-                                <tree>
+                                <list>
                                     <field name="inspector_id"/>
                                     <field name="state"/>
                                     <field name="all_passed"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -121,7 +121,7 @@
                         domain="[('state', 'not in', ('closed', 'cancelled'))]"/>
                 <filter name="filter_breaching" string="SLA Risk"
                         domain="[('state', 'not in', ('closed', 'cancelled')), ('sla_resolution_deadline', '&lt;', context_today().strftime('%Y-%m-%d 23:59:59'))]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="group_branch" string="Branch" context="{'group_by': 'branch_id'}"/>
                     <filter name="group_state" string="State" context="{'group_by': 'state'}"/>
                     <filter name="group_technician" string="Technician" context="{'group_by': 'technician_id'}"/>
@@ -133,7 +133,7 @@
     <record id="action_fix_service_order" model="ir.actions.act_window">
         <field name="name">Service Orders</field>
         <field name="res_model">fix.service.order</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Create the first service order</p>
             <p>Intake to delivery across the 14-state machine, with SLA clocks and estimates.</p>

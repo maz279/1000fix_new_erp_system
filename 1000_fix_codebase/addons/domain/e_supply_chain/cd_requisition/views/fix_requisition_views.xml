@@ -6,14 +6,14 @@
         <field name="name">fix.purchase.order.tree</field>
         <field name="model">fix.purchase.order</field>
         <field name="arch" type="xml">
-            <tree decoration-success="state == 'received'" decoration-info="state in ('draft', 'sent')">
+            <list decoration-success="state == 'received'" decoration-info="state in ('draft', 'sent')">
                 <field name="name"/>
                 <field name="date_order"/>
                 <field name="vendor_id"/>
                 <field name="branch_id" optional="show"/>
                 <field name="amount_total"/>
                 <field name="state" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -40,14 +40,14 @@
                         </group>
                     </group>
                     <field name="line_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="product_id"/>
                             <field name="description" optional="show"/>
                             <field name="qty_ordered"/>
                             <field name="qty_received" readonly="1"/>
                             <field name="unit_price"/>
                             <field name="line_total" sum="Total"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -63,27 +63,27 @@
         <field name="name">fix.requisition.tree</field>
         <field name="model">fix.requisition</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="urgency == 'emergency'" decoration-warning="urgency == 'urgent'">
+            <list decoration-danger="urgency == 'emergency'" decoration-warning="urgency == 'urgent'">
                 <field name="description"/>
                 <field name="requested_by"/>
                 <field name="branch_id" optional="show"/>
                 <field name="estimate_amount"/>
                 <field name="urgency" widget="badge"/>
                 <field name="state" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_purchase_order" model="ir.actions.act_window">
         <field name="name">Purchase Orders</field>
         <field name="res_model">fix.purchase.order</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_requisition" model="ir.actions.act_window">
         <field name="name">Requisitions</field>
         <field name="res_model">fix.requisition</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- The Procurement workspace menu (UX-002 workspace 6, W3 slice). -->

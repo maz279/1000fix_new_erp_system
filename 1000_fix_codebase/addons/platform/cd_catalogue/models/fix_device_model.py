@@ -14,10 +14,9 @@ class FixDeviceModel(models.Model):
     _description = "Device Model"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "brand_id, name"
-    _sql_constraints = [
-        ("brand_name_unique", "unique(brand_id, name)",
-         "Device model must be unique within a brand"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _brand_name_unique = models.Constraint('UNIQUE (brand_id, name)', 'Device model must be unique within a brand')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

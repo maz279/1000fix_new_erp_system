@@ -15,9 +15,9 @@ class FixFeatureFlag(models.Model):
     _name = "fix.feature.flag"
     _description = "Feature Flag"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("key_unique", "unique(key)", "Feature flag key must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _key_unique = models.Constraint('UNIQUE (key)', 'Feature flag key must be unique')
 
     key = fields.Char(string="Key", required=True, index=True,
                       help="Dot-notation key, e.g. 'dispatch.auto_assign'")
@@ -29,8 +29,10 @@ class FixFeatureFlag(models.Model):
         default="global", required=True)
     branch_ids = fields.Many2many("fix.branch", string="Enabled Branches",
                                   help="Only used when scope=branch")
-    role_ids = fields.Many2many("fix.role", string="Enabled Roles",
-                                help="Only used when scope=role (M29 fix.role)")
+    # role_ids (fix.role) lives in cd_rbac_ext — the PLATFORM layer cannot
+    # reference M29's model (live-install finding: unknown comodel at registry
+    # load). scope="role" fails CLOSED here; cd_rbac_ext overrides is_enabled
+    # to make role scoping work where fix.role exists.
     default_for_new = fields.Boolean(default=False,
                                      help="If True, new branches/roles get this flag enabled")
 
@@ -50,9 +52,8 @@ class FixFeatureFlag(models.Model):
             return True
         if flag.scope == "branch" and branch:
             return branch in flag.branch_ids
-        if flag.scope == "role" and role:
-            return role in flag.role_ids
-        # scope is set but no context provided — fail closed
+        # scope is set but no context provided (or role scope, which only
+        # cd_rbac_ext understands) — fail closed
         return False
 
 

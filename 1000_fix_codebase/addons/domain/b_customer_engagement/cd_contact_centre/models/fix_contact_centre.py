@@ -114,9 +114,9 @@ class FixAssistantIntent(models.Model):
 
     _name = "fix.assistant.intent"
     _description = "Assistant Intent (transactional)"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Intent code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Intent code must be unique')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

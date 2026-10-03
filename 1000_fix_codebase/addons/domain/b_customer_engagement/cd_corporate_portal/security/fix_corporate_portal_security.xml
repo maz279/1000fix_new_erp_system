@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_corporate_portal security: the corporate-portal group + record rules.
+     Loaded BEFORE ir.model.access.csv (the CSV references the group id). -->
+<odoo>
+    <record id="group_fix_corporate_portal" model="res.groups">
+        <field name="name">P04 Corporate Portal</field>
+        <field name="privilege_id" ref="cd_rbac_ext.privilege_fix_portal"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="comment">P04 access: corporate users see their own contracts, subscriptions and estate (EA-05).</field>
+    </record>
+</odoo>

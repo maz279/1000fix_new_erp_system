@@ -83,12 +83,10 @@ class FixDevice(models.Model):
     active = fields.Boolean(default=True, tracking=True)
     name = fields.Char(compute="_compute_name", store=True)
 
-    _sql_constraints = [
-        ("serial_unique_when_set", "unique(serial_number)",
-         "This serial number is already registered (duplicate detection)."),
-        ("imei1_unique_when_set", "unique(imei_1)",
-         "This IMEI is already registered (duplicate detection)."),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _serial_unique_when_set = models.Constraint('UNIQUE (serial_number)', 'This serial number is already registered (duplicate detection).')
+    _imei1_unique_when_set = models.Constraint('UNIQUE (imei_1)', 'This IMEI is already registered (duplicate detection).')
 
     @api.depends("device_model_id", "serial_number")
     def _compute_name(self):

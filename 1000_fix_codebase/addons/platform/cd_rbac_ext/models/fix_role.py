@@ -14,9 +14,9 @@ class FixRole(models.Model):
     _description = "Business Role"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "Role code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'Role code must be unique')
 
     code = fields.Char(string="Role Code (R-nn)", required=True, size=10,
                        help="The reconciled role identifier, e.g. R-01")

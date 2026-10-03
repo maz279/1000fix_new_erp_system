@@ -61,10 +61,9 @@ class FixPeriodClose(models.Model):
     _description = "Period Close Checklist"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "period_end desc, company_id"
-    _sql_constraints = [
-        ("company_period_unique", "unique(company_id, period_end)",
-         "One close checklist per company and period"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _company_period_unique = models.Constraint('UNIQUE (company_id, period_end)', 'One close checklist per company and period')
 
     CLOSE_TARGET_DAYS = 5  # G3-04: month-end close within 5 days
 

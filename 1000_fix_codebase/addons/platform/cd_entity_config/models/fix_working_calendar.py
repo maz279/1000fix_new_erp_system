@@ -49,10 +49,9 @@ class FixWorkingCalendarLine(models.Model):
     hour_from = fields.Float(string="From (hour)", required=True,
                              help="0.0-24.0 local Dhaka time")
     hour_to = fields.Float(string="To (hour)", required=True)
-    _sql_constraints = [
-        ("calendar_weekday_unique", "unique(calendar_id, weekday)",
-         "Each weekday appears once per calendar"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _calendar_weekday_unique = models.Constraint('UNIQUE (calendar_id, weekday)', 'Each weekday appears once per calendar')
 
     @api.constrains("hour_from", "hour_to")
     def _check_window(self):

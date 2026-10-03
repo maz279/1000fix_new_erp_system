@@ -5,7 +5,7 @@
     <!-- T1: Internal — all employees can read -->
     <record id="rule_fix_tier_t1_internal" model="ir.rule">
         <field name="name">Isolation Tier T1: Internal (all employees read)</field>
-        <field ref="base.group_user" name="groups"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="model_id" ref="model_fix_isolation_tier"/>
         <field name="domain_force">[(1, '=', 1)]</field>
         <field name="perm_read" eval="True"/>
@@ -15,7 +15,7 @@
     <!-- T5: Residency-classified — only fix_admin can manage -->
     <record id="rule_fix_tier_t5_admin_only" model="ir.rule">
         <field name="name">Isolation Tier T5: Residency-classified (admin write only)</field>
-        <field ref="base.group_system" name="groups"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
         <field name="model_id" ref="model_fix_isolation_tier"/>
         <field name="domain_force">['|', ('code', '!=', 'T5'), ('requires_step_up', '=', True)]</field>
         <field name="perm_read" eval="True"/>
@@ -25,7 +25,7 @@
     <!-- SoD controls: only security group can modify -->
     <record id="rule_fix_sod_security_only" model="ir.rule">
         <field name="name">SoD Controls: security group write</field>
-        <field ref="base.group_system" name="groups"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
         <field name="model_id" ref="model_fix_sod_control"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>
@@ -33,7 +33,7 @@
     <!-- Field rules: only security group can modify -->
     <record id="rule_fix_field_rule_security_only" model="ir.rule">
         <field name="name">Field Rules: security group write</field>
-        <field ref="base.group_system" name="groups"/>
+        <field name="groups" eval="[(4, ref('base.group_system'))]"/>
         <field name="model_id" ref="model_fix_field_rule"/>
         <field name="domain_force">[(1, '=', 1)]</field>
     </record>

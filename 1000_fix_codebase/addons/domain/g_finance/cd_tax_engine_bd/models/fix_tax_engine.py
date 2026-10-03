@@ -30,9 +30,9 @@ class FixVatTreatment(models.Model):
     _name = "fix.vat.treatment"
     _description = "VAT Treatment"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("code_unique", "unique(code)", "VAT treatment code must be unique"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _code_unique = models.Constraint('UNIQUE (code)', 'VAT treatment code must be unique')
 
     code = fields.Char(string="Tariff Code", required=True)
     name = fields.Char(string="Treatment", required=True)
@@ -71,10 +71,9 @@ class FixMushakRegister(models.Model):
     _description = "Mushak 6.3 VAT Register"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
-    _sql_constraints = [
-        ("mushak_no_company_unique", "unique(mushak_no, company_id)",
-         "Mushak number already used in this company"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _mushak_no_company_unique = models.Constraint('UNIQUE (mushak_no, company_id)', 'Mushak number already used in this company')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

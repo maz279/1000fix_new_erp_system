@@ -6,14 +6,14 @@
         <field name="name">fix.period.close.tree</field>
         <field name="model">fix.period.close</field>
         <field name="arch" type="xml">
-            <tree decoration-info="state == 'open'" decoration-warning="state == 'in_progress'"
+            <list decoration-info="state == 'open'" decoration-warning="state == 'in_progress'"
                   decoration-success="state == 'closed'">
                 <field name="period_end"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="state" widget="badge"/>
                 <field name="suspense_closing"/>
                 <field name="close_duration_days" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -41,7 +41,7 @@
                         </group>
                     </group>
                     <field name="line_ids">
-                        <tree editable="bottom">
+                        <list editable="bottom">
                             <field name="sequence" widget="handle"/>
                             <field name="name"/>
                             <field name="owner_role"/>
@@ -49,7 +49,7 @@
                             <field name="blocking"/>
                             <field name="state"/>
                             <field name="evidence_ref" optional="show"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -64,13 +64,13 @@
     <record id="action_fix_period_close" model="ir.actions.act_window">
         <field name="name">Period Close</field>
         <field name="res_model">fix.period.close</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_fixed_asset_seam" model="ir.actions.act_window">
         <field name="name">Fixed Asset Seam</field>
         <field name="res_model">fix.fixed.asset.seam</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <!-- The Finance workspace menu (UX-002 workspace 7, W3 slice). -->

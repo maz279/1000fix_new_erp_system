@@ -28,4 +28,4 @@ class TestFixRetentionClass:
 
     def test_code_unique(self):
         from addons.platform.cd_document_core.models.fix_retention_class import FixRetentionClass
-        assert any("code_unique" in str(c) for c in FixRetentionClass._sql_constraints)
+        assert hasattr(FixRetentionClass, "_code_unique")  # Odoo 19 models.Constraint attr

@@ -5,13 +5,13 @@
         <field name="name">fix.role.tree</field>
         <field name="model">fix.role</field>
         <field name="arch" type="xml">
-            <tree string="Business Roles">
+            <list string="Business Roles">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="name_bn"/>
                 <field name="keycloak_role"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -50,32 +50,32 @@
         <field name="name">fix.sod.control.tree</field>
         <field name="model">fix.sod.control</field>
         <field name="arch" type="xml">
-            <tree string="SoD Controls">
+            <list string="SoD Controls">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="role_a_id"/>
                 <field name="role_b_id"/>
                 <field name="conflict_action" widget="badge"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_role" model="ir.actions.act_window">
         <field name="name">Business Roles</field>
         <field name="res_model">fix.role</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_sod" model="ir.actions.act_window">
         <field name="name">SoD Controls</field>
         <field name="res_model">fix.sod.control</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_isolation_tier" model="ir.actions.act_window">
         <field name="name">Isolation Tiers</field>
         <field name="res_model">fix.isolation.tier</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_security_root" name="Security &amp; Access" sequence="60"/>

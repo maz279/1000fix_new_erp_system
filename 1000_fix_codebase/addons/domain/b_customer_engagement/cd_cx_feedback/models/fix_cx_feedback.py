@@ -23,10 +23,9 @@ class FixSurvey(models.Model):
     _description = "Service Survey"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc, id desc"
-    _sql_constraints = [
-        ("order_unique", "unique(service_order_id)",
-         "One survey per service order"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _order_unique = models.Constraint('UNIQUE (service_order_id)', 'One survey per service order')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)
@@ -148,10 +147,9 @@ class FixSupplierScorecard(models.Model):
     _name = "fix.supplier.scorecard"
     _description = "Supplier Scorecard"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _sql_constraints = [
-        ("vendor_period_unique", "unique(vendor_id, period)",
-         "One scorecard per vendor and period"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _vendor_period_unique = models.Constraint('UNIQUE (vendor_id, period)', 'One scorecard per vendor and period')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

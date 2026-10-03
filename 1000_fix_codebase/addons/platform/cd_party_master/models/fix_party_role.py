@@ -21,10 +21,9 @@ class FixPartyRole(models.Model):
     _description = "Party Role"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "partner_id, role_type"
-    _sql_constraints = [
-        ("partner_role_unique", "unique(partner_id, role_type)",
-         "A party holds each role at most once"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _partner_role_unique = models.Constraint('UNIQUE (partner_id, role_type)', 'A party holds each role at most once')
 
     # AS-03
     company_id = fields.Many2one("res.company", required=True, index=True,

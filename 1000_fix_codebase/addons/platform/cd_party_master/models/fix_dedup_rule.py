@@ -12,7 +12,10 @@ class FixDedupRule(models.Model):
     _description = "Deduplication Rule"
 
     name = fields.Char(string="Rule Name", required=True)
+    # Odoo 19: ondelete='restrict' is rejected for ir.model comodels (module
+    # uninstalls delete ir.model rows) - cascade is the required mode.
     model_id = fields.Many2one("ir.model", string="Model", required=True,
+                               ondelete="cascade",
                                default=lambda self: self.env.ref(
                                    "base.model_res_partner").id)
     match_fields = fields.Char(

@@ -5,12 +5,12 @@
         <field name="name">fix.working.calendar.tree</field>
         <field name="model">fix.working.calendar</field>
         <field name="arch" type="xml">
-            <tree string="Working Calendars">
+            <list string="Working Calendars">
                 <field name="name"/>
                 <field name="branch_id"/>
                 <field name="timezone"/>
                 <field name="active" widget="boolean_toggle"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -44,7 +44,7 @@
     <record id="action_fix_working_calendar" model="ir.actions.act_window">
         <field name="name">Working Calendars</field>
         <field name="res_model">fix.working.calendar</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_working_calendar" name="Working Calendars" parent="menu_fix_entity_root"

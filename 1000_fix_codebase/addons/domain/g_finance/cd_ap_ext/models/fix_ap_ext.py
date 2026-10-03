@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from libs.py.fix_events import publish  # FF-28
 
-from cd_tax_engine_bd.models import tax_logic
+from odoo.addons.cd_tax_engine_bd.models import tax_logic
 
 
 class FixVendorInvoice(models.Model):

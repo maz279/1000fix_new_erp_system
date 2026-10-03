@@ -15,10 +15,9 @@ class FixMdmGoldenRule(models.Model):
     _description = "Golden Record Survivorship Rule"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "model_name, field_name, sequence"
-    _sql_constraints = [
-        ("model_field_unique", "unique(model_name, field_name)",
-         "One survivorship rule per model+field"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _model_field_unique = models.Constraint('UNIQUE (model_name, field_name)', 'One survivorship rule per model+field')
 
     sequence = fields.Integer(default=10)
     model_name = fields.Char(

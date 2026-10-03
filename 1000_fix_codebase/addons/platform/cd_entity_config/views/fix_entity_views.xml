@@ -5,13 +5,13 @@
         <field name="name">fix.entity.tree</field>
         <field name="model">fix.entity</field>
         <field name="arch" type="xml">
-            <tree string="Legal Entities">
+            <list string="Legal Entities">
                 <field name="code"/>
                 <field name="legal_name"/>
                 <field name="legal_name_bn"/>
                 <field name="branch_count"/>
                 <field name="active"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -39,12 +39,12 @@
                     <notebook>
                         <page string="Branches" name="branches">
                             <field name="branch_ids">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="code"/>
                                     <field name="name"/>
                                     <field name="zone_id"/>
                                     <field name="operating_unit_id"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -61,7 +61,7 @@
     <record id="action_fix_entity" model="ir.actions.act_window">
         <field name="name">Legal Entities</field>
         <field name="res_model">fix.entity</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_entity_root" name="Platform Administration" sequence="10"/>

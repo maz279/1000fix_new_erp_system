@@ -20,7 +20,8 @@ class FixDeviceHistory(models.Model):
          ("return", "Return"), ("other", "Other")],
         required=True, index=True)
     description = fields.Text(required=True)
-    service_order_id = fields.Many2one("fix.service.order", string="Service Order",
-                                        ondelete="set null")
+    # service_order_id lives in cd_service_order (fix_device_history_ext):
+    # cd_service_order depends on cd_device_registry, so the inverse pointer
+    # must be defined on the ORDER side of the boundary (live-install finding).
     branch_id = fields.Many2one("fix.branch", string="Branch")
     technician_id = fields.Many2one("hr.employee", string="Technician")

@@ -27,19 +27,19 @@
         <field name="name">fix.discount.approval.tree</field>
         <field name="model">fix.discount.approval</field>
         <field name="arch" type="xml">
-            <tree decoration-success="state == 'approved'" decoration-warning="state == 'pending'">
+            <list decoration-success="state == 'approved'" decoration-warning="state == 'pending'">
                 <field name="quotation_id"/>
                 <field name="discount_pct"/>
                 <field name="state" widget="badge"/>
                 <field name="approved_by" optional="show"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_discount_approval" model="ir.actions.act_window">
         <field name="name">Discount Approvals</field>
         <field name="res_model">fix.discount.approval</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_discount_approval" name="Discount Approvals"

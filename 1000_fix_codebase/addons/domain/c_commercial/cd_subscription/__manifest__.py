@@ -20,7 +20,7 @@ CD-M39-01 + M53's W4 slice (P07-M03):
     "author": "1000FiX Services Ltd",
     "category": "Sales/Subscriptions",
     "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox",
-                 "cd_party_master", "cd_contract_core", "cd_billing_engine"],
+                 "cd_party_master", "cd_contract_core", "cd_billing_engine", "cd_gl_ext"],
     "data": ["security/ir.model.access.csv", "views/fix_subscription_views.xml"],
     "installable": True,
     "application": False,

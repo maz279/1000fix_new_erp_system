@@ -18,7 +18,7 @@ CD-M50-01: the treasury core.
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
     "depends": ["base", "mail", "account", "cd_entity_config", "cd_event_outbox",
-                 "cd_front_desk"],
+                 "cd_front_desk", "cd_gl_ext"],
     "data": ["security/ir.model.access.csv", "views/fix_cash_position_views.xml"],
     "installable": True,
     "application": False,

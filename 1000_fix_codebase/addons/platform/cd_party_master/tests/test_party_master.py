@@ -12,8 +12,7 @@ class TestFixPartyRole:
     def test_partner_role_unique_constraint(self):
         """A party holds each role at most once."""
         from addons.platform.cd_party_master.models.fix_party_role import FixPartyRole
-        constraints = FixPartyRole._sql_constraints
-        assert any("partner_role_unique" in str(c) for c in constraints)
+        assert hasattr(FixPartyRole, "_partner_role_unique")  # Odoo 19 models.Constraint attr
 
     def test_multi_role_design(self):
         """Multiple roles can point to the SAME res.partner (not separate masters)."""

@@ -7,8 +7,7 @@ class TestPaymentExecution:
     def test_idempotent_on_source_key(self):
         """DI-04: a replayed payment.requested never double-pays."""
         from addons.domain.g_finance.cd_cash_position.models.fix_cash_position import FixPaymentExecution
-        constraints = [c[0] for c in (FixPaymentExecution._sql_constraints or [])]
-        assert "request_key_unique" in constraints
+        assert hasattr(FixPaymentExecution, "_request_key_unique")  # Odoo 19 models.Constraint attr
 
     def test_execution_publishes_confirmation(self):
         source = inspect.getsource(

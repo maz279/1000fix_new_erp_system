@@ -18,7 +18,7 @@ from decimal import Decimal
 
 from libs.py.fix_events import publish  # FF-28
 
-from cd_tax_engine_bd.models import tax_logic
+from odoo.addons.cd_tax_engine_bd.models import tax_logic
 
 
 class FixArInvoice(models.Model):
@@ -32,10 +32,9 @@ class FixArInvoice(models.Model):
     _description = "AR Invoice"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
-    _sql_constraints = [
-        ("source_key_unique", "unique(source_model, source_id)",
-         "One invoice per source document — the auto-generation guard"),
-    ]
+    # Odoo 19 dropped the legacy constraint tuple list;
+    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
+    _source_key_unique = models.Constraint('UNIQUE (source_model, source_id)', 'One invoice per source document — the auto-generation guard')
 
     company_id = fields.Many2one("res.company", required=True, index=True,
                                  default=lambda self: self.env.company)

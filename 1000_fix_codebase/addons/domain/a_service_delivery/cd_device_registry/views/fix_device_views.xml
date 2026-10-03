@@ -10,7 +10,7 @@
         <field name="name">fix.device.tree</field>
         <field name="model">fix.device</field>
         <field name="arch" type="xml">
-            <tree>
+            <list>
                 <field name="name"/>
                 <field name="brand_id"/>
                 <field name="device_model_id"/>
@@ -18,7 +18,7 @@
                 <field name="warranty_status"/>
                 <field name="state"/>
                 <field name="branch_id"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -57,23 +57,24 @@
                     <notebook>
                         <page string="Warranty">
                             <field name="warranty_id">
-                                <tree editable="bottom">
+                                <list editable="bottom">
                                     <field name="warranty_type"/>
                                     <field name="start_date"/>
                                     <field name="end_date"/>
                                     <field name="deductible"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                         <page string="Device History">
                             <field name="history_ids" readonly="1">
-                                <tree>
+                                <list>
                                     <field name="date"/>
                                     <field name="event_type"/>
                                     <field name="description"/>
-                                    <field name="service_order_id" optional="hide"/>
+                                    <!-- service_order_id column: re-added by
+                                         cd_service_order's view extension -->
                                     <field name="technician_id" optional="hide"/>
-                                </tree>
+                                </list>
                             </field>
                         </page>
                     </notebook>
@@ -100,7 +101,7 @@
                         domain="[('warranty_status', '=', 'active')]"/>
                 <filter name="filter_registered" string="Registered"
                         domain="[('state', '=', 'registered')]"/>
-                <group expand="0" string="Group By">
+                <group>
                     <filter name="group_brand" string="Brand"
                             context="{'group_by': 'brand_id'}"/>
                     <filter name="group_branch" string="Branch"
@@ -113,7 +114,7 @@
     <record id="action_fix_device" model="ir.actions.act_window">
         <field name="name">Devices</field>
         <field name="res_model">fix.device</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">Register the first device</p>
             <p>Every device is identified by serial/IMEI uniqueness and carries its warranty and ownership history.</p>
@@ -128,5 +129,23 @@
               sequence="40"/>
     <menuitem id="menu_fix_devices" name="Devices" parent="menu_ws_devices"
               action="action_fix_device" sequence="10"/>
+
+    <!-- Standalone history tree (the form embeds a minimal copy; the full
+         column set lives here so cd_service_order can extend THIS view with
+         its order column - cross-model field injection through the embedded
+         form tree is not resolvable by view integrity). -->
+    <record id="view_fix_device_history_tree" model="ir.ui.view">
+        <field name="name">fix.device.history.tree</field>
+        <field name="model">fix.device.history</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false">
+                <field name="date"/>
+                <field name="event_type"/>
+                <field name="description"/>
+                <field name="branch_id" optional="hide"/>
+                <field name="technician_id" optional="hide"/>
+            </list>
+        </field>
+    </record>
 
 </odoo>

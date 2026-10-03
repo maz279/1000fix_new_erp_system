@@ -34,7 +34,7 @@ switch ($Target) {
         if (Get-Command uv -ErrorAction SilentlyContinue) { uv sync }
         if (Get-Command pnpm -ErrorAction SilentlyContinue) { pnpm install }
         if (Get-Command pre-commit -ErrorAction SilentlyContinue) { pre-commit install }
-        git config core.hooksPath .githooks
+        git config core.hooksPath 1000_fix_codebase/.githooks  # single-repo layout (P07)
         & $PSCommandPath -Target odoo-conf
     }
     'up'      {
@@ -59,11 +59,11 @@ switch ($Target) {
         $exists = Compose (@('exec', '-T', 'postgres', 'psql', '-U', 'fix', '-d', 'postgres', '-tAc', "SELECT 1 FROM pg_database WHERE datname='fix_dev'"))
         if ("$exists".Trim() -ne '1') { Compose (@('exec', '-T', 'postgres', 'createdb', '-U', 'fix', 'fix_dev')) }
     }
-    'odoo-init'    { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.conf', '-d', 'fix_dev', '-i', 'base', '--stop-after-init') }
+    'odoo-init'    { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '-i', 'base', '--stop-after-init') }
     'odoo-install-wave1' {
-        Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.conf', '-d', 'fix_dev', '-i', 'base,cd_party_master', '--stop-after-init')
+        Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '-i', 'base,cd_party_master', '--stop-after-init')
     }
-    'run'          { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.conf', '-d', 'fix_dev') }
+    'run'          { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev') }
     'seed'         { Run-Py 'db/seeds/seed.py' @('--seed', '1000fix') }
     'test-smoke'   { Run-Py 'tooling/scripts/test-smoke.py' }
     'doctor'       {
@@ -73,7 +73,7 @@ switch ($Target) {
     }
     'upgrade'      {
         if (-not $Module) { Write-Host 'upgrade requires -Module cd_x' -ForegroundColor Red; exit 2 }
-        Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.conf', '-d', 'fix_dev', '-u', $Module, '--stop-after-init')
+        Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '-u', $Module, '--stop-after-init')
     }
     'vendor'       { & powershell -ExecutionPolicy Bypass -File (Join-Path $root 'tooling\scripts\import-vendor.ps1'); exit $LASTEXITCODE }
     'verify-repo'  {

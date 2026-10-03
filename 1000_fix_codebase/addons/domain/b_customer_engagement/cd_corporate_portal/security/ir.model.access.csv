@@ -1,4 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_contract_portal,fix.contract.portal,model_fix_contract,group_fix_corporate_portal,1,0,0,0
-access_fix_subscription_portal,fix.subscription.portal,model_fix_subscription,group_fix_corporate_portal,1,0,0,0
-access_fix_conversation_portal,fix.conversation.portal,model_fix_conversation,group_fix_corporate_portal,1,1,1,0
+access_fix_contract_portal,fix.contract.portal,cd_contract_core.model_fix_contract,group_fix_corporate_portal,1,0,0,0
+access_fix_subscription_portal,fix.subscription.portal,cd_subscription.model_fix_subscription,group_fix_corporate_portal,1,0,0,0
+access_fix_conversation_portal,fix.conversation.portal,cd_contact_centre.model_fix_conversation,group_fix_corporate_portal,1,1,1,0

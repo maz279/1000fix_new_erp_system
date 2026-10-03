@@ -6,7 +6,7 @@
         <field name="name">fix.ar.invoice.tree</field>
         <field name="model">fix.ar.invoice</field>
         <field name="arch" type="xml">
-            <tree decoration-success="state == 'paid'" decoration-info="state == 'draft'">
+            <list decoration-success="state == 'paid'" decoration-info="state == 'draft'">
                 <field name="invoice_date"/>
                 <field name="customer_id"/>
                 <field name="branch_id" optional="show"/>
@@ -16,7 +16,7 @@
                 <field name="state" widget="badge"/>
                 <field name="mushak_id" optional="show"/>
                 <field name="generation_seconds" optional="hide" string="Gen (s)"/>
-            </tree>
+            </list>
         </field>
     </record>
 
@@ -47,12 +47,12 @@
                         </group>
                     </group>
                     <field name="line_ids">
-                        <tree>
+                        <list>
                             <field name="description"/>
                             <field name="taxable_amount"/>
                             <field name="vat_amount"/>
                             <field name="line_total"/>
-                        </tree>
+                        </list>
                     </field>
                 </sheet>
                 <div class="oe_chatter">
@@ -68,32 +68,32 @@
         <field name="name">fix.dunning.tree</field>
         <field name="model">fix.dunning</field>
         <field name="arch" type="xml">
-            <tree decoration-danger="bucket == 'd90_plus'" decoration-warning="bucket in ('d61_90', 'd31_60')">
+            <list decoration-danger="bucket == 'd90_plus'" decoration-warning="bucket in ('d61_90', 'd31_60')">
                 <field name="invoice_id"/>
                 <field name="overdue_amount"/>
                 <field name="days_overdue"/>
                 <field name="bucket"/>
                 <field name="step"/>
-            </tree>
+            </list>
         </field>
     </record>
 
     <record id="action_fix_ar_invoice" model="ir.actions.act_window">
         <field name="name">AR Invoices</field>
         <field name="res_model">fix.ar.invoice</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_dunning" model="ir.actions.act_window">
         <field name="name">Collections &amp; Dunning</field>
         <field name="res_model">fix.dunning</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <record id="action_fix_credit_note" model="ir.actions.act_window">
         <field name="name">Credit Notes</field>
         <field name="res_model">fix.credit.note</field>
-        <field name="view_mode">tree,form</field>
+        <field name="view_mode">list,form</field>
     </record>
 
     <menuitem id="menu_fix_ar_invoice" name="AR Invoices"

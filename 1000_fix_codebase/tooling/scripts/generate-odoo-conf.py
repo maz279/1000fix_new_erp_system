@@ -82,7 +82,8 @@ dev = all
 limit_time_cpu = 3600
 limit_time_real = 3600
 log_handler = odoo.addons.cd_:DEBUG
-list_db = True          # LOCAL ONLY - PE-002 forbids this elsewhere
+# LOCAL ONLY - PE-002 forbids list_db=True elsewhere
+list_db = True
 without_demo = False
 admin_passwd = {admin_passwd}
 http_port = {http_port}
@@ -131,6 +132,24 @@ def main() -> int:
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(conf, encoding="utf-8")
     print(f"generate-odoo-conf: wrote {out} ({conf.count(',') + 1} addons_path entries)")
+
+    # P07 finding: the run wrapper never interpolated the ${VAR} placeholders,
+    # so odoo-bin saw db_host='${PGHOST}' and a non-numeric http_port and died
+    # at startup. The generator now also emits a RESOLVED copy from .env
+    # (git-ignored; carries db credentials) which the odoo targets prefer.
+    env = {}
+    env_file = REPO_ROOT / ".env"
+    if env_file.exists():
+        for line in env_file.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                k, _, v = line.partition("=")
+                env[k.strip()] = v.strip()
+    import re as _re
+    resolved = _re.sub(r"\$\{([A-Z0-9_]+)\}", lambda m: env.get(m.group(1), m.group(0)), conf)
+    resolved_path = out.with_name("local.resolved.conf")
+    resolved_path.write_text(resolved, encoding="utf-8")
+    print(f"generate-odoo-conf: wrote {resolved_path} (${len(env)} env keys resolved)")
     return 0
 
 

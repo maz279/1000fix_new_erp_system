@@ -2,12 +2,8 @@
 <!-- cd_corporate_portal — P04 W4 slice: the R3 portal's Odoo-side surface. -->
 <odoo>
 
-    <record id="group_fix_corporate_portal" model="res.groups">
-        <field name="name">P04 Corporate Portal</field>
-        <field name="category_id" ref="cd_rbac_ext.module_category_fix_portal"/>
-        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
-        <field name="comment">P04 access: corporate users see their own contracts, subscriptions and estate (EA-05).</field>
-    </record>
+    <!-- group_fix_corporate_portal moved to security/fix_corporate_portal_security.xml
+         (loads before ir.model.access.csv, which references the group id) -->
 
     <!-- EA-05: a corporate user sees only their own contracts -->
     <record id="rule_fix_contract_corporate_self" model="ir.rule">
@@ -20,15 +16,15 @@
     <record id="action_fix_contract_portal" model="ir.actions.act_window">
         <field name="name">My Contracts</field>
         <field name="res_model">fix.contract</field>
-        <field name="view_mode">tree,form</field>
-        <field name="groups_id" eval="[(4, ref('group_fix_corporate_portal'))]"/>
+        <field name="view_mode">list,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_corporate_portal'))]"/>
     </record>
 
     <record id="action_fix_subscription_portal" model="ir.actions.act_window">
         <field name="name">My Subscriptions</field>
         <field name="res_model">fix.subscription</field>
-        <field name="view_mode">tree,form</field>
-        <field name="groups_id" eval="[(4, ref('group_fix_corporate_portal'))]"/>
+        <field name="view_mode">list,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_corporate_portal'))]"/>
     </record>
 
     <menuitem id="menu_corporate_portal_root" name="Corporate Portal"

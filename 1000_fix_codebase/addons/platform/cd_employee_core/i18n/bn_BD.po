@@ -37,3 +37,6 @@ msgstr "পার্টি ভূমিকা (কর্মী)"
 
 msgid "Primary Business Role (M29)"
 msgstr "প্রধান ব্যবসায়িক ভূমিকা (M29)"
+
+msgid "Branch Manager (Employee)"
+msgstr "শাখা ব্যবস্থাপক (কর্মী)"

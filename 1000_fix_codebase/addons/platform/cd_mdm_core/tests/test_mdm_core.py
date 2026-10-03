@@ -30,7 +30,7 @@ class TestFixMdmGoldenRule:
 
     def test_model_field_unique(self):
         from addons.platform.cd_mdm_core.models.fix_mdm_golden_rule import FixMdmGoldenRule
-        assert any("model_field_unique" in str(c) for c in FixMdmGoldenRule._sql_constraints)
+        assert hasattr(FixMdmGoldenRule, "_model_field_unique")  # Odoo 19 models.Constraint attr
 
 
 class TestFixMdmMatchRule:
