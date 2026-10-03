@@ -1,0 +1,110 @@
+# Bengali translations for cd_hr_core (M21, P08-M01) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Employment Contract"
+msgstr "চাকরি চুক্তি"
+
+msgid "Employee"
+msgstr "কর্মী"
+
+msgid "Permanent"
+msgstr "স্থায়ী"
+
+msgid "Probation"
+msgstr "পরীক্ষামূলক"
+
+msgid "Fixed Term"
+msgstr "নির্দিষ্ট মেয়াদি"
+
+msgid "Part Time"
+msgstr "খণ্ডকালীন"
+
+msgid "Joining Date"
+msgstr "যোগদানের তারিখ"
+
+msgid "Basic Salary (Monthly)"
+msgstr "মূল বেতন (মাসিক)"
+
+msgid "Statutory Weekly Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
+
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+msgid "Draft"
+msgstr "খসড়া"
+
+msgid "Active"
+msgstr "সক্রিয়"
+
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+msgid "Activate"
+msgstr "সক্রিয় করুন"
+
+msgid "Terminate"
+msgstr "সমাপ্ত করুন"
+
+msgid "Leave Type"
+msgstr "ছুটির ধরন"
+
+msgid "Leave Request"
+msgstr "ছুটির আবেদন"
+
+msgid "Leave Name (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+msgid "Approve"
+msgstr "অনুমোদন"
+
+msgid "Organisation Position"
+msgstr "প্রাতিষ্ঠানিক পদ"
+
+msgid "Reports To"
+msgstr "রিপোর্ট করেন"
+
+msgid "Holders"
+msgstr "অধিকারী"
+
+msgid "Grade"
+msgstr "গ্রেড"
+
+msgid "Employee Code"
+msgstr "কর্মী কোড"
+
+msgid "Position"
+msgstr "পদ"
+
+msgid "Contracts"
+msgstr "চুক্তিসমূহ"
+
+msgid "Identity Store Ref"
+msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+
+msgid "People & Payroll"
+msgstr "জনবল ও বেতন"
+
+msgid "Employment Contracts"
+msgstr "চাকরি চুক্তিসমূহ"
+
+msgid "Leave"
+msgstr "ছুটি"
+
+msgid "Positions"
+msgstr "পদসমূহ"

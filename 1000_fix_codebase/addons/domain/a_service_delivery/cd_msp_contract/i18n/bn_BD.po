@@ -1,0 +1,101 @@
+# Bengali translations for cd_msp_contract (M05, P08-M07) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "MSP Contract"
+msgstr "এমএসপি চুক্তি"
+
+msgid "Monitored Asset"
+msgstr "পর্যবেক্ষিত সম্পদ"
+
+msgid "MSP Alert"
+msgstr "এমএসপি সতর্কতা"
+
+msgid "Remote Session"
+msgstr "রিমোট সেশন"
+
+msgid "MSP Service Report"
+msgstr "এমএসপি সার্ভিস রিপোর্ট"
+
+msgid "Contract (M08)"
+msgstr "চুক্তি (M08)"
+
+msgid "Covered Devices"
+msgstr "আচ্ছাদিত ডিভাইস"
+
+msgid "Endpoints Only"
+msgstr "শুধু এন্ডপয়েন্ট"
+
+msgid "Endpoints + Network"
+msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
+
+msgid "Full Stack"
+msgstr "ফুল স্ট্যাক"
+
+msgid "Per-Device Monthly"
+msgstr "প্রতি ডিভাইস মাসিক"
+
+msgid "Monitored Assets"
+msgstr "পর্যবেক্ষিত সম্পদসমূহ"
+
+msgid "Service Reports"
+msgstr "সার্ভিস রিপোর্টসমূহ"
+
+msgid "Healthy"
+msgstr "সুস্থ"
+
+msgid "Degraded"
+msgstr "খারাপ"
+
+msgid "Offline"
+msgstr "অফলাইন"
+
+msgid "Raised"
+msgstr "উত্থাপিত"
+
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
+
+msgid "Ticketed"
+msgstr "টিকেটকৃত"
+
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+msgid "Acknowledge"
+msgstr "স্বীকার করুন"
+
+msgid "Create Ticket"
+msgstr "টিকেট তৈরি করুন"
+
+msgid "MeshCentral"
+msgstr "মেশসেন্ট্রাল"
+
+msgid "RustDesk"
+msgstr "রাস্টডেস্ক"
+
+msgid "Technician"
+msgstr "কারিগর"
+
+msgid "Period"
+msgstr "পিরিয়ড"
+
+msgid "SLA Attainment (0-1)"
+msgstr "এসএলএ অর্জন (০-১)"
+
+msgid "সারসংক্ষেপ (Bengali)"
+msgstr "সারসংক্ষেপ (বাংলা)"
+
+msgid "Summary (English)"
+msgstr "সারসংক্ষেপ (ইংরেজি)"
+
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+msgid "Alerts"
+msgstr "সতর্কতাসমূহ"
+
+msgid "MSP Contracts"
+msgstr "এমএসপি চুক্তিসমূহ"

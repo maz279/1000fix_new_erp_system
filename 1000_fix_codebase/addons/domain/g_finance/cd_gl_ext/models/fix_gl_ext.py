@@ -135,6 +135,7 @@ class FixPeriodCloseLine(models.Model):
 
     _name = "fix.period.close.line"
     _description = "Period Close Step"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     close_id = fields.Many2one("fix.period.close", required=True, ondelete="cascade")
     sequence = fields.Integer(default=10)

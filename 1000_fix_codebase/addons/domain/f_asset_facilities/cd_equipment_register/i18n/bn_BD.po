@@ -1,0 +1,47 @@
+# Bengali translations for cd_equipment_register (M45, P08-M08).
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Test Equipment"
+msgstr "পরীক্ষা যন্ত্রপাতি"
+
+msgid "Calibration"
+msgstr "ক্যালিব্রেশন"
+
+msgid "Equipment Category"
+msgstr "যন্ত্রপাতির বিভাগ"
+
+msgid "Maintenance Equipment"
+msgstr "রক্ষণাবেক্ষণ যন্ত্রপাতি"
+
+msgid "Custodian"
+msgstr "রক্ষক"
+
+msgid "Calibrations"
+msgstr "ক্যালিব্রেশনসমূহ"
+
+msgid "Last Calibration"
+msgstr "সর্বশেষ ক্যালিব্রেশন"
+
+msgid "Next Calibration"
+msgstr "পরবর্তী ক্যালিব্রেশন"
+
+msgid "Calibration Overdue"
+msgstr "ক্যালিব্রেশন মেয়াদোত্তীর্ণ"
+
+msgid "Standard Reference"
+msgstr "স্ট্যান্ডার্ড রেফারেন্স"
+
+msgid "Pass"
+msgstr "উত্তীর্ণ"
+
+msgid "Fail"
+msgstr "অনুত্তীর্ণ"
+
+msgid "Performed By"
+msgstr "সম্পাদনকারী"
+
+msgid "Equipment Register"
+msgstr "যন্ত্রপাতি রেজিস্টার"

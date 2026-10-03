@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_performance views — M57 (P08-M04). -->
+<odoo>
+    <record id="view_fix_scorecard_list" model="ir.ui.view">
+        <field name="name">fix.performance.scorecard.list</field>
+        <field name="model">fix.performance.scorecard</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="employee_id"/>
+                <field name="period"/>
+                <field name="first_time_fix"/>
+                <field name="sla_hit"/>
+                <field name="score"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_scorecard" model="ir.actions.act_window">
+        <field name="name">Technician Scorecards</field>
+        <field name="res_model">fix.performance.scorecard</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_incentive_run_form" model="ir.ui.view">
+        <field name="name">fix.incentive.run.form</field>
+        <field name="model">fix.incentive.run</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_compute" type="object" string="Compute"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_apply" type="object"
+                            string="Apply to Payroll"
+                            invisible="state != 'computed'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="period"/>
+                            <field name="band_base" groups="base.group_system"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="total"/>
+                        </group>
+                    </group>
+                    <field name="line_ids">
+                        <list>
+                            <field name="employee_id"/>
+                            <field name="amount"/>
+                        </list>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_incentive_run" model="ir.actions.act_window">
+        <field name="name">Incentive Runs</field>
+        <field name="res_model">fix.incentive.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_compensation_band_list" model="ir.ui.view">
+        <field name="name">fix.compensation.band.list</field>
+        <field name="model">fix.compensation.band</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="grade"/>
+                <field name="name"/>
+                <field name="range_min" groups="base.group_system"/>
+                <field name="range_max" groups="base.group_system"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_compensation_band" model="ir.actions.act_window">
+        <field name="name">Compensation Bands</field>
+        <field name="res_model">fix.compensation.band</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_scorecard" name="Scorecards"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_scorecard" sequence="120"/>
+    <menuitem id="menu_fix_incentive" name="Incentives"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_incentive_run" sequence="130"/>
+    <menuitem id="menu_fix_compensation" name="Compensation"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_compensation_band" sequence="140"/>
+</odoo>

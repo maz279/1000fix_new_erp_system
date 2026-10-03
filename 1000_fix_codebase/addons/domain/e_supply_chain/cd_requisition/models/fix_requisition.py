@@ -97,6 +97,7 @@ class FixPurchaseOrder(models.Model):
 class FixPurchaseOrderLine(models.Model):
     _name = "fix.purchase.order.line"
     _description = "Purchase Order Line"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     order_id = fields.Many2one("fix.purchase.order", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)

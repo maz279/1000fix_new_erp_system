@@ -1,0 +1,68 @@
+# Bengali translations for cd_competency (M22, P08-M05) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Competency"
+msgstr "দক্ষতা"
+
+msgid "Certification"
+msgstr "সার্টিফিকেশন"
+
+msgid "Training Course"
+msgstr "প্রশিক্ষণ কোর্স"
+
+msgid "Training Enrollment"
+msgstr "প্রশিক্ষণ ভর্তি"
+
+msgid "Competency (Bengali)"
+msgstr "দক্ষতা (বাংলা)"
+
+msgid "Device Type Scope"
+msgstr "ডিভাইস ধরনের পরিসর"
+
+msgid "Evidence Reference"
+msgstr "প্রমাণ রেফারেন্স"
+
+msgid "Active"
+msgstr "সক্রিয়"
+
+msgid "Expiring Soon"
+msgstr "শীঘ্রই মেয়াদোত্তীর্ণ"
+
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+msgid "Grant"
+msgstr "প্রদান"
+
+msgid "Content Pack"
+msgstr "কনটেন্ট প্যাক"
+
+msgid "Certifies Towards"
+msgstr "যে সার্টিফিকেশনের দিকে"
+
+msgid "Enrollments"
+msgstr "ভর্তিসমূহ"
+
+msgid "Enrolled"
+msgstr "ভর্তি"
+
+msgid "Passed"
+msgstr "উত্তীর্ণ"
+
+msgid "Failed"
+msgstr "অনুত্তীর্ণ"
+
+msgid "Competencies"
+msgstr "দক্ষতাসমূহ"
+
+msgid "Certifications"
+msgstr "সার্টিফিকেশনসমূহ"
+
+msgid "Training"
+msgstr "প্রশিক্ষণ"
+
+msgid "Course (Bengali)"
+msgstr "কোর্স (বাংলা)"

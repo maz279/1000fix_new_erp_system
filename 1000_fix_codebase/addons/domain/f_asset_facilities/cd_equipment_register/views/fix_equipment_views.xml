@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_equipment_register views — M45 (P08-M08). -->
+<odoo>
+    <record id="view_fix_equipment_list" model="ir.ui.view">
+        <field name="name">fix.equipment.list</field>
+        <field name="model">fix.equipment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="branch_id" optional="hide"/>
+                <field name="next_calibration"/>
+                <field name="calibration_overdue"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_equipment_form" model="ir.ui.view">
+        <field name="name">fix.equipment.form</field>
+        <field name="model">fix.equipment</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="category"/>
+                        </group>
+                        <group>
+                            <field name="custodian_id"/>
+                            <field name="branch_id"/>
+                            <field name="maintenance_equipment_id"/>
+                        </group>
+                    </group>
+                    <field name="calibration_ids">
+                        <list>
+                            <field name="calibrated_on"/>
+                            <field name="standard_ref"/>
+                            <field name="result"/>
+                            <field name="next_due"/>
+                        </list>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_equipment" model="ir.actions.act_window">
+        <field name="name">Test Equipment</field>
+        <field name="res_model">fix.equipment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_ws_equipment" name="Test Equipment"
+              parent="cd_entity_config.menu_fix_operations_root"
+              sequence="90"/>
+    <menuitem id="menu_fix_equipment" name="Equipment Register"
+              parent="menu_ws_equipment" action="action_fix_equipment"
+              sequence="10"/>
+</odoo>

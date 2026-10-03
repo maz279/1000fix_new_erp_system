@@ -1,0 +1,50 @@
+# Bengali translations for cd_fixed_asset_ext (M49, P08-M08).
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Fixed Asset"
+msgstr "স্থায়ী সম্পদ"
+
+msgid "CWIP Entry"
+msgstr "সিডব্লিউআইপি এন্ট্রি"
+
+msgid "Capitalisation Seam (M19)"
+msgstr "মূলধনীকরণ সীম (M19)"
+
+msgid "Gross"
+msgstr "স্থূল"
+
+msgid "Salvage Value"
+msgstr "অবশিষ্ট মূল্য"
+
+msgid "Monthly Depreciation"
+msgstr "মাসিক অবচয়"
+
+msgid "Budget Reference (Advisory)"
+msgstr "বাজেট রেফারেন্স (পরামর্শমূলক)"
+
+msgid "Accrue Month"
+msgstr "মাস জমা"
+
+msgid "Dispose"
+msgstr "নিষ্পত্তি"
+
+msgid "Disposed"
+msgstr "নিষ্পত্তিকৃত"
+
+msgid "Accumulated Cost"
+msgstr "সঞ্চিত ব্যয়"
+
+msgid "Capitalised"
+msgstr "মূলধনীকৃত"
+
+msgid "Resulting Asset"
+msgstr "ফলাফল সম্পদ"
+
+msgid "Fixed Assets"
+msgstr "স্থায়ী সম্পদসমূহ"
+
+msgid "CWIP"
+msgstr "সিডব্লিউআইপি"

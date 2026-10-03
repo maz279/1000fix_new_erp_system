@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_competency,fix.competency,model_fix_competency,base.group_user,1,1,1,0
+access_fix_certification,fix.certification,model_fix_certification,base.group_user,1,1,1,0
+access_fix_training_course,fix.training.course,model_fix_training_course,base.group_user,1,1,1,0
+access_fix_training_enrollment,fix.training.enrollment,model_fix_training_enrollment,base.group_user,1,1,1,0

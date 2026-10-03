@@ -1,0 +1,77 @@
+# Bengali translations for cd_performance (M57, P08-M04) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Technician Scorecard"
+msgstr "কারিগর স্কোরকার্ড"
+
+msgid "Incentive Run"
+msgstr "প্রণোদনা রান"
+
+msgid "Incentive Line"
+msgstr "প্রণোদনা লাইন"
+
+msgid "Compensation Band"
+msgstr "ক্ষতিপূরণ ব্যান্ড"
+
+msgid "First-Time Fix (0-1)"
+msgstr "প্রথমবার মেরামত (০-১)"
+
+msgid "SLA Hit Rate (0-1)"
+msgstr "এসএলএ হিট হার (০-১)"
+
+msgid "CSAT (normalised 0-1)"
+msgstr "সিএসএটি (স্বাভাবিকীকৃত ০-১)"
+
+msgid "Rework Rate (0-1)"
+msgstr "পুনঃকাজের হার (০-১)"
+
+msgid "Composite Score"
+msgstr "সমন্বিত স্কোর"
+
+msgid "Band Base"
+msgstr "ব্যান্ড ভিত্তি"
+
+msgid "Incentive Lines"
+msgstr "প্রণোদনা লাইনসমূহ"
+
+msgid "Total"
+msgstr "মোট"
+
+msgid "Computed"
+msgstr "গণনাকৃত"
+
+msgid "Applied to Payroll"
+msgstr "পেরোলে প্রয়োগকৃত"
+
+msgid "Compute"
+msgstr "গণনা করুন"
+
+msgid "Apply to Payroll"
+msgstr "পেরোলে প্রয়োগ"
+
+msgid "Amount"
+msgstr "পরিমাণ"
+
+msgid "Range Min"
+msgstr "সর্বনিম্ন পরিসর"
+
+msgid "Range Mid"
+msgstr "মধ্য পরিসর"
+
+msgid "Range Max"
+msgstr "সর্বোচ্চ পরিসর"
+
+msgid "Scorecards"
+msgstr "স্কোরকার্ডসমূহ"
+
+msgid "Incentives"
+msgstr "প্রণোদনা"
+
+msgid "Compensation"
+msgstr "ক্ষতিপূরণ"
+
+msgid "Draft"
+msgstr "খসড়া"

@@ -59,6 +59,7 @@ class FixWorkOrderPart(models.Model):
     """A part consumed during a work order."""
     _name = "fix.work.order.part"
     _description = "Work Order Part"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     work_order_id = fields.Many2one("fix.work.order", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Part", required=True)

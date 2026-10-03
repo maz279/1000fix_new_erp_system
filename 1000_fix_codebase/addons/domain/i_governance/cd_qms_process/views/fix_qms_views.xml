@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_qms_process views — M23 (P08-M06). -->
+<odoo>
+    <record id="view_fix_ncr_list" model="ir.ui.view">
+        <field name="name">fix.ncr.list</field>
+        <field name="model">fix.ncr</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="source"/>
+                <field name="severity"/>
+                <field name="order_id" optional="hide"/>
+                <field name="complaint_id" optional="hide"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_ncr_form" model="ir.ui.view">
+        <field name="name">fix.ncr.form</field>
+        <field name="model">fix.ncr</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="source"/>
+                            <field name="severity"/>
+                            <field name="order_id" invisible="source != 'service_order'"/>
+                            <field name="complaint_id" invisible="source != 'complaint'"/>
+                            <field name="audit_id" invisible="source != 'audit'"/>
+                        </group>
+                        <group>
+                            <field name="state"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <field name="description"/>
+                    <field name="root_cause"/>
+                    <field name="capa_id">
+                        <list>
+                            <field name="state"/>
+                            <field name="owner_id"/>
+                            <field name="due_on"/>
+                        </list>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_ncr" model="ir.actions.act_window">
+        <field name="name">Non-Conformances</field>
+        <field name="res_model">fix.ncr</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_internal_audit_list" model="ir.ui.view">
+        <field name="name">fix.internal.audit.list</field>
+        <field name="model">fix.internal.audit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="branch_id"/>
+                <field name="scheduled_on"/>
+                <field name="auditor_id"/>
+                <field name="scope"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_internal_audit" model="ir.actions.act_window">
+        <field name="name">Internal Audits</field>
+        <field name="res_model">fix.internal.audit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_ws_quality" name="Quality (M23)"
+              parent="cd_entity_config.menu_fix_operations_root" sequence="70"/>
+    <menuitem id="menu_fix_ncr" name="Non-Conformances"
+              parent="menu_ws_quality" action="action_fix_ncr" sequence="10"/>
+    <menuitem id="menu_fix_audit" name="Internal Audits"
+              parent="menu_ws_quality" action="action_fix_internal_audit"
+              sequence="20"/>
+</odoo>

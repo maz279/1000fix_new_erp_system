@@ -1,0 +1,35 @@
+# Bengali translations for cd_vehicle_ext (M46, P08-M08).
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Vehicle Assignment"
+msgstr "যানবাহন নির্ধারণ"
+
+msgid "Driver (HR)"
+msgstr "চালক (এইচআর)"
+
+msgid "Fitness Expiry"
+msgstr "ফিটনেস মেয়াদ"
+
+msgid "Insurance Expiry"
+msgstr "বিমা মেয়াদ"
+
+msgid "Compliance OK"
+msgstr "সম্মতি ঠিক আছে"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "Technician"
+msgstr "কারিগর"
+
+msgid "Fleet"
+msgstr "যানবাহন বহর"
+
+msgid "Vehicle Assignments"
+msgstr "যানবাহন নির্ধারণসমূহ"
+
+msgid "Branch"
+msgstr "শাখা"

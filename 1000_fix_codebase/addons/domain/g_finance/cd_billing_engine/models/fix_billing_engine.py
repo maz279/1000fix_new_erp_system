@@ -200,6 +200,7 @@ class FixArInvoice(models.Model):
 class FixArInvoiceLine(models.Model):
     _name = "fix.ar.invoice.line"
     _description = "AR Invoice Line"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     invoice_id = fields.Many2one("fix.ar.invoice", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product")

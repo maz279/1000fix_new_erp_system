@@ -224,6 +224,7 @@ class FixWarrantyEvidence(models.Model):
 
     _name = "fix.warranty.evidence"
     _description = "Claim Evidence Item"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     claim_id = fields.Many2one("fix.warranty.claim", required=True,
                                ondelete="cascade")

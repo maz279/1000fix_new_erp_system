@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_ncr,fix.ncr,model_fix_ncr,base.group_user,1,1,1,0
+access_fix_capa,fix.capa,model_fix_capa,base.group_user,1,1,1,0
+access_fix_internal_audit,fix.internal.audit,model_fix_internal_audit,base.group_user,1,1,1,0

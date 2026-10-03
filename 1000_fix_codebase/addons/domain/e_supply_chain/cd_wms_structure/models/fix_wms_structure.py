@@ -66,6 +66,7 @@ class FixWarehouseBin(models.Model):
 
     _name = "fix.warehouse.bin"
     _description = "Warehouse Bin"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     zone_id = fields.Many2one("fix.warehouse.zone", required=True, ondelete="cascade")
     name = fields.Char(required=True)

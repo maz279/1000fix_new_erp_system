@@ -94,6 +94,7 @@ class FixConversationTurn(models.Model):
 
     _name = "fix.conversation.turn"
     _description = "Conversation Turn"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "conversation_id, sequence, id"
 
     conversation_id = fields.Many2one("fix.conversation", required=True,
@@ -114,6 +115,7 @@ class FixAssistantIntent(models.Model):
 
     _name = "fix.assistant.intent"
     _description = "Assistant Intent (transactional)"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _code_unique = models.Constraint('UNIQUE (code)', 'Intent code must be unique')

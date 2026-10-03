@@ -1,0 +1,65 @@
+# Bengali translations for cd_attendance (M55, P08-M02) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Attendance Record"
+msgstr "উপস্থিতি রেকর্ড"
+
+msgid "Shift Template"
+msgstr "শিফট টেমপ্লেট"
+
+msgid "Roster Slot"
+msgstr "রোস্টার স্লট"
+
+msgid "Attendance Lock"
+msgstr "উপস্থিতি লক"
+
+msgid "Biometric Device"
+msgstr "বায়োমেট্রিক ডিভাইস"
+
+msgid "Mobile (Geofenced)"
+msgstr "মোবাইল (জিওফেন্স)"
+
+msgid "Manual"
+msgstr "ম্যানুয়াল"
+
+msgid "Device Reference"
+msgstr "ডিভাইস রেফারেন্স"
+
+msgid "Latitude (P02 geofence)"
+msgstr "অক্ষাংশ (P02 জিওফেন্স)"
+
+msgid "Longitude (P02 geofence)"
+msgstr "দ্রাঘিমাংশ (P02 জিওফেন্স)"
+
+msgid "Check Out"
+msgstr "চেক আউট"
+
+msgid "Lock Period"
+msgstr "পিরিয়ড লক করুন"
+
+msgid "Re-open"
+msgstr "পুনরায় খুলুন"
+
+msgid "Locked"
+msgstr "লক করা"
+
+msgid "Re-opened"
+msgstr "পুনরায় খোলা"
+
+msgid "Shift"
+msgstr "শিফট"
+
+msgid "Branch"
+msgstr "শাখা"
+
+msgid "Attendance"
+msgstr "উপস্থিতি"
+
+msgid "Roster"
+msgstr "রোস্টার"
+
+msgid "Attendance Locks"
+msgstr "উপস্থিতি লকসমূহ"

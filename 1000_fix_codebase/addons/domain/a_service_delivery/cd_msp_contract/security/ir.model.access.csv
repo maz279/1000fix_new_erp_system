@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_msp_contract,fix.msp.contract,model_fix_msp_contract,base.group_user,1,1,1,0
+access_fix_monitored_asset,fix.monitored.asset,model_fix_monitored_asset,base.group_user,1,1,1,0
+access_fix_msp_alert,fix.msp.alert,model_fix_msp_alert,base.group_user,1,1,1,0
+access_fix_remote_session,fix.remote.session,model_fix_remote_session,base.group_user,1,1,1,0
+access_fix_msp_service_report,fix.msp.service.report,model_fix_msp_service_report,base.group_user,1,1,1,0

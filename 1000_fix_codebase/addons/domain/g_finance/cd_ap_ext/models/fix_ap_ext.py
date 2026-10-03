@@ -115,6 +115,7 @@ class FixVendorInvoice(models.Model):
 class FixVendorInvoiceLine(models.Model):
     _name = "fix.vendor.invoice.line"
     _description = "Vendor Invoice Line"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     invoice_id = fields.Many2one("fix.vendor.invoice", required=True, ondelete="cascade")
     product_id = fields.Many2one("product.product", string="Product", required=True)

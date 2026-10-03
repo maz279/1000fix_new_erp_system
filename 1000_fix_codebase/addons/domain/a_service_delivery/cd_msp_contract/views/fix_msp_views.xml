@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_msp_contract views — M05 (P08-M07). -->
+<odoo>
+    <record id="view_fix_msp_alert_list" model="ir.ui.view">
+        <field name="name">fix.msp.alert.list</field>
+        <field name="model">fix.msp.alert</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="create_date" string="Raised"/>
+                <field name="msp_contract_id"/>
+                <field name="asset_id"/>
+                <field name="severity"/>
+                <field name="message"/>
+                <field name="state"/>
+                <field name="order_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_alert_form" model="ir.ui.view">
+        <field name="name">fix.msp.alert.form</field>
+        <field name="model">fix.msp.alert</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_acknowledge" type="object"
+                            string="Acknowledge" invisible="state != 'new'"/>
+                    <button name="action_to_ticket" type="object"
+                            string="Create Ticket" class="btn-primary"
+                            invisible="state not in ('new', 'acked')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="asset_id"/>
+                            <field name="severity"/>
+                        </group>
+                        <group>
+                            <field name="message"/>
+                            <field name="order_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_alert" model="ir.actions.act_window">
+        <field name="name">MSP Alerts</field>
+        <field name="res_model">fix.msp.alert</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_monitored_asset_list" model="ir.ui.view">
+        <field name="name">fix.monitored.asset.list</field>
+        <field name="model">fix.monitored.asset</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="agent_id"/>
+                <field name="hostname"/>
+                <field name="health"/>
+                <field name="last_seen"/>
+                <field name="msp_contract_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_monitored_asset" model="ir.actions.act_window">
+        <field name="name">Monitored Assets</field>
+        <field name="res_model">fix.monitored.asset</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_msp_contract_form" model="ir.ui.view">
+        <field name="name">fix.msp.contract.form</field>
+        <field name="model">fix.msp.contract</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="contract_id"/>
+                            <field name="monitoring_scope"/>
+                        </group>
+                        <group>
+                            <field name="per_device_monthly"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_contract" model="ir.actions.act_window">
+        <field name="name">MSP Contracts</field>
+        <field name="res_model">fix.msp.contract</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_ws_msp" name="Managed Services"
+              parent="cd_entity_config.menu_fix_operations_root" sequence="80"/>
+    <menuitem id="menu_fix_msp_alerts" name="Alerts"
+              parent="menu_ws_msp" action="action_fix_msp_alert" sequence="10"/>
+    <menuitem id="menu_fix_msp_assets" name="Monitored Assets"
+              parent="menu_ws_msp" action="action_fix_monitored_asset"
+              sequence="20"/>
+    <menuitem id="menu_fix_msp_contracts" name="MSP Contracts"
+              parent="menu_ws_msp" action="action_fix_msp_contract"
+              sequence="30"/>
+</odoo>

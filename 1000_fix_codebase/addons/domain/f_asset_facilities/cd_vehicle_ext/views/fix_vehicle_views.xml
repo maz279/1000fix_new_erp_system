@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_vehicle_ext views — M46 (P08-M08). -->
+<odoo>
+    <record id="view_fix_vehicle_assignment_list" model="ir.ui.view">
+        <field name="name">fix.vehicle.assignment.list</field>
+        <field name="model">fix.vehicle.assignment</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="date"/>
+                <field name="vehicle_id"/>
+                <field name="technician_id"/>
+                <field name="order_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_vehicle_assignment" model="ir.actions.act_window">
+        <field name="name">Vehicle Assignments</field>
+        <field name="res_model">fix.vehicle.assignment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fleet_vehicle_form_cd" model="ir.ui.view">
+        <field name="name">fleet.vehicle.form.cd</field>
+        <field name="model">fleet.vehicle</field>
+        <field name="inherit_id" ref="fleet.fleet_vehicle_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='driver_id']" position="after">
+                <field name="branch_id"/>
+                <field name="driver_employee_id"/>
+                <field name="fitness_expiry"/>
+                <field name="insurance_expiry"/>
+                <field name="compliance_ok" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <menuitem id="menu_ws_fleet" name="Fleet"
+              parent="cd_entity_config.menu_fix_operations_root"
+              sequence="100"/>
+    <menuitem id="menu_fix_vehicle_assignment" name="Vehicle Assignments"
+              parent="menu_ws_fleet" action="action_fix_vehicle_assignment"
+              sequence="10"/>
+</odoo>

@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_payroll_bd views — M56 (P08-M03). -->
+<odoo>
+    <record id="view_fix_payroll_period_list" model="ir.ui.view">
+        <field name="name">fix.payroll.period.list</field>
+        <field name="model">fix.payroll.period</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="slip_count"/>
+                <field name="net_total"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_payroll_period_form" model="ir.ui.view">
+        <field name="name">fix.payroll.period.form</field>
+        <field name="model">fix.payroll.period</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_verify_attendance_locked" type="object"
+                            string="Verify Attendance Lock" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_calculate" type="object"
+                            string="Calculate"
+                            invisible="state != 'attendance_locked'"/>
+                    <button name="action_approve" type="object" string="Approve"
+                            invisible="state != 'calculated'"/>
+                    <button name="action_pay" type="object" string="Pay (BEFTN)"
+                            invisible="state != 'approved'"/>
+                    <button name="action_post" type="object" string="Post to GL"
+                            invisible="state != 'paid'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                        </group>
+                        <group>
+                            <field name="slip_count"/>
+                            <field name="net_total"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="beftn_batch_id"/>
+                        </group>
+                    </group>
+                    <field name="payslip_ids">
+                        <list>
+                            <field name="employee_id"/>
+                            <field name="gross"/>
+                            <field name="pf_employee"/>
+                            <field name="tax_withheld"/>
+                            <field name="net"/>
+                        </list>
+                    </field>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_payroll_period" model="ir.actions.act_window">
+        <field name="name">Payroll Periods</field>
+        <field name="res_model">fix.payroll.period</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- The Bengali payslip: TR-07's named rendering failure mode, first
+         class. Odoo qweb report on the payslip model. -->
+    <record id="action_report_payslip_bn" model="ir.actions.report">
+        <field name="name">বেতন স্লিপ (Payslip)</field>
+        <field name="model">fix.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_payroll_bd.report_payslip_bn</field>
+        <field name="report_file">cd_payroll_bd.report_payslip_bn</field>
+    </record>
+
+    <template id="report_payslip_bn">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page">
+                    <h1>বেতন স্লিপ</h1>
+                    <p>কর্মী: <span t-field="doc.employee_id.name"/></p>
+                    <p>মূল বেতন: <span t-field="doc.basic"/></p>
+                    <p>অতিরিক্ত কর্মঘণ্টা: <span t-field="doc.overtime"/></p>
+                    <p>প্রভিডেন্ট ফান্ড (কর্মী): <span t-field="doc.pf_employee"/></p>
+                    <p>আয়কর কর্তন: <span t-field="doc.tax_withheld"/></p>
+                    <h2>নিট বেতন: <span t-field="doc.net"/></h2>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <record id="view_fix_payslip_list" model="ir.ui.view">
+        <field name="name">fix.payslip.list</field>
+        <field name="model">fix.payslip</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="employee_id"/>
+                <field name="period_id"/>
+                <field name="gross"/>
+                <field name="net"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_payslip" model="ir.actions.act_window">
+        <field name="name">Payslips</field>
+        <field name="res_model">fix.payslip</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_payroll" name="Payroll"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_payroll_period" sequence="100"/>
+    <menuitem id="menu_fix_payslips" name="Payslips"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_payslip" sequence="110"/>
+</odoo>

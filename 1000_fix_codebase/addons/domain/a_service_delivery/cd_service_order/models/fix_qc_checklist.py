@@ -62,6 +62,7 @@ class FixQC(models.Model):
 class FixQCItem(models.Model):
     _name = "fix.qc.item"
     _description = "QC Checklist Item"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     checklist_id = fields.Many2one("fix.qc.checklist", required=True, ondelete="cascade")
     name = fields.Char(required=True)

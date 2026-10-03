@@ -1,0 +1,101 @@
+# Bengali translations for cd_qms_process (M23, P08-M06) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Non-Conformance Record"
+msgstr "অসঙ্গতি রেকর্ড"
+
+msgid "CAPA"
+msgstr "সিএপিএ"
+
+msgid "Internal Audit"
+msgstr "অভ্যন্তরীণ নিরীক্ষা"
+
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+msgid "QC Checklist"
+msgstr "কিউসি চেকলিস্ট"
+
+msgid "Complaint (M34)"
+msgstr "অভিযোগ (M34)"
+
+msgid "Supplier (M42)"
+msgstr "সরবরাহকারী (M42)"
+
+msgid "Minor"
+msgstr "গৌণ"
+
+msgid "Major"
+msgstr "বড়"
+
+msgid "Critical"
+msgstr "সংকটাপন্ন"
+
+msgid "New"
+msgstr "নতুন"
+
+msgid "Root Cause Identified"
+msgstr "মূল কারণ চিহ্নিত"
+
+msgid "CAPA Open"
+msgstr "সিএপিএ চালু"
+
+msgid "Verification"
+msgstr "যাচাই"
+
+msgid "Closed"
+msgstr "বন্ধ"
+
+msgid "Open"
+msgstr "চালু"
+
+msgid "Implemented"
+msgstr "বাস্তবায়িত"
+
+msgid "Verified"
+msgstr "যাচাইকৃত"
+
+msgid "Auditor"
+msgstr "নিরীক্ষক"
+
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+msgid "Executed"
+msgstr "সম্পাদিত"
+
+msgid "Reported"
+msgstr "প্রতিবেদনকৃত"
+
+msgid "Offline Capture (P11)"
+msgstr "অফলাইন সংগ্রহ (P11)"
+
+msgid "Findings"
+msgstr "পর্যবেক্ষণসমূহ"
+
+msgid "NCR (M23)"
+msgstr "এনসিআর (M23)"
+
+msgid "Quality (M23)"
+msgstr "গুণমান (M23)"
+
+msgid "Non-Conformances"
+msgstr "অসঙ্গতিসমূহ"
+
+msgid "Internal Audits"
+msgstr "অভ্যন্তরীণ নিরীক্ষাসমূহ"
+
+msgid "Owner"
+msgstr "মালিক"
+
+msgid "Audit"
+msgstr "নিরীক্ষা"
+
+msgid "Complaint"
+msgstr "অভিযোগ"
+
+msgid "NCR"
+msgstr "এনসিআর"

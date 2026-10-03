@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_employment_contract,fix.employment.contract,model_fix_employment_contract,base.group_user,1,1,1,0
+access_fix_leave_type,fix.leave.type,model_fix_leave_type,base.group_user,1,1,1,0
+access_fix_leave_request,fix.leave.request,model_fix_leave_request,base.group_user,1,1,1,0
+access_fix_org_position,fix.org.position,model_fix_org_position,base.group_user,1,1,1,0

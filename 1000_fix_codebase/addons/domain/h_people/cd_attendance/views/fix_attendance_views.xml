@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_attendance views — M55 (P08-M02). -->
+<odoo>
+    <record id="view_fix_attendance_list" model="ir.ui.view">
+        <field name="name">fix.attendance.record.list</field>
+        <field name="model">fix.attendance.record</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="employee_id"/>
+                <field name="check_in"/>
+                <field name="check_out"/>
+                <field name="worked_hours"/>
+                <field name="overtime_hours"/>
+                <field name="source"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_attendance_form" model="ir.ui.view">
+        <field name="name">fix.attendance.record.form</field>
+        <field name="model">fix.attendance.record</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_checkout" type="object"
+                            string="Check Out" class="btn-primary"
+                            invisible="check_out"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="check_in"/>
+                            <field name="check_out"/>
+                            <field name="source"/>
+                        </group>
+                        <group>
+                            <field name="device_ref"/>
+                            <field name="worked_hours"/>
+                            <field name="overtime_hours"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_attendance" model="ir.actions.act_window">
+        <field name="name">Attendance</field>
+        <field name="res_model">fix.attendance.record</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_roster_list" model="ir.ui.view">
+        <field name="name">fix.roster.slot.list</field>
+        <field name="model">fix.roster.slot</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="date"/>
+                <field name="employee_id"/>
+                <field name="shift_id"/>
+                <field name="branch_id"/>
+                <field name="on_leave"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_roster" model="ir.actions.act_window">
+        <field name="name">Roster</field>
+        <field name="res_model">fix.roster.slot</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_attendance_lock_form" model="ir.ui.view">
+        <field name="name">fix.attendance.lock.form</field>
+        <field name="model">fix.attendance.lock</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_lock" type="object" string="Lock Period"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_unlock" type="object" string="Re-open"
+                            invisible="state != 'locked'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="name"/>
+                        <field name="period_start"/>
+                        <field name="period_end"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_attendance_lock" model="ir.actions.act_window">
+        <field name="name">Attendance Locks</field>
+        <field name="res_model">fix.attendance.lock</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_attendance" name="Attendance"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_attendance" sequence="40"/>
+    <menuitem id="menu_fix_roster" name="Roster"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_roster" sequence="50"/>
+    <menuitem id="menu_fix_attendance_lock" name="Attendance Locks"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_attendance_lock" sequence="60"/>
+</odoo>

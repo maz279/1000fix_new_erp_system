@@ -1,0 +1,107 @@
+# Bengali translations for cd_payroll_bd (M56, P08-M03) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Payroll Period"
+msgstr "পেরোল পিরিয়ড"
+
+msgid "Payslip"
+msgstr "বেতন স্লিপ"
+
+msgid "BEFTN Batch"
+msgstr "বিইএফটিএন ব্যাচ"
+
+msgid "Slips"
+msgstr "স্লিপসমূহ"
+
+msgid "Net Total"
+msgstr "নিট মোট"
+
+msgid "Draft"
+msgstr "খসড়া"
+
+msgid "Attendance Locked"
+msgstr "উপস্থিতি লক করা"
+
+msgid "Calculated"
+msgstr "গণনা করা"
+
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+msgid "Posted"
+msgstr "পোস্ট করা"
+
+msgid "Verify Attendance Lock"
+msgstr "উপস্থিতি লক যাচাই"
+
+msgid "Calculate"
+msgstr "গণনা করুন"
+
+msgid "Approve"
+msgstr "অনুমোদন"
+
+msgid "Pay (BEFTN)"
+msgstr "পরিশোধ (বিইএফটিএন)"
+
+msgid "Post to GL"
+msgstr "জিএল-এ পোস্ট"
+
+msgid "Payroll Periods"
+msgstr "পেরোল পিরিয়ডসমূহ"
+
+msgid "Basic (Monthly)"
+msgstr "মূল বেতন (মাসিক)"
+
+msgid "Overtime Hours"
+msgstr "অতিরিক্ত কর্মঘণ্টা"
+
+msgid "Incentive (M57)"
+msgstr "প্রণোদনা (M57)"
+
+msgid "PF Employee %"
+msgstr "পিএফ কর্মী %"
+
+msgid "PF Employer %"
+msgstr "পিএফ নিয়োগকর্তা %"
+
+msgid "YTD Taxable Outside This Slip"
+msgstr "এই স্লিপের বাইরে যাদ-নির্ণীত করযোগ্য"
+
+msgid "Gross"
+msgstr "স্থূল"
+
+msgid "Overtime Pay"
+msgstr "অতিরিক্ত কর্মঘণ্টার বেতন"
+
+msgid "PF Employee"
+msgstr "পিএফ কর্মী"
+
+msgid "PF Employer"
+msgstr "পিএফ নিয়োগকর্তা"
+
+msgid "Income Tax Withheld"
+msgstr "আয়কর কর্তন"
+
+msgid "Net Pay"
+msgstr "নিট বেতন"
+
+msgid "Payroll"
+msgstr "পেরোল"
+
+msgid "Payslips"
+msgstr "বেতন স্লিপসমূহ"
+
+msgid "Total Amount"
+msgstr "মোট পরিমাণ"
+
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+msgid "Settled"
+msgstr "নিষ্পত্তি"

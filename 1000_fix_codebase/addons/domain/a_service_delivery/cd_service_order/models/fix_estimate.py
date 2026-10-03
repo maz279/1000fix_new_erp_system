@@ -142,6 +142,7 @@ class FixEstimate(models.Model):
 class FixEstimateLine(models.Model):
     _name = "fix.estimate.line"
     _description = "Estimate Line"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
 
     estimate_id = fields.Many2one("fix.estimate", required=True, ondelete="cascade")
     line_type = fields.Selection(

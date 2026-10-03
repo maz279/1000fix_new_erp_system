@@ -99,6 +99,10 @@ def check_relation_integrity() -> list[str]:
         "ir.ui.view", "ir.sequence",
         # Odoo `account` (vendor) — present in every profile that installs finance
         "account.move", "account.move.line", "account.account", "account.journal",
+        # Odoo `maintenance` (vendor) — present in the Wave-5 EAM profile
+        "maintenance.equipment", "maintenance.equipment.category",
+        # Odoo `fleet` (vendor) — present in the Wave-5 fleet profile
+        "fleet.vehicle", "fleet.vehicle.model",
     }
     defined: set[str] = set()
     sources: list[tuple[Path, str]] = []

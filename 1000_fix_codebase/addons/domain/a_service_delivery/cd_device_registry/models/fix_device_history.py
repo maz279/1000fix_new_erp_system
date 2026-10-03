@@ -7,6 +7,7 @@ class FixDeviceHistory(models.Model):
     """A permanent history entry for a device — never deleted."""
     _name = "fix.device.history"
     _description = "Device History"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date desc"
     _log_access = True
 

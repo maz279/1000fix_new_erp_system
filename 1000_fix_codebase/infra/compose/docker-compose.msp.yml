@@ -1,0 +1,41 @@
+# compose additions for the Wave-5 MSP/quality platform (P08-M07/M09).
+# MeshCentral (INT-028), Wazuh (INT-029/030), Mayan EDMS (M24 volume store).
+# All pinned by digest at first pull by tooling/scripts/resolve-digests.ps1
+# (DE-06); the msp profile is OPT-IN: `docker compose --profile msp up`.
+version: "3.9"
+
+services:
+  meshcentral:
+    image: ylianyona/meshcentral@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    profiles: ["msp"]
+    environment:
+      USE_MONGODB: "false"
+    ports:
+      - "127.0.0.1:8125:443"
+    restart: unless-stopped
+
+  wazuh-manager:
+    image: wazuh/wazuh-manager@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    profiles: ["msp"]
+    ports:
+      - "127.0.0.1:1514:1514"
+      - "127.0.0.1:1515:1515"
+      - "127.0.0.1:5600:5600"
+    restart: unless-stopped
+
+  mayan-edms:
+    image: mayanedms/mayanedms@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    profiles: ["msp"]
+    environment:
+      MAYAN_DATABASES: "default|postgres://fix:${POSTGRES_PASSWORD}@postgres:5432/mayan"
+    volumes:
+      - mayan-media:/var/lib/mayan
+    ports:
+      - "127.0.0.1:8130:8000"
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  mayan-media:
