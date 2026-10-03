@@ -17,7 +17,11 @@ code_root=$(cd "$script_dir/../.." && pwd)
 git_root=$(git -C "$code_root" rev-parse --show-toplevel)
 cd "$git_root"
 # Path of the codebase relative to the repository root (e.g. 1000_fix_codebase).
-rel=${code_root#"$git_root"/}
+# rev-parse --show-prefix is used because Git for Windows prints --show-toplevel
+# in D:/ style while $(pwd) is /d/ style; stripping one from the other silently
+# fails and yields an absolute path that mangles .git/modules.
+rel=$(git -C "$code_root" rev-parse --show-prefix)
+rel=${rel%/}
 
 get_lock() { grep -m1 "^$1=" "$code_root/tooling/versions.lock" | cut -d= -f2; }
 

@@ -13,7 +13,9 @@ script_dir=$(cd "$(dirname "$0")" && pwd)
 code_root=$(cd "$script_dir/../.." && pwd)
 git_root=$(git -C "$code_root" rev-parse --show-toplevel 2>/dev/null || { echo 'check-vendor-clean: not a git repository'; exit 1; })
 cd "$git_root"
-rel=${code_root#"$git_root"/}
+# show-prefix is style-safe on Git for Windows (D:/ vs /d/ toplevel mismatch).
+rel=$(git -C "$code_root" rev-parse --show-prefix)
+rel=${rel%/}
 
 if [ ! -d "$rel/vendor" ]; then
   echo "check-vendor-clean: SKIP - vendor/ absent (run tooling/scripts/import-vendor.sh first)"
