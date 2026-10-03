@@ -57,29 +57,36 @@ fi
 
 # --- T02-T05: OCA subtrees, whole, own structure retained ----------------------
 OCA_ORG=$(get_lock VENDOR_OCA_ORG)
+# NOTE: there is NO OCA/l10n-bangladesh repository (P07 finding: the import
+# died on the phantom entry). Bangladesh localisation ships inside Odoo core
+# (vendor/odoo/addons/l10n_bd, covered by the submodule pin); the statutory
+# layer on top is first-party cd_tax_engine_bd.
 REPOS="field-service helpdesk management-system operating-unit hr payroll dms \
 server-tools web account-financial-tools account-financial-reporting \
 reporting-engine mis-builder stock-logistics-workflow stock-logistics-barcode \
-stock-logistics-warehouse purchase-workflow partner-contact contract \
-l10n-bangladesh"
+stock-logistics-warehouse purchase-workflow partner-contact contract"
 
 # P07 audit finding #2: recording pins INSIDE the loop (sed) left versions.lock
 # dirty, and the NEXT `git subtree add` aborted on the dirty tree after the very
-# first repo. Pins are collected and written once, after the loop.
+# first repo. Pins are collected and written once, after the loop - including
+# for repos that are already present but still PENDING-CLONE (a previous run
+# that died mid-loop would otherwise never record them).
 pin_updates=""
 for repo in $REPOS; do
   key="VENDOR_OCA_$(echo "$repo" | tr '[:lower:]-' '[:upper:]_')"
   dir="$rel/vendor/oca/$repo"
   if [ -d "$dir" ] && [ -n "$(ls -A "$dir" 2>/dev/null)" ]; then
     echo "import-vendor: $repo already present - skipping"
-    continue
+  else
+    echo "import-vendor: subtree add $repo (19.0)"
+    git subtree add --prefix "$dir" "$OCA_ORG/$repo" 19.0 --squash
   fi
-  echo "import-vendor: subtree add $repo (19.0)"
-  git subtree add --prefix "$dir" "$OCA_ORG/$repo" 19.0 --squash
-  pin=$(git log -1 --format=%H "--" "$dir" 2>/dev/null || true)
   cur=$(get_lock "$key")
   if [ "$cur" = "PENDING-CLONE" ]; then
-    pin_updates+="s|^$key=.*|$key=$pin|\n"
+    pin=$(git log -1 --format=%H "--" "$dir" 2>/dev/null || true)
+    if [ -n "$pin" ]; then
+      pin_updates+="s|^$key=.*|$key=$pin|\n"
+    fi
   fi
 done
 if [ -n "$pin_updates" ]; then
