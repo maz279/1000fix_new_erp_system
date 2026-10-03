@@ -60,3 +60,8 @@ docs/p01-m04/registers/** linguist-generated
 tooling/cd-register.yaml linguist-generated
 # Bengali reference image and fixtures
 *.bn.png linguist-vendored
+
+# Vendored trees are stored VERBATIM: upstream OCA content includes LFS
+# pointers whose objects we do not mirror; filters would rewrite them into
+# perpetual working-tree diffs (P07 finding on the dms subtree import).
+vendor/** -filter -text
