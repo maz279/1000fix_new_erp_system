@@ -31,7 +31,9 @@ ODOO_BRANCH=$(get_lock VENDOR_ODOO_BRANCH)
 # --- T01: Odoo as a submodule, pinned commit on branch 19.0 -------------------
 # Windows prerequisite: core.longpaths=true (Odoo paths exceed MAX_PATH;
 # checkout fails with "Filename too long" without it).
-if [ ! -f "$rel/.gitmodules" ] || ! grep -q 'vendor/odoo' "$rel/.gitmodules"; then
+# NOTE: git writes .gitmodules at the REPOSITORY ROOT, never beside the tree.
+gm="$git_root/.gitmodules"
+if [ ! -f "$gm" ] || ! grep -q 'vendor/odoo' "$gm"; then
   git submodule add -b "$ODOO_BRANCH" "$ODOO_URL" "$rel/vendor/odoo"
 fi
 git -C "$rel/vendor/odoo" fetch origin "$ODOO_BRANCH"
@@ -49,7 +51,7 @@ git -C "$rel/vendor/odoo" checkout --quiet "$PIN"
 # "working tree has modifications. Cannot add." Commit the Odoo registration
 # before the subtree loop (idempotent - nothing to commit on re-runs).
 if [ -n "$(git status --porcelain)" ]; then
-  git add "$rel/.gitmodules" "$rel/vendor/odoo" "$code_root/tooling/versions.lock"
+  git add "$gm" "$rel/vendor/odoo" "$code_root/tooling/versions.lock"
   git commit -m "chore(repo): vendor - Odoo submodule pinned ${PIN:0:10} (import-vendor T01)"
 fi
 

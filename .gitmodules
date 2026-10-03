@@ -1,0 +1,4 @@
+[submodule "1000_fix_codebase/vendor/odoo"]
+	path = 1000_fix_codebase/vendor/odoo
+	url = https://github.com/odoo/odoo
+	branch = 19.0
