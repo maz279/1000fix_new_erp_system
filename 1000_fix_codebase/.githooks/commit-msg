@@ -31,7 +31,13 @@ if [ "$scope" != "repo" ] && [ "$scope" != "release" ]; then
     CD-*) ;;
     *) fail "scope '$scope' is not a CD identifier (CD-<UNIT>-<nn>), unit prefix (CD-<UNIT>) or a root exception (repo|release)" ;;
   esac
+  # Register lives in the codebase tree; core.hooksPath points into it
+  # (single-repo layout: hook CWD is the workspace root, not the codebase).
   reg="tooling/cd-register.yaml"
+  hp=$(git config core.hooksPath 2>/dev/null || true)
+  if [ -n "$hp" ] && [ -f "$hp/../tooling/cd-register.yaml" ]; then
+    reg="$hp/../tooling/cd-register.yaml"
+  fi
   if [ -f "$reg" ]; then
     if ! grep -q -- "$scope" "$reg"; then
       # Unit-prefix scope: accept if any item of that unit is registered.

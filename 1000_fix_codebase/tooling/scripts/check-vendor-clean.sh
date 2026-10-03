@@ -7,26 +7,32 @@
 # Runs: pre-commit (no-vendor-edit hook) + CI stage 9 (architecture).
 # =============================================================================
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel 2>/dev/null || { echo 'check-vendor-clean: not a git repository'; exit 1; })"
+# Single-repo layout: git toplevel is the WORKSPACE; the vendor/ tree and
+# FORKS.yaml live in the codebase (this script's grandparent directory).
+script_dir=$(cd "$(dirname "$0")" && pwd)
+code_root=$(cd "$script_dir/../.." && pwd)
+git_root=$(git -C "$code_root" rev-parse --show-toplevel 2>/dev/null || { echo 'check-vendor-clean: not a git repository'; exit 1; })
+cd "$git_root"
+rel=${code_root#"$git_root"/}
 
-if [ ! -d vendor ]; then
+if [ ! -d "$rel/vendor" ]; then
   echo "check-vendor-clean: SKIP - vendor/ absent (run tooling/scripts/import-vendor.sh first)"
   exit 0
 fi
 
-changed=$(git status --porcelain -- vendor/ || true)
+changed=$(git status --porcelain -- "$rel/vendor/" || true)
 if [ -z "$changed" ]; then
   echo "check-vendor-clean: OK - vendor/ clean (FF-03)"
   exit 0
 fi
 
 # There are modifications. Each must be authorised by FORKS.yaml.
-python - "$changed" <<'PY' || exit 1
-import sys, re, pathlib
-changed = sys.argv[1]
+python - "$changed" "$code_root" "$rel" <<'PY' || exit 1
+import sys, pathlib
+changed, code_root, rel = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     import yaml  # PyYAML ships with Odoo's constraints
-    forks = (yaml.safe_load(pathlib.Path("FORKS.yaml").read_text()) or {}).get("forks") or []
+    forks = (yaml.safe_load((pathlib.Path(code_root) / "FORKS.yaml").read_text()) or {}).get("forks") or []
 except Exception:
     forks = []
 authorised = []
@@ -34,9 +40,9 @@ for f in forks:
     repo = f.get("repo", "")
     p = f.get("path", "")
     if repo == "odoo":
-        authorised.append(f"vendor/odoo/{p}".rstrip("/"))
+        authorised.append(f"{rel}/vendor/odoo/{p}".rstrip("/"))
     else:
-        authorised.append(f"vendor/oca/{repo}/{p}".rstrip("/"))
+        authorised.append(f"{rel}/vendor/oca/{repo}/{p}".rstrip("/"))
 unauth = []
 for line in changed.splitlines():
     path = line[3:].strip().strip('"')
