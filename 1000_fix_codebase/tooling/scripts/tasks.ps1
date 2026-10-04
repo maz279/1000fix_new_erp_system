@@ -67,7 +67,7 @@ switch ($Target) {
     'odoo-install-wave1' {
         Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '-i', 'base,cd_party_master', '--stop-after-init')
     }
-    'run'          { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev') }
+    'run'          { Run-Py 'vendor/odoo/odoo-bin' @('-c', 'infra/odoo-conf/local.resolved.conf', '-d', 'fix_dev', '--dev=all') }
     'seed'         { Run-Py 'db/seeds/seed.py' @('--seed', '1000fix') }
     'test-smoke'   { Run-Py 'tooling/scripts/test-smoke.py' }
     'doctor'       {

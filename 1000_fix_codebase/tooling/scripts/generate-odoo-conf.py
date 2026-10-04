@@ -78,7 +78,8 @@ addons_path = {addons_path}
 # workers=0 is NOT a performance setting: with workers>0 Odoo forks and a
 # debugger attached to the parent never stops in the child.
 workers = 0
-dev = all
+# dev=all is a CLI-ONLY flag in Odoo 19 (file_exportable=False) - set it
+# on the command line (--dev=all), never in the config file
 limit_time_cpu = 3600
 limit_time_real = 3600
 log_handler = odoo.addons.cd_:DEBUG
