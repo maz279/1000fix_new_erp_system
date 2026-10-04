@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_ppm views (P10). -->
+<odoo>
+    <record id="view_fix_project_list" model="ir.ui.view">
+        <field name="name">fix.project.list</field>
+        <field name="model">fix.project</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_project" model="ir.actions.act_window">
+        <field name="name">Project</field>
+        <field name="res_model">fix.project</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_project_milestone_list" model="ir.ui.view">
+        <field name="name">fix.project.milestone.list</field>
+        <field name="model">fix.project.milestone</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_project_milestone" model="ir.actions.act_window">
+        <field name="name">Project Milestone</field>
+        <field name="res_model">fix.project.milestone</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_project" name="Project" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_project" sequence="300"/>
+    <menuitem id="menu_fix_project_milestone" name="Project Milestone" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_project_milestone" sequence="310"/>
+</odoo>

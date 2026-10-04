@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_marketplace views (P10). -->
+<odoo>
+    <record id="view_fix_marketplace_seller_list" model="ir.ui.view">
+        <field name="name">fix.marketplace.seller.list</field>
+        <field name="model">fix.marketplace.seller</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_marketplace_seller" model="ir.actions.act_window">
+        <field name="name">Marketplace Seller</field>
+        <field name="res_model">fix.marketplace.seller</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_marketplace_order_list" model="ir.ui.view">
+        <field name="name">fix.marketplace.order.list</field>
+        <field name="model">fix.marketplace.order</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_marketplace_order" model="ir.actions.act_window">
+        <field name="name">Marketplace Order</field>
+        <field name="res_model">fix.marketplace.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_seller_quote_list" model="ir.ui.view">
+        <field name="name">fix.seller.quote.list</field>
+        <field name="model">fix.seller.quote</field>
+        <field name="arch" type="xml">
+            <list><field name="company_id"/></list>
+        </field>
+    </record>
+    <record id="action_fix_seller_quote" model="ir.actions.act_window">
+        <field name="name">Seller Quote</field>
+        <field name="res_model">fix.seller.quote</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_seller_score_list" model="ir.ui.view">
+        <field name="name">fix.seller.score.list</field>
+        <field name="model">fix.seller.score</field>
+        <field name="arch" type="xml">
+            <list><field name="company_id"/></list>
+        </field>
+    </record>
+    <record id="action_fix_seller_score" model="ir.actions.act_window">
+        <field name="name">Seller Score</field>
+        <field name="res_model">fix.seller.score</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_marketplace_seller" name="Marketplace Seller" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_seller" sequence="300"/>
+    <menuitem id="menu_fix_marketplace_order" name="Marketplace Order" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_order" sequence="310"/>
+    <menuitem id="menu_fix_seller_quote" name="Seller Quote" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_quote" sequence="320"/>
+    <menuitem id="menu_fix_seller_score" name="Seller Score" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_score" sequence="330"/>
+</odoo>

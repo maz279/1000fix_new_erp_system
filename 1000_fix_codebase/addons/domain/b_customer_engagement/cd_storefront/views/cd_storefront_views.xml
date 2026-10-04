@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_storefront views (P10). -->
+<odoo>
+    <record id="view_fix_storefront_cart_list" model="ir.ui.view">
+        <field name="name">fix.storefront.cart.list</field>
+        <field name="model">fix.storefront.cart</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_storefront_cart" model="ir.actions.act_window">
+        <field name="name">Storefront Cart</field>
+        <field name="res_model">fix.storefront.cart</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_storefront_cart_line_list" model="ir.ui.view">
+        <field name="name">fix.storefront.cart.line.list</field>
+        <field name="model">fix.storefront.cart.line</field>
+        <field name="arch" type="xml">
+            <list><field name="company_id"/></list>
+        </field>
+    </record>
+    <record id="action_fix_storefront_cart_line" model="ir.actions.act_window">
+        <field name="name">Storefront Cart Line</field>
+        <field name="res_model">fix.storefront.cart.line</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_storefront_return_list" model="ir.ui.view">
+        <field name="name">fix.storefront.return.list</field>
+        <field name="model">fix.storefront.return</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_storefront_return" model="ir.actions.act_window">
+        <field name="name">Storefront Return</field>
+        <field name="res_model">fix.storefront.return</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_storefront_cart" name="Storefront Cart" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_storefront_cart" sequence="300"/>
+    <menuitem id="menu_fix_storefront_cart_line" name="Storefront Cart Line" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_storefront_cart_line" sequence="310"/>
+    <menuitem id="menu_fix_storefront_return" name="Storefront Return" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_storefront_return" sequence="320"/>
+</odoo>

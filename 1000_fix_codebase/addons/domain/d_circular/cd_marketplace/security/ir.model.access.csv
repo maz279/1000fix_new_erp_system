@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_marketplace_seller,fix.marketplace.seller,model_fix_marketplace_seller,base.group_user,1,1,1,0
+access_fix_marketplace_order,fix.marketplace.order,model_fix_marketplace_order,base.group_user,1,1,1,0
+access_fix_seller_quote,fix.seller.quote,model_fix_seller_quote,base.group_user,1,1,1,0
+access_fix_seller_score,fix.seller.score,model_fix_seller_score,base.group_user,1,1,1,0

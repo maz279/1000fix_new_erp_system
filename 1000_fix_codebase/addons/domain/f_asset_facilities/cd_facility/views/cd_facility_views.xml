@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_facility views (P10). -->
+<odoo>
+    <record id="view_fix_site_list" model="ir.ui.view">
+        <field name="name">fix.site.list</field>
+        <field name="model">fix.site</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_site" model="ir.actions.act_window">
+        <field name="name">Site</field>
+        <field name="res_model">fix.site</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_facility_work_order_list" model="ir.ui.view">
+        <field name="name">fix.facility.work.order.list</field>
+        <field name="model">fix.facility.work.order</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_facility_work_order" model="ir.actions.act_window">
+        <field name="name">Facility Work Order</field>
+        <field name="res_model">fix.facility.work.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_site" name="Site" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_site" sequence="300"/>
+    <menuitem id="menu_fix_facility_work_order" name="Facility Work Order" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_facility_work_order" sequence="310"/>
+</odoo>

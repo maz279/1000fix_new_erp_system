@@ -1,0 +1,8 @@
+# Bengali translations for cd_facility (P10).
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Facility & Branch Infrastructure"
+msgstr "Facility & Branch Infrastructure (\u09ac\u09be\u0982\u09b2\u09be)"

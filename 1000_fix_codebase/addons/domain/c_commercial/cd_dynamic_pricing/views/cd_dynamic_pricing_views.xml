@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_dynamic_pricing views (P10). -->
+<odoo>
+    <record id="view_fix_dynamic_price_rule_list" model="ir.ui.view">
+        <field name="name">fix.dynamic.price.rule.list</field>
+        <field name="model">fix.dynamic.price.rule</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_dynamic_price_rule" model="ir.actions.act_window">
+        <field name="name">Dynamic Price Rule</field>
+        <field name="res_model">fix.dynamic.price.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_price_explanation_list" model="ir.ui.view">
+        <field name="name">fix.price.explanation.list</field>
+        <field name="model">fix.price.explanation</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_price_explanation" model="ir.actions.act_window">
+        <field name="name">Price Explanation</field>
+        <field name="res_model">fix.price.explanation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_dynamic_price_rule" name="Dynamic Price Rule" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_dynamic_price_rule" sequence="300"/>
+    <menuitem id="menu_fix_price_explanation" name="Price Explanation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_price_explanation" sequence="310"/>
+</odoo>
