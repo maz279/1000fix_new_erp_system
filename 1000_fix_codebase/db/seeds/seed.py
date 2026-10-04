@@ -574,6 +574,121 @@ def main() -> int:
         else:
             print("seed: no fix.contract could be created — skip MSP")
 
+        # --- Phase 9 estate: rental, trade-in, data cases, demand plans,
+        # budgets, HSE, knowledge, ITSM, risk, talent (idempotent) --------
+        devices = c.call("fix.device", "search", [], limit=10)
+        if devices:
+            for i in range(5):
+                rname = f"SEED-RENT-{i+1:03d}"
+                if not c.first("fix.rental.reservation", [("name", "=", rname)]):
+                    c.call("fix.rental.reservation", "create", {
+                        "name": rname,
+                        "customer_id": customers[0] if customers else 1,
+                        "device_id": devices[i % len(devices)],
+                        "date_from": "2026-10-01",
+                        "date_to": "2026-10-15",
+                        "daily_rate": rng.choice([500, 800, 1200]),
+                        "deposit_collected": rng.choice([2000, 5000]),
+                        "state": "active",
+                    })
+            print("seed: rental reservations (idempotent)")
+
+            for i in range(5):
+                tname = f"SEED-TRD-{i+1:03d}"
+                if not c.first("fix.tradein.request", [("name", "=", tname)]):
+                    c.call("fix.tradein.request", "create", {
+                        "name": tname,
+                        "customer_id": customers[1] if len(customers) > 1 else 1,
+                        "device_id": devices[i % len(devices)],
+                        "offered_value": rng.choice([3000, 8000, 15000]),
+                        "state": rng.choice(["offered", "accepted", "wiped"]),
+                    })
+            print("seed: trade-in requests (idempotent)")
+
+        for i in range(3):
+            dname = f"SEED-DRC-{i+1:03d}"
+            if not c.first("fix.data.recovery.case", [("name", "=", dname)]):
+                c.call("fix.data.recovery.case", "create", {
+                    "name": dname,
+                    "customer_id": customers[2] if len(customers) > 2 else 1,
+                    "media_type": rng.choice(["hdd", "ssd", "phone"]),
+                    "residency_zone": "z4",
+                    "state": "custody",
+                })
+        print("seed: data recovery cases (idempotent)")
+
+        products = c.call("product.template", "search", [], limit=10)
+        for i in range(5):
+            pname = f"SEED-DEMAND-{i+1:03d}"
+            if not c.first("fix.demand.plan", [("name", "=", pname)]):
+                c.call("fix.demand.plan", "create", {
+                    "name": pname,
+                    "period_start": "2026-11-01",
+                    "period_end": "2026-11-30",
+                    "product_id": products[i] if products else 1,
+                    "forecast_quantity": rng.randint(20, 100),
+                    "current_stock": rng.randint(5, 50),
+                    "reorder_point": 10,
+                })
+        print("seed: demand plans (idempotent)")
+
+        for i in range(3):
+            bname = f"SEED-BUDGET-FY2027-{i+1}"
+            if not c.first("fix.budget", [("name", "=", bname)]):
+                c.call("fix.budget", "create", {
+                    "name": bname,
+                    "fiscal_year": "2027",
+                    "planned_amount": rng.choice([500000, 1000000, 2000000]),
+                })
+        print("seed: budgets (idempotent)")
+
+        for i in range(5):
+            hname = f"SEED-HSE-{i+1:03d}"
+            if not c.first("fix.hse.incident", [("name", "=", hname)]):
+                c.call("fix.hse.incident", "create", {
+                    "name": hname,
+                    "incident_type": rng.choice(["injury", "near_miss", "fire"]),
+                    "severity": rng.choice(["low", "medium", "high"]),
+                    "description": f"Seed HSE incident {i+1}",
+                })
+        print("seed: HSE incidents (idempotent)")
+
+        for i in range(5):
+            kname = f"Seed KB Article {i+1}"
+            if not c.first("fix.knowledge.article", [("name", "=", kname)]):
+                c.call("fix.knowledge.article", "create", {
+                    "name": kname,
+                    "category": rng.choice(["troubleshooting", "repair_procedure",
+                                            "device_guide"]),
+                    "content": f"<p>Seed knowledge article {i+1}</p>",
+                    "state": "published",
+                })
+        print("seed: knowledge articles (idempotent)")
+
+        for i in range(5):
+            iname = f"SEED-ITSM-{i+1:03d}"
+            if not c.first("fix.itsm.ticket", [("name", "=", iname)]):
+                c.call("fix.itsm.ticket", "create", {
+                    "name": iname,
+                    "title": f"Seed ITSM ticket {i+1}",
+                    "requester_id": hr_employees[i] if hr_employees else 1,
+                    "category": rng.choice(["hardware", "software", "network"]),
+                    "priority": rng.choice(["low", "medium", "high"]),
+                    "description": f"Seed ITSM issue {i+1}",
+                })
+        print("seed: ITSM tickets (idempotent)")
+
+        for i in range(5):
+            rname = f"SEED-RISK-{i+1:03d}"
+            if not c.first("fix.risk.register", [("name", "=", rname)]):
+                c.call("fix.risk.register", "create", {
+                    "name": rname,
+                    "category": rng.choice(["operational", "financial", "cyber"]),
+                    "likelihood": str(rng.randint(1, 5)),
+                    "impact": str(rng.randint(1, 5)),
+                })
+        print("seed: risk register entries (idempotent)")
+
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
 
