@@ -689,6 +689,129 @@ def main() -> int:
                 })
         print("seed: risk register entries (idempotent)")
 
+        # --- Phase 10 estate: marketplace, settlement, storefront, partner,
+        # pricing, facility, projects (idempotent) -----------------------
+        seed_customers = c.call("res.partner", "search",
+                                 [("email", "like", "seed.customer%")], limit=10)
+        if seed_customers:
+            # 5 marketplace sellers (party-role on M33)
+            for i in range(5):
+                sname = f"Seed Seller {i+1}"
+                if not c.first("fix.marketplace.seller", [("name", "=", sname)]):
+                    c.call("fix.marketplace.seller", "create", {
+                        "name": sname,
+                        "partner_id": seed_customers[i],
+                        "kyc_status": rng.choice(["pending", "verified"]),
+                        "rating": round(rng.uniform(3.0, 5.0), 1),
+                    })
+            print("seed: marketplace sellers (idempotent)")
+
+            # 5 marketplace orders (journey 7 states)
+            sellers = c.call("fix.marketplace.seller", "search", [], limit=5)
+            for i in range(5):
+                oname = f"SEED-MKT-{i+1:03d}"
+                if not c.first("fix.marketplace.order", [("name", "=", oname)]):
+                    c.call("fix.marketplace.order", "create", {
+                        "name": oname,
+                        "customer_id": seed_customers[i],
+                        "description": f"Seed marketplace order {i+1}",
+                        "budget": rng.choice([2000, 5000, 10000]),
+                        "state": rng.choice(["open", "quoted", "commissioned"]),
+                    })
+                    # Add a quote for each order
+                    orders = c.call("fix.marketplace.order", "search",
+                                     [("name", "=", oname)])
+                    if orders and sellers:
+                        c.call("fix.seller.quote", "create", {
+                            "marketplace_order_id": orders[0],
+                            "seller_id": sellers[i % len(sellers)],
+                            "quoted_price": rng.choice([1500, 3000, 8000]),
+                            "eta_days": rng.randint(1, 7),
+                        })
+            print("seed: marketplace orders + quotes (idempotent)")
+
+            # 5 commission ledger entries
+            for i in range(5):
+                cname = f"SEED-COM-{i+1:03d}"
+                if not c.first("fix.commission.ledger", [("name", "=", cname)]):
+                    c.call("fix.commission.ledger", "create", {
+                        "name": cname,
+                        "seller_partner_id": seed_customers[i],
+                        "gross_amount": rng.choice([2000, 5000, 10000]),
+                        "commission_rate": 0.10,
+                        "tds_amount": rng.choice([20, 50, 100]),
+                        "state": "earned",
+                    })
+            print("seed: commission ledger entries (idempotent)")
+
+            # 3 storefront carts
+            for i in range(3):
+                cart_name = f"SEED-CART-{i+1:03d}"
+                if not c.first("fix.storefront.cart", [("name", "=", cart_name)]):
+                    products = c.call("product.template", "search", [], limit=5)
+                    cart = c.call("fix.storefront.cart", "create", {
+                        "name": cart_name,
+                        "customer_id": seed_customers[i],
+                    })
+                    if products:
+                        c.call("fix.storefront.cart.line", "create", {
+                            "cart_id": cart,
+                            "product_id": products[i],
+                            "quantity": rng.randint(1, 3),
+                            "unit_price": rng.choice([500, 1000, 2000]),
+                        })
+            print("seed: storefront carts (idempotent)")
+
+            # 3 partners (referral type)
+            for i in range(3):
+                pname = f"Seed Partner {i+1}"
+                if not c.first("fix.partner", [("name", "=", pname)]):
+                    c.call("fix.partner", "create", {
+                        "name": pname,
+                        "partner_id": seed_customers[i],
+                        "partner_type": rng.choice(["referral", "reseller", "franchise"]),
+                        "commission_rate": 0.05,
+                    })
+            print("seed: channel partners (idempotent)")
+
+        # Dynamic pricing rules
+        for name, adj in [("Demand Surge +15%", 15.0), ("Off-Peak -10%", -10.0),
+                           ("Clearance -25%", -25.0)]:
+            if not c.first("fix.dynamic.price.rule", [("name", "=", name)]):
+                c.call("fix.dynamic.price.rule", "create", {
+                    "name": name,
+                    "rule_type": "demand_surge" if adj > 0 else "off_peak",
+                    "adjustment_pct": adj,
+                    "min_adjustment": min(adj, 0) - 5,
+                    "max_adjustment": max(adj, 0) + 5,
+                })
+        print("seed: dynamic pricing rules (idempotent)")
+
+        # 3 sites (facility)
+        branches = c.call("fix.branch", "search", [], limit=3)
+        for i, site_type in enumerate(["branch", "warehouse", "office"]):
+            sname = f"Seed Site {site_type.title()} {i+1}"
+            if not c.first("fix.site", [("name", "=", sname)]):
+                c.call("fix.site", "create", {
+                    "name": sname,
+                    "site_type": site_type,
+                    "branch_id": branches[i] if i < len(branches) else False,
+                    "monthly_rent": rng.choice([30000, 80000, 150000]),
+                })
+        print("seed: facility sites (idempotent)")
+
+        # 3 projects (PPM)
+        for i in range(3):
+            proj_name = f"Seed Project {i+1}"
+            if not c.first("fix.project", [("name", "=", proj_name)]):
+                c.call("fix.project", "create", {
+                    "name": proj_name,
+                    "project_type": rng.choice(["internal", "client", "infrastructure"]),
+                    "budget": rng.choice([100000, 500000, 1000000]),
+                    "state": "active",
+                })
+        print("seed: projects (idempotent)")
+
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
 
