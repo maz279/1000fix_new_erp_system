@@ -2,7 +2,6 @@
 # MeshCentral (INT-028), Wazuh (INT-029/030), Mayan EDMS (M24 volume store).
 # All pinned by digest at first pull by tooling/scripts/resolve-digests.ps1
 # (DE-06); the msp profile is OPT-IN: `docker compose --profile msp up`.
-version: "3.9"
 
 services:
   meshcentral:

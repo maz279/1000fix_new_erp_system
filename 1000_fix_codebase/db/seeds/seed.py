@@ -320,6 +320,189 @@ def main() -> int:
     print(f"seed: 300 service orders, state-complete: {counts}")
     outbox = c.call("fix.event.outbox", "search_count", [])
     print(f"seed: outbox carries {outbox} events (AS-08) - dispatcher drain is a separate step")
+
+    # --- Phase 8 estate: employment contracts, roster, attendance, payroll,
+    # certifications, NCRs, MSP contracts (P08 seed extension) -----------
+    import datetime as _dt
+
+    hr_employees = c.call("hr.employee", "search", [], limit=30)
+    if not hr_employees:
+        print("seed: no hr.employees found — skip Phase 8 estate (bootstrap W1 master first)")
+    else:
+        # 25 employment contracts (Labour Act artefacts)
+        contracts = []
+        for i, emp in enumerate(hr_employees[:25]):
+            login = c.call("hr.employee", "read", [emp], ["name"])[0]["name"]
+            contracts.append({
+                "employee_id": emp,
+                "contract_type": rng.choice(["permanent", "probation", "fixed_term"]),
+                "joining_date": str(_dt.date(2015 + (i % 10), (i % 12) + 1, (i % 28) + 1)),
+                "basic_monthly": rng.choice([15000, 20000, 25000, 30000, 40000, 50000, 60000]),
+                "weekly_hours": 48,
+                "state": "active",
+            })
+        c.call("fix.employment.contract", "create", contracts)
+        print("seed: 25 employment contracts (Labour Act types, statutory hours)")
+
+        # Leave types (statutory catalogue)
+        leave_types = []
+        for code, name, days, enc in [
+            ("annual", "Annual Leave", 20, True),
+            ("sick", "Sick Leave", 14, False),
+            ("festival", "Festival Leave", 11, False),
+            ("maternity", "Maternity Leave", 112, False),
+        ]:
+            existing = c.first("fix.leave.type", [("code", "=", code)])
+            if not existing:
+                leave_types.append({"code": code, "name": name,
+                                    "name_bn": name, "entitlement_days": days,
+                                    "encashable": enc,
+                                    "maternity": code == "maternity"})
+        if leave_types:
+            c.call("fix.leave.type", "create", leave_types)
+        print("seed: statutory leave types (annual/sick/festival/maternity)")
+
+        # 30 leave requests
+        lt_ids = c.call("fix.leave.type", "search", [], limit=4)
+        for i in range(30):
+            c.call("fix.leave.request", "create", {
+                "employee_id": hr_employees[i % len(hr_employees)],
+                "leave_type_id": lt_ids[i % len(lt_ids)],
+                "date_from": str(_dt.date(2026, 11, (i % 28) + 1)),
+                "date_to": str(_dt.date(2026, 11, (i % 28) + 1 + (i % 3))),
+                "state": rng.choice(["draft", "submitted", "approved"]),
+            })
+        print("seed: 30 leave requests across statutory types")
+
+        # 5 shift templates + 200 roster slots (the roster that closes M02->M55)
+        shifts = []
+        for name, start, end in [("Morning", 9.0, 17.0), ("Day", 10.0, 18.0),
+                                  ("Evening", 14.0, 22.0), ("Night", 22.0, 6.0),
+                                  ("Split", 9.0, 13.0)]:
+            existing = c.first("fix.shift.template", [("name", "=", name)])
+            if not existing:
+                shifts.append({"name": name, "start_hour": start, "end_hour": end})
+        if shifts:
+            c.call("fix.shift.template", "create", shifts)
+        shift_ids = c.call("fix.shift.template", "search", [], limit=5)
+        roster = []
+        for day_offset in range(5):
+            d = _dt.date(2026, 10, 5 + day_offset)  # Mon-Fri of a working week
+            for emp in hr_employees[:40]:
+                roster.append({
+                    "employee_id": emp,
+                    "date": str(d),
+                    "shift_id": shift_ids[day_offset % len(shift_ids)],
+                    "on_leave": rng.random() < 0.05,
+                })
+        c.call("fix.roster.slot", "create", roster)
+        print(f"seed: {len(roster)} roster slots (5 days x 40 employees — the availability engine)")
+
+        # 100 attendance records
+        for i in range(100):
+            emp = hr_employees[i % len(hr_employees)]
+            check_in = _dt.datetime(2026, 10, 5, 9, 0) + _dt.timedelta(hours=i % 8)
+            c.call("fix.attendance.record", "create", {
+                "employee_id": emp,
+                "check_in": check_in.strftime("%Y-%m-%d %H:%M:%S"),
+                "check_out": (check_in + _dt.timedelta(hours=8 + (i % 3))).strftime("%Y-%m-%d %H:%M:%S"),
+                "source": rng.choice(["biometric", "mobile", "manual"]),
+                "device_ref": f"SEED-DEV-{i:03d}",
+            })
+        print("seed: 100 attendance records (biometric/mobile/manual sources)")
+
+        # One attendance lock for September 2026 (the payroll gate)
+        lock = c.first("fix.attendance.lock", [("name", "=", "2026-09")])
+        if not lock:
+            lock = c.call("fix.attendance.lock", "create", {
+                "name": "2026-09",
+                "period_start": "2026-09-01",
+                "period_end": "2026-09-30",
+            })
+        print("seed: attendance lock for 2026-09 (the payroll cycle's gate)")
+
+        # Competencies + certifications (the dispatch eligibility engine)
+        comps = []
+        for code, name, dev in [
+            ("SMP", "Smartphone Repair", "smartphone"),
+            ("LAP", "Laptop Repair", "laptop"),
+            ("APP", "Home Appliance Repair", "home_appliance"),
+            ("NET", "Network Diagnostics", None),
+        ]:
+            existing = c.first("fix.competency", [("code", "=", code)])
+            if not existing:
+                comps.append({"code": code, "name": name,
+                              "name_bn": name, "device_type": dev})
+        if comps:
+            c.call("fix.competency", "create", comps)
+        comp_ids = c.call("fix.competency", "search", [], limit=4)
+        certs = []
+        for i, emp in enumerate(hr_employees[:30]):
+            certs.append({
+                "employee_id": emp,
+                "competency_id": comp_ids[i % len(comp_ids)],
+                "issued_on": str(_dt.date(2025, 1, 15)),
+                "expires_on": str(_dt.date(2027, 1, 15)),
+            })
+        c.call("fix.certification", "create", certs)
+        print("seed: 30 certifications across 4 competencies (with expiry tracking)")
+
+        # One payroll period + payslips for September (Journey 13 exercised)
+        period = c.first("fix.payroll.period", [("name", "=", "2026-09")])
+        if not period:
+            period = c.call("fix.payroll.period", "create", {
+                "name": "2026-09",
+                "period_start": "2026-09-01",
+                "period_end": "2026-09-30",
+                "state": "attendance_locked",
+            })
+            for emp in hr_employees[:25]:
+                c.call("fix.payslip", "create", {
+                    "period_id": period,
+                    "employee_id": emp,
+                    "basic": rng.choice([15000, 20000, 30000, 50000]),
+                    "ot_hours": rng.choice([0, 5, 10, 20]),
+                    "incentive": rng.choice([0, 500, 1500, 3000]),
+                    "pf_employee_pct": 10.0,
+                    "pf_employer_pct": 10.0,
+                })
+            c.call("fix.payroll.period", "write", [period], {"state": "calculated"})
+        print("seed: 1 payroll period + 25 payslips (the FY2026-27 engine exercised)")
+
+        # 20 NCRs + 10 CAPAs (the QMS estate)
+        ncrs = []
+        for i in range(20):
+            ncrs.append({
+                "source": rng.choice(["service_order", "qc", "complaint", "audit"]),
+                "severity": rng.choice(["minor", "major", "critical"]),
+                "description": f"Seed NCR {i+1}: {rng.choice(['process deviation', 'equipment fault', 'documentation gap', 'training gap'])}",
+                "state": rng.choice(["new", "root_cause", "capa_open", "closed"]),
+            })
+        c.call("fix.ncr", "create", ncrs)
+        print("seed: 20 NCRs across sources and severities")
+
+        # MSP: 1 contract + 10 monitored assets + 5 alerts
+        msp_contract = c.first("fix.msp.contract", [("name", "=", "Seed MSP")])
+        if not msp_contract:
+            contract = c.first("fix.contract", [("state", "=", "active")])
+            if contract:
+                msp_contract = c.call("fix.msp.contract", "create", {
+                    "name": "Seed MSP",
+                    "contract_id": contract,
+                    "monitoring_scope": "endpoints",
+                    "per_device_monthly": 500.0,
+                })
+        if msp_contract:
+            assets = [{"msp_contract_id": msp_contract,
+                       "agent_id": f"SEED-AGENT-{i:03d}",
+                       "hostname": f"seed-workstation-{i:03d}",
+                       "health": rng.choice(["healthy", "degraded", "offline"])}
+                      for i in range(10)]
+            c.call("fix.monitored.asset", "create", assets)
+            print("seed: 1 MSP contract + 10 monitored assets")
+        else:
+            print("seed: no active fix.contract — skip MSP (contract engine loads separately)")
+
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
 

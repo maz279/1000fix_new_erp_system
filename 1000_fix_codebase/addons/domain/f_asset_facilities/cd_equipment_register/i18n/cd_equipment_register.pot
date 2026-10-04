@@ -1,0 +1,47 @@
+# Bengali translations for cd_equipment_register (M45, P08-M08).
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Test Equipment"
+msgstr ""
+
+msgid "Calibration"
+msgstr ""
+
+msgid "Equipment Category"
+msgstr ""
+
+msgid "Maintenance Equipment"
+msgstr ""
+
+msgid "Custodian"
+msgstr ""
+
+msgid "Calibrations"
+msgstr ""
+
+msgid "Last Calibration"
+msgstr ""
+
+msgid "Next Calibration"
+msgstr ""
+
+msgid "Calibration Overdue"
+msgstr ""
+
+msgid "Standard Reference"
+msgstr ""
+
+msgid "Pass"
+msgstr ""
+
+msgid "Fail"
+msgstr ""
+
+msgid "Performed By"
+msgstr ""
+
+msgid "Equipment Register"
+msgstr ""

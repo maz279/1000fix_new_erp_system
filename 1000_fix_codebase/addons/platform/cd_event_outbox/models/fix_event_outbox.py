@@ -42,7 +42,7 @@ class FixEventOutbox(models.Model):
 
     status = fields.Selection(
         [("pending", "Pending"), ("published", "Published"), ("failed", "Failed")],
-        default="pending", required=True, index=True, tracking=True,
+        default="pending", required=True, index=True,
         help="pending = in the outbox, not yet on the bus")
     publish_attempts = fields.Integer(default=0, readonly=True)
     last_error = fields.Text(readonly=True)

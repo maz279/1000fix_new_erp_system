@@ -1,0 +1,101 @@
+# Bengali translations for cd_qms_process (M23, P08-M06) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Non-Conformance Record"
+msgstr ""
+
+msgid "CAPA"
+msgstr ""
+
+msgid "Internal Audit"
+msgstr ""
+
+msgid "Service Order"
+msgstr ""
+
+msgid "QC Checklist"
+msgstr ""
+
+msgid "Complaint (M34)"
+msgstr ""
+
+msgid "Supplier (M42)"
+msgstr ""
+
+msgid "Minor"
+msgstr ""
+
+msgid "Major"
+msgstr ""
+
+msgid "Critical"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "Root Cause Identified"
+msgstr ""
+
+msgid "CAPA Open"
+msgstr ""
+
+msgid "Verification"
+msgstr ""
+
+msgid "Closed"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Implemented"
+msgstr ""
+
+msgid "Verified"
+msgstr ""
+
+msgid "Auditor"
+msgstr ""
+
+msgid "Planned"
+msgstr ""
+
+msgid "Executed"
+msgstr ""
+
+msgid "Reported"
+msgstr ""
+
+msgid "Offline Capture (P11)"
+msgstr ""
+
+msgid "Findings"
+msgstr ""
+
+msgid "NCR (M23)"
+msgstr ""
+
+msgid "Quality (M23)"
+msgstr ""
+
+msgid "Non-Conformances"
+msgstr ""
+
+msgid "Internal Audits"
+msgstr ""
+
+msgid "Owner"
+msgstr ""
+
+msgid "Audit"
+msgstr ""
+
+msgid "Complaint"
+msgstr ""
+
+msgid "NCR"
+msgstr ""

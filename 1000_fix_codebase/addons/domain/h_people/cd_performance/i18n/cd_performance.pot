@@ -1,0 +1,77 @@
+# Bengali translations for cd_performance (M57, P08-M04) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Technician Scorecard"
+msgstr ""
+
+msgid "Incentive Run"
+msgstr ""
+
+msgid "Incentive Line"
+msgstr ""
+
+msgid "Compensation Band"
+msgstr ""
+
+msgid "First-Time Fix (0-1)"
+msgstr ""
+
+msgid "SLA Hit Rate (0-1)"
+msgstr ""
+
+msgid "CSAT (normalised 0-1)"
+msgstr ""
+
+msgid "Rework Rate (0-1)"
+msgstr ""
+
+msgid "Composite Score"
+msgstr ""
+
+msgid "Band Base"
+msgstr ""
+
+msgid "Incentive Lines"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Computed"
+msgstr ""
+
+msgid "Applied to Payroll"
+msgstr ""
+
+msgid "Compute"
+msgstr ""
+
+msgid "Apply to Payroll"
+msgstr ""
+
+msgid "Amount"
+msgstr ""
+
+msgid "Range Min"
+msgstr ""
+
+msgid "Range Mid"
+msgstr ""
+
+msgid "Range Max"
+msgstr ""
+
+msgid "Scorecards"
+msgstr ""
+
+msgid "Incentives"
+msgstr ""
+
+msgid "Compensation"
+msgstr ""
+
+msgid "Draft"
+msgstr ""

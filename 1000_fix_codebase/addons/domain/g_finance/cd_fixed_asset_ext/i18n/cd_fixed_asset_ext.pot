@@ -1,0 +1,50 @@
+# Bengali translations for cd_fixed_asset_ext (M49, P08-M08).
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Fixed Asset"
+msgstr ""
+
+msgid "CWIP Entry"
+msgstr ""
+
+msgid "Capitalisation Seam (M19)"
+msgstr ""
+
+msgid "Gross"
+msgstr ""
+
+msgid "Salvage Value"
+msgstr ""
+
+msgid "Monthly Depreciation"
+msgstr ""
+
+msgid "Budget Reference (Advisory)"
+msgstr ""
+
+msgid "Accrue Month"
+msgstr ""
+
+msgid "Dispose"
+msgstr ""
+
+msgid "Disposed"
+msgstr ""
+
+msgid "Accumulated Cost"
+msgstr ""
+
+msgid "Capitalised"
+msgstr ""
+
+msgid "Resulting Asset"
+msgstr ""
+
+msgid "Fixed Assets"
+msgstr ""
+
+msgid "CWIP"
+msgstr ""

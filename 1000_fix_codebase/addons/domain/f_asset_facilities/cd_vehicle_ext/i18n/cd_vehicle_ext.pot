@@ -1,0 +1,35 @@
+# Bengali translations for cd_vehicle_ext (M46, P08-M08).
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Vehicle Assignment"
+msgstr ""
+
+msgid "Driver (HR)"
+msgstr ""
+
+msgid "Fitness Expiry"
+msgstr ""
+
+msgid "Insurance Expiry"
+msgstr ""
+
+msgid "Compliance OK"
+msgstr ""
+
+msgid "Service Order"
+msgstr ""
+
+msgid "Technician"
+msgstr ""
+
+msgid "Fleet"
+msgstr ""
+
+msgid "Vehicle Assignments"
+msgstr ""
+
+msgid "Branch"
+msgstr ""

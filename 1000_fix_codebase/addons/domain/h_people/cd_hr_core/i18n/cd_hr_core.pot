@@ -1,0 +1,110 @@
+# Bengali translations for cd_hr_core (M21, P08-M01) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Employment Contract"
+msgstr ""
+
+msgid "Employee"
+msgstr ""
+
+msgid "Permanent"
+msgstr ""
+
+msgid "Probation"
+msgstr ""
+
+msgid "Fixed Term"
+msgstr ""
+
+msgid "Part Time"
+msgstr ""
+
+msgid "Joining Date"
+msgstr ""
+
+msgid "Basic Salary (Monthly)"
+msgstr ""
+
+msgid "Statutory Weekly Hours"
+msgstr ""
+
+msgid "Operating Unit"
+msgstr ""
+
+msgid "Draft"
+msgstr ""
+
+msgid "Active"
+msgstr ""
+
+msgid "Expired"
+msgstr ""
+
+msgid "Terminated"
+msgstr ""
+
+msgid "Activate"
+msgstr ""
+
+msgid "Terminate"
+msgstr ""
+
+msgid "Leave Type"
+msgstr ""
+
+msgid "Leave Request"
+msgstr ""
+
+msgid "Leave Name (Bengali)"
+msgstr ""
+
+msgid "Approved"
+msgstr ""
+
+msgid "Rejected"
+msgstr ""
+
+msgid "Submitted"
+msgstr ""
+
+msgid "Approve"
+msgstr ""
+
+msgid "Organisation Position"
+msgstr ""
+
+msgid "Reports To"
+msgstr ""
+
+msgid "Holders"
+msgstr ""
+
+msgid "Grade"
+msgstr ""
+
+msgid "Employee Code"
+msgstr ""
+
+msgid "Position"
+msgstr ""
+
+msgid "Contracts"
+msgstr ""
+
+msgid "Identity Store Ref"
+msgstr ""
+
+msgid "People & Payroll"
+msgstr ""
+
+msgid "Employment Contracts"
+msgstr ""
+
+msgid "Leave"
+msgstr ""
+
+msgid "Positions"
+msgstr ""

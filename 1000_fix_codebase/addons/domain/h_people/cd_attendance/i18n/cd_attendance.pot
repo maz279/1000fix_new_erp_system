@@ -1,0 +1,65 @@
+# Bengali translations for cd_attendance (M55, P08-M02) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Attendance Record"
+msgstr ""
+
+msgid "Shift Template"
+msgstr ""
+
+msgid "Roster Slot"
+msgstr ""
+
+msgid "Attendance Lock"
+msgstr ""
+
+msgid "Biometric Device"
+msgstr ""
+
+msgid "Mobile (Geofenced)"
+msgstr ""
+
+msgid "Manual"
+msgstr ""
+
+msgid "Device Reference"
+msgstr ""
+
+msgid "Latitude (P02 geofence)"
+msgstr ""
+
+msgid "Longitude (P02 geofence)"
+msgstr ""
+
+msgid "Check Out"
+msgstr ""
+
+msgid "Lock Period"
+msgstr ""
+
+msgid "Re-open"
+msgstr ""
+
+msgid "Locked"
+msgstr ""
+
+msgid "Re-opened"
+msgstr ""
+
+msgid "Shift"
+msgstr ""
+
+msgid "Branch"
+msgstr ""
+
+msgid "Attendance"
+msgstr ""
+
+msgid "Roster"
+msgstr ""
+
+msgid "Attendance Locks"
+msgstr ""

@@ -1,0 +1,107 @@
+# Bengali translations for cd_payroll_bd (M56, P08-M03) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Payroll Period"
+msgstr ""
+
+msgid "Payslip"
+msgstr ""
+
+msgid "BEFTN Batch"
+msgstr ""
+
+msgid "Slips"
+msgstr ""
+
+msgid "Net Total"
+msgstr ""
+
+msgid "Draft"
+msgstr ""
+
+msgid "Attendance Locked"
+msgstr ""
+
+msgid "Calculated"
+msgstr ""
+
+msgid "Approved"
+msgstr ""
+
+msgid "Paid"
+msgstr ""
+
+msgid "Posted"
+msgstr ""
+
+msgid "Verify Attendance Lock"
+msgstr ""
+
+msgid "Calculate"
+msgstr ""
+
+msgid "Approve"
+msgstr ""
+
+msgid "Pay (BEFTN)"
+msgstr ""
+
+msgid "Post to GL"
+msgstr ""
+
+msgid "Payroll Periods"
+msgstr ""
+
+msgid "Basic (Monthly)"
+msgstr ""
+
+msgid "Overtime Hours"
+msgstr ""
+
+msgid "Incentive (M57)"
+msgstr ""
+
+msgid "PF Employee %"
+msgstr ""
+
+msgid "PF Employer %"
+msgstr ""
+
+msgid "YTD Taxable Outside This Slip"
+msgstr ""
+
+msgid "Gross"
+msgstr ""
+
+msgid "Overtime Pay"
+msgstr ""
+
+msgid "PF Employee"
+msgstr ""
+
+msgid "PF Employer"
+msgstr ""
+
+msgid "Income Tax Withheld"
+msgstr ""
+
+msgid "Net Pay"
+msgstr ""
+
+msgid "Payroll"
+msgstr ""
+
+msgid "Payslips"
+msgstr ""
+
+msgid "Total Amount"
+msgstr ""
+
+msgid "Submitted"
+msgstr ""
+
+msgid "Settled"
+msgstr ""

@@ -1,0 +1,80 @@
+# Bengali translations for cd_campaign (M35, P08-M04-T08).
+msgid ""
+msgstr ""
+""
+""
+
+msgid "Marketing Campaign"
+msgstr ""
+
+msgid "Campaign Response"
+msgstr ""
+
+msgid "Campaign (Bengali)"
+msgstr ""
+
+msgid "Social"
+msgstr ""
+
+msgid "Search"
+msgstr ""
+
+msgid "SMS"
+msgstr ""
+
+msgid "Email"
+msgstr ""
+
+msgid "Billboard"
+msgstr ""
+
+msgid "Budget"
+msgstr ""
+
+msgid "Running"
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Completed"
+msgstr ""
+
+msgid "Launch"
+msgstr ""
+
+msgid "Pause"
+msgstr ""
+
+msgid "Resume"
+msgstr ""
+
+msgid "Complete"
+msgstr ""
+
+msgid "Audience Segment"
+msgstr ""
+
+msgid "Responses"
+msgstr ""
+
+msgid "Cost per Response"
+msgstr ""
+
+msgid "Click"
+msgstr ""
+
+msgid "Inbound Call"
+msgstr ""
+
+msgid "Form Submission"
+msgstr ""
+
+msgid "Branch Visit"
+msgstr ""
+
+msgid "Lead"
+msgstr ""
+
+msgid "Campaigns"
+msgstr ""

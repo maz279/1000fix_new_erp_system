@@ -1,0 +1,101 @@
+# Bengali translations for cd_msp_contract (M05, P08-M07) — 100% coverage.
+msgid ""
+msgstr ""
+""
+""
+
+msgid "MSP Contract"
+msgstr ""
+
+msgid "Monitored Asset"
+msgstr ""
+
+msgid "MSP Alert"
+msgstr ""
+
+msgid "Remote Session"
+msgstr ""
+
+msgid "MSP Service Report"
+msgstr ""
+
+msgid "Contract (M08)"
+msgstr ""
+
+msgid "Covered Devices"
+msgstr ""
+
+msgid "Endpoints Only"
+msgstr ""
+
+msgid "Endpoints + Network"
+msgstr ""
+
+msgid "Full Stack"
+msgstr ""
+
+msgid "Per-Device Monthly"
+msgstr ""
+
+msgid "Monitored Assets"
+msgstr ""
+
+msgid "Service Reports"
+msgstr ""
+
+msgid "Healthy"
+msgstr ""
+
+msgid "Degraded"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Raised"
+msgstr ""
+
+msgid "Acknowledged"
+msgstr ""
+
+msgid "Ticketed"
+msgstr ""
+
+msgid "Resolved"
+msgstr ""
+
+msgid "Acknowledge"
+msgstr ""
+
+msgid "Create Ticket"
+msgstr ""
+
+msgid "MeshCentral"
+msgstr ""
+
+msgid "RustDesk"
+msgstr ""
+
+msgid "Technician"
+msgstr ""
+
+msgid "Period"
+msgstr ""
+
+msgid "SLA Attainment (0-1)"
+msgstr ""
+
+msgid "সারসংক্ষেপ (Bengali)"
+msgstr ""
+
+msgid "Summary (English)"
+msgstr ""
+
+msgid "Managed Services"
+msgstr ""
+
+msgid "Alerts"
+msgstr ""
+
+msgid "MSP Contracts"
+msgstr ""
