@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_grc views (P09). -->
+<odoo>
+    <record id="view_fix_risk_register_list" model="ir.ui.view">
+        <field name="name">fix.risk.register.list</field>
+        <field name="model">fix.risk.register</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="risk_score"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_risk_register" model="ir.actions.act_window">
+        <field name="name">Risk Register</field>
+        <field name="res_model">fix.risk.register</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_control_list" model="ir.ui.view">
+        <field name="name">fix.control.list</field>
+        <field name="model">fix.control</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="control_type"/>
+                <field name="frequency"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_control" model="ir.actions.act_window">
+        <field name="name">Control</field>
+        <field name="res_model">fix.control</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_risk_register" name="Risk Register" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_risk_register" sequence="200"/>
+    <menuitem id="menu_fix_control" name="Control" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_control" sequence="210"/>
+</odoo>

@@ -1,0 +1,26 @@
+# cd_rental_asset — M13 (P09).
+{
+    "name": "1000FiX Rental & Equipment-as-a-Service",
+    "summary": "M13: Rental & Equipment-as-a-Service (CD-M13-01)",
+    "description": """
+CD-M13-01 (P09) — Rental & Equipment-as-a-Service.
+
+Built on the existing estate (the layered model: compose, never
+duplicate). AS-02 chatter + AS-03 company/OU on every transactional
+model; AS-10 Monetary on every money field; events registered (AS-08).
+""",
+    "version": "19.0.0.1.0",
+    "license": "LGPL-3",
+    "author": "1000FiX Services Ltd",
+    "category": "Rental & Equipment-as-a-Service",
+    "depends": ["base", "mail", "cd_entity_config", "cd_catalogue", "cd_party_master", "cd_device_registry", "cd_contract_core", "cd_fixed_asset_ext", "cd_event_outbox"],
+    "data": ["security/ir.model.access.csv", "views/cd_rental_asset_views.xml"],
+    "installable": True,
+    "application": False,
+    "x_cd_id": "CD-M13-01",
+    "x_module_id": "M13",
+    "x_wave": "W6",
+    "x_owner": "Rental & Equipment-as-a-Service",
+    "x_category": "Phase9",
+    "x_tier": "T9",
+}

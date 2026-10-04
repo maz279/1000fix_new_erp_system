@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_data_case views (P09). -->
+<odoo>
+    <record id="view_fix_data_recovery_case_list" model="ir.ui.view">
+        <field name="name">fix.data.recovery.case.list</field>
+        <field name="model">fix.data.recovery.case</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="media_type"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_data_recovery_case" model="ir.actions.act_window">
+        <field name="name">Data Recovery Case</field>
+        <field name="res_model">fix.data.recovery.case</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_data_wipe_certificate_list" model="ir.ui.view">
+        <field name="name">fix.data.wipe.certificate.list</field>
+        <field name="model">fix.data.wipe.certificate</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="device_id"/>
+                <field name="method"/>
+                <field name="certified_at"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_data_wipe_certificate" model="ir.actions.act_window">
+        <field name="name">Data Wipe Certificate</field>
+        <field name="res_model">fix.data.wipe.certificate</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_data_recovery_case" name="Data Recovery Case" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_recovery_case" sequence="200"/>
+    <menuitem id="menu_fix_data_wipe_certificate" name="Data Wipe Certificate" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_wipe_certificate" sequence="210"/>
+</odoo>

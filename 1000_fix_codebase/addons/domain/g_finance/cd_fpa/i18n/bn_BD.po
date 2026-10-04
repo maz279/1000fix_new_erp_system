@@ -1,0 +1,8 @@
+# Bengali translations for cd_fpa (P09) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "FP&A, Cost Accounting & Budgeting"
+msgstr "FP&A, Cost Accounting & Budgeting (বাংলা)"

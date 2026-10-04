@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_itsm views (P09). -->
+<odoo>
+    <record id="view_fix_itsm_ticket_list" model="ir.ui.view">
+        <field name="name">fix.itsm.ticket.list</field>
+        <field name="model">fix.itsm.ticket</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="title"/>
+                <field name="category"/>
+                <field name="priority"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_itsm_ticket" model="ir.actions.act_window">
+        <field name="name">Itsm Ticket</field>
+        <field name="res_model">fix.itsm.ticket</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_itsm_ticket" name="Itsm Ticket" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_itsm_ticket" sequence="200"/>
+</odoo>

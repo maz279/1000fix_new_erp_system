@@ -1,0 +1,8 @@
+# Bengali translations for cd_hse (P09) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Health, Safety & Environment"
+msgstr "Health, Safety & Environment (বাংলা)"

@@ -1,0 +1,8 @@
+# Bengali translations for cd_data_case (P09) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Data Services & Secure Data Handling"
+msgstr "Data Services & Secure Data Handling (বাংলা)"

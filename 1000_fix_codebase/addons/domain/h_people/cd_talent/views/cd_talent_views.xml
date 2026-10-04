@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_talent views (P09). -->
+<odoo>
+    <record id="view_fix_job_requisition_list" model="ir.ui.view">
+        <field name="name">fix.job.requisition.list</field>
+        <field name="model">fix.job.requisition</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="department_id"/>
+                <field name="openings"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_job_requisition" model="ir.actions.act_window">
+        <field name="name">Job Requisition</field>
+        <field name="res_model">fix.job.requisition</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_candidate_list" model="ir.ui.view">
+        <field name="name">fix.candidate.list</field>
+        <field name="model">fix.candidate</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="requisition_id"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_candidate" model="ir.actions.act_window">
+        <field name="name">Candidate</field>
+        <field name="res_model">fix.candidate</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_job_requisition" name="Job Requisition" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_job_requisition" sequence="200"/>
+    <menuitem id="menu_fix_candidate" name="Candidate" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_candidate" sequence="210"/>
+</odoo>

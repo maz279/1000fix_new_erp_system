@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_hse views (P09). -->
+<odoo>
+    <record id="view_fix_hse_incident_list" model="ir.ui.view">
+        <field name="name">fix.hse.incident.list</field>
+        <field name="model">fix.hse.incident</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="incident_type"/>
+                <field name="severity"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_hse_incident" model="ir.actions.act_window">
+        <field name="name">Hse Incident</field>
+        <field name="res_model">fix.hse.incident</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_safety_inspection_list" model="ir.ui.view">
+        <field name="name">fix.safety.inspection.list</field>
+        <field name="model">fix.safety.inspection</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="branch_id"/>
+                <field name="inspected_on"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_safety_inspection" model="ir.actions.act_window">
+        <field name="name">Safety Inspection</field>
+        <field name="res_model">fix.safety.inspection</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_hse_incident" name="Hse Incident" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_hse_incident" sequence="200"/>
+    <menuitem id="menu_fix_safety_inspection" name="Safety Inspection" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_safety_inspection" sequence="210"/>
+</odoo>

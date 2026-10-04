@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_knowledge views (P09). -->
+<odoo>
+    <record id="view_fix_knowledge_article_list" model="ir.ui.view">
+        <field name="name">fix.knowledge.article.list</field>
+        <field name="model">fix.knowledge.article</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="views"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_knowledge_article" model="ir.actions.act_window">
+        <field name="name">Knowledge Article</field>
+        <field name="res_model">fix.knowledge.article</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_knowledge_article" name="Knowledge Article" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_knowledge_article" sequence="200"/>
+</odoo>

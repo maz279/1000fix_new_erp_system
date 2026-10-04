@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_rental_asset views (P09). -->
+<odoo>
+    <record id="view_fix_rental_reservation_list" model="ir.ui.view">
+        <field name="name">fix.rental.reservation.list</field>
+        <field name="model">fix.rental.reservation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_rental_reservation" model="ir.actions.act_window">
+        <field name="name">Rental Reservation</field>
+        <field name="res_model">fix.rental.reservation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_rental_damage_list" model="ir.ui.view">
+        <field name="name">fix.rental.damage.list</field>
+        <field name="model">fix.rental.damage</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="reservation_id"/>
+                <field name="category"/>
+                <field name="cost"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_rental_damage" model="ir.actions.act_window">
+        <field name="name">Rental Damage</field>
+        <field name="res_model">fix.rental.damage</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_rental_reservation" name="Rental Reservation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_reservation" sequence="200"/>
+    <menuitem id="menu_fix_rental_damage" name="Rental Damage" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_damage" sequence="210"/>
+</odoo>

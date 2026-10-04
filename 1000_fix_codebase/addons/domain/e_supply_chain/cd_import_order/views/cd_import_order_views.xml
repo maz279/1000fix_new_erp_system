@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_import_order views (P09). -->
+<odoo>
+    <record id="view_fix_import_order_list" model="ir.ui.view">
+        <field name="name">fix.import.order.list</field>
+        <field name="model">fix.import.order</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="supplier_id"/>
+                <field name="fob_value"/>
+                <field name="landed_cost"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_import_order" model="ir.actions.act_window">
+        <field name="name">Import Order</field>
+        <field name="res_model">fix.import.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_import_order" name="Import Order" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_import_order" sequence="200"/>
+</odoo>

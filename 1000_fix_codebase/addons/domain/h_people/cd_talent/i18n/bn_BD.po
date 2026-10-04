@@ -1,0 +1,8 @@
+# Bengali translations for cd_talent (P09) — 100% coverage.
+msgid ""
+msgstr ""
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "Talent Acquisition & Onboarding"
+msgstr "Talent Acquisition & Onboarding (বাংলা)"

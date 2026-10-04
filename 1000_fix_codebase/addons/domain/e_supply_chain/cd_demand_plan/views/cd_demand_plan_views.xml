@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_demand_plan views (P09). -->
+<odoo>
+    <record id="view_fix_demand_plan_list" model="ir.ui.view">
+        <field name="name">fix.demand.plan.list</field>
+        <field name="model">fix.demand.plan</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="forecast_quantity"/>
+                <field name="recommended_order"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_demand_plan" model="ir.actions.act_window">
+        <field name="name">Demand Plan</field>
+        <field name="res_model">fix.demand.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_demand_plan" name="Demand Plan" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_demand_plan" sequence="200"/>
+</odoo>

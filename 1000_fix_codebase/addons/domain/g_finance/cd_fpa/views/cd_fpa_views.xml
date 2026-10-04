@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_fpa views (P09). -->
+<odoo>
+    <record id="view_fix_budget_list" model="ir.ui.view">
+        <field name="name">fix.budget.list</field>
+        <field name="model">fix.budget</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="fiscal_year"/>
+                <field name="planned_amount"/>
+                <field name="variance"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_budget" model="ir.actions.act_window">
+        <field name="name">Budget</field>
+        <field name="res_model">fix.budget</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_cost_allocation_list" model="ir.ui.view">
+        <field name="name">fix.cost.allocation.list</field>
+        <field name="model">fix.cost.allocation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="direct_cost"/>
+                <field name="allocated_overhead"/>
+                <field name="total_cost"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_cost_allocation" model="ir.actions.act_window">
+        <field name="name">Cost Allocation</field>
+        <field name="res_model">fix.cost.allocation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_budget" name="Budget" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_budget" sequence="200"/>
+    <menuitem id="menu_fix_cost_allocation" name="Cost Allocation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_cost_allocation" sequence="210"/>
+</odoo>

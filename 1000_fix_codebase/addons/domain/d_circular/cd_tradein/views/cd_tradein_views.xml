@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_tradein views (P09). -->
+<odoo>
+    <record id="view_fix_tradein_request_list" model="ir.ui.view">
+        <field name="name">fix.tradein.request.list</field>
+        <field name="model">fix.tradein.request</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="offered_value"/>
+                <field name="grade"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_tradein_request" model="ir.actions.act_window">
+        <field name="name">Tradein Request</field>
+        <field name="res_model">fix.tradein.request</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_refurbishment_list" model="ir.ui.view">
+        <field name="name">fix.refurbishment.list</field>
+        <field name="model">fix.refurbishment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="tradein_id"/>
+                <field name="step"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_refurbishment" model="ir.actions.act_window">
+        <field name="name">Refurbishment</field>
+        <field name="res_model">fix.refurbishment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_tradein_request" name="Tradein Request" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_tradein_request" sequence="200"/>
+    <menuitem id="menu_fix_refurbishment" name="Refurbishment" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_refurbishment" sequence="210"/>
+</odoo>
