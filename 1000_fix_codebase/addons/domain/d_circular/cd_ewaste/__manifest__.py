@@ -1,0 +1,20 @@
+# cd_ewaste (P11).
+{
+    "name": "1000FiX E-Waste & Circular Economy",
+    "summary": "M18: E-Waste & Circular Economy",
+    "description": "CD-M18-01 (P11).",
+    "version": "19.0.0.1.0",
+    "license": "LGPL-3",
+    "author": "1000FiX Services Ltd",
+    "category": "E-Waste & Circular Economy",
+    "depends": ["base", "mail", "cd_entity_config", "cd_party_master", "cd_device_registry", "cd_data_case", "cd_event_outbox"],
+    "data": ["security/ir.model.access.csv", "views/cd_ewaste_views.xml"],
+    "installable": True,
+    "application": False,
+    "x_cd_id": "CD-M18-01",
+    "x_module_id": "M18",
+    "x_wave": "W8",
+    "x_owner": "E-Waste & Circular Economy",
+    "x_category": "Phase11",
+    "x_tier": "T11",
+}

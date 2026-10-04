@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_iot_device,fix.iot.device,model_fix_iot_device,base.group_user,1,1,1,0
+access_fix_iot_telemetry,fix.iot.telemetry,model_fix_iot_telemetry,base.group_user,1,1,1,0
+access_fix_iot_alert,fix.iot.alert,model_fix_iot_alert,base.group_user,1,1,1,0
+access_fix_predictive_maintenance,fix.predictive.maintenance,model_fix_predictive_maintenance,base.group_user,1,1,1,0

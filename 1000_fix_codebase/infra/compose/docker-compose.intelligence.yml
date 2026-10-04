@@ -1,0 +1,16 @@
+# compose additions for the Wave-8 intelligence platform (P11).
+# ClickHouse (warehouse migration), TimescaleDB extension for telemetry.
+# Digests resolved at first pull by tooling/scripts/resolve-digests.ps1.
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    profiles: ["intelligence"]
+    environment:
+      CLICKHOUSE_DB: fix_analytics
+    ports:
+      - "127.0.0.1:8123:8123"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    restart: unless-stopped

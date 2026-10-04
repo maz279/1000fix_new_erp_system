@@ -1,0 +1,20 @@
+# cd_metric_registry (P11).
+{
+    "name": "1000FiX Data Platform & Governance",
+    "summary": "M62: Data Platform & Governance",
+    "description": "CD-M62-01 (P11).",
+    "version": "19.0.0.1.0",
+    "license": "LGPL-3",
+    "author": "1000FiX Services Ltd",
+    "category": "Data Platform & Governance",
+    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
+    "data": ["security/ir.model.access.csv", "views/cd_metric_registry_views.xml"],
+    "installable": True,
+    "application": False,
+    "x_cd_id": "CD-M62-01",
+    "x_module_id": "M62",
+    "x_wave": "W8",
+    "x_owner": "Data Platform & Governance",
+    "x_category": "Phase11",
+    "x_tier": "T11",
+}

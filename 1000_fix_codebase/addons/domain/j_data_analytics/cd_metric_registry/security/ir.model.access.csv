@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_data_entity,fix.data.entity,model_fix_data_entity,base.group_user,1,1,1,0
+access_fix_data_lineage,fix.data.lineage,model_fix_data_lineage,base.group_user,1,1,1,0
+access_fix_data_quality_rule,fix.data.quality.rule,model_fix_data_quality_rule,base.group_user,1,1,1,0

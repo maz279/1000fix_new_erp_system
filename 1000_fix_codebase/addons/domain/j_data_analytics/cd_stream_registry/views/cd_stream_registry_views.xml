@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_stream_registry views (P11). -->
+<odoo>
+    <record id="view_fix_iot_device_list" model="ir.ui.view">
+        <field name="name">fix.iot.device.list</field>
+        <field name="model">fix.iot.device</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_iot_device" model="ir.actions.act_window">
+        <field name="name">Iot Device</field>
+        <field name="res_model">fix.iot.device</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_iot_telemetry_list" model="ir.ui.view">
+        <field name="name">fix.iot.telemetry.list</field>
+        <field name="model">fix.iot.telemetry</field>
+        <field name="arch" type="xml">
+            <list><field name="company_id"/></list>
+        </field>
+    </record>
+    <record id="action_fix_iot_telemetry" model="ir.actions.act_window">
+        <field name="name">Iot Telemetry</field>
+        <field name="res_model">fix.iot.telemetry</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_iot_alert_list" model="ir.ui.view">
+        <field name="name">fix.iot.alert.list</field>
+        <field name="model">fix.iot.alert</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_iot_alert" model="ir.actions.act_window">
+        <field name="name">Iot Alert</field>
+        <field name="res_model">fix.iot.alert</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_predictive_maintenance_list" model="ir.ui.view">
+        <field name="name">fix.predictive.maintenance.list</field>
+        <field name="model">fix.predictive.maintenance</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_predictive_maintenance" model="ir.actions.act_window">
+        <field name="name">Predictive Maintenance</field>
+        <field name="res_model">fix.predictive.maintenance</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_iot_device" name="Iot Device" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_iot_device" sequence="400"/>
+    <menuitem id="menu_fix_iot_telemetry" name="Iot Telemetry" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_iot_telemetry" sequence="410"/>
+    <menuitem id="menu_fix_iot_alert" name="Iot Alert" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_iot_alert" sequence="420"/>
+    <menuitem id="menu_fix_predictive_maintenance" name="Predictive Maintenance" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_predictive_maintenance" sequence="430"/>
+</odoo>

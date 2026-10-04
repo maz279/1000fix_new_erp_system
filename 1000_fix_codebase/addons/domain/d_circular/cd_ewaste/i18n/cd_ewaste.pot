@@ -1,0 +1,4 @@
+# Bengali for cd_ewaste (P11).
+msgid ""
+msgstr ""
+"Language: bn_BD"

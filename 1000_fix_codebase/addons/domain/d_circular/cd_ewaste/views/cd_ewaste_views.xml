@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_ewaste views (P11). -->
+<odoo>
+    <record id="view_fix_ewaste_collection_list" model="ir.ui.view">
+        <field name="name">fix.ewaste.collection.list</field>
+        <field name="model">fix.ewaste.collection</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_ewaste_collection" model="ir.actions.act_window">
+        <field name="name">Ewaste Collection</field>
+        <field name="res_model">fix.ewaste.collection</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_esg_metric_list" model="ir.ui.view">
+        <field name="name">fix.esg.metric.list</field>
+        <field name="model">fix.esg.metric</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_esg_metric" model="ir.actions.act_window">
+        <field name="name">Esg Metric</field>
+        <field name="res_model">fix.esg.metric</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_ewaste_collection" name="Ewaste Collection" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_ewaste_collection" sequence="400"/>
+    <menuitem id="menu_fix_esg_metric" name="Esg Metric" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_esg_metric" sequence="410"/>
+</odoo>

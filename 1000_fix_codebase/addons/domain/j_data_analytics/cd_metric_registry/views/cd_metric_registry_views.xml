@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_metric_registry views (P11). -->
+<odoo>
+    <record id="view_fix_data_entity_list" model="ir.ui.view">
+        <field name="name">fix.data.entity.list</field>
+        <field name="model">fix.data.entity</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_data_entity" model="ir.actions.act_window">
+        <field name="name">Data Entity</field>
+        <field name="res_model">fix.data.entity</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_data_lineage_list" model="ir.ui.view">
+        <field name="name">fix.data.lineage.list</field>
+        <field name="model">fix.data.lineage</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_data_lineage" model="ir.actions.act_window">
+        <field name="name">Data Lineage</field>
+        <field name="res_model">fix.data.lineage</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <record id="view_fix_data_quality_rule_list" model="ir.ui.view">
+        <field name="name">fix.data.quality.rule.list</field>
+        <field name="model">fix.data.quality.rule</field>
+        <field name="arch" type="xml">
+            <list><field name="name"/></list>
+        </field>
+    </record>
+    <record id="action_fix_data_quality_rule" model="ir.actions.act_window">
+        <field name="name">Data Quality Rule</field>
+        <field name="res_model">fix.data.quality.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_data_entity" name="Data Entity" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_entity" sequence="400"/>
+    <menuitem id="menu_fix_data_lineage" name="Data Lineage" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_lineage" sequence="410"/>
+    <menuitem id="menu_fix_data_quality_rule" name="Data Quality Rule" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_quality_rule" sequence="420"/>
+</odoo>
