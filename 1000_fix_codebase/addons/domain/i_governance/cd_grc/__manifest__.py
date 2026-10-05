@@ -13,7 +13,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Governance, Risk & Compliance",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
+    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox"],
     "data": ["security/ir.model.access.csv", "views/cd_grc_views.xml"],
     "installable": True,
     "application": False,

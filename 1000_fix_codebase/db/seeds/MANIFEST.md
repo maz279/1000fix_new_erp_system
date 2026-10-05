@@ -31,6 +31,29 @@ state nobody tests).
    set (doctor check 12). NID-shaped values use the reserved synthetic range.
 5. **No outbound anything**: the seeder runs against `127.0.0.1` endpoints
    only; `fix_env_guard.assert_local()` is its first import (DE-11).
+6. **Idempotent append**: every block searches before it creates
+   (`--force` appends without duplicating; verified by double-run with
+   exact row counts).
+7. **Statutory-valid**: seeded rows satisfy the business constraints
+   (VAT treatment rates, 13-digit BINs, masked-vs-non-masked SMS routes
+   per BD-02, consent proof-on-grant, BRTA vehicle fitness/insurance,
+   bilingual template names per AS-12).
+
+## Coverage (P02-P11 audit, 2026-10)
+
+Every transactional anchor and config master carries seed rows. The only
+empty `fix_*` tables, by design, are:
+
+| Class | Tables | Why empty |
+|---|---|---|
+| Detail lines of seeded parents | `*_line`, `*_item`, `*_part`, `*_turn`, `*_response`, `*_evidence`, `custody_scan`, `diagnostic_node`, `revenue_schedule`, `incentive_line`, `period_close_line` | Created by their parent flows (an estimate's lines arrive with the estimate), never standalone |
+| M2M junctions | all `*_rel` tables | Populated through parent record writes |
+| Pipeline-managed reference data | `fix.country.pack(.line)`, `fix.bd.address`, `fix.feature.flag`, `fix.retention.class` | AF-09/MD-005: loaded by the master-data pipeline; ACLs deny user creates |
+| Flow outputs with read-only ACLs | `fix.beftn.batch` | Created by the payroll approval flow, never by hand |
+
+Fixed taxonomy ships as **noupdate module data**, not seed rows:
+isolation tiers T0-T5 (`cd_rbac_ext/data/fix_isolation_tiers.xml`) and
+refurbishment grades A-E (`cd_catalogue/data/fix_refurb_grades.xml`).
 
 *Loader implementation (`db/seeds/seed.py`) lands with the first kernel
 modules in Phase 3 — this manifest is its binding specification.*

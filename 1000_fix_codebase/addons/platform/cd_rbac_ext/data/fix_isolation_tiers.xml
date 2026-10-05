@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The six data isolation tiers T0-T5 (P03-M02-T03). Fixed taxonomy:
+     code-defined, never user-created (ACL is read-only). noupdate so a
+     module upgrade never rewrites an operator's tier descriptions. -->
+<odoo noupdate="1">
+    <record id="tier_t0" model="fix.isolation.tier">
+        <field name="code">T0</field>
+        <field name="description">Public — no restriction</field>
+    </record>
+    <record id="tier_t1" model="fix.isolation.tier">
+        <field name="code">T1</field>
+        <field name="description">Internal — all employees</field>
+    </record>
+    <record id="tier_t2" model="fix.isolation.tier">
+        <field name="code">T2</field>
+        <field name="description">Branch-scoped (operating_unit_id)</field>
+        <field name="record_rule_domain">[('operating_unit_id','in',user.branch_ids.operating_unit_id.ids)]</field>
+    </record>
+    <record id="tier_t3" model="fix.isolation.tier">
+        <field name="code">T3</field>
+        <field name="description">Role-scoped (fix.role membership)</field>
+    </record>
+    <record id="tier_t4" model="fix.isolation.tier">
+        <field name="code">T4</field>
+        <field name="description">Management zone Z5 — no standing access, privileged sessions recorded</field>
+        <field name="requires_audit" eval="True"/>
+    </record>
+    <record id="tier_t5" model="fix.isolation.tier">
+        <field name="code">T5</field>
+        <field name="description">Residency-classified — Z4 only, step-up auth, per-read logged</field>
+        <field name="requires_step_up" eval="True"/>
+        <field name="requires_audit" eval="True"/>
+    </record>
+</odoo>

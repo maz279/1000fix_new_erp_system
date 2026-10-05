@@ -21,6 +21,7 @@ Owns:
     "depends": ["base", "mail", "cd_entity_config"],
     "data": ["security/ir.model.access.csv", "security/cd_rbac_ext_security.xml",
              "security/fix_role_groups.xml",
+             "data/fix_isolation_tiers.xml",
              "views/fix_rbac_views.xml", "views/fix_portal_workspace_views.xml",
              "views/fix_feature_flag_role_views.xml"],
     "installable": True,

@@ -18,6 +18,22 @@ class TestKnowledge(unittest.TestCase):
         self.assertIn("knowledge.published",
                       inspect.getsource(FixKnowledgeArticle))
 
+    def test_lifecycle(self):
+        """draft -> published -> archived (DE-16: every state reachable)."""
+        src = inspect.getsource(FixKnowledgeArticle)
+        for state in ("draft", "published", "archived"):
+            self.assertIn(state, src)
+
+    def test_publish_action_publishes(self):
+        src = inspect.getsource(FixKnowledgeArticle.action_publish)
+        self.assertIn('"published"', src)
+
+    def test_as02_conformance(self):
+        for mixin in ("mail.thread", "mail.activity.mixin"):
+            self.assertIn(mixin, FixKnowledgeArticle._inherit)
+        self.assertTrue(hasattr(FixKnowledgeArticle, "company_id"))
+        self.assertTrue(hasattr(FixKnowledgeArticle, "operating_unit_id"))
+
 
 if __name__ == "__main__":
     unittest.main()

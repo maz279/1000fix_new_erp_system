@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Refurbishment grades A-E (M37). Fixed taxonomy: code-defined, never
+     user-created (ACL is read-only). noupdate so upgrades never rewrite
+     an operator's pricing multipliers. -->
+<odoo noupdate="1">
+    <record id="grade_a" model="fix.refurb.grade">
+        <field name="code">A</field>
+        <field name="name_bn">গ্রেড এ — নতুনের মতো</field>
+        <field name="sequence">10</field>
+        <field name="price_multiplier">0.85</field>
+        <field name="warranty_days">180</field>
+    </record>
+    <record id="grade_b" model="fix.refurb.grade">
+        <field name="code">B</field>
+        <field name="name_bn">গ্রেড বি — সামান্য কসমেটিক</field>
+        <field name="sequence">20</field>
+        <field name="price_multiplier">0.70</field>
+        <field name="warranty_days">90</field>
+    </record>
+    <record id="grade_c" model="fix.refurb.grade">
+        <field name="code">C</field>
+        <field name="name_bn">গ্রেড সি — দৃশ্যমান ক্ষয়</field>
+        <field name="sequence">30</field>
+        <field name="price_multiplier">0.55</field>
+        <field name="warranty_days">60</field>
+    </record>
+    <record id="grade_d" model="fix.refurb.grade">
+        <field name="code">D</field>
+        <field name="name_bn">গ্রেড ডি — শুধু কার্যকর</field>
+        <field name="sequence">40</field>
+        <field name="price_multiplier">0.40</field>
+        <field name="warranty_days">30</field>
+    </record>
+    <record id="grade_e" model="fix.refurb.grade">
+        <field name="code">E</field>
+        <field name="name_bn">গ্রেড ই — যন্ত্রাংশের জন্য</field>
+        <field name="sequence">50</field>
+        <field name="price_multiplier">0.20</field>
+        <field name="warranty_days">0</field>
+    </record>
+</odoo>

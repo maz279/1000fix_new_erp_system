@@ -955,6 +955,629 @@ def main() -> int:
                 })
         print("seed: ESG metrics (idempotent)")
 
+        # --- Anchor backfill (P02-P11): every model with zero rows gets
+        # seed data (DE-16: a state seed cannot reach is a state nobody
+        # tests). Detail lines remain byproducts of their parents. ---
+        def ensure(model, key_domain, vals):
+            if not c.first(model, key_domain):
+                c.call(model, "create", vals)
+
+        emp = c.call("hr.employee", "search", [], limit=5) or [1]
+        brn = c.call("fix.branch", "search", [], limit=5) or [1]
+        ord_ids = c.call("fix.service.order", "search", [], limit=5) or [1]
+        dev_ids = c.call("fix.device", "search", [], limit=5) or [1]
+        brd = c.call("fix.brand", "search", [], limit=3) or [1]
+        ste = c.call("fix.site", "search", [], limit=3) or [1]
+        prj = c.call("fix.project", "search", [], limit=3) or [1]
+        veh = c.call("fleet.vehicle", "search", [], limit=3) or [1]
+        ncr = c.call("fix.ncr", "search", [], limit=3) or [1]
+        ctr = c.call("fix.contract", "search", [], limit=1) or [1]
+        mspc = c.call("fix.msp.contract", "search", [], limit=1) or [1]
+        mon = c.call("fix.monitored.asset", "search", [], limit=3) or [1]
+        rres = c.call("fix.rental.reservation", "search", [], limit=3) or [1]
+        slr = c.call("fix.marketplace.seller", "search", [], limit=3) or [1]
+        mvl = c.call("account.move.line", "search", [], limit=3) or [1]
+        ou = c.call("operating.unit", "search", [], limit=1) or [1]
+        cust = seed_customers or [1]
+
+        # Masters
+        for i in range(3):
+            ensure("fix.org.position", [("name", "=", f"Seed Position {i+1}")],
+                   {"name": f"Seed Position {i+1}"})
+            ensure("fix.training.course",
+                   [("code", "=", f"SEED-CRS-{i+1:02d}")],
+                   {"code": f"SEED-CRS-{i+1:02d}",
+                    "name": f"প্রশিক্ষণ কোর্স {i+1}"})
+            ensure("fix.compensation.band",
+                   [("grade", "=", f"S{i+1}")],
+                   {"grade": f"S{i+1}", "name": f"Seed Band S{i+1}"})
+            ensure("fix.cost.allocation",
+                   [("name", "=", f"Seed Allocation {i+1}")],
+                   {"name": f"Seed Allocation {i+1}"})
+            ensure("fix.price.explanation",
+                   [("name", "=", f"Seed Explanation {i+1}")],
+                   {"name": f"Seed Explanation {i+1}"})
+            ensure("fix.vat.treatment",
+                   [("code", "=", f"SEED-VT-{i+1}")],
+                   {"code": f"SEED-VT-{i+1}",
+                    "name": f"Seed Treatment {i+1}",
+                    "treatment_type": ["standard_15", "zero_rated",
+                                       "exempt"][i],
+                    "rate": [15.0, 0.0, 0.0][i]})
+        for i, intent in enumerate(["reset_request", "battery_issue",
+                                    "warranty_query"]):
+            ensure("fix.assistant.intent", [("code", "=", f"SEED-INT-{i+1}")],
+                   {"code": f"SEED-INT-{i+1}", "name": intent,
+                    "name_bn": f"অভিপ্রায় {i+1}",
+                    "sample_bn": "আমার ফোনের ব্যাটারি সমস্যা হচ্ছে"})
+        for i in range(2):
+            ensure("fix.approval.matrix",
+                   [("decision_domain", "=", ["discount", "write_off"][i]),
+                    ("approver_role", "=", "seed_role")],
+                   {"approver_role": "seed_role",
+                    "decision_domain": ["discount", "write_off"][i],
+                    "threshold": 5000 * (i + 1)})
+            ensure("fix.automation", [("code", "=", f"AUT-9{i+1}")],
+                   {"code": f"AUT-9{i+1}",
+                    "trigger": "record_created",
+                    "engine": ["odoo_automated_action", "domain_service"][i],
+                    "failure_policy": "manual_fallback",
+                    "action": "notify owner"})
+        for i in range(3):
+            ensure("fix.control", [("name", "=", f"Seed Control {i+1}")],
+                   {"name": f"Seed Control {i+1}",
+                    "control_type": ["preventive", "detective", "corrective"][i],
+                    "frequency": ["daily", "weekly", "monthly"][i],
+                    "state": "active"})
+        print("seed: anchor masters (idempotent)")
+
+        # Warehouse structure (M56)
+        for i in range(2):
+            ensure("fix.warehouse", [("code", "=", f"SEED-WH-{i+1}")],
+                   {"code": f"SEED-WH-{i+1}",
+                    "name": f"Seed Warehouse {i+1}",
+                    "operating_unit_id": ou[0]})
+        wh = c.call("fix.warehouse", "search",
+                    [("code", "like", "SEED-WH-")], limit=2) or [1]
+        for i, zt in enumerate(["receiving", "storage", "dispatch"]):
+            ensure("fix.warehouse.zone",
+                   [("code", "=", f"SEED-ZN-{i+1}")],
+                   {"code": f"SEED-ZN-{i+1}", "name": f"Seed Zone {i+1}",
+                    "warehouse_id": wh[i % len(wh)], "zone_type": zt})
+        zn = c.call("fix.warehouse.zone", "search",
+                    [("code", "like", "SEED-ZN-")], limit=3) or [1]
+        for i in range(3):
+            ensure("fix.warehouse.bin", [("name", "=", f"SEED-BIN-{i+1}")],
+                   {"name": f"SEED-BIN-{i+1}", "zone_id": zn[i % len(zn)]})
+        print("seed: warehouse structure (idempotent)")
+
+        # Service-delivery chain (estimates -> discount approvals, work
+        # orders, QC, front desk, warranty)
+        for i in range(3):
+            ensure("fix.estimate",
+                   [("order_id", "=", ord_ids[i]), ("version", "=", 1)],
+                   {"order_id": ord_ids[i], "version": 1,
+                    "state": ["draft", "sent", "approved"][i]})
+        est = c.call("fix.estimate", "search", [], limit=3) or [1]
+        for i in range(2):
+            ensure("fix.discount.approval",
+                   [("quotation_id", "=", est[i])],
+                   {"quotation_id": est[i], "discount_pct": 5.0 * (i + 1),
+                    "justification": "Seed margin-approved discount",
+                    "operating_unit_id": ou[0],
+                    "state": ["pending", "approved"][i]})
+        for i in range(3):
+            ensure("fix.work.order", [("order_id", "=", ord_ids[i])],
+                   {"order_id": ord_ids[i],
+                    "state": ["pending", "in_progress", "completed"][i]})
+            ensure("fix.qc.checklist",
+                   [("order_id", "=", ord_ids[i])],
+                   {"order_id": ord_ids[i],
+                    "state": ["pending", "passed", "failed"][i]})
+        for i in range(2):
+            ensure("fix.token.queue",
+                   [("branch_id", "=", brn[i]), ("service_type", "=", "drop_off")],
+                   {"branch_id": brn[i], "service_type": "drop_off",
+                    "state": ["waiting", "completed"][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.walkin.intake",
+                   [("branch_id", "=", brn[i]),
+                    ("customer_id", "=", cust[i]),
+                    ("state", "=", "in_progress")],
+                   {"branch_id": brn[i], "customer_id": cust[i],
+                    "fault_description": "স্ক্রিন ভাঙা (seed)",
+                    "state": "in_progress", "operating_unit_id": ou[0]})
+            ensure("fix.cash.shift",
+                   [("branch_id", "=", brn[i]), ("shift_date", "=", "2026-10-01"),
+                    ("shift_type", "=", "morning")],
+                   {"branch_id": brn[i], "operator_id": emp[i],
+                    "shift_date": "2026-10-01", "shift_type": "morning",
+                    "opening_float": 5000.0,
+                    "state": ["open", "reconciled"][i],
+                    "operating_unit_id": ou[0]})
+        for i in range(3):
+            ensure("fix.warranty.product",
+                   [("name", "=", f"Seed Warranty Product {i+1}")],
+                   {"name": f"Seed Warranty Product {i+1}",
+                    "product_type": ["extension", "protection", "extension"][i],
+                    "duration_months": [6, 12, 24][i]})
+        for i in range(5):
+            ensure("fix.warranty",
+                   [("device_id", "=", dev_ids[i]), ("warranty_type", "=", "manufacturer")],
+                   {"device_id": dev_ids[i], "warranty_type": "manufacturer",
+                    "start_date": "2025-10-01", "end_date": "2026-10-01",
+                    "status": ["active", "expired"][i % 2]})
+        for i in range(3):
+            ensure("fix.warranty.claim", [("claim_no", "=", f"SEED-WC-{i+1:03d}")],
+                   {"claim_no": f"SEED-WC-{i+1:03d}", "brand_id": brd[i],
+                    "service_order_id": ord_ids[i],
+                    "claim_amount": round(rng.uniform(500, 5000), 2),
+                    "state": ["draft", "submitted", "approved"][i],
+                    "operating_unit_id": ou[0]})
+        print("seed: service-delivery anchors (idempotent)")
+
+        # CX + commercial
+        for i in range(2):
+            ensure("fix.campaign", [("name", "=", f"Seed Campaign {i+1}")],
+                   {"name": f"Seed Campaign {i+1}",
+                    "channel": ["sms", "social"][i],
+                    "state": ["running", "completed"][i]})
+            ensure("fix.conversation",
+                   [("channel", "=", "voice"), ("started_at", "=", f"2026-10-0{i+1} 09:00:00")],
+                   {"channel": "voice",
+                    "started_at": f"2026-10-0{i+1} 09:00:00",
+                    "state": ["resolved_agent", "abandoned"][i],
+                    "operating_unit_id": ou[0]})
+        for i in range(3):
+            ensure("fix.survey", [("service_order_id", "=", ord_ids[i])],
+                   {"service_order_id": ord_ids[i],
+                    "state": ["sent", "responded", "expired"][i],
+                    "rating": [False, "4", False][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.complaint", [("name", "=", f"SEED-CMP-{i+1:03d}")],
+                   {"name": f"SEED-CMP-{i+1:03d}", "customer_id": cust[i],
+                    "category": ["service_quality", "delay", "billing"][i],
+                    "severity": ["minor", "major", "critical"][i],
+                    "description": "Seed complaint description",
+                    "state": ["new", "investigating", "closed"][i],
+                    "operating_unit_id": ou[0]})
+        for i, lt in enumerate(["labour", "part", "transport"]):
+            ensure("fix.rate.card",
+                   [("product_code", "=", f"SEED-RC-{i+1}"), ("line_type", "=", lt)],
+                   {"product_code": f"SEED-RC-{i+1}", "line_type": lt,
+                    "unit_price": 250.0 * (i + 1)})
+        for i in range(3):
+            ensure("fix.subscription", [("name", "=", f"Seed Subscription {i+1}")],
+                   {"name": f"Seed Subscription {i+1}", "customer_id": cust[i],
+                    "plan": ["basic", "standard", "premium"][i],
+                    "billing_cycle": "monthly",
+                    "recurring_amount": [499.0, 999.0, 1999.0][i],
+                    "start_date": "2026-07-01", "next_invoice_date": "2026-11-01",
+                    "state": ["trial", "active", "past_due"][i],
+                    "operating_unit_id": ou[0]})
+        fxp = c.call("fix.partner", "search", [], limit=3) or [1]
+        for i in range(2):
+            ensure("fix.storefront.return",
+                   [("name", "=", f"SEED-RET-{i+1:03d}")],
+                   {"name": f"SEED-RET-{i+1:03d}", "customer_id": cust[i],
+                    "reason": ["defective", "changed_mind"][i],
+                    "state": ["requested", "refunded"][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.referral", [("name", "=", f"Seed Referral {i+1}")],
+                   {"name": f"Seed Referral {i+1}",
+                    "partner_id": fxp[i % len(fxp)],
+                    "state": ["submitted", "converted"][i]})
+        print("seed: CX + commercial anchors (idempotent)")
+
+        # Supply chain + circular
+        for i in range(2):
+            ensure("fix.requisition",
+                   [("description", "=", f"Seed requisition {i+1}")],
+                   {"description": f"Seed requisition {i+1}",
+                    "requested_by": emp[i], "urgency": ["normal", "urgent"][i],
+                    "state": ["draft", "approved"][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.purchase.order",
+                   [("vendor_id", "=", cust[i]), ("date_order", "=", "2026-10-01 10:00:00")],
+                   {"vendor_id": cust[i], "date_order": "2026-10-01 10:00:00",
+                    "state": ["draft", "received"][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.import.order", [("name", "=", f"SEED-IMP-{i+1:03d}")],
+                   {"name": f"SEED-IMP-{i+1:03d}",
+                    "state": ["shipped", "received"][i]})
+            ensure("fix.consignment",
+                   [("consignment_type", "=", "pickup"),
+                    ("scheduled_date", "=", f"2026-10-0{i+2} 08:00:00")],
+                   {"consignment_type": "pickup",
+                    "scheduled_date": f"2026-10-0{i+2} 08:00:00",
+                    "state": ["confirmed", "delivered"][i],
+                    "operating_unit_id": ou[0]})
+            ensure("fix.refurbishment", [("name", "=", f"SEED-RFB-{i+1:03d}")],
+                   {"name": f"SEED-RFB-{i+1:03d}", "step": ["repair", "testing"][i],
+                    "state": "pending"})
+            ensure("fix.rental.damage",
+                   [("reservation_id", "=", rres[i]), ("category", "=", "cosmetic")],
+                   {"reservation_id": rres[i], "category": "cosmetic",
+                    "cost": round(rng.uniform(200, 1500), 2),
+                    "description": "Seed cosmetic damage"})
+        for i in range(2):
+            ensure("fix.data.wipe.certificate",
+                   [("method", "=", "nist_800_88"),
+                    ("name", "=", f"Seed Wipe Cert {i+1}")],
+                   {"name": f"Seed Wipe Cert {i+1}", "method": "nist_800_88",
+                    "device_id": dev_ids[i]})
+        for i in range(3):
+            ensure("fix.device.ownership",
+                   [("device_id", "=", dev_ids[i]),
+                    ("transfer_type", "=", "sale")],
+                   {"device_id": dev_ids[i], "to_partner_id": cust[i],
+                    "transfer_date": "2026-09-15", "transfer_type": "sale"})
+        print("seed: supply-chain + circular anchors (idempotent)")
+
+        # Assets + facilities
+        for i in range(3):
+            ensure("fix.fixed.asset", [("name", "=", f"Seed Asset {i+1}")],
+                   {"name": f"Seed Asset {i+1}",
+                    "category": ["it_equipment", "test_gear", "vehicle"][i],
+                    "gross": round(rng.uniform(50000, 500000), 2),
+                    "life_months": [36, 60, 84][i],
+                    "purchase_date": "2025-01-15",
+                    "state": ["draft", "active", "disposed"][i]})
+            ensure("fix.cwip.entry", [("name", "=", f"Seed CWIP {i+1}")],
+                   {"name": f"Seed CWIP {i+1}",
+                    "amount": round(rng.uniform(10000, 100000), 2),
+                    "state": ["open", "open", "capitalised"][i]})
+            ensure("fix.calibration",
+                   [("equipment_id", "=", equipment[i]),
+                    ("standard_ref", "=", "SEED-ISO-17025")],
+                   {"equipment_id": equipment[i],
+                    "calibrated_on": "2026-09-01", "next_due": "2027-03-01",
+                    "result": ["pass", "pass", "fail"][i],
+                    "standard_ref": "SEED-ISO-17025"})
+        # BRTA compliance first: a vehicle is only dispatchable with valid
+        # fitness + insurance (cd_vehicle_ext enforces this on assignment)
+        for vid in veh:
+            v = c.call("fleet.vehicle", "read", [vid],
+                       ["fitness_expiry", "insurance_expiry"])[0]
+            vals = {}
+            if not v.get("fitness_expiry") or v["fitness_expiry"] < "2026-10-01":
+                vals["fitness_expiry"] = "2027-06-30"
+            if not v.get("insurance_expiry") or v["insurance_expiry"] < "2026-10-01":
+                vals["insurance_expiry"] = "2027-03-31"
+            if vals:
+                c.call("fleet.vehicle", "write", [vid], vals)
+        for i in range(2):
+            ensure("fix.vehicle.assignment",
+                   [("vehicle_id", "=", veh[i]), ("date", "=", "2026-10-01")],
+                   {"vehicle_id": veh[i], "date": "2026-10-01"})
+            ensure("fix.facility.work.order",
+                   [("name", "=", f"SEED-FAC-{i+1:03d}")],
+                   {"name": f"SEED-FAC-{i+1:03d}", "site_id": ste[i],
+                    "work_type": ["maintenance", "inspection"][i],
+                    "description": "Seed facility work",
+                    "state": ["scheduled", "completed"][i]})
+            ensure("fix.safety.inspection",
+                   [("name", "=", f"SEED-HSE-{i+1:03d}")],
+                   {"name": f"SEED-HSE-{i+1:03d}", "branch_id": brn[i],
+                    "inspected_on": "2026-09-20",
+                    "state": ["done", "follow_up"][i]})
+        print("seed: asset + facility anchors (idempotent)")
+
+        # Finance (AR -> credit note/dunning; AP -> withholding; VAT/TDS)
+        for i in range(3):
+            ensure("fix.ar.invoice",
+                   [("source_model", "=", "fix.service.order"),
+                    ("source_id", "=", ord_ids[i])],
+                   {"customer_id": cust[i], "invoice_date": "2026-09-30",
+                    "source_model": "fix.service.order", "source_id": ord_ids[i],
+                    "state": ["issued", "paid", "credited"][i],
+                    "operating_unit_id": ou[0]})
+        ar = c.call("fix.ar.invoice", "search", [], limit=3) or [1]
+        ensure("fix.credit.note",
+               [("invoice_id", "=", ar[0]), ("reason_code", "=", "goodwill")],
+               {"invoice_id": ar[0], "amount": 500.0,
+                "reason_code": "goodwill", "state": "issued",
+                "operating_unit_id": ou[0]})
+        ensure("fix.dunning", [("invoice_id", "=", ar[0]), ("step", "=", "reminder")],
+               {"invoice_id": ar[0], "step": "reminder"})
+        for i in range(3):
+            ensure("fix.vendor.invoice",
+                   [("invoice_ref", "=", f"SEED-VI-{i+1:03d}")],
+                   {"vendor_id": cust[i], "invoice_date": "2026-09-25",
+                    "invoice_ref": f"SEED-VI-{i+1:03d}",
+                    "match_state": ["unmatched", "matched", "blocked"][i],
+                    "operating_unit_id": ou[0]})
+        vi = c.call("fix.vendor.invoice", "search", [], limit=3) or [1]
+        ensure("fix.withholding.certificate",
+               [("vendor_invoice_id", "=", vi[0])],
+               {"vendor_invoice_id": vi[0], "withheld_amount": 250.0})
+        for i in range(3):
+            ensure("fix.mushak.register", [("mushak_no", "=", f"SEED-MUSH-{i+1:03d}")],
+                   {"mushak_no": f"SEED-MUSH-{i+1:03d}",
+                    "invoice_ref": f"SEED-INV-{i+1:03d}",
+                    "customer_name": f"Seed Customer {i+1}",
+                    "supplier_name": "1000FiX Ltd",
+                    "supplier_bin": "0000000000000",
+                    "invoice_date": "2026-09-30",
+                    "taxable_amount": [10000.0, 20000.0, 5000.0][i],
+                    "vat_amount": [1500.0, 3000.0, 0.0][i],
+                    "total_payable": [11500.0, 23000.0, 5000.0][i],
+                    "operating_unit_id": ou[0]})
+        ensure("fix.vat.return", [("period", "=", "2026-09")],
+               {"period": "2026-09", "state": "prepared"})
+        ensure("fix.tds.return", [("quarter", "=", "Q2-2026")],
+               {"quarter": "Q2-2026", "state": "draft"})
+        for i in range(2):
+            ensure("fix.payment.execution",
+                   [("source_model", "=", "fix.vendor.invoice"),
+                    ("source_id", "=", vi[i]), ("method", "=", "bank_transfer")],
+                   {"method": "bank_transfer", "payee": f"Seed Vendor {i+1}",
+                    "source_model": "fix.vendor.invoice", "source_id": vi[i],
+                    "amount": round(rng.uniform(5000, 50000), 2),
+                    "state": ["pending", "executed"][i],
+                    "operating_unit_id": ou[0]})
+        ensure("fix.cash.position", [("as_of", "=", "2026-09-30 18:00:00")],
+               {"as_of": "2026-09-30 18:00:00"})
+        ensure("fix.period.close", [("period_end", "=", "2026-09-30")],
+               {"period_end": "2026-09-30", "state": "ready_to_close"})
+        for i in range(2):
+            ensure("fix.journal.dimension", [("move_line_id", "=", mvl[i])],
+                   {"move_line_id": mvl[i], "operating_unit_id": ou[0]})
+            ensure("fix.fixed.asset.seam",
+                   [("move_line_id", "=", mvl[i]), ("name", "=", f"Seed Seam {i+1}")],
+                   {"move_line_id": mvl[i], "name": f"Seed Seam {i+1}",
+                    "amount": round(rng.uniform(1000, 9000), 2),
+                    "operating_unit_id": ou[0]})
+        ensure("fix.payout.run", [("name", "=", "Seed Payout 2026-09")],
+               {"name": "Seed Payout 2026-09", "period": "2026-09",
+                "state": "approved"})
+        print("seed: finance anchors (idempotent)")
+
+        # People (talent, training, performance, payroll-out)
+        for i in range(3):
+            ensure("fix.job.requisition",
+                   [("name", "=", f"Seed Requisition {i+1}")],
+                   {"name": f"Seed Requisition {i+1}", "openings": i + 1,
+                    "state": ["open", "hired", "closed"][i]})
+            ensure("fix.candidate", [("name", "=", f"Seed Candidate {i+1}")],
+                   {"name": f"Seed Candidate {i+1}",
+                    "state": ["applied", "interview", "hired"][i]})
+            crs = c.call("fix.training.course", "search", [], limit=3) or [1]
+            ensure("fix.training.enrollment",
+                   [("course_id", "=", crs[i]), ("employee_id", "=", emp[i])],
+                   {"course_id": crs[i], "employee_id": emp[i],
+                    "state": ["enrolled", "passed", "failed"][i]})
+            ensure("fix.performance.scorecard",
+                   [("employee_id", "=", emp[i]), ("period", "=", "2026-H1")],
+                   {"employee_id": emp[i], "period": "2026-H1"})
+        ensure("fix.incentive.run", [("period", "=", "2026-09")],
+               {"period": "2026-09", "band_base": 100000.0, "state": "computed"})
+        for i in range(2):
+            ensure("fix.expense.claim",
+                   [("employee_id", "=", emp[i]),
+                    ("expense_date", "=", "2026-09-28"),
+                    ("description", "=", f"Seed expense {i+1}")],
+                   {"employee_id": emp[i], "expense_date": "2026-09-28",
+                    "amount": round(rng.uniform(500, 3000), 2),
+                    "description": f"Seed expense {i+1}",
+                    "state": ["submitted", "approved"][i],
+                    "operating_unit_id": ou[0]})
+        # NB: fix.beftn.batch is deliberately NOT seeded — batches are
+        # outputs of the payroll approval flow (ACL: read-only to users),
+        # same policy as detail lines.
+        print("seed: people anchors (idempotent)")
+
+        # MSP + governance + partner-channel
+        for i in range(2):
+            ensure("fix.msp.alert",
+                   [("msp_contract_id", "=", mspc[0]),
+                    ("asset_id", "=", mon[i]),
+                    ("message", "=", "Seed RMM alert: disk usage 92%")],
+                   {"msp_contract_id": mspc[0], "asset_id": mon[i],
+                    "message": "Seed RMM alert: disk usage 92%",
+                    "severity": ["minor", "major"][i],
+                    "state": ["new", "resolved"][i]})
+            ensure("fix.remote.session",
+                   [("asset_id", "=", mon[i]),
+                    ("started_at", "=", f"2026-09-2{i+1} 10:00:00")],
+                   {"msp_contract_id": mspc[0], "asset_id": mon[i],
+                    "technician_id": emp[i], "tool": "rustdesk",
+                    "started_at": f"2026-09-2{i+1} 10:00:00",
+                    "consent_captured": True})
+        ensure("fix.msp.service.report",
+               [("msp_contract_id", "=", mspc[0]), ("period_label", "=", "2026-09")],
+               {"msp_contract_id": mspc[0], "period_label": "2026-09"})
+        for i in range(2):
+            ensure("fix.capa", [("ncr_id", "=", ncr[i])],
+                   {"ncr_id": ncr[i], "owner_id": emp[i],
+                    "corrective_action": "Seed corrective action",
+                    "severity": ["minor", "major"][i],
+                    "state": ["open", "verified"][i]})
+            ensure("fix.internal.audit",
+                   [("branch_id", "=", brn[i]), ("scheduled_on", "=", "2026-10-10")],
+                   {"branch_id": brn[i], "auditor_id": emp[i],
+                    "scheduled_on": "2026-10-10", "scope": "Seed audit scope",
+                    "state": ["planned", "reported"][i]})
+            ensure("fix.supplier.scorecard",
+                   [("vendor_id", "=", cust[i]), ("period", "=", "2026-Q3")],
+                   {"vendor_id": cust[i], "period": "2026-Q3",
+                    "operating_unit_id": ou[0]})
+            ensure("fix.seller.score",
+                   [("seller_id", "=", slr[i]), ("period", "=", "2026-09")],
+                   {"seller_id": slr[i], "period": "2026-09"})
+            ensure("fix.contract.entitlement",
+                   [("contract_id", "=", ctr[0]),
+                    ("entitlement_type", "=", ["visits", "incidents"][i])],
+                   {"contract_id": ctr[0],
+                    "entitlement_type": ["visits", "incidents"][i],
+                    "quantity_included": 10.0 * (i + 1)})
+            ensure("fix.contract.pm.visit",
+                   [("contract_id", "=", ctr[0]),
+                    ("scheduled_date", "=", f"2026-10-0{i+5}")],
+                   {"contract_id": ctr[0], "device_id": dev_ids[i],
+                    "scheduled_date": f"2026-10-0{i+5}",
+                    "state": ["scheduled", "completed"][i]})
+        for i in range(3):
+            ensure("fix.project.milestone",
+                   [("project_id", "=", prj[i % len(prj)]),
+                    ("name", "=", f"Seed Milestone {i+1}")],
+                   {"project_id": prj[i % len(prj)],
+                    "name": f"Seed Milestone {i+1}",
+                    "state": ["pending", "done", "pending"][i]})
+        print("seed: MSP + governance anchors (idempotent)")
+
+        # --- Config masters (platform P02-P06): RBAC, calendars, MDM,
+        # documents, party model. Without these the modules that consume
+        # them have nothing to govern.
+        # NB: fix.isolation.tier (T0-T5) and fix.refurb.grade (A-E) are
+        # fixed taxonomy -> shipped as noupdate module data (cd_rbac_ext,
+        # cd_catalogue), not seeded. fix.country.pack/.line, fix.bd.address,
+        # fix.feature.flag and fix.retention.class are pipeline/admin
+        # managed by design (AF-09 MD-005; ACL denies user creates).
+        # RBAC: roles + SoD controls
+        for i in range(3):
+            ensure("fix.role", [("code", "=", f"R-9{i+1}")],
+                   {"name": ["Seed Technician", "Seed Auditor",
+                             "Seed Branch Manager"][i],
+                    "code": f"R-9{i+1}"})
+        rol = c.call("fix.role", "search", [], limit=3) or [1]
+        ensure("fix.sod.control", [("code", "=", "SEED-SOD-1")],
+               {"name": "Seed SoD: quote vs approve", "code": "SEED-SOD-1",
+                "role_a_id": rol[0], "role_b_id": rol[1],
+                "conflict_action": "warn"})
+        # Working calendar (Asia/Dhaka) + a moon-dependent holiday
+        ensure("fix.working.calendar", [("name", "=", "Seed BD Calendar")],
+               {"name": "Seed BD Calendar", "timezone": "Asia/Dhaka"})
+        wcal = c.first("fix.working.calendar",
+                       [("name", "=", "Seed BD Calendar")])
+        if wcal:
+            ensure("fix.working.calendar.holiday",
+                   [("calendar_id", "=", wcal), ("name", "=", "Seed Eid Holiday")],
+                   {"calendar_id": wcal, "name": "Seed Eid Holiday",
+                    "name_bn": "সিড ঈদ ছুটি",
+                    "date_from": "2027-03-20", "date_to": "2027-03-22"})
+        # MDM: match rules, golden rules, a change request
+        ensure("fix.mdm.match.rule",
+               [("model_name", "=", "res.partner"), ("field_name", "=", "phone")],
+               {"model_name": "res.partner", "field_name": "phone",
+                "match_type": "exact", "weight": 0.6})
+        ensure("fix.mdm.match.rule",
+               [("model_name", "=", "res.partner"), ("field_name", "=", "name")],
+               {"model_name": "res.partner", "field_name": "name",
+                "match_type": "phonetic", "weight": 0.4})
+        ensure("fix.mdm.golden.rule",
+               [("model_name", "=", "res.partner"), ("field_name", "=", "phone")],
+               {"model_name": "res.partner", "field_name": "phone",
+                "strategy": "most_verified"})
+        ensure("fix.mdm.change.request", [("title", "=", "Seed MDR: merge duplicates")],
+               {"title": "Seed MDR: merge duplicates", "model_name": "res.partner",
+                "record_id": cust[0], "priority": "normal", "state": "submitted"})
+        # Field rules + dedup rules (need ir.model ids)
+        so_model = c.first("ir.model", [("model", "=", "fix.service.order")])
+        if so_model:
+            phone_field = c.first("ir.model.fields",
+                                  [("model_id", "=", so_model),
+                                   ("name", "=", "customer_id")])
+            ensure("fix.dedup.rule", [("name", "=", "Seed dedup: partner phone")],
+                   {"name": "Seed dedup: partner phone",
+                    "model_id": c.first("ir.model", [("model", "=", "res.partner")]),
+                    "scope": "fuzzy", "action": "flag",
+                    "match_fields": "phone,name"})
+            if phone_field:
+                ensure("fix.field.rule",
+                       [("model_id", "=", so_model), ("field_id", "=", phone_field)],
+                       {"model_id": so_model, "field_id": phone_field,
+                        "permission": "read"})
+        # Country/BD geography + retention: pipeline-managed (see note
+        # above) — deliberately not seeded.
+        # Notification config + consents
+        for i, cc in enumerate(["transactional", "marketing"]):
+            ensure("fix.notification.config",
+                   [("consent_class", "=", cc), ("channel", "=", "sms")],
+                   {"consent_class": cc, "channel": "sms",
+                    "send_window": "08:00-21:00",
+                    "sms_route": ["masking", "non-masking"][i]})
+        for i in range(2):
+            ensure("fix.consent",
+                   [("partner_id", "=", cust[i]), ("channel", "=", "sms"),
+                    ("state", "=", "granted")],
+                   {"partner_id": cust[i], "channel": "sms", "state": "granted",
+                    "source": "web", "proof": "SEED-CONSENT-%d" % (i + 1)})
+        # Identity documents (synthetic checksum-valid style per DE-12)
+        for i in range(2):
+            ensure("fix.identity.document",
+                   [("partner_id", "=", cust[i]), ("document_type", "=", "nid_17")],
+                   {"partner_id": cust[i], "document_type": "nid_17",
+                    "verification_status": "verified"})
+        # Party model: roles + hierarchy
+        for i, rt in enumerate(["customer", "seller"]):
+            ensure("fix.party.role",
+                   [("partner_id", "=", cust[i]), ("role_type", "=", rt)],
+                   {"partner_id": cust[i], "role_type": rt,
+                    "role_status": "active"})
+        ensure("fix.party.hierarchy",
+               [("parent_id", "=", cust[0]), ("child_id", "=", cust[1]),
+                ("relation_type", "=", "corporate")],
+               {"parent_id": cust[0], "child_id": cust[1],
+                "relation_type": "corporate"})
+        # Documents + e-signature
+        att = c.call("ir.attachment", "search", [], limit=2) or [1]
+        for i in range(2):
+            ensure("fix.document", [("name", "=", f"Seed Document {i+1}")],
+                   {"name": f"Seed Document {i+1}",
+                    "document_type": ["service_report", "evidence_pack"][i],
+                    "isolation_tier": ["T1", "T3"][i],
+                    "state": "active", "attachment_id": att[i]})
+        doc = c.call("fix.document", "search", [], limit=2) or [1]
+        ensure("fix.document.template", [("code", "=", "SEED-TPL-1")],
+               {"code": "SEED-TPL-1", "name": "Seed service report template",
+                "name_bn": "সিড সার্ভিস রিপোর্ট টেমপ্লেট",
+                "document_type": "service_report"})
+        ensure("fix.esignature.envelope", [("name", "=", "Seed Envelope 1")],
+               {"name": "Seed Envelope 1", "document_id": doc[0],
+                "state": "sent", "operating_unit_id": ou[0]})
+        env = c.first("fix.esignature.envelope", [("name", "=", "Seed Envelope 1")])
+        if env:
+            ensure("fix.esignature.signer", [("envelope_id", "=", env)],
+                   {"envelope_id": env, "partner_id": cust[0]})
+        # Circular catalogs: rental SKUs (refurb grades A-E are module data)
+        cat = c.call("fix.catalogue.item", "search", [], limit=3) or [1]
+        ensure("fix.rental.sku", [("catalogue_item_id", "=", cat[0])],
+               {"catalogue_item_id": cat[0], "daily_rate": 150.0})
+        # Service kits + components
+        ensure("fix.service.kit",
+               [("name", "=", "Seed Screen Replacement Kit")],
+               {"name": "Seed Screen Replacement Kit",
+                "catalogue_item_id": cat[1 % len(cat)]})
+        kit = c.first("fix.service.kit", [("name", "=", "Seed Screen Replacement Kit")])
+        if kit:
+            ensure("fix.service.kit.component",
+                   [("kit_id", "=", kit), ("component_type", "=", "part")],
+                   {"kit_id": kit, "component_type": "part", "quantity": 1.0})
+        # Zones + geofences (MSP)
+        ensure("fix.zone", [("code", "=", "SEED-ZONE-1")],
+               {"name": "Seed Service Zone", "code": "SEED-ZONE-1"})
+        zn1 = c.first("fix.zone", [("code", "=", "SEED-ZONE-1")])
+        if zn1:
+            ensure("fix.geofence", [("name", "=", "Seed Dhaka Circle")],
+                   {"name": "Seed Dhaka Circle", "zone_id": zn1,
+                    "geofence_type": "circle",
+                    "geometry_json": '{"lat":23.8,"lng":90.4,"radius_m":15000}'})
+        # Finance stragglers: bank statement lines + seller quotes
+        for i in range(3):
+            ensure("fix.bank.statement.line",
+                   [("date", "=", "2026-09-28"), ("amount", "=", 1000.0 * (i + 1))],
+                   {"date": "2026-09-28", "amount": 1000.0 * (i + 1),
+                    "match_state": ["unmatched", "auto", "manual"][i]})
+        mo = c.call("fix.marketplace.order", "search", [], limit=2) or [1]
+        for i in range(2):
+            ensure("fix.seller.quote",
+                   [("marketplace_order_id", "=", mo[i]), ("seller_id", "=", slr[i])],
+                   {"marketplace_order_id": mo[i], "seller_id": slr[i],
+                    "eta_days": 2 + i, "quoted_price": round(rng.uniform(800, 3000), 2),
+                    "state": ["submitted", "selected"][i]})
+        print("seed: config masters (idempotent)")
+
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
 

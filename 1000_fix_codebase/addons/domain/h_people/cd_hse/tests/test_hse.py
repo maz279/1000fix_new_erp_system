@@ -22,6 +22,26 @@ class TestHse(unittest.TestCase):
         self.assertIn("hse.incident_reported",
                       inspect.getsource(FixHseIncident))
 
+    def test_incident_severity_ladder(self):
+        """low/medium/high — the ladder drives escalation routing."""
+        src = inspect.getsource(FixHseIncident)
+        for sev in ("low", "medium", "high"):
+            self.assertIn('"%s"' % sev, src)
+
+    def test_inspection_lifecycle(self):
+        """scheduled -> done -> follow_up: a failed check routes to
+        follow_up, not silently to done."""
+        src = inspect.getsource(FixSafetyInspection)
+        for state in ("scheduled", "done", "follow_up"):
+            self.assertIn(state, src)
+
+    def test_as02_conformance_both_models(self):
+        for model in (FixHseIncident, FixSafetyInspection):
+            for mixin in ("mail.thread", "mail.activity.mixin"):
+                self.assertIn(mixin, model._inherit)
+            self.assertTrue(hasattr(model, "company_id"))
+            self.assertTrue(hasattr(model, "operating_unit_id"))
+
 
 if __name__ == "__main__":
     unittest.main()
