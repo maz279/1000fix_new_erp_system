@@ -8,8 +8,9 @@
  * - One key resolves to exactly one string per locale (CG-004).
  * - `counterpart-pending` keys return the English string in both locales and
  *   are counted — a portal never renders an empty label, and the pending
- *   count is visible to the release checklist (266 BN counterparts pending
- *   programme-wide).
+ *   count is visible to the release checklist. As of PP0 (2026-10-05) the
+ *   registry carries 493 keys with 0 counterpart-pending (the 110 W1
+ *   pendings closed at source; UI-900 added 199 inline prototype keys).
  * - Bengali fallback is Latin never machine-translated: bn falls back to en.
  */
 
