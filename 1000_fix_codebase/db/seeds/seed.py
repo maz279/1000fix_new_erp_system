@@ -1520,8 +1520,18 @@ def main() -> int:
                 ("relation_type", "=", "corporate")],
                {"parent_id": cust[0], "child_id": cust[1],
                 "relation_type": "corporate"})
-        # Documents + e-signature
-        att = c.call("ir.attachment", "search", [], limit=2) or [1]
+        # Documents + e-signature. NB: documents carry their OWN
+        # attachments — never a random ir.attachment: Odoo stores its
+        # generated asset bundles there, and an ondelete-restrict
+        # reference blocks asset regeneration (found the hard way).
+        if not c.first("ir.attachment",
+                       [("name", "=", "seed-document.pdf")]):
+            c.call("ir.attachment", "create", {
+                "name": "seed-document.pdf",
+                "datas": "U0VFRCBET0NVTUVOVA==",  # "SEED DOCUMENT"
+                "mimetype": "application/pdf",
+            })
+        att = [c.first("ir.attachment", [("name", "=", "seed-document.pdf")])] * 2
         for i in range(2):
             ensure("fix.document", [("name", "=", f"Seed Document {i+1}")],
                    {"name": f"Seed Document {i+1}",
