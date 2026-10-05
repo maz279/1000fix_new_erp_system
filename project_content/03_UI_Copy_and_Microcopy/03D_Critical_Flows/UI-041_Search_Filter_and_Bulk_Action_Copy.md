@@ -127,9 +127,9 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Over bulk limit | `flow.bulk.error.limit` | Bulk actions apply to at most {max}. Narrow your filter. | **H** |
-| Mixed states | `flow.bulk.error.mixed` | {n} of the selected records cannot have {action} applied. Continue with the other {ok}? | **A** |
-| Nothing selected | `flow.bulk.error.none` | Select at least one record. | **H** |
+| Over bulk limit | `flow.bulk.error.limit` | Bulk actions apply to at most {max}. Narrow your filter. | বাল্ক অ্যাকশন সর্বোচ্চ {max}-এ প্রযোজ্য। ফিল্টার সংকুচিত করুন। | **H** |
+| Mixed states | `flow.bulk.error.mixed` | {n} of the selected records cannot have {action} applied. Continue with the other {ok}? | নির্বাচিত {n}টি রেকর্ডে {action} প্রয়োগ করা যাবে না। বাকি {ok}টির সঙ্গে চালিয়ে যাবেন? | **A** |
+| Nothing selected | `flow.bulk.error.none` | Select at least one record. | অন্তত একটি রেকর্ড নির্বাচন করুন। | **H** |
 
 ---
 

@@ -102,45 +102,45 @@ Every message below conforms. A message missing the third part fails `CG-008` bl
 
 | Rule | Key | Message EN | Class |
 |---|---|---|:--:|
-| `BRU-SRM-01` | `common.error.srm.device_required` | A service order needs an identified device. Search for the device, or register it now. | **H** |
-| `BRU-SRM-02` | `common.error.srm.warranty_inactive` | This device is not under warranty on {date}. Its warranty ended {expiry}. Create a paid repair instead. | **H** |
-| `BRU-SRM-03` | `common.error.srm.not_on_contract` | This device is not on {contract}. Add it to the contract, or create a paid repair. | **H** |
-| `BRU-SRM-04` | `common.error.srm.qc_not_passed` | This order cannot be completed. The quality checklist is not recorded as passed. Complete the checklist first. | **H** |
-| `BRU-SRM-05` | `common.error.srm.invoice_before_complete` | An invoice cannot be raised for an order that is not completed. Complete the order first. | **H** |
-| `BRU-SRM-07` | `common.error.srm.estimate_approval_5k` | Work above BDT 5,000 needs the customer's approval first. Send the estimate, then start work when it is approved. | **H** |
-| `BRU-SRM-08` | `common.error.srm.estimate_approval_25k` | Work above BDT 25,000 needs the customer's approval and the branch manager's approval. Send it to {branch_manager}. | **H** |
-| `BRU-SRM-09` | `common.error.srm.tech_not_certified` | {technician} is not certified for {brand} warranty work. Their certification expired on {expiry}. Assign a certified technician, or ask the Quality Manager to renew it. | **H** |
-| `BRU-SRM-11` | `common.error.srm.parts_unapproved` | Parts cannot be issued against an unapproved paid repair. Approve the estimate first, then issue the parts. | **H** |
-| `BRU-SRM-06` | `common.error.srm.rework_flagged` | This is the second order for {device} with the same fault within 30 days. It has been linked to {original} as rework. | **C** |
-| `BRU-SRM-10` | `common.error.srm.priority_upgraded` | {customer} is a {tier} member, so this order has been set to priority 1. | **C** |
+| `BRU-SRM-01` | `common.error.srm.device_required` | A service order needs an identified device. Search for the device, or register it now. | সার্ভিস অর্ডারের জন্য শনাক্ত করা একটি ডিভাইস দরকার। ডিভাইসটি খুঁজুন, অথবা এখনই নিবন্ধন করুন। | **H** |
+| `BRU-SRM-02` | `common.error.srm.warranty_inactive` | This device is not under warranty on {date}. Its warranty ended {expiry}. Create a paid repair instead. | এই ডিভাইসের {date} তারিখে ওয়ারেন্টি নেই। ওয়ারেন্টি শেষ হয়েছে {expiry}। পেইড মেরামত তৈরি করুন। | **H** |
+| `BRU-SRM-03` | `common.error.srm.not_on_contract` | This device is not on {contract}. Add it to the contract, or create a paid repair. | এই ডিভাইসটি {contract}-এর অন্তর্ভুক্ত নয়। চুক্তিতে যোগ করুন, অথবা পেইড মেরামত নিন। | **H** |
+| `BRU-SRM-04` | `common.error.srm.qc_not_passed` | This order cannot be completed. The quality checklist is not recorded as passed. Complete the checklist first. | এই অর্ডার সম্পন্ন করা যাবে না। কোয়ালিটি চেকলিস্ট এখনো পাস হিসেবে নথিভুক্ত হয়নি। আগে চেকলিস্ট সম্পন্ন করুন। | **H** |
+| `BRU-SRM-05` | `common.error.srm.invoice_before_complete` | An invoice cannot be raised for an order that is not completed. Complete the order first. | সম্পন্ন না হওয়া অর্ডারের চালান ইস্যু করা যায় না। আগে অর্ডারটি সম্পন্ন করুন। | **H** |
+| `BRU-SRM-07` | `common.error.srm.estimate_approval_5k` | Work above BDT 5,000 needs the customer's approval first. Send the estimate, then start work when it is approved. | ৫,০০০ টাকার বেশি কাজের জন্য আগে গ্রাহকের অনুমোদন দরকার। এস্টিমেট পাঠান; অনুমোদন পেলে কাজ শুরু করুন। | **H** |
+| `BRU-SRM-08` | `common.error.srm.estimate_approval_25k` | Work above BDT 25,000 needs the customer's approval and the branch manager's approval. Send it to {branch_manager}. | ২৫,০০০ টাকার বেশি কাজের জন্য গ্রাহক ও ব্রাঞ্চ ম্যানেজার উভয়ের অনুমোদন দরকার। {branch_manager}-কে পাঠান। | **H** |
+| `BRU-SRM-09` | `common.error.srm.tech_not_certified` | {technician} is not certified for {brand} warranty work. Their certification expired on {expiry}. Assign a certified technician, or ask the Quality Manager to renew it. | {technician} এই {brand} ওয়ারেন্টি কাজের জন্য সার্টিফাইড নন; সার্টিফিকেটের মেয়াদ শেষ {expiry}। সার্টিফাইড কারিগর নির্ধারণ করুন, বা কোয়ালিটি ম্যানেজারকে নবায়নের অনুরোধ করুন। | **H** |
+| `BRU-SRM-11` | `common.error.srm.parts_unapproved` | Parts cannot be issued against an unapproved paid repair. Approve the estimate first, then issue the parts. | অনুমোদনহীন পেইড মেরামতে পার্টস ইস্যু করা যায় না। আগে এস্টিমেট অনুমোদন করুন, তারপর পার্টস দিন। | **H** |
+| `BRU-SRM-06` | `common.error.srm.rework_flagged` | This is the second order for {device} with the same fault within 30 days. It has been linked to {original} as rework. | {device} ডিভাইসের একই ত্রুটিতে 30 দিনের মধ্যে এটি দ্বিতীয় অর্ডার। এটি {original}-এর রিওয়ার্ক হিসেবে যুক্ত হয়েছে। | **C** |
+| `BRU-SRM-10` | `common.error.srm.priority_upgraded` | {customer} is a {tier} member, so this order has been set to priority 1. | {customer} একজন {tier} সদস্য, তাই এই অর্ডারটি অগ্রাধিকার ১-এ সেট করা হয়েছে। | **C** |
 
 ### 3.3 Approval and override — `common.error.approval.*`
 
 | Situation | Key | Message EN | Class |
 |---|---|---|:--:|
-| Above own limit | `common.error.approval.over_limit` | You can approve up to {limit}. This is {amount}. Send it to {approver} for approval. | **A** |
-| Self-approval | `common.error.approval.self` | You cannot approve your own {object}. Send it to {approver}. | **H** |
-| Override permitted | `common.error.approval.override_available` | This is blocked by {rule}. {role} can authorise an exception. Record a reason to request it. | **A** |
-| Reason required | `common.error.approval.reason_required` | Enter a reason for this override. It is recorded against the transaction. | **H** |
+| Above own limit | `common.error.approval.over_limit` | You can approve up to {limit}. This is {amount}. Send it to {approver} for approval. | আপনি সর্বোচ্চ {limit} পর্যন্ত অনুমোদন করতে পারেন; এটি {amount}। অনুমোদনের জন্য {approver}-কে পাঠান। | **A** |
+| Self-approval | `common.error.approval.self` | You cannot approve your own {object}. Send it to {approver}. | নিজের {object} নিজে অনুমোদন করতে পারবেন না। {approver}-কে পাঠান। | **H** |
+| Override permitted | `common.error.approval.override_available` | This is blocked by {rule}. {role} can authorise an exception. Record a reason to request it. | এটি {rule} কর্তৃক আটকানো হয়েছে। {role} ব্যতিক্রম অনুমোদন করতে পারেন। অনুরোধ করতে কারণ লিখুন। | **A** |
+| Reason required | `common.error.approval.reason_required` | Enter a reason for this override. It is recorded against the transaction. | এই ব্যতিক্রমের কারণ লিখুন। এটি লেনদেনের সঙ্গে নথিভুক্ত থাকবে। | **H** |
 
 ### 3.4 Stock and parts — `common.error.stock.*` (`M15`)
 
 | Situation | Key | Message EN | Class |
 |---|---|---|:--:|
-| Not in stock | `common.error.stock.unavailable` | {part} is not in stock at {location}. It is available at {alt_location}. Request a transfer, or order it. | **H** |
-| Incompatible part | `common.error.stock.incompatible` | {part} does not fit {model}. Compatible parts: {alternatives}. | **H** |
-| Negative stock | `common.error.stock.negative` | Issuing {qty} would take {location} below zero. Count the location, or record a receipt first. | **H** |
-| Hazard acknowledgement | `common.error.stock.hazard_ack` | {part} is a {hazard_class} item. Confirm you have read the handling instructions before issuing it. | **H** |
+| Not in stock | `common.error.stock.unavailable` | {part} is not in stock at {location}. It is available at {alt_location}. Request a transfer, or order it. | {location}-এ {part} স্টকে নেই; {alt_location}-এ আছে। ট্রান্সফারের অনুরোধ করুন, অথবা অর্ডার করুন। | **H** |
+| Incompatible part | `common.error.stock.incompatible` | {part} does not fit {model}. Compatible parts: {alternatives}. | {part} এই {model}-এর সঙ্গে খাপ খায় না। সামঞ্জস্যপূর্ণ পার্টস: {alternatives}। | **H** |
+| Negative stock | `common.error.stock.negative` | Issuing {qty} would take {location} below zero. Count the location, or record a receipt first. | {qty} ইস্যু করলে {location} ঋণাত্মক হয়ে যাবে। লোকেশন গুনে নিন, বা আগে রিসিট নথিভুক্ত করুন। | **H** |
+| Hazard acknowledgement | `common.error.stock.hazard_ack` | {part} is a {hazard_class} item. Confirm you have read the handling instructions before issuing it. | {part} একটি {hazard_class} আইটেম। ইস্যু করার আগে হ্যান্ডলিং নির্দেশনা পড়েছেন বলে নিশ্চিত করুন। | **H** |
 
 ### 3.5 Finance — `common.error.fin.*` (`M19`, `M20`, `M51`)
 
 | Situation | Key | Message EN | Class |
 |---|---|---|:--:|
-| Closed period | `common.error.fin.period_closed` | {period} is closed. Post this to the current period, or ask Finance to reopen {period}. | **H** |
-| Missing tax class | `common.error.fin.no_tax_class` | {item} has no tax class, so a compliant invoice cannot be issued. Ask Finance to set the tax class. | **H** |
-| Missing BIN | `common.error.fin.bin_required` | A VAT invoice to a business needs the buyer's BIN. Add the BIN to {customer}, or issue to an individual. | **H** |
-| Unverified tax code | `common.error.fin.tax_unverified` | This tax code is not yet verified for {fiscal_year}, so it cannot be used. Finance is completing verification. | **H** |
-| Dimension missing | `common.error.fin.dimension_required` | {account} needs a {dimension}. Select one. | **H** |
+| Closed period | `common.error.fin.period_closed` | {period} is closed. Post this to the current period, or ask Finance to reopen {period}. | {period} বন্ধ। বর্তমান পিরিয়ডে পোস্ট করুন, বা ফাইন্যান্সকে {period} পুনরায় খুলতে বলুন। | **H** |
+| Missing tax class | `common.error.fin.no_tax_class` | {item} has no tax class, so a compliant invoice cannot be issued. Ask Finance to set the tax class. | {item}-এর কোনো ট্যাক্স ক্লাস নেই, তাই সামঞ্জস্যপূর্ণ চালান ইস্যু করা যাবে না। ফাইন্যান্সকে ট্যাক্স ক্লাস সেট করতে বলুন। | **H** |
+| Missing BIN | `common.error.fin.bin_required` | A VAT invoice to a business needs the buyer's BIN. Add the BIN to {customer}, or issue to an individual. | ব্যবসায়িক প্রতিষ্ঠানের ভ্যাট চালানে ক্রেতার BIN দরকার। {customer}-এ BIN যোগ করুন, বা ব্যক্তি হিসেবে ইস্যু করুন। | **H** |
+| Unverified tax code | `common.error.fin.tax_unverified` | This tax code is not yet verified for {fiscal_year}, so it cannot be used. Finance is completing verification. | এই ট্যাক্স কোডটি {fiscal_year}-এর জন্য এখনো যাচাই হয়নি, তাই ব্যবহার করা যাবে না। ফাইন্যান্স যাচাই সম্পন্ন করছে। | **H** |
+| Dimension missing | `common.error.fin.dimension_required` | {account} needs a {dimension}. Select one. | {account}-এর জন্য একটি {dimension} দরকার। একটি নির্বাচন করুন। | **H** |
 
 ---
 

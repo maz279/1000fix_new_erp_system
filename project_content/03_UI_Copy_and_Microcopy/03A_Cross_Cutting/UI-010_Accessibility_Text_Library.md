@@ -107,12 +107,12 @@ object**.
 
 | Event | Key | Announcement EN | Politeness |
 |---|---|---|---|
-| Record saved | `common.a11y.live.saved` | {object} saved | polite |
-| Validation failed | `common.a11y.live.invalid` | {count} fields need attention | **assertive** |
-| Status changed | `common.a11y.live.status` | {object} is now {status} | polite |
-| Results updated | `common.a11y.live.results` | {count} results | polite |
-| Sync state | `common.a11y.live.sync` | {sync_state} | polite |
-| Session expiring | `common.a11y.live.session` | Session ends in {minutes} minutes | **assertive** |
+| Record saved | `common.a11y.live.saved` | {object} saved | {object} সংরক্ষিত হয়েছে | polite |
+| Validation failed | `common.a11y.live.invalid` | {count} fields need attention | {count}টি ফিল্ডে মনোযোগ দরকার | **assertive** |
+| Status changed | `common.a11y.live.status` | {object} is now {status} | {object} এখন {status} | polite |
+| Results updated | `common.a11y.live.results` | {count} results | {count}টি ফলাফল | polite |
+| Sync state | `common.a11y.live.sync` | {sync_state} | সিঙ্ক অবস্থা: {sync_state} | polite |
+| Session expiring | `common.a11y.live.session` | Session ends in {minutes} minutes | সেশন শেষ হবে {minutes} মিনিটে | **assertive** |
 
 ### 3.3 Screen-reader-only text — `common.a11y.sr.*`
 
@@ -122,7 +122,7 @@ object**.
 | Table caption | `common.a11y.sr.table` | {object}, {rows} rows, sortable | {object}, {rows} সারি, সাজানো যায় |
 | Required marker | `common.a11y.sr.required` | required | আবশ্যক |
 | External link | `common.a11y.sr.external` | opens in a new tab | নতুন ট্যাবে খোলে |
-| File link | `common.a11y.sr.file` | {format}, {size} | {format}, {size} |
+| File link | `common.a11y.sr.file` | {format}, {size} | {format} ফরম্যাট, আকার {size} | {format}, {size} |
 | Current page | `common.a11y.sr.current` | current page | বর্তমান পাতা |
 
 ### 3.4 Alt text patterns — `common.a11y.alt.*`

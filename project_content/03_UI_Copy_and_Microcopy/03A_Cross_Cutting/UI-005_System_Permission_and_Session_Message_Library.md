@@ -114,10 +114,10 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Situation | Key | Message EN | Note |
 |---|---|---|---|
-| Planned maintenance | `common.system.maintenance` | 1000FiX is unavailable until {time} for planned maintenance. Call 16743 for urgent service. | Window constrained by `NFR-049` |
-| Degraded | `common.system.degraded` | {feature} is not working right now. {fallback} Everything else is working normally. | `IP-09` fallback named |
-| Rate limited | `common.system.rate_limited` | Too many requests. Wait {seconds} seconds and try again. | `PS-02` |
-| Version mismatch | `common.system.version_old` | Update the app to continue. This version is no longer supported. | `OP-011` forced upgrade |
+| Planned maintenance | `common.system.maintenance` | 1000FiX is unavailable until {time} for planned maintenance. Call 16743 for urgent service. | পরিকল্পিত রক্ষণাবেক্ষণের জন্য {time} পর্যন্ত 1000FiX ব্যবহারযোগ্য নয়। জরুরি সেবার জন্য 16743 নম্বরে কল করুন। | Window constrained by `NFR-049` |
+| Degraded | `common.system.degraded` | {feature} is not working right now. {fallback} Everything else is working normally. | {feature} এখন কাজ করছে না। {fallback} বাকি সবকিছু স্বাভাবিক চলছে। | `IP-09` fallback named |
+| Rate limited | `common.system.rate_limited` | Too many requests. Wait {seconds} seconds and try again. | অনেক বেশি অনুরোধ হয়েছে। {seconds} সেকেন্ড অপেক্ষা করে আবার চেষ্টা করুন। | `PS-02` |
+| Version mismatch | `common.system.version_old` | Update the app to continue. This version is no longer supported. | চালিয়ে যেতে অ্যাপটি আপডেট করুন। এই সংস্করণটি আর সমর্থিত নয়। | `OP-011` forced upgrade |
 
 ---
 

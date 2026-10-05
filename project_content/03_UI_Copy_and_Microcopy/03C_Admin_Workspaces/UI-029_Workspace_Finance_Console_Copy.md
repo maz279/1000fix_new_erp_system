@@ -102,10 +102,10 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Period closed | `ws.finance.error.period` | {period} is closed. Post to the current period, or ask Finance to reopen it. | **H** |
-| No tax class | `ws.finance.error.tax_class` | {item} has no tax class, so a compliant invoice cannot be issued. | **H** |
-| BIN missing | `ws.finance.error.bin` | A VAT invoice to a business needs the buyer BIN. Add it to {customer}. | **H** |
-| Order not complete | `ws.finance.error.not_complete` | An invoice cannot be raised for an order that is not completed. | **H** |
+| Period closed | `ws.finance.error.period` | {period} is closed. Post to the current period, or ask Finance to reopen it. | {period} বন্ধ। বর্তমান পিরিয়ডে পোস্ট করুন, বা ফাইন্যান্সকে পুনরায় খুলতে বলুন। | **H** |
+| No tax class | `ws.finance.error.tax_class` | {item} has no tax class, so a compliant invoice cannot be issued. | {item}-এর কোনো ট্যাক্স ক্লাস নেই, তাই সামঞ্জস্যপূর্ণ চালান ইস্যু করা যাবে না। | **H** |
+| BIN missing | `ws.finance.error.bin` | A VAT invoice to a business needs the buyer BIN. Add it to {customer}. | ব্যবসার ভ্যাট চালানে ক্রেতার BIN দরকার। {customer}-এ যোগ করুন। | **H** |
+| Order not complete | `ws.finance.error.not_complete` | An invoice cannot be raised for an order that is not completed. | সম্পন্ন না হওয়া অর্ডারের চালান ইস্যু করা যায় না। | **H** |
 
 ---
 

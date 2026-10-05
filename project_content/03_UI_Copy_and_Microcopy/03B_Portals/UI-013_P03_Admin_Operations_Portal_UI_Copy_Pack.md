@@ -92,7 +92,7 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 |---|---|---|---|---:|
 | Result count | `p03.list.count` | {count} {object} | {count}টি {object} | 40 |
 | Selection | `p03.list.selected` | {n} selected of {total} | {total}-এর মধ্যে {n}টি নির্বাচিত | 40 |
-| Bulk action | `p03.list.bulk` | {action} {n} | {action} {n} | 20 |
+| Bulk action | `p03.list.bulk` | {action} {n} | {action} — {n}টি | {action} {n} | 20 |
 | Saved view | `p03.list.saved_view` | Saved views | সংরক্ষিত ভিউ | 24 |
 | Export | `p03.list.export` | Export | এক্সপোর্ট | 20 |
 
@@ -121,9 +121,9 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Bulk over limit | `p03.error.bulk_limit` | Bulk actions apply to at most {max} records. Narrow your filter. | **H** |
-| Export too large | `p03.error.export_size` | This export has {rows} rows. Schedule it instead — we will email it when ready. | **S** |
-| Stale record | `p03.error.stale` | {user} changed this while you were editing. Review their change before saving. | **H** |
+| Bulk over limit | `p03.error.bulk_limit` | Bulk actions apply to at most {max} records. Narrow your filter. | বাল্ক অ্যাকশন সর্বোচ্চ {max}টি রেকর্ডে প্রযোজ্য। ফিল্টার সংকুচিত করুন। | **H** |
+| Export too large | `p03.error.export_size` | This export has {rows} rows. Schedule it instead — we will email it when ready. | এই এক্সপোর্টে {rows}টি সারি আছে। এটি শিডিউল করুন — প্রস্তুত হলে ইমেইলে পাঠানো হবে। | **S** |
+| Stale record | `p03.error.stale` | {user} changed this while you were editing. Review their change before saving. | আপনি সম্পাদনার সময় {user} এটি পরিবর্তন করেছেন। সংরক্ষণের আগে সেই পরিবর্তনটি দেখে নিন। | **H** |
 
 ---
 

@@ -84,20 +84,20 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Surface | Key | Heading EN | Body EN | Action |
 |---|---|---|---|---|
-| Customer services | `p01.empty.orders` | No services yet | When you book a service it will appear here with live status. | Book a service |
-| Customer devices | `p01.empty.devices` | No devices registered | Register a device to see its warranty and service history. | Register a device |
-| Technician jobs | `p02.empty.jobs` | No jobs assigned | Your jobs for today will appear here. Pull down to refresh. | — |
-| Dispatch queue | `ws.empty.dispatch_queue` | No unassigned jobs | Every job in your zones is assigned. | — |
-| Workshop bench | `ws.empty.workshop` | No jobs on the bench | Jobs appear here when they are received at the workshop. | — |
-| Invoices | `ws.empty.invoices` | No invoices in this period | Invoices appear here once orders are completed and billed. | — |
+| Customer services | `p01.empty.orders` | No services yet | এখনো কোনো সার্ভিস নেই | When you book a service it will appear here with live status. | Book a service |
+| Customer devices | `p01.empty.devices` | No devices registered | কোনো ডিভাইস নিবন্ধিত নেই | Register a device to see its warranty and service history. | Register a device |
+| Technician jobs | `p02.empty.jobs` | No jobs assigned | কোনো কাজ নির্ধারিত নেই | Your jobs for today will appear here. Pull down to refresh. | — |
+| Dispatch queue | `ws.empty.dispatch_queue` | No unassigned jobs | কোনো অনির্ধারিত কাজ নেই | Every job in your zones is assigned. | — |
+| Workshop bench | `ws.empty.workshop` | No jobs on the bench | বেঞ্চে কোনো কাজ নেই | Jobs appear here when they are received at the workshop. | — |
+| Invoices | `ws.empty.invoices` | No invoices in this period | এই সময়ে কোনো চালান নেই | Invoices appear here once orders are completed and billed. | — |
 
 ### 3.2 No results — `common.empty.no_results.*`
 
 | Key | Heading EN | Body EN | Action |
 |---|---|---|---|
-| `common.empty.no_results.search` | No matches for "{query}" | Check the spelling, or search by reference, mobile number or serial number. | Clear search |
-| `common.empty.no_results.filter` | No records match these filters | {filter_count} filters are applied. | Clear all filters |
-| `common.empty.no_results.date` | Nothing in {period} | Try a wider date range. | Change dates |
+| `common.empty.no_results.search` | No matches for "{query}" | “{query}”-এর জন্য কোনো মিল নেই | Check the spelling, or search by reference, mobile number or serial number. | Clear search |
+| `common.empty.no_results.filter` | No records match these filters | এই ফিল্টারে কোনো রেকর্ড মেলে না | {filter_count} filters are applied. | Clear all filters |
+| `common.empty.no_results.date` | Nothing in {period} | {period}-এ কিছু নেই | Try a wider date range. | Change dates |
 
 > The filter count is stated so the user can see **why** nothing is shown (`VB-006` ES-03).
 
@@ -105,9 +105,9 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Key | Heading EN | Body EN | Action |
 |---|---|---|---|
-| `common.empty.not_configured.master_data` | {dataset} is not set up yet | {owner_role} configures this. Until then, {consequence}. | Contact {owner_role} |
-| `common.empty.not_configured.price_list` | No price list for {segment} | Pricing is set by Commercial. Estimates cannot be created for this segment until it is. | — |
-| `common.empty.not_configured.zone` | This area is not covered yet | We do not offer on-site service here. You can use pick and drop, or visit {nearest_branch}. | See delivery options |
+| `common.empty.not_configured.master_data` | {dataset} is not set up yet | {dataset} এখনো সেটআপ করা হয়নি | {owner_role} configures this. Until then, {consequence}. | Contact {owner_role} |
+| `common.empty.not_configured.price_list` | No price list for {segment} | {segment}-এর জন্য কোনো প্রাইস লিস্ট নেই | Pricing is set by Commercial. Estimates cannot be created for this segment until it is. | — |
+| `common.empty.not_configured.zone` | This area is not covered yet | এই এলাকা এখনো কভার করা হয়নি | We do not offer on-site service here. You can use pick and drop, or visit {nearest_branch}. | See delivery options |
 
 ### 3.4 No permission — `common.empty.no_permission.*`
 
@@ -121,10 +121,10 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Surface | Key | Heading EN | Body EN |
 |---|---|---|---|
-| `P01` first login | `p01.firstrun.welcome` | Welcome to 1000FiX | Book a service, track it live, and keep your device history in one place. |
-| `P02` first login | `p02.firstrun.welcome` | Your jobs, offline | Everything here works without a connection. Your work syncs when you reconnect. |
-| `P03` first login | `ws.firstrun.welcome` | Choose your workspace | Each workspace opens on the work your role actually does. |
-| `P09` first login | `p09.firstrun.welcome` | Today's manifest | Scan, deliver, collect. Works offline. |
+| `P01` first login | `p01.firstrun.welcome` | Welcome to 1000FiX | 1000FiX-এ স্বাগতম | Book a service, track it live, and keep your device history in one place. |
+| `P02` first login | `p02.firstrun.welcome` | Your jobs, offline | আপনার কাজ, অফলাইনেও | Everything here works without a connection. Your work syncs when you reconnect. |
+| `P03` first login | `ws.firstrun.welcome` | Choose your workspace | আপনার ওয়ার্কস্পেস বেছে নিন | Each workspace opens on the work your role actually does. |
+| `P09` first login | `p09.firstrun.welcome` | Today's manifest | আজকের ম্যানিফেস্ট | Scan, deliver, collect. Works offline. |
 
 ---
 

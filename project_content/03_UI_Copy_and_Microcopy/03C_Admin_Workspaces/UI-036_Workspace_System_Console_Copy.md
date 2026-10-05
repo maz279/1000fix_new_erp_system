@@ -102,9 +102,9 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| SoD conflict | `ws.system.error.sod` | {role_a} and {role_b} cannot be held together. CFO or CTO can authorise a time-boxed exception. | **A** |
-| Unregistered role | `ws.system.error.role_unregistered` | {role} is not registered in the role matrix and cannot be granted. | **H** |
-| Leaver active | `ws.system.error.leaver` | {user} left on {date} but still has access. Revoke it. | **H** |
+| SoD conflict | `ws.system.error.sod` | {role_a} and {role_b} cannot be held together. CFO or CTO can authorise a time-boxed exception. | {role_a} ও {role_b} একসঙ্গে রাখা যায় না। CFO বা CTO সময়সীমাযুক্ত ব্যতিক্রম অনুমোদন করতে পারেন। | **A** |
+| Unregistered role | `ws.system.error.role_unregistered` | {role} is not registered in the role matrix and cannot be granted. | {role} রোল ম্যাট্রিক্সে নিবন্ধিত নয়, তাই প্রদান করা যাবে না। | **H** |
+| Leaver active | `ws.system.error.leaver` | {user} left on {date} but still has access. Revoke it. | {user} {date} তারিখে চলে গেছেন কিন্তু এখনো অ্যাক্সেস আছে। তা বাতিল করুন। | **H** |
 
 ---
 

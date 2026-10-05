@@ -1,5 +1,12 @@
 # 1000 FiX ERP — Front-End Prototype (8-Portal Integrated Smart Service Platform)
 
+> **FROZEN — READ-ONLY REFERENCE (PP0-M05, 2026-10-05).** This prototype is the
+> porting baseline for the production programme (`prototype_porting/`). Its
+> payloads are consumed by generators (`generate-nav-registry.py`,
+> `generate-prototype-copy-pack.py`, the Service-Teal token port). Do not edit,
+> extend or "improve" it — any change invalidates the baseline and the
+> generated contracts. Production work happens in `1000_fix_codebase/`.
+
 A **100% working, dependency-free front-end prototype** of the full 1000 FiX ERP: every
 module, sub-module, function, screen, form, report, portal, journey, and navigation path
 renders and responds in a plain browser — no build step, no server, no npm install.

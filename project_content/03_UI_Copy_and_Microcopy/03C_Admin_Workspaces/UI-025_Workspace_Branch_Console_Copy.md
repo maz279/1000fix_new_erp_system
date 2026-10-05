@@ -103,8 +103,8 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Cash variance | `ws.branch.error.cash_variance` | Counted {counted}, expected {expected}. Record a reason before closing. | **H** |
-| Uncollected overdue | `ws.branch.error.uncollected` | {count} devices are past {days} days. Contact the customers before any disposal step. | **S** |
+| Cash variance | `ws.branch.error.cash_variance` | Counted {counted}, expected {expected}. Record a reason before closing. | গোনা হয়েছে {counted}, প্রত্যাশিত {expected}। বন্ধ করার আগে কারণ লিখুন। | **H** |
+| Uncollected overdue | `ws.branch.error.uncollected` | {count} devices are past {days} days. Contact the customers before any disposal step. | {count}টি ডিভাইস {days} দিন পার হয়ে গেছে। যেকোনো নিষ্পত্তির ধাপের আগে গ্রাহকদের যোগাযোগ করুন। | **S** |
 
 ---
 

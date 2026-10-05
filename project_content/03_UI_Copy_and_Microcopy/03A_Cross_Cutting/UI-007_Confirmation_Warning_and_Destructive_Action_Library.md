@@ -97,19 +97,19 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Action | Key | Title EN | Body EN | Primary | Secondary |
 |---|---|---|---|---|---|
-| Cancel order | `common.confirm.order.cancel` | Cancel this service order | The customer will be notified by SMS. {parts_count} reserved parts will return to stock. The device is still at {branch} and must be returned or the order re-raised. This cannot be undone. | Cancel order | Keep order |
-| Reassign job | `common.confirm.job.reassign` | Reassign this job to {technician} | {current_technician} will be notified. Any parts already reserved stay with the job. | Reassign | Keep assignment |
-| Close without QC | `common.confirm.order.close_no_qc` | This order has no recorded quality check | Completing without a passed checklist is blocked. Complete the checklist, or request an exception from {quality_manager}. | Complete checklist | Go back |
-| Mark beyond repair | `common.confirm.order.ber` | Mark this device beyond economic repair | The customer must confirm this decision before the device is returned or disposed of. Record their decision. | Record decision | Go back |
+| Cancel order | `common.confirm.order.cancel` | Cancel this service order | এই সার্ভিস অর্ডারটি বাতিল করুন | The customer will be notified by SMS. {parts_count} reserved parts will return to stock. The device is still at {branch} and must be returned or the order re-raised. This cannot be undone. | Cancel order | Keep order |
+| Reassign job | `common.confirm.job.reassign` | Reassign this job to {technician} | এই কাজটি {technician}-এর কাছে পুনর্নির্ধারণ করুন | {current_technician} will be notified. Any parts already reserved stay with the job. | Reassign | Keep assignment |
+| Close without QC | `common.confirm.order.close_no_qc` | This order has no recorded quality check | এই অর্ডারে কোনো কোয়ালিটি চেক নথিভুক্ত হয়নি | Completing without a passed checklist is blocked. Complete the checklist, or request an exception from {quality_manager}. | Complete checklist | Go back |
+| Mark beyond repair | `common.confirm.order.ber` | Mark this device beyond economic repair | এই ডিভাইসটি মেরামতের অযোগ্য (BER) হিসেবে চিহ্নিত করুন | The customer must confirm this decision before the device is returned or disposed of. Record their decision. | Record decision | Go back |
 
 ### 3.3 Financial — `common.confirm.fin.*`
 
 | Action | Key | Title EN | Body EN | Primary | Secondary |
 |---|---|---|---|---|---|
-| Post invoice | `common.confirm.fin.post` | Post invoice {reference} | Posting creates the statutory record and allocates the next Mushak number. A posted invoice can only be corrected by a credit note. | Post invoice | Go back |
-| Void invoice | `common.confirm.fin.void` | Void invoice {reference} | The number stays allocated and is recorded as void — statutory sequences cannot have gaps. Record a reason. | Void invoice | Keep invoice |
-| Refund | `common.confirm.fin.refund` | Refund {amount} to {customer} | The refund goes back to {method} and takes {days} days to reach them. This cannot be undone. | Refund {amount} | Go back |
-| Write off | `common.confirm.fin.writeoff` | Write off {amount} | This is recorded against {cost_centre} and appears in the monthly write-off report. Record a reason. | Write off | Go back |
+| Post invoice | `common.confirm.fin.post` | Post invoice {reference} | চালান {reference} পোস্ট করুন | Posting creates the statutory record and allocates the next Mushak number. A posted invoice can only be corrected by a credit note. | Post invoice | Go back |
+| Void invoice | `common.confirm.fin.void` | Void invoice {reference} | চালান {reference} বাতিল করুন | The number stays allocated and is recorded as void — statutory sequences cannot have gaps. Record a reason. | Void invoice | Keep invoice |
+| Refund | `common.confirm.fin.refund` | Refund {amount} to {customer} | {customer}-কে {amount} ফেরত দিন | The refund goes back to {method} and takes {days} days to reach them. This cannot be undone. | Refund {amount} | Go back |
+| Write off | `common.confirm.fin.writeoff` | Write off {amount} | {amount} রাইট-অফ করুন | This is recorded against {cost_centre} and appears in the monthly write-off report. Record a reason. | Write off | Go back |
 
 ### 3.4 Override — `common.confirm.override.*`
 
@@ -118,17 +118,17 @@ authority.
 
 | Key | Title EN | Body EN | Fields |
 |---|---|---|---|
-| `common.confirm.override.request` | Request an exception to {rule} | {rule_plain_language} {authoriser_role} can authorise an exception. Your reason is recorded against the transaction and reviewed monthly. | Reason (from `MD-026`, required) · Free text (required) |
-| `common.confirm.override.authorise` | Authorise this exception | {requester} asked to override {rule} on {object}. Reason: {reason}. Authorising is recorded against your name. | Decision · Note |
+| `common.confirm.override.request` | Request an exception to {rule} | {rule}-এর ব্যতিক্রমের অনুরোধ করুন | {rule_plain_language} {authoriser_role} can authorise an exception. Your reason is recorded against the transaction and reviewed monthly. | Reason (from `MD-026`, required) · Free text (required) |
+| `common.confirm.override.authorise` | Authorise this exception | এই ব্যতিক্রমটি অনুমোদন করুন | {requester} asked to override {rule} on {object}. Reason: {reason}. Authorising is recorded against your name. | Decision · Note |
 
 ### 3.5 Data and access — `common.confirm.data.*`
 
 | Action | Key | Title EN | Body EN | Primary |
 |---|---|---|---|---|
-| Archive record | `common.confirm.data.archive` | Archive {object} | It stops appearing in lists and cannot be used in new transactions. History is kept. You can restore it. | Archive |
-| Bulk action | `common.confirm.data.bulk` | {action} {count} records | This applies to all {count} selected records across {scope}. | {action} {count} |
-| Merge parties | `common.confirm.data.merge` | Merge {source} into {target} | All services, devices, contracts and invoices move to {target}. {source} is archived. This can be reversed for 30 days. | Merge |
-| Revoke access | `common.confirm.data.revoke` | Remove {user} from {role} | They lose access immediately and any pending approvals return to {approver}. | Remove access |
+| Archive record | `common.confirm.data.archive` | Archive {object} | {object} আর্কাইভ করুন | It stops appearing in lists and cannot be used in new transactions. History is kept. You can restore it. | Archive |
+| Bulk action | `common.confirm.data.bulk` | {action} {count} records | {count}টি রেকর্ডে {action} প্রয়োগ করুন | This applies to all {count} selected records across {scope}. | {action} {count} |
+| Merge parties | `common.confirm.data.merge` | Merge {source} into {target} | {source}-কে {target}-এর সঙ্গে একত্র করুন | All services, devices, contracts and invoices move to {target}. {source} is archived. This can be reversed for 30 days. | Merge |
+| Revoke access | `common.confirm.data.revoke` | Remove {user} from {role} | {user}-কে {role} থেকে সরিয়ে দিন | They lose access immediately and any pending approvals return to {approver}. | Remove access |
 
 ---
 

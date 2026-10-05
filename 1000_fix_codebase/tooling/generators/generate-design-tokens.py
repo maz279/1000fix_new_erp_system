@@ -8,6 +8,7 @@ conformance suite." This executable is the only writer of every realisation:
   addons/platform/cd_design_tokens/static/src/tokens.scss   R1 (Odoo bundler)
   libs/ts/ui/src/tokens/tokens.generated.ts                 R2 (Next.js portals)
   addons/platform/cd_design_tokens/static/src/tokens.css    R3 (QWeb reports)
+  libs/dart/fix_ui/theme/tokens.dart                        R4 (Flutter — PP0-M01-T02)
   tooling/design-system/tokens.flat.json                    conformance input
 
 No runtime authors a value; every runtime consumes a generated artefact.
@@ -28,6 +29,7 @@ GENERATED = {
     "scss": REPO / "addons/platform/cd_design_tokens/static/src/tokens.scss",
     "css": REPO / "addons/platform/cd_design_tokens/static/src/tokens.css",
     "ts": REPO / "libs/ts/ui/src/tokens/tokens.generated.ts",
+    "dart": REPO / "libs/dart/fix_ui/theme/tokens.dart",
     "flat": REPO / "tooling/design-system/tokens.flat.json",
 }
 
@@ -121,11 +123,27 @@ def main() -> int:
         "tokens": {path: value for path, value in flat},
     }
 
+    # R4 — Dart realisation (Flutter fix_ui theme). Dart identifiers cannot
+    # contain dots; the canonical path is preserved in a doc comment per
+    # constant so cross-runtime tracing stays possible (UX-001 §3.2).
+    dart_header = (
+        HEADER.replace("// GENERATED", "// GENERATED")
+        .replace("tokens.json (DTCG", "tokens.json (DTCG")
+    )
+    dart = [dart_header, "", "/// fix_ui theme constants — the R4 realisation.", "library;", ""]
+    for path, value in flat:
+        const = "t_" + path.replace(".", "_").replace("-", "_").lower()
+        dart.append(f"/// {path}")
+        dart.append(f"const String {const} = {json.dumps(value, ensure_ascii=False)};")
+    dart.append("")
+
     GENERATED["scss"].parent.mkdir(parents=True, exist_ok=True)
     GENERATED["scss"].write_text("\n".join(scss), encoding="utf-8", newline="\n")
     GENERATED["css"].write_text("\n".join(css), encoding="utf-8", newline="\n")
     GENERATED["ts"].parent.mkdir(parents=True, exist_ok=True)
     GENERATED["ts"].write_text("\n".join(ts), encoding="utf-8", newline="\n")
+    GENERATED["dart"].parent.mkdir(parents=True, exist_ok=True)
+    GENERATED["dart"].write_text("\n".join(dart), encoding="utf-8", newline="\n")
     GENERATED["flat"].parent.mkdir(parents=True, exist_ok=True)
     GENERATED["flat"].write_text(
         json.dumps(flat_doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"

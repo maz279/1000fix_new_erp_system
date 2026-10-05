@@ -103,8 +103,8 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| QC not passed | `ws.workshop.error.qc` | This cannot be completed. The quality checklist is not recorded as passed. | **H** |
-| Over standard time | `ws.workshop.error.over_time` | This job is {pct}% over the standard time of {standard} minutes. Record why. | **S** |
+| QC not passed | `ws.workshop.error.qc` | This cannot be completed. The quality checklist is not recorded as passed. | এটি সম্পন্ন করা যাবে না। কোয়ালিটি চেকলিস্ট এখনো পাস হিসেবে নথিভুক্ত হয়নি। | **H** |
+| Over standard time | `ws.workshop.error.over_time` | This job is {pct}% over the standard time of {standard} minutes. Record why. | এই কাজটি স্ট্যান্ডার্ড {standard} মিনিটের চেয়ে {pct}% বেশি সময় নিচ্ছে। কারণ লিখুন। | **S** |
 
 ---
 

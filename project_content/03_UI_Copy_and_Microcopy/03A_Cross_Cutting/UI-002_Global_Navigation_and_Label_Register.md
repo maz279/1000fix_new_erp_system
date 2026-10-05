@@ -71,13 +71,13 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Navigation label | Names the object | Entity | Never |
 |---|---|---|---|
-| Service orders | `fix.service.order` | `M01` | Jobs, tickets, cases |
-| Dispatch | `fix.dispatch.job` | `M02` | Assignments, routing |
-| Workshop | `fix.work.order` | `M31` | Bench, lab |
-| Devices | `fix.asset` | `M17` | Units, machines |
-| Parts | `fix.part` | `M15` | Spares, components |
-| Contracts | `fix.contract` | `M08` | Agreements, deals |
-| Warranty | `fix.warranty.register` | `M09` | Guarantees |
+| Service orders | `fix.service.order` | `M01` | সার্ভিস অর্ডার | Jobs, tickets, cases |
+| Dispatch | `fix.dispatch.job` | `M02` | ফিল্ড সার্ভিস ও ডিসপ্যাচ | Assignments, routing |
+| Workshop | `fix.work.order` | `M31` | ওয়ার্কশপ মেরামত | Bench, lab |
+| Devices | `fix.asset` | `M17` | ডিভাইস রেজিস্ট্রি | Units, machines |
+| Parts | `fix.part` | `M15` | স্পেয়ার পার্টস ও ইনভেন্টরি | Spares, components |
+| Contracts | `fix.contract` | `M08` | চুক্তি ব্যবস্থাপনা | Agreements, deals |
+| Warranty | `fix.warranty.register` | `M09` | ওয়ারেন্টি ও ক্লেইম | Guarantees |
 | Customers | `fix.party` + role | `M33` | Clients, consumers |
 
 > Bengali forms are **indicative pending `BN-003`**, which is the authoritative binding
@@ -91,7 +91,7 @@ Every term below is fixed by `CG-004`. **This pack cites; it never invents.**
 
 | Element | Key | English | Bengali | Max | Notes |
 |---|---|---|---|---:|---|
-| Product name | `common.nav.chrome.product` | 1000FiX | 1000FiX | — | Never transliterated (`VB-009` BR-01) |
+| Product name | `common.nav.chrome.product` | 1000FiX | 1000FiX সার্ভিসেস | 1000FiX | — | Never transliterated (`VB-009` BR-01) |
 | Search | `common.nav.chrome.search` | Search | অনুসন্ধান | 24 | Placeholder states scope (`VB-006` SF-01) |
 | Notifications | `common.nav.chrome.notifications` | Notifications | বিজ্ঞপ্তি | 24 |  |
 | Help | `common.nav.chrome.help` | Help | সহায়তা | 24 | Opens `HC` for this surface |
@@ -148,8 +148,8 @@ Not applicable — navigation labels carry no fields. Field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Remedy stated? | Class |
 |---|---|---|:--:|:--:|
-| Workspace not permitted | `common.nav.error.no_access` | This workspace is not part of your role. Ask your manager if you need access to {workspace}. | ✔ | **H** |
-| Surface unavailable | `common.nav.error.surface_down` | {surface} is unavailable. Other workspaces are working normally. We are restoring it. | ✔ | **S** |
+| Workspace not permitted | `common.nav.error.no_access` | This workspace is not part of your role. Ask your manager if you need access to {workspace}. | এই ওয়ার্কস্পেসটি আপনার ভূমিকার অন্তর্ভুক্ত নয়। {workspace} দরকার হলে আপনার ম্যানেজারের সঙ্গে যোগাযোগ করুন। | ✔ | **H** |
+| Surface unavailable | `common.nav.error.surface_down` | {surface} is unavailable. Other workspaces are working normally. We are restoring it. | {surface} এখন ব্যবহারযোগ্য নয়। অন্য সব ওয়ার্কস্পেস স্বাভাবিক চলছে। আমরা দ্রুত পুনরুদ্ধার করছি। | ✔ | **S** |
 
 ---
 

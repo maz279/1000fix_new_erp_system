@@ -199,6 +199,12 @@ def main() -> int:
     fields_by_model, relations = view_integrity.load_model_fields()
     violations.extend(view_integrity.check_views(fields_by_model, relations))
 
+    # 6 — PP0-M03-T02: the navigation registry is the expected menu universe.
+    # Every registry module mapped to cd/embedded/shared realisations must
+    # have its named module(s) in addons/; the non-cd kinds must appear
+    # verbatim in the mapping spec's exceptions (docs/navigation/...).
+    violations.extend(check_registry_coverage())
+
     if violations:
         print(f"portal-contract: FAIL - {len(violations)} violation(s):")
         for v in violations:
@@ -210,8 +216,56 @@ def main() -> int:
     )
     print(f"portal-contract: OK - 6 W1 workspaces gated under the shared root; "
           f"references resolve; sections [{section_counts}] within NVR-23; "
-          f"view fields resolve ({len(fields_by_model)} models)")
-    return 0
+          f"view fields resolve ({len(fields_by_model)} models); "
+          f"nav-registry module coverage verified")
+
+
+# ---------------------------------------------------- check 6 (PP0-M03-T02)
+
+MAPPING_DOC = REPO / "docs" / "navigation" / "registry-to-production-mapping.md"
+NAV_REGISTRY = REPO / "contracts" / "nav" / "registry.json"
+
+
+def parse_mapping_table() -> dict[str, tuple[str, str]]:
+    """{M-id: (kind, realisation)} from the binding mapping document."""
+    table: dict[str, tuple[str, str]] = {}
+    for line in MAPPING_DOC.read_text(encoding="utf-8").splitlines():
+        m = re.match(r"^\|\s*(M\d\d)\s*\|[^|]+\|\s*(\w[\w-]*)\s*\|\s*([^|]+)\|", line)
+        if m:
+            table[m.group(1)] = (m.group(2), m.group(3).strip())
+    return table
+
+
+def check_registry_coverage() -> list[str]:
+    import json as _json
+
+    v: list[str] = []
+    if not NAV_REGISTRY.exists():
+        return ["nav registry missing — run tooling/generators/generate-nav-registry.py"]
+    reg = _json.loads(NAV_REGISTRY.read_text(encoding="utf-8"))
+    mapping = parse_mapping_table()
+    reg_ids = [m["id"] for m in reg["modules"]]
+    missing_rows = sorted(set(reg_ids) - set(mapping))
+    if missing_rows:
+        v.append(f"mapping doc missing rows for registry modules: {missing_rows}")
+    # cd modules present in addons/ (by manifest existence)
+    present: set[str] = set()
+    for mf in ADDONS.rglob("__manifest__.py"):
+        present.add(mf.parent.name)
+    for mid, (kind, real) in sorted(mapping.items()):
+        if kind in ("cd", "embedded", "shared"):
+            # every cd-module NAME mentioned in the realisation cell
+            names = re.findall(r"cd_[a-z_]+", real)
+            if not names:
+                v.append(f"{mid}: kind {kind} but no cd module named in realisation")
+            for name in names:
+                if name not in present:
+                    v.append(f"{mid}: mapped module {name} not in addons/")
+        else:
+            # non-cd kinds must be declared in the spec's coverage statement
+            if kind not in ("odoo-core", "l4-embed", "l5-service", "planned", "pending"):
+                v.append(f"{mid}: unknown realisation kind {kind!r}")
+    return v
 
 
 if __name__ == "__main__":

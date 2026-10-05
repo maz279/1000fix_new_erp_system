@@ -103,8 +103,8 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Would go negative | `ws.inventory.error.negative` | Issuing {qty} would take {location} below zero. Count it, or record a receipt first. | **H** |
-| Wrong location | `ws.inventory.error.location` | {part} is not held at {location}. It is at {alt_location}. | **H** |
+| Would go negative | `ws.inventory.error.negative` | Issuing {qty} would take {location} below zero. Count it, or record a receipt first. | {qty} ইস্যু করলে {location} ঋণাত্মক হয়ে যাবে। গুনে নিন, বা আগে রিসিট নথিভুক্ত করুন। | **H** |
+| Wrong location | `ws.inventory.error.location` | {part} is not held at {location}. It is at {alt_location}. | {part} এই {location}-এ নেই; আছে {alt_location}-এ। | **H** |
 
 ---
 

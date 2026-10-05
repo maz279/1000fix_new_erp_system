@@ -122,9 +122,9 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| No device | `ws.intake.error.device_required` | An intake needs an identified device. Search, or register a new one. | **H** |
-| No accessories recorded | `ws.intake.error.accessories` | Record the accessories, or confirm there are none. This is the custody record. | **H** |
-| Duplicate open order | `ws.intake.error.duplicate` | {device} already has an open order {ref}. Continue anyway, or open the existing one. | **S** |
+| No device | `ws.intake.error.device_required` | An intake needs an identified device. Search, or register a new one. | ইনটেকের জন্য শনাক্ত করা একটি ডিভাইস দরকার। খুঁজুন, অথবা নতুন একটি নিবন্ধন করুন। | **H** |
+| No accessories recorded | `ws.intake.error.accessories` | Record the accessories, or confirm there are none. This is the custody record. | সঙ্গে থাকা জিনিসপত্র নথিভুক্ত করুন, বা কিছু নেই বলে নিশ্চিত করুন। এটিই কাস্টডি রেকর্ড। | **H** |
+| Duplicate open order | `ws.intake.error.duplicate` | {device} already has an open order {ref}. Continue anyway, or open the existing one. | {device}-এর ইতিমধ্যে একটি খোলা অর্ডার {ref} আছে। তবুও চালিয়ে যাবেন, নাকি আগেরটি খুলবেন? | **S** |
 
 ---
 

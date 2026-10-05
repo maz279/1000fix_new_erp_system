@@ -186,7 +186,7 @@ are declared explicitly; neither relies on a default.
 
 | Trigger | Key | Message EN | Remedy stated? | Rule ID |
 |---|---|---|:--:|---|
-| Key not found at render | `common.error.system.string_missing` | This text could not be loaded. Refresh the page. If it happens again, quote reference {ref}. | ✔ | — |
+| Key not found at render | `common.error.system.string_missing` | This text could not be loaded. Refresh the page. If it happens again, quote reference {ref}. | এই লেখাটি লোড করা যায়নি। পেজটি রিফ্রেশ করুন। বারবার ঘটলে রেফারেন্স {ref} উল্লেখ করে জানান। | ✔ | — |
 | Placeholder unresolved | — | **Build failure, never a runtime message.** An unresolved placeholder must fail CI | n/a | `K-07` |
 
 ---

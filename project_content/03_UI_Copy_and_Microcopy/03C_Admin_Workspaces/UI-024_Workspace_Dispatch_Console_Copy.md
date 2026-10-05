@@ -122,9 +122,9 @@ Shared field copy is `UI-003`.
 
 | Trigger | Key | Message EN | Class |
 |---|---|---|:--:|
-| Uncertified | `ws.dispatch.error.uncertified` | {technician} is not certified for {brand}. Assign someone certified, or ask Quality to renew. | **H** |
-| Outside zone | `ws.dispatch.error.zone` | {technician} does not cover {zone}. Assign anyway with a reason, or choose another. | **A** |
-| Overloaded | `ws.dispatch.error.overload` | {technician} already has {count} jobs today. Assign anyway? | **S** |
+| Uncertified | `ws.dispatch.error.uncertified` | {technician} is not certified for {brand}. Assign someone certified, or ask Quality to renew. | {technician} {brand}-এর জন্য সার্টিফাইড নন। সার্টিফাইড কাউকে দিন, বা কোয়ালিটিকে নবায়নের অনুরোধ করুন। | **H** |
+| Outside zone | `ws.dispatch.error.zone` | {technician} does not cover {zone}. Assign anyway with a reason, or choose another. | {technician} {zone} এলাকা কভার করেন না। কারণসহ তবুও নির্ধারণ করুন, বা অন্য কাউকে বেছে নিন। | **A** |
+| Overloaded | `ws.dispatch.error.overload` | {technician} already has {count} jobs today. Assign anyway? | {technician}-এর আজ ইতিমধ্যে {count}টি কাজ আছে। তবুও নির্ধারণ করবেন? | **S** |
 
 ---
 

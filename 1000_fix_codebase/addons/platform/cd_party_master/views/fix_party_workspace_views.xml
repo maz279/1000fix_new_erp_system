@@ -181,9 +181,9 @@
 
     <menuitem id="menu_fix_parties" name="Parties" parent="menu_fix_party_root"
               action="action_fix_parties" sequence="5"/>
-    <menuitem id="menu_fix_consent" name="Consent Records" parent="menu_fix_party_root"
+    <menuitem id="menu_fix_consent" name="Consent Records" parent="menu_fix_party_governance"
               action="action_fix_consent" sequence="30"/>
-    <menuitem id="menu_fix_dedup_rule" name="Dedup Rules" parent="menu_fix_party_root"
+    <menuitem id="menu_fix_dedup_rule" name="Dedup Rules" parent="menu_fix_party_governance"
               action="action_fix_dedup_rule" sequence="40"/>
 
 </odoo>

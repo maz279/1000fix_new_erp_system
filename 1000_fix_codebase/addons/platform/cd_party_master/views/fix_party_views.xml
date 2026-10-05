@@ -79,8 +79,12 @@
               parent="cd_entity_config.menu_fix_operations_root"
               groups="cd_rbac_ext.group_ws_party_master"
               sequence="50"/>
-    <menuitem id="menu_fix_party_role" name="Roles" parent="menu_fix_party_root"
+    <!-- NVR-23: the workspace carries at most 7 second-level sections, so
+         the governance surfaces nest one level under Data Governance. -->
+    <menuitem id="menu_fix_party_governance" name="Data Governance"
+              parent="menu_fix_party_root" sequence="90"/>
+    <menuitem id="menu_fix_party_role" name="Roles" parent="menu_fix_party_governance"
               action="action_fix_party_role" sequence="10"/>
-    <menuitem id="menu_fix_identity_document" name="Identity Documents" parent="menu_fix_party_root"
+    <menuitem id="menu_fix_identity_document" name="Identity Documents" parent="menu_fix_party_governance"
               action="action_fix_identity_document" sequence="20"/>
 </odoo>

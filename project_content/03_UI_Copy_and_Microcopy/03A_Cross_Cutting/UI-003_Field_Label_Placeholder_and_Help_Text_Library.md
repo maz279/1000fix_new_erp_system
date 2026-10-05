@@ -158,14 +158,14 @@ and where the data is held (`NFR-086`, `NFR-092`).
 
 | Trigger | Key | Message EN | Remedy? | Class |
 |---|---|---|---|:--:|
-| Required field empty | `common.error.field.required` | Enter {field}. | ✔ | **H** |
-| Mobile format | `common.error.field.mobile_format` | Enter the mobile number as 11 digits starting 01. | ✔ | **H** |
-| IMEI format | `common.error.field.imei_format` | Enter the IMEI as 15 digits with no spaces. | ✔ | **H** |
-| BIN format | `common.error.field.bin_format` | Enter the BIN as 13 digits. | ✔ | **H** |
-| Date format | `common.error.field.date_format` | Enter the date as DD/MM/YYYY. | ✔ | **H** |
-| Future date not allowed | `common.error.field.date_future` | The purchase date cannot be in the future. | ✔ | **H** |
-| Amount precision | `common.error.field.amount_precision` | Enter the amount with up to two decimal places. | ✔ | **H** |
-| Text too long | `common.error.field.max_length` | Shorten this to {max} characters. You have {current}. | ✔ | **S** |
+| Required field empty | `common.error.field.required` | Enter {field}. | {field} লিখুন। | ✔ | **H** |
+| Mobile format | `common.error.field.mobile_format` | Enter the mobile number as 11 digits starting 01. | মোবাইল নম্বরটি 01 দিয়ে শুরু 11 সংখ্যায় লিখুন। | ✔ | **H** |
+| IMEI format | `common.error.field.imei_format` | Enter the IMEI as 15 digits with no spaces. | IMEI হবে 15 সংখ্যা, কোনো ফাঁকা স্থান ছাড়া। | ✔ | **H** |
+| BIN format | `common.error.field.bin_format` | Enter the BIN as 13 digits. | BIN হবে 13 সংখ্যা। | ✔ | **H** |
+| Date format | `common.error.field.date_format` | Enter the date as DD/MM/YYYY. | তারিখ লিখুন DD/MM/YYYY আকারে। | ✔ | **H** |
+| Future date not allowed | `common.error.field.date_future` | The purchase date cannot be in the future. | কেনার তারিখ ভবিষ্যতে হতে পারে না। | ✔ | **H** |
+| Amount precision | `common.error.field.amount_precision` | Enter the amount with up to two decimal places. | পরিমাণ দশমিকের পরে সর্বোচ্চ দুই ঘরে লিখুন। | ✔ | **H** |
+| Text too long | `common.error.field.max_length` | Shorten this to {max} characters. You have {current}. | এটি সংক্ষিপ্ত করে {max} অক্ষরের মধ্যে আনুন। বর্তমানে {current} অক্ষর আছে। | ✔ | **S** |
 
 > These are **format** rules only — client-side validation never evaluates a business rule
 > (`PS-11`). Business-rule messages are `UI-004`.
