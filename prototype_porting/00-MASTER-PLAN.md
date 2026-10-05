@@ -43,7 +43,7 @@ dark mode, 3 densities, 8,566 deep-linkable routes verified with zero console er
 | **Flutter** for all mobile apps; one offline engine (`libs/dart/fix_offline`) | `D-027`, ADR-024, FL-03 | P02/P09/P11/APP-04 consume the engine; never re-implement sync. Flutter 3.44/Dart 3.12 web-verified: Impeller (Vulkan) default on Android, SwiftPM default on stable — **the roadmap's "Material/Cupertino out of core" detail was only partially corroborated; verify at fvm pin time (PP1)** |
 | No Vite, no fourth bundler | IR-002 §0.1 deviation 1 | Turbopack (Next), Odoo bundler (OWL), Flutter build only |
 | **APIs route through Kong 3.9** (in the local compose stack) | infra baseline | Portals talk to Kong, never directly to Odoo; CORS/rate-limit/header policy at the gateway (PP1) |
-| Bengali-first, `bn_BD.po` 100%, BN-007 formatting | DE-17, FF-25 | Prototype's 74-key app catalogue **+ its 17-key landing dictionary (`LAND_I18N`, inline in `index.html` — found by audit, count re-verified iteration 5)** merge into `libs/ts/i18n`; 110 counterpart-pending keys close |
+| Bengali-first, `bn_BD.po` 100%, BN-007 formatting | DE-17, FF-25 | Prototype's 74-key app catalogue **+ its 40-key landing dictionary (`LAND_I18N`, inline in `index.html`: 34 durable ported, 5 prototype-meta excluded, 1 locale-neutral excluded)** merge into `libs/ts/i18n`; 110 counterpart-pending keys closed (493 total keys) |
 | Accessibility: **WCAG 2.2 AA** is the programme standard | UX-005, QA-008 | The prototype's landing self-describes as WCAG **2.1** AA (audit finding) — porting targets 2.2 (a superset); no relaxation, recorded so nobody "discovers" the delta later |
 | Monetary = currency-carrying (AS-10); events via outbox (AS-08); no business logic in views (AS-09) | 05-06 | Portal screens call the OpenAPI surface; they never compute money or write state directly |
 | A developer workstation never holds production data | DE-12 | Seed stays synthetic-but-valid; real data only on migration staging/prod |
@@ -55,13 +55,14 @@ dark mode, 3 densities, 8,566 deep-linkable routes verified with zero console er
 
 ### Built and green — DO NOT DAMAGE
 - **Odoo backend estate**: 64 `cd_*` modules installed, 123 AS-02/03-conformant models,
-  531 addons tests + 194 service tests, fitness 6/6, Gates G0b–G8 all 0 FAIL,
+  531 addons tests + 194 service tests (725 total), fitness 8/8 (FF-38 blocking), Gates G0b–G8 all 0 FAIL,
   E2E smoke 14/14, deterministic seed covering every anchor + config master.
 - **Design-system foundation**: DTCG token generator (`tooling/generators/generate-design-tokens.py`)
-  → SCSS/CSS/TS/flat map; component contract (5 W1 components); CFM conformance suite
-  (`tooling/design-system/conformance.py`); `cd_design_tokens` OWL partials.
-- **i18n**: `libs/ts/i18n` generated registry — 294 keys, **110 counterpart-pending**;
+  → SCSS/CSS/TS/flat map; 231 tokens in Service-Teal (`#0E7A6E`) including dark shadows; component contract (5 W1 components + 13 archetypes + 8 charts); CFM conformance suite
+  (`tooling/design-system/conformance.py`, CFM 1–5 all PASS); `cd_design_tokens` OWL partials.
+- **i18n**: `libs/ts/i18n` generated registry — 493 keys, **0 counterpart-pending**;
   bn_BD.po 100% on all modules; BN-007 formatters.
+- **Navigation Registry**: `contracts/nav/registry.json` generated from prototype payload (67 modules, 278 groups, 823 screens, 346 reports, 266 forms, 5,100 functions, 10 journeys) and verified by CI check `check-nav-registry.py` (FF-38).
 - **Portal API surface (W4 slice)**: `services/portal-contracts/openapi-w4-portals.json`
   — 11 endpoints for P04/P08/P10/P06 (corporate estate, consolidated invoices, brand
   claims, contact conversations, analytics).
@@ -69,18 +70,18 @@ dark mode, 3 densities, 8,566 deep-linkable routes verified with zero console er
   `cd_corporate_portal` (P04 R3 slice), vendor/marketplace/partner backend surfaces.
 - **A11y harness**: Playwright + axe-core (WCAG 2.2 AA) + static expansion checks.
 
-### Gaps — this programme closes them
-| # | Gap | Evidence |
-|---|---|---|
-| G1 | Brand-token divergence: prototype is **Service-Teal** (`#0E7A6E`, 16-step ramp); production token source says **blue `#2563eb`** | `Front_end/css/tokens.css` vs `libs/ts/ui/src/tokens/tokens.json` |
-| G2 | `apps/web/` (7 Next.js portals) — **empty** | directory listing |
-| G3 | `apps/mobile/` (4 Flutter apps) — **empty** | directory listing |
-| G4 | `libs/ts/api-client/` — **does not exist** | roadmap tree vs codebase |
-| G5 | `contracts/openapi/`, `contracts/portal/` — **empty**; only the W4 slice exists outside it | `contracts/` listing |
-| G6 | Prototype navigation truth (nav_data 2,388 lines, 8,566 routes) — not ported to any registry | — |
-| G7 | `demo_data.js` fabrications — must never reach production | file exists, by design prototype-only |
-| G8 | 110 i18n keys counterpart-pending | registry counter |
-| G9 | Old `1000fix-portal-platform` on Next 15 — EOL, unmigratied (owner: CON-03 platform team; ERP blocked-by) | `W0-05` plan |
+### Gaps Status — Closed in PP0 vs Open for PP1–PP7
+| # | Gap | Status | Resolution / Action Required |
+|---|---|---|---|
+| G1 | Brand-token divergence | **CLOSED (PP0)** | Reconciled to Service-Teal (`#0E7A6E`, 231 tokens); `:root` literal bridge fixed; CFM-01..05 all PASS |
+| G2 | `apps/web/` (7 Next.js portals) — empty | **OPEN (PP1/PP3/PP5)** | Scaffold 7 Next.js 16.3 apps in PP1; implement P04 in PP3; batch in PP5 |
+| G3 | `apps/mobile/` (4 Flutter apps) — empty | **OPEN (PP1/PP4)** | Scaffold Flutter apps in PP1; implement offline engine & screens in PP4 |
+| G4 | `libs/ts/api-client/` — does not exist | **OPEN (PP1)** | Build typed API client generated from OpenAPI specs in PP1-M02 |
+| G5 | `contracts/openapi/`, `contracts/portal/` — empty | **OPEN (PP1)** | Populate with OpenAPI specs per portal; add PDPA consent endpoints |
+| G6 | Prototype navigation truth unbacked | **CLOSED (PP0)** | Generated `contracts/nav/registry.json` (67/278/823/346/266/5,100); enforced by FF-38 |
+| G7 | `demo_data.js` fabrications | **OPEN (PP6)** | Enforce anti-fixture CI gate; seed as sole test data; live API reads |
+| G8 | 110 i18n keys counterpart-pending | **CLOSED (PP0)** | Merged into copy-pack UI-900; 493 keys, 0 counterpart-pending |
+| G9 | Old `1000fix-portal-platform` on Next 15 | **MANAGED** | Greenfield Next 16.3 apps in monorepo per D-026 rollback rule; external migration tracked |
 
 ## 4. Architecture: where each prototype surface lands
 

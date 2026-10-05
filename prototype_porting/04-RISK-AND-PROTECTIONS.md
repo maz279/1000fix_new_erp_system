@@ -17,6 +17,9 @@ regress it.** Every protection below is a standing rule for all PP phases.
 | P-08 | Anti-fixture gate (PP1-M04-T01) runs from PP1 onward — failures fail the build | CI |
 | P-09 | Secrets only from env; SSRF guard on all server-side fetches (Mimosa constraints) | Hook + code review |
 | P-10 | Rollback: each PP phase ships behind its own feature flag (Odoo menu groups for R1; env flags per portal for R2/R4) so a portal can be disabled without a redeploy | Flags via `fix.feature.flag` (pipeline-managed) |
+| P-11 | **Strict Portal-to-Gateway Isolation (Zero Direct Backend Coupling)**: Portals in `apps/web/` and mobile apps in `apps/mobile/` talk *strictly* through Kong 3.9 API Gateway to OpenAPI contracts; zero direct database queries, zero direct ORM model imports | Architecture enforcement + lint rules forbidding raw DB or direct Odoo controller bindings |
+| P-12 | **Outbox Pattern Enforcement for State Mutations (AS-08)**: All portal mutations flow through domain events via `cd_event_outbox`; no cross-module synchronous writes from frontend controllers | Event outbox schema checks + unit tests |
+| P-13 | **Zero-Damage Automated Regression Tripwire**: Pre-merge CI battery (531 addons + 194 service = 725 tests, fitness 8/8, G0b–G8 gates, smoke 14/14) runs against every PP branch; any failure immediately blocks merge — zero excuses | Pre-merge CI pipeline |
 
 ## Risk register
 
@@ -38,6 +41,8 @@ regress it.** Every protection below is a standing rule for all PP phases.
 | R-14 | Next-16 breaking changes (`middleware.ts`→`proxy.ts`, Cache Components, Turbopack-only libs) surprise mid-build | M | M | PP1 breaking-changes checklist in the template; webpack-escape hatch documented but discouraged | FE |
 | R-15 | WCAG delta: prototype built/audited to 2.1 AA; programme requires 2.2 AA (superset — focus-appearance, dragging, target-size) | H | M | Priced as added scope in PP7; axe 2.2 ruleset + manual suite; the 8,566-route crawl is re-run against 2.2 checks | QA |
 | R-16 | Kong gateway misconfig (CORS/rate-limit) blocks all portals at once | L | H | Gateway config as code in the repo; contract tests run through Kong locally, not just direct-to-Odoo | DE |
+| R-17 | **Statutory financial drift** (TDS 10/15/20%, Mushak 9.1 VAT 15%, 13-digit BIN) — portal displays diverging from the backend tax engine *(corrected 2026-10-05: the CDBL tariff reference was wrong-domain and removed)* | M | H | Backend-only computation (03 §8); statutory cases embedded in OpenAPI contract tests (PS-11); any UI-computed tax figure is a review-blocking AS-09 violation | DA/FE |
+| R-18 | **PDPA identity/consent gaps at the portals** (SC-003/SC-008): consent captured without proof, NID mishandled, DSR requests unreachable *(reclassified 2026-10-05 — the earlier BFIU AML/CFT framing was wrong-domain; 1000FiX is not a BFIU reporting institution)* | M | H | PP1 consent endpoints (grant/withdraw + DSR submission); `fix.identity.document` verification states surfaced; per-portal ACL negative tests (smoke pattern) | SL/FE |
 
 ## Freeze & rollback
 

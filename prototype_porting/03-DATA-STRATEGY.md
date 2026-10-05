@@ -69,3 +69,57 @@ disappears, and no column renders fabricated fallbacks.
   applies to Next.js server components and Odoo alike.
 - Portals never write to the database directly: they call the OpenAPI surface (AS-09);
   state changes flow through the event outbox (AS-08).
+
+## 7. Statutory Regulatory Input Masking & Format Standards
+
+*(Corrected 2026-10-05 forensic audit: the CDBL BO-account row was removed —
+wrong business domain. Validation rules are grounded to what the estate
+actually enforces; "EC sandbox verification" and invented checksums were
+removed until a verified algorithm exists.)*
+
+All user-facing data entry fields across R1 (OWL) and R2 (Next.js) must enforce defensive input masking and regex validation matching Bangladesh statutory mandates:
+
+| Regulatory Identifier | Statutory Basis | Input Mask & Format | Validation Rule (as enforced in this estate) |
+|---|---|---|---|
+| **13-Digit BIN** | NBR VAT Act 2012 | `XXXXXXXXXXXXX` (13 numeric digits) | Digit-only + exact length (the `fix.mushak.register` constraint); no NBR-published checksum exists — length-only until one is verified |
+| **10-Digit Smart NID** | Election Commission | `XXXXXXXXXX` (10 digits) | Digit-only + length; synthetic range on dev (DE-12) |
+| **17-Digit Legacy NID** | Election Commission | `YYYYXXXXXXXXXXXXX` (17 digits) | Digit-only + length; year-of-birth prefix format |
+| **12-Digit e-TIN** | Income Tax Act 2023 | `XXXX-XXXX-XXXX` (12 digits, hyphenated) | Digit-only + length; no published checksum — the TDS-rate linkage (10/15/20%) is backend logic (cd_tax_engine_bd), not a mask |
+
+## 8. Financial Precision — the client renders, the backend computes
+
+*(Corrected 2026-10-05: the previous text prescribed client-side scaled-integer
+arithmetic and a UI-computed double-entry checksum — both violate AS-09 "no
+business logic in views" and AS-10 backend monetary authority. Odoo's
+`account.move` already refuses unbalanced entries server-side.)*
+
+- **Money math is backend-only** (AS-09/AS-10): tax, totals, allocations and
+  the Δ = Σdebits − Σcredits = 0 invariant are computed and enforced by Odoo
+  (Decimal, currency-carrying fields). The UI never performs monetary
+  arithmetic in any numeric type.
+- **Portals display what the API returns**: BN-007 formatters render South
+  Asian grouping (`1,23,45,678.00`) — formatting, not arithmetic. Where an
+  API returns an imbalance (a draft voucher), the UI **displays the
+  backend-computed variance** and disables submission against the backend's
+  own verdict — it does not recompute it.
+- **IEEE 754 therefore cannot drift** in the client, because the client holds
+  no monetary accumulation at all.
+
+## 9. Core Module Data-Shape Parity Schema Matrix
+
+*(Corrected 2026-10-05: three model names were fabricated by the earlier
+draft (`fix.front.desk.ticket`, `fix.device.registry`, `fix.tax.report` —
+none exist). Real models verified against the installed registry. The
+`/api/v1/*` endpoint paths are the PP1 PROPOSED surface — none exist today;
+only the W4 slice (11 paths) is real. `fix.front.desk.ticket` → the front-
+desk domain is `fix.token.queue` + `fix.walkin.intake` + `fix.cash.shift`.)*
+
+| Module | Prototype Columns to Guarantee | Target Odoo Model (REAL) / API Endpoint (PROPOSED) |
+|---|---|---|
+| **M01 Service Orders** | `id`, `order_no`, `customer_name`, `device_brand`, `device_model`, `fault_code`, `status`, `sla_deadline`, `priority`, `technician_id` | `fix.service.order` / `/api/v1/service-orders` *(proposed)* |
+| **M04 Front Desk** | `token_no`, `customer_phone`, `service_type`, `counter_no`, `wait_time`, `queue_status` | `fix.token.queue` + `fix.walkin.intake` + `fix.cash.shift` / `/api/v1/front-desk` *(proposed)* |
+| **M17 Device Registry** | `imei_serial`, `brand`, `model`, `warranty_status`, `coverage_end`, `ownership_status` | `fix.device` (+ `fix.device.ownership`, `fix.warranty`) / `/api/v1/devices` *(proposed)* |
+| **M19 Financial GL** | `voucher_no`, `date`, `account_code`, `account_name`, `debit_bdt`, `credit_bdt`, `reconciled` | `account.move` (+ `fix.gl_ext` dimensions) / `/api/v1/gl/entries` *(proposed)* |
+| **M20 AR & Invoicing** | `invoice_no`, `corporate_ou`, `gross_amount`, `vat_mushak`, `tds_withheld`, `net_payable`, `due_date` | `fix.ar.invoice` (cd_billing_engine) / `/api/v1/invoices` *(proposed)* |
+| **M33 Party Master** | `cif_id`, `party_name`, `party_type`, `bin`, `etin`, `nid`, `compliance_status`, `pep_sanctions_cleared` | `res.partner` + `fix.party.role`/`fix.identity.document`/`fix.consent` (cd_party_master) / `/api/v1/parties` *(proposed)* |
+| **M51 Tax Engine BD** | `mushak_form`, `tax_period`, `taxable_base`, `vat_rate`, `vds_applicable`, `challan_no`, `reconciliation_status` | `fix.mushak.register` + `fix.vat.return` + `fix.tds.return` (cd_tax_engine_bd) / `/api/v1/tax-reports` *(proposed)* |

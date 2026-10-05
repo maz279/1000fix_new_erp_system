@@ -9,23 +9,23 @@ A claim of 100% requires every row green, machine-checked where possible. Gate G
 |---|---|---|---|
 | D1 | Asset coverage — navigation registry fully resolved | Registry screen keys → Odoo menu/action (back office) or portal route (external); function register (5,100) → backend capability | 100% resolved; every exception documented with owner+date |
 | D2 | Report coverage | 346 registry reports → QWeb/Superset realisations | 100% |
-| D3 | Journey coverage | 10 journeys → E2E suites (web + mobile as applicable) | 100% pass |
+| D3 | Journey coverage | All 10 journeys (J01–J10) across 54 discrete steps mapped to automated Playwright (R1/R2) & Flutter Patrol (R4) test suites (`ARCHITECTURE_STATE.md` §8); 0 test flakiness | 100% pass |
 | D4 | Fixture-free artifacts | `check-no-fixtures.py` over apps/libs/shipped bundles | 0 findings |
 | D5 | No hard-coded data | grep sweeps: literals in render paths, PRNG in components, demo branches | 0 findings |
 | D6 | Same-code-path data | Screen renders from API in seed and prod modes; only API base URL differs by env | Verified per portal via staging UAT on migration-staging |
 | D7 | Tokens | One DTCG source; all runtimes generated; CFM-01…05 green on R1/R2/R4 (+R3/R5 where shipped) | Green ×5 realisations |
 | D8 | i18n | `counterpart_pending == 0`; bn_BD.po 100%; bn UI parity spot-suites; BN-007 formatters used for ৳/dates/numerals | 0 pending; parity pass |
-| D9 | Accessibility | axe + manual per QA-008: WCAG 2.2 AA on all portals; keyboard paths; focus rings; 390px responsive | 0 critical/serious |
-| D10 | Performance | P01 critical path < 400 KB gzip on 3G; Lighthouse budgets on all portals; OWL bundle budgets (Odoo asset bundle size guard) | Budgets met |
+| D9 | Accessibility (WCAG 2.2 AA) | axe-core + manual per QA-008: 0 critical/serious violations; touch targets at the house floor **`dimension.target.minimum = 44px`** (the DTCG token — 48px is not the contract); body-text contrast ≥ 4.5:1 (AA — 7:1 is AAA, applied only where the tokens already choose it); visible `:focus-visible` rings; modal focus traps; sequential headings | 0 critical/serious violations; per-portal audit trail |
+| D10 | Performance Budgets | P01 critical path < 400 KB gzip on 3G (the contractual budget — roadmap P02-M07-T07); Lighthouse budgets on all portals; OWL asset bundle budget guard. *(INP/LCP thresholds and 60 FPS on 10k-row grids: PROPOSED PP7 targets — benchmark and ratify before they become criteria; not current DoD)* | Contracted budgets met; proposed targets ratified-or-dropped with evidence |
 | D11 | Security | No credential literals; SSRF guard on server fetches; OIDC flows correct; portal ACL negative tests (portal user cannot reach back office — pattern exists in smoke) | Clean review + tests |
-| D12 | Offline (mobile) | L-suite (33 scripts) green; conflict disclosure states implemented; evidence channel non-blocking | Green |
+| D12 | Offline (mobile) | `libs/dart/fix_offline` engine verified: SQLCipher encryption, SP-07 upload-first journal, AR-010 3-way conflict state machine (financial server-authoritative, operational union-merge), L-suite (33 scripts) green, background binary media isolate non-blocking (`ARCHITECTURE_STATE.md` §7) | Green; 0 data loss under network partitions |
 | D13 | Contracts | Every API path in `contracts/openapi/` has PS-11 contract tests; zero undocumented paths used by apps | Green |
-| D14 | Build & deploy | `build once, promote`: same artefact promotes dev → test → staging → prod; health checks; DB migrations run; rollback rehearsed | Drill record |
-| D15 | Estate non-regression | Full battery (tests, fitness, comodel-deps, G0b–G8, smoke, seed double-run) green at every phase tag | Green at pp0…pp7 |
+| D14 | Build & deploy | `build once, promote`: same artefact promotes dev → test → staging → prod; health checks (`/healthz`, `/readyz`); DB migrations run; rollback rehearsed | Drill record |
+| D15 | Estate non-regression | Full battery (531 addons + 194 service = 725 tests, fitness 8/8, comodel-deps, G0b–G8, smoke 14/14, seed double-run) green at every phase tag | Green at pp0…pp7 |
 | D16 | Data readiness | Migration rehearsal at production volume with MIG-02 control totals reconciled; business sign-off recorded before any legacy decommission | Signed record |
-| D17 | Security headers (audit addition) | CSP with per-portal nonces; HSTS; `frame-ancestors` scoped for embedded BI; CORS pinned at Kong; header assertions in E2E | Automated header checks green |
-| D18 | Observability (audit addition) | OTel traces browser→Kong→Odoo on customer-critical paths; RUM metrics flowing to the existing TimescaleDB/Grafana stack; portal health dashboards live | Trace sampled end-to-end in staging; alerts wired |
-| D19 | External-fact currency | Every technology claim in this plan carries a verified-on date ≤ 90 days at execution time (version-currency ritual); `06-EXTERNAL-FACTS.md` updated at each phase gate | Ritual record at PP1/PP3/PP5/PP7 |
+| D17 | Security headers & Gateway Policy | CSP with per-portal cryptographic nonces; HSTS (`max-age=63072000; includeSubDomains; preload`); `frame-ancestors` strictly scoped for embedded BI (P06); CORS strictly pinned at Kong 3.9; automated header checks in CI | Automated header checks green |
+| D18 | Frontend Observability | OTel distributed traces (browser $\rightarrow$ Kong $\rightarrow$ Odoo) on all transactional workflows; RUM performance telemetry streaming to TimescaleDB/Grafana; error tracking & live alerts | End-to-end trace sampling verified; dashboards live |
+| D19 | External-fact currency | Every technology claim carries a verified-on date $\le 90$ days at execution time (version-currency ritual); `06-EXTERNAL-FACTS.md` updated at each phase gate | Ritual record at PP1/PP3/PP5/PP7 |
 
 ## Environment ladder (the twelve environments — named per the roadmap)
 
