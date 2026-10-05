@@ -812,6 +812,149 @@ def main() -> int:
                 })
         print("seed: projects (idempotent)")
 
+        # --- Phase 11 estate: data governance, IoT, e-waste (idempotent) ---
+        # 5 data entities (the catalogue)
+        for name, etype, cls in [
+            ("Service Orders Table", "table", "internal"),
+            ("Customer API Resource", "api", "confidential"),
+            ("Order Events Stream", "event", "internal"),
+            ("SLA Attainment KPI", "report", "internal"),
+            ("Identity Documents", "document", "residency_classified"),
+        ]:
+            if not c.first("fix.data.entity", [("name", "=", name)]):
+                c.call("fix.data.entity", "create", {
+                    "name": name,
+                    "entity_type": etype,
+                    "classification": cls,
+                    "retention_policy": "7 years (statutory)",
+                })
+        print("seed: data catalogue entities (idempotent)")
+
+        # 3 lineage chains
+        entities = c.call("fix.data.entity", "search", [], limit=5)
+        if len(entities) >= 3:
+            for i in range(3):
+                lname = f"Seed Lineage {i+1}"
+                if not c.first("fix.data.lineage", [("name", "=", lname)]):
+                    c.call("fix.data.lineage", "create", {
+                        "name": lname,
+                        "source_entity_id": entities[i],
+                        "target_entity_id": entities[i + 1] if i + 1 < len(entities) else entities[0],
+                        "transformation": f"dbt model seed_lineage_{i+1}",
+                        "lineage_order": i + 1,
+                    })
+            print("seed: data lineage chains (idempotent)")
+
+        # 3 DQ rules
+        for name, rtype in [("Orders Complete", "completeness"),
+                              ("Customer Unique", "uniqueness"),
+                              ("Events Fresh", "timeliness")]:
+            if not c.first("fix.data.quality.rule", [("name", "=", name)]):
+                c.call("fix.data.quality.rule", "create", {
+                    "name": name,
+                    "entity_id": entities[0] if entities else 1,
+                    "rule_type": rtype,
+                    "threshold": 95.0,
+                })
+        print("seed: data quality rules (idempotent)")
+
+        # 5 test-equipment records (M45; IoT + PdM need these to attach to)
+        for i in range(5):
+            ecode = f"SEED-EQ-{i+1:03d}"
+            if not c.first("fix.equipment", [("code", "=", ecode)]):
+                c.call("fix.equipment", "create", {
+                    "code": ecode,
+                    "name": f"Seed Equipment {i+1}",
+                    "category": rng.choice(
+                        ["multimeter", "thermal camera", "otp programmer"]),
+                })
+        equipment = c.call("fix.equipment", "search",
+                           [("code", "like", "SEED-EQ-")], limit=5)
+        print("seed: test equipment (idempotent)")
+
+        # 5 IoT devices
+        for i in range(5):
+            dname = f"Seed IoT Device {i+1}"
+            if not c.first("fix.iot.device", [("name", "=", dname)]):
+                c.call("fix.iot.device", "create", {
+                    "name": dname,
+                    "device_id": f"SEED-IOT-{i+1:03d}",
+                    "device_type": rng.choice(["sensor", "gateway", "tracker"]),
+                    "equipment_id": equipment[i] if i < len(equipment) else False,
+                    "status": "online",
+                })
+        print("seed: IoT devices (idempotent)")
+
+        # 20 telemetry records (unique timestamp per record keeps the
+        # per-record guard exact on reruns)
+        iot_devices = c.call("fix.iot.device", "search", [], limit=5)
+        for i in range(20):
+            dev = iot_devices[i % len(iot_devices)] if iot_devices else 1
+            ts = f"2026-10-05 10:{i:02d}:00"
+            if c.first("fix.iot.telemetry", [
+                    ("device_id", "=", dev),
+                    ("metric", "=", "temperature"),
+                    ("timestamp", "=", ts)]):
+                continue
+            c.call("fix.iot.telemetry", "create", {
+                "device_id": dev,
+                "timestamp": ts,
+                "metric": "temperature",
+                "value": round(rng.uniform(20, 45), 2),
+                "unit": "C",
+            })
+        print("seed: IoT telemetry records (idempotent)")
+
+        # 3 IoT alerts (name is sequence-generated; guard on message)
+        for i, sev in enumerate(["minor", "major", "minor"]):
+            msg = f"Seed alert {i+1}: temperature above threshold"
+            if not c.first("fix.iot.alert", [("message", "=", msg)]):
+                c.call("fix.iot.alert", "create", {
+                    "device_id": iot_devices[i] if iot_devices else 1,
+                    "severity": sev,
+                    "message": msg,
+                })
+        print("seed: IoT alerts (idempotent)")
+
+        # 2 predictive-maintenance predictions
+        for i, (pred, days) in enumerate([("failure_predicted", 7),
+                                           ("healthy", 0)]):
+            pname = f"Seed PdM Prediction {i+1}"
+            if equipment and not c.first("fix.predictive.maintenance",
+                                          [("name", "=", pname)]):
+                c.call("fix.predictive.maintenance", "create", {
+                    "name": pname,
+                    "equipment_id": equipment[i % len(equipment)],
+                    "prediction": pred,
+                    "confidence": round(rng.uniform(0.75, 0.98), 2),
+                    "estimated_days_to_failure": days,
+                })
+        print("seed: predictive maintenance predictions (idempotent)")
+
+        # 5 e-waste collections (name is sequence-generated; count-guard)
+        ew_count = c.call("fix.ewaste.collection", "search_count", [])
+        for i in range(max(0, 5 - ew_count)):
+            c.call("fix.ewaste.collection", "create", {
+                "customer_id": seed_customers[i] if seed_customers else 1,
+                "material_type": rng.choice(["phone", "laptop", "battery"]),
+                "weight_kg": round(rng.uniform(0.2, 3.0), 2),
+                "state": rng.choice(["collected", "triaged", "recycled"]),
+            })
+        print("seed: e-waste collections (idempotent)")
+
+        # 3 ESG metrics
+        for name, mtype, val in [("CO2 Saved Oct", "co2_saved", 150.5),
+                                   ("E-Waste Oct", "ewaste_collected", 45.2),
+                                   ("Refurbished Oct", "devices_refurbished", 12)]:
+            if not c.first("fix.esg.metric", [("name", "=", name)]):
+                c.call("fix.esg.metric", "create", {
+                    "name": name,
+                    "metric_type": mtype,
+                    "period": "2026-10",
+                    "value": val,
+                })
+        print("seed: ESG metrics (idempotent)")
+
     print("seed: done (deterministic for --seed " + args.seed + ")")
     return 0
 
