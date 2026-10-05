@@ -34,7 +34,7 @@ system with real/test data discipline and zero damage to the built estate.
 
 | Phase | State |
 |---|---|
-| PP0 Foundation Reconciliation | planned (start here) |
+| PP0 Foundation Reconciliation | **COMPLETE** (2026-10-05 — teal tokens ×5 realisations, i18n 493/0-pending, nav registry + checker, mapping spec 65/67, contract +13 archetypes/+8 charts, prototype frozen; battery + gates green) |
 | PP1 Platform Scaffolding | planned |
 | PP2 P03 Admin (OWL) | planned |
 | PP3 P04 Corporate slice | planned |

@@ -175,3 +175,45 @@ check in the ported meta-audit.
 **Verdict**: the plan's registry generator is now specified against the payload's real
 syntax with independently recomputed counts — the single highest-risk artifact (the
 navigation registry everything else consumes) is no longer specified from assumptions.
+
+---
+
+## PP0 execution record (2026-10-05) — three implementation iterations
+
+**Iteration 1 — implement** (commit `cfd52fdf1b`): all five PP0 milestones built and
+verified in-turn (details in the commit message and `BASELINE-PP0.md`). Mid-iteration
+defects caught and fixed at the time: LAND_I18N recount (40 keys, not 17 — the same
+line-anchored-regex artifact class), a no-Bengali counterpart that would have stayed
+pending forever (`p03.list.bulk`, now guarded by a startup assert), journey-step parser
+shape (`[['actor','desc','#route']]`, `]]` terminator), portal-row over-matching, the
+style-1 module body running past `};` into the assignment files (double count), and one
+en-cell mismatch caught by the applier's own verify step.
+
+**Iteration 2 — audit of the implementation**: blue `#2563eb` eradicated from live
+values (survives only in "replaced the interim blue" descriptions); teal present in all
+realisations; **found and fixed a stale loader comment** claiming "266 BN counterparts
+pending" (reality: 0 — note updated, commit `2ad8b047d8`); repo-formats initially red
+only because it demands generated artifacts be committed with their source (clean after
+commit — the check's contract working as designed); smoke 14/14; Odoo serving 200;
+pack content spot-checked. The extended portal-contract checker also **surfaced a real
+pre-existing regression**: `cd_party_master` had drifted to 10 second-level sections
+across phases 5–11 (NVR-23 max 7) — fixed by nesting the four governance surfaces
+under a Data Governance section; module upgraded on the live registry.
+
+**Iteration 3 — final verification**: fitness 8/8 (including the two new checks —
+`check-nav-registry` and the registry-coverage extension of `check_portal_contract`),
+CFM 1–5 green, contract carries exactly 13 archetype sections and 8 chart rows,
+nav-registry invariants all hold (counts, per-module ledger, unique ids, area
+integrity, i18n parity, freshness), gates G0b–G8 all 0 FAIL, 531 addons tests green,
+tree clean.
+
+**Exit criteria — all met**: tokens Service-Teal everywhere (CFM-03 WCAG AA) ✓ ·
+i18n 0 counterpart-pending (493 keys) ✓ · navigation registry generated + CI-checked ✓
+· contract covers the 13 archetypes + 8 charts ✓ · prototype frozen read-only with the
+baseline recorded ✓ · full battery green ✓.
+
+**Carried forward (on the record, not hidden)**: M10 Loyalty has no production
+realisation yet (mapping kind `pending`); M65 lands in Phase 12; the 5 prototype-meta
+landing keys and 1 locale-neutral key are deliberately not ported (data strategy);
+the PP2 exceptions register will record every module whose workspace sections nest
+beyond the prototype's group order.
