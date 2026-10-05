@@ -217,3 +217,27 @@ realisation yet (mapping kind `pending`); M65 lands in Phase 12; the 5 prototype
 landing keys and 1 locale-neutral key are deliberately not ported (data strategy);
 the PP2 exceptions register will record every module whose workspace sections nest
 beyond the prototype's group order.
+
+---
+
+## PP0 audit of the implementation (2026-10-05, user-commissioned — iteration 4 of PP0)
+
+Zero-trust re-verification of every PP0 artefact against the **running system**, not
+the committed files. One critical, three material findings — all fixed in-turn.
+
+| # | Finding | Evidence | Fix |
+|---|---|---|---|
+| P0-1 | **CRITICAL (pre-existing since Phase 4): the `:root` CSS-custom-property bridge was dead.** Sass preserves custom-property values verbatim, so `--fix-x: $ref` leaked 228 literal `$refs` into the compiled backend bundle — the design tokens were never reachable as CSS variables in Odoo; only the partials' inline `$var` use worked | Served `web.assets_web.min.css` carried `--fix-color-status-brand: $color-status-brand`; confirmed against the Sass spec (sass-lang.com, Custom Properties) | Generator now emits **values directly** in the `:root` block; module upgraded; live bundle re-verified: fresh hash, `--fix-color-status-brand: #0e7a6e`, **0 `$ref` leaks**, dark tokens present |
+| P0-2 | **Token-fidelity gap: dark-mode shadows never ported** (the programmatic diff of all 94 prototype CSS variables vs the DTCG tree — everything else matched under renamed keys) | diff output: 3 dark shadow overrides missing | `shadow.dark.{sm,md,lg}` added (231 tokens now); regenerated; CFM green; module upgraded; live bundle carries `--fix-shadow-dark-*` |
+| P0-3 | **UI-900 landing EN truncated where the prototype splits text across a sibling `<b>`**: `proto.land.s5` read ":2015 certified operations" | pack row | Generator composes the full string ("ISO 9001:2015 certified operations") and now **fails the run** on any EN cell that starts with punctuation or is empty; pack + registry regenerated |
+| P0-4 | **The nav-registry checker wasn't in the official battery** (it ran standalone; `verify-repo` didn't know it) | `tooling/fitness/registry.yaml` had no entry | Added **FF-38 (blocking)**: "navigation registry integrity — counts, ledger, ids, areas, i18n parity, freshness"; `verify-repo` now runs it (PASS) |
+
+Also verified and closed without changes: journeys are EN-only in the frozen payload
+(0/10 carry `bn` — faithful freeze; production Bengali journey names are a PP5 item,
+now recorded in the registry `$note`); the registry's portal `tech` strings are
+prototype-era and now carry a `$note` marking them superseded by D-026/D-027/L4;
+pack table integrity is proven by the extractor's clean regeneration (493 unique
+keys); `s5`-style truncation cannot recur (generator assert).
+
+**Battery after fixes**: 531 addons tests · fitness 0 failures (FF-38 now blocking) ·
+CFM 1–5 · smoke 14/14 · gates G0b/G4/G8 0 FAIL.

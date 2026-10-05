@@ -105,6 +105,12 @@ checks:
     target: rising
     stage: contract
     script: check_portal_contract.py
+  - id: FF-38
+    name: navigation registry integrity (PP0-M03; counts, ledger, ids, areas, i18n parity, freshness)
+    blocking: true
+    stage: architecture
+    script: check-nav-registry.py
+    rationale: contracts/nav/registry.json is the denominator for portal coverage (Gate GP D1) - a drifted or stale registry silently corrupts every downstream count
 
   # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
   - id: FF-16

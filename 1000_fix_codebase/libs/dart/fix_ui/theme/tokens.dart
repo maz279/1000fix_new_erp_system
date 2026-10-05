@@ -374,6 +374,12 @@ const String t_motion_medium = "240ms";
 const String t_motion_normal = "200ms";
 /// motion.slow
 const String t_motion_slow = "300ms";
+/// shadow.dark.lg
+const String t_shadow_dark_lg = "0 0 4px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.6)";
+/// shadow.dark.md
+const String t_shadow_dark_md = "0 0 2px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.5)";
+/// shadow.dark.sm
+const String t_shadow_dark_sm = "0 0 2px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.5)";
 /// shadow.lg
 const String t_shadow_lg = "0 0 2px rgba(4,33,30,0.10), 0 4px 8px rgba(4,33,30,0.16)";
 /// shadow.md

@@ -99,8 +99,11 @@ def main() -> int:
         scss.append(f"{to_scss_variable(path)}: {value};{note}")
         css.append(f"{to_css_custom_property(path)}: {value};")
     scss.append("")
+    # NB: the :root bridge emits VALUES, not $refs — Sass preserves custom
+    # property values verbatim ($refs would leak as literals; found by the
+    # PP0 audit: the bridge had been dead CSS since Phase 4).
     scss.append(":root {")
-    scss.extend(f"    {to_css_custom_property(path)}: {to_scss_variable(path)};" for path, _ in flat)
+    scss.extend(f"    {to_css_custom_property(path)}: {value};" for path, value in flat)
     scss.append("}")
     scss.append("")
 

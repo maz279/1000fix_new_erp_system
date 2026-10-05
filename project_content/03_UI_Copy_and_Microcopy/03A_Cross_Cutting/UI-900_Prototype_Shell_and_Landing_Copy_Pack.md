@@ -99,7 +99,7 @@ NOT ported (data strategy §3: no demo/meta copy in production).
 | Landing · s2 | `proto.land.s2` | customers per month | মাসিক গ্রাহক |
 | Landing · s3 | `proto.land.s3` | field & bench technicians | ফিল্ড ও বেঞ্চ টেকনিশিয়ান |
 | Landing · s4 | `proto.land.s4` | authorised brand partners | অথরাইজড ব্র্যান্ড পার্টনার |
-| Landing · s5 | `proto.land.s5` | :2015 certified operations | সার্টিফাইড অপারেশন |
+| Landing · s5 | `proto.land.s5` | ISO 9001:2015 certified operations | সার্টিফাইড অপারেশন |
 | Landing · s6 | `proto.land.s6` | revenue streams modelled | রাজস্ব স্ট্রিম মডেলড |
 | Landing · jh | `proto.land.jh` | Ten end-to-end journeys, not screenshots | স্ক্রিনশট নয় — দশটি সম্পূর্ণ যাত্রা |
 | Landing · js | `proto.land.js` | Every journey is navigable inside the prototype — each step deep-links to the exact screen that executes it, across portals and modules. | প্রোটোটাইপের ভেতরে প্রতিটি যাত্রা নেভিগেবল — প্রতিটি ধাপ সেই স্ক্রিনে সরাসরি লিংক করে যা এটি চালায়। |

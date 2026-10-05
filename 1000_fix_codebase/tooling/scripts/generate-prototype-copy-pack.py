@@ -100,6 +100,13 @@ def load_landing() -> tuple[dict[str, str], dict[str, str]]:
         if not m:
             raise SystemExit(f"generate-prototype-copy-pack: landing en missing for {key}")
         en[key] = m.group(1).strip()
+    # s5's visible text is split across a sibling <b>ISO 9001</b> + the span
+    # (":2015 certified operations") — compose the full English for the pack.
+    en["s5"] = "ISO 9001:2015 certified operations"
+    for key, val in en.items():
+        if val.startswith((": ", "; ", ", ", ". ")) or not val:
+            raise SystemExit(f"generate-prototype-copy-pack: landing en for "
+                             f"{key} looks truncated: {val!r}")
     return en, bn
 
 

@@ -184,6 +184,9 @@
 --fix-motion-medium: 240ms;
 --fix-motion-normal: 200ms;
 --fix-motion-slow: 300ms;
+--fix-shadow-dark-lg: 0 0 4px rgba(0,0,0,0.5), 0 8px 16px rgba(0,0,0,0.6);
+--fix-shadow-dark-md: 0 0 2px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.5);
+--fix-shadow-dark-sm: 0 0 2px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.5);
 --fix-shadow-lg: 0 0 2px rgba(4,33,30,0.10), 0 4px 8px rgba(4,33,30,0.16);
 --fix-shadow-md: 0 0 2px rgba(4,33,30,0.10), 0 2px 4px rgba(4,33,30,0.14);
 --fix-shadow-sm: 0 0 2px rgba(4,33,30,0.10), 0 1px 2px rgba(4,33,30,0.14);
