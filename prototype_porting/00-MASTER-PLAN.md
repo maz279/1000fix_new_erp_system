@@ -182,6 +182,7 @@ environments; gates G0b–G8 (plus a new GP gate for porting) all green.
 | File | Content |
 |---|---|
 | [`01-PORTING-PHASES.md`](01-PORTING-PHASES.md) | PP0–PP7 task tables with dependencies, per-phase DoD |
+| [`07-PORTING-PLAYBOOK.md`](07-PORTING-PLAYBOOK.md) | **The execution runbook — commands, order, entry/exit gates per phase (start here to port)** |
 | [`02-ASSET-PORTING-MATRIX.md`](02-ASSET-PORTING-MATRIX.md) | Every prototype asset → production destination, line-counted |
 | [`03-DATA-STRATEGY.md`](03-DATA-STRATEGY.md) | Real / test / forbidden data rules; demo_data elimination plan |
 | [`04-RISK-AND-PROTECTIONS.md`](04-RISK-AND-PROTECTIONS.md) | Risk register; no-damage protocols |

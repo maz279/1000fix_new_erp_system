@@ -5,6 +5,12 @@ exists. Roles reuse the roadmap's (FE frontend, MB mobile, OD Odoo dev, DA data,
 security, UX design lead, PM). Every phase ends with: full battery green (tests, fitness,
 G0b–G8), commit, and no regression to the Phases 2–11 estate.
 
+> **Executing a phase?** These tables are the normative *what & why*. The step-by-step
+> *how* — commands, order, entry/exit gates, per-phase skill guidance — lives in
+> [`07-PORTING-PLAYBOOK.md`](07-PORTING-PLAYBOOK.md) (start there). Elaborations marked
+> *(non-normative)* are options; **[TARGET]** items need ratification at the phase
+> that builds them (standing rule, `AUDIT_REPORT.md` §5.2).
+
 ---
 
 ## PP0 — Foundation Reconciliation (everything else depends on this)
