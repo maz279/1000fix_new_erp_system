@@ -123,12 +123,22 @@ class CommandJournal {
   Future<List<Command>> inFlight() => _store.getInFlight();
 
   /// Mark a command as acknowledged (the server accepted it).
+  ///
+  /// If the command is not in the pending or in-flight list (an idempotent
+  /// retry — the server already acknowledged it), this is a no-op (DI-05).
   Future<void> acknowledge(
       String commandId, Map<String, dynamic> serverResult) async {
     final commands = await _store.getPending();
     // Also check in-flight
     final all = [...commands, ...await _store.getInFlight()];
-    final cmd = all.firstWhere((c) => c.commandId == commandId);
+    Command? cmd;
+    for (final c in all) {
+      if (c.commandId == commandId) {
+        cmd = c;
+        break;
+      }
+    }
+    if (cmd == null) return; // Idempotent retry — already acknowledged (DI-05)
     await _store.updateStatus(
       commandId,
       cmd.withStatus(CommandStatus.acknowledged, result: serverResult),
@@ -140,12 +150,21 @@ class CommandJournal {
   }
 
   /// Mark a command as rejected — the conflict disclosure shows this.
+  ///
+  /// Idempotent-safe: if the command is already processed, a no-op.
   Future<void> reject(String commandId, String reason) async {
     final all = [
       ...await _store.getPending(),
       ...await _store.getInFlight(),
     ];
-    final cmd = all.firstWhere((c) => c.commandId == commandId);
+    Command? cmd;
+    for (final c in all) {
+      if (c.commandId == commandId) {
+        cmd = c;
+        break;
+      }
+    }
+    if (cmd == null) return; // Idempotent retry
     await _store.updateStatus(
       commandId,
       cmd.withStatus(CommandStatus.rejected, reason: reason),
@@ -153,9 +172,17 @@ class CommandJournal {
   }
 
   /// Mark a command as in-flight (the sync engine sends it).
+  /// Idempotent-safe: if the command is not pending, a no-op.
   Future<void> markInFlight(String commandId) async {
     final pending = await _store.getPending();
-    final cmd = pending.firstWhere((c) => c.commandId == commandId);
+    Command? cmd;
+    for (final c in pending) {
+      if (c.commandId == commandId) {
+        cmd = c;
+        break;
+      }
+    }
+    if (cmd == null) return; // Already in-flight or processed
     await _store.updateStatus(
       commandId,
       cmd.withStatus(CommandStatus.inFlight),

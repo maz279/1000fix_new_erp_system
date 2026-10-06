@@ -86,17 +86,13 @@ class ConflictDisclosure {
                 reason: c.rejectionReason,
               );
             case CommandStatus.acknowledged:
-              // Shouldn't reach here (filtered above), but be safe
-              return const Disclosure(
-                command: Command(
-                  commandId: '',
-                  model: '',
-                  operation: '',
-                  payload: {},
-                  createdAt: null,
-                ),
-                state: DisclosureState.notYetSynced,
-              );
+              // Unreachable: the where() filter above excludes acknowledged
+              // commands. Throw rather than fabricate a Command with a
+              // null DateTime (which would be a compile error — createdAt
+              // is non-nullable required).
+              throw StateError(
+                'ConflictDisclosure: acknowledged command reached the '
+                'switch — the filter above is broken');
           }
         })
         .toList();
