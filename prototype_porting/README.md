@@ -54,8 +54,8 @@ or **[TARGET]** is optional/unratified — see [`AUDIT_REPORT.md`](AUDIT_REPORT.
 | Phase | State | Next action |
 |---|---|---|
 | PP0 Foundation Reconciliation | **COMPLETE** (2026-10-05 — teal tokens ×5 realisations + live-bundle-verified bridge, i18n 493/0-pending, nav registry + FF-38, mapping 65/67, contract +13/+8, prototype frozen) | — |
-| PP1 Platform Scaffolding | **NEXT — start here** | playbook §PP1 step 1: re-verify Payload (F4) → scaffold `apps/web/corporate` |
-| PP2 P03 Admin (OWL) | planned | after PP1 |
+| PP1 Platform Scaffolding | **COMPLETE** (2026-10-06 — 7 Next 16.3.8 apps scaffolded, corporate built green at 171 KB gz; 4 Flutter skeletons; api-client lib; contracts/openapi ×3 with FF-40; anti-fixture FF-39 blocking; Payload F4 closed live) | PP2 (P03 menus from the registry) |
+| PP2 P03 Admin (OWL) | **NEXT — start here** | playbook §PP2: menus from `contracts/nav/registry.json` per the binding mapping |
 | PP3 P04 Corporate slice | planned | after PP1 |
 | PP4 Flutter apps | planned | after PP1 (parallel with PP3) |
 | PP5 Next.js portal batch | planned | after PP3 |

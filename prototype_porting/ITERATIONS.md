@@ -332,4 +332,54 @@ CFM 1–5 · smoke 14/14 · gates G0b/G4/G8 0 FAIL.
 
 **Final Outcome**: Across 5 cumulative iterations, the prototype porting documentation and architectural specifications have been elevated from basic static plans into a production-grade, battle-hardened engineering blueprint. Every screen, token, portal, journey, and statutory regulation is fully accounted for with zero damage to the existing backend estate.
 
+---
+
+## PP1 execution record (2026-10-06, commit `eca5d62fb`)
+
+Executed per the playbook, one pass, battery-gated at exit.
+
+- **F4 closed live**: Payload v3.90.2 stable; Next 16.3 support since v3.88/3.89
+  ("upgrade next to 16.3.3 across core and templates"). Floor is **≥3.89**, not
+  the roadmap's 3.73. `06-EXTERNAL-FACTS.md` F4 ⚠→✅.
+- **apps/web (7)**: Next **16.3.8** pinned, React 19.3.0, Turbopack.
+  `corporate/` installed + built green; home renders **entirely from generated
+  artefacts** — R2 token emission (`#0e7a6e` live in the served HTML) + the
+  493-key copy registry (6/6 render checks). The other six mirror it exactly
+  (name/port/portal-key differ); installs deferred to their phases — a
+  deliberate disk/time economy, recorded here.
+  *Monorepo fix documented*: `outputFileTracingRoot` lifts Turbopack's module
+  boundary so apps compile in-tree `libs/` without vendoring.
+- **apps/mobile (4)**: Flutter skeletons consuming `fix_ui` tokens via path
+  deps. **Env-blocked**: no Flutter SDK on this workstation — `flutter analyze`
+  must run on an fvm-pinned machine before PP4 merges (per-app READMEs carry
+  this).
+- **libs/ts/api-client**: typed client — env-only base URL (loopback default
+  for the compose stack), injected bearer getter (no credential literals,
+  PP3 wires Keycloak OIDC), bounded retry with backoff, structured ApiError.
+  `uiCopy()` re-exports the registry with the CG-004 fallback rules.
+- **contracts/openapi (3)**: W4 slice moved in via `git mv` (PS-11 6/6 green;
+  both stale path references fixed); **consent-pdpa.json** (grant-without-proof
+  → 422 at the edge, AS-09) and **p01-customer.json** (orders/tracking/devices/
+  estimate — money backend-computed, BN-007-formatted strings) authored
+  contract-first. **FF-40** (`check-openapi.py`) validates every spec: 3.x,
+  info, servers, operationIds, resolvable refs.
+- **FF-39** (`check-no-fixtures.py`, blocking): fixture-named files in runtime
+  space, PRNG in app code, and **raw `fetch(` outside api-client** all fail
+  the build.
+- **Budget**: `check-bundle-budget.py` — corporate first-load **171 KB gz**
+  vs the 400 KB contract (the P01 number, applied to the first built app as
+  the leading indicator).
+- **Incidental infrastructure fix**: Keycloak had been exiting (1) since the
+  stack restart — the realm file's `_1000fix_note` meta-field breaks
+  `RealmRepresentation` deserialization. Moved into `attributes{}`; realm
+  imports; stack healthy (`--profile core --profile auth` is the correct
+  invocation — plain `up` selects nothing).
+- **Battery at exit**: 531 addons tests · fitness **0 failures** with FF-38,
+  FF-39, FF-40 all green · smoke 14/14 · tree clean.
+
+**Deferred to PP2/PP3 (on the record)**: npm install for the six remaining
+web apps; Flutter analyze on an SDK machine; Kong route config-as-code
+(ARCHITECTURE_STATE §6 is the design); the api-client OpenAPI codegen
+upgrades when the gateway serves the specs live.
+
 
