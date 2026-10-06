@@ -43,6 +43,22 @@ class TestActionDelegation(unittest.TestCase):
             self.assertIn(code, API)
 
 
+class TestLivefireRegressions(unittest.TestCase):
+    """Bugs found by the PP5 live-fire (tooling/scripts/livefire-pp5.py);
+    locked here so they cannot return."""
+
+    def test_invoice_create_sets_operating_unit(self):
+        # fix.vendor.invoice.operating_unit_id is required with no default —
+        # without this the portal could never submit an invoice
+        self.assertIn('"operating_unit_id": ou.id', API)
+        self.assertIn("no_operating_unit", API)
+
+    def test_invoice_date_none_never_overrides_default(self):
+        # an explicit None in create() overrides the model default (today)
+        self.assertNotIn('"invoice_date": kwargs.get("invoice_date") or None', API)
+        self.assertIn('vals["invoice_date"] = kwargs["invoice_date"]', API)
+
+
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_vendor_operations(self):
         import json

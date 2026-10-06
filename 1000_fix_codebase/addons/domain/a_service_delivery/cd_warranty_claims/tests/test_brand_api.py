@@ -17,6 +17,12 @@ class TestBrandIsolation(unittest.TestCase):
         self.assertEqual(API.count("_brand_scope(kwargs)"), 4)
         self.assertIn("missing_brand", API)
 
+    def test_brand_id_popped_before_helper_dispatch(self):
+        # live-fire regression: the dispatcher passes every param as a
+        # kwarg, so helpers taking brand_id positionally got it twice
+        # (TypeError: got multiple values for argument 'brand_id')
+        self.assertIn('kwargs.pop("brand_id", None)', API)
+
     def test_cross_brand_claim_is_invisible(self):
         # another brand's claim returns not-found, never the data
         self.assertIn("claim.brand_id.id != brand_id", API)

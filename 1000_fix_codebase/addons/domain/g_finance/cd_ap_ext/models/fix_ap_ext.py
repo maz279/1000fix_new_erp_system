@@ -51,14 +51,16 @@ class FixVendorInvoice(models.Model):
     def _compute_totals(self):
         for inv in self:
             subtotal = sum(inv.line_ids.mapped("line_total"))
-            tds = sum(
+            # the tax engine returns Decimal; coerce once — a Decimal in a
+            # float subtraction raises TypeError (live-fired at PP5)
+            tds = float(sum(
                 tax_logic.determine_tds(
                     line.tds_category or "service_general",
                     Decimal(str(line.line_total)),
                     exempt_certificate=bool(line.tds_exempt),
                 ).tds_amount
                 for line in inv.line_ids
-            )
+            ))
             inv.subtotal = subtotal
             inv.tds_amount = tds
             inv.total_payable = subtotal - tds

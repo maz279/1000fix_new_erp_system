@@ -154,21 +154,34 @@ class VendorApiController(http.Controller):
             return _error("missing_lines",
                           "lines [{product_id, description, quantity, "
                           "unit_price, tds_category?}] are required")
+        # the model requires an operating unit; the portal rides the PO's
+        # own OU (an invoice lands in the unit that ordered)
+        po = request.env["fix.purchase.order"].browse(int(po_id))
+        ou = po.operating_unit_id or request.env["operating.unit"].search(
+            [], limit=1)
+        if not ou:
+            return _error("no_operating_unit",
+                          "No operating unit configured")
         Invoice = request.env["fix.vendor.invoice"]
+        vals = {
+            "vendor_id": int(vendor_id),
+            "invoice_ref": kwargs.get("invoice_ref"),
+            "requisition_id": int(po_id),
+            "operating_unit_id": ou.id,
+            "line_ids": [(0, 0, {
+                "product_id": int(l["product_id"]),
+                "description": l.get("description", ""),
+                "quantity": float(l.get("quantity", 1.0)),
+                "unit_price": float(l.get("unit_price", 0.0)),
+                "tds_category": l.get("tds_category", "service_general"),
+            }) for l in lines],
+        }
+        # an explicit None would OVERRIDE the model default (invoice_date
+        # defaults to today) — only pass what the caller actually sent
+        if kwargs.get("invoice_date"):
+            vals["invoice_date"] = kwargs["invoice_date"]
         try:
-            invoice = Invoice.create({
-                "vendor_id": int(vendor_id),
-                "invoice_ref": kwargs.get("invoice_ref"),
-                "invoice_date": kwargs.get("invoice_date") or None,
-                "requisition_id": int(po_id),
-                "line_ids": [(0, 0, {
-                    "product_id": int(l["product_id"]),
-                    "description": l.get("description", ""),
-                    "quantity": float(l.get("quantity", 1.0)),
-                    "unit_price": float(l.get("unit_price", 0.0)),
-                    "tds_category": l.get("tds_category", "service_general"),
-                }) for l in lines],
-            })
+            invoice = Invoice.create(vals)
         except (UserError, ValidationError) as exc:
             return _error("invoice_rejected", str(exc))
         return {"invoice": {

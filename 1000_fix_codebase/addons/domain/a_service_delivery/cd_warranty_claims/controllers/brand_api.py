@@ -61,6 +61,9 @@ class BrandApiController(http.Controller):
         if not brand_id:
             return _error("missing_brand",
                           "brand_id is required (per-brand isolation)")
+        # the dispatcher passes every param as a kwarg — drop brand_id so
+        # the helpers don't receive it twice (positional + kwargs)
+        kwargs.pop("brand_id", None)
         if kwargs.get("claim_id") and kwargs.get("decision"):
             return self._decide_claim(brand_id, **kwargs)
         return self._list_claims(brand_id, **kwargs)
@@ -144,6 +147,7 @@ class BrandApiController(http.Controller):
         if not brand_id:
             return _error("missing_brand",
                           "brand_id is required (per-brand isolation)")
+        kwargs.pop("brand_id", None)
         if kwargs.get("bank_ref") and kwargs.get("claim_id"):
             return self._record_remittance(brand_id, **kwargs)
         claims = request.env["fix.warranty.claim"].search(
