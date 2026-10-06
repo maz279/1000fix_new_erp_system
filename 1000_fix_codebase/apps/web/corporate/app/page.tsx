@@ -1,5 +1,4 @@
-import { tokens } from "../../../../libs/ts/ui/src/tokens/tokens.generated";
-import { uiCopy } from "../../../../libs/ts/api-client/src/ui-copy";
+import { tokens, uiCopy } from "../lib/imports";
 
 /**
  * PP1-M01-T01 scaffold proof: the home screen renders ENTIRELY from generated

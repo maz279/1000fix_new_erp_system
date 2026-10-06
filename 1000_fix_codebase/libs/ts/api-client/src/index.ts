@@ -104,4 +104,34 @@ export class ApiClient {
   private delay(attempt: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, this.retryDelayMs * 2 ** attempt));
   }
+
+  /**
+   * Odoo JSON-RPC call — wraps the standard JSON-RPC envelope so apps
+   * never construct it themselves (PP3: the corporate portal's estate,
+   * invoices and service-requests pages use this). Uses the client's
+   * own fetchImpl (retry, auth, base URL) — the ONLY fetch path.
+   */
+  async callOdoo<T>(path: string, params: Record<string, unknown> = {}): Promise<T> {
+    const headers = new Headers({ "Content-Type": "application/json" });
+    const token = this.tokenGetter ? await this.tokenGetter() : null;
+    if (token) headers.set("authorization", `Bearer ${token}`);
+    headers.set("accept-language", "en");
+    let res: Response;
+    try {
+      res = await this.fetchImpl(`${this.baseUrl}${path}`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ jsonrpc: "2.0", method: "call", id: Date.now(), params }),
+        credentials: "include",
+      });
+    } catch (err) {
+      throw new ApiError(0, "network", `request failed: ${(err as Error).message}`);
+    }
+    const data = await res.json();
+    if (data.error) {
+      throw new ApiError(res.status, data.error.code || "odoo_error",
+                          data.error.message || "Odoo error");
+    }
+    return data.result as T;
+  }
 }

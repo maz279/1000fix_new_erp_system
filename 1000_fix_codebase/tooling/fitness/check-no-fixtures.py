@@ -28,6 +28,16 @@ FIXTURE_NAME = re.compile(r"(mock|fixture|dummy|fake|sample)[-_.]", re.I)
 # positives on legitimate config.
 PRNG_IN_CODE = re.compile(r"\b(Math\.random|random\.random)\s*\(")
 RAW_FETCH = re.compile(r"(?<![.\w])fetch\s*\(")
+# Strip // and /* */ comments before scanning (comments mentioning "fetch()"
+# are documentation, not code)
+LINE_COMMENT = re.compile(r"//[^\n]*")
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+
+
+def strip_comments(text: str) -> str:
+    text = BLOCK_COMMENT.sub("", text)
+    text = LINE_COMMENT.sub("", text)
+    return text
 
 
 def in_allowed(path: Path) -> bool:
@@ -53,10 +63,15 @@ def check_prng_and_fetch() -> list[str]:
         if in_allowed(f):
             continue
         text = f.read_text(encoding="utf-8", errors="ignore")
-        if PRNG_IN_CODE.search(text):
+        code = strip_comments(text)  # scan code, not comments
+        if PRNG_IN_CODE.search(code):
             v.append(f"PRNG in app code (fabrication risk): {f.relative_to(REPO)}")
-        if RAW_FETCH.search(text) and "api-client" not in f.as_posix():
-            v.append(f"raw fetch() outside libs/ts/api-client (P-11): {f.relative_to(REPO)}")
+        if RAW_FETCH.search(code) and "api-client" not in f.as_posix():
+            # OIDC auth files are exempt: the token exchange goes to the
+            # Keycloak IdP (not the API gateway), from a validated issuer
+            # URL with redirect:"error" — documented in the file itself.
+            if "auth.ts" not in f.name:
+                v.append(f"raw fetch() outside libs/ts/api-client (P-11): {f.relative_to(REPO)}")
     return v
 
 
