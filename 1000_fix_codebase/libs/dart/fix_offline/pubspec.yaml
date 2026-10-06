@@ -1,0 +1,16 @@
+name: fix_offline
+description: >-
+  THE one offline engine (AR-010 / ADR-024 / FL-03). Command journal
+  (append-only, SQLCipher-backed in the Flutter implementation — pure
+  Dart interface here), SP-07 upload-first sync, client-side idempotency
+  ledger, two-state conflict disclosure, deferred evidence channel (SP-09).
+  Consumed by P02/P09/P11/APP-04 — never re-implemented (FL-03).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  fix_ui:
+    path: ../fix_ui

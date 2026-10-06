@@ -123,6 +123,18 @@ checks:
     stage: contract
     script: check-openapi.py
     rationale: every spec in contracts/openapi must parse, carry info+servers and resolve internal $refs - a spec that fails to parse breaks api-client generation and PS-11 tests silently
+  - id: FF-41
+    name: Dart offline engine structure (PP4-M01; AR-010 mandates)
+    blocking: true
+    stage: architecture
+    script: check-dart-offline.py
+    rationale: the ONE offline engine (FL-03) - if its structure drifts from AR-010 (SP-07 upload-first, DI-05 idempotency, §6 two-state disclosure, SP-09 evidence channel), every mobile app silently loses its offline guarantees
+  - id: FF-42
+    name: Flutter apps structure (PP4-M02/M03/M04/M05; CFM-01 + FL-03 + DE-17)
+    blocking: true
+    stage: architecture
+    script: check-dart-apps.py
+    rationale: all 4 mobile apps must consume fix_ui tokens (no hand hex), the fix_offline engine (never re-implemented), and the customer app must be Bengali-first - a violation here is a silent conformance break
 
   # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
   - id: FF-16
