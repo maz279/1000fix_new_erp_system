@@ -451,3 +451,26 @@ surface, menus, role centers, and the coverage ledger. The 754 screens are
 navigation-ready but their dedicated actions land phase-by-phase (the ledger
 tracks the burn-down). Grid/record/console archetypes (A4/A5/A7) land as the
 per-module screens gain actions; the workspace is their home.
+
+---
+
+## PP2 completion record (2026-10-06, commits `60e1592027` + `cebb91b80e`)
+
+The completion verifier correctly identified that the first commit delivered
+only 3 of 8 PP2 tasks. This pass completes the remaining five:
+
+| PP2 task | Deliverable | Evidence |
+|---|---|---|
+| M05 Tell-ME (A13) | `/p03/tellme` controller (EN+বাংলা matching, kind-ranked results) + OWL systray palette (Ctrl+K/Alt+Q, ArrowUp/Down/Enter/Esc, result highlighting, বাংলা placeholder) | 6 tests: controller locales, 4-kind index, keyboard keys, hotkey binding, systray registration, bn placeholder |
+| M04 Report Center (A10/A11) | OWL action listing the 346-report library grouped by module, area filter + query filter, per-module count badges, module-workspace cross-links | 4 tests: action registration, total count from registry, filters, template renders report names |
+| M02-T01 Grid conformance (A4) | `p03_conformance.scss` — filter chips (`.p03-filter-chip`), sortable headers (`.p03-sortable` asc/desc), 5 status pills (success/warning/error/info/neutral), module hover/active, Fluent double-ring focus-visible — all through `--fix-*` custom properties | 4 tests: chips, sortable, pills, focus ring |
+| M02-T02 Record details (A5) | `p03_service_order_details.xml` — BPF stepper (6 lifecycle stages, labels under circles) + FactBox rail (opened/last-update/created-by), inherited into the existing service-order form via `ir.ui.view` | 3 tests: stepper stages, FactBox present, view inheritance target |
+| M03 Process console (A7) | Dispatch board client action: live status pills from `readGroup` on `fix.work.order`, active orders grid, refresh — never literals | 3 tests: action registered, reads real model, template has pills+refresh |
+| M07 Tab rail | Effect that accumulates client-action visits as tabs, persists to `localStorage`, caps at 12 — explicitly NO LRU eviction or BroadcastChannel (non-normative per audit) | 3 tests: localStorage, tab cap, no BroadcastChannel |
+
+**Totals**: 34 tests (up from 11) · 301 menus installed (up from 240) ·
+battery 565 addons tests + fitness 0 fail + PS-11 14/14 + smoke 14/14.
+
+**Coverage ledger unchanged**: 0/754 screens backed — the per-screen actions
+are the PP3+ burn-down (the workspace is their home; dedicated actions wire
+per phase).
