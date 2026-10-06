@@ -23,8 +23,8 @@ class TestEa05Scoping(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_corporate_operations(self):
         import json
-        spec = json.loads((REPO / "services" / "portal-contracts"
-                           / "openapi-w4-portals.json").read_text(encoding="utf-8"))
+        spec = json.loads((REPO / "contracts" / "openapi"
+                           / "w4-portals.json").read_text(encoding="utf-8"))
         self.assertIn("/corporate/estate", spec["paths"])
         self.assertIn("/corporate/invoices/consolidated", spec["paths"])
         self.assertIn("/corporate/service-requests", spec["paths"])

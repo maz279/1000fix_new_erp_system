@@ -1,0 +1,153 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "1000FiX Consent & DSR API — PDPA (SC-003/SC-008)",
+    "version": "1.0.0",
+    "description": "Consent status/grant/withdraw and Data Subject Rights submission for the customer-facing portals (P01/P04). Contract-first per PP1-M03: the backend model fix.consent exists (cd_party_master); the HTTP controllers land with the P01 build and MUST satisfy this contract plus PS-11 tests before any portal consumes it. A granted consent requires its proof reference (the model already enforces this)."
+  },
+  "servers": [{ "url": "/", "description": "via the Kong gateway (P-11 — never direct to Odoo)" }],
+  "paths": {
+    "/consent/{party_id}": {
+      "get": {
+        "operationId": "getConsentStatus",
+        "summary": "Current consent state per channel for a party",
+        "parameters": [
+          { "name": "party_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consent ledger view",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ConsentStatus" }
+              }
+            }
+          },
+          "404": { "description": "Party not found" }
+        }
+      }
+    },
+    "/consent/{party_id}/grant": {
+      "post": {
+        "operationId": "grantConsent",
+        "summary": "Record a granted consent with its proof",
+        "parameters": [
+          { "name": "party_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ConsentGrant" } }
+          }
+        },
+        "responses": {
+          "201": { "description": "Granted" },
+          "422": {
+            "description": "AS-09 server-side validation — e.g. a grant without its proof reference is rejected here, not in the portal",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Error" } }
+            }
+          }
+        }
+      }
+    },
+    "/consent/{party_id}/withdraw": {
+      "post": {
+        "operationId": "withdrawConsent",
+        "summary": "Withdraw a consent (irreversible; a new grant is a new record)",
+        "parameters": [
+          { "name": "party_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Withdrawn" },
+          "404": { "description": "No active grant for that channel" }
+        }
+      }
+    },
+    "/dsr": {
+      "post": {
+        "operationId": "submitDsr",
+        "summary": "Data Subject Rights request (access/rectification/erasure per SC-008)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/DsrRequest" } }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted; response carries the tracking reference",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "reference": { "type": "string" } },
+                  "required": ["reference"]
+                }
+              }
+            }
+          },
+          "422": { "description": "Invalid request type or missing justification" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConsentChannel": { "type": "string", "enum": ["sms", "whatsapp", "email", "push", "marketing"] },
+      "ConsentStatus": {
+        "type": "object",
+        "properties": {
+          "party_id": { "type": "integer" },
+          "consents": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "channel": { "$ref": "#/components/schemas/ConsentChannel" },
+                "state": { "type": "string", "enum": ["granted", "withdrawn", "expired"] },
+                "source": { "type": "string", "enum": ["web", "otp", "form", "legacy", "agent"] },
+                "date_granted": { "type": "string", "format": "date-time" },
+                "date_withdrawn": { "type": "string", "format": "date-time" }
+              },
+              "required": ["channel", "state"]
+            }
+          }
+        },
+        "required": ["party_id", "consents"]
+      },
+      "ConsentGrant": {
+        "type": "object",
+        "properties": {
+          "channel": { "$ref": "#/components/schemas/ConsentChannel" },
+          "source": { "type": "string", "enum": ["web", "otp", "form"] },
+          "proof": { "type": "string", "minLength": 1, "description": "Proof reference — an unverifiable grant is not a grant (model constraint)" }
+        },
+        "required": ["channel", "source", "proof"]
+      },
+      "DsrRequest": {
+        "type": "object",
+        "properties": {
+          "party_id": { "type": "integer" },
+          "request_type": { "type": "string", "enum": ["access", "rectification", "erasure"] },
+          "justification": { "type": "string", "minLength": 1 }
+        },
+        "required": ["party_id", "request_type", "justification"]
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": { "type": "string" },
+              "message": { "type": "string" }
+            },
+            "required": ["code", "message"]
+          }
+        },
+        "required": ["error"]
+      }
+    }
+  }
+}

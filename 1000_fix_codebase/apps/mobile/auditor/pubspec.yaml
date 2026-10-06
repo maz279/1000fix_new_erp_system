@@ -1,0 +1,21 @@
+name: auditor_app
+description: P11 Auditor (R4 realisation) — PP1 scaffold; consumes generated fix_ui tokens.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  fix_ui:
+    path: ../../../libs/dart/fix_ui
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

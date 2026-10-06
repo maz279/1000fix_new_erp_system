@@ -1,0 +1,193 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "1000FiX P01 Customer API — tracking, devices, estimates (PP1-M03 contract-first)",
+    "version": "1.0.0",
+    "description": "The P01 Customer Self-Service surface, designed against the EXISTING backend (M01 service orders + estimates, M17 device registry + warranty, M01 tracking events via the outbox). Contract-first per PP1-M03: Odoo controllers land with the P01 build (PP5) and MUST satisfy this contract plus PS-11 tests first. All monetary fields are backend-computed (AS-10); totals arrive rounded — the portal renders, never calculates (AS-09)."
+  },
+  "servers": [{ "url": "/", "description": "via the Kong gateway (P-11)" }],
+  "paths": {
+    "/customer/{party_id}/orders": {
+      "get": {
+        "operationId": "listServiceOrders",
+        "summary": "The customer's service orders (device repair history)",
+        "parameters": [
+          { "name": "party_id", "in": "path", "required": true, "schema": { "type": "integer" } },
+          { "name": "state", "in": "query", "schema": { "type": "string", "enum": ["intake", "diagnostic", "estimate_sent", "in_repair", "qc", "closed", "closed_lost"] } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 20, "maximum": 100 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Orders page",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "orders": { "type": "array", "items": { "$ref": "#/components/schemas/ServiceOrder" } }
+                  },
+                  "required": ["orders"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer/orders/{order_id}/tracking": {
+      "get": {
+        "operationId": "getOrderTracking",
+        "summary": "Live tracking timeline for an order (outbox events; the polling fallback for the webhook per TSS §3.6.2)",
+        "parameters": [
+          { "name": "order_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Timeline (newest first)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "order_id": { "type": "integer" },
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "at": { "type": "string", "format": "date-time" },
+                          "event": { "type": "string", "description": "service_order.* outbox event name" },
+                          "label_en": { "type": "string" },
+                          "label_bn": { "type": "string" }
+                        },
+                        "required": ["at", "event", "label_en", "label_bn"]
+                      }
+                    }
+                  },
+                  "required": ["order_id", "events"]
+                }
+              }
+            }
+          },
+          "404": { "description": "Order not found or not this party's" }
+        }
+      }
+    },
+    "/customer/{party_id}/devices": {
+      "get": {
+        "operationId": "listDevices",
+        "summary": "Registered devices with warranty status (M17 + M09 read)",
+        "parameters": [
+          { "name": "party_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Devices",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "devices": { "type": "array", "items": { "$ref": "#/components/schemas/Device" } }
+                  },
+                  "required": ["devices"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/customer/orders/{order_id}/estimate": {
+      "get": {
+        "operationId": "getEstimate",
+        "summary": "The order's estimate (backend-computed totals; approval is a state change, never client arithmetic)",
+        "parameters": [
+          { "name": "order_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estimate",
+            "content": {
+              "application/json": { "schema": { "$ref": "#/components/schemas/Estimate" } }
+            }
+          },
+          "404": { "description": "No estimate on this order" }
+        }
+      },
+      "post": {
+        "operationId": "approveEstimate",
+        "summary": "Customer approves the estimate (state transition recorded server-side with the audit trail)",
+        "parameters": [
+          { "name": "order_id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "approved": { "type": "boolean" } },
+                "required": ["approved"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Decision recorded" },
+          "409": { "description": "Estimate already decided" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ServiceOrder": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "name": { "type": "string", "description": "Order reference (SO-…)" },
+          "state": { "type": "string" },
+          "device": { "type": "string" },
+          "opened_at": { "type": "string", "format": "date" },
+          "sla_deadline": { "type": "string", "format": "date-time", "nullable": true }
+        },
+        "required": ["id", "name", "state", "opened_at"]
+      },
+      "Device": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "brand": { "type": "string" },
+          "model": { "type": "string" },
+          "identifier": { "type": "string", "description": "IMEI/serial (masked in full form per SC-003 minimisation)" },
+          "warranty_status": { "type": "string", "enum": ["active", "expired", "voided", "pending"] },
+          "warranty_end": { "type": "string", "format": "date", "nullable": true }
+        },
+        "required": ["id", "brand", "model", "warranty_status"]
+      },
+      "Estimate": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "version": { "type": "integer" },
+          "state": { "type": "string", "enum": ["draft", "sent", "approved", "rejected", "expired"] },
+          "total_bdt": { "type": "string", "description": "Backend-computed, BN-007-formatted (e.g. '1,23,456.78')" },
+          "vat_bdt": { "type": "string" },
+          "lines": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "description": { "type": "string" },
+                "amount_bdt": { "type": "string" }
+              },
+              "required": ["description", "amount_bdt"]
+            }
+          }
+        },
+        "required": ["id", "version", "state", "total_bdt"]
+      }
+    }
+  }
+}

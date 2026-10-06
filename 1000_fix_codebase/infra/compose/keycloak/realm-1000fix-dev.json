@@ -5,7 +5,9 @@
   "loginWithEmailAllowed": true,
   "resetPasswordAllowed": false,
 
-  "_1000fix_note": "DE-09 - SYNTHETIC realm, generated from the role register. Never exported from a real environment. Every user below is synthetic (passwords are development-only literal values (Keycloak realm-import does not substitute env vars in JSON - values are read literally). These credentials work only on 127.0.0.1 and grant nothing outside the local Docker network).",
+  "attributes": {
+    "_1000fix_note": "DE-09 - SYNTHETIC realm, generated from the role register. Never exported from a real environment. Every user below is synthetic (development-only credentials that work on 127.0.0.1 and grant nothing outside the local Docker network; Keycloak realm-import reads JSON literally and substitutes no env vars)."
+  },
 
   "roles": {
     "realm": [

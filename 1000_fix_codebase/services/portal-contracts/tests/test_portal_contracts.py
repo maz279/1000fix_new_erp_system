@@ -12,27 +12,27 @@ import sys
 import unittest
 from pathlib import Path
 
-SPECS = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[3]
+SPECS = REPO / "contracts" / "openapi"
 
 
 class TestOpenApiContracts(unittest.TestCase):
     def test_all_four_portals_have_operations(self):
-        spec = json.loads((SPECS / "openapi-w4-portals.json").read_text(encoding="utf-8"))
+        spec = json.loads((SPECS / "w4-portals.json").read_text(encoding="utf-8"))
         paths = " ".join(spec["paths"])
         for portal in ("/corporate/", "/brand/", "/contact/", "/analytics/"):
             self.assertIn(portal, paths, f"{portal} operations missing")
 
     def test_invalid_payload_rejected_by_contract(self):
         """The 422 on the write path — AS-09 enforced at the API edge."""
-        spec = json.loads((SPECS / "openapi-w4-portals.json").read_text(encoding="utf-8"))
+        spec = json.loads((SPECS / "w4-portals.json").read_text(encoding="utf-8"))
         post = spec["paths"]["/corporate/service-requests"]["post"]
         self.assertIn("422", post["responses"])
         required = post["requestBody"]["content"]["application/json"]["schema"]["$ref"]
         self.assertIn("ServiceRequest", required)
 
     def test_order_category_enum_matches_m01(self):
-        spec = json.loads((SPECS / "openapi-w4-portals.json").read_text(encoding="utf-8"))
+        spec = json.loads((SPECS / "w4-portals.json").read_text(encoding="utf-8"))
         enum = spec["components"]["schemas"]["ServiceRequest"]["properties"]["order_category"]["enum"]
         self.assertEqual(enum, ["standard", "warranty", "amc"])
 
