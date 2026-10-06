@@ -28,6 +28,30 @@ FIXTURE_NAME = re.compile(r"(mock|fixture|dummy|fake|sample)[-_.]", re.I)
 # positives on legitimate config.
 PRNG_IN_CODE = re.compile(r"\b(Math\.random|random\.random)\s*\(")
 RAW_FETCH = re.compile(r"(?<![.\w])fetch\s*\(")
+# PP6 §8 (03-DATA-STRATEGY): the client never performs MONETARY
+# arithmetic — money arrives as backend-computed values (AS-10). Binary
+# ops / Math.* / rounding on money-named identifiers is the smell.
+# Rate/percentage formatting (rating, *_rate, pct) is not money.
+MONEY_NAME = re.compile(r"\b\w*(?:_bdt|amount|price|total|payable|subtotal|gross|vat|tds|net)\b", re.I)
+MONEY_ARITH = re.compile(
+    r"[\w.\]]+\s*(?:[+*/%-]|\*\*)\s*[\w.\]]+"   # a op b
+    r"|Math\.\w+\s*\(\s*[\w.\]]*"                # Math.fn(x...)
+    r"|\.toFixed\s*\(")                          # rounding
+# prose inside string literals ("gross/commission/TDS/net") is not math —
+# strip plain quoted strings; template literals keep ${} expressions
+QUOTED_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
+
+
+def _money_arithmetic_smells(code: str) -> list[str]:
+    """Money-named operands inside arithmetic expressions (per line)."""
+    hits = []
+    for line_no, line in enumerate(code.splitlines(), 1):
+        bare = QUOTED_STRING.sub("", line)
+        for m in MONEY_ARITH.finditer(bare):
+            expr = m.group(0)
+            if MONEY_NAME.search(expr):
+                hits.append(f"line {line_no}: {expr.strip()[:60]}")
+    return hits
 # Strip // and /* */ comments before scanning (comments mentioning "fetch()"
 # are documentation, not code)
 LINE_COMMENT = re.compile(r"//[^\n]*")
@@ -72,6 +96,12 @@ def check_prng_and_fetch() -> list[str]:
             # URL with redirect:"error" — documented in the file itself.
             if "auth.ts" not in f.name:
                 v.append(f"raw fetch() outside libs/ts/api-client (P-11): {f.relative_to(REPO)}")
+        # libs may format money (bn007 groups digits); apps must not do
+        # monetary arithmetic at all (§8) — masks.ts's formatter is exempt
+        if "/libs/" not in f.as_posix():
+            for hit in _money_arithmetic_smells(code):
+                v.append(f"client-side money arithmetic (PP6 §8): "
+                         f"{f.relative_to(REPO)} {hit}")
     return v
 
 

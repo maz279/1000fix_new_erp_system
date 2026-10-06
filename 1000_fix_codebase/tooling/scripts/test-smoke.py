@@ -210,6 +210,18 @@ def main() -> int:
     check("portal login denied service orders (no ACL)", denied,
           "AccessError raised" if denied else "NO denial - ACL gap!")
 
+    # --- seed idempotency (PP6 E4): a second seed run must REFUSE -----
+    # seed.py refuses exit 2 over an already-seeded database — the TEST
+    # data class enters exactly once; re-seeding is an explicit reset
+    # (03-DATA-STRATEGY §1/E4)
+    import subprocess
+    from pathlib import Path
+    seed = Path(__file__).resolve().parents[2] / "db" / "seeds" / "seed.py"
+    r = subprocess.run([sys.executable, str(seed), "--seed", "1000fix"],
+                       capture_output=True, text=True, timeout=180)
+    check("seed double-run refused (idempotency guard)", r.returncode == 2,
+          f"exit={r.returncode} {r.stdout.strip()[:80]}")
+
     failures = [r for r in RESULTS if not r[1]]
     print(f"test-smoke: {len(RESULTS) - len(failures)}/{len(RESULTS)} checks passed")
     return 1 if failures else 0

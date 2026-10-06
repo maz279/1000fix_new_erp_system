@@ -141,6 +141,18 @@ checks:
     stage: architecture
     script: check-portal-batch.py
     rationale: the 7 PP5 portals must keep the PP3 template (P-11 api wrapper, CFM-01 tokens, theme toggles), P01 must stay Bengali-first (DE-17), P06's BI embed must be config-only, P08 must carry brand_id on every call, and every frontend API path must have a registered backend route - a drift here is a silent contract break between portal and Odoo
+  - id: FF-44
+    name: no fabricated data in the estate (PP6 E3; demo literals + Odoo demo-data policy)
+    blocking: true
+    stage: data
+    script: check-demo-literals.py
+    rationale: one shipped sample name or PRNG literal in a view re-poisons the claim that every screen renders real data; Odoo demo data would install fabricated rows on production - the TEST class enters via db/seeds/seed.py only (03-DATA-STRATEGY §1)
+  - id: FF-45
+    name: data-shape parity + statutory masks (PP6 §4/§7/§8)
+    blocking: true
+    stage: contract
+    script: check-data-parity.py
+    rationale: every ported grid must carry the prototype's columns in its API payload (nothing promised silently disappears) and the four statutory identifier masks + bn007 formatter must keep their audit-corrected shapes - drift here is a silent prototype regression or an invented validation rule
 
   # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
   - id: FF-16

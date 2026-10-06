@@ -1,0 +1,64 @@
+# =============================================================================
+# 1000fix-erp - migration-staging overlay (PP6 E5, 03-DATA-STRATEGY §3/§5)
+#
+# The REAL-data rehearsal environment (MIG-01..MIG-08). Loaded ONLY via
+# the migration pipeline with MIG-02 control totals verified; portals
+# point here for UAT. It is a SEPARATE profile with a SEPARATE volume —
+# it never shares the dev database, and a dev workstation NEVER loads
+# real data into it either (DE-12: rehearsal runs on the UAT host).
+#
+# Standing rules inherited from the base file: DE-03 healthchecks,
+# DE-04 loopback-only ports, DE-05 named volumes, DE-11 FIX_ENV guard.
+#
+# Up:   docker compose -f docker-compose.yml -f docker-compose.migration-staging.yml \
+#           --profile migration-staging up -d
+# Load: ONLY through tooling/scripts/mig-load.py (MIG-02 totals gate) —
+#       nothing else may write migration-staging.
+# Verify totals: python tooling/scripts/mig-totals.py --db fix_migration \
+#                    --manifest migrations/<run>/control-totals.json
+# =============================================================================
+services:
+  postgres-migration:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["migration-staging"]
+    environment:
+      FIX_ENV: local
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env - development-only value}
+      POSTGRES_DB: fix_migration
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5434:5432"]   # 5434: distinct from dev (5433)
+    volumes:
+      - pgdata-migration:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_migration"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    restart: unless-stopped
+
+  # The migration runner: executes the extract→transform→load pipeline
+  # from the mounted migrations/ bundle. It has NO Odoo web exposure —
+  # loading is batch-only (MIG-02 totals are asserted before commit).
+  migration-runner:
+    image: python:3.12-slim@sha256:0baa58b9971b80f0ea4b5f2d0dbfddfd1bd0f3637bb01ce846c3777fdbd1851a
+    profiles: ["migration-staging"]
+    environment:
+      FIX_ENV: local
+      # credentials from the environment ONLY (Mimosa standing rule)
+      PGPASSWORD: ${MIGRATION_DB_PASSWORD:?set in .env on the UAT host}
+      PGHOST: postgres-migration
+      PGDATABASE: fix_migration
+      PGUSER: fix
+    volumes:
+      - ../../migrations:/migrations:ro
+      - ../../tooling/scripts:/tooling:ro
+    working_dir: /migrations
+    command: ["python", "/tooling/mig-totals.py", "--help"]
+    depends_on:
+      postgres-migration:
+        condition: service_healthy
+    restart: "no"
+
+volumes:
+  pgdata-migration:
