@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- P03 Workspace (archetype A2) — PP2-M01.
+     Every value resolves through the generated token custom properties
+     (--fix-*); no hand-authored hex or sizes (CFM-01). -->
+<templates xml:space="preserve">
+
+<t t-name="cd_p03_portal.P03Workspace">
+    <div class="p03-workspace" style="display: flex; height: 100%; background: var(--fix-color-surface-canvas, #fafafa);">
+        <!-- Area rail (12 areas) -->
+        <nav class="p03-areas" style="width: 200px; border-right: 1px solid var(--fix-color-border-default, #e0e0e0); padding: var(--fix-dimension-space-sm, 8px); overflow-y: auto; flex-shrink: 0;">
+            <t t-foreach="areas" t-as="area" t-key="area.id">
+                <button class="p03-area-btn btn btn-link"
+                        t-att-class="{ active: state.areaId === area.id } ? 'p03-active fw-bold' : ''"
+                        t-on-click="() => { state.areaId = area.id; state.moduleId = modulesInArea[0]?.id || state.moduleId; }"
+                        style="display: block; width: 100%; text-align: left; padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px); border: 0; background: transparent; color: var(--fix-color-text-primary, #242424); font-size: var(--fix-typography-size-200, 12px); cursor: pointer;">
+                    <t t-esc="area.id"/> · <t t-esc="area.en"/>
+                </button>
+            </t>
+        </nav>
+
+        <!-- Module column -->
+        <nav class="p03-modules" style="width: 220px; border-right: 1px solid var(--fix-color-border-default, #e0e0e0); padding: var(--fix-dimension-space-sm, 8px); overflow-y: auto; flex-shrink: 0;">
+            <t t-foreach="modulesInArea" t-as="mod" t-key="mod.id">
+                <button class="p03-mod-btn"
+                        t-att-class="state.moduleId === mod.id ? 'p03-active fw-bold' : ''"
+                        t-on-click="() => this.selectModule(mod.id)"
+                        style="display: block; width: 100%; text-align: left; padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px); border: 0; background: transparent; color: var(--fix-color-text-primary, #242424); font-size: var(--fix-typography-size-200, 12px); cursor: pointer; border-radius: var(--fix-dimension-border-radius-sm, 4px);">
+                    <t t-esc="mod.id"/> <t t-esc="mod.en"/>
+                </button>
+            </t>
+        </nav>
+
+        <!-- Main: KPI strip + groups + reports -->
+        <main class="p03-main" style="flex: 1; padding: var(--fix-dimension-space-md, 16px); overflow-y: auto;">
+            <t t-if="state.registry and _module()">
+                <h1 style="margin: 0 0 var(--fix-dimension-space-xs, 4px); font-size: var(--fix-typography-size-500, 20px); color: var(--fix-color-text-primary, #242424);">
+                    <t t-esc="_module().id"/> — <t t-esc="_module().en"/>
+                </h1>
+                <p style="margin: 0 0 var(--fix-dimension-space-md, 16px); color: var(--fix-color-text-secondary, #616161); font-size: var(--fix-typography-size-200, 12px);">
+                    <t t-esc="_module().desc"/>
+                </p>
+
+                <!-- KPI labels (registry) — values land via read_group -->
+                <div class="p03-kpis" style="display: flex; gap: var(--fix-dimension-space-sm, 8px); margin-bottom: var(--fix-dimension-space-md, 16px); flex-wrap: wrap;">
+                    <t t-foreach="kpiLabels" t-as="kpi" t-key="kpi">
+                        <div style="flex: 1; min-width: 140px; border: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: var(--fix-dimension-border-radius-md, 8px); padding: var(--fix-dimension-space-sm, 8px) var(--fix-dimension-space-md, 16px); background: var(--fix-color-surface-primary, #ffffff);">
+                            <div style="font-size: var(--fix-typography-size-100, 10px); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fix-color-text-secondary, #616161);"><t t-esc="kpi"/></div>
+                            <div style="font-size: var(--fix-typography-size-400, 16px); color: var(--fix-color-text-ink-faint, #bdbdbd);">—</div>
+                        </div>
+                    </t>
+                </div>
+
+                <!-- Search filter -->
+                <input type="text" class="form-control"
+                       placeholder="Filter screens (EN or id)…"
+                       t-att-value="state.query"
+                       t-on-input="(ev) => state.query = ev.target.value"
+                       style="margin-bottom: var(--fix-dimension-space-sm, 8px); max-width: 320px;"/>
+
+                <!-- Screen groups -->
+                <t t-foreach="_module().groups" t-as="group" t-key="group.en">
+                    <section style="margin-bottom: var(--fix-dimension-space-md, 16px);">
+                        <h2 style="margin: 0 0 var(--fix-dimension-space-xs, 4px); font-size: var(--fix-typography-size-300, 14px); color: var(--fix-color-text-primary, #242424); border-bottom: 1px solid var(--fix-color-border-default, #e0e0e0); padding-bottom: var(--fix-dimension-space-xs, 4px);">
+                            <t t-esc="group.en"/>
+                        </h2>
+                        <div style="display: flex; gap: var(--fix-dimension-space-xs, 4px); flex-wrap: wrap; padding-top: var(--fix-dimension-space-xs, 4px);">
+                            <t t-foreach="group.screens" t-as="screen" t-key="screen.id">
+                                <button t-on-click="() => this.openScreen(screen)"
+                                        style="border: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: var(--fix-dimension-border-radius-sm, 4px); padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px); background: var(--fix-color-surface-primary, #ffffff); color: var(--fix-color-text-primary, #242424); font-size: var(--fix-typography-size-200, 12px); cursor: pointer;">
+                                    <t t-esc="screen.en"/>
+                                    <span style="color: var(--fix-color-text-ink-faint, #bdbdbd); margin-left: 4px;"><t t-esc="screen.t"/></span>
+                                </button>
+                            </t>
+                        </div>
+                    </section>
+                </t>
+
+                <!-- Report library -->
+                <section t-if="reports.length > 0">
+                    <h2 style="margin: 0 0 var(--fix-dimension-space-xs, 4px); font-size: var(--fix-typography-size-300, 14px); color: var(--fix-color-text-primary, #242424); border-bottom: 1px solid var(--fix-color-border-default, #e0e0e0); padding-bottom: var(--fix-dimension-space-xs, 4px);">
+                        Built-in Reports (<t t-esc="reports.length"/>)
+                    </h2>
+                    <ul style="margin: var(--fix-dimension-space-xs, 4px) 0 0; padding-left: var(--fix-dimension-space-lg, 24px); color: var(--fix-color-text-secondary, #616161); font-size: var(--fix-typography-size-200, 12px);">
+                        <t t-foreach="reports" t-as="report" t-key="report">
+                            <li><t t-esc="report"/></li>
+                        </t>
+                    </ul>
+                </section>
+
+                <!-- Form register -->
+                <section t-if="forms.length > 0" style="margin-top: var(--fix-dimension-space-sm, 8px);">
+                    <h2 style="margin: 0 0 var(--fix-dimension-space-xs, 4px); font-size: var(--fix-typography-size-300, 14px); color: var(--fix-color-text-primary, #242424); border-bottom: 1px solid var(--fix-color-border-default, #e0e0e0); padding-bottom: var(--fix-dimension-space-xs, 4px);">
+                        Data-Entry Forms (<t t-esc="forms.length"/>)
+                    </h2>
+                    <ul style="margin: var(--fix-dimension-space-xs, 4px) 0 0; padding-left: var(--fix-dimension-space-lg, 24px); color: var(--fix-color-text-secondary, #616161); font-size: var(--fix-typography-size-200, 12px);">
+                        <t t-foreach="forms" t-as="form" t-key="form">
+                            <li><t t-esc="form"/></li>
+                        </t>
+                    </ul>
+                </section>
+            </t>
+            <t t-elif="!state.registry">
+                <p style="color: var(--fix-color-text-secondary, #616161);">Loading registry…</p>
+            </t>
+        </main>
+    </div>
+</t>
+
+</templates>

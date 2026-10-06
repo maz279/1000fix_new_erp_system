@@ -413,3 +413,41 @@ itself build-verified — three of its five templates shipped escaped-brace or
 case-mismatch bugs that only a compile could catch. Rule recorded: **any
 generated scaffold must be compiled (or its generator dry-run-diffed against a
 known-good file) before commit — a file-shape check is not a build.**
+
+---
+
+## PP2 execution record (2026-10-06)
+
+**cd_p03_portal** — the Admin Operations Portal P03 (R1 OWL), installed on
+the live registry with **240 workspace menus** under the operations root:
+
+- **generate-p03-menus.py** reads `contracts/nav/registry.json` + the binding
+  mapping and emits 52 workspace menus (one per cd module — the dedup catches
+  M01/M02/M31 sharing cd_service_order; shared modules are recorded in the
+  ledger, not duplicated). NVR-23 enforced: max 7 primary sections per
+  workspace, deeper groups nested under an overflow submenu. XML entities
+  escaped (the '&' in 'CX, Feedback & Complaints' breaks lxml otherwise).
+- **The coverage ledger** (`docs/navigation/p03-coverage-ledger.md`) records
+  the honest state: 0 screens backed / 754 unbacked — the phase-by-phase
+  burn-down denominator for Gate GP D1.
+- **The OWL workspace** (archetype A2): a client action that loads the frozen
+  registry via the `/p03/registry` controller (auth=user, readonly) and
+  renders the area rail → module column → KPI labels (values are read_group
+  placeholders — never literals) → screen groups with filter → report library
+  → form register. Every colour/size/font resolves through `--fix-*` custom
+  properties (CFM-01; fallback values in `var()` only).
+- **Four persona role centers** (A1): Operations, Finance, Branch, Super User.
+- **11 tests** covering: workspace count >50, NVR-23 ≤7 sections, no dangling
+  parent references, controller auth/readonly, registry-path integrity,
+  rpc-service-not-fetch, template CFM-01 (no hand hex outside var()
+  fallbacks), KPI-labels-not-values, action registration, 4 personas,
+  coverage-ledger honesty (754 unbacked).
+
+**Battery**: 542 addons tests · fitness 0 failures · PS-11 14/14 · smoke
+14/14 · 240 menus installed on the live registry.
+
+**Honest scope note**: this delivers the PP2 *scaffold* — the workspace
+surface, menus, role centers, and the coverage ledger. The 754 screens are
+navigation-ready but their dedicated actions land phase-by-phase (the ledger
+tracks the burn-down). Grid/record/console archetypes (A4/A5/A7) land as the
+per-module screens gain actions; the workspace is their home.

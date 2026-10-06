@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- P03 actions — the workspace client action (A2) + role centers (A1). -->
+<odoo>
+
+    <!-- The P03 workspace: registry-driven, one per back-office session -->
+    <record id="action_p03_workspace" model="ir.actions.client">
+        <field name="name">Operations Workspace</field>
+        <field name="tag">p03_workspace</field>
+    </record>
+
+    <menuitem id="menu_p03_home" name="P03 Workspace"
+              parent="cd_entity_config.menu_fix_operations_root"
+              action="action_p03_workspace" sequence="0"/>
+
+    <!-- The four persona role centers (registry personas: super/ops/
+         finance/branch) — each opens the workspace pre-scoped. Dedicated
+         role-center dashboards land with their phase; these actions are
+         the navigable homes. -->
+    <record id="action_p03_center_ops" model="ir.actions.client">
+        <field name="name">Role Center — Operations</field>
+        <field name="tag">p03_workspace</field>
+    </record>
+    <record id="action_p03_center_finance" model="ir.actions.client">
+        <field name="name">Role Center — Finance</field>
+        <field name="tag">p03_workspace</field>
+    </record>
+    <record id="action_p03_center_branch" model="ir.actions.client">
+        <field name="name">Role Center — Branch</field>
+        <field name="tag">p03_workspace</field>
+    </record>
+    <record id="action_p03_center_super" model="ir.actions.client">
+        <field name="name">Role Center — Super User</field>
+        <field name="tag">p03_workspace</field>
+    </record>
+
+</odoo>
