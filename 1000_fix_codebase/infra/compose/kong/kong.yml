@@ -1,7 +1,14 @@
 # Kong - declarative local config (P02-M05-T03, integration profile).
-# DB-less mode: this file IS the gateway config. Local shape mirrors the
-# portal contract surface (CON-03): customer portal -> Odoo backend service,
-# everything loopback (DE-04).
+# DB-less mode: this file IS the gateway config (reload: docker exec
+# compose-kong-1 kong reload).
+#
+# PP6 manual-verification fix: the scaffold-era config routed a catch-all
+# "/" to port 3000 — a port now held by an unrelated local app, so every
+# portal API call through the gateway was answered with a 404 by the
+# wrong backend. The gateway now routes the REAL portal API surface
+# (P-11: portals never bypass Kong) to Odoo, and CORS runs on Kong with
+# credentials for the explicit dev portal origins (a wildcard cannot be
+# used with credentials — CORS spec).
 _format_version: "3.0"
 
 services:
@@ -11,13 +18,69 @@ services:
       - name: odoo-api
         paths: ["/api/odoo"]
         strip_path: true
-  - name: portal-customer
-    url: http://host.docker.internal:3000
-    routes:
-      - name: portal-web
-        paths: ["/"]
+      # The portal JSON-RPC surface (W4 + PP5 controllers). strip_path is
+      # FALSE: Odoo serves these paths verbatim (Kong strips the first
+      # path segment by default — that bug 404'd every portal call at the
+      # gateway until the Odoo access log caught it). /web/session lets a
+      # browser authenticate against the same gateway origin it calls.
+      - name: odoo-portal-api
+        strip_path: false
+        paths:
+          - "/customer"
+          - "/vendor"
+          - "/analytics"
+          - "/brand"
+          - "/contact"
+          - "/partner"
+          - "/seller"
+          - "/corporate"
+          - "/web/session"
 
 plugins:
+  - name: cors
+    config:
+      origins:
+        # dev portal origins (apps 3010-3017; scaffold ports 3000-3007
+        # kept for parity during the port migration)
+        - "http://localhost:3010"
+        - "http://127.0.0.1:3010"
+        - "http://localhost:3011"
+        - "http://127.0.0.1:3011"
+        - "http://localhost:3012"
+        - "http://127.0.0.1:3012"
+        - "http://localhost:3013"
+        - "http://127.0.0.1:3013"
+        - "http://localhost:3014"
+        - "http://127.0.0.1:3014"
+        - "http://localhost:3015"
+        - "http://127.0.0.1:3015"
+        - "http://localhost:3016"
+        - "http://127.0.0.1:3016"
+        - "http://localhost:3017"
+        - "http://127.0.0.1:3017"
+        - "http://localhost:3000"
+        - "http://127.0.0.1:3000"
+        - "http://localhost:3001"
+        - "http://127.0.0.1:3001"
+        - "http://localhost:3002"
+        - "http://127.0.0.1:3002"
+        - "http://localhost:3003"
+        - "http://127.0.0.1:3003"
+        - "http://localhost:3004"
+        - "http://127.0.0.1:3004"
+        - "http://localhost:3005"
+        - "http://127.0.0.1:3005"
+        - "http://localhost:3006"
+        - "http://127.0.0.1:3006"
+        - "http://localhost:3007"
+        - "http://127.0.0.1:3007"
+      credentials: true
+      methods: [GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD]
+      headers:
+        - Content-Type
+        - Authorization
+        - Accept-Language
+      max_age: 3600
   - name: rate-limiting
     config:
       minute: 300
