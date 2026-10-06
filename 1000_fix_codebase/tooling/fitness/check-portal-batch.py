@@ -182,6 +182,28 @@ def main() -> int:
         if re.search(r'wss?://|sip:\w+@', src):
             v.append("P10: softphone hosts must come from config — no literals")
 
+    # the shared marketing shell (landing/login experience) --------------
+    landing = REPO / "libs" / "ts" / "i18n" / "src" / "landing.generated.json"
+    shell = REPO / "libs" / "ts" / "ui" / "src" / "landing.tsx"
+    generator = REPO / "tooling" / "generators" / "generate-landing-artefact.py"
+    for p, what in ((landing, "landing artefact"), (shell, "LandingShell"),
+                    (generator, "landing generator")):
+        if not p.is_file():
+            v.append(f"landing: missing {what}: {p.relative_to(REPO)}")
+    if landing.is_file():
+        import json
+        art = json.loads(landing.read_text(encoding="utf-8"))
+        if len(art.get("portals", [])) != 12:
+            v.append(f"landing: expected 12 portal cards, found {len(art.get('portals', []))}")
+        if len(art.get("journeys", [])) != 10:
+            v.append(f"landing: expected 10 journey strips, found {len(art.get('journeys', []))}")
+    if shell.is_file():
+        src = shell.read_text(encoding="utf-8")
+        if '"bn"' not in src:
+            v.append("landing: the shell must be bilingual (DE-17 — Bengali default)")
+        if re.search(r'#[0-9a-fA-F]{3,8}\b', strip_comments(src)):
+            v.append("landing: hand-authored hex in the shell (CFM-01)")
+
     # server parity: every called path has a controller route -----------
     for path, rel in CONTROLLER_MATRIX.items():
         controller = ADDONS / "domain" / rel

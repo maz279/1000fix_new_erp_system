@@ -43,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {[
               ["/", "হোম"], ["/booking", "বুকিং"], ["/tracking", "ট্র্যাকিং"],
               ["/estimates", "অনুমান"], ["/devices", "ডিভাইস"], ["/consent", "সম্মতি"],
+              ["/welcome", "✦"],
             ].map(([href, label]) => (
               <a key={href} href={href} style={{
                 fontSize: tokens["typography.size.200"],

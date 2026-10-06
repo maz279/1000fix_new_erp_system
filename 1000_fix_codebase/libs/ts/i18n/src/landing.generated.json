@@ -1,0 +1,429 @@
+{
+ "$description": "Landing/marketing shell data — PP5. Generated from contracts/nav/registry.json (portals + journeys only; navigation, not data). Do not hand-edit.",
+ "portals": [
+  {
+   "id": "P01",
+   "en": "Customer Self-Service & App",
+   "users": "Individual customers",
+   "volume": "250 K+/mo",
+   "capabilities": [
+    "OTP register & devices",
+    "≤3-step booking & slots",
+    "live tracking + technician ETA",
+    "approvals & e-sign"
+   ]
+  },
+  {
+   "id": "P02",
+   "en": "Technician Mobile App",
+   "users": "Field & workshop technicians",
+   "volume": "200–400",
+   "capabilities": [
+    "day queue + geofenced clock-in",
+    "offline 24h + 30s sync",
+    "diagnostic trees & fault coding",
+    "van stock scan-consume"
+   ]
+  },
+  {
+   "id": "P03",
+   "en": "Admin Operations Portal",
+   "users": "Back-office & branch staff",
+   "volume": "150–250",
+   "capabilities": [
+    "15 role workspaces",
+    "dispatch console & live map",
+    "branch & workshop consoles",
+    "≤4 clicks to any record"
+   ]
+  },
+  {
+   "id": "P04",
+   "en": "Corporate B2B Portal",
+   "users": "Corporate & government",
+   "volume": "500–2,000",
+   "capabilities": [
+    "multi-user approval chains",
+    "estate management",
+    "bulk CSV requests",
+    "SLA & credit visibility"
+   ]
+  },
+  {
+   "id": "P05",
+   "en": "Vendor & Supplier Portal",
+   "users": "Vendors · couriers · recyclers",
+   "volume": "200–500",
+   "capabilities": [
+    "onboarding & documents",
+    "RFQ response",
+    "PO acknowledge + ASN",
+    "invoice match status"
+   ]
+  },
+  {
+   "id": "P06",
+   "en": "Analytics & Executive",
+   "users": "Management",
+   "volume": "25–60",
+   "capabilities": [
+    "executive cockpit",
+    "branch league table",
+    "real-time ops board",
+    "self-service on certified data"
+   ]
+  },
+  {
+   "id": "P07",
+   "en": "Marketplace Seller App",
+   "users": "Engineers & shops",
+   "volume": "500–2,000",
+   "capabilities": [
+    "KYC & agreement",
+    "listings & stock",
+    "job broadcast & bidding",
+    "earnings & payouts"
+   ]
+  },
+  {
+   "id": "P08",
+   "en": "Brand Partner Portal",
+   "users": "17+ brand partners",
+   "volume": "50–150",
+   "capabilities": [
+    "claim review & bulk decisions",
+    "evidence packs",
+    "reconciliation & remittance",
+    "consignment parts"
+   ]
+  },
+  {
+   "id": "P09",
+   "en": "Logistics & Rider App",
+   "users": "Riders & coordinators",
+   "volume": "50–200",
+   "capabilities": [
+    "optimised manifest",
+    "scan + OTP collection",
+    "transit exceptions",
+    "identity-verified delivery"
+   ]
+  },
+  {
+   "id": "P10",
+   "en": "Contact Centre Console",
+   "users": "Agents & supervisors",
+   "volume": "30–80",
+   "capabilities": [
+    "unified queue (voice→social)",
+    "Customer-360 screen pop",
+    "act-in-conversation",
+    "AI suggested replies"
+   ]
+  },
+  {
+   "id": "P11",
+   "en": "Field Auditor & Quality",
+   "users": "Auditors & regional managers",
+   "volume": "20–60",
+   "capabilities": [
+    "assigned audits & checklists",
+    "offline evidence capture",
+    "cash & stock spot checks",
+    "CAPA verification"
+   ]
+  },
+  {
+   "id": "P12",
+   "en": "Partner & Referral Portal",
+   "users": "Alliance partners & referrers",
+   "volume": "100–500",
+   "capabilities": [
+    "application & approval",
+    "referral links & tracking",
+    "earnings & payouts",
+    "co-marketing assets"
+   ]
+  }
+ ],
+ "journeys": [
+  {
+   "id": "J01",
+   "en": "Customer books an on-site repair (P01 → payment)",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "P01 · Customer",
+     "desc": "Customer opens app / portal, Bengali UI, picks device + symptom"
+    },
+    {
+     "actor": "M33 · Party",
+     "desc": "Identity via OTP — golden record matched or created"
+    },
+    {
+     "actor": "M37 · Catalogue",
+     "desc": "Service resolved with upfront price + slot (≤3 steps)"
+    },
+    {
+     "actor": "M01 · Order",
+     "desc": "Service Order created — entitlement evaluated (warranty/AMC/membership)"
+    },
+    {
+     "actor": "M02 · Dispatch",
+     "desc": "AI scores candidates → assigned → ETA published to customer"
+    },
+    {
+     "actor": "P02 · Technician",
+     "desc": "Job accepted, navigation, photos w/ GPS, fix, e-sign"
+    }
+   ]
+  },
+  {
+   "id": "J02",
+   "en": "Walk-in branch repair (counter → bench → collection)",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M04 · Counter",
+     "desc": "Token issued, fast intake, device condition photos"
+    },
+    {
+     "actor": "M01 · Order",
+     "desc": "Workshop order — estimate if out-of-warranty"
+    },
+    {
+     "actor": "M31 · Bench",
+     "desc": "L1/L2/L3 routing; parts from branch store"
+    },
+    {
+     "actor": "M15 · Parts",
+     "desc": "Serial-tracked consumption; consignment hard block respected"
+    },
+    {
+     "actor": "M31 · Test",
+     "desc": "Test protocol + burn-in → release"
+    },
+    {
+     "actor": "M04 · Collection",
+     "desc": "SMS + WhatsApp notify → ID-verified handover"
+    }
+   ]
+  },
+  {
+   "id": "J03",
+   "en": "Pick & drop logistics round trip",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "P01 · Booking",
+     "desc": "Customer books pick & drop with slot"
+    },
+    {
+     "actor": "M03 · Consignment",
+     "desc": "Multi-leg journey planned; seal number issued"
+    },
+    {
+     "actor": "P09 · Rider",
+     "desc": "Scan + OTP + photos at every custody handover"
+    },
+    {
+     "actor": "M31 · Workshop",
+     "desc": "Repair executed under custody state ON BENCH"
+    },
+    {
+     "actor": "M03 · Return",
+     "desc": "Delivery leg with OTP + signature + COD if due"
+    }
+   ]
+  },
+  {
+   "id": "J04",
+   "en": "Brand warranty claim → reimbursement",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M01 · Order",
+     "desc": "Warranty order — entitlement says brand pays"
+    },
+    {
+     "actor": "M09 · Claim",
+     "desc": "Auto-created on delivery; evidence pack assembled <5 min"
+    },
+    {
+     "actor": "M24 · Evidence",
+     "desc": "Photos, diagnostics, parts genealogy, certification proof"
+    },
+    {
+     "actor": "P08 · Brand",
+     "desc": "Partner reviews → approve / part-approve / info-request"
+    },
+    {
+     "actor": "M20 · AR",
+     "desc": "Receivable raised on approval"
+    }
+   ]
+  },
+  {
+   "id": "J05",
+   "en": "Corporate AMC: contract → PM schedule → consolidated invoice",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M07 · CRM",
+     "desc": "Opportunity won → contract template selected"
+    },
+    {
+     "actor": "M08 · Contract",
+     "desc": "14 families — entitlement & SLA defined"
+    },
+    {
+     "actor": "M17 · Estate",
+     "desc": "Assets bulk-registered site/department/user"
+    },
+    {
+     "actor": "M08 · PM",
+     "desc": "Preventive schedules auto-generate work"
+    },
+    {
+     "actor": "P04 · Client",
+     "desc": "Bulk requests validated against coverage"
+    }
+   ]
+  },
+  {
+   "id": "J06",
+   "en": "Parts stockout → replenishment → payment",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M15 · Alert",
+     "desc": "Stock breaches reorder point"
+    },
+    {
+     "actor": "M43 · Planning",
+     "desc": "Forecast + safety stock → planned order"
+    },
+    {
+     "actor": "M16 · PR → RFQ",
+     "desc": "Requisition approved; RFQ to qualified suppliers"
+    },
+    {
+     "actor": "M42 · Gate",
+     "desc": "Supplier must be qualified & active"
+    },
+    {
+     "actor": "P05 · Vendor",
+     "desc": "Vendor acknowledges PO, sends ASN"
+    },
+    {
+     "actor": "M41 · Receive",
+     "desc": "Scan receiving + inspection gate"
+    }
+   ]
+  },
+  {
+   "id": "J07",
+   "en": "Trade-in → refurbish → graded online resale",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M14 · Intake",
+     "desc": "Portal valuation — firm 48h offer"
+    },
+    {
+     "actor": "M14 · Provenance",
+     "desc": "IMEI / serial screening"
+    },
+    {
+     "actor": "M06 · Gate",
+     "desc": "Data-bearing? destruction certificate mandatory"
+    },
+    {
+     "actor": "M31 · Refurb",
+     "desc": "Work order, QA incl. battery health"
+    },
+    {
+     "actor": "M14 · Grade",
+     "desc": "A–D grading with supervisor override"
+    }
+   ]
+  },
+  {
+   "id": "J08",
+   "en": "Marketplace seller: onboarding → job → payout",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M12 · KYC",
+     "desc": "NID + trade licence + references verified"
+    },
+    {
+     "actor": "M12 · Agreement",
+     "desc": "Digital agreement + fee acceptance"
+    },
+    {
+     "actor": "P07 · Seller",
+     "desc": "Profile, listings, own stock"
+    },
+    {
+     "actor": "M12 · Broadcast",
+     "desc": "Job broadcast to matching sellers → bidding"
+    },
+    {
+     "actor": "M02 · Oversight",
+     "desc": "Execution QC identical to in-house standards"
+    }
+   ]
+  },
+  {
+   "id": "J09",
+   "en": "Data recovery case (sealed custody → certificate)",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M06 · Intake",
+     "desc": "Case with specialism routing; media sealed"
+    },
+    {
+     "actor": "M06 · Custody",
+     "desc": "Dual-control custody ledger"
+    },
+    {
+     "actor": "M06 · Evaluation",
+     "desc": "Free evaluation → firm quotation"
+    },
+    {
+     "actor": "M06 · Recovery",
+     "desc": "Attempts logged; cleanroom if needed"
+    }
+   ]
+  },
+  {
+   "id": "J10",
+   "en": "Month-end close → VAT 9.1 filing",
+   "bn": "",
+   "steps": [
+    {
+     "actor": "M19 · Close",
+     "desc": "3-day close console across 53 branches"
+    },
+    {
+     "actor": "M50 · Cash",
+     "desc": "Branch cash & rider COD consolidated"
+    },
+    {
+     "actor": "M19 · Statements",
+     "desc": "P&L · BS · CF rendered bilingually"
+    },
+    {
+     "actor": "M51 · VAT",
+     "desc": "Mushak registers → 9.1 return → A-Challan"
+    }
+   ]
+  }
+ ],
+ "counts": {
+  "portals": 12,
+  "journeys": 10
+ }
+}

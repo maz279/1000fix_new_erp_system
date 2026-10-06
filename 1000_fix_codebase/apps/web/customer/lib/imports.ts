@@ -10,3 +10,4 @@ export {
   Pill, Stat, SectionHead, DataTable, Loading, LoadError,
 } from "../../../../libs/ts/ui/src/components";
 export type { Column } from "../../../../libs/ts/ui/src/components";
+export { LandingShell } from "../../../../libs/ts/ui/src/landing";
