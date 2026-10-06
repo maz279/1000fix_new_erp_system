@@ -474,3 +474,35 @@ battery 565 addons tests + fitness 0 fail + PS-11 14/14 + smoke 14/14.
 **Coverage ledger unchanged**: 0/754 screens backed — the per-screen actions
 are the PP3+ burn-down (the workspace is their home; dedicated actions wire
 per phase).
+
+---
+
+## PP3 execution record (2026-10-06, commit `4ae0fe0eac`)
+
+The first R2 vertical slice: P04 Corporate B2B Portal in Next.js 16.3,
+built green at **205 KB gz** (budget 400), with every surface rendering from
+generated artefacts and backend-computed data.
+
+| Task | Deliverable | Verified |
+|---|---|---|
+| M01-T01 Shell | Nav bar with portal name from the copy registry, links to all three screens + theme toggles; OIDC auth shell (validated issuer, redirect:"error", env-only config) | Build green; teal in HTML; keycloak realm imported |
+| M01-T02 Estate | `/estate` — grid archetype (A4) with status pills (active/expired/pending/voided), backend-served from `/corporate/estate` | Build + teal=True |
+| M02-T01 Invoices | `/invoices` — consolidated B2B grid with backend-computed BDT strings (AS-10; BN-007 South Asian grouping; tabular numbers; right-aligned; display-only) | Build; no client math |
+| M02-T02 Service requests | `/service-requests` — list + create form → server-side validation (AS-09; the model gates the category enum standard/warranty/amc) | Build |
+| M03-T01 Theme | ThemeProvider with dark/light + compact/cozy/relaxed (data-theme/data-density attributes; token custom properties cascade; localStorage persistence) | Build; toggle buttons token-driven |
+| M04 Template | `lib/imports.ts` barrel re-exporting tokens + uiCopy + ApiClient from shared libs; `callOdoo` method in the api-client (JSON-RPC envelope inside the lib — apps never construct it); 6 other apps use the same barrel pattern | FF-39 green |
+
+**Backend**: `cd_corporate_portal/controllers/corporate_api.py` — three
+endpoints (`/corporate/estate`, `/corporate/invoices/consolidated`,
+`/corporate/service-requests`) serving the W4 contract from real Odoo
+models. `_fmt_bdt` helper formats backend-computed money as BN-007 strings.
+
+**Bug fixes during implementation** (all caught by the checks): import
+depth mismatches (4 vs 5 `../` levels for nested pages — solved with the
+barrel); token key format (`radius-sm` not `radius.sm` — 12 occurrences
+across 5 files); FF-39 caught raw fetch in the app wrappers (fixed by
+adding `callOdoo` to the api-client); FF-39 comment false positive
+(fixed by stripping comments before the regex scan).
+
+**Battery**: 565 addons tests · fitness 0 failures · PS-11 14/14 · smoke
+14/14 · corporate 205 KB gz · Odoo module upgraded.

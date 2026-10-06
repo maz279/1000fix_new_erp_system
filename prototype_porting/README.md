@@ -56,7 +56,7 @@ or **[TARGET]** is optional/unratified — see [`AUDIT_REPORT.md`](AUDIT_REPORT.
 | PP0 Foundation Reconciliation | **COMPLETE** (2026-10-05 — teal tokens ×5 realisations + live-bundle-verified bridge, i18n 493/0-pending, nav registry + FF-38, mapping 65/67, contract +13/+8, prototype frozen) | — |
 | PP1 Platform Scaffolding | **COMPLETE** (2026-10-06 — 7 Next 16.3.8 apps scaffolded, corporate built green at 171 KB gz; 4 Flutter skeletons; api-client lib; contracts/openapi ×3 with FF-40; anti-fixture FF-39 blocking; Payload F4 closed live) | PP2 (P03 menus from the registry) |
 | PP2 P03 Admin (OWL) | **COMPLETE** (2026-10-06 — cd_p03_portal with 301 menus; OWL workspace A2 + Tell-ME A13 (EN+বাংলা, Ctrl+K, keyboard nav) + Report Center A10/A11 (346 reports, area/query filter) + Dispatch Console A7 (live read_group) + BPF stepper + FactBox A5 on service order + grid conformance A4 (filter chips, sortable, status pills, focus ring) + tab rail; 34 tests; coverage ledger 0/754) | PP3 (P04 Corporate vertical slice) |
-| PP3 P04 Corporate slice | **NEXT — start here** | playbook §PP3: OIDC login → estate → invoices → service requests → template extraction |
+| PP3 P04 Corporate slice | **COMPLETE** (2026-10-06 — 7 routes built at 205 KB gz; estate/invoices/service-requests with backend-computed BDT; OIDC auth shell; dark mode + density; api-client callOdoo; Odoo controllers for the W4 contract) | PP4 (Flutter apps) or PP5 (portal batch) |
 | PP4 Flutter apps | planned | after PP1 (parallel with PP3) |
 | PP5 Next.js portal batch | planned | after PP3 |
 | PP6 Data strategy execution | planned | with PP5+ |
