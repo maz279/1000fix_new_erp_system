@@ -594,11 +594,62 @@ paths (was 10).
 (FF-38–FF-43) · PS-11 14/14 · smoke 14/14 · 7/7 production builds
 green · customer critical path ≈154–177 KB gz (budget 400).
 
-**Honest scope notes**: (1) no running Odoo in this session — the
-controllers are source-verified (routes, scoping, action delegation)
-but not live-fired; the first compose-up must exercise all 25 routes
-the way PP3's deep audit live-fired the corporate three. (2) The plan's
-"each has E2E + a11y + budget green" exit: budgets are verified
+**Honest scope notes**: (1) ~~no running Odoo in this session~~ —
+RESOLVED by the deep audit below: all 25 routes live-fired. (2) The
+plan's "each has E2E + a11y + budget green" exit: budgets are verified
 (builds + bundle size), E2E/a11y passes need the running stack. (3) The
 softphone/BI embed endpoints return nulls until deployment config
 exists — by design.
+
+---
+
+## PP5 deep-audit record (2026-10-06, commit `3061885ff7`)
+
+The audit iteration went LIVE against the running stack (fix_dev):
+`cd_customer_portal` installed, the 7 controller modules upgraded, and
+**every one of the 25 routes fired positive AND negative** through the
+new durable probe `tooling/scripts/livefire-pp5.py` (allowlisted
+loopback client, PP5-LIVEFIRE-tagged records, run-nonce for
+idempotent reruns).
+
+**Live-fire result: 45/45 checks.** Highlights: booking create through
+the real model; the full consent grant→withdraw cycle (proof gate
+enforced); ownership transfer then former-owner refused; PO
+acknowledge→deliver→invoice submit→**3-way match runs live** (matched
+AND blocked-with-reason both proven); KYC gate blocks quoting then
+opens after verify; unscoped `/brand/claims` refused; conversation
+claim/handoff/end transitions; softphone seam returns all-nulls.
+
+**Four bugs the build and source tests could not see — all fixed:**
+
+1. `vendor_api` invoice submit never set `operating_unit_id`
+   (required, no default) — **no invoice could ever be submitted**.
+   Now rides the PO's OU with a first-OU fallback.
+2. `vendor_api` passed `invoice_date: None` into create(), overriding
+   the model's today-default (explicit-None Odoo trap).
+3. `brand_api` helpers took `brand_id` positionally while Odoo's
+   dispatcher passes EVERY param as a kwarg → TypeError on
+   /brand/claims list + decide. `brand_id` popped first.
+4. `cd_ap_ext._compute_totals` float−Decimal TypeError when the TDS
+   engine returns Decimal — **pre-existing model bug** surfaced only
+   when a portal-created invoice runs the compute.
+
+Plus one operational finding: new controllers do NOT hot-reload under
+`--dev=all` on Windows — the stale server 404'd every upgraded module's
+routes until a process restart (with the repo root on PYTHONPATH).
+Regressions 1-3 are locked in the vendor/brand test suites.
+
+**Visual/manual pass**: the in-app browser is network-isolated from
+host loopback (environment limit — ports 3000-3017 unreachable, only
+`::1` guests; documented, not a code defect), so the visual check ran
+at the SSR layer: all 22 routes 200; the Bengali shell renders on all
+7 P01 routes (5/5 markers each); `/welcome` carries all 12 portal
+cards + 10 journey strips with the language toggle; theme toggles in
+every shell; and **CFM-01 proven in the rendered HTML** — every hex
+value in the live output (`#0e7a6e` Service-Teal et al.) is a token
+value, zero hand-authored colours.
+
+**Battery after fixes**: livefire 45/45 · SSR 38/38 · 646 addons
+tests (3 new regression tests) · fitness 0 failures · smoke 14/14 ·
+FF-43 green. Odoo left running for the user (same args, PYTHONPATH
+fix).
