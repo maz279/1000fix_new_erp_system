@@ -550,3 +550,55 @@ E2E remains open; L-suite scheduled per TS-015).
 
 **Battery**: 565 addons tests · fitness 0 failures (FF-38–FF-42) ·
 PS-11 14/14 · smoke 14/14.
+
+---
+
+## PP5 execution record (2026-10-06, commits `1fd0867ea1` + `811565748a`)
+
+The Next.js portal batch: the remaining seven R2 portals (P01, P05,
+P06, P07, P08, P10, P12) plus the shared marketing shell. With P04 at
+PP3 and the Flutter trio at PP4, **all twelve portals now have their
+production realisation**.
+
+| Portal | Backend (the owning module serves) | Frontend (app, routes) |
+|---|---|---|
+| P01 Customer | NEW `cd_customer_portal`: devices+M17 history, ≤3-step booking write, live tracking, estimate approval (BRU-SRM-07 proof → model gates), PDPA consent dashboard, ownership transfer (T05 — the model said "portal P01 exposes this in Phase 5") | customer (3000), **Bengali-first** lang=bn, 7 routes incl. `/welcome` |
+| P05 Vendor | `cd_vendor_portal` +controllers: PO list/acknowledge/deliver, invoice submission → 3-way match (G3-06: block reasons ship) | vendor (3007, NEW scaffold), 2 routes |
+| P06 Analytics | `cd_metric_registry` +controllers (+deps cd_service_order, cd_warranty_claims): dashboard registry, read_group KPIs, config-only BI embed seam (ir.config_parameter; nulls when unset) | analytics (3002), 1 route |
+| P07 Seller | `cd_marketplace` +controllers: dashboard (KYC gate stated), jobs board (own quote visible — EA-05), quote submit, scorecard; `/seller/settlements` in `cd_settlement_ext` (ledger owner — FL-03) | seller (3003), 4 routes |
+| P08 Brand | `cd_warranty_claims` +controllers: brand_id REQUIRED everywhere (per-brand isolation — another brand's claim is not-found); decide rides action_decide; reconciliation flags mismatches (T08) | brand (3004), 2 routes |
+| P10 Agent | `cd_contact_centre` +controllers: unified queue, transcript+customer-360 one surface (G4-04), claim/handoff/end (G4-05), softphone seam from system parameters only | agent-console (3005), 2 routes |
+| P12 Partner | `cd_partner` +controllers: profile, referral submit/track, commission statement from the referral ledger | partner (3006), 3 routes |
+
+**Shared marketing shell** (the plan's plus-item): a generator
+extracts the 12 portal cards + 10 journey strips from the frozen nav
+registry into a 10 KB landing artefact (the full registry is ~1 MB —
+navigation-only keeps P01 inside its 400 KB budget);
+`libs/ts/ui/landing.tsx` renders it bilingual (Bengali default, DE-17),
+mounted at `/welcome` on the customer app's public face.
+
+**New blocking gate FF-43** (`check-portal-batch.py`): the PP3 template
+per app (P-11 wrapper, CFM-01 tokens, theme toggles), an app↔controller
+parity matrix (25 routes — every frontend call has a registered backend
+route, no orphan calls), P01 Bengali-first, P06 embed config-only, P08
+brand_id on every call, P10 softphone seam, landing artefact counts
+(12/10).
+
+**Also**: shared UI atoms in `libs/ts/ui/components.tsx` (Pill/Stat/
+DataTable/SectionHead — one source, all 7 apps); `react` +
+`react/jsx-runtime` type mappings in app tsconfigs (lib .tsx files
+resolve from outside app node_modules); OpenAPI w4-portals.json at 29
+paths (was 10).
+
+**Battery**: 643 addons tests (78 new, +from 565) · fitness 0 failures
+(FF-38–FF-43) · PS-11 14/14 · smoke 14/14 · 7/7 production builds
+green · customer critical path ≈154–177 KB gz (budget 400).
+
+**Honest scope notes**: (1) no running Odoo in this session — the
+controllers are source-verified (routes, scoping, action delegation)
+but not live-fired; the first compose-up must exercise all 25 routes
+the way PP3's deep audit live-fired the corporate three. (2) The plan's
+"each has E2E + a11y + budget green" exit: budgets are verified
+(builds + bundle size), E2E/a11y passes need the running stack. (3) The
+softphone/BI embed endpoints return nulls until deployment config
+exists — by design.
