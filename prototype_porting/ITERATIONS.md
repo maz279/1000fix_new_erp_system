@@ -506,3 +506,47 @@ adding `callOdoo` to the api-client); FF-39 comment false positive
 
 **Battery**: 565 addons tests · fitness 0 failures · PS-11 14/14 · smoke
 14/14 · corporate 205 KB gz · Odoo module upgraded.
+
+---
+
+## PP4 execution record (2026-10-06, commits `4adbee4e9c` + `ee190f620d`)
+
+Flutter applications (R4): the shared offline engine plus all four apps,
+built to the AR-010 mandate set and validated by two new blocking fitness
+checks rather than a Dart SDK (none on this machine — structural
+validation only, honest about that).
+
+| Task | Deliverable | Verified |
+|---|---|---|
+| M01-T01 Offline engine | `libs/dart/fix_offline` — Command (client-UUID idempotency key, 4-state lifecycle), CommandJournal (append-only over a JournalStore abstraction; DI-05 idempotent retry = no-op), SyncEngine (SP-07 upload-first — code order enforces upload before download; per-command transactions SP-02), IdempotencyLedger (DI-05 client dedup), EvidenceChannel (SP-09 deferred/resumable/non-blocking), SyncState (UI phases), ConflictDisclosure (AR-010 §6 two-state: notYetSynced ≠ syncedAndRejected) | FF-41 green (8 AR-010 mandates: SP-07 order, SP-09, DI-05, §6 disclosure, journal, 4-state lifecycle, toWire, upload-first comment contract) |
+| M01-T02 Conflict resolution | Server-authoritative; ConflictDisclosure renders the two states distinctly with reject reasons carried through | FF-41 disclosure-state check |
+| M02-T01 P02 Technician | DayViewScreen, JobExecutionScreen (diagnostic tree, fault coding, time tracking), EvidenceCaptureScreen (SP-09 channel) | FF-42 green (CFM-01 tokens-only via `fixColor()`, FL-03 no duplicated sync code, P02 screens present) |
+| M03-T01 P09 Rider | ManifestScreen, CustodyScanScreen, DeliveryConfirmScreen — custody chain offline-first | FF-42 |
+| M04-T01 P11 Auditor | AuditListScreen, ChecklistScreen (8 ISO items) | FF-42 |
+| M05-T01 APP-04 Customer | HomeScreen (Bengali-first DE-17), BookingScreen (3-step in বাংলা) | FF-42 DE-17 check |
+
+**Deep-audit iteration** (`ee190f620d`) — three defects found by
+structural review, all fixed and re-verified:
+
+1. `conflict_disclosure.dart` passed `createdAt: null` to a non-nullable
+   DateTime — a compile error under any real SDK. Now throws StateError
+   (disclosure rows are built from journaled Commands which always carry
+   createdAt; null there is a logic breach).
+2. `journal.dart` used `firstWhere` without `orElse` in
+   acknowledge()/reject()/markInFlight() — crashes with
+   `Bad state: No element` on idempotent retry (double-acknowledge, or
+   reject-after-ack: both are supported DI-05 paths). Replaced with
+   explicit loops + null guards throwing descriptive StateErrors.
+3. `fix_offline/pubspec.yaml` depended on `fix_ui` unnecessarily — the
+   engine is pure logic, testable without Flutter bindings. Removed.
+
+**Verification honesty note**: no Dart SDK/Flutter toolchain on this
+machine, so `dart analyze` / `flutter build` could not run. FF-41/FF-42
+are structural validators (mandates, tokens-only colors, screen
+inventory, sync-code dedup) — they prove architecture conformance, not
+compilation. First SDK-equipped run must `flutter analyze` all 4 apps +
+engine before PP4 can be called device-verified (the plan's device-lab
+E2E remains open; L-suite scheduled per TS-015).
+
+**Battery**: 565 addons tests · fitness 0 failures (FF-38–FF-42) ·
+PS-11 14/14 · smoke 14/14.
