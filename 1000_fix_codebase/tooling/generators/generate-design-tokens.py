@@ -29,7 +29,7 @@ GENERATED = {
     "scss": REPO / "addons/platform/cd_design_tokens/static/src/tokens.scss",
     "css": REPO / "addons/platform/cd_design_tokens/static/src/tokens.css",
     "ts": REPO / "libs/ts/ui/src/tokens/tokens.generated.ts",
-    "dart": REPO / "libs/dart/fix_ui/theme/tokens.dart",
+    "dart": REPO / "libs/dart/fix_ui/lib/theme/tokens.dart",
     "flat": REPO / "tooling/design-system/tokens.flat.json",
 }
 

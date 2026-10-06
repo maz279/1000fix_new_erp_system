@@ -382,4 +382,34 @@ web apps; Flutter analyze on an SDK machine; Kong route config-as-code
 (ARCHITECTURE_STATE §6 is the design); the api-client OpenAPI codegen
 upgrades when the gateway serves the specs live.
 
+---
 
+## PP1 audit of the execution (2026-10-06, user-commissioned — iteration 2 of PP1)
+
+Zero-trust re-verification of every PP1 claim. **Seven defects found — all fixed
+in-pass; two claims upgraded from assertion to measured evidence.**
+
+| # | Severity | Finding | Fix applied |
+|---|---|---|---|
+| P1-1 | **CRIT — Dart packaging** | `package:fix_ui/theme/tokens.dart` **cannot resolve**: Dart serves package imports only under `lib/`, and the generator emitted to `theme/` — every mobile app's import was dead on arrival | Generator path → `libs/dart/fix_ui/lib/theme/tokens.dart`; regenerated (231 tokens); `git rm` of the old file |
+| P1-2 | **CRIT — CFM-01 violation** | All four `main.dart`s carried **hand-authored hex literals** (`0xFF0E7A6E` etc.) — exactly what their own READMEs promised never to do; the shipped generator also left a literal `{desc}` placeholder in two titles | New `fix_ui/lib/fix_color.dart` (`fixColor(tokenString)` bridge — tokens stay const Strings for DTCG parity); all four mains rewritten tokens-only; `flutter` sdk dep added to fix_ui pubspec; zero `Color(0x` in app code (verified by grep) |
+| P1-3 | **HIGH — broken script ×7** | `"lint": "next lint"` in every package.json — the subcommand **was removed in Next 16** (probed: `Invalid project directory … lint`) | Stripped from all 7; ESLint config lands with the PP3 template extraction (corporate README documents this) |
+| P1-4 | **HIGH — generator brace bug ×6** | All six scaffold `next.config.ts` shipped with literal `{{ }}` (escaped-brace template leak) — **customer's build failed** on it | Correct file propagated to all six; **customer then installed + built green** |
+| P1-5 | MED — missing PP1-M03-T02 deliverable | `contracts/portal/` did not exist | `contracts/portal/README.md`: the CON-03 conventions (Kong-only transport, OIDC via Keycloak, locale headers, the single error envelope, money-as-strings, pagination cap, versioning rule) |
+| P1-6 | MED — missing PP1-M01-T03 deliverable | No portal-template README | `apps/web/corporate/README.md`: the Next-16 checklist (Turbopack, `proxy.ts`, `'use cache'`, lint-removed, monorepo `outputFileTracingRoot`, Payload floor ≥3.89), commands, measured budget |
+| P1-7 | MED — missing PS-11 pairing | The two new specs had no contract tests | 8 tests added: proof-required→422 at the edge, channel enum == the `fix.consent` model selection, DSR types == PDPA scopes, withdraw-is-POST, money-as-strings, bilingual tracking labels, pagination cap ≤100, estimate-approval-is-a-decision (14/14 green) |
+
+**Claims upgraded to evidence**: `customer/` (the contracted-budget carrier) now
+**installed + built green** with teal live in the served HTML — **171 KB gz vs
+the 400 KB contract**; Keycloak logs confirm `Realm '1000fix-dev' imported …
+Import finished successfully` (the PP1 execution record had inferred health
+from the container state only).
+
+**Battery after fixes**: 545 tests (531 addons + 14 PS-11) · fitness 0 failures
+(FF-38/39/40 green) · CFM 1–5 · smoke 14/14 · Dart hex grep = 0 · `{{` grep = 0.
+
+**Process lesson (L-08 candidate)**: the one-shot scaffold generator was never
+itself build-verified — three of its five templates shipped escaped-brace or
+case-mismatch bugs that only a compile could catch. Rule recorded: **any
+generated scaffold must be compiled (or its generator dry-run-diffed against a
+known-good file) before commit — a file-shape check is not a build.**

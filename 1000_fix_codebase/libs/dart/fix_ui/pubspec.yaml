@@ -3,9 +3,15 @@ description: >-
   The shared Flutter UI package (R4 realisation). Theme constants are
   GENERATED from libs/ts/ui/src/tokens/tokens.json by
   tooling/generators/generate-design-tokens.py — never authored here
-  (UX-001 §3, CFM-01).
+  (UX-001 §3, CFM-01). Colour tokens are const Strings (DTCG parity);
+  consume them through lib/fix_color.dart's fixColor() — hex literals in
+  app code are a conformance violation.
 version: 0.1.0
 publish_to: none
 
 environment:
   sdk: ">=3.12.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter

@@ -60,5 +60,80 @@ class TestBackendValidation(unittest.TestCase):
             self.assertNotIn(forbidden, views)
 
 
+class TestConsentPdpaContract(unittest.TestCase):
+    """PS-11 for contracts/openapi/consent-pdpa.json (PP1-M03)."""
+
+    def setUp(self):
+        self.spec = json.loads((SPECS / "consent-pdpa.json").read_text(encoding="utf-8"))
+
+    def test_grant_without_proof_is_a_422_at_the_edge(self):
+        """AS-09: proof-on-grant is the MODEL's rule (fix.consent) — the
+        contract must publish the 422 so the portal never re-implements it."""
+        post = self.spec["paths"]["/consent/{party_id}/grant"]["post"]
+        self.assertIn("422", post["responses"])
+        grant = self.spec["components"]["schemas"]["ConsentGrant"]
+        self.assertIn("proof", grant["required"])
+        self.assertGreater(guard_len := grant["properties"]["proof"].get("minLength", 0), 0,
+                           "proof must be a non-empty string")
+
+    def test_channels_match_the_model_selection(self):
+        """The contract enum must equal fix.consent's channel selection —
+        drift here forks the vocabulary between API and data."""
+        model = (REPO / "addons" / "platform" / "cd_party_master" / "models"
+                 / "fix_consent.py").read_text(encoding="utf-8")
+        enum = self.spec["components"]["schemas"]["ConsentChannel"]["enum"]
+        for channel in enum:
+            self.assertIn(f'"{channel}"', model,
+                          f"channel {channel} not in the fix.consent model")
+
+    def test_dsr_types_match_pdpa_scopes(self):
+        enum = self.spec["paths"]["/dsr"]["post"]["requestBody"]["content"][
+            "application/json"]["schema"]["$ref"]
+        self.assertEqual(enum, "#/components/schemas/DsrRequest")
+        types = self.spec["components"]["schemas"]["DsrRequest"]["properties"][
+            "request_type"]["enum"]
+        self.assertEqual(sorted(types), ["access", "erasure", "rectification"])
+
+    def test_withdraw_is_post_not_delete(self):
+        """Withdrawal is a recorded event (audit trail), not row deletion."""
+        self.assertIn("post", self.spec["paths"]["/consent/{party_id}/withdraw"])
+
+
+class TestP01CustomerContract(unittest.TestCase):
+    """PS-11 for contracts/openapi/p01-customer.json (PP1-M03)."""
+
+    def setUp(self):
+        self.spec = json.loads((SPECS / "p01-customer.json").read_text(encoding="utf-8"))
+
+    def test_money_crosses_the_wire_as_strings(self):
+        """AS-10/03-§8: totals arrive backend-computed and BN-007-formatted —
+        numeric money fields in the contract would invite client math."""
+        est = self.spec["components"]["schemas"]["Estimate"]
+        for field in ("total_bdt", "vat_bdt"):
+            self.assertEqual(est["properties"][field]["type"], "string")
+        self.assertNotIn("number", json.dumps(est["properties"]))
+
+    def test_tracking_events_are_bilingual(self):
+        """DE-17: the timeline labels must arrive in both locales."""
+        item = self.spec["paths"]["/customer/orders/{order_id}/tracking"]["get"][
+            "responses"]["200"]["content"]["application/json"]["schema"][
+            "properties"]["events"]["items"]
+        for field in ("label_en", "label_bn"):
+            self.assertIn(field, item["properties"])
+            self.assertIn(field, item["required"])
+
+    def test_list_pagination_capped(self):
+        """Unbounded listing is a DoS vector — the contract caps the page."""
+        limit = self.spec["paths"]["/customer/{party_id}/orders"]["get"][
+            "parameters"][2]["schema"]
+        self.assertEqual(limit.get("maximum"), 100)
+
+    def test_estimate_approval_is_a_state_not_a_calculation(self):
+        """The POST carries only the decision; totals never round-trip."""
+        body = self.spec["paths"]["/customer/orders/{order_id}/estimate"]["post"][
+            "requestBody"]["content"]["application/json"]["schema"]
+        self.assertEqual(body["properties"], {"approved": {"type": "boolean"}})
+
+
 if __name__ == "__main__":
     unittest.main()
