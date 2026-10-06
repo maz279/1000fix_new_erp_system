@@ -17,11 +17,13 @@
         "cd_entity_config",
         "cd_rbac_ext",
         "cd_design_tokens",
+        "cd_service_order",
     ],
     "data": [
         "security/ir.model.access.csv",
         "views/p03_menus.xml",
         "views/p03_actions.xml",
+        "views/p03_service_order_details.xml",
     ],
     "assets": {
         "web.assets_backend": [

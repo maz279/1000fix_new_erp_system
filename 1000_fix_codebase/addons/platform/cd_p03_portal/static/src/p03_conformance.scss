@@ -1,0 +1,99 @@
+// P03 Grid/List Conformance (archetype A4) — PP2-M02-T01.
+//
+// Token-driven styling for the P03 workspace lists: filter chips, sortable
+// column headers, status pills. Every value resolves through the generated
+// token custom properties --fix-* (CFM-01: no raw literals).
+//
+// This styles the P03 workspace's own elements (not Odoo's stock list views
+// — those keep the Odoo web client's rendering and gain their conformance
+// through the workspace's overlay classes).
+
+.p03-workspace {
+    // Filter chips (the workspace's screen filter)
+    .p03-filter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--fix-dimension-space-xs, 4px);
+        padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px);
+        border: 1px solid var(--fix-color-border-default, #e0e0e0);
+        border-radius: var(--fix-dimension-border-radius-pill, 999px);
+        background: var(--fix-color-surface-primary, #fff);
+        color: var(--fix-color-text-primary, #242424);
+        font-size: var(--fix-typography-size-200, 12px);
+        cursor: pointer;
+
+        &.active {
+            background: var(--fix-color-primary-tint, #ebf8f6);
+            border-color: var(--fix-color-primary-base, #0e7a6e);
+            color: var(--fix-color-primary-base, #0e7a6e);
+        }
+    }
+
+    // Sortable column headers
+    .p03-sortable {
+        cursor: pointer;
+        user-select: none;
+
+        &::after {
+            content: "⇅";
+            margin-left: var(--fix-dimension-space-xs, 4px);
+            color: var(--fix-color-text-ink-faint, #bdbdbd);
+            font-size: var(--fix-typography-size-100, 10px);
+        }
+
+        &.sort-asc::after { content: "↑"; color: var(--fix-color-primary-base, #0e7a6e); }
+        &.sort-desc::after { content: "↓"; color: var(--fix-color-primary-base, #0e7a6e); }
+    }
+
+    // Status pills (the badge component)
+    .p03-status-pill {
+        display: inline-block;
+        padding: 2px var(--fix-dimension-space-sm, 8px);
+        border-radius: var(--fix-dimension-border-radius-pill, 999px);
+        font-size: var(--fix-typography-size-100, 10px);
+        font-weight: var(--fix-typography-weight-medium, 500);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+
+        &.success { background: var(--fix-color-status-success-bg, #f1faf1); color: var(--fix-color-status-success, #0e700e); }
+        &.warning { background: var(--fix-color-status-warning-bg, #fff9f5); color: var(--fix-color-status-warning, #bc4b09); }
+        &.error   { background: var(--fix-color-status-error-bg, #fdf3f4); color: var(--fix-color-status-error, #b10e1c); }
+        &.info    { background: var(--fix-color-status-info-bg, #ebf8f6); color: var(--fix-color-status-info, #0e7a6e); }
+        &.neutral { background: var(--fix-color-status-neutral-bg, #f5f5f5); color: var(--fix-color-status-neutral, #424242); }
+    }
+
+    // Module button hover/active (list density)
+    .p03-mod-btn {
+        &:hover, &.p03-active {
+            background: var(--fix-color-primary-tint, #ebf8f6);
+            color: var(--fix-color-primary-base, #0e7a6e);
+        }
+    }
+
+    .p03-area-btn {
+        &:hover, &.p03-active {
+            color: var(--fix-color-primary-base, #0e7a6e);
+        }
+    }
+}
+
+// Tell-ME palette styling (A13)
+.p03-tellme-panel {
+    input:focus {
+        border-bottom-color: var(--fix-color-primary-base, #0e7a6e);
+    }
+    .p03-tellme-result.p03-active,
+    .p03-tellme-result:hover {
+        background: var(--fix-color-primary-tint, #ebf8f6);
+    }
+}
+
+// Focus-visible ring (Fluent double-ring, the prototype's pattern)
+.p03-workspace button:focus-visible,
+.p03-tellme-panel button:focus-visible,
+.p03-tellme-panel input:focus-visible {
+    outline: 2px solid var(--fix-color-border-focus, #04211e);
+    outline-offset: 1px;
+    box-shadow: 0 0 0 3px var(--fix-color-surface-primary, #fff);
+    border-radius: var(--fix-dimension-border-radius-sm, 4px);
+}

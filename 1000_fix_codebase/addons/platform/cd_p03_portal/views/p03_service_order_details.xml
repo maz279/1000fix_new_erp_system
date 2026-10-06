@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Record Details: BPF stepper + FactBox (archetype A5) — PP2-M02-T02.
+     Inherited into the flagship service-order form: the Business-Process-
+     Flow stepper shows the state progression with labels UNDER the circles
+     (prototype defect-#2 lesson); the FactBox rail carries related facts
+     to the right of the form. Token-driven (CFM-01). -->
+<odoo>
+
+    <!-- BPF stepper on the service order form: the state progression -->
+    <record id="inherit_service_order_bpf" model="ir.ui.view">
+        <field name="name">fix.service.order.form.bpf</field>
+        <field name="model">fix.service.order</field>
+        <field name="inherit_id" ref="cd_service_order.view_fix_service_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="before">
+                <!-- The BPF stepper: a visual state progression. Odoo's
+                     statusbar widget provides this natively; we add the
+                     FactBox rail below it. -->
+                <div class="p03-bpf-strip" style="display: flex; gap: 0; margin-bottom: 8px; padding: 0 16px;">
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">Intake</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">Diagnostic</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">Estimate</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">Repair</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">QC</div>
+                    </div>
+                    <div style="flex: 1; text-align: center; padding: 8px 4px;">
+                        <div style="width: 24px; height: 24px; border-radius: 50%; margin: 0 auto 4px; background: var(--fix-color-surface-secondary, #f5f5f5); border: 2px solid var(--fix-color-border-default, #e0e0e0);"/>
+                        <div style="font-size: var(--fix-typography-size-100, 10px); color: var(--fix-color-text-secondary, #616161);">Close</div>
+                    </div>
+                </div>
+            </xpath>
+            <!-- FactBox rail: related facts beside the form -->
+            <xpath expr="//sheet" position="inside">
+                <group name="p03_factbox" string="FactBox"
+                       colspan="2"
+                       style="border-left: 1px solid var(--fix-color-border-default, #e0e0e0); padding-left: 12px; margin-top: 8px;">
+                    <field name="create_date" string="Opened"/>
+                    <field name="write_date" string="Last Update"/>
+                    <field name="create_uid" string="Created By"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+</odoo>

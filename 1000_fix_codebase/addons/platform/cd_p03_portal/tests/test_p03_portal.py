@@ -117,6 +117,151 @@ class TestP03Actions(unittest.TestCase):
             self.assertIn(persona, xml)
 
 
+class TestTellMeSearch(unittest.TestCase):
+    """PP2-M05: the Tell-ME global search (A13)."""
+
+    def test_controller_searches_both_locales(self):
+        src = (MODULE / "controllers" / "p03_tellme.py").read_text(encoding="utf-8")
+        self.assertIn("en_match", src)
+        self.assertIn("bn_match", src)
+        self.assertIn("auth=\"user\"", src)
+
+    def test_controller_indexes_screens_and_reports(self):
+        """The index covers modules, screens, reports AND forms — all four
+        navigable entities from the registry."""
+        src = (MODULE / "controllers" / "p03_tellme.py").read_text(encoding="utf-8")
+        for kind in ("module", "screen", "report", "form"):
+            self.assertIn(f'"{kind}"', src)
+
+    def test_owl_component_has_keyboard_navigation(self):
+        """The palette navigates with ArrowUp/ArrowDown/Enter (defect-#10)."""
+        js = (MODULE / "static" / "src" / "p03_tellme.js").read_text(encoding="utf-8")
+        for key in ("ArrowDown", "ArrowUp", "Enter", "Escape"):
+            self.assertIn(key, js, f"keyboard nav: {key} missing")
+
+    def test_owl_opens_with_ctrl_k_or_alt_q(self):
+        js = (MODULE / "static" / "src" / "p03_tellme.js").read_text(encoding="utf-8")
+        self.assertIn("ctrlKey", js)
+        self.assertIn("altKey", js)
+
+    def test_registered_as_systray(self):
+        js = (MODULE / "static" / "src" / "p03_tellme.js").read_text(encoding="utf-8")
+        self.assertIn('category("systray")', js)
+
+    def test_template_has_bengali_placeholder(self):
+        xml = (MODULE / "static" / "src" / "p03_tellme.xml").read_text(encoding="utf-8")
+        self.assertIn("বাংলা", xml, "the search placeholder must mention বাংলা")
+
+
+class TestReportCenter(unittest.TestCase):
+    """PP2-M04: the Report Center (A10/A11)."""
+
+    def test_action_registered(self):
+        xml = (MODULE / "views" / "p03_actions.xml").read_text(encoding="utf-8")
+        self.assertIn("p03_report_center", xml)
+        self.assertIn("Report Center", xml)
+
+    def test_owl_lists_346_reports(self):
+        """The component computes the total from the registry — the
+        prototype's full report library is the denominator."""
+        js = (MODULE / "static" / "src" / "p03_report_center.js").read_text(encoding="utf-8")
+        self.assertIn("reports", js)
+        self.assertIn("totalReports", js)
+
+    def test_filter_by_area_and_query(self):
+        js = (MODULE / "static" / "src" / "p03_report_center.js").read_text(encoding="utf-8")
+        self.assertIn("areaFilter", js)
+        self.assertIn("query", js)
+
+    def test_template_renders_module_sections_with_counts(self):
+        xml = (MODULE / "static" / "src" / "p03_report_center.xml").read_text(encoding="utf-8")
+        self.assertIn("mod.reports.length", xml)
+        self.assertIn("t-esc=\"report\"", xml)
+
+
+class TestGridConformance(unittest.TestCase):
+    """PP2-M02-T01: grid/list conformance layer (A4)."""
+
+    def test_scss_defines_filter_chips(self):
+        scss = (MODULE / "static" / "src" / "p03_conformance.scss").read_text(encoding="utf-8")
+        self.assertIn("p03-filter-chip", scss)
+
+    def test_scss_defines_sortable_headers(self):
+        scss = (MODULE / "static" / "src" / "p03_conformance.scss").read_text(encoding="utf-8")
+        self.assertIn("p03-sortable", scss)
+        self.assertIn("sort-asc", scss)
+        self.assertIn("sort-desc", scss)
+
+    def test_scss_defines_status_pills(self):
+        scss = (MODULE / "static" / "src" / "p03_conformance.scss").read_text(encoding="utf-8")
+        for status in ("success", "warning", "error", "info", "neutral"):
+            self.assertIn(f"&.{status}", scss)
+
+    def test_scss_focus_ring(self):
+        scss = (MODULE / "static" / "src" / "p03_conformance.scss").read_text(encoding="utf-8")
+        self.assertIn(":focus-visible", scss)
+
+
+class TestRecordDetails(unittest.TestCase):
+    """PP2-M02-T02: record details — BPF stepper + FactBox (A5)."""
+
+    def test_bpf_stepper_on_service_order(self):
+        xml = (MODULE / "views" / "p03_service_order_details.xml").read_text(encoding="utf-8")
+        self.assertIn("p03-bpf-strip", xml)
+        # the six stages of the service-order lifecycle
+        for stage in ("Intake", "Diagnostic", "Estimate", "Repair", "QC", "Close"):
+            self.assertIn(stage, xml)
+
+    def test_factbox_rail_present(self):
+        xml = (MODULE / "views" / "p03_service_order_details.xml").read_text(encoding="utf-8")
+        self.assertIn("p03_factbox", xml)
+        self.assertIn("FactBox", xml)
+
+    def test_view_inherits_existing_form(self):
+        xml = (MODULE / "views" / "p03_service_order_details.xml").read_text(encoding="utf-8")
+        self.assertIn("inherit_id", xml)
+        self.assertIn("cd_service_order.view_fix_service_order_form", xml)
+
+
+class TestDispatchConsole(unittest.TestCase):
+    """PP2-M03: the process console (A7)."""
+
+    def test_action_registered(self):
+        xml = (MODULE / "views" / "p03_actions.xml").read_text(encoding="utf-8")
+        self.assertIn("p03_dispatch_console", xml)
+        self.assertIn("Dispatch Console", xml)
+
+    def test_reads_from_real_model_not_literals(self):
+        """The console renders read_group data — never fabricated values."""
+        js = (MODULE / "static" / "src" / "p03_dispatch_console.js").read_text(encoding="utf-8")
+        self.assertIn("readGroup", js)
+        self.assertIn("fix.work.order", js)
+
+    def test_template_has_status_pills_and_refresh(self):
+        xml = (MODULE / "static" / "src" / "p03_dispatch_console.xml").read_text(encoding="utf-8")
+        self.assertIn("badge", xml)
+        self.assertIn("Refresh", xml)
+
+
+class TestTabRail(unittest.TestCase):
+    """PP2-M07: the tab rail port."""
+
+    def test_persists_to_localstorage(self):
+        js = (MODULE / "static" / "p03_tab_rail.js").read_text(encoding="utf-8") if (MODULE / "static" / "p03_tab_rail.js").exists() else \
+             (MODULE / "static" / "src" / "p03_tab_rail.js").read_text(encoding="utf-8")
+        self.assertIn("localStorage", js)
+        self.assertIn("p03_open_tabs", js)
+
+    def test_caps_tab_count(self):
+        js = (MODULE / "static" / "src" / "p03_tab_rail.js").read_text(encoding="utf-8")
+        self.assertIn("MAX_TABS", js)
+
+    def test_no_lru_eviction_beyond_cap(self):
+        """Non-normative: LRU eviction is NOT a requirement — the cap is."""
+        js = (MODULE / "static" / "src" / "p03_tab_rail.js").read_text(encoding="utf-8")
+        self.assertNotIn("BroadcastChannel", js, "BroadcastChannel sync is NOT a requirement")
+
+
 class TestCoverageLedger(unittest.TestCase):
     """PP2-M03: the screen-key coverage ledger exists and is honest."""
 

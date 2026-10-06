@@ -33,4 +33,24 @@
         <field name="tag">p03_workspace</field>
     </record>
 
+    <!-- Report Center (A10/A11) — the 346-report library -->
+    <record id="action_p03_report_center" model="ir.actions.client">
+        <field name="name">Report Center</field>
+        <field name="tag">p03_report_center</field>
+    </record>
+
+    <menuitem id="menu_p03_report_center" name="Report Center"
+              parent="cd_entity_config.menu_fix_operations_root"
+              action="action_p03_report_center" sequence="1"/>
+
+    <!-- Process Console: Dispatch (A7) — live board on fix.work.order -->
+    <record id="action_p03_dispatch" model="ir.actions.client">
+        <field name="name">Dispatch Console</field>
+        <field name="tag">p03_dispatch_console</field>
+    </record>
+
+    <menuitem id="menu_p03_dispatch" name="Dispatch Console"
+              parent="cd_entity_config.menu_fix_operations_root"
+              action="action_p03_dispatch" sequence="2"/>
+
 </odoo>

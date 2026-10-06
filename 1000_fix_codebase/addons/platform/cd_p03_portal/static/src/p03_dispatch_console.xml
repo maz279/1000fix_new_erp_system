@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Process Console: Dispatch Board (A7) — PP2-M03. -->
+<templates xml:space="preserve">
+
+<t t-name="cd_p03_portal.P03DispatchConsole">
+    <div style="height: 100%; background: var(--fix-color-surface-canvas, #fafafa); display: flex; flex-direction: column;">
+        <!-- Console header: live status pills -->
+        <header style="display: flex; align-items: center; gap: var(--fix-dimension-space-sm, 8px); padding: var(--fix-dimension-space-sm, 8px) var(--fix-dimension-space-md, 16px); background: var(--fix-color-surface-primary, #fff); border-bottom: 1px solid var(--fix-color-border-default, #e0e0e0);">
+            <h1 style="margin: 0; font-size: var(--fix-typography-size-400, 16px); color: var(--fix-color-text-primary, #242424); flex: 1;">
+                Dispatch Console
+            </h1>
+            <t t-if="state.counts">
+                <t t-foreach="Object.entries(state.counts)" t-as="state" t-key="state_index">
+                    <span class="badge"
+                          t-attf-style="padding: 4px 12px; border-radius: var(--fix-dimension-border-radius-pill, 999px); font-size: var(--fix-typography-size-200, 12px); background: var(--fix-color-surface-secondary, #f5f5f5); color: var(--fix-color-text-primary, #242424);">
+                        <t t-esc="stateLabels[state[0]] || state[0]"/>: <t t-esc="state[1]"/>
+                    </span>
+                </t>
+            </t>
+            <button class="btn btn-secondary" t-on-click="refresh"
+                    style="border: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: var(--fix-dimension-border-radius-sm, 4px); padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px); background: var(--fix-color-surface-primary, #fff); font-size: var(--fix-typography-size-200, 12px); cursor: pointer;">
+                ↻ Refresh
+            </button>
+        </header>
+
+        <!-- Active work orders -->
+        <main style="flex: 1; overflow-y: auto; padding: var(--fix-dimension-space-md, 16px);">
+            <t t-if="state.zones.length > 0">
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--fix-dimension-space-sm, 8px);">
+                    <t t-foreach="state.zones" t-as="order" t-key="order_index">
+                        <div style="border: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: var(--fix-dimension-border-radius-md, 8px); padding: var(--fix-dimension-space-sm, 8px) var(--fix-dimension-space-md, 16px); background: var(--fix-color-surface-primary, #fff);">
+                            <div style="display: flex; align-items: center; gap: var(--fix-dimension-space-xs, 4px);">
+                                <span style="font-size: var(--fix-typography-size-300, 14px); font-weight: 600; color: var(--fix-color-text-primary, #242424); flex: 1;">
+                                    <t t-esc="order.name"/>
+                                </span>
+                                <span class="badge"
+                                      t-attf-style="font-size: 10px; padding: 2px 6px; border-radius: var(--fix-dimension-border-radius-xs, 2px); background: var(--fix-color-status-warning-bg, #fff9f5); color: var(--fix-color-status-warning, #bc4b09);">
+                                    <t t-esc="stateLabels[order.state] || order.state"/>
+                                </span>
+                            </div>
+                            <div t-if="order.order_id" style="font-size: var(--fix-typography-size-200, 12px); color: var(--fix-color-text-secondary, #616161); margin-top: var(--fix-dimension-space-xs, 4px);">
+                                → <t t-esc="order.order_id[1]"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </t>
+            <t t-else="">
+                <div style="padding: var(--fix-dimension-space-xxl, 48px); text-align: center; color: var(--fix-color-text-ink-faint, #bdbdbd); font-size: var(--fix-typography-size-300, 14px);">
+                    No active work orders on the board.
+                </div>
+            </t>
+        </main>
+    </div>
+</t>
+
+</templates>
