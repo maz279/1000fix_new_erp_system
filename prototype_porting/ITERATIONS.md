@@ -653,3 +653,24 @@ value, zero hand-authored colours.
 tests (3 new regression tests) · fitness 0 failures · smoke 14/14 ·
 FF-43 green. Odoo left running for the user (same args, PYTHONPATH
 fix).
+
+---
+
+## PP6 execution record (2026-10-06, commit `64e1f951ee`)
+
+Data strategy execution (03-DATA-STRATEGY) — the three data classes
+made machine-enforced, per the plan's E1–E5 + §4/§7/§8:
+
+| Mandate | Delivered | Evidence |
+|---|---|---|
+| E1/E2 (demo_data.js not ported; fixture gate) | Already green since PP1 (FF-39); re-verified | fitness PASS |
+| E3 (estate demo-literal sweep) | NEW **FF-44** `check-demo-literals.py` BLOCKING: fabricated literals in views/static + the Odoo demo-data policy (manifest `demo` keys empty-or-in-`demo/` only; TEST class enters via seed.py alone) | sweep found the estate already clean — 0 violations; gate keeps it so |
+| E4 (seed policy) | seed double-run refusal added to the live smoke suite (exit 2 verified against the seeded fix_dev) — the TEST class enters exactly once | smoke 15/15 |
+| E5 (migration-staging rehearsal) | `infra/compose/docker-compose.migration-staging.yml` (separate volume, loopback 5434, creds env-only, compose-validated) + `tooling/scripts/mig-totals.py` (MIG-02 control-totals verifier, fails closed, self-tested pass+fail) + `migrations/REHEARSAL.md` (MG-004/MIG-08 sign-off procedure; no rehearsal run yet — recorded as such) | self-test PASS; `compose config` renders 2 services |
+| §4 (data-shape parity suite) | NEW **FF-45** `check-data-parity.py` BLOCKING: 14 ported grids (M01/M09/M12/M16/M17/M20/M27/M53 surfaces) asserted column-complete against their controller payloads — method-block parsing, nesting-safe; proposed `/api/v1/*` matrix rows tracked as pending | all 14 grids parity-complete — the PP5 payloads carried every prototype column |
+| §7 (statutory masks) | `libs/ts/ui/src/masks.ts`: BIN-13, NID-10/17, e-TIN-12 validators + typing masks (audit-corrected: no invented checksums) — exported through all 7 portal barrels so every build typechecks them; FF-45 validates the pattern contract | 7/7 builds green |
+| §8 (backend-only money) | FF-39 extended with a client-side MONETARY-arithmetic guard (money-named identifiers in binary ops / Math.* / toFixed fail the build; prose strings stripped first; self-tested both ways — rates/rating formatting exempt) | FF-39 PASS |
+
+**Battery**: 646 addons tests · fitness 0 failures (FF-38…FF-45 — 27
+results, FF-27 the known WARN) · smoke 15/15 (seed guard included) ·
+7/7 portal builds green.
