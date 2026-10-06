@@ -135,6 +135,12 @@ checks:
     stage: architecture
     script: check-dart-apps.py
     rationale: all 4 mobile apps must consume fix_ui tokens (no hand hex), the fix_offline engine (never re-implemented), and the customer app must be Bengali-first - a violation here is a silent conformance break
+  - id: FF-43
+    name: Next.js portal batch structure (PP5 P01/P05/P06/P07/P08/P10/P12; PP3 template + app-controller parity)
+    blocking: true
+    stage: architecture
+    script: check-portal-batch.py
+    rationale: the 7 PP5 portals must keep the PP3 template (P-11 api wrapper, CFM-01 tokens, theme toggles), P01 must stay Bengali-first (DE-17), P06's BI embed must be config-only, P08 must carry brand_id on every call, and every frontend API path must have a registered backend route - a drift here is a silent contract break between portal and Odoo
 
   # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
   - id: FF-16

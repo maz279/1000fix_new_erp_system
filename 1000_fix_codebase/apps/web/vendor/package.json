@@ -1,0 +1,22 @@
+{
+  "name": "@1000fix/web-vendor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "P05 Vendor & Supplier Portal (R2 realisation, PP5) — PO acknowledgement, delivery confirmation, invoice submission feeding the three-way match; tokens from libs/ts/ui, APIs via libs/ts/api-client through Kong.",
+  "scripts": {
+    "dev": "next dev --turbopack --port 3007 --hostname 127.0.0.1",
+    "build": "next build --turbopack",
+    "start": "next start --port 3007 --hostname 127.0.0.1"
+  },
+  "dependencies": {
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.5",
+    "@types/react": "19.1.10",
+    "@types/react-dom": "19.1.7",
+    "typescript": "5.9.3"
+  }
+}

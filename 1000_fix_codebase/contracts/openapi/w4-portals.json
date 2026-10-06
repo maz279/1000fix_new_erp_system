@@ -1,9 +1,9 @@
 {
-  "$comment": "P07-M09-T07 — OpenAPI operations the four W4 portals consume (IN-002 burn-down from 1,152 outstanding; authored here, the burn-down is reported at the gate).",
+  "$comment": "P07-M09-T07 + PP5 — OpenAPI operations the portals consume. W4 slice (P04/P08/P10/P06) authored at PP1; PP5 adds the P01/P05/P07/P12 surfaces and aligns the contact transcript path with the JSON-RPC dispatcher (path params are body params in JSON-RPC — combined endpoints per the corporate pattern). IN-002 burn-down reported at the gate.",
   "openapi": "3.1.0",
   "info": {
-    "title": "1000FiX Portal API — P04/P08/P10/P06 (W4 slice)",
-    "version": "1.0.0-w4"
+    "title": "1000FiX Portal API — P01/P04/P05/P06/P07/P08/P10/P12",
+    "version": "1.1.0-pp5"
   },
   "servers": [
     {
@@ -113,13 +113,35 @@
     },
     "/contact/conversations/{id}/transcript": {
       "get": {
-        "summary": "P10: transcript + customer 360 context",
+        "summary": "P10 (REST projection): transcript + customer 360 context. The JSON-RPC realisation is /contact/conversations/detail (PP5) — path params are body params in JSON-RPC.",
         "responses": {
           "200": {
             "description": "Transcript"
           }
         },
         "operationId": "getConversationTranscript"
+      }
+    },
+    "/contact/conversations/detail": {
+      "post": {
+        "summary": "P10: transcript + customer 360 (JSON-RPC realisation; conversation_id in the body)",
+        "responses": {
+          "200": {
+            "description": "Transcript + 360"
+          }
+        },
+        "operationId": "getConversationDetail"
+      }
+    },
+    "/contact/softphone": {
+      "get": {
+        "summary": "P10: the softphone integration seam — telephony endpoints from deployment config only (no credentials)",
+        "responses": {
+          "200": {
+            "description": "Softphone config (nulls when unset)"
+          }
+        },
+        "operationId": "getSoftphoneConfig"
       }
     },
     "/contact/handoff": {
@@ -154,6 +176,216 @@
         },
         "operationId": "getKpis"
       }
+    },
+    "/customer/devices": {
+      "post": {
+        "summary": "P01: the customer's devices with the M17 history timeline",
+        "responses": {
+          "200": {
+            "description": "Devices + history"
+          }
+        },
+        "operationId": "listCustomerDevices"
+      }
+    },
+    "/customer/bookings": {
+      "post": {
+        "summary": "P01: <=3-step booking + tracking list (combined JSON-RPC endpoint)",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerBooking"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Bookings list or the created booking"
+          },
+          "422": {
+            "description": "Rejected — server-side validation (AS-09)"
+          }
+        },
+        "operationId": "customerBookings"
+      }
+    },
+    "/customer/tracking": {
+      "post": {
+        "summary": "P01: live tracking — state, technician, SLA clocks (polling today; the websocket upgrade rides this shape)",
+        "responses": {
+          "200": {
+            "description": "Tracking"
+          }
+        },
+        "operationId": "trackOrder"
+      }
+    },
+    "/customer/estimates": {
+      "post": {
+        "summary": "P01: estimate approval — the customer documents approval (BRU-SRM-07), the model enforces the gates",
+        "responses": {
+          "200": {
+            "description": "Estimates list or the approval result"
+          },
+          "422": {
+            "description": "Gate rejection — visible, never warned (G-series)"
+          }
+        },
+        "operationId": "customerEstimates"
+      }
+    },
+    "/customer/consent": {
+      "post": {
+        "summary": "P01: the PDPA consent dashboard — grant/withdraw per channel, status visible (PP0 audit gap closed)",
+        "responses": {
+          "200": {
+            "description": "Consent rows or the action result"
+          },
+          "422": {
+            "description": "A grant without proof is refused — an unverifiable grant is not a grant"
+          }
+        },
+        "operationId": "customerConsent"
+      }
+    },
+    "/customer/ownership/transfer": {
+      "post": {
+        "summary": "P01: device ownership transfer (T05 — 'portal P01 exposes this in Phase 5')",
+        "responses": {
+          "200": {
+            "description": "Transferred"
+          },
+          "422": {
+            "description": "Only the current owner can transfer"
+          }
+        },
+        "operationId": "transferOwnership"
+      }
+    },
+    "/vendor/purchase-orders": {
+      "post": {
+        "summary": "P05: RFQ response (PO acknowledgement) + delivery confirm + list (M16)",
+        "responses": {
+          "200": {
+            "description": "POs or the action result"
+          },
+          "422": {
+            "description": "Only a sent PO can be acknowledged"
+          }
+        },
+        "operationId": "vendorPurchaseOrders"
+      }
+    },
+    "/vendor/invoices": {
+      "post": {
+        "summary": "P05: invoice submission feeding the three-way match (G3-06: blocked invoices ship their block reason)",
+        "responses": {
+          "200": {
+            "description": "Invoices (match_state + match_detail) or the submission result"
+          },
+          "422": {
+            "description": "An invoice must land on a PO for the match"
+          }
+        },
+        "operationId": "vendorInvoices"
+      }
+    },
+    "/seller/dashboard": {
+      "post": {
+        "summary": "P07: seller onboarding state + headline numbers (M12)",
+        "responses": {
+          "200": {
+            "description": "Seller profile"
+          }
+        },
+        "operationId": "sellerDashboard"
+      }
+    },
+    "/seller/orders": {
+      "post": {
+        "summary": "P07: the open jobs board with the seller's own quote visible (EA-05)",
+        "responses": {
+          "200": {
+            "description": "Jobs board"
+          }
+        },
+        "operationId": "sellerOrders"
+      }
+    },
+    "/seller/quotes": {
+      "post": {
+        "summary": "P07: quote submission + list — only a KYC-verified seller quotes (the gate is stated, not warned)",
+        "responses": {
+          "200": {
+            "description": "Quotes or the submission result"
+          },
+          "422": {
+            "description": "KYC gate / invalid price / closed job"
+          }
+        },
+        "operationId": "sellerQuotes"
+      }
+    },
+    "/seller/scorecard": {
+      "post": {
+        "summary": "P07: the seller's scorecard history (M12 performance)",
+        "responses": {
+          "200": {
+            "description": "Scorecard"
+          }
+        },
+        "operationId": "sellerScorecard"
+      }
+    },
+    "/seller/settlements": {
+      "post": {
+        "summary": "P07: settlement statements from the commission ledger (owned by cd_settlement_ext — FL-03)",
+        "responses": {
+          "200": {
+            "description": "Statement lines + net total (BN-007 strings)"
+          }
+        },
+        "operationId": "sellerSettlements"
+      }
+    },
+    "/partner/profile": {
+      "post": {
+        "summary": "P12: the partner's standing — type, territory, rate, state",
+        "responses": {
+          "200": {
+            "description": "Partner profile"
+          }
+        },
+        "operationId": "partnerProfile"
+      }
+    },
+    "/partner/referrals": {
+      "post": {
+        "summary": "P12: referral submission (attribution on the referred party) + tracking (M53)",
+        "responses": {
+          "200": {
+            "description": "Referrals or the submission result"
+          },
+          "422": {
+            "description": "referred_partner_id is required"
+          }
+        },
+        "operationId": "partnerReferrals"
+      }
+    },
+    "/partner/commissions": {
+      "post": {
+        "summary": "P12: the commission statement from the referral ledger",
+        "responses": {
+          "200": {
+            "description": "Statement lines + earned total (BN-007 strings)"
+          }
+        },
+        "operationId": "partnerCommissions"
+      }
     }
   },
   "components": {
@@ -182,6 +414,33 @@
               "warranty",
               "amc"
             ]
+          }
+        }
+      },
+      "CustomerBooking": {
+        "type": "object",
+        "required": [
+          "device_id",
+          "fault_description"
+        ],
+        "properties": {
+          "device_id": {
+            "type": "integer",
+            "description": "M17 — every booking needs an identified device owned by the customer"
+          },
+          "fault_description": {
+            "type": "string"
+          },
+          "order_category": {
+            "type": "string",
+            "enum": [
+              "standard",
+              "warranty",
+              "amc"
+            ]
+          },
+          "priority": {
+            "type": "string"
           }
         }
       }

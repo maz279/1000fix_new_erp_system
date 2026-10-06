@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_device_customer_portal,fix.device.customer.portal,cd_device_registry.model_fix_device,group_fix_customer_portal,1,1,0,0
+access_fix_device_history_customer_portal,fix.device.history.customer.portal,cd_device_registry.model_fix_device_history,group_fix_customer_portal,1,0,0,0
+access_fix_service_order_customer_portal,fix.service.order.customer.portal,cd_service_order.model_fix_service_order,group_fix_customer_portal,1,1,1,0
+access_fix_estimate_customer_portal,fix.estimate.customer.portal,cd_service_order.model_fix_estimate,group_fix_customer_portal,1,1,0,0
+access_fix_consent_customer_portal,fix.consent.customer.portal,cd_party_master.model_fix_consent,group_fix_customer_portal,1,1,1,0
+access_fix_branch_customer_portal,fix.branch.customer.portal,cd_entity_config.model_fix_branch,group_fix_customer_portal,1,0,0,0

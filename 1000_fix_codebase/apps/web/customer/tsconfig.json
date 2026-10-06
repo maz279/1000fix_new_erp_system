@@ -21,7 +21,12 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "react/jsx-runtime": [
+        "./node_modules/@types/react/jsx-runtime.d.ts"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",

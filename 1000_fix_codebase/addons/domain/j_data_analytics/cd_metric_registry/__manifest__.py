@@ -7,7 +7,8 @@
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
-    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox"],
+    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox",
+                 "cd_service_order", "cd_warranty_claims"],  # PP5: P06 KPI read_groups
     "data": ["security/ir.model.access.csv", "views/cd_metric_registry_views.xml"],
     "installable": True,
     "application": False,

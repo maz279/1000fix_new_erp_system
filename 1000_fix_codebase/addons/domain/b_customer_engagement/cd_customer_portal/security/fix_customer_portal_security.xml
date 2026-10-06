@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_customer_portal security: the customer-portal group + the EA-05
+     record rule (a customer sees only their own rows). Loaded BEFORE
+     ir.model.access.csv (the CSV references the group id). -->
+<odoo>
+    <record id="group_fix_customer_portal" model="res.groups">
+        <field name="name">P01 Customer Portal</field>
+        <field name="privilege_id" ref="cd_rbac_ext.privilege_fix_portal"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="comment">P01 access: customers see their own devices, orders, estimates and consent rows (EA-05).</field>
+    </record>
+
+    <!-- EA-05: every P01 row is scoped to the owning partner. -->
+    <record id="rule_fix_device_customer_self" model="ir.rule">
+        <field name="name">P01 device: own devices only</field>
+        <field name="model_id" ref="cd_device_registry.model_fix_device"/>
+        <field name="domain_force">[('owner_id','=',user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
+    </record>
+    <record id="rule_fix_service_order_customer_self" model="ir.rule">
+        <field name="name">P01 order: own orders only</field>
+        <field name="model_id" ref="cd_service_order.model_fix_service_order"/>
+        <field name="domain_force">[('customer_id','=',user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
+    </record>
+</odoo>
