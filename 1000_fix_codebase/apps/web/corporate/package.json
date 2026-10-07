@@ -5,7 +5,7 @@
   "description": "P04 Corporate B2B Portal (R2 realisation) — PP1 scaffold; tokens from libs/ts/ui, APIs via libs/ts/api-client through Kong.",
   "scripts": {
     "dev": "next dev --turbopack --port 3001 --hostname 127.0.0.1",
-    "build": "next build --turbopack",
+    "build": "next build --webpack",
     "start": "next start --port 3001 --hostname 127.0.0.1"
   },
   "dependencies": {

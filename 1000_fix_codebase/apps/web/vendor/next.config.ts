@@ -1,10 +1,20 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-/** PP5 scaffold — monorepo root lifts Turbopack's module boundary (see corporate/customer). */
+/**
+ * P05 Vendor (R2) — PP5 scaffold config.
+ *
+ * Production builds consolidate into a single initial JS bundle: the
+ * ZCode in-app browser pane (Chromium 146/Electron 41) fails to commit
+ * any page whose HTML carries ~7+ script resources (bisected live:
+ * 6 script tags render, 8 do not — the pane's network layer, not the
+ * app). One bundle ≈ one script tag, well inside every environment's
+ * limits; the total payload is unchanged.
+ */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   outputFileTracingRoot: path.join(__dirname, "../../.."),
+  // EP-12: loopback-only in dev; production origins come from env at deploy.
   async headers() {
     return [
       {

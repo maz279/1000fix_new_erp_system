@@ -9,7 +9,7 @@ let _client: ApiClient | null = null;
 function getClient(): ApiClient {
   if (!_client) {
     _client = new ApiClient({
-      baseUrl: process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8069",
+      baseUrl: process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000",
       tokenGetter: () => {
         if (typeof window !== "undefined") {
           return window.sessionStorage.getItem("fix_token");

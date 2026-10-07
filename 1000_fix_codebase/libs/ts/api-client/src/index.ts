@@ -43,7 +43,10 @@ export class ApiClient {
   constructor(opts: ApiClientOptions = {}) {
     this.baseUrl = (opts.baseUrl ?? process.env.FIX_API_BASE ?? "http://127.0.0.1:8000").replace(/\/+$/, "");
     this.tokenGetter = opts.tokenGetter;
-    this.fetchImpl = opts.fetchImpl ?? fetch;
+    // Bind at construction: a detached `fetch` reference throws
+    // "Illegal invocation" in browsers (live-fired at the PP5 audit —
+    // every portal's data call failed in a real browser because of it)
+    this.fetchImpl = opts.fetchImpl ?? ((...args) => fetch(...args));
     this.maxRetries = opts.maxRetries ?? DEFAULT_MAX_RETRIES;
     this.retryDelayMs = opts.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
   }
