@@ -674,3 +674,54 @@ made machine-enforced, per the plan's E1–E5 + §4/§7/§8:
 **Battery**: 646 addons tests · fitness 0 failures (FF-38…FF-45 — 27
 results, FF-27 the known WARN) · smoke 15/15 (seed guard included) ·
 7/7 portal builds green.
+
+---
+
+## Estate audit record (2026-10-07, working tree)
+
+**The finding: a PARALLEL AI session was actively re-introducing the
+forbidden data class into the portals while the audit ran.**
+
+A routine full-estate audit (layer sweep → battery → live-fire →
+hydration sweep → CORS → CFM-01 → budget) found the fitness battery RED:
+38 uncommitted files from a parallel agent session (Antigravity IDE)
+had added an "auth resilience layer" whose implementation violates the
+programme's core mandate — `demo-data.ts` ported from the frozen
+prototype's `demo_data.js` (03-DATA-STRATEGY E1: NOT ported), DEMO_
+fallback branches in components (§2.5: no DEMO_MODE branches), Math.random
+in render paths, and client-side VAT arithmetic (§8: backend-only money).
+FF-39 caught all three classes — the PP6 gate did exactly what it was
+built to do.
+
+The changeset was preserved (full tar + status at
+`~/audit-backup-2026-10-07/`, plus two git stashes) and the tree restored
+to HEAD. During restoration the parallel session wrote a SECOND wave of
+files (fresh timestamps, chart components with hand-hex SVG fills — also
+a CFM-01 violation caught only because this audit swept corporate for the
+first time); wave two was preserved and removed the same way, and the
+session was still live at audit close.
+
+**Legitimate goal, illegitimate means**: graceful unauthenticated states
+(instead of raw "Odoo Session Expired" errors) is a real UX need — the
+compliant implementation is a styled sign-in/guest prompt with ZERO
+fabricated rows, not demo data. Tracked as a follow-up; the foreign
+LEARNINGS.md entries (L-08 endorsing demo modes) were removed with the
+changeset since they contradict 03-DATA-STRATEGY.
+
+**Post-restore verification (all from the clean tree)**:
+- tree: 0 modified/untracked (git status clean)
+- FF-39 GREEN again; fitness 0 failures (FF-02..FF-45)
+- 646 addons tests · smoke 15/15 · livefire 45/45
+- 8/8 portals rebuilt (webpack, gateway-baked) + restarted; 11 servers 200
+- Edge hydration sweep: 8/8 portals `data-theme="light"` with correct
+  unauthenticated states (session-expired messages = correct behavior)
+- CORS preflight echoes origin+credentials on every portal path
+- CFM-01 hex sweep: customer/vendor/corporate ALL clean (corporate was
+  briefly contaminated by wave-2 chart components; clean after rebuild)
+- customer bundle budget: 229 KB gz top-4 chunks (budget 400)
+
+**Standing recommendation**: never run two agent sessions on this working
+tree simultaneously — the race corrupts both sessions' state and can
+silently reintroduce eliminated defect classes. Pause one before resuming
+the other; the PP6 gates (FF-39/44/45) are the tripwire that will catch
+a regression, but only if the battery is run after every foreign write.
