@@ -1,148 +1,420 @@
 {
- "$description": "Landing/marketing shell data — PP5. Generated from contracts/nav/registry.json (portals + journeys only; navigation, not data). Do not hand-edit.",
+ "$description": "Landing/marketing shell data — PP5. Generated from contracts/nav/registry.json (portals + journeys only; navigation, not data). Production bilingual with deep links.",
  "portals": [
   {
    "id": "P01",
    "en": "Customer Self-Service & App",
+   "bn": "কাস্টমার সেলফ-সার্ভিস ও ওয়েব পোর্টাল",
    "users": "Individual customers",
+   "users_bn": "সাধারণ গ্রাহক এবং সরাসরি সেবা প্রার্থী",
    "volume": "250 K+/mo",
+   "volume_bn": "প্রতি মাসে ২,৫০,০০০+ সেবা",
+   "url": "/",
+   "port": 3010,
+   "is_live": true,
+   "is_mobile": false,
+   "tech": "Next.js 16.3 + PWA",
    "capabilities": [
     "OTP register & devices",
     "≤3-step booking & slots",
     "live tracking + technician ETA",
     "approvals & e-sign"
+   ],
+   "capabilities_bn": [
+    "ওটিপি লগইন ও ডিভাইস তালিকা",
+    "৩-ধাপে সার্ভিস বুকিং ও স্লট নির্বাচন",
+    "লাইভ ট্র্যাকিং ও টেকনিশিয়ান ইটিএ",
+    "অনুমোদন, ডিজিটাল পেমেন্ট ও ই-স্বাক্ষর"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Booking",
+     "label_bn": "সার্ভিস বুকিং",
+     "url": "/booking"
+    },
+    {
+     "label_en": "Live Tracking",
+     "label_bn": "লাইভ ট্র্যাকিং",
+     "url": "/tracking"
+    },
+    {
+     "label_en": "My Devices",
+     "label_bn": "ডিভাইস তালিকা",
+     "url": "/devices"
+    },
+    {
+     "label_en": "Estimates",
+     "label_bn": "এস্টিমেট",
+     "url": "/estimates"
+    },
+    {
+     "label_en": "Privacy & Consent",
+     "label_bn": "সম্মতি ও গোপনীয়তা",
+     "url": "/consent"
+    }
    ]
   },
   {
    "id": "P02",
    "en": "Technician Mobile App",
+   "bn": "টেকনিশিয়ান মোবাইল অ্যাপ",
    "users": "Field & workshop technicians",
+   "users_bn": "ফিল্ড ও ওয়ার্কশপ টেকনিশিয়ান",
    "volume": "200–400",
+   "volume_bn": "২০০–৪০০ জন সক্রিয় টেকনিশিয়ান",
+   "url": "http://127.0.0.1:8069/odoo",
+   "port": 8069,
+   "is_live": true,
+   "is_mobile": true,
+   "tech": "Flutter Mobile App",
    "capabilities": [
     "day queue + geofenced clock-in",
     "offline 24h + 30s sync",
     "diagnostic trees & fault coding",
     "van stock scan-consume"
+   ],
+   "capabilities_bn": [
+    "দৈনিক কাজের সারি ও জিওফেন্স হাজিরা",
+    "২৪ ঘণ্টা অফলাইন মোড ও ৩০ সেকেন্ডে সিঙ্ক",
+    "সমস্যা নির্ণয় নির্দেশিকা ও ফল্ট কোডিং",
+    "গাড়ির যন্ত্রাংশ স্ক্যান ও ব্যবহার"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Field Dispatch Board",
+     "label_bn": "ফিল্ড ডেসপ্যাচ বোর্ড",
+     "url": "http://127.0.0.1:8069/odoo"
+    }
    ]
   },
   {
    "id": "P03",
    "en": "Admin Operations Portal",
+   "bn": "অ্যাডমিন ও সেন্ট্রাল অপারেশনস পোর্টাল",
    "users": "Back-office & branch staff",
+   "users_bn": "শাখা ও প্রধান কার্যালয় পরিচালনা কর্মী",
    "volume": "150–250",
+   "volume_bn": "১৫০–২৫০ জন অভ্যন্তরীণ কর্মী",
+   "url": "http://127.0.0.1:8069/odoo",
+   "port": 8069,
+   "is_live": true,
+   "is_mobile": false,
+   "tech": "Odoo 19 OWL 2",
    "capabilities": [
     "15 role workspaces",
     "dispatch console & live map",
     "branch & workshop consoles",
     "≤4 clicks to any record"
+   ],
+   "capabilities_bn": [
+    "১৫টি বিশেষায়িত ভূমিকা ওয়ার্কস্পেস",
+    "ডেসপ্যাচ কনসোল ও রিয়েল-টাইম লাইভ ম্যাপ",
+    "শাখা ও ল্যাব ওয়ার্কশপ কন্ট্রোল",
+    "৪ বা তার কম ক্লিকে যেকোনো তথ্যে প্রবেশ"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Operations Console",
+     "label_bn": "অপারেশনস কনসোল",
+     "url": "http://127.0.0.1:8069/odoo"
+    }
    ]
   },
   {
    "id": "P04",
    "en": "Corporate B2B Portal",
+   "bn": "কর্পোরেট ও প্রাতিষ্ঠানিক B2B পোর্টাল",
    "users": "Corporate & government",
+   "users_bn": "কর্পোরেট প্রতিষ্ঠান ও সরকারি ক্লায়েন্ট",
    "volume": "500–2,000",
+   "volume_bn": "৫০০–২,০০০ এন্টারপ্রাইজ অ্যাকাউন্ট",
+   "url": "http://127.0.0.1:3001/",
+   "port": 3001,
+   "is_live": true,
+   "is_mobile": false,
+   "tech": "Next.js 16.3",
    "capabilities": [
     "multi-user approval chains",
     "estate management",
     "bulk CSV requests",
     "SLA & credit visibility"
+   ],
+   "capabilities_bn": [
+    "বহুস্তরীয় অনুমোদন ব্যবস্থা",
+    "প্রাতিষ্ঠানিক ডিভাইস এসেট ব্যবস্থাপনা",
+    "বাল্ক সিএসভি সার্ভিস রিকোয়েস্ট",
+    "এসএলএ ও ক্রেডিট লিমিট ট্র্যাকিং"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "B2B Dashboard",
+     "label_bn": "কর্পোরেট ড্যাশবোর্ড",
+     "url": "http://127.0.0.1:3001/"
+    }
    ]
   },
   {
    "id": "P05",
    "en": "Vendor & Supplier Portal",
+   "bn": "ভেন্ডর ও সাপ্লায়ার পোর্টাল",
    "users": "Vendors · couriers · recyclers",
+   "users_bn": "সরবরাহকারী, কুরিয়ার ও রিসাইক্লার",
    "volume": "200–500",
+   "volume_bn": "২০০–৫০০ সক্রিয় সরবরাহকারী",
+   "url": "http://127.0.0.1:3007/",
+   "port": 3007,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js 16.3",
    "capabilities": [
     "onboarding & documents",
     "RFQ response",
     "PO acknowledge + ASN",
     "invoice match status"
+   ],
+   "capabilities_bn": [
+    "সাপ্লায়ার অনবোর্ডিং ও সনদ যাচাই",
+    "আরএফকিউ দরপত্র সাড়া প্রদান",
+    "পিও গ্রহণ ও অ্যাডভান্সড শিপিং নোটিশ",
+    "চালান ম্যাচিং ও পেমেন্ট স্ট্যাটাস"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Vendor Portal",
+     "label_bn": "ভেন্ডর ড্যাশবোর্ড",
+     "url": "http://127.0.0.1:3007/"
+    }
    ]
   },
   {
    "id": "P06",
    "en": "Analytics & Executive",
+   "bn": "অ্যানালিটিক্স ও এক্সিকিউটিভ ককপিট",
    "users": "Management",
+   "users_bn": "ব্যবস্থাপনা ও শীর্ষ নেতৃত্ব",
    "volume": "25–60",
+   "volume_bn": "২৫–৬০ জন পরিচালনা পর্ষদ",
+   "url": "http://127.0.0.1:3002/",
+   "port": 3002,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js + Superset",
    "capabilities": [
     "executive cockpit",
     "branch league table",
     "real-time ops board",
     "self-service on certified data"
+   ],
+   "capabilities_bn": [
+    "এক্সিকিউটিভ পারফরম্যান্স ড্যাশবোর্ড",
+    "শাখাভিত্তিক তুলনামূলক পারফরম্যান্স র্যাঙ্কিং",
+    "রিয়েল-টাইম অপারেশনাল মেট্রিক্স বোর্ড",
+    "স্বয়ংক্রিয় সার্টিফাইড ডেটা বিশ্লেষণ"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Analytics Cockpit",
+     "label_bn": "অ্যানালিটিক্স ড্যাশবোর্ড",
+     "url": "http://127.0.0.1:3002/"
+    }
    ]
   },
   {
    "id": "P07",
    "en": "Marketplace Seller App",
+   "bn": "মার্কেটপ্লেস সেলার প্ল্যাটফর্ম",
    "users": "Engineers & shops",
+   "users_bn": "স্বতন্ত্র টেকনিশিয়ান ও লোকাল রিপেয়ার শপ",
    "volume": "500–2,000",
+   "volume_bn": "৫০০–২,০০০ নিবন্ধিত বিক্রেতা ও কারিগর",
+   "url": "http://127.0.0.1:3003/",
+   "port": 3003,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js + React Native",
    "capabilities": [
     "KYC & agreement",
     "listings & stock",
     "job broadcast & bidding",
     "earnings & payouts"
+   ],
+   "capabilities_bn": [
+    "কেওয়াইসি ভেরিফিকেশন ও চুক্তি সম্পাদন",
+    "যন্ত্রাংশ তালিকা ও স্টক ইনভেন্টরি",
+    "কাজের বিজ্ঞপ্তি ও বিডিং প্রক্রিয়া",
+    "উপার্জন হিসাব ও ব্যাংক পে-আউট"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Seller App",
+     "label_bn": "সেলার প্ল্যাটফর্ম",
+     "url": "http://127.0.0.1:3003/"
+    }
    ]
   },
   {
    "id": "P08",
    "en": "Brand Partner Portal",
+   "bn": "ব্র্যান্ড পার্টনার পোর্টাল",
    "users": "17+ brand partners",
+   "users_bn": "১৭+ অনুমোদিত বৈশ্বিক ব্র্যান্ড অংশীদার",
    "volume": "50–150",
+   "volume_bn": "৫০–১৫০ ব্র্যান্ড সমন্বয়কারী",
+   "url": "http://127.0.0.1:3004/",
+   "port": 3004,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js 16.3",
    "capabilities": [
     "claim review & bulk decisions",
     "evidence packs",
     "reconciliation & remittance",
     "consignment parts"
+   ],
+   "capabilities_bn": [
+    "ওয়ারেন্টি ক্লেইম পর্যালোচনা ও বাল্ক অনুমোদন",
+    "প্রমাণক ছবি ও ল্যাব টেস্ট রিপোর্ট",
+    "আর্থিক সমন্বয় ও রেম্যিট্যান্স স্টেটমেন্ট",
+    "কনসাইনমেন্ট পার্টস ইনভেন্টরি ও ট্র্যাকিং"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Brand Portal",
+     "label_bn": "ব্র্যান্ড ড্যাশবোর্ড",
+     "url": "http://127.0.0.1:3004/"
+    }
    ]
   },
   {
    "id": "P09",
    "en": "Logistics & Rider App",
+   "bn": "লজিস্টিকস ও রাইডার মোবাইল অ্যাপ",
    "users": "Riders & coordinators",
+   "users_bn": "পিকআপ-ড্রপ রাইডার ও ট্রিপ সমন্বয়কারী",
    "volume": "50–200",
+   "volume_bn": "৫০–২০০ ডেলিভারি রাইডার",
+   "url": "http://127.0.0.1:8069/odoo",
+   "port": 8069,
+   "is_live": true,
+   "is_mobile": true,
+   "tech": "Flutter Mobile App",
    "capabilities": [
     "optimised manifest",
     "scan + OTP collection",
     "transit exceptions",
     "identity-verified delivery"
+   ],
+   "capabilities_bn": [
+    "স্মার্ট রুট ও অপ্টিমাইজড ডেলিভারি শিডিউল",
+    "বারকোড স্ক্যান ও ওটিপি ভেরিফাইড গ্রহণ",
+    "ট্রানজিট সমস্যা ও রিটার্ন রসিদ",
+    "জাতীয় পরিচয়পত্র যাচাইকৃত নিরাপদ হস্তান্তর"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Logistics Hub",
+     "label_bn": "লজিস্টিকস কন্ট্রোল",
+     "url": "http://127.0.0.1:8069/odoo"
+    }
    ]
   },
   {
    "id": "P10",
    "en": "Contact Centre Console",
+   "bn": "কন্টাক্ট সেন্টার কনসোল (১৬৭৪৩)",
    "users": "Agents & supervisors",
+   "users_bn": "কল সেন্টার প্রতিনিধি ও সুপারভাইজার",
    "volume": "30–80",
+   "volume_bn": "৩০–৮০ জন প্রতিনিধি",
+   "url": "http://127.0.0.1:3005/",
+   "port": 3005,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js 16.3",
    "capabilities": [
     "unified queue (voice→social)",
     "Customer-360 screen pop",
     "act-in-conversation",
     "AI suggested replies"
+   ],
+   "capabilities_bn": [
+    "ভয়েস, সোশ্যাল মিডিয়া ও চ্যাট একক কিউ",
+    "কল আসার সাথে সাথে কাস্টমার-৩৬০ হিস্ট্রি",
+    "কথা বলার সময়ই সার্ভিস অর্ডার তৈরি",
+    "বাংলা এআই প্রস্তাবিত তাৎক্ষণিক উত্তর"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Agent Queue",
+     "label_bn": "কল এজেন্ট কিউ",
+     "url": "http://127.0.0.1:3005/"
+    }
    ]
   },
   {
    "id": "P11",
    "en": "Field Auditor & Quality",
+   "bn": "ফিল্ড অডিটর ও আইএসও কোয়ালিটি অ্যাপ",
    "users": "Auditors & regional managers",
+   "users_bn": "মান নিয়ন্ত্রণ কর্মকর্তা ও আঞ্চলিক নিরীক্ষক",
    "volume": "20–60",
+   "volume_bn": "২০–৬০ জন পরিদর্শক",
+   "url": "http://127.0.0.1:8069/odoo",
+   "port": 8069,
+   "is_live": true,
+   "is_mobile": true,
+   "tech": "Flutter Mobile App",
    "capabilities": [
     "assigned audits & checklists",
     "offline evidence capture",
     "cash & stock spot checks",
     "CAPA verification"
+   ],
+   "capabilities_bn": [
+    "অডিট চেকলিস্ট ও আইএসও মানদণ্ড পরীক্ষা",
+    "অফলাইনে ছবি ও নথিপত্র সংগ্রহ",
+    "নগদ টাকা ও শাখা স্টক স্পট চেক",
+    "সংশোধনমূলক ব্যবস্থা (CAPA) যাচাই"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "QMS Process",
+     "label_bn": "আইএসও নিরীক্ষা ব্যবস্থা",
+     "url": "http://127.0.0.1:8069/odoo"
+    }
    ]
   },
   {
    "id": "P12",
    "en": "Partner & Referral Portal",
+   "bn": "পার্টনার ও রেফারেল পোর্টাল",
    "users": "Alliance partners & referrers",
+   "users_bn": "অ্যালায়েন্স পার্টনার ও রেফারেল অংশীদার",
    "volume": "100–500",
+   "volume_bn": "১০০–৫০০ অংশীদার",
+   "url": "http://127.0.0.1:3006/",
+   "port": 3006,
+   "is_live": false,
+   "is_mobile": false,
+   "tech": "Next.js 16.3",
    "capabilities": [
     "application & approval",
     "referral links & tracking",
     "earnings & payouts",
     "co-marketing assets"
+   ],
+   "capabilities_bn": [
+    "অনলাইন আবেদন ও অনুমোদন",
+    "রেফারেল লিংক তৈরি ও ক্লিক ট্র্যাকিং",
+    "কমিশন হিসাব ও স্বয়ংক্রিয় পেমেন্ট",
+    "মার্কেটিং ব্যানার ও ব্র্যান্ড রিসোর্স"
+   ],
+   "shortcuts": [
+    {
+     "label_en": "Partner Console",
+     "label_bn": "অংশীদার কনসোল",
+     "url": "http://127.0.0.1:3006/"
+    }
    ]
   }
  ],
@@ -150,274 +422,376 @@
   {
    "id": "J01",
    "en": "Customer books an on-site repair (P01 → payment)",
-   "bn": "",
+   "bn": "গ্রাহক অনসাইট মেরামতের বুকিং দেন (P01 → পেমেন্ট)",
    "steps": [
     {
      "actor": "P01 · Customer",
-     "desc": "Customer opens app / portal, Bengali UI, picks device + symptom"
+     "actor_bn": "P01 · গ্রাহক",
+     "desc": "Customer opens app / portal, Bengali UI, picks device + symptom",
+     "desc_bn": "গ্রাহক বাংলা ইন্টারফেসে পোর্টাল খোলেন, ডিভাইস ও সমস্যা নির্বাচন করেন"
     },
     {
      "actor": "M33 · Party",
-     "desc": "Identity via OTP — golden record matched or created"
+     "actor_bn": "M33 · গ্রাহক মাস্টার",
+     "desc": "Identity via OTP — golden record matched or created",
+     "desc_bn": "ওটিপির মাধ্যমে পরিচয় নিশ্চিত — গোল্ডেন রেকর্ড তৈরি বা শনাক্ত"
     },
     {
      "actor": "M37 · Catalogue",
-     "desc": "Service resolved with upfront price + slot (≤3 steps)"
+     "actor_bn": "M37 · ক্যাটালগ",
+     "desc": "Service resolved with upfront price + slot (≤3 steps)",
+     "desc_bn": "৩ বা তার কম ধাপে অগ্রিম মূল্য ও সময় স্লট নির্ধারিত"
     },
     {
      "actor": "M01 · Order",
-     "desc": "Service Order created — entitlement evaluated (warranty/AMC/membership)"
+     "actor_bn": "M01 · সার্ভিস অর্ডার",
+     "desc": "Service Order created — entitlement evaluated (warranty/AMC/membership)",
+     "desc_bn": "সার্ভিস অর্ডার তৈরি — ওয়ারেন্টি/এএমসি বা সদস্যপদ মূল্যায়ন"
     },
     {
      "actor": "M02 · Dispatch",
-     "desc": "AI scores candidates → assigned → ETA published to customer"
+     "actor_bn": "M02 · ডেসপ্যাচ",
+     "desc": "AI scores candidates → assigned → ETA published to customer",
+     "desc_bn": "এআই দ্বারা টেকনিশিয়ান নির্বাচন → অ্যাসাইন → গ্রাহককে ইটিএ প্রদান"
     },
     {
      "actor": "P02 · Technician",
-     "desc": "Job accepted, navigation, photos w/ GPS, fix, e-sign"
+     "actor_bn": "P02 · টেকনিশিয়ান",
+     "desc": "Job accepted, navigation, photos w/ GPS, fix, e-sign",
+     "desc_bn": "কাজ গ্রহণ, জিপিএস নেভিগেশন, ছবি ও মেরামত শেষে ই-স্বাক্ষর"
     }
    ]
   },
   {
    "id": "J02",
    "en": "Walk-in branch repair (counter → bench → collection)",
-   "bn": "",
+   "bn": "শাখায় সরাসরি এসে মেরামত (কাউন্টার → ল্যাব বেঞ্চ → ডেলিভারি)",
    "steps": [
     {
      "actor": "M04 · Counter",
-     "desc": "Token issued, fast intake, device condition photos"
+     "actor_bn": "M04 · ফ্রন্ট ডেস্ক",
+     "desc": "Token issued, fast intake, device condition photos",
+     "desc_bn": "টোকেন প্রদান, দ্রুত গ্রহণ ও ডিভাইসের বর্তমান অবস্থার ছবি ধারণ"
     },
     {
      "actor": "M01 · Order",
-     "desc": "Workshop order — estimate if out-of-warranty"
+     "actor_bn": "M01 · ওয়ার্কশপ অর্ডার",
+     "desc": "Workshop order — estimate if out-of-warranty",
+     "desc_bn": "ওয়ার্কশপ অর্ডার তৈরি — ওয়ারেন্টির বাইরে হলে খরচের প্রাক্কলন"
     },
     {
      "actor": "M31 · Bench",
-     "desc": "L1/L2/L3 routing; parts from branch store"
+     "actor_bn": "M31 · ল্যাব বেঞ্চ",
+     "desc": "L1/L2/L3 routing; parts from branch store",
+     "desc_bn": "এল১/এল২/এল৩ ল্যাব রাউটিং ও শাখা স্টোর থেকে যন্ত্রাংশ গ্রহণ"
     },
     {
      "actor": "M15 · Parts",
-     "desc": "Serial-tracked consumption; consignment hard block respected"
+     "actor_bn": "M15 · যন্ত্রাংশ নিয়ন্ত্রণ",
+     "desc": "Serial-tracked consumption; consignment hard block respected",
+     "desc_bn": "সিরিয়াল নম্বর ট্র্যাকিং ও কনসাইনমেন্ট নীতিমালায় যন্ত্রাংশ ব্যবহার"
     },
     {
      "actor": "M31 · Test",
-     "desc": "Test protocol + burn-in → release"
+     "actor_bn": "M31 · মান যাচাই",
+     "desc": "Test protocol + burn-in → release",
+     "desc_bn": "মান নিয়ন্ত্রণ প্রোটোকল ও পরীক্ষা শেষে ডেলিভারির জন্য প্রস্তুত"
     },
     {
      "actor": "M04 · Collection",
-     "desc": "SMS + WhatsApp notify → ID-verified handover"
+     "actor_bn": "M04 · হস্তান্তর",
+     "desc": "SMS + WhatsApp notify → ID-verified handover",
+     "desc_bn": "এসএমএস ও হোয়াটসঅ্যাপে নোটিফিকেশন → পরিচয় যাচাই করে ডিভাইস হস্তান্তর"
     }
    ]
   },
   {
    "id": "J03",
    "en": "Pick & drop logistics round trip",
-   "bn": "",
+   "bn": "পিক অ্যান্ড ড্রপ লজিস্টিকস চক্র (বাসা → ল্যাব → গ্রাহক)",
    "steps": [
     {
      "actor": "P01 · Booking",
-     "desc": "Customer books pick & drop with slot"
+     "actor_bn": "P01 · গ্রাহক বুকিং",
+     "desc": "Customer books pick & drop with slot",
+     "desc_bn": "গ্রাহক নির্ধারিত স্লটে পিক অ্যান্ড ড্রপ বুকিং করেন"
     },
     {
      "actor": "M03 · Consignment",
-     "desc": "Multi-leg journey planned; seal number issued"
+     "actor_bn": "M03 · কনসাইনমেন্ট",
+     "desc": "Multi-leg journey planned; seal number issued",
+     "desc_bn": "মাল্টি-লেগ রুট পরিকল্পনা ও নিরাপত্তা সিল নম্বর বরাদ্দ"
     },
     {
      "actor": "P09 · Rider",
-     "desc": "Scan + OTP + photos at every custody handover"
+     "actor_bn": "P09 · লজিস্টিকস রাইডার",
+     "desc": "Scan + OTP + photos at every custody handover",
+     "desc_bn": "প্রতিটি হস্তান্তরে বারকোড স্ক্যান, ওটিপি ও ছবি সংগ্রহ"
     },
     {
      "actor": "M31 · Workshop",
-     "desc": "Repair executed under custody state ON BENCH"
+     "actor_bn": "M31 · কেন্দ্রীয় ল্যাব",
+     "desc": "Repair executed under custody state ON BENCH",
+     "desc_bn": "সুরক্ষিত হেফাজতে ল্যাব বেঞ্চে ডিভাইসের মেরামত সম্পন্ন"
     },
     {
      "actor": "M03 · Return",
-     "desc": "Delivery leg with OTP + signature + COD if due"
+     "actor_bn": "M03 · নিরাপদ ফেরত",
+     "desc": "Delivery leg with OTP + signature + COD if due",
+     "desc_bn": "ওটিপি যাচাই, গ্রাহকের ডিজিটাল স্বাক্ষর ও প্রযোজ্য ক্ষেত্রে সিওডি গ্রহণ"
     }
    ]
   },
   {
    "id": "J04",
    "en": "Brand warranty claim → reimbursement",
-   "bn": "",
+   "bn": "ব্র্যান্ড ওয়ারেন্টি ক্লেইম ও বৈশ্বিক প্রতিপূরণ",
    "steps": [
     {
      "actor": "M01 · Order",
-     "desc": "Warranty order — entitlement says brand pays"
+     "actor_bn": "M01 · সার্ভিস অর্ডার",
+     "desc": "Warranty order — entitlement says brand pays",
+     "desc_bn": "ওয়ারেন্টি অর্ডার — মূল ব্র্যান্ড কোম্পানি খরচ বহন করবে"
     },
     {
      "actor": "M09 · Claim",
-     "desc": "Auto-created on delivery; evidence pack assembled <5 min"
+     "actor_bn": "M09 · স্বয়ংক্রিয় ক্লেইম",
+     "desc": "Auto-created on delivery; evidence pack assembled <5 min",
+     "desc_bn": "ডেলিভারির পর ৫ মিনিটের মধ্যে স্বয়ংক্রিয় এভিডেন্স প্যাক তৈরি"
     },
     {
      "actor": "M24 · Evidence",
-     "desc": "Photos, diagnostics, parts genealogy, certification proof"
+     "actor_bn": "M24 · প্রমাণক নথিপত্র",
+     "desc": "Photos, diagnostics, parts genealogy, certification proof",
+     "desc_bn": "ছবি, ডায়াগনস্টিক লগ, যন্ত্রাংশের উৎস ও টেকনিশিয়ান সার্টিফিকেশন"
     },
     {
      "actor": "P08 · Brand",
-     "desc": "Partner reviews → approve / part-approve / info-request"
+     "actor_bn": "P08 · ব্র্যান্ড পার্টনার",
+     "desc": "Partner reviews → approve / part-approve / info-request",
+     "desc_bn": "ব্র্যান্ড অংশীদার কর্তৃক পর্যালোচনা ও ক্লেইম অনুমোদন"
     },
     {
      "actor": "M20 · AR",
-     "desc": "Receivable raised on approval"
+     "actor_bn": "M20 · প্রাপ্য হিসাব",
+     "desc": "Receivable raised on approval",
+     "desc_bn": "অনুমোদনের সাথে সাথে প্রাপ্য হিসাব ও ইনভয়েস ইস্যু"
     }
    ]
   },
   {
    "id": "J05",
    "en": "Corporate AMC: contract → PM schedule → consolidated invoice",
-   "bn": "",
+   "bn": "কর্পোরেট এএমসি: চুক্তি → প্রতিরোধমূলক শিডিউল → সমন্বিত বিল",
    "steps": [
     {
      "actor": "M07 · CRM",
-     "desc": "Opportunity won → contract template selected"
+     "actor_bn": "M07 · কর্পোরেট সিআরএম",
+     "desc": "Opportunity won → contract template selected",
+     "desc_bn": "চুক্তি চূড়ান্ত → এন্টারপ্রাইজ সার্ভিস টেমপ্লেট নির্বাচন"
     },
     {
      "actor": "M08 · Contract",
-     "desc": "14 families — entitlement & SLA defined"
+     "actor_bn": "M08 · চুক্তি ব্যবস্থাপনা",
+     "desc": "14 families — entitlement & SLA defined",
+     "desc_bn": "১৪টি সার্ভিস ক্যাটাগরি — এসএলএ ও কভারেজ নির্ধারণ"
     },
     {
      "actor": "M17 · Estate",
-     "desc": "Assets bulk-registered site/department/user"
+     "actor_bn": "M17 · প্রাতিষ্ঠানিক এসেট",
+     "desc": "Assets bulk-registered site/department/user",
+     "desc_bn": "শাখা, বিভাগ ও ব্যবহারকারী ভিত্তিক ডিভাইস এসেট বাল্ক রেজিস্ট্রেশন"
     },
     {
      "actor": "M08 · PM",
-     "desc": "Preventive schedules auto-generate work"
+     "actor_bn": "M08 · রুটিন মেইনটেন্যান্স",
+     "desc": "Preventive schedules auto-generate work",
+     "desc_bn": "প্রতিরোধমূলক রক্ষণাবেক্ষণ শিডিউল থেকে স্বয়ংক্রিয় কাজের আদেশ"
     },
     {
      "actor": "P04 · Client",
-     "desc": "Bulk requests validated against coverage"
+     "actor_bn": "P04 · কর্পোরেট ক্লায়েন্ট",
+     "desc": "Bulk requests validated against coverage",
+     "desc_bn": "চুক্তির কভারেজ অনুযায়ী বাল্ক রিকোয়েস্ট যাচাই ও অনুমোদন"
     }
    ]
   },
   {
    "id": "J06",
    "en": "Parts stockout → replenishment → payment",
-   "bn": "",
+   "bn": "যন্ত্রাংশের ঘাটতি → সরবরাহ পূরণ → ভেন্ডর পেমেন্ট",
    "steps": [
     {
      "actor": "M15 · Alert",
-     "desc": "Stock breaches reorder point"
+     "actor_bn": "M15 · ইনভেন্টরি অ্যালার্ট",
+     "desc": "Stock breaches reorder point",
+     "desc_bn": "যন্ত্রাংশের মজুদ রি-অর্ডার সীমার নিচে নামার সতর্কবার্তা"
     },
     {
      "actor": "M43 · Planning",
-     "desc": "Forecast + safety stock → planned order"
+     "actor_bn": "M43 · চাহিদা পরিকল্পনা",
+     "desc": "Forecast + safety stock → planned order",
+     "desc_bn": "ভবিষ্যৎ চাহিদা ও নিরাপত্তা স্টক বিশ্লেষণ করে পরিকল্পনা"
     },
     {
      "actor": "M16 · PR → RFQ",
-     "desc": "Requisition approved; RFQ to qualified suppliers"
+     "actor_bn": "M16 · রিকুইজিশন ও দরপত্র",
+     "desc": "Requisition approved; RFQ to qualified suppliers",
+     "desc_bn": "রিকুইজিশন অনুমোদন ও যোগ্য সরবরাহকারীদের নিকট আরএফকিউ প্রেরণ"
     },
     {
      "actor": "M42 · Gate",
-     "desc": "Supplier must be qualified & active"
+     "actor_bn": "M42 · ভেন্ডর গেট",
+     "desc": "Supplier must be qualified & active",
+     "desc_bn": "সরবরাহকারীর সক্রিয় স্থিতি ও সনদ নিশ্চিতকরণ"
     },
     {
      "actor": "P05 · Vendor",
-     "desc": "Vendor acknowledges PO, sends ASN"
+     "actor_bn": "P05 · ভেন্ডর পোর্টাল",
+     "desc": "Vendor acknowledges PO, sends ASN",
+     "desc_bn": "ভেন্ডর কর্তৃক ক্রয়াদেশ গ্রহণ ও শিপিং নোটিশ প্রেরণ"
     },
     {
      "actor": "M41 · Receive",
-     "desc": "Scan receiving + inspection gate"
+     "actor_bn": "M41 · ওয়্যারহাউস রিসিভিং",
+     "desc": "Scan receiving + inspection gate",
+     "desc_bn": "বারকোড স্ক্যান গ্রহণ ও ল্যাব কোয়ালিটি গেট পরীক্ষা"
     }
    ]
   },
   {
    "id": "J07",
    "en": "Trade-in → refurbish → graded online resale",
-   "bn": "",
+   "bn": "পুরনো ডিভাইস এক্সচেঞ্জ → রিফার্বিশ → অনলাইন পুনঃবিক্রয়",
    "steps": [
     {
      "actor": "M14 · Intake",
-     "desc": "Portal valuation — firm 48h offer"
+     "actor_bn": "M14 · এক্সচেঞ্জ মূল্যায়ন",
+     "desc": "Portal valuation — firm 48h offer",
+     "desc_bn": "পোর্টালে স্বয়ংক্রিয় ডিভাইস মূল্যায়ন — ৪৮ ঘণ্টার অফার"
     },
     {
      "actor": "M14 · Provenance",
-     "desc": "IMEI / serial screening"
+     "actor_bn": "M14 · বৈধতা ও নিরাপত্তা",
+     "desc": "IMEI / serial screening",
+     "desc_bn": "আইএমইআই ও সিরিয়াল নম্বর নিরাপত্তা যাচাই"
     },
     {
      "actor": "M06 · Gate",
-     "desc": "Data-bearing? destruction certificate mandatory"
+     "actor_bn": "M06 · ডেটা ডিস্ট্রাকশন",
+     "desc": "Data-bearing? destruction certificate mandatory",
+     "desc_bn": "গ্রাহকের গোপনীয় ডেটা সুরক্ষিতভাবে ডিলিট করার সনদ"
     },
     {
      "actor": "M31 · Refurb",
-     "desc": "Work order, QA incl. battery health"
+     "actor_bn": "M31 · রিফার্বিশমেন্ট ল্যাব",
+     "desc": "Work order, QA incl. battery health",
+     "desc_bn": "ল্যাব ওয়ার্ক অর্ডার, ব্যাটারি ও পারফরম্যান্স ওভারহলিং"
     },
     {
      "actor": "M14 · Grade",
-     "desc": "A–D grading with supervisor override"
+     "actor_bn": "M14 · গ্রেডিং সার্টিফিকেশন",
+     "desc": "A–D grading with supervisor override",
+     "desc_bn": "এ থেকে ডি গ্রেডিং ও কোয়ালিটি সুপারভাইজার অনুমোদন"
     }
    ]
   },
   {
    "id": "J08",
    "en": "Marketplace seller: onboarding → job → payout",
-   "bn": "",
+   "bn": "মার্কেটপ্লেস কারিগর: অনবোর্ডিং → কাজ সম্পন্ন → উপার্জনের অর্থ পরিশোধ",
    "steps": [
     {
      "actor": "M12 · KYC",
-     "desc": "NID + trade licence + references verified"
+     "actor_bn": "M12 · কারিগর কেওয়াইসি",
+     "desc": "NID + trade licence + references verified",
+     "desc_bn": "জাতীয় পরিচয়পত্র, ট্রেড লাইসেন্স ও সনদ যাচাই"
     },
     {
      "actor": "M12 · Agreement",
-     "desc": "Digital agreement + fee acceptance"
+     "actor_bn": "M12 · ডিজিটাল চুক্তি",
+     "desc": "Digital agreement + fee acceptance",
+     "desc_bn": "ডিজিটাল চুক্তি স্বাক্ষর ও কমিশন হার অনুমোদন"
     },
     {
      "actor": "P07 · Seller",
-     "desc": "Profile, listings, own stock"
+     "actor_bn": "P07 · সেলার পোর্টাল",
+     "desc": "Profile, listings, own stock",
+     "desc_bn": "প্রোফাইল তৈরি, সেবার তালিকা ও যন্ত্রাংশ স্টক যুক্তকরণ"
     },
     {
      "actor": "M12 · Broadcast",
-     "desc": "Job broadcast to matching sellers → bidding"
+     "actor_bn": "M12 · কাজ ব্রডকাস্ট",
+     "desc": "Job broadcast to matching sellers → bidding",
+     "desc_bn": "উপযুক্ত সেলারদের কাছে কাজ সম্প্রচার ও বিডিং"
     },
     {
      "actor": "M02 · Oversight",
-     "desc": "Execution QC identical to in-house standards"
+     "actor_bn": "M02 · কাজের মান তদারকি",
+     "desc": "Execution QC identical to in-house standards",
+     "desc_bn": "১০০০ফিক্স মানদণ্ড অনুযায়ী কাজ যাচাই ও দ্রুত ব্যাংক পে-আউট"
     }
    ]
   },
   {
    "id": "J09",
    "en": "Data recovery case (sealed custody → certificate)",
-   "bn": "",
+   "bn": "সংবেদনশীল ডেটা রিকভারি (সুরক্ষিত হেফাজত → সফল উদ্ধার সনদ)",
    "steps": [
     {
      "actor": "M06 · Intake",
-     "desc": "Case with specialism routing; media sealed"
+     "actor_bn": "M06 · কেস ইনটেক",
+     "desc": "Case with specialism routing; media sealed",
+     "desc_bn": "কেস গ্রহণ, বিশেষজ্ঞ ল্যাবে রাউটিং ও স্টোরেজ ড্রাইভ সিলকরণ"
     },
     {
      "actor": "M06 · Custody",
-     "desc": "Dual-control custody ledger"
+     "actor_bn": "M06 · দ্বৈত হেফাজত লেজার",
+     "desc": "Dual-control custody ledger",
+     "desc_bn": "দ্বৈত নিয়ন্ত্রণ বিশিষ্ট সুরক্ষিত হেফাজত লেজার"
     },
     {
      "actor": "M06 · Evaluation",
-     "desc": "Free evaluation → firm quotation"
+     "actor_bn": "M06 · ল্যাব পরীক্ষা",
+     "desc": "Free evaluation → firm quotation",
+     "desc_bn": "বিনামূল্যে প্রাথমিক ল্যাব টেস্ট ও চূড়ান্ত কোটেশন প্রদান"
     },
     {
      "actor": "M06 · Recovery",
-     "desc": "Attempts logged; cleanroom if needed"
+     "actor_bn": "M06 · ক্লিনরুম রিকভারি",
+     "desc": "Attempts logged; cleanroom if needed",
+     "desc_bn": "ক্লাস-১০০ ক্লিনরুমে রিকভারি সম্পন্ন ও সুরক্ষা সনদ প্রদান"
     }
    ]
   },
   {
    "id": "J10",
    "en": "Month-end close → VAT 9.1 filing",
-   "bn": "",
+   "bn": "মাসিক হিসাব সমাপনী → মূসক ৯.১ ভ্যাট রিটার্ন দাখিল",
    "steps": [
     {
      "actor": "M19 · Close",
-     "desc": "3-day close console across 53 branches"
+     "actor_bn": "M19 · হিসাব সমাপনী",
+     "desc": "3-day close console across 53 branches",
+     "desc_bn": "৫৩টি শাখা জুড়ে ৩ দিনের ফাইন্যান্সিয়াল ক্লোজিং কনসোল"
     },
     {
      "actor": "M50 · Cash",
-     "desc": "Branch cash & rider COD consolidated"
+     "actor_bn": "M50 · ক্যাশ রিকনসিলিয়েশন",
+     "desc": "Branch cash & rider COD consolidated",
+     "desc_bn": "শাখা কাউন্টার ক্যাশ ও রাইডার সিওডি ফান্ড একত্রীকরণ"
     },
     {
      "actor": "M19 · Statements",
-     "desc": "P&L · BS · CF rendered bilingually"
+     "actor_bn": "M19 · আর্থিক বিবরণী",
+     "desc": "P&L · BS · CF rendered bilingually",
+     "desc_bn": "লাভ-ক্ষতি, ব্যালেন্স শিট ও ক্যাশ ফ্লো দ্বিভাষিক প্রতিবেদন"
     },
     {
      "actor": "M51 · VAT",
-     "desc": "Mushak registers → 9.1 return → A-Challan"
+     "actor_bn": "M51 · মূসক ও ভ্যাট রিটার্ন",
+     "desc": "Mushak registers → 9.1 return → A-Challan",
+     "desc_bn": "মূসক রেজিস্টার, ৯.১ রিটার্ন তৈরি ও এ-চালান স্বয়ংক্রিয় জেনারেশন"
     }
    ]
   }
