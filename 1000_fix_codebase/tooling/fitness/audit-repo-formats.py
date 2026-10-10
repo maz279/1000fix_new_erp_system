@@ -75,6 +75,7 @@ def main() -> int:
     for generator in (
         "tooling/generators/generate-design-tokens.py",
         "tooling/scripts/extract-ui-copy.py",
+        "tooling/generators/generate-landing-artefact.py",
     ):
         result = subprocess.run(  # noqa: S603 - fixed argv inside the repo
             [sys.executable, str(REPO / generator)], capture_output=True, text=True, check=False
