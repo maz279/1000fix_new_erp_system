@@ -30,8 +30,7 @@ T: dict[str, str] = {
     "Annual Escalation (%)": "বার্ষিক বৃদ্ধি (%)",
     "Covered Assets": "আচ্ছাদিত সম্পদ", "Entitlements": "এনটাইটেলমেন্ট",
     "Contract Entitlement": "চুক্তি এনটাইটেলমেন্ট", "Contract SLAs": "চুক্তি SLA",
-    "E-Signature": "ই-সিগনেচার", "Term End": "মেয়াদ শেষ",
-    "Contract": "চুক্তি", "Contracts": "চুক্তিসমূহ", "All Contracts": "সকল চুক্তি",
+    "E-Signature": "ই-সিগনেচার", "Term End": "মেয়াদ শেষ", "Contracts": "চুক্তিসমূহ", "All Contracts": "সকল চুক্তি",
     "Preventive Visits": "প্রতিরোধমূলক ভিজিট", "Repair Incidents": "মেরামত ঘটনা",
     "Labour Hours": "শ্রম ঘণ্টা", "Loaner Devices": "লোনার ডিভাইস",
     "Quantity Consumed": "ব্যবহৃত পরিমাণ", "Quantity Remaining": "অবশিষ্ট পরিমাণ",
@@ -41,8 +40,7 @@ T: dict[str, str] = {
     "Dispatched": "প্রেরিত", "Completed": "সম্পন্ন", "Skipped": "বাদ দেওয়া",
     "Service Order": "সার্ভিস অর্ডার", "Preventive maintenance visit":
     "প্রতিরোধমূলক রক্ষণাবেক্ষণ ভিজিট", "Terms": "শর্তাবলী", "Commercial":
-    "বাণিজ্যিক", "Pending": "অপেক্ষমাণ", "Terms": "শর্তাবলী",
-    "Commercial": "বাণিজ্যিক", "Terms": "শর্তাবলী",
+    "বাণিজ্যিক", "Pending": "অপেক্ষমাণ",
     # cd_warranty_claims
     "Claim No.": "দাবি নং", "Warranty / Protection Product":
     "ওয়ারেন্টি / সুরক্ষা পণ্য", "Warranty Extension": "ওয়ারেন্টি সম্প্রসারণ",
@@ -63,8 +61,7 @@ T: dict[str, str] = {
     "Purchase Proof": "ক্রয়ের প্রমাণ", "Document": "দলিল",
     "Warranty Claims": "ওয়ারেন্টি দাবিসমূহ", "Claims": "দাবিসমূহ",
     "Protection Products": "সুরক্ষা পণ্যসমূহ", "Warranty": "ওয়ারেন্টি",
-    "Brand": "ব্র্যান্ড", "Claim": "দাবি", "Amounts": "পরিমাণসমূহ",
-    "Pack OK": "প্যাক সম্পূর্ণ", "Protection Product": "সুরক্ষা পণ্য",
+    "Brand": "ব্র্যান্ড", "Claim": "দাবি", "Amounts": "পরিমাণসমূহ", "Protection Product": "সুরক্ষা পণ্য",
     # cd_subscription
     "Subscription": "সাবস্ক্রিপশন", "Basic": "বেসিক", "Standard": "স্ট্যান্ডার্ড",
     "Premium": "প্রিমিয়াম", "Monthly": "মাসিক", "Quarterly": "ত্রৈমাসিক",
@@ -84,8 +81,7 @@ T: dict[str, str] = {
     "New": "নতুন", "With AI Assistant": "এআই সহকারীর সাথে",
     "With Agent": "এজেন্টের সাথে", "Resolved by AI": "এআই দ্বারা সমাধান",
     "Resolved by Agent": "এজেন্ট দ্বারা সমাধান", "Abandoned": "পরিত্যক্ত",
-    "Transcript": "ট্রান্সক্রিপ্ট", "Conversation Turn": "কথোপকথন পালা",
-    "Customer": "গ্রাহক", "AI Assistant": "এআই সহকারী", "Agent": "এজেন্ট",
+    "Transcript": "ট্রান্সক্রিপ্ট", "Conversation Turn": "কথোপকথন পালা", "AI Assistant": "এআই সহকারী", "Agent": "এজেন্ট",
     "Assistant Intent (transactional)": "সহকারী অভিপ্রায় (লেনদেনমূলক)",
     "Name (Bengali)": "নাম (বাংলা)", "Bengali Utterances": "বাংলা উচ্চারণ",
     "English Utterances": "ইংরেজি উচ্চারণ",

@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -82,7 +82,7 @@ def result(suite: str, case: str, status: str, verifies: str, ms: float, remedy:
         "suite": suite, "case": case, "status": status,
         "duration_ms": round(ms), "verifies": verifies,
         "artefacts": [], "message": "", "remedy": remedy,
-        "ran_at_utc": datetime.now(timezone.utc).isoformat(),
+        "ran_at_utc": datetime.now(UTC).isoformat(),
     }
 
 
@@ -119,7 +119,7 @@ def main() -> int:
         results.append(result(cid, script, status, cid, ms, tail[-1] if tail else ""))
         print(f"[{status}] {cid} ({ms:.0f} ms)")
 
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out = HERE / "evidence" / f"fitness-{stamp}.json"
     out.parent.mkdir(exist_ok=True)
     out.write_text(json.dumps({"schema": "1000fix-erp/fitness-results/1", "results": results},

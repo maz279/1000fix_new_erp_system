@@ -19,9 +19,8 @@ import os
 import subprocess
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
 
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 CODEBASE_DIR = ROOT_DIR
@@ -39,9 +38,9 @@ class StageResult:
         self.exit_code: int = 0
         self.stdout: str = ""
         self.stderr: str = ""
-        self.measurements: Dict[str, any] = {}
+        self.measurements: dict[str, any] = {}
 
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> dict[str, any]:
         return {
             "name": self.name,
             "description": self.description,
@@ -53,7 +52,7 @@ class StageResult:
         }
 
 
-def run_command(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 600, env: Optional[Dict[str, str]] = None) -> Tuple[int, str, str]:
+def run_command(cmd: list[str], cwd: Path | None = None, timeout: int = 600, env: dict[str, str] | None = None) -> tuple[int, str, str]:
     target_cwd = cwd or CODEBASE_DIR
     full_env = os.environ.copy()
     if env:
@@ -61,7 +60,7 @@ def run_command(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 600, 
     # Ensure UTF-8 output on Windows
     full_env["PYTHONIOENCODING"] = "utf-8"
     full_env["NODE_ENV"] = full_env.get("NODE_ENV", "test")
-    
+
     try:
         proc = subprocess.run(
             cmd,
@@ -80,7 +79,7 @@ def run_command(cmd: List[str], cwd: Optional[Path] = None, timeout: int = 600, 
         return 1, "", str(e)
 
 
-def execute_stage(stage: StageResult, cmd: List[str], cwd: Optional[Path] = None, timeout: int = 600, env: Optional[Dict[str, str]] = None, allow_honest_failure: bool = False) -> StageResult:
+def execute_stage(stage: StageResult, cmd: list[str], cwd: Path | None = None, timeout: int = 600, env: dict[str, str] | None = None, allow_honest_failure: bool = False) -> StageResult:
     print(f"\n[CI] >>> Stage: {stage.name} — {stage.description}")
     print(f"     Command: {' '.join(cmd)}")
     stage.start_time = time.time()
@@ -105,10 +104,10 @@ def execute_stage(stage: StageResult, cmd: List[str], cwd: Optional[Path] = None
     return stage
 
 
-def run_pre_commit() -> Tuple[List[StageResult], float, bool]:
-    stages: List[StageResult] = []
+def run_pre_commit() -> tuple[list[StageResult], float, bool]:
+    stages: list[StageResult] = []
     t0 = time.time()
-    
+
     # 1. Fast formatting & ruff check
     s1 = StageResult("precommit-ruff", "Fast code style and AST validation")
     execute_stage(s1, [sys.executable, "-m", "ruff", "check", "addons", "services", "contracts", "i18n", "tooling"], timeout=30)
@@ -125,8 +124,8 @@ def run_pre_commit() -> Tuple[List[StageResult], float, bool]:
     return stages, total_duration, success
 
 
-def run_pre_merge() -> Tuple[List[StageResult], float, bool]:
-    stages: List[StageResult] = []
+def run_pre_merge() -> tuple[list[StageResult], float, bool]:
+    stages: list[StageResult] = []
     t0 = time.time()
 
     # Stage 2: lint-type (Ruff check + format check)
@@ -206,8 +205,8 @@ def run_pre_merge() -> Tuple[List[StageResult], float, bool]:
     return stages, total_duration, success
 
 
-def run_nightly() -> Tuple[List[StageResult], float, bool]:
-    stages: List[StageResult] = []
+def run_nightly() -> tuple[list[StageResult], float, bool]:
+    stages: list[StageResult] = []
     t0 = time.time()
 
     # 1. Full E2E 10 User Journeys suite
@@ -242,11 +241,11 @@ def run_nightly() -> Tuple[List[StageResult], float, bool]:
     return stages, total_duration, success
 
 
-def save_evidence(profile: str, stages: List[StageResult], total_duration: float, success: bool) -> Path:
+def save_evidence(profile: str, stages: list[StageResult], total_duration: float, success: bool) -> Path:
     EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     evidence_file = EVIDENCE_DIR / f"ci-{profile}-run-{timestamp}.json"
-    
+
     # §0.8.4 Budgets: pre-commit < 30s, pre-merge < 20min (1200s), nightly < 3h (10800s)
     budgets = {
         "pre-commit": 30.0,
@@ -258,7 +257,7 @@ def save_evidence(profile: str, stages: List[StageResult], total_duration: float
 
     data = {
         "profile": profile,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
         "total_duration_seconds": round(total_duration, 2),
         "budget_limit_seconds": budget_limit,
         "budget_met": budget_met,

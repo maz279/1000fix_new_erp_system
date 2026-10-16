@@ -101,7 +101,7 @@ def check_cfm02(tokens: dict[str, str]) -> list[str]:
     # Freshness: regeneration must be byte-identical (no hand edits to
     # generated files, no stale realisation after a source change).
     before = {p: p.read_bytes() for p in (SCSS, CSS, TS)}
-    result = subprocess.run(  # noqa: S603 - fixed argv, no user input
+    result = subprocess.run(
         [sys.executable, str(GENERATOR)], capture_output=True, text=True, check=False
     )
     if result.returncode != 0:

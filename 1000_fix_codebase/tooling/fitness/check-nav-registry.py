@@ -109,7 +109,7 @@ def main() -> int:
 
     # 6 — freshness: regenerating must be byte-identical
     before = REGISTRY.read_bytes()
-    result = subprocess.run(  # noqa: S603 - fixed argv, no user input
+    result = subprocess.run(
         [sys.executable, str(GENERATOR)], capture_output=True, text=True, check=False)
     if result.returncode != 0:
         v.append("generator failed against the frozen prototype")

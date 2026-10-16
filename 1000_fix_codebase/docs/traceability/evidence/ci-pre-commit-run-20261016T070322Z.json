@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T07:03:22.501777+00:00",
+  "total_duration_seconds": 0.69,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": true,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "PASS",
+      "duration_seconds": 0.16,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.53,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": "1000_fix_codebase/tooling/scripts/generate-p10-support.py\n M 1000_fix_codebase/tooling/scripts/livefire-p03.py\n M 1000_fix_codebase/tooling/scripts/mig-totals.py\n M 1000_fix_codebase/tooling/scripts/seed-p02-technician-data.py\n M 1000_fix_codebase/tooling/scripts/sync-p03-meta-titles.py\n M 1000_fix_codebase/tooling/scripts/verify-legacy-profiles.py\n?? 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T070050Z.json\n?? 1000_fix_codebase/uv.lock\n?? Marketing_1/\n?? Marketing_2/\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

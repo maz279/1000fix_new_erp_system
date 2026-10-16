@@ -77,12 +77,12 @@ def main() -> int:
         "tooling/scripts/extract-ui-copy.py",
         "tooling/generators/generate-landing-artefact.py",
     ):
-        result = subprocess.run(  # noqa: S603 - fixed argv inside the repo
+        result = subprocess.run(
             [sys.executable, str(REPO / generator)], capture_output=True, text=True, check=False
         )
         if result.returncode != 0:
             issues.append(f"generator failed: {generator}: {result.stdout.strip()[-120:]}")
-    dirty = subprocess.run(  # noqa: S603 - fixed argv
+    dirty = subprocess.run(
         ["git", "status", "--porcelain", "--", "addons/platform/cd_design_tokens",
          "libs/ts/ui", "libs/ts/i18n"],
         capture_output=True, text=True, check=False, cwd=REPO,

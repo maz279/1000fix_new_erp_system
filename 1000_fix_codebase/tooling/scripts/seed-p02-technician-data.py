@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """seed-p02-technician-data.py — Seed diagnostic tree nodes, van stock parts and work orders for P02."""
-import psycopg2
 import json
+
+import psycopg2
+
 
 def seed():
     conn = psycopg2.connect('dbname=fix_dev user=fix password=change-me-dev-only host=127.0.0.1 port=5433')

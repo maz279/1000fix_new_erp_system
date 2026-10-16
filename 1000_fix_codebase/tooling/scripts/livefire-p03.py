@@ -19,7 +19,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 BASE = "http://127.0.0.1:8069"
 DB = "fix_dev"
@@ -97,7 +97,7 @@ def main() -> int:
     else:
         print("cannot authenticate admin")
         return 2
-    print(f"{TAG} authenticated @ {datetime.now(timezone.utc).isoformat()}")
+    print(f"{TAG} authenticated @ {datetime.now(UTC).isoformat()}")
 
     nonce = str(int(time.time()) % 100000)
 

@@ -22,7 +22,7 @@ GRAPH_GLOB = "tooling/architecture-baseline/evidence/dependency-graph-*.json"
 
 
 def changed_files(base: str) -> list[str]:
-    proc = subprocess.run(  # noqa: S603 - fixed argv, no shell
+    proc = subprocess.run(
         ["git", "diff", "--name-only", base], capture_output=True, text=True,
         shell=False, cwd=REPO_ROOT, check=True,
     )

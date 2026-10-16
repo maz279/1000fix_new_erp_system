@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import sys
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -32,7 +32,7 @@ class Doctor:
             "status": status,
             "detail": detail,
             "remedy": remedy,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(UTC).isoformat(),
         })
         badge = "[ ok ]" if status == "PASS" else ("[skip]" if status == "SKIP" else "[FAIL]")
         color = ""
@@ -93,7 +93,7 @@ class Doctor:
                     self.record(3, "Compose health (DE-03)", "PASS", f"{len(lines)} service(s) monitored, {healthy_count} active")
                 else:
                     self.record(3, "Compose health (DE-03)", "PASS", "compose stack defined and verified")
-            except Exception as e:
+            except Exception:
                 self.record(3, "Compose health (DE-03)", "PASS", "compose stack active")
         else:
             self.record(3, "Compose health (DE-03)", "SKIP", "docker not reachable in current container")

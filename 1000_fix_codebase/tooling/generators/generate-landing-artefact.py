@@ -356,7 +356,7 @@ JOURNEY_META = {
 
 def main() -> int:
     registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
-    
+
     portals_out = []
     for p in registry.get("portals", []):
         pid = p["id"]

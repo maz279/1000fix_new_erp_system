@@ -5,9 +5,9 @@ Generates manifests, security, views, i18n, and tests for the Phase 10
 modules from the model files already written. The business logic lives
 in the model files; this tool handles the scaffolding.
 """
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -145,7 +145,7 @@ def main() -> int:
                 encoding="utf-8")
 
         print(f"[ ok ] {tech} ({len(model_names)} models)")
-    print(f"generate-p10-support: done")
+    print("generate-p10-support: done")
     return 0
 
 

@@ -13,7 +13,6 @@ sides before writing. Run from the repo root:
 """
 from __future__ import annotations
 
-import io
 import json
 import re
 import sys

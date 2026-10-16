@@ -58,7 +58,7 @@ class FixConversation(models.Model):
     def action_handoff_to_agent(self, reason: str = ""):
         """T07: the human-handoff path with FULL context transfer — the
         agent sees the entire transcript, the intent and the customer 360."""
-        for conversation in conversation:
+        for conversation in self:
             conversation.write({"state": "with_agent", "handoff_reason": reason})
             publish(self.env, "conversation.handed_off", "fix.conversation",
                     conversation.id, {

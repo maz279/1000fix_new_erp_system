@@ -80,7 +80,7 @@ class Handler(BaseHTTPRequestHandler):
         decisions = self.dispatcher.handle(event)
         self._json(200, {"decisions": decisions, "kpis": self.dispatcher.kpi_snapshot()})
 
-    def log_message(self, fmt: str, *args) -> None:  # noqa: A003/N802 - stdlib signature
+    def log_message(self, fmt: str, *args) -> None:  # noqa: A003, N802 - stdlib signature
         print(f"notification-dispatcher: {fmt % args}")
 
 
