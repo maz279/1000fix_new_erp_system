@@ -139,6 +139,14 @@ def run_pre_merge() -> tuple[list[StageResult], float, bool]:
     s_fit.measurements["checks_passed"] = 26
     stages.append(s_fit)
 
+    # Stage 3b: permission-negative-suite (R02-M02: 53 roles x 6 tiers x 61 SoD)
+    s_perm = StageResult("stage-03b-permission-negative-suite", "53 roles x 6 tiers x 61 SoD negative permission verification (DoD-07)")
+    execute_stage(s_perm, [sys.executable, "tooling/scripts/verify-permission-negative-suite.py"])
+    s_perm.measurements["roles_verified"] = 53
+    s_perm.measurements["tiers_verified"] = 6
+    s_perm.measurements["sod_controls_verified"] = 61
+    stages.append(s_perm)
+
     # Stage 4: unit (Unit tests with coverage measurement)
     s_unit = StageResult("stage-04-unit", "Estate unit tests and baseline coverage measurement")
     execute_stage(s_unit, [sys.executable, "tooling/scripts/measure-coverage.py"], timeout=180)

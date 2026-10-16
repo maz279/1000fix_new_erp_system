@@ -1,0 +1,494 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_rbac_ext — 53 reconciled roles (R02-M02-T01, SC-004, 05-04 §1, P03-M02-T02).
+  Every role maps to a Keycloak realm role, has assigned data isolation tiers,
+  and is subject to negative permission testing (DoD-07).
+-->
+<odoo noupdate="1">
+
+    <!-- Executive & Management (R-01 .. R-05) -->
+    <record id="role_r01" model="fix.role">
+        <field name="code">R-01</field>
+        <field name="name">Chief Executive Officer</field>
+        <field name="name_bn">প্রধান নির্বাহী কর্মকর্তা</field>
+        <field name="keycloak_role">R-01</field>
+        <field name="description">Executive leader, enterprise-wide strategic authority.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r02" model="fix.role">
+        <field name="code">R-02</field>
+        <field name="name">Chief Technology Officer</field>
+        <field name="name_bn">প্রধান প্রযুক্তি কর্মকর্তা</field>
+        <field name="keycloak_role">R-02</field>
+        <field name="description">Technology executive, architecture and platform governance.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r03" model="fix.role">
+        <field name="code">R-03</field>
+        <field name="name">Chief Financial Officer</field>
+        <field name="name_bn">প্রধান আর্থিক কর্মকর্তা</field>
+        <field name="keycloak_role">R-03</field>
+        <field name="description">Financial executive, fiscal governance and statutory compliance.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r04" model="fix.role">
+        <field name="code">R-04</field>
+        <field name="name">Chief Commercial Officer</field>
+        <field name="name_bn">প্রধান বাণিজ্যিক কর্মকর্তা</field>
+        <field name="keycloak_role">R-04</field>
+        <field name="description">Commercial executive, revenue, growth and marketing authority.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r05" model="fix.role">
+        <field name="code">R-05</field>
+        <field name="name">Operations Director</field>
+        <field name="name_bn">অপারেশনস পরিচালক</field>
+        <field name="keycloak_role">R-05</field>
+        <field name="description">Operational executive, nationwide service network authority.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <!-- Service Operations (R-06 .. R-14) -->
+    <record id="role_r06" model="fix.role">
+        <field name="code">R-06</field>
+        <field name="name">Branch Manager</field>
+        <field name="name_bn">শাখা ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-06</field>
+        <field name="description">Branch executive, local operational and commercial leadership.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <record id="role_r07" model="fix.role">
+        <field name="code">R-07</field>
+        <field name="name">Dispatch Manager</field>
+        <field name="name_bn">ডিসপ্যাচ ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-07</field>
+        <field name="description">Field service dispatch, technician routing and SLA optimization.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r08" model="fix.role">
+        <field name="code">R-08</field>
+        <field name="name">Service Centre Agent</field>
+        <field name="name_bn">সার্ভিস সেন্টার এজেন্ট</field>
+        <field name="keycloak_role">R-08</field>
+        <field name="description">Front desk intake, customer service orders and estimates.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <record id="role_r09" model="fix.role">
+        <field name="code">R-09</field>
+        <field name="name">Workshop Supervisor</field>
+        <field name="name_bn">ওয়ার্কশপ সুপারভাইজার</field>
+        <field name="keycloak_role">R-09</field>
+        <field name="description">Workshop operations, repair job allocation and quality control.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <record id="role_r10" model="fix.role">
+        <field name="code">R-10</field>
+        <field name="name">Senior Technician</field>
+        <field name="name_bn">সিনিয়র টেকনিশিয়ান</field>
+        <field name="keycloak_role">R-10</field>
+        <field name="description">Complex diagnostic, component replacement and technical mentorship.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r11" model="fix.role">
+        <field name="code">R-11</field>
+        <field name="name">Junior Technician</field>
+        <field name="name_bn">জুনিয়র টেকনিশিয়ান</field>
+        <field name="keycloak_role">R-11</field>
+        <field name="description">Basic repairs, screening and assembly under supervision.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r12" model="fix.role">
+        <field name="code">R-12</field>
+        <field name="name">Specialist Technician</field>
+        <field name="name_bn">বিশেষজ্ঞ টেকনিশিয়ান</field>
+        <field name="keycloak_role">R-12</field>
+        <field name="description">Board-level micro-soldering, chip repair and L3 diagnostics.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2')), (4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r13" model="fix.role">
+        <field name="code">R-13</field>
+        <field name="name">Remote Support Engineer</field>
+        <field name="name_bn">রিমোট সাপোর্ট ইঞ্জিনিয়ার</field>
+        <field name="keycloak_role">R-13</field>
+        <field name="description">Remote diagnostics, software restoration and IT support.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r14" model="fix.role">
+        <field name="code">R-14</field>
+        <field name="name">Data Services Technician</field>
+        <field name="name_bn">ডাটা সার্ভিস টেকনিশিয়ান</field>
+        <field name="keycloak_role">R-14</field>
+        <field name="description">Secure data recovery, forensic extraction and certified erasure.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t5'))]"/>
+    </record>
+
+    <!-- Logistics & Supply Chain (R-15 .. R-20) -->
+    <record id="role_r15" model="fix.role">
+        <field name="code">R-15</field>
+        <field name="name">Logistics Coordinator</field>
+        <field name="name_bn">লজিস্টিকস সমন্বয়কারী</field>
+        <field name="keycloak_role">R-15</field>
+        <field name="description">Central parts distribution, inter-branch courier manifests.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r16" model="fix.role">
+        <field name="code">R-16</field>
+        <field name="name">Rider / Delivery Agent</field>
+        <field name="name_bn">রাইডার / ডেলিভারি এজেন্ট</field>
+        <field name="keycloak_role">R-16</field>
+        <field name="description">Pick and drop of customer devices, reverse logistics.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r17" model="fix.role">
+        <field name="code">R-17</field>
+        <field name="name">Inventory Manager</field>
+        <field name="name_bn">ইনভেন্টরি ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-17</field>
+        <field name="description">Enterprise inventory valuation, stocking policy and audit.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r18" model="fix.role">
+        <field name="code">R-18</field>
+        <field name="name">Branch Store Keeper</field>
+        <field name="name_bn">শাখা স্টোর কিপার</field>
+        <field name="keycloak_role">R-18</field>
+        <field name="description">Local branch spare parts custody, receipt and technician issue.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <record id="role_r19" model="fix.role">
+        <field name="code">R-19</field>
+        <field name="name">Procurement Officer</field>
+        <field name="name_bn">ক্রয় কর্মকর্তা</field>
+        <field name="keycloak_role">R-19</field>
+        <field name="description">Vendor sourcing, purchasing requests and contract negotiation.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r20" model="fix.role">
+        <field name="code">R-20</field>
+        <field name="name">Warehouse Operative</field>
+        <field name="name_bn">গুদাম কর্মী</field>
+        <field name="keycloak_role">R-20</field>
+        <field name="description">Central warehouse receipt, put-away, picking and bin transfer.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <!-- Commercial & Sales (R-21 .. R-25) -->
+    <record id="role_r21" model="fix.role">
+        <field name="code">R-21</field>
+        <field name="name">Sales Manager</field>
+        <field name="name_bn">বিক্রয় ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-21</field>
+        <field name="description">Commercial deals, B2B enterprise agreements and pipeline.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r22" model="fix.role">
+        <field name="code">R-22</field>
+        <field name="name">Account Manager (Corporate)</field>
+        <field name="name_bn">অ্যাকাউন্ট ম্যানেজার (কর্পোরেট)</field>
+        <field name="keycloak_role">R-22</field>
+        <field name="description">Corporate client relationship, AMC management and service delivery.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r23" model="fix.role">
+        <field name="code">R-23</field>
+        <field name="name">Marketing Manager</field>
+        <field name="name_bn">মার্কেটিং ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-23</field>
+        <field name="description">Campaign strategy, brand marketing and communications.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r24" model="fix.role">
+        <field name="code">R-24</field>
+        <field name="name">Marketplace Operations Officer</field>
+        <field name="name_bn">মার্কেটপ্লেস অপারেশনস কর্মকর্তা</field>
+        <field name="keycloak_role">R-24</field>
+        <field name="description">Seller onboarding, catalogue moderation and dispute management.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r25" model="fix.role">
+        <field name="code">R-25</field>
+        <field name="name">Retail / Refurbishment Officer</field>
+        <field name="name_bn">খুচরা / রিফার্বিশমেন্ট কর্মকর্তা</field>
+        <field name="keycloak_role">R-25</field>
+        <field name="description">Refurbished device grading, trade-in intake and retail sale.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <!-- Finance, People & Governance (R-26 .. R-32) -->
+    <record id="role_r26" model="fix.role">
+        <field name="code">R-26</field>
+        <field name="name">Finance Manager</field>
+        <field name="name_bn">অর্থ ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-26</field>
+        <field name="description">Accounting ledger, financial approvals and reporting.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r27" model="fix.role">
+        <field name="code">R-27</field>
+        <field name="name">Finance Officer</field>
+        <field name="name_bn">অর্থ কর্মকর্তা</field>
+        <field name="keycloak_role">R-27</field>
+        <field name="description">Invoicing, bank reconciliation, ledger entries and payments.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r28" model="fix.role">
+        <field name="code">R-28</field>
+        <field name="name">Warranty Claims Officer</field>
+        <field name="name_bn">ওয়ারেন্টি দাবি কর্মকর্তা</field>
+        <field name="keycloak_role">R-28</field>
+        <field name="description">OEM and brand partner warranty claims processing.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r29" model="fix.role">
+        <field name="code">R-29</field>
+        <field name="name">Cashier / Counter Finance</field>
+        <field name="name_bn">ক্যাশিয়ার / কাউন্টার ফাইন্যান্স</field>
+        <field name="keycloak_role">R-29</field>
+        <field name="description">Branch cash collection, shift declaration and daily deposit.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t2'))]"/>
+    </record>
+
+    <record id="role_r30" model="fix.role">
+        <field name="code">R-30</field>
+        <field name="name">HR Manager</field>
+        <field name="name_bn">এইচআর ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-30</field>
+        <field name="description">Human resources strategy, policy, payroll approvals and employee files.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t5'))]"/>
+    </record>
+
+    <record id="role_r31" model="fix.role">
+        <field name="code">R-31</field>
+        <field name="name">HR Officer</field>
+        <field name="name_bn">এইচআর কর্মকর্তা</field>
+        <field name="keycloak_role">R-31</field>
+        <field name="description">Attendance tracking, leave administration and onboarding.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r32" model="fix.role">
+        <field name="code">R-32</field>
+        <field name="name">Quality Manager / ISO Coordinator</field>
+        <field name="name_bn">গুণমান ব্যবস্থাপক / আইএসও সমন্বয়কারী</field>
+        <field name="keycloak_role">R-32</field>
+        <field name="description">ISO 9001 compliance, service quality audits, and CAPA governance.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <!-- Technology & Support (R-33 .. R-35) -->
+    <record id="role_r33" model="fix.role">
+        <field name="code">R-33</field>
+        <field name="name">IT / System Administrator</field>
+        <field name="name_bn">আইটি / সিস্টেম প্রশাসক</field>
+        <field name="keycloak_role">R-33</field>
+        <field name="description">Infrastructure operations, identity provisioning and system telemetry.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r34" model="fix.role">
+        <field name="code">R-34</field>
+        <field name="name">Contact Centre Agent</field>
+        <field name="name_bn">কন্টাক্ট সেন্টার এজেন্ট</field>
+        <field name="keycloak_role">R-34</field>
+        <field name="description">Inbound customer calls, booking assistance, and status inquiries.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r35" model="fix.role">
+        <field name="code">R-35</field>
+        <field name="name">Contact Centre Supervisor</field>
+        <field name="name_bn">কন্টাক্ট সেন্টার সুপারভাইজার</field>
+        <field name="keycloak_role">R-35</field>
+        <field name="description">Agent queue monitoring, call quality reviews and escalations.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <!-- External Parties (R-36 .. R-38) -->
+    <record id="role_r36" model="fix.role">
+        <field name="code">R-36</field>
+        <field name="name">Customer (Individual)</field>
+        <field name="name_bn">গ্রাহক (ব্যক্তিগত)</field>
+        <field name="keycloak_role">R-36</field>
+        <field name="description">Individual consumer accessing Portal P01 for service orders.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r37" model="fix.role">
+        <field name="code">R-37</field>
+        <field name="name">Corporate Portal User</field>
+        <field name="name_bn">কর্পোরেট পোর্টাল ব্যবহারকারী</field>
+        <field name="keycloak_role">R-37</field>
+        <field name="description">Corporate B2B account user accessing Portal P04.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t4'))]"/>
+    </record>
+
+    <record id="role_r38" model="fix.role">
+        <field name="code">R-38</field>
+        <field name="name">External Party</field>
+        <field name="name_bn">বাহ্যিক পক্ষ</field>
+        <field name="keycloak_role">R-38</field>
+        <field name="description">External vendor, partner, courier, or marketplace seller.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t4'))]"/>
+    </record>
+
+    <!-- Operational & Domain Roles (R-39 .. R-53) -->
+    <record id="role_r39" model="fix.role">
+        <field name="code">R-39</field>
+        <field name="name">Data Steward</field>
+        <field name="name_bn">ডাটা স্টুয়ার্ড</field>
+        <field name="keycloak_role">R-39</field>
+        <field name="description">Party, catalogue and master data quality steward (M33/M64).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t0')), (4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r40" model="fix.role">
+        <field name="code">R-40</field>
+        <field name="name">Chief Data Officer</field>
+        <field name="name_bn">প্রধান তথ্য কর্মকর্তা</field>
+        <field name="keycloak_role">R-40</field>
+        <field name="description">Data protection governance, privacy and compliance authority.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t5'))]"/>
+    </record>
+
+    <record id="role_r41" model="fix.role">
+        <field name="code">R-41</field>
+        <field name="name">Payroll Officer</field>
+        <field name="name_bn">পেরোল কর্মকর্তা</field>
+        <field name="keycloak_role">R-41</field>
+        <field name="description">Payroll calculations and draft run compilation (M56).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r42" model="fix.role">
+        <field name="code">R-42</field>
+        <field name="name">Training Coordinator</field>
+        <field name="name_bn">প্রশিক্ষণ সমন্বয়কারী</field>
+        <field name="keycloak_role">R-42</field>
+        <field name="description">Technical curriculum, training cohorts and materials (M22).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r43" model="fix.role">
+        <field name="code">R-43</field>
+        <field name="name">Competency Assessor</field>
+        <field name="name_bn">দক্ষতা মূল্যায়নকারী</field>
+        <field name="keycloak_role">R-43</field>
+        <field name="description">Technician skill tiering, brand authorizations and testing (M22).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r44" model="fix.role">
+        <field name="code">R-44</field>
+        <field name="name">HSE Officer</field>
+        <field name="name_bn">এইচএসই কর্মকর্তা</field>
+        <field name="keycloak_role">R-44</field>
+        <field name="description">Health, safety, workplace ergonomics and environmental stewardship (M59).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r45" model="fix.role">
+        <field name="code">R-45</field>
+        <field name="name">Recruiter</field>
+        <field name="name_bn">নিয়োগকারী</field>
+        <field name="keycloak_role">R-45</field>
+        <field name="description">Talent acquisition, candidate pipelines and interviewing (M58).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r46" model="fix.role">
+        <field name="code">R-46</field>
+        <field name="name">Occupational Health</field>
+        <field name="name_bn">পেশাগত স্বাস্থ্য কর্মকর্তা</field>
+        <field name="keycloak_role">R-46</field>
+        <field name="description">Staff health records, clinical fitness and medical accommodations (M59).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t5'))]"/>
+    </record>
+
+    <record id="role_r47" model="fix.role">
+        <field name="code">R-47</field>
+        <field name="name">Team Leader</field>
+        <field name="name_bn">টিম লিডার</field>
+        <field name="keycloak_role">R-47</field>
+        <field name="description">First-line operational supervisor for technical teams.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t3'))]"/>
+    </record>
+
+    <record id="role_r48" model="fix.role">
+        <field name="code">R-48</field>
+        <field name="name">Service Head</field>
+        <field name="name_bn">সার্ভিস হেড</field>
+        <field name="keycloak_role">R-48</field>
+        <field name="description">National service line lead across all regional branches.</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r49" model="fix.role">
+        <field name="code">R-49</field>
+        <field name="name">GRC / Internal Audit</field>
+        <field name="name_bn">জিআরসি / অভ্যন্তরীণ নিরীক্ষক</field>
+        <field name="keycloak_role">R-49</field>
+        <field name="description">Independent compliance and control auditing, read-only scope (M60/M63).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1')), (4, ref('tier_t5'))]"/>
+    </record>
+
+    <record id="role_r50" model="fix.role">
+        <field name="code">R-50</field>
+        <field name="name">Marketing Executive</field>
+        <field name="name_bn">মার্কেটিং নির্বাহী</field>
+        <field name="keycloak_role">R-50</field>
+        <field name="description">Digital marketing, promotions and collateral execution (M35).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r51" model="fix.role">
+        <field name="code">R-51</field>
+        <field name="name">Demand Planner</field>
+        <field name="name_bn">চাহিদা পরিকল্পনাকারী</field>
+        <field name="keycloak_role">R-51</field>
+        <field name="description">Spare parts consumption forecasting and inventory replenishment (M43).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r52" model="fix.role">
+        <field name="code">R-52</field>
+        <field name="name">IT Service Desk Agent</field>
+        <field name="name_bn">আইটি সার্ভিস ডেস্ক এজেন্ট</field>
+        <field name="keycloak_role">R-52</field>
+        <field name="description">Internal IT support requests, hardware assignment and trouble tickets (M66).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+    <record id="role_r53" model="fix.role">
+        <field name="code">R-53</field>
+        <field name="name">Project Manager</field>
+        <field name="name_bn">প্রকল্প ব্যবস্থাপক</field>
+        <field name="keycloak_role">R-53</field>
+        <field name="description">Internal enterprise projects, milestones and rollout governance (M67).</field>
+        <field name="tier_ids" eval="[(4, ref('tier_t1'))]"/>
+    </record>
+
+</odoo>

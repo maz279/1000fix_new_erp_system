@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T13:57:32.061037+00:00",
+  "total_duration_seconds": 1.36,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": false,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "FAIL",
+      "duration_seconds": 0.84,
+      "exit_code": 1,
+      "measurements": {},
+      "output_summary": "ecks_passed += 1\n170 |         evidence[\"results\"][\"t5_invariants\"] = {\n    |\nhelp: Remove extraneous `f` prefix\n    |\n167 |     if step_up_flag in ('t', 'true', '1') and audit_flag in ('t', 'true', '1'):\n    -         print(f\"  PASS: T5 isolation tier enforces requires_step_up=True and requires_audit=True.\")\n168 +         print(\"  PASS: T5 isolation tier enforces requires_step_up=True and requires_audit=True.\")\n169 |         checks_passed += 1\n    |\n\nFound 4 errors.\n[*] 4 fixable with `--fix`.\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.52,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": "manifest__.py\n M 1000_fix_codebase/tooling/ci/run-pipeline.py\n M 1000_fix_codebase/tooling/gate/verify-gate-g1a.ps1\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_roles.xml\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_sod_controls.xml\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/tests/test_permissions_negative.py\n?? 1000_fix_codebase/tooling/fitness/evidence/permission-negative-suite-latest.json\n?? 1000_fix_codebase/tooling/scripts/verify-permission-negative-suite.py\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

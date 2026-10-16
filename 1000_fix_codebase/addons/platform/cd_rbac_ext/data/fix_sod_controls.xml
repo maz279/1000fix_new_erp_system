@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_rbac_ext — 61 segregation-of-duties controls (R02-M02-T03, SP-006 register of record).
+  Enforced by fix.sod.control.check_assignment() at role grant and transaction points.
+-->
+<odoo noupdate="1">
+
+    <!-- Core Financial & Purchasing SoD Controls (SOD-01 .. SOD-12) -->
+    <record id="sod_01" model="fix.sod.control">
+        <field name="code">SOD-01</field>
+        <field name="name">Create vendor + approve vendor invoice</field>
+        <field name="role_a_id" ref="role_r19"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents fictitious vendor creation and payment fraud.</field>
+    </record>
+
+    <record id="sod_02" model="fix.sod.control">
+        <field name="code">SOD-02</field>
+        <field name="name">Raise purchase order + receive goods + approve invoice</field>
+        <field name="role_a_id" ref="role_r19"/>
+        <field name="role_b_id" ref="role_r20"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents full-cycle purchasing fraud without independent custody check.</field>
+    </record>
+
+    <record id="sod_03" model="fix.sod.control">
+        <field name="code">SOD-03</field>
+        <field name="name">Process payroll + approve payroll</field>
+        <field name="role_a_id" ref="role_r41"/>
+        <field name="role_b_id" ref="role_r30"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents payroll calculation manipulation and unauthorised disbursements.</field>
+    </record>
+
+    <record id="sod_04" model="fix.sod.control">
+        <field name="code">SOD-04</field>
+        <field name="name">Create credit note + approve credit note</field>
+        <field name="role_a_id" ref="role_r27"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents revenue leakage through unreviewed credit notes.</field>
+    </record>
+
+    <record id="sod_05" model="fix.sod.control">
+        <field name="code">SOD-05</field>
+        <field name="name">Adjust inventory + perform count that justifies it</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r17"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents concealment of inventory shrinkage or theft.</field>
+    </record>
+
+    <record id="sod_06" model="fix.sod.control">
+        <field name="code">SOD-06</field>
+        <field name="name">Approve marketplace seller + approve seller payout</field>
+        <field name="role_a_id" ref="role_r24"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents collusion between marketplace operators and seller payouts.</field>
+    </record>
+
+    <record id="sod_07" model="fix.sod.control">
+        <field name="code">SOD-07</field>
+        <field name="name">Repair a device + perform independent QC</field>
+        <field name="role_a_id" ref="role_r10"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Ensures service repair quality cannot be self-certified.</field>
+    </record>
+
+    <record id="sod_08" model="fix.sod.control">
+        <field name="code">SOD-08</field>
+        <field name="name">Create customer + approve credit limit</field>
+        <field name="role_a_id" ref="role_r21"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Commercial credit limits require finance approval to mitigate default risk.</field>
+    </record>
+
+    <record id="sod_09" model="fix.sod.control">
+        <field name="code">SOD-09</field>
+        <field name="name">Administer users + approve access requests for self</field>
+        <field name="role_a_id" ref="role_r33"/>
+        <field name="role_b_id" ref="role_r02"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unilateral privilege escalation by IT administrators.</field>
+    </record>
+
+    <record id="sod_10" model="fix.sod.control">
+        <field name="code">SOD-10</field>
+        <field name="name">Value trade-in + purchase it + resell it</field>
+        <field name="role_a_id" ref="role_r25"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents trade-in undervaluation and resale margin diversion.</field>
+    </record>
+
+    <record id="sod_11" model="fix.sod.control">
+        <field name="code">SOD-11</field>
+        <field name="name">Raise warranty claim + approve write-off</field>
+        <field name="role_a_id" ref="role_r28"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents fraudulent warranty claims and unauthorized write-offs.</field>
+    </record>
+
+    <record id="sod_12" model="fix.sod.control">
+        <field name="code">SOD-12</field>
+        <field name="name">Handle cash + reconcile cash book</field>
+        <field name="role_a_id" ref="role_r29"/>
+        <field name="role_b_id" ref="role_r27"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents cash skimming and falsified ledger balancing.</field>
+    </record>
+
+    <!-- Operational & Commercial Controls (SOD-13 .. SOD-30) -->
+    <record id="sod_13" model="fix.sod.control">
+        <field name="code">SOD-13</field>
+        <field name="name">Author catalogue item change + approve change</field>
+        <field name="role_a_id" ref="role_r39"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Unreviewed price, scope or catalogue specification change.</field>
+    </record>
+
+    <record id="sod_14" model="fix.sod.control">
+        <field name="code">SOD-14</field>
+        <field name="name">Propose below-floor discount + approve discount</field>
+        <field name="role_a_id" ref="role_r21"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents commercial margin erosion by single actors.</field>
+    </record>
+
+    <record id="sod_15" model="fix.sod.control">
+        <field name="code">SOD-15</field>
+        <field name="name">Negotiate contract + approve non-standard terms</field>
+        <field name="role_a_id" ref="role_r22"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents concession of non-standard commercial liabilities unreviewed.</field>
+    </record>
+
+    <record id="sod_16" model="fix.sod.control">
+        <field name="code">SOD-16</field>
+        <field name="name">Amend subscription + approve credit arising from amendment</field>
+        <field name="role_a_id" ref="role_r22"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents recurring revenue leakage via self-served subscription credits.</field>
+    </record>
+
+    <record id="sod_17" model="fix.sod.control">
+        <field name="code">SOD-17</field>
+        <field name="name">Inspect return + approve refund above threshold</field>
+        <field name="role_a_id" ref="role_r08"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Requires managerial approval on large returns to prevent refund fraud.</field>
+    </record>
+
+    <record id="sod_18" model="fix.sod.control">
+        <field name="code">SOD-18</field>
+        <field name="name">Allocate partner MDF + approve claim against it</field>
+        <field name="role_a_id" ref="role_r21"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents channel marketing development fund misappropriation.</field>
+    </record>
+
+    <record id="sod_19" model="fix.sod.control">
+        <field name="code">SOD-19</field>
+        <field name="name">Perform CAPA action + verify its effectiveness</field>
+        <field name="role_a_id" ref="role_r09"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents closing out flawed corrective actions without independent verification.</field>
+    </record>
+
+    <record id="sod_20" model="fix.sod.control">
+        <field name="code">SOD-20</field>
+        <field name="name">Audit an area + be responsible for that area</field>
+        <field name="role_a_id" ref="role_r32"/>
+        <field name="role_b_id" ref="role_r49"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Preserves ISO 9001 clause 9.2 audit independence.</field>
+    </record>
+
+    <record id="sod_21" model="fix.sod.control">
+        <field name="code">SOD-21</field>
+        <field name="name">Own a control + record test conclusion for that control</field>
+        <field name="role_a_id" ref="role_r26"/>
+        <field name="role_b_id" ref="role_r49"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents false assurance in the internal control framework.</field>
+    </record>
+
+    <record id="sod_22" model="fix.sod.control">
+        <field name="code">SOD-22</field>
+        <field name="name">Grant SoD exception + be beneficiary of exception</field>
+        <field name="role_a_id" ref="role_r03"/>
+        <field name="role_b_id" ref="role_r01"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents the exception management process from defeating itself.</field>
+    </record>
+
+    <record id="sod_23" model="fix.sod.control">
+        <field name="code">SOD-23</field>
+        <field name="name">Prepare records disposal batch + approve disposal</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unlawful or premature destruction of compliance records.</field>
+    </record>
+
+    <record id="sod_24" model="fix.sod.control">
+        <field name="code">SOD-24</field>
+        <field name="name">Own campaign + approve campaign budget</field>
+        <field name="role_a_id" ref="role_r23"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents marketing spend commitment without financial review.</field>
+    </record>
+
+    <record id="sod_25" model="fix.sod.control">
+        <field name="code">SOD-25</field>
+        <field name="name">Create employee record + approve salary structure</field>
+        <field name="role_a_id" ref="role_r31"/>
+        <field name="role_b_id" ref="role_r30"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents creation of ghost employees or inflated compensation.</field>
+    </record>
+
+    <record id="sod_26" model="fix.sod.control">
+        <field name="code">SOD-26</field>
+        <field name="name">Process retrospective effective-date change + approve it</field>
+        <field name="role_a_id" ref="role_r31"/>
+        <field name="role_b_id" ref="role_r30"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Requires executive HR approval for backdated compensation entitlements.</field>
+    </record>
+
+    <record id="sod_27" model="fix.sod.control">
+        <field name="code">SOD-27</field>
+        <field name="name">Request overtime + approve overtime</field>
+        <field name="role_a_id" ref="role_r47"/>
+        <field name="role_b_id" ref="role_r30"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents overtime payroll inflation by line supervisors.</field>
+    </record>
+
+    <record id="sod_28" model="fix.sod.control">
+        <field name="code">SOD-28</field>
+        <field name="name">Verify attendance period + regularise exceptions above threshold</field>
+        <field name="role_a_id" ref="role_r47"/>
+        <field name="role_b_id" ref="role_r30"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Controls attendance regularisation abuse above threshold counts.</field>
+    </record>
+
+    <record id="sod_29" model="fix.sod.control">
+        <field name="code">SOD-29</field>
+        <field name="name">Approve payroll run + release bank file</field>
+        <field name="role_a_id" ref="role_r30"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents disbursement diversion after payroll approval.</field>
+    </record>
+
+    <record id="sod_30" model="fix.sod.control">
+        <field name="code">SOD-30</field>
+        <field name="name">Calculate incentive + disburse payment</field>
+        <field name="role_a_id" ref="role_r31"/>
+        <field name="role_b_id" ref="role_r27"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents self-directed or collusion in technician incentive payments.</field>
+    </record>
+
+    <!-- Collision Resolution Controls (SOD-31 .. SOD-39) -->
+    <record id="sod_31" model="fix.sod.control">
+        <field name="code">SOD-31</field>
+        <field name="name">Execute party-record merge + created record within 24 hours</field>
+        <field name="role_a_id" ref="role_r39"/>
+        <field name="role_b_id" ref="role_r08"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents merging fabricated duplicate records to obscure data audit trail.</field>
+    </record>
+
+    <record id="sod_32" model="fix.sod.control">
+        <field name="code">SOD-32</field>
+        <field name="name">Record sales win + approve commission attribution change</field>
+        <field name="role_a_id" ref="role_r21"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents commercial sales commission manipulation.</field>
+    </record>
+
+    <record id="sod_33" model="fix.sod.control">
+        <field name="code">SOD-33</field>
+        <field name="name">Request loyalty points adjustment + approve adjustment</field>
+        <field name="role_a_id" ref="role_r24"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents self-issuance of loyalty reward points.</field>
+    </record>
+
+    <record id="sod_34" model="fix.sod.control">
+        <field name="code">SOD-34</field>
+        <field name="name">Create wallet credit + approve wallet payout</field>
+        <field name="role_a_id" ref="role_r24"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents misappropriation of cash-equivalent customer wallets.</field>
+    </record>
+
+    <record id="sod_35" model="fix.sod.control">
+        <field name="code">SOD-35</field>
+        <field name="name">Handle conversation + perform quality evaluation on it</field>
+        <field name="role_a_id" ref="role_r34"/>
+        <field name="role_b_id" ref="role_r35"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents agent self-scoring and unreliable CSAT telemetry.</field>
+    </record>
+
+    <record id="sod_36" model="fix.sod.control">
+        <field name="code">SOD-36</field>
+        <field name="name">Author AI guard rail + sole approver of its removal</field>
+        <field name="role_a_id" ref="role_r02"/>
+        <field name="role_b_id" ref="role_r33"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Safety and pricing guardrails cannot be unilaterally disabled.</field>
+    </record>
+
+    <record id="sod_37" model="fix.sod.control">
+        <field name="code">SOD-37</field>
+        <field name="name">Subject of CSAT anomaly + participate in investigation</field>
+        <field name="role_a_id" ref="role_r08"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents suppression of findings during customer satisfaction audits.</field>
+    </record>
+
+    <record id="sod_38" model="fix.sod.control">
+        <field name="code">SOD-38</field>
+        <field name="name">Own complaint + approve compensation above threshold</field>
+        <field name="role_a_id" ref="role_r08"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Prevents using compensation to quietly conceal customer complaints.</field>
+    </record>
+
+    <record id="sod_39" model="fix.sod.control">
+        <field name="code">SOD-39</field>
+        <field name="name">Build campaign + approve budget above threshold</field>
+        <field name="role_a_id" ref="role_r50"/>
+        <field name="role_b_id" ref="role_r23"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Ensures marketing campaign spend above threshold receives executive review.</field>
+    </record>
+
+    <!-- High-Consequence Controls (SOD-40 .. SOD-61) -->
+    <record id="sod_40" model="fix.sod.control">
+        <field name="code">SOD-40</field>
+        <field name="name">Request vendor bank-detail change + approve change</field>
+        <field name="role_a_id" ref="role_r19"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents supplier payment redirection fraud.</field>
+    </record>
+
+    <record id="sod_41" model="fix.sod.control">
+        <field name="code">SOD-41</field>
+        <field name="name">Prepare journal entry + approve posting</field>
+        <field name="role_a_id" ref="role_r27"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unreviewed general ledger manipulation.</field>
+    </record>
+
+    <record id="sod_42" model="fix.sod.control">
+        <field name="code">SOD-42</field>
+        <field name="name">Hold posting rights + administer posting rules</field>
+        <field name="role_a_id" ref="role_r27"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents ledger posters from altering the rules that constrain them.</field>
+    </record>
+
+    <record id="sod_43" model="fix.sod.control">
+        <field name="code">SOD-43</field>
+        <field name="name">Reopen accounting period + post into it</field>
+        <field name="role_a_id" ref="role_r27"/>
+        <field name="role_b_id" ref="role_r26"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents retrospective financial statement tampering.</field>
+    </record>
+
+    <record id="sod_44" model="fix.sod.control">
+        <field name="code">SOD-44</field>
+        <field name="name">Raise inter-branch stock transfer + approve transfer</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r17"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Prevents unauthorized inter-branch inventory diversion.</field>
+    </record>
+
+    <record id="sod_45" model="fix.sod.control">
+        <field name="code">SOD-45</field>
+        <field name="name">Quarantine stock + approve its write-off</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r17"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents good stock from being written off as scrap and stolen.</field>
+    </record>
+
+    <record id="sod_46" model="fix.sod.control">
+        <field name="code">SOD-46</field>
+        <field name="name">Raise purchase requisition + approve it</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r19"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents self-authorized enterprise spending.</field>
+    </record>
+
+    <record id="sod_47" model="fix.sod.control">
+        <field name="code">SOD-47</field>
+        <field name="name">Award sourcing event + approve purchase order</field>
+        <field name="role_a_id" ref="role_r19"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">warn</field>
+        <field name="rationale">Prevents directed supplier award without competitive threshold check.</field>
+    </record>
+
+    <record id="sod_48" model="fix.sod.control">
+        <field name="code">SOD-48</field>
+        <field name="name">Override put-away directive + approve override</field>
+        <field name="role_a_id" ref="role_r20"/>
+        <field name="role_b_id" ref="role_r17"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents misplaced or unrecorded warehouse inventory.</field>
+    </record>
+
+    <record id="sod_49" model="fix.sod.control">
+        <field name="code">SOD-49</field>
+        <field name="name">Record customs duty + approve duty-variance acceptance</field>
+        <field name="role_a_id" ref="role_r15"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents understated landed cost and statutory customs exposure.</field>
+    </record>
+
+    <record id="sod_50" model="fix.sod.control">
+        <field name="code">SOD-50</field>
+        <field name="name">Classify HS code + approve reclassification</field>
+        <field name="role_a_id" ref="role_r15"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unlawful duty avoidance via tariff reclassification.</field>
+    </record>
+
+    <record id="sod_51" model="fix.sod.control">
+        <field name="code">SOD-51</field>
+        <field name="name">Report asset lost/damaged + approve write-off</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents enterprise equipment misappropriation via damage claims.</field>
+    </record>
+
+    <record id="sod_52" model="fix.sod.control">
+        <field name="code">SOD-52</field>
+        <field name="name">Perform calibration + approve calibration status</field>
+        <field name="role_a_id" ref="role_r10"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents invalid laboratory or workshop equipment certification.</field>
+    </record>
+
+    <record id="sod_53" model="fix.sod.control">
+        <field name="code">SOD-53</field>
+        <field name="name">Report vehicle incident as driver + close insurance claim</field>
+        <field name="role_a_id" ref="role_r16"/>
+        <field name="role_b_id" ref="role_r03"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents fraudulent or suppressed fleet damage settlement.</field>
+    </record>
+
+    <record id="sod_54" model="fix.sod.control">
+        <field name="code">SOD-54</field>
+        <field name="name">Flag asset lost/stolen + clear flag</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r17"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents laundering stolen customer or company hardware back into registry.</field>
+    </record>
+
+    <record id="sod_55" model="fix.sod.control">
+        <field name="code">SOD-55</field>
+        <field name="name">Inspect rental asset on return + approve damage charge</field>
+        <field name="role_a_id" ref="role_r25"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents inflated or suppressed customer damage assessment.</field>
+    </record>
+
+    <record id="sod_56" model="fix.sod.control">
+        <field name="code">SOD-56</field>
+        <field name="name">Perform refurbishment QA + approve grade override</field>
+        <field name="role_a_id" ref="role_r12"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Preserves objective grading integrity for refurbished stock.</field>
+    </record>
+
+    <record id="sod_57" model="fix.sod.control">
+        <field name="code">SOD-57</field>
+        <field name="name">Triage item for disposal + authorize transfer to recycler</field>
+        <field name="role_a_id" ref="role_r18"/>
+        <field name="role_b_id" ref="role_r32"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unauthorized removal of valuable items under guise of e-waste.</field>
+    </record>
+
+    <record id="sod_58" model="fix.sod.control">
+        <field name="code">SOD-58</field>
+        <field name="name">Perform data destruction + witness certificate</field>
+        <field name="role_a_id" ref="role_r14"/>
+        <field name="role_b_id" ref="role_r02"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Destruction certificate requires two distinct identities for compliance.</field>
+    </record>
+
+    <record id="sod_59" model="fix.sod.control">
+        <field name="code">SOD-59</field>
+        <field name="name">Execute change in client environment + sole approver</field>
+        <field name="role_a_id" ref="role_r13"/>
+        <field name="role_b_id" ref="role_r02"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unreviewed configuration changes to customer enterprise systems.</field>
+    </record>
+
+    <record id="sod_60" model="fix.sod.control">
+        <field name="code">SOD-60</field>
+        <field name="name">Impose marketplace penalty + decide appeal</field>
+        <field name="role_a_id" ref="role_r24"/>
+        <field name="role_b_id" ref="role_r04"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Ensures fair and independent dispute appeals for marketplace partners.</field>
+    </record>
+
+    <record id="sod_61" model="fix.sod.control">
+        <field name="code">SOD-61</field>
+        <field name="name">Extract bulk customer data + approve privacy export</field>
+        <field name="role_a_id" ref="role_r33"/>
+        <field name="role_b_id" ref="role_r40"/>
+        <field name="conflict_action">block</field>
+        <field name="rationale">Prevents unapproved mass export of customer personal data under PDPA 2026.</field>
+    </record>
+
+</odoo>

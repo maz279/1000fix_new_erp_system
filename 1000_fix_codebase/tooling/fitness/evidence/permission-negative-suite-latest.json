@@ -1,0 +1,47 @@
+{
+  "timestamp": "20261016T135814Z",
+  "milestone": "R02-M02",
+  "description": "Permission negative tests: 53 roles \u00d7 6 isolation tiers",
+  "governance_rule": "DoD-07",
+  "gate_criterion": "G1a-5",
+  "results": {
+    "roles": {
+      "status": "PASS",
+      "expected_count": 53,
+      "actual_count": 53,
+      "missing": []
+    },
+    "isolation_tiers": {
+      "status": "PASS",
+      "expected_count": 6,
+      "actual_count": 6,
+      "tiers": [
+        "T0",
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5"
+      ]
+    },
+    "sod_controls": {
+      "status": "PASS",
+      "expected_count": 61,
+      "actual_count": 61,
+      "missing": []
+    },
+    "test_suite": {
+      "status": "PASS",
+      "tests_run": 64,
+      "tests_passed": 64,
+      "duration_seconds": 2.45
+    },
+    "t5_invariants": {
+      "status": "PASS",
+      "requires_step_up": true,
+      "requires_audit": true
+    }
+  },
+  "duration_seconds": 2.61,
+  "overall_verdict": "PASS"
+}

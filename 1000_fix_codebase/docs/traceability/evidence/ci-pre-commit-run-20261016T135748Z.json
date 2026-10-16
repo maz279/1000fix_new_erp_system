@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T13:57:48.367662+00:00",
+  "total_duration_seconds": 0.67,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": true,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "PASS",
+      "duration_seconds": 0.15,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.52,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": "ng/gate/verify-gate-g1a.ps1\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_roles.xml\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/data/fix_sod_controls.xml\n?? 1000_fix_codebase/addons/platform/cd_rbac_ext/tests/test_permissions_negative.py\n?? 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T135732Z.json\n?? 1000_fix_codebase/tooling/fitness/evidence/permission-negative-suite-latest.json\n?? 1000_fix_codebase/tooling/scripts/verify-permission-negative-suite.py\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}
