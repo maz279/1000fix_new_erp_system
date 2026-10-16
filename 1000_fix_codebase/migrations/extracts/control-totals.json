@@ -1,0 +1,22 @@
+{
+  "run": "WAVE1_REHEARSAL_20261016",
+  "extracted_at": "2026-10-16T14:20:50.425492+00:00",
+  "control_totals": {
+    "branches": 6,
+    "customers": 50,
+    "devices": 50,
+    "employees": 20
+  },
+  "checksums": {
+    "branches": "0854c5d3cc4e147761580db2f517b804273b5c3cc797d6102762fc1d9ae48d99",
+    "customers": "303276823fc30ca90a31a24cae2ab8b4dfd4e4c2cf1daba5abfaa8aa0ebf3ce4",
+    "devices": "e470c90444e017c2af6b4ce6182cfdb7ef6dd5b75aca26b27a1bd5b513d1eeb4",
+    "employees": "dfa5fdfcfeb514414f7d10e4e938c19ab3ee8db247c40be710e08c5a77f43879"
+  },
+  "value_totals": {
+    "branches": 0,
+    "customers": 0,
+    "devices": 0,
+    "employees": 0
+  }
+}

@@ -23,6 +23,9 @@ class ResPartner(models.Model):
         "fix.party.hierarchy", "child_id", string="Related Parties (as child)")
     hierarchy_child_ids = fields.One2many(
         "fix.party.hierarchy", "parent_id", string="Related Parties (as parent)")
+    legacy_reference = fields.Char(
+        string="Legacy Reference", index=True, copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)")
 
     def _get_notification_language(self) -> str:
         """The dispatcher's language lookup: preferred_language, defaulting bn."""

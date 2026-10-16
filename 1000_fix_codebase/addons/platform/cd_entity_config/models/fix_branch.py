@@ -42,6 +42,9 @@ class FixBranch(models.Model):
     active = fields.Boolean(default=True, tracking=True)
     calendar_id = fields.Many2one("fix.working.calendar", string="Working Calendar",
                                   help="M02's W2 availability stub reads this")
+    legacy_reference = fields.Char(
+        string="Legacy Reference", index=True, copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)")
 
     @api.onchange("entity_id")
     def _onchange_entity(self):

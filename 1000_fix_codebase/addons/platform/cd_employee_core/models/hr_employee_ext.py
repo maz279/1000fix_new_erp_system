@@ -53,6 +53,9 @@ class HrEmployeeExt(models.Model):
         string="Keycloak User ID", readonly=True,
         help="The Keycloak user UUID — provisioned on employee.joined, "
              "deprovisioned on employee.left within 1 hour (KPI-090)")
+    legacy_reference = fields.Char(
+        string="Legacy Reference", index=True, copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)")
 
     # JML state
     employment_status = fields.Selection(

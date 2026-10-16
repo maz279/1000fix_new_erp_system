@@ -1,0 +1,56 @@
+[
+  {
+    "code": "HQ",
+    "name": "Dhaka Central HQ & Service Hub",
+    "name_bn": "ঢাকা প্রধান কার্যালয় ও সার্ভিস সেন্টার",
+    "phone": "8801700000001",
+    "email": "hq.service@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:HQ"
+  },
+  {
+    "code": "PC-01",
+    "name": "Dhanmondi Service Centre",
+    "name_bn": "ধানমন্ডি সার্ভিস সেন্টার",
+    "phone": "8801700000002",
+    "email": "dhanmondi@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:PC01"
+  },
+  {
+    "code": "PC-02",
+    "name": "Uttara Service Centre",
+    "name_bn": "উত্তরা সার্ভিস সেন্টার",
+    "phone": "8801700000003",
+    "email": "uttara@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:PC02"
+  },
+  {
+    "code": "PC-03",
+    "name": "Mirpur Service Centre",
+    "name_bn": "মিরপুর সার্ভিস সেন্টার",
+    "phone": "8801700000004",
+    "email": "mirpur@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:PC03"
+  },
+  {
+    "code": "PC-04",
+    "name": "Chattogram Agrabad Service Centre",
+    "name_bn": "চট্টগ্রাম আগ্রাবাদ সার্ভিস সেন্টার",
+    "phone": "8801700000005",
+    "email": "agrabad@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:PC04"
+  },
+  {
+    "code": "PC-05",
+    "name": "Sylhet Zindabazar Service Centre",
+    "name_bn": "সিলেট জিন্দাবাজার সার্ভিস সেন্টার",
+    "phone": "8801700000006",
+    "email": "sylhet@1000fix.com",
+    "operating_unit_code": "OU1",
+    "legacy_reference": "BR:PILOT_2026:PC05"
+  }
+]

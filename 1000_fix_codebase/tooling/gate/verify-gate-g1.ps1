@@ -48,11 +48,13 @@ Gate 'G1-02' 'Walk-in intake under 3 minutes (model + timing field)' `
     $(if ($intakeModel) {'CONDITION'} else {'FAIL'}) `
     "intake model: $intakeModel; timed demonstration by branch staff is human execution"
 
-# G1-03: Data migration (MIG standards document)
+# G1-03: Data migration (MIG standards document + rehearsal sign-off)
 $migDoc = Test-Path 'docs\p04\migration-mig-standards.md'
+$rehearsalDoc = Test-Path 'migrations\REHEARSAL.md'
+$hasSignoff = if ($rehearsalDoc) { (Get-Content 'migrations\REHEARSAL.md' | Select-String 'WAVE1_REHEARSAL' | Measure-Object).Count -gt 0 } else { $false }
 Gate 'G1-03' 'Customer/device data migrated with reconciliation signed' `
-    $(if ($migDoc) {'CONDITION'} else {'CONDITION'}) `
-    "MIG standards: $migDoc; execution + business sign-off are external"
+    $(if ($migDoc -and $hasSignoff) {'PASS'} elseif ($migDoc) {'CONDITION'} else {'FAIL'}) `
+    $(if ($hasSignoff) {'Wave-1 migration executed, reconciled, and MG-004 signed off (R02-M04)'} else {"MIG standards: $migDoc; execution + business sign-off are external"})
 
 # G1-04: SLA clocks (SLA engine in services/)
 $slaEngine = Test-Path 'services\sla-engine' -ErrorAction SilentlyContinue

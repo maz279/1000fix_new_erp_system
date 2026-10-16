@@ -11,6 +11,7 @@ the production residency service, CD-M29-nn). This stub speaks that contract.
 """
 import hashlib
 import json
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 SYNTHETIC_BANNER = "SYNTHETIC-LOCAL-ONLY"
@@ -66,6 +67,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = HTTPServer(("127.0.0.1", 8100), Handler)
-    print("residency-stub: listening on 127.0.0.1:8100 (SYNTHETIC VALUES ONLY)")
+    host = os.environ.get("RESIDENCY_HOST", "0.0.0.0")
+    server = HTTPServer((host, 8100), Handler)
+    print(f"residency-stub: listening on {host}:8100 (SYNTHETIC VALUES ONLY)")
     server.serve_forever()

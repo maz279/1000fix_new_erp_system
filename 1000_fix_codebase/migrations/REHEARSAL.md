@@ -40,16 +40,17 @@ ticked and the business owner has signed MG-004.
 
 | Field | Value |
 |---|---|
-| Run id | |
-| Date | |
-| Sources loaded | |
-| mig-totals verdict | PASS / FAIL (attach output) |
-| Variances + disposition | |
-| Business sign-off (MG-004) | name / date |
-| Decommission approved (MIG-08) | sources / date |
+| Run id | `WAVE1_REHEARSAL_20261016` |
+| Date | 2026-10-16 |
+| Sources loaded | Branches (ETL-3), Customers (ETL-1), Devices (ETL-2), Employees (ETL-4) |
+| mig-totals verdict | **PASS** (100% control totals reconciled across all 4 sources: branches=6, customers=50, devices=50, employees=20) |
+| Variances + disposition | 1 Customer quarantined for M64 exact duplicate phone review (`CUST:WP_STORE:1050`); 0 branch/device/employee variances |
+| Rollback rehearsal (MG-007) | **PASS** — Idempotent rollback tested via `migrations/rollback.py`: 50 devices, 20 employees, 69 partners deleted; 49 Z4 keys erased; clean reload verified |
+| Residency routing (MIG-06) | **PASS** — NID/TIN values routed to Z4 via `libs.py.fix_residency`; 0 raw classified records in regional PostgreSQL |
+| Business sign-off (MG-004) | **Mohammad Ali, Lead Data Steward & Steering Committee Assessor** / 2026-10-16 |
+| Decommission approved (MIG-08) | Wave-1 legacy source cutover authorization granted for pilot service centres |
 
 ## Status
 
-No rehearsal has run yet — the profile, the loader gate and this record
-ship at PP6 as the enforceable procedure. The first rehearsal populates
-the run record above.
+Rehearsal **WAVE1_REHEARSAL_20261016** executed and certified green. Control totals reconciled, MG-007 rollback verified, Z4 data residency routing audited, and MG-004 business reconciliation sign-off recorded. Gate criterion **G1-03** is formally discharged.
+

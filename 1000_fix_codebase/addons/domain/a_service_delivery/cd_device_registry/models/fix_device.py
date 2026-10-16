@@ -33,6 +33,9 @@ class FixDevice(models.Model):
                          help="Primary IMEI for mobile devices — unique when present")
     imei_2 = fields.Char(string="IMEi 2 (Dual SIM)", index=True)
     mac_address = fields.Char(string="MAC Address", index=True)
+    legacy_reference = fields.Char(
+        string="Legacy Reference", index=True, copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)")
 
     # Classification (references the M37 catalogue kernel)
     device_model_id = fields.Many2one("fix.device.model", string="Device Model",

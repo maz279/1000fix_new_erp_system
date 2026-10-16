@@ -1,0 +1,33 @@
+{
+  "run": "WAVE1_REHEARSAL_20261016",
+  "loaded_at": "2026-10-16T14:41:27.064754+00:00",
+  "loaded_totals": {
+    "branches": 6,
+    "customers": 50,
+    "devices": 50,
+    "employees": 20
+  },
+  "accepted_records": {
+    "branches": 6,
+    "customers": 49,
+    "devices": 50,
+    "employees": 20
+  },
+  "quarantined_records": {
+    "branches": 0,
+    "customers": 1,
+    "devices": 0,
+    "employees": 0
+  },
+  "rejections": {
+    "customers": [
+      {
+        "legacy_reference": "CUST:WP_STORE:1050",
+        "phone": "880171000049",
+        "reason": "M64 dedup: exact phone match already seen in batch \u2014 quarantined for steward review"
+      }
+    ],
+    "devices": [],
+    "employees": []
+  }
+}

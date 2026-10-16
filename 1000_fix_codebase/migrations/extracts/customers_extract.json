@@ -1,0 +1,712 @@
+[
+  {
+    "source_id": "WP-1001",
+    "name": "Rahim Ahmed",
+    "name_bn": "রহিম আহমেদ",
+    "phone": "880171000001",
+    "email": "customer.001@example.com",
+    "is_company": false,
+    "nid": "1990000001123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1001"
+  },
+  {
+    "source_id": "WP-1002",
+    "name": "Karim Chowdhury",
+    "name_bn": "করিম চৌধুরী",
+    "phone": "880171000002",
+    "email": "customer.002@example.com",
+    "is_company": false,
+    "nid": "1990000002123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1002"
+  },
+  {
+    "source_id": "WP-1003",
+    "name": "Fatima Hossain",
+    "name_bn": "ফাতিমা হোসেন",
+    "phone": "880171000003",
+    "email": "customer.003@example.com",
+    "is_company": false,
+    "nid": "1990000003123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1003"
+  },
+  {
+    "source_id": "WP-1004",
+    "name": "Ayesha Khan",
+    "name_bn": "আয়েশা খান",
+    "phone": "880171000004",
+    "email": "customer.004@example.com",
+    "is_company": false,
+    "nid": "1990000004123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1004"
+  },
+  {
+    "source_id": "WP-1005",
+    "name": "Tanvir Rahman",
+    "name_bn": "তানভীর রহমান",
+    "phone": "880171000005",
+    "email": "customer.005@example.com",
+    "is_company": false,
+    "nid": "1990000005123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1005"
+  },
+  {
+    "source_id": "WP-1006",
+    "name": "Nusrat Islam",
+    "name_bn": "নুসরাত ইসলাম",
+    "phone": "880171000006",
+    "email": "customer.006@example.com",
+    "is_company": false,
+    "nid": "1990000006123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1006"
+  },
+  {
+    "source_id": "WP-1007",
+    "name": "Kamal Uddin",
+    "name_bn": "কামাল উদ্দিন",
+    "phone": "880171000007",
+    "email": "customer.007@example.com",
+    "is_company": false,
+    "nid": "1990000007123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1007"
+  },
+  {
+    "source_id": "WP-1008",
+    "name": "Salma Sultana",
+    "name_bn": "সালমা সুলতানা",
+    "phone": "880171000008",
+    "email": "customer.008@example.com",
+    "is_company": false,
+    "nid": "1990000008123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1008"
+  },
+  {
+    "source_id": "WP-1009",
+    "name": "Hasan Begum",
+    "name_bn": "হাসান বেগম",
+    "phone": "880171000009",
+    "email": "customer.009@example.com",
+    "is_company": false,
+    "nid": "1990000009123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1009"
+  },
+  {
+    "source_id": "WP-1010",
+    "name": "Rina Haque",
+    "name_bn": "রিনা হক",
+    "phone": "880171000010",
+    "email": "customer.010@example.com",
+    "is_company": true,
+    "nid": "1990000010123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1010"
+  },
+  {
+    "source_id": "WP-1011",
+    "name": "Mahmud Ahmed",
+    "name_bn": "মাহমুদ আহমেদ",
+    "phone": "880171000011",
+    "email": "customer.011@example.com",
+    "is_company": false,
+    "nid": "1990000011123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1011"
+  },
+  {
+    "source_id": "WP-1012",
+    "name": "Shirin Chowdhury",
+    "name_bn": "শিরীন চৌধুরী",
+    "phone": "880171000012",
+    "email": "customer.012@example.com",
+    "is_company": false,
+    "nid": "1990000012123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1012"
+  },
+  {
+    "source_id": "WP-1013",
+    "name": "Habib Hossain",
+    "name_bn": "হাবিব হোসেন",
+    "phone": "880171000013",
+    "email": "customer.013@example.com",
+    "is_company": false,
+    "nid": "1990000013123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1013"
+  },
+  {
+    "source_id": "WP-1014",
+    "name": "Farhana Khan",
+    "name_bn": "ফারহানা খান",
+    "phone": "880171000014",
+    "email": "customer.014@example.com",
+    "is_company": false,
+    "nid": "1990000014123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1014"
+  },
+  {
+    "source_id": "WP-1015",
+    "name": "Zahid Rahman",
+    "name_bn": "জাহিদ রহমান",
+    "phone": "880171000015",
+    "email": "customer.015@example.com",
+    "is_company": false,
+    "nid": "1990000015123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1015"
+  },
+  {
+    "source_id": "WP-1016",
+    "name": "Tasnim Islam",
+    "name_bn": "তাসনিম ইসলাম",
+    "phone": "880171000016",
+    "email": "customer.016@example.com",
+    "is_company": false,
+    "nid": "1990000016123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1016"
+  },
+  {
+    "source_id": "WP-1017",
+    "name": "Ashik Uddin",
+    "name_bn": "আশিক উদ্দিন",
+    "phone": "880171000017",
+    "email": "customer.017@example.com",
+    "is_company": false,
+    "nid": "1990000017123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1017"
+  },
+  {
+    "source_id": "WP-1018",
+    "name": "Sadia Sultana",
+    "name_bn": "সাদিয়া সুলতানা",
+    "phone": "880171000018",
+    "email": "customer.018@example.com",
+    "is_company": false,
+    "nid": "1990000018123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1018"
+  },
+  {
+    "source_id": "WP-1019",
+    "name": "Faisal Begum",
+    "name_bn": "ফয়সাল বেগম",
+    "phone": "880171000019",
+    "email": "customer.019@example.com",
+    "is_company": false,
+    "nid": "1990000019123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1019"
+  },
+  {
+    "source_id": "WP-1020",
+    "name": "Nazma Haque",
+    "name_bn": "নাজমা হক",
+    "phone": "880171000020",
+    "email": "customer.020@example.com",
+    "is_company": true,
+    "nid": "1990000020123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1020"
+  },
+  {
+    "source_id": "WP-1021",
+    "name": "Tariq Ahmed",
+    "name_bn": "তারিক আহমেদ",
+    "phone": "880171000021",
+    "email": "customer.021@example.com",
+    "is_company": false,
+    "nid": "1990000021123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1021"
+  },
+  {
+    "source_id": "WP-1022",
+    "name": "Sabina Chowdhury",
+    "name_bn": "সাবিনা চৌধুরী",
+    "phone": "880171000022",
+    "email": "customer.022@example.com",
+    "is_company": false,
+    "nid": "1990000022123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1022"
+  },
+  {
+    "source_id": "WP-1023",
+    "name": "Jamil Hossain",
+    "name_bn": "জামিল হোসেন",
+    "phone": "880171000023",
+    "email": "customer.023@example.com",
+    "is_company": false,
+    "nid": "1990000023123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1023"
+  },
+  {
+    "source_id": "WP-1024",
+    "name": "Rubina Khan",
+    "name_bn": "রুবিনা খান",
+    "phone": "880171000024",
+    "email": "customer.024@example.com",
+    "is_company": false,
+    "nid": "1990000024123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1024"
+  },
+  {
+    "source_id": "WP-1025",
+    "name": "Enamul Rahman",
+    "name_bn": "এনামুল রহমান",
+    "phone": "880171000025",
+    "email": "customer.025@example.com",
+    "is_company": false,
+    "nid": "1990000025123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1025"
+  },
+  {
+    "source_id": "WP-1026",
+    "name": "Rahim Islam",
+    "name_bn": "রহিম ইসলাম",
+    "phone": "880171000026",
+    "email": "customer.026@example.com",
+    "is_company": false,
+    "nid": "1990000026123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1026"
+  },
+  {
+    "source_id": "WP-1027",
+    "name": "Karim Uddin",
+    "name_bn": "করিম উদ্দিন",
+    "phone": "880171000027",
+    "email": "customer.027@example.com",
+    "is_company": false,
+    "nid": "1990000027123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1027"
+  },
+  {
+    "source_id": "WP-1028",
+    "name": "Fatima Sultana",
+    "name_bn": "ফাতিমা সুলতানা",
+    "phone": "880171000028",
+    "email": "customer.028@example.com",
+    "is_company": false,
+    "nid": "1990000028123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1028"
+  },
+  {
+    "source_id": "WP-1029",
+    "name": "Ayesha Begum",
+    "name_bn": "আয়েশা বেগম",
+    "phone": "880171000029",
+    "email": "customer.029@example.com",
+    "is_company": false,
+    "nid": "1990000029123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1029"
+  },
+  {
+    "source_id": "WP-1030",
+    "name": "Tanvir Haque",
+    "name_bn": "তানভীর হক",
+    "phone": "880171000030",
+    "email": "customer.030@example.com",
+    "is_company": true,
+    "nid": "1990000030123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1030"
+  },
+  {
+    "source_id": "WP-1031",
+    "name": "Nusrat Ahmed",
+    "name_bn": "নুসরাত আহমেদ",
+    "phone": "880171000031",
+    "email": "customer.031@example.com",
+    "is_company": false,
+    "nid": "1990000031123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1031"
+  },
+  {
+    "source_id": "WP-1032",
+    "name": "Kamal Chowdhury",
+    "name_bn": "কামাল চৌধুরী",
+    "phone": "880171000032",
+    "email": "customer.032@example.com",
+    "is_company": false,
+    "nid": "1990000032123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1032"
+  },
+  {
+    "source_id": "WP-1033",
+    "name": "Salma Hossain",
+    "name_bn": "সালমা হোসেন",
+    "phone": "880171000033",
+    "email": "customer.033@example.com",
+    "is_company": false,
+    "nid": "1990000033123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1033"
+  },
+  {
+    "source_id": "WP-1034",
+    "name": "Hasan Khan",
+    "name_bn": "হাসান খান",
+    "phone": "880171000034",
+    "email": "customer.034@example.com",
+    "is_company": false,
+    "nid": "1990000034123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1034"
+  },
+  {
+    "source_id": "WP-1035",
+    "name": "Rina Rahman",
+    "name_bn": "রিনা রহমান",
+    "phone": "880171000035",
+    "email": "customer.035@example.com",
+    "is_company": false,
+    "nid": "1990000035123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1035"
+  },
+  {
+    "source_id": "WP-1036",
+    "name": "Mahmud Islam",
+    "name_bn": "মাহমুদ ইসলাম",
+    "phone": "880171000036",
+    "email": "customer.036@example.com",
+    "is_company": false,
+    "nid": "1990000036123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1036"
+  },
+  {
+    "source_id": "WP-1037",
+    "name": "Shirin Uddin",
+    "name_bn": "শিরীন উদ্দিন",
+    "phone": "880171000037",
+    "email": "customer.037@example.com",
+    "is_company": false,
+    "nid": "1990000037123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1037"
+  },
+  {
+    "source_id": "WP-1038",
+    "name": "Habib Sultana",
+    "name_bn": "হাবিব সুলতানা",
+    "phone": "880171000038",
+    "email": "customer.038@example.com",
+    "is_company": false,
+    "nid": "1990000038123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1038"
+  },
+  {
+    "source_id": "WP-1039",
+    "name": "Farhana Begum",
+    "name_bn": "ফারহানা বেগম",
+    "phone": "880171000039",
+    "email": "customer.039@example.com",
+    "is_company": false,
+    "nid": "1990000039123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1039"
+  },
+  {
+    "source_id": "WP-1040",
+    "name": "Zahid Haque",
+    "name_bn": "জাহিদ হক",
+    "phone": "880171000040",
+    "email": "customer.040@example.com",
+    "is_company": true,
+    "nid": "1990000040123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1040"
+  },
+  {
+    "source_id": "WP-1041",
+    "name": "Tasnim Ahmed",
+    "name_bn": "তাসনিম আহমেদ",
+    "phone": "880171000041",
+    "email": "customer.041@example.com",
+    "is_company": false,
+    "nid": "1990000041123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1041"
+  },
+  {
+    "source_id": "WP-1042",
+    "name": "Ashik Chowdhury",
+    "name_bn": "আশিক চৌধুরী",
+    "phone": "880171000042",
+    "email": "customer.042@example.com",
+    "is_company": false,
+    "nid": "1990000042123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1042"
+  },
+  {
+    "source_id": "WP-1043",
+    "name": "Sadia Hossain",
+    "name_bn": "সাদিয়া হোসেন",
+    "phone": "880171000043",
+    "email": "customer.043@example.com",
+    "is_company": false,
+    "nid": "1990000043123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1043"
+  },
+  {
+    "source_id": "WP-1044",
+    "name": "Faisal Khan",
+    "name_bn": "ফয়সাল খান",
+    "phone": "880171000044",
+    "email": "customer.044@example.com",
+    "is_company": false,
+    "nid": "1990000044123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1044"
+  },
+  {
+    "source_id": "WP-1045",
+    "name": "Nazma Rahman",
+    "name_bn": "নাজমা রহমান",
+    "phone": "880171000045",
+    "email": "customer.045@example.com",
+    "is_company": false,
+    "nid": "1990000045123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-02",
+    "legacy_reference": "CUST:WP_STORE:1045"
+  },
+  {
+    "source_id": "WP-1046",
+    "name": "Tariq Islam",
+    "name_bn": "তারিক ইসলাম",
+    "phone": "880171000046",
+    "email": "customer.046@example.com",
+    "is_company": false,
+    "nid": "1990000046123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-03",
+    "legacy_reference": "CUST:WP_STORE:1046"
+  },
+  {
+    "source_id": "WP-1047",
+    "name": "Sabina Uddin",
+    "name_bn": "সাবিনা উদ্দিন",
+    "phone": "880171000047",
+    "email": "customer.047@example.com",
+    "is_company": false,
+    "nid": "1990000047123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-04",
+    "legacy_reference": "CUST:WP_STORE:1047"
+  },
+  {
+    "source_id": "WP-1048",
+    "name": "Jamil Sultana",
+    "name_bn": "জামিল সুলতানা",
+    "phone": "880171000048",
+    "email": "customer.048@example.com",
+    "is_company": false,
+    "nid": "1990000048123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "PC-05",
+    "legacy_reference": "CUST:WP_STORE:1048"
+  },
+  {
+    "source_id": "WP-1049",
+    "name": "Rubina Begum",
+    "name_bn": "রুবিনা বেগম",
+    "phone": "880171000049",
+    "email": "customer.049@example.com",
+    "is_company": false,
+    "nid": "1990000049123",
+    "roles": [
+      "customer"
+    ],
+    "branch_code": "HQ",
+    "legacy_reference": "CUST:WP_STORE:1049"
+  },
+  {
+    "source_id": "WP-1050",
+    "name": "Rahim Duplicate Phone",
+    "name_bn": "রহিম ডুপ্লিকেট ফোন",
+    "phone": "880171000049",
+    "email": "customer.050@example.com",
+    "is_company": true,
+    "nid": "1990000050123",
+    "roles": [
+      "customer",
+      "seller"
+    ],
+    "branch_code": "PC-01",
+    "legacy_reference": "CUST:WP_STORE:1050"
+  }
+]
