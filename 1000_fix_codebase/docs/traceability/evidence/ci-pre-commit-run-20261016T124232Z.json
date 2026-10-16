@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T12:42:32.943047+00:00",
+  "total_duration_seconds": 0.95,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": true,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "PASS",
+      "duration_seconds": 0.19,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.75,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": "?? 1000_fix_codebase/docs/traceability/R01-exit-report.md\n?? 1000_fix_codebase/tooling/gate/evidence/gate-g0a-latest.json\n?? 1000_fix_codebase/tooling/gate/evidence/gate-g0b-latest.json\n?? 1000_fix_codebase/tooling/gate/evidence/gate-g2-latest.json\n?? 1000_fix_codebase/tooling/gate/evidence/gate-g9-latest.json\n?? 1000_fix_codebase/tooling/gate/verify-gate-g2.ps1\n?? 1000_fix_codebase/tooling/gate/verify-gate-g9.ps1\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

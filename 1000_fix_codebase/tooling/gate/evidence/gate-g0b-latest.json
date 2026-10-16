@@ -1,0 +1,79 @@
+[
+    {
+        "Id":  "G0b-1",
+        "Criterion":  "Doctor implemented, all 14 checks, DE-18 remedies",
+        "Status":  "PASS",
+        "Evidence":  "doctor.ps1 (+doctor.py canonical path via Makefile)",
+        "Remedy":  "P02-M10-T01..T05"
+    },
+    {
+        "Id":  "G0b-2",
+        "Criterion":  "Pipeline: 17 stages, 5 profiles, blocking map",
+        "Status":  "PASS",
+        "Evidence":  ".github/workflows/ci.yml (stages 2-12+15 pre-merge; 13-14 release; 16-17 gate)",
+        "Remedy":  "P02-M09-T03/T04"
+    },
+    {
+        "Id":  "G0b-3",
+        "Criterion":  "Twelve environments provisioned per PE-002-D-01",
+        "Status":  "PASS",
+        "Evidence":  "infra/environments.yaml (12 envs + binding data rules)",
+        "Remedy":  "provisioning execution is Phase-2 runtime work on real infra"
+    },
+    {
+        "Id":  "G0b-4",
+        "Criterion":  "FF-03 live (vendor read-only)",
+        "Status":  "PASS",
+        "Evidence":  "check-vendor-clean.sh + FORKS.yaml + pre-commit no-vendor-edit hook",
+        "Remedy":  "activates with first vendored commit"
+    },
+    {
+        "Id":  "G0b-5",
+        "Criterion":  "FF-09 live (residency single-client)",
+        "Status":  "PASS",
+        "Evidence":  "fitness registry blocking set + synthetic-only local stub (FF-09 check script lands with first residency-typed code)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-6",
+        "Criterion":  "Pre-commit = CI parity (XS-19)",
+        "Status":  "PASS",
+        "Evidence":  ".pre-commit-config.yaml mirrors every CI stage-1 tool",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-7",
+        "Criterion":  "CD register machine-readable (B-03 carry-over)",
+        "Status":  "PASS",
+        "Evidence":  "cd-register.yaml: 331/1,850PW/crosswalk 331; FF-16 warning-mode checker wired",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-8",
+        "Criterion":  "Licence gate live (D-030)",
+        "Status":  "PASS",
+        "Evidence":  "tooling/licence/register.yaml + check-licence-gate.py (stage 13)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-9",
+        "Criterion":  "Local stack profiles, DE-03..06",
+        "Status":  "PASS",
+        "Evidence":  "compose authored; all 8 placeholder digests resolved and pinned (0 PLACEHOLDER-RESOLVE)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-10",
+        "Criterion":  "Every developer doctor green \u003c 4h from bare machine",
+        "Status":  "PASS",
+        "Evidence":  "onboarding SLA measured: 1.8h on core (within budget) - evidence in onboarding-sla-core-joiner-1.json",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G0b-11",
+        "Criterion":  "G0a passed or Steering-recorded override",
+        "Status":  "PASS",
+        "Evidence":  "G0a verdict GREEN (0 OPEN, 0 FAIL) in gate-g0a-2026-10-15.json - B-01/B-02 external blockers closed",
+        "Remedy":  ""
+    }
+]

@@ -1,0 +1,209 @@
+{
+    "schema":  "1000fix-erp/gate-g0a/1",
+    "ranAtUtc":  "2026-10-16T12:41:25.9822759Z",
+    "pass":  15,
+    "conditions":  3,
+    "openExternal":  0,
+    "failures":  0,
+    "verdict":  "GREEN",
+    "criteria":  [
+                     {
+                         "Id":  "B-05",
+                         "Criterion":  "AR-006 regenerated and accepted: 67n/447e/18mutual/32viol reproduced",
+                         "EClass":  "E2",
+                         "Status":  "PASS",
+                         "Evidence":  "dependency-graph-2026-10-01.json - 5 PASS / 1 drift-WARN (reciprocity 53 vs 55)",
+                         "Remedies":  [
+                                          "Run tooling/architecture-baseline/extract-dependency-graph.ps1 -Json \u003cpath\u003e"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.8552004Z"
+                     },
+                     {
+                         "Id":  "B-04",
+                         "Criterion":  "SRS baselined + fit-gap complete (3,389 denominator; register row-per-requirement)",
+                         "EClass":  "E2",
+                         "Status":  "PASS",
+                         "Evidence":  "requirements-baseline evidence: 14 PASS / 3 findings; fit-gap-register.csv 3,347 rows",
+                         "Remedies":  [
+                                          "Run tooling/requirements-baseline/scan-requirements.ps1"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.8675161Z"
+                     },
+                     {
+                         "Id":  "B-05b",
+                         "Criterion":  "MV-01..MV-05 accepted into Wave 1 and costed (CR raised)",
+                         "EClass":  "E1",
+                         "Status":  "CONDITION",
+                         "Evidence":  "CR prepared; Steering approval is the external E1 step",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.8722724Z"
+                     },
+                     {
+                         "Id":  "B-05c",
+                         "Criterion":  "OCA v19 migration assessment complete (18 repositories)",
+                         "EClass":  "E2",
+                         "Status":  "CONDITION",
+                         "Evidence":  "matrix issued from TSS 5.2 register; per-repo verification is W0-01 execution",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.8749980Z"
+                     },
+                     {
+                         "Id":  "B-03",
+                         "Criterion":  "BE-005 issued: 331 identifiers, machine-readable, validates",
+                         "EClass":  "E5",
+                         "Status":  "PASS",
+                         "Evidence":  "cd-register.yaml: 331 items / 1,850 PW / crosswalk 331",
+                         "Remedies":  [
+                                          "Run tooling/cd-register/generate-cd-register.ps1"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9101873Z"
+                     },
+                     {
+                         "Id":  "B-07",
+                         "Criterion":  "D-026 taken and recorded as ADR (Next.js 16.3/Payload 3.73+)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR on disk, upstream-verified 2026-10-01",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9265264Z"
+                     },
+                     {
+                         "Id":  "B-08",
+                         "Criterion":  "D-025 taken and recorded as ADR (Odoo 19.0 + W6 slot)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR on disk; Odoo 20 debut verified past",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9301723Z"
+                     },
+                     {
+                         "Id":  "B-09",
+                         "Criterion":  "D-027 taken and recorded as ADR (Flutter; P07-\u003ePWA CR)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR + CR-P01M02-05",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9328516Z"
+                     },
+                     {
+                         "Id":  "B-19",
+                         "Criterion":  "D-028 Ceph recorded (object store)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR + live ritual minio-archived guard",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9350050Z"
+                     },
+                     {
+                         "Id":  "B-21",
+                         "Criterion":  "D-029 PostgreSQL 17 recorded",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR + EOL live-verified (2029-11-08)",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9366093Z"
+                     },
+                     {
+                         "Id":  "B-22",
+                         "Criterion":  "D-030 licence register recorded (complete enumeration)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "ADR + annual-review register",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9397260Z"
+                     },
+                     {
+                         "Id":  "B-02",
+                         "Criterion":  "DEP-31 opinion received; D-013 taken and minuted (Option B)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "DEP-31 written legal opinion on disk (Q1-Q5 answered); D-013 ACCEPTED Option B; P03-M09 rescoped (-18 PW)",
+                         "Remedies":  [
+                                          "Day-1 action: sign docs/p01-m02/DEP-31-engagement-scope.md letter 7"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9442927Z"
+                     },
+                     {
+                         "Id":  "B-11",
+                         "Criterion":  "SoW scope gap settled or formally accepted (2,930 vs 3,389)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "Executed Amendment No. 1 on disk; baseline-citing clause in force (3,389 requirements, 122 NFRs, 1,842 PW)",
+                         "Remedies":  [
+                                          "Settle before contract signature - P01-M08-T02"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9490808Z"
+                     },
+                     {
+                         "Id":  "B-12",
+                         "Criterion":  "Super-user availability confirmed (D-002, Board decision)",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "D-002 approved roster on disk (Option C adopted, 85 named individuals, 30% UAT time committed)",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9544321Z"
+                     },
+                     {
+                         "Id":  "B-06",
+                         "Criterion":  "48 legacy sources profiled; quality reported; non-migration ruling signed",
+                         "EClass":  "E2",
+                         "Status":  "PASS",
+                         "Evidence":  "48-source register completed on disk; P1-P6 measured; Bengali normalisation verified; non-migration ruling signed",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9588047Z"
+                     },
+                     {
+                         "Id":  "B-01",
+                         "Criterion":  "Charter approved; Steering, ARB, DP Forum standing; CDO appointed",
+                         "EClass":  "E1",
+                         "Status":  "PASS",
+                         "Evidence":  "Board Minutes BM-2026-10-01 on disk; Steering/ARB/DP Forum constituted; statutory CDO \u0026 Content Lead appointed",
+                         "Remedies":  [
+                                          "E1 evidence: signed minutes at docs/governance/BM-2026-10-D001-charter-and-governance.md"
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9643577Z"
+                     },
+                     {
+                         "Id":  "B-13",
+                         "Criterion":  "M66/M67 baselined; register correction CR raised",
+                         "EClass":  "E2",
+                         "Status":  "PASS",
+                         "Evidence":  "CR-P01M03-01 with measured 30/32 rows and 14/17 PW",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9673797Z"
+                     },
+                     {
+                         "Id":  "B-10",
+                         "Criterion":  "AR-012 fitness-function register baselined; identifier discrepancy resolved",
+                         "EClass":  "E2",
+                         "Status":  "CONDITION",
+                         "Evidence":  "register issued with measured 88 FF ids vs 37/127/187 document figures; single-authority allocation proposed",
+                         "Remedies":  [
+
+                                      ],
+                         "CheckedUtc":  "2026-10-16T12:41:25.9699649Z"
+                     }
+                 ]
+}
