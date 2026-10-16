@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-10-16T15:32:36.713402+00:00",
+  "standard": "G1-06",
+  "verdict": "PASS",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "total_findings": 0
+  },
+  "governance_deferral": {
+    "item": "Penetration Testing (SC-009)",
+    "status": "FORMALLY_DEFERRED",
+    "target_milestone": "R09 (Gate G3)",
+    "rationale": "Per SC-009, full grey-box/black-box penetration testing by an independent third-party auditor is conducted on staging infrastructure prior to commercial General Availability at Gate G3. Wave 1 code-level SAST and residency controls are verified green for Gate G1 pilot deployment."
+  },
+  "findings": []
+}

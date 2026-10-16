@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T15:41:24.779936+00:00",
+  "total_duration_seconds": 0.66,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": false,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "FAIL",
+      "duration_seconds": 0.15,
+      "exit_code": 1,
+      "measurements": {},
+      "output_summary": "^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n250 |     print(f\"Evidence written to: {out_file.relative_to(REPO_ROOT)}\")\n    |\nhelp: Remove extraneous `f` prefix\n    |\n248 |     print(f\"\\nVerdict: [{verdict}]\")\n    -     print(f\"Penetration Test Deferral: Milestone R09 (Gate G3) under SC-009\")\n249 +     print(\"Penetration Test Deferral: Milestone R09 (Gate G3) under SC-009\")\n250 |     print(f\"Evidence written to: {out_file.relative_to(REPO_ROOT)}\")\n    |\n\nFound 4 errors.\n[*] 4 fixable with `--fix`.\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.51,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": "ility/walkin-intake-timing-demonstration.md\n?? 1000_fix_codebase/services/sla-engine/\n?? 1000_fix_codebase/tooling/fitness/evidence/security-scan-latest.json\n?? 1000_fix_codebase/tooling/fitness/evidence/sla-demo-evidence-latest.json\n?? 1000_fix_codebase/tooling/fitness/evidence/walkin-intake-timing-latest.json\n?? 1000_fix_codebase/tooling/scripts/demonstrate-sla-engine.py\n?? 1000_fix_codebase/tooling/scripts/demonstrate-walkin-intake.py\n?? 1000_fix_codebase/tooling/scripts/run-security-scan.py\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

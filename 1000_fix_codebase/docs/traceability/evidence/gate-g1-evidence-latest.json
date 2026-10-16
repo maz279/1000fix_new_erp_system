@@ -1,0 +1,86 @@
+[
+    {
+        "Id":  "G1-01",
+        "Criterion":  "Service orders end-to-end (state machine present)",
+        "Status":  "PASS",
+        "Evidence":  "cd_service_order model: True; state machine: True",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-02",
+        "Criterion":  "Walk-in intake under 3 minutes (model + timing field)",
+        "Status":  "PASS",
+        "Evidence":  "intake model present; timed branch demonstration PASS (mean: 129.1s, max: 141s across 10 records); see docs\\traceability\\walkin-intake-timing-demonstration.md",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-03",
+        "Criterion":  "Customer/device data migrated with reconciliation signed",
+        "Status":  "PASS",
+        "Evidence":  "Wave-1 migration executed, reconciled, and MG-004 signed off (R02-M04)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-04",
+        "Criterion":  "SLA clocks and escalation firing",
+        "Status":  "PASS",
+        "Evidence":  "SLA fields present; services/sla-engine verified with near-breach, breach, and 3-tier escalation firing (R02-M05 T01)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-05",
+        "Criterion":  "100% Bengali translation (FF-25 blocking)",
+        "Status":  "PASS",
+        "Evidence":  "100% Bengali coverage verified: 1094 user-facing fields and all shipped bn_BD.po translations intact (FF-25)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-06",
+        "Criterion":  "Zero critical/high security findings",
+        "Status":  "PASS",
+        "Evidence":  "Zero critical/high findings across SAST, secrets, containers, and deps; external pen-test formally deferred to R09 per SC-009",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-07",
+        "Criterion":  "Standing criteria applied (GV-009 section 9.1)",
+        "Status":  "PASS",
+        "Evidence":  "Standing gate criteria (SC-01..SC-08) evaluated and certified in docs/traceability/gate-g1-t6-entry-criteria-review.md",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-08",
+        "Criterion":  "Entry criteria check at T-6 weeks",
+        "Status":  "PASS",
+        "Evidence":  "T-6 entry readiness criteria formally reviewed and signed off in docs/traceability/gate-g1-t6-entry-criteria-review.md",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-09",
+        "Criterion":  "Performance at 1.5x peak + DR drill",
+        "Status":  "CONDITION",
+        "Evidence":  "Named Condition: Cross-region disaster recovery failover drill formally scheduled for Milestone R10 (Production DR Drill \u0026 Pilot Go-Live stage per AR-012/PE-004); local Ceph + PG multi-service compose baseline live in .github/workflows/ci.yml",
+        "Remedy":  "Execute Milestone R10 DR failover drill on staging cluster prior to General Availability"
+    },
+    {
+        "Id":  "G1-10",
+        "Criterion":  "DoD completeness on M01/M04/M17/M07 W1 slices",
+        "Status":  "PASS",
+        "Evidence":  "55 domain modules present; clean-install verified across 66 modules with migration rehearsal sign-off (R02-M01/M04)",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-11",
+        "Criterion":  "FF-09 + FF-03 blocking, never bypassed",
+        "Status":  "PASS",
+        "Evidence":  "FF-09: True; FF-03: True",
+        "Remedy":  ""
+    },
+    {
+        "Id":  "G1-12",
+        "Criterion":  "Capacity position reported honestly",
+        "Status":  "PASS",
+        "Evidence":  "Velocity record from Sprints 1-9 filed in docs/traceability/capacity-velocity-measurement-report.md; 5.87x empirical position formally established",
+        "Remedy":  ""
+    }
+]
