@@ -103,11 +103,19 @@ if (-not $ghCli) {
     exit 0
 }
 
-$authCheck = & gh auth status 2>&1
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "[BranchProtection] Notice: gh CLI not logged in. Settings app will apply .github/settings.yml on push." -ForegroundColor Yellow
+$isAuthed = $false
+try {
+    $null = & gh auth status 2>$null
+    if ($LASTEXITCODE -eq 0) { $isAuthed = $true }
+} catch {
+    $isAuthed = $false
+}
+
+if (-not $isAuthed) {
+    Write-Host "[BranchProtection] Notice: gh CLI not authenticated. Settings app will auto-apply .github/settings.yml on push." -ForegroundColor Yellow
     exit 0
 }
+
 
 if ($DryRun) {
     Write-Host "[BranchProtection] Dry run: skipping live API calls." -ForegroundColor Cyan

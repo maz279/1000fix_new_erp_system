@@ -86,11 +86,19 @@ if (-not $ghCli) {
     exit 0
 }
 
-$authCheck = & gh auth status 2>&1
-if ($LASTEXITCODE -ne 0) {
+$isAuthed = $false
+try {
+    $null = & gh auth status 2>$null
+    if ($LASTEXITCODE -eq 0) { $isAuthed = $true }
+} catch {
+    $isAuthed = $false
+}
+
+if (-not $isAuthed) {
     Write-Host "[ProvisionSecrets] Notice: gh CLI not authenticated. Secrets recorded in evidence for CI pipeline." -ForegroundColor Yellow
     exit 0
 }
+
 
 if ($DryRun) {
     Write-Host "[ProvisionSecrets] Dry run: skipping remote GitHub API calls." -ForegroundColor Cyan
