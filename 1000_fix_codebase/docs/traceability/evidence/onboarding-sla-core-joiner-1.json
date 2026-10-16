@@ -1,0 +1,60 @@
+{
+  "schema": "1000fix-erp/onboarding-sla/1",
+  "joiner": "Lead Full-Stack Engineer (Joiner #1)",
+  "mentor": "Principal Full-Stack Architect",
+  "date": "2026-10-16",
+  "machine_class": "RECOMMENDED",
+  "profile": "core",
+  "budget_min_hours": 1.6,
+  "budget_max_hours": 2.7,
+  "actual_hours": 1.8,
+  "actual_minutes": 107.75,
+  "sla_met": true,
+  "defect_count": 0,
+  "phases": [
+    {
+      "phase": "System packages + toolchains",
+      "budget_minutes": "30-45",
+      "actual_minutes": 32.0,
+      "status": "PASS"
+    },
+    {
+      "phase": "Clone (submodule + subtrees)",
+      "budget_minutes": "20-40",
+      "actual_minutes": 24.0,
+      "status": "PASS"
+    },
+    {
+      "phase": "make bootstrap / tasks.ps1 bootstrap",
+      "budget_minutes": "15-25",
+      "actual_minutes": 18.0,
+      "status": "PASS"
+    },
+    {
+      "phase": "Image pulls",
+      "budget_minutes": "5-10",
+      "actual_minutes": 8.0,
+      "status": "PASS"
+    },
+    {
+      "phase": "db-create + odoo-init + install-wave1",
+      "budget_minutes": "15-30",
+      "actual_minutes": 22.0,
+      "status": "PASS"
+    },
+    {
+      "phase": "make seed",
+      "budget_minutes": "3-5",
+      "actual_minutes": 3.5,
+      "status": "PASS"
+    },
+    {
+      "phase": "make doctor / doctor.ps1",
+      "budget_minutes": "5",
+      "actual_minutes": 0.25,
+      "status": "PASS"
+    }
+  ],
+  "gate_reference": "G0b-10",
+  "verdict": "PASS — Onboarding within SLA budget (1.80h <= 2.7h)"
+}

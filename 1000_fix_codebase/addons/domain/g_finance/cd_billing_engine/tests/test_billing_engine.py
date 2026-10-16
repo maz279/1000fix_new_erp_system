@@ -2,6 +2,8 @@
 import inspect
 import pytest
 
+pytestmark = [pytest.mark.financial]
+
 
 class TestAutoInvoice:
     def test_model_exists(self):

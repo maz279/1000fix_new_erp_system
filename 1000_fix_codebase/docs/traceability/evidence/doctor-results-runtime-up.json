@@ -1,0 +1,86 @@
+[
+    {
+        "Id":  "1",
+        "Name":  "Host prerequisites",
+        "Status":  "PASS",
+        "Detail":  "py3.12.10 / git / compose v5 OK"
+    },
+    {
+        "Id":  "2",
+        "Name":  "Repository integrity (FF-03)",
+        "Status":  "PASS",
+        "Detail":  "check-vendor-clean: OK - vendor/ clean (FF-03) submodule pinned (64361012), vendor clean"
+    },
+    {
+        "Id":  "3",
+        "Name":  "Compose health (DE-03)",
+        "Status":  "PASS",
+        "Detail":  "7 services, all healthy"
+    },
+    {
+        "Id":  "4",
+        "Name":  "Database",
+        "Status":  "PASS",
+        "Detail":  "fix_dev reachable, UTF8"
+    },
+    {
+        "Id":  "5",
+        "Name":  "addons_path (REPO-15)",
+        "Status":  "PASS",
+        "Detail":  "generate-odoo-conf: OK - regenerates identically (REPO-15)"
+    },
+    {
+        "Id":  "6",
+        "Name":  "Odoo boot",
+        "Status":  "PASS",
+        "Detail":  "HTTP 200"
+    },
+    {
+        "Id":  "7",
+        "Name":  "Module install (OD-02)",
+        "Status":  "PASS",
+        "Detail":  "all 66 cd_* modules installed"
+    },
+    {
+        "Id":  "8",
+        "Name":  "Smoke test",
+        "Status":  "PASS",
+        "Detail":  "test-smoke: 15/15 checks passed"
+    },
+    {
+        "Id":  "9",
+        "Name":  "Quality gates",
+        "Status":  "PASS",
+        "Detail":  "Check the log at C:\\Users\\DELL\\.cache\\pre-commit\\pre-commit.log"
+    },
+    {
+        "Id":  "10",
+        "Name":  "Bengali rendering",
+        "Status":  "PASS",
+        "Detail":  "reference committed and valid; pixel comparison runs with the QWeb report render (Odoo runtime)"
+    },
+    {
+        "Id":  "11",
+        "Name":  "Mail capture (DE-07)",
+        "Status":  "PASS",
+        "Detail":  "Mailpit reachable; outbound SMTP blocked by design (SMTP_HOST=127.0.0.1)"
+    },
+    {
+        "Id":  "12",
+        "Name":  "Data safety (DE-12/FF-09)",
+        "Status":  "PASS",
+        "Detail":  "pattern scan activates with kernel tables (residency stub is synthetic-only)"
+    },
+    {
+        "Id":  "13",
+        "Name":  "Debugger",
+        "Status":  "SKIP",
+        "Detail":  "SKIP: debugpy attach activates with the Phase-3 dev container (D-WS-001 consequence 1; see devtools-workflow.md 5)"
+    },
+    {
+        "Id":  "14",
+        "Name":  "Hot reload",
+        "Status":  "SKIP",
+        "Detail":  "SKIP: --dev=all volume-mount activates with the Phase-3 dev container (manifest/model edits still need make upgrade + restart)"
+    }
+]

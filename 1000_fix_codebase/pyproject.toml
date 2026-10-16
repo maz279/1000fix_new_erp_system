@@ -2,6 +2,17 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[project]
+name = "1000fix-erp"
+version = "0.1.0"
+description = "1000 FiX Services Ltd. - Integrated Smart Enterprise Platform"
+requires-python = ">=3.12"
+dependencies = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "coverage>=7.5.0",
+]
+
 # =============================================================================
 # Root Python configuration - P02-M08-T02/T03 (BE-002 4.1-4.6)
 # Ruff (format + lint, PYS-01) and mypy --strict (PYS-07/10/11) for everything;
@@ -78,4 +89,28 @@ markers = [
     "financial: 100% coverage mandatory (DoD-03)",
     "tax: 100% coverage mandatory (DoD-03) - Mushak paths",
     "residency: touches residency-classified fields (FF-09 review)",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["addons", "services", "libs"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "vendor/*",
+    "infra/*",
+    "tooling/*",
+    "db/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+precision = 2
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if False:",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
 ]

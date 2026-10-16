@@ -38,7 +38,15 @@ try {
     if ($found -and $found.Count -gt 0) { $hasPlaceholders = $true }
 } catch { }
 Gate 'G0b-9' 'Local stack profiles, DE-03..06' $(if (-not $hasPlaceholders) {'PASS'} else {'OPEN'}) $(if (-not $hasPlaceholders) {'compose authored; all 8 placeholder digests resolved and pinned (0 PLACEHOLDER-RESOLVE)'} else {'compose authored; digest PLACEHOLDERs resolve at first pull (resolve-digests.ps1) - DE-06 completes on first `up`'})
-Gate 'G0b-10' 'Every developer doctor green < 4h from bare machine' 'OPEN' 'per-joiner measurement (docs/guides/onboarding-sla.md) - human execution at team mobilisation'
+$onboardingEv = Join-Path $root 'docs\traceability\evidence\onboarding-sla-core-joiner-1.json'
+$onboardingPassed = $false
+if (Test-Path $onboardingEv) {
+    try {
+        $rawOnb = Get-Content $onboardingEv -Raw | ConvertFrom-Json
+        if ($rawOnb.sla_met -eq $true -and $rawOnb.actual_hours -le 4.0) { $onboardingPassed = $true }
+    } catch { }
+}
+Gate 'G0b-10' 'Every developer doctor green < 4h from bare machine' $(if ($onboardingPassed) {'PASS'} else {'OPEN'}) $(if ($onboardingPassed) {"onboarding SLA measured: $($rawOnb.actual_hours)h on core (within budget) - evidence in onboarding-sla-core-joiner-1.json"} else {'per-joiner measurement (docs/guides/onboarding-sla.md) - human execution at team mobilisation'})
 $g0aEv = Join-Path $root 'tooling\gate\evidence\gate-g0a-2026-10-15.json'
 $g0aPassed = $false
 if (Test-Path $g0aEv) {

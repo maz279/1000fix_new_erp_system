@@ -1,6 +1,9 @@
 # cd_payroll_bd tests — P08-M03 (CD-M56-01). DoD-03/DoD-04 companions.
 import inspect
 import unittest
+import pytest
+
+pytestmark = [pytest.mark.financial, pytest.mark.tax]
 
 from odoo.addons.cd_payroll_bd.models.fix_payroll import (
     FixBeftnBatch, FixPayrollPeriod, FixPayslip)

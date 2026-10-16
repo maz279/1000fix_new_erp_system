@@ -30,7 +30,7 @@ function Run-Py([string]$Script, [string[]]$PyArgs = @()) {
 
 switch ($Target) {
     'help' {
-        Write-Host "targets: bootstrap up down reset odoo-conf db-create odoo-init odoo-install-wave1 run seed test-smoke test-odoo doctor upgrade vendor verify-repo"
+        Write-Host "targets: bootstrap up down reset odoo-conf db-create odoo-init odoo-install-wave1 run seed test-smoke test-odoo coverage doctor upgrade vendor verify-repo"
         Write-Host "options: -Profile core|auth|integration|field|observability|full   -Module cd_x (for upgrade)"
     }
     'bootstrap' {
@@ -89,6 +89,10 @@ switch ($Target) {
         $pyArgs = @()
         if (-not $py) { $pyArgs = @('-3.12') }
         & $pyExe @pyArgs -m pytest addons --quiet -p no:cacheprovider -o 'addopts='
+        exit $LASTEXITCODE
+    }
+    'coverage'     {
+        Run-Py 'tooling/scripts/measure-coverage.py'
         exit $LASTEXITCODE
     }
     'vendor'       { & powershell -ExecutionPolicy Bypass -File (Join-Path $root 'tooling\scripts\import-vendor.ps1'); exit $LASTEXITCODE }

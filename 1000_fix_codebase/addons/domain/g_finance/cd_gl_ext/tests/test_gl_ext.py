@@ -1,6 +1,8 @@
 # cd_gl_ext tests — M19 core (P06-M01; DoD-03: financial paths 100%).
 import pytest
 
+pytestmark = [pytest.mark.financial]
+
 
 class TestPeriodClose:
     """fix.period.close — the 5-day close process."""

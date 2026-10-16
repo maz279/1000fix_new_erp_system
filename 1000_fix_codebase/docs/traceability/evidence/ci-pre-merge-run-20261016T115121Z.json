@@ -1,0 +1,125 @@
+{
+  "profile": "pre-merge",
+  "timestamp": "2026-10-16T11:51:21.820406+00:00",
+  "total_duration_seconds": 50.76,
+  "budget_limit_seconds": 1200.0,
+  "budget_met": true,
+  "success": true,
+  "stages": [
+    {
+      "name": "stage-02-lint-type",
+      "description": "Python linting and formatting check",
+      "status": "PASS",
+      "duration_seconds": 0.17,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "stage-03-model-registry",
+      "description": "Model registry, field standards and fitness gates",
+      "status": "PASS",
+      "duration_seconds": 41.11,
+      "exit_code": 0,
+      "measurements": {
+        "checks_passed": 26
+      },
+      "output_summary": "20 ms)\n[PASS] FF-30 (290 ms)\n[PASS] FF-32 (183 ms)\n[PASS] FF-37 (206 ms)\n[PASS] FF-13 (63 ms)\n[PASS] FF-14 (1003 ms)\n[PASS] FF-27 (26366 ms)\n[PASS] FF-38 (182 ms)\n[PASS] FF-39 (5122 ms)\n[PASS] FF-40 (59 ms)\n[PASS] FF-41 (59 ms)\n[PASS] FF-42 (56 ms)\n[PASS] FF-43 (68 ms)\n[PASS] FF-44 (3729 ms)\n[PASS] FF-45 (60 ms)\n[PASS] FF-16 (59 ms)\n[SKIP] FF-26: disabled-by-design - built, disabled; promotes at G3 (FG-04)\n\nfitness: 0 failure(s); results -> tooling\\fitness\\evidence\\fitness-20261016T115112Z.json\n"
+    },
+    {
+      "name": "stage-04-unit",
+      "description": "Unit tests and baseline coverage measurement",
+      "status": "PASS",
+      "duration_seconds": 0.77,
+      "exit_code": 0,
+      "measurements": {
+        "baseline_coverage_estate": "48.2%",
+        "target_coverage": "80%"
+      },
+      "output_summary": "........................................................................ [ 35%]\n........................................................................ [ 71%]\n..........................................................               [100%]\n"
+    },
+    {
+      "name": "stage-06-contract",
+      "description": "OpenAPI 3.1 contract schema validation",
+      "status": "PASS",
+      "duration_seconds": 0.06,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "contracts openapi: OK \u00e2\u20ac\u201d 3 contract file(s) valid per OpenAPI standard\n"
+    },
+    {
+      "name": "stage-07-event",
+      "description": "Event schema compatibility and outbox parity",
+      "status": "PASS",
+      "duration_seconds": 0.06,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "contracts events: OK \u00e2\u20ac\u201d 0 schema(s) and outbox model verified (AR-009 / AS-08)\n"
+    },
+    {
+      "name": "stage-08-security",
+      "description": "Secret leakage and digest immutability audit",
+      "status": "PASS",
+      "duration_seconds": 0.05,
+      "exit_code": 0,
+      "measurements": {
+        "pinned_digests": "100%"
+      },
+      "output_summary": "0 PLACEHOLDER-RESOLVE entries found across all compose files."
+    },
+    {
+      "name": "stage-09-architecture",
+      "description": "Architecture constraints and doctor environment verification",
+      "status": "PASS",
+      "duration_seconds": 1.48,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "rified on active service\n[ ok ] 9   Quality gates - Ruff, Mypy, and ESLint configs verified\n[ ok ] 10  Bengali rendering - reference committed and valid\n[ ok ] 11  Mail capture (DE-07) - Mailpit reachable (127.0.0.1:8025)\n[ ok ] 12  Data safety (DE-12/FF-09) - Synthetic-only test seed policy enforced (E3)\n[skip] 13  Debugger - debugpy attach activates with Phase-3 dev container\n[skip] 14  Hot reload - hot reload volume-mount activates with dev container\n\ndoctor: PASS 12  SKIP 2  FAIL 0  (of 14)\n"
+    },
+    {
+      "name": "stage-10-localisation",
+      "description": "Localisation completeness and translation parity (DoD-08)",
+      "status": "PASS",
+      "duration_seconds": 0.07,
+      "exit_code": 0,
+      "measurements": {
+        "completeness_pct": 100.0
+      },
+      "output_summary": "i18n.check: MEASURED completeness = 100.0% (0/0 keys across 0 portal(s)) \u00e2\u20ac\u201d Target: 100.0%\ni18n.check: OK \u00e2\u20ac\u201d localisation completeness meets threshold\n"
+    },
+    {
+      "name": "stage-11-bundle",
+      "description": "Next.js client route gzip bundle budget check",
+      "status": "PASS",
+      "duration_seconds": 0.19,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "bundle-budget: OK \u00e2\u20ac\u201d 251.6 KB gz across 21 files (budget: 400 KB)\n"
+    },
+    {
+      "name": "stage-12-accessibility",
+      "description": "Automated a11y WCAG 2.2 AA audit across live portals",
+      "status": "PASS",
+      "duration_seconds": 6.78,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "gs, 2 inputs, 15 buttons, 0 images. 0 a11y violations.\n[PASS] Seller Portal - Home\n       Stats: 0 headings, 1 inputs, 5 buttons, 0 images. 0 a11y violations.\n[PASS] Vendor Portal - Home\n       Stats: 0 headings, 1 inputs, 3 buttons, 0 images. 0 a11y violations.\n\n================================================================================\n a11y AUDIT SUMMARY: 7/7 pages passed with 0 violations (Total issues: 0)\n================================================================================\n"
+    },
+    {
+      "name": "stage-15-infrastructure",
+      "description": "Infrastructure configuration drift check",
+      "status": "PASS",
+      "duration_seconds": 0.07,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "generate-odoo-conf: OK - regenerates identically (REPO-15)\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

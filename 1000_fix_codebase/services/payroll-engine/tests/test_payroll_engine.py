@@ -12,6 +12,9 @@ import unittest
 from datetime import date, datetime
 from decimal import Decimal
 from pathlib import Path
+import pytest
+
+pytestmark = [pytest.mark.financial, pytest.mark.tax]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))  # codebase root (libs.py.*)
 
