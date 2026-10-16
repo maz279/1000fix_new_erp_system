@@ -45,9 +45,8 @@ db-create: ## create fix_dev (UTF-8 enforced by the postgres image initdb args)
 odoo-init: ## initialise Odoo on fix_dev (budget 15-30 min with wave 1 install)
 	$(PY) $(ODOO_BIN) -c $(ODOO_CONF) -d fix_dev -i base --stop-after-init
 
-odoo-install-wave1: ## install the Wave 1 module set (kernel + MV-moved)
-	$(PY) $(ODOO_BIN) -c $(ODOO_CONF) -d fix_dev -i base,cd_party_master --stop-after-init || \
-		echo "wave-1 install: extend the module list from cd-register.yaml wave=W1 items as they land"
+odoo-install-wave1: ## install all 66 modules in AR-007 topological dependency order
+	$(PY) $(ODOO_BIN) -c $(ODOO_CONF) -d fix_dev -i base,cd_design_tokens,cd_entity_config,cd_event_outbox,cd_rbac_ext,cd_document_core,cd_gl_ext,cd_grc,cd_knowledge,cd_mdm_core,cd_rate_card,cd_catalogue,cd_party_master,cd_workflow_engine,cd_esignature,cd_fixed_asset_ext,cd_tax_engine_bd,cd_dynamic_pricing,cd_demand_plan,cd_campaign,cd_contact_centre,cd_employee_core,cd_storefront,cd_fpa,cd_settlement_ext,cd_device_registry,cd_equipment_register,cd_hr_core,cd_requisition,cd_data_case,cd_service_order,cd_facility,cd_hse,cd_ppm,cd_talent,cd_ap_ext,cd_import_order,cd_wms_structure,cd_ewaste,cd_attendance,cd_billing_engine,cd_competency,cd_consignment,cd_contract_core,cd_crm_ext,cd_customer_portal,cd_cx_feedback,cd_front_desk,cd_p03_portal,cd_performance,cd_quotation,cd_tradein,cd_vehicle_ext,cd_warranty_claims,cd_stream_registry,cd_vendor_portal,cd_payroll_bd,cd_msp_contract,cd_partner,cd_rental_asset,cd_subscription,cd_qms_process,cd_cash_position,cd_marketplace,cd_metric_registry,cd_itsm,cd_corporate_portal --stop-after-init
 
 run: ## serve http://127.0.0.1:8069 (dev=all: Python+XML reload without restart)
 	$(PY) $(ODOO_BIN) -c $(ODOO_CONF) -d fix_dev

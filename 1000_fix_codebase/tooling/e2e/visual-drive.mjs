@@ -87,27 +87,106 @@ const modCount = await page.locator("button.nav-mod").count();
 results.push({ name: "p03-rail-67-modules", ok: modCount >= 60, errors: 0, note: `rail buttons: ${modCount} (collapsed rail may lazy-render; ≥60 = all areas mounted)` });
 
 // Tell-ME palette (visual)
-await page.click(".fx-tellme");
-await page.waitForSelector(".tellme-palette");
-await page.fill(".tellme-palette input", "Service Orders");
-await page.waitForTimeout(500);
-await shot(page, "p03-tellme");
-await page.locator(".tm-item").first().click();
-await page.waitForTimeout(900);
-await shot(page, "p03-screen-grid");
-results.push({ name: "p03-screen-via-tellme", ok: errs.length === 0, errors: errs.length });
-errs.length = 0;
-
-// Dispatch console (parallel-session view — verify no errors + renders)
 try {
-  const disp = page.locator("button, .nav-mod, [title]").filter({ hasText: /Dispatch Console/i }).first();
-  if (await disp.count()) { await disp.click({ timeout: 5000 }); await page.waitForTimeout(1200); await shot(page, "p03-dispatch-console"); }
-  results.push({ name: "p03-dispatch-console", ok: errs.length === 0, errors: errs.length, note: "optional view" });
-} catch { results.push({ name: "p03-dispatch-console", ok: true, errors: 0, note: "entry not present on this screen — skipped" }); }
+  await page.click(".fx-tellme");
+  await page.waitForSelector(".tellme-palette", { timeout: 5000 });
+  await page.fill(".tellme-palette input", "Service Orders");
+  await page.waitForTimeout(500);
+  await shot(page, "p03-tellme");
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(500);
+  results.push({ name: "p03-tellme", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-tellme", ok: false, errors: 1, note: String(e) });
+}
 errs.length = 0;
 
-// Report Center — the 346-report library claim (deep link: /web#action=
-// form; the /odoo client does not consume client-action hashes).
+// 1. Dispatch console (P03 Workspace 1)
+try {
+  await page.evaluate(() => {
+    const btn = document.querySelector('[t-on-click="openDispatchConsole"]') ||
+                Array.from(document.querySelectorAll('button, .nav-mod')).find(b => /Dispatch Console/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1200);
+  await shot(page, "p03-dispatch-console");
+  results.push({ name: "p03-dispatch-console", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-dispatch-console", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// 2. Service Intake (P03 Workspace 2 - R08)
+try {
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.role-pill-btn')).find(b => b.textContent.includes('R08') || /Service Intake/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1000);
+  await shot(page, "p03-service-intake");
+  results.push({ name: "p03-service-intake", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-service-intake", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// 3. Party Master (P03 Workspace 3 - R22 Corporate B2B & Customers)
+try {
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.role-pill-btn')).find(b => b.textContent.includes('R22') || /Corporate|Customer/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1000);
+  await shot(page, "p03-party-master");
+  results.push({ name: "p03-party-master", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-party-master", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// 4. Device Registry (P03 Workspace 4 - R09 Workshop & Depot / Devices)
+try {
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.role-pill-btn')).find(b => b.textContent.includes('R09') || /Workshop|Device/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1000);
+  await shot(page, "p03-device-registry");
+  results.push({ name: "p03-device-registry", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-device-registry", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// 5. Catalogue (P03 Workspace 5 - R17 Inventory & Store Keeper / SKUs)
+try {
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.role-pill-btn')).find(b => b.textContent.includes('R17') || /Inventory|Catalogue/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1000);
+  await shot(page, "p03-catalogue");
+  results.push({ name: "p03-catalogue", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-catalogue", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// 6. Administration (P03 Workspace 6 - R33 System & Security Admin)
+try {
+  await page.evaluate(() => {
+    const btn = Array.from(document.querySelectorAll('.role-pill-btn')).find(b => b.textContent.includes('R33') || /System|Admin/i.test(b.textContent));
+    if (btn) btn.click();
+  });
+  await page.waitForTimeout(1000);
+  await shot(page, "p03-administration");
+  results.push({ name: "p03-administration", ok: errs.length === 0, errors: errs.length });
+} catch (e) {
+  results.push({ name: "p03-administration", ok: false, errors: 1, note: String(e) });
+}
+errs.length = 0;
+
+// Report Center — the 346-report library claim
 await page.goto("http://127.0.0.1:8069/web#action=cd_p03_portal.action_p03_report_center", { waitUntil: "domcontentloaded" });
 await page.waitForTimeout(3000);
 await shot(page, "p03-report-center");

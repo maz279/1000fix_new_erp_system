@@ -1,0 +1,1604 @@
+{
+  "schema": "1000fix-erp/module-install-matrix/1",
+  "generated_at_utc": "2026-10-16T13:19:10.926767+00:00",
+  "total_modules": 66,
+  "passed": 66,
+  "failed": 0,
+  "verdict": "GREEN",
+  "topological_sequence": [
+    "cd_design_tokens",
+    "cd_entity_config",
+    "cd_event_outbox",
+    "cd_rbac_ext",
+    "cd_document_core",
+    "cd_gl_ext",
+    "cd_grc",
+    "cd_knowledge",
+    "cd_mdm_core",
+    "cd_rate_card",
+    "cd_catalogue",
+    "cd_party_master",
+    "cd_workflow_engine",
+    "cd_esignature",
+    "cd_fixed_asset_ext",
+    "cd_tax_engine_bd",
+    "cd_dynamic_pricing",
+    "cd_demand_plan",
+    "cd_campaign",
+    "cd_contact_centre",
+    "cd_employee_core",
+    "cd_storefront",
+    "cd_fpa",
+    "cd_settlement_ext",
+    "cd_device_registry",
+    "cd_equipment_register",
+    "cd_hr_core",
+    "cd_requisition",
+    "cd_data_case",
+    "cd_service_order",
+    "cd_facility",
+    "cd_hse",
+    "cd_ppm",
+    "cd_talent",
+    "cd_ap_ext",
+    "cd_import_order",
+    "cd_wms_structure",
+    "cd_ewaste",
+    "cd_attendance",
+    "cd_billing_engine",
+    "cd_competency",
+    "cd_consignment",
+    "cd_contract_core",
+    "cd_crm_ext",
+    "cd_customer_portal",
+    "cd_cx_feedback",
+    "cd_front_desk",
+    "cd_p03_portal",
+    "cd_performance",
+    "cd_quotation",
+    "cd_tradein",
+    "cd_vehicle_ext",
+    "cd_warranty_claims",
+    "cd_stream_registry",
+    "cd_vendor_portal",
+    "cd_payroll_bd",
+    "cd_msp_contract",
+    "cd_partner",
+    "cd_rental_asset",
+    "cd_subscription",
+    "cd_qms_process",
+    "cd_cash_position",
+    "cd_marketplace",
+    "cd_metric_registry",
+    "cd_itsm",
+    "cd_corporate_portal"
+  ],
+  "modules": [
+    {
+      "sequence": 1,
+      "module": "cd_design_tokens",
+      "layer": "platform",
+      "summary": "1000FiX Design Tokens (R1)",
+      "path": "addons/platform/cd_design_tokens/__manifest__.py",
+      "dependencies_count": 2,
+      "cd_dependencies": [],
+      "external_dependencies": [
+        "base",
+        "web"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 2,
+      "module": "cd_entity_config",
+      "layer": "platform",
+      "summary": "1000FiX Platform Administration & Configuration",
+      "path": "addons/platform/cd_entity_config/__manifest__.py",
+      "dependencies_count": 3,
+      "cd_dependencies": [],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "operating_unit"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 3,
+      "module": "cd_event_outbox",
+      "layer": "platform",
+      "summary": "1000FiX Event Outbox",
+      "path": "addons/platform/cd_event_outbox/__manifest__.py",
+      "dependencies_count": 3,
+      "cd_dependencies": [
+        "cd_entity_config"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 4,
+      "module": "cd_rbac_ext",
+      "layer": "platform",
+      "summary": "1000FiX RBAC Extension",
+      "path": "addons/platform/cd_rbac_ext/__manifest__.py",
+      "dependencies_count": 3,
+      "cd_dependencies": [
+        "cd_entity_config"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 5,
+      "module": "cd_document_core",
+      "layer": "platform",
+      "summary": "1000FiX Document Core",
+      "path": "addons/platform/cd_document_core/__manifest__.py",
+      "dependencies_count": 4,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 6,
+      "module": "cd_gl_ext",
+      "layer": "domain",
+      "summary": "1000FiX General Ledger Extension",
+      "path": "addons/domain/g_finance/cd_gl_ext/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "account"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 7,
+      "module": "cd_grc",
+      "layer": "domain",
+      "summary": "1000FiX Governance, Risk & Compliance",
+      "path": "addons/domain/i_governance/cd_grc/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 8,
+      "module": "cd_knowledge",
+      "layer": "domain",
+      "summary": "1000FiX Knowledge Management & Technical Library",
+      "path": "addons/domain/i_governance/cd_knowledge/__manifest__.py",
+      "dependencies_count": 4,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 9,
+      "module": "cd_mdm_core",
+      "layer": "platform",
+      "summary": "1000FiX MDM Core",
+      "path": "addons/platform/cd_mdm_core/__manifest__.py",
+      "dependencies_count": 4,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 10,
+      "module": "cd_rate_card",
+      "layer": "domain",
+      "summary": "1000FiX Pricing (Rate Cards)",
+      "path": "addons/domain/c_commercial/cd_rate_card/__manifest__.py",
+      "dependencies_count": 4,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 11,
+      "module": "cd_catalogue",
+      "layer": "platform",
+      "summary": "1000FiX Catalogue Kernel",
+      "path": "addons/platform/cd_catalogue/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "product"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 12,
+      "module": "cd_party_master",
+      "layer": "platform",
+      "summary": "1000FiX Party Master",
+      "path": "addons/platform/cd_party_master/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 13,
+      "module": "cd_workflow_engine",
+      "layer": "domain",
+      "summary": "1000FiX Workflow Engine",
+      "path": "addons/domain/i_governance/cd_workflow_engine/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_rbac_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 14,
+      "module": "cd_esignature",
+      "layer": "platform",
+      "summary": "1000FiX E-Signature",
+      "path": "addons/platform/cd_esignature/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_document_core"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 15,
+      "module": "cd_fixed_asset_ext",
+      "layer": "domain",
+      "summary": "1000FiX Fixed Assets",
+      "path": "addons/domain/g_finance/cd_fixed_asset_ext/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_gl_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 16,
+      "module": "cd_tax_engine_bd",
+      "layer": "domain",
+      "summary": "1000FiX VAT Engine (M51-core)",
+      "path": "addons/domain/g_finance/cd_tax_engine_bd/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_gl_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "account"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 17,
+      "module": "cd_dynamic_pricing",
+      "layer": "domain",
+      "summary": "1000FiX Dynamic Pricing (W7)",
+      "path": "addons/domain/c_commercial/cd_dynamic_pricing/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rate_card",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 18,
+      "module": "cd_demand_plan",
+      "layer": "domain",
+      "summary": "1000FiX Demand Planning & Replenishment",
+      "path": "addons/domain/e_supply_chain/cd_demand_plan/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 19,
+      "module": "cd_campaign",
+      "layer": "domain",
+      "summary": "1000FiX Marketing",
+      "path": "addons/domain/b_customer_engagement/cd_campaign/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 20,
+      "module": "cd_contact_centre",
+      "layer": "domain",
+      "summary": "1000FiX Contact Centre & AI",
+      "path": "addons/domain/b_customer_engagement/cd_contact_centre/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 21,
+      "module": "cd_employee_core",
+      "layer": "platform",
+      "summary": "1000FiX Employee Core",
+      "path": "addons/platform/cd_employee_core/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 22,
+      "module": "cd_storefront",
+      "layer": "domain",
+      "summary": "1000FiX E-Commerce & Digital Storefront",
+      "path": "addons/domain/b_customer_engagement/cd_storefront/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 23,
+      "module": "cd_fpa",
+      "layer": "domain",
+      "summary": "1000FiX FP&A, Cost Accounting & Budgeting",
+      "path": "addons/domain/g_finance/cd_fpa/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_gl_ext",
+        "cd_fixed_asset_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 24,
+      "module": "cd_settlement_ext",
+      "layer": "domain",
+      "summary": "1000FiX Settlement & Payout (W7)",
+      "path": "addons/domain/g_finance/cd_settlement_ext/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_gl_ext",
+        "cd_tax_engine_bd",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 25,
+      "module": "cd_device_registry",
+      "layer": "domain",
+      "summary": "1000FiX Device Registry",
+      "path": "addons/domain/a_service_delivery/cd_device_registry/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_document_core",
+        "cd_event_outbox",
+        "cd_employee_core"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 26,
+      "module": "cd_equipment_register",
+      "layer": "domain",
+      "summary": "1000FiX Equipment & Calibration",
+      "path": "addons/domain/f_asset_facilities/cd_equipment_register/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "maintenance"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 27,
+      "module": "cd_hr_core",
+      "layer": "domain",
+      "summary": "1000FiX Core HR",
+      "path": "addons/domain/h_people/cd_hr_core/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_party_master"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 28,
+      "module": "cd_requisition",
+      "layer": "domain",
+      "summary": "1000FiX Procurement Core",
+      "path": "addons/domain/e_supply_chain/cd_requisition/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "product",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 29,
+      "module": "cd_data_case",
+      "layer": "domain",
+      "summary": "1000FiX Data Services & Secure Data Handling",
+      "path": "addons/domain/d_circular/cd_data_case/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 30,
+      "module": "cd_service_order",
+      "layer": "domain",
+      "summary": "1000FiX Service Order",
+      "path": "addons/domain/a_service_delivery/cd_service_order/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_document_core",
+        "cd_event_outbox",
+        "cd_employee_core"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 31,
+      "module": "cd_facility",
+      "layer": "domain",
+      "summary": "1000FiX Facility & Branch Infrastructure",
+      "path": "addons/domain/f_asset_facilities/cd_facility/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_equipment_register",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 32,
+      "module": "cd_hse",
+      "layer": "domain",
+      "summary": "1000FiX Health, Safety & Environment",
+      "path": "addons/domain/h_people/cd_hse/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 33,
+      "module": "cd_ppm",
+      "layer": "domain",
+      "summary": "1000FiX Project, Program & Portfolio Management",
+      "path": "addons/domain/i_governance/cd_ppm/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 34,
+      "module": "cd_talent",
+      "layer": "domain",
+      "summary": "1000FiX Talent Acquisition & Onboarding",
+      "path": "addons/domain/h_people/cd_talent/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 35,
+      "module": "cd_ap_ext",
+      "layer": "domain",
+      "summary": "1000FiX Accounts Payable",
+      "path": "addons/domain/g_finance/cd_ap_ext/__manifest__.py",
+      "dependencies_count": 11,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_tax_engine_bd",
+        "cd_requisition",
+        "cd_gl_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "account",
+        "product",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 36,
+      "module": "cd_import_order",
+      "layer": "domain",
+      "summary": "1000FiX Import, Trade Compliance & Landed Cost",
+      "path": "addons/domain/e_supply_chain/cd_import_order/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_requisition",
+        "cd_gl_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 37,
+      "module": "cd_wms_structure",
+      "layer": "domain",
+      "summary": "1000FiX Warehouse Structure",
+      "path": "addons/domain/e_supply_chain/cd_wms_structure/__manifest__.py",
+      "dependencies_count": 4,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_requisition"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 38,
+      "module": "cd_ewaste",
+      "layer": "domain",
+      "summary": "1000FiX E-Waste & Circular Economy",
+      "path": "addons/domain/d_circular/cd_ewaste/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_data_case",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 39,
+      "module": "cd_attendance",
+      "layer": "domain",
+      "summary": "1000FiX Time & Attendance",
+      "path": "addons/domain/h_people/cd_attendance/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 40,
+      "module": "cd_billing_engine",
+      "layer": "domain",
+      "summary": "1000FiX Billing Engine (AR)",
+      "path": "addons/domain/g_finance/cd_billing_engine/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_tax_engine_bd",
+        "cd_service_order",
+        "cd_gl_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "account",
+        "product"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 41,
+      "module": "cd_competency",
+      "layer": "domain",
+      "summary": "1000FiX Competency & Certification",
+      "path": "addons/domain/h_people/cd_competency/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_event_outbox",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 42,
+      "module": "cd_consignment",
+      "layer": "domain",
+      "summary": "1000FiX Logistics & Consignment",
+      "path": "addons/domain/e_supply_chain/cd_consignment/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_requisition"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 43,
+      "module": "cd_contract_core",
+      "layer": "domain",
+      "summary": "1000FiX Contract Lifecycle",
+      "path": "addons/domain/c_commercial/cd_contract_core/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_esignature"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "product"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 44,
+      "module": "cd_crm_ext",
+      "layer": "domain",
+      "summary": "1000FiX CRM Extension",
+      "path": "addons/domain/b_customer_engagement/cd_crm_ext/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_event_outbox",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "crm"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 45,
+      "module": "cd_customer_portal",
+      "layer": "domain",
+      "summary": "1000FiX Customer Self-Service Portal (P01)",
+      "path": "addons/domain/b_customer_engagement/cd_customer_portal/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_service_order",
+        "cd_device_registry",
+        "cd_party_master"
+      ],
+      "external_dependencies": [
+        "base",
+        "portal",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 46,
+      "module": "cd_cx_feedback",
+      "layer": "domain",
+      "summary": "1000FiX Customer Experience & Supplier Performance",
+      "path": "addons/domain/b_customer_engagement/cd_cx_feedback/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 47,
+      "module": "cd_front_desk",
+      "layer": "domain",
+      "summary": "1000FiX Front Desk",
+      "path": "addons/domain/a_service_delivery/cd_front_desk/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_document_core",
+        "cd_event_outbox",
+        "cd_employee_core"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 48,
+      "module": "cd_p03_portal",
+      "layer": "platform",
+      "summary": "P03 Admin Operations Portal",
+      "path": "addons/platform/cd_p03_portal/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_design_tokens",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "web",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 49,
+      "module": "cd_performance",
+      "layer": "domain",
+      "summary": "1000FiX Performance & Incentives",
+      "path": "addons/domain/h_people/cd_performance/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_service_order",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 50,
+      "module": "cd_quotation",
+      "layer": "domain",
+      "summary": "1000FiX Quotation & Estimation",
+      "path": "addons/domain/c_commercial/cd_quotation/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 51,
+      "module": "cd_tradein",
+      "layer": "domain",
+      "summary": "1000FiX Trade-In, Refurbishment & Resale",
+      "path": "addons/domain/d_circular/cd_tradein/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_catalogue",
+        "cd_service_order",
+        "cd_data_case",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 52,
+      "module": "cd_vehicle_ext",
+      "layer": "domain",
+      "summary": "1000FiX Fleet & Vehicles",
+      "path": "addons/domain/f_asset_facilities/cd_vehicle_ext/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_employee_core",
+        "cd_service_order",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "fleet"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 53,
+      "module": "cd_warranty_claims",
+      "layer": "domain",
+      "summary": "1000FiX Warranty & Claims",
+      "path": "addons/domain/a_service_delivery/cd_warranty_claims/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_catalogue",
+        "cd_device_registry",
+        "cd_service_order",
+        "cd_document_core"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "product"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 54,
+      "module": "cd_stream_registry",
+      "layer": "domain",
+      "summary": "1000FiX IoT Telemetry & Predictive Maintenance",
+      "path": "addons/domain/j_data_analytics/cd_stream_registry/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_equipment_register",
+        "cd_facility",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 55,
+      "module": "cd_vendor_portal",
+      "layer": "domain",
+      "summary": "1000FiX Vendor Portal (P05)",
+      "path": "addons/domain/e_supply_chain/cd_vendor_portal/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_requisition",
+        "cd_ap_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "portal",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 56,
+      "module": "cd_payroll_bd",
+      "layer": "domain",
+      "summary": "1000FiX Payroll BD",
+      "path": "addons/domain/h_people/cd_payroll_bd/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_hr_core",
+        "cd_attendance",
+        "cd_gl_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 57,
+      "module": "cd_msp_contract",
+      "layer": "domain",
+      "summary": "1000FiX Managed Services",
+      "path": "addons/domain/a_service_delivery/cd_msp_contract/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_contract_core",
+        "cd_service_order",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 58,
+      "module": "cd_partner",
+      "layer": "domain",
+      "summary": "1000FiX Partner, Channel & Franchise",
+      "path": "addons/domain/b_customer_engagement/cd_partner/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_contract_core",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 59,
+      "module": "cd_rental_asset",
+      "layer": "domain",
+      "summary": "1000FiX Rental & Equipment-as-a-Service",
+      "path": "addons/domain/d_circular/cd_rental_asset/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_catalogue",
+        "cd_party_master",
+        "cd_device_registry",
+        "cd_contract_core",
+        "cd_fixed_asset_ext",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 60,
+      "module": "cd_subscription",
+      "layer": "domain",
+      "summary": "1000FiX Subscription & Revenue",
+      "path": "addons/domain/c_commercial/cd_subscription/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_contract_core",
+        "cd_billing_engine",
+        "cd_gl_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 61,
+      "module": "cd_qms_process",
+      "layer": "domain",
+      "summary": "1000FiX Quality Management",
+      "path": "addons/domain/i_governance/cd_qms_process/__manifest__.py",
+      "dependencies_count": 6,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_cx_feedback"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 62,
+      "module": "cd_cash_position",
+      "layer": "domain",
+      "summary": "1000FiX Treasury & Cash",
+      "path": "addons/domain/g_finance/cd_cash_position/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_front_desk",
+        "cd_gl_ext"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "account"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 63,
+      "module": "cd_marketplace",
+      "layer": "domain",
+      "summary": "1000FiX Marketplace & Seller Ecosystem",
+      "path": "addons/domain/d_circular/cd_marketplace/__manifest__.py",
+      "dependencies_count": 8,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_service_order",
+        "cd_catalogue",
+        "cd_tradein",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 64,
+      "module": "cd_metric_registry",
+      "layer": "domain",
+      "summary": "1000FiX Data Platform & Governance",
+      "path": "addons/domain/j_data_analytics/cd_metric_registry/__manifest__.py",
+      "dependencies_count": 7,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_warranty_claims"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail",
+        "hr"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 65,
+      "module": "cd_itsm",
+      "layer": "domain",
+      "summary": "1000FiX Internal IT Service Management",
+      "path": "addons/domain/i_governance/cd_itsm/__manifest__.py",
+      "dependencies_count": 5,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_msp_contract",
+        "cd_event_outbox"
+      ],
+      "external_dependencies": [
+        "base",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    },
+    {
+      "sequence": 66,
+      "module": "cd_corporate_portal",
+      "layer": "domain",
+      "summary": "1000FiX Corporate B2B Portal (P04)",
+      "path": "addons/domain/b_customer_engagement/cd_corporate_portal/__manifest__.py",
+      "dependencies_count": 9,
+      "cd_dependencies": [
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_contract_core",
+        "cd_subscription",
+        "cd_warranty_claims",
+        "cd_contact_centre"
+      ],
+      "external_dependencies": [
+        "base",
+        "portal",
+        "mail"
+      ],
+      "prerequisites_satisfied": true,
+      "missing_prerequisites": [],
+      "runtime_state": "installed",
+      "installable_alone": true,
+      "status": "PASS"
+    }
+  ]
+}

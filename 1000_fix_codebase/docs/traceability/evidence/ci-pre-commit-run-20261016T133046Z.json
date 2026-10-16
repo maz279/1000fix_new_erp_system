@@ -1,0 +1,37 @@
+{
+  "profile": "pre-commit",
+  "timestamp": "2026-10-16T13:30:46.664877+00:00",
+  "total_duration_seconds": 0.76,
+  "budget_limit_seconds": 30.0,
+  "budget_met": true,
+  "success": true,
+  "stages": [
+    {
+      "name": "precommit-ruff",
+      "description": "Fast code style and AST validation",
+      "status": "PASS",
+      "duration_seconds": 0.17,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "precommit-hygiene",
+      "description": "No committed sessions or unpinned digests",
+      "status": "PASS",
+      "duration_seconds": 0.59,
+      "exit_code": 0,
+      "measurements": {
+        "clean_worktree": true
+      },
+      "output_summary": " M 1000_fix_codebase/Makefile\n M 1000_fix_codebase/tooling/e2e/visual-drive.mjs\n M 1000_fix_codebase/tooling/scripts/tasks.ps1\n?? 1000_fix_codebase/docs/traceability/kernel-conformance-report.md\n?? 1000_fix_codebase/tooling/fitness/evidence/module-install-matrix-latest.json\n?? 1000_fix_codebase/tooling/scripts/verify-module-install-matrix.py\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}
