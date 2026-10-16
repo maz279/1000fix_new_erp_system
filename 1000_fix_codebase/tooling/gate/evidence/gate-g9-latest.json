@@ -1,6 +1,6 @@
 {
     "schema":  "1000fix-erp/gate-g9/1",
-    "ranAtUtc":  "2026-10-16T12:41:15.4962751Z",
+    "ranAtUtc":  "2026-10-16T12:48:48.0586470Z",
     "pass":  6,
     "conditions":  4,
     "failures":  0,
@@ -12,7 +12,7 @@
                          "Status":  "PASS",
                          "Evidence":  "Baseline registers and fitness gate evidence active on disk (zero blocking defects)",
                          "Remedy":  "Maintain green baseline registers",
-                         "CheckedUtc":  "2026-10-16T12:41:15.3071774Z"
+                         "CheckedUtc":  "2026-10-16T12:48:47.8425575Z"
                      },
                      {
                          "Id":  "G9-02",
@@ -20,7 +20,7 @@
                          "Status":  "PASS",
                          "Evidence":  "cd_entity_config multi-entity (fix_entity.py), country pack (fix_country_pack.py), and D-013 split-residency verified on disk",
                          "Remedy":  "Verify multi-entity configuration fixtures in test suite",
-                         "CheckedUtc":  "2026-10-16T12:41:15.3205156Z"
+                         "CheckedUtc":  "2026-10-16T12:48:47.8566480Z"
                      },
                      {
                          "Id":  "G9-03",
@@ -28,7 +28,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "48 legacy sources profiled and migration ruling completed on disk; final server retirement is Month 36 cutover execution",
                          "Remedy":  "Complete final cutover and decommissioning certificates across all 48 legacy sources",
-                         "CheckedUtc":  "2026-10-16T12:41:15.3234491Z"
+                         "CheckedUtc":  "2026-10-16T12:48:47.8602182Z"
                      },
                      {
                          "Id":  "G9-04",
@@ -36,7 +36,7 @@
                          "Status":  "PASS",
                          "Evidence":  "Verified on disk: 66 modules, 331 CD items, 60 AUT automations, and 8 Next.js + P03 portals",
                          "Remedy":  "Maintain delivery registers",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4598042Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0263226Z"
                      },
                      {
                          "Id":  "G9-05",
@@ -44,7 +44,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Doctor 14-point diagnostic harness and onboarding SLA documented; formal operational handover is Month 36 milestone sign-off",
                          "Remedy":  "Obtain formal support organisation transition sign-off",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4657592Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0307846Z"
                      },
                      {
                          "Id":  "G9-06",
@@ -52,7 +52,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "KPI metric registry model active on disk; longitudinal benefits comparison requires post-go-live actual operational data",
                          "Remedy":  "Report Month 36 actual cost/TAT metrics against BM-002 baselines",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4703075Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0342623Z"
                      },
                      {
                          "Id":  "G9-07",
@@ -60,7 +60,7 @@
                          "Status":  "PASS",
                          "Evidence":  "PDPA split-residency, approved Board charter, and zero GPL-v3 license compliance gates verified on disk",
                          "Remedy":  "File annual audit certificates",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4741741Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0378498Z"
                      },
                      {
                          "Id":  "G9-08",
@@ -68,7 +68,7 @@
                          "Status":  "PASS",
                          "Evidence":  "Executed SoW Amendment No. 1 on disk; 3,389 requirements and 1,842 PW settled without unbudgeted scope drift",
                          "Remedy":  "Archive final commercial reconciliation",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4778874Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0400831Z"
                      },
                      {
                          "Id":  "G9-09",
@@ -76,7 +76,7 @@
                          "Status":  "PASS",
                          "Evidence":  "Unified CI workflow with nightly, pre-merge, and gating profiles active; automated recovery verified",
                          "Remedy":  "Execute stage 16-17 gate verification",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4811361Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0427851Z"
                      },
                      {
                          "Id":  "G9-10",
@@ -84,7 +84,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "R01 foundation verified; formal programme closure and Month 42 review schedule signed at Month 36 Steering meeting",
                          "Remedy":  "Convene Steering Committee for MS-11 Programme Closure",
-                         "CheckedUtc":  "2026-10-16T12:41:15.4839451Z"
+                         "CheckedUtc":  "2026-10-16T12:48:48.0455643Z"
                      }
                  ]
 }

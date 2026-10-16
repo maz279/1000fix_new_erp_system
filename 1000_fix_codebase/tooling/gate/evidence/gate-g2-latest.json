@@ -1,6 +1,6 @@
 {
     "schema":  "1000fix-erp/gate-g2/1",
-    "ranAtUtc":  "2026-10-16T12:40:00.9600143Z",
+    "ranAtUtc":  "2026-10-16T12:48:43.3166466Z",
     "pass":  3,
     "conditions":  7,
     "failures":  0,
@@ -12,7 +12,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "cd_service_order models on disk; daily active usage across Dhaka field technicians is measured in production",
                          "Remedy":  "Deploy technician companion app and verify daily active usage telemetry",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9087707Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2583220Z"
                      },
                      {
                          "Id":  "G2-02",
@@ -20,7 +20,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Offline sync protocol and event outbox models defined; 24h disconnected field trial is a live operational demonstration",
                          "Remedy":  "Execute 24h disconnected tablet simulation with zero sync conflict loss",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9210502Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2745581Z"
                      },
                      {
                          "Id":  "G2-03",
@@ -28,7 +28,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Dispatch routing heuristics \u0026 zone clustering modelled; 15% reduction is evaluated against the historical Dhaka route baseline",
                          "Remedy":  "Compare real-world technician trip durations against pre-dispatch baseline",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9237467Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2772343Z"
                      },
                      {
                          "Id":  "G2-04",
@@ -36,7 +36,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Warehouse WMS structure and consignment models on disk; \u003e=95% accuracy requires physical cycle-count audit at pilot branches",
                          "Remedy":  "Conduct 100-part blind physical audit at Dhanmondi \u0026 Motijheel service hubs",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9270694Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2804617Z"
                      },
                      {
                          "Id":  "G2-05",
@@ -44,7 +44,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "P01 Customer Portal booking wizard and J01 E2E tests fully operational; \u003e=60% intake share is measured against pilot walk-in volumes",
                          "Remedy":  "Measure web/app intake proportion over first 30 days of branch pilot",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9308476Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2838354Z"
                      },
                      {
                          "Id":  "G2-06",
@@ -52,7 +52,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Digital e-signature \u0026 customer work-order signoff model implemented; physical paper withdrawal is an operational policy confirmation",
                          "Remedy":  "Executive operational order withdrawing physical triplicate job cards",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9331100Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2868089Z"
                      },
                      {
                          "Id":  "G2-07",
@@ -60,7 +60,7 @@
                          "Status":  "PASS",
                          "Evidence":  "T-6 prerequisite register and coverage baseline established in docs/traceability/coverage-baseline-register.md",
                          "Remedy":  "Maintain green pre-requisite status",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9357543Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2905461Z"
                      },
                      {
                          "Id":  "G2-08",
@@ -68,7 +68,7 @@
                          "Status":  "PASS",
                          "Evidence":  "Journeys 1, 2, and 3 automated and passing in tooling/e2e/journeys/ (integrated into nightly pipeline profile)",
                          "Remedy":  "pnpm.cmd --dir tooling/e2e test journeys/j01* journeys/j02* journeys/j03*",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9387625Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2946515Z"
                      },
                      {
                          "Id":  "G2-09",
@@ -76,7 +76,7 @@
                          "Status":  "PASS",
                          "Evidence":  ".github/workflows/ci.yml defines gate profiles; Ceph + PostgreSQL multi-service compose provides local DR failover baseline",
                          "Remedy":  "Execute stage 16-17 gate profile verification",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9414657Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.2975921Z"
                      },
                      {
                          "Id":  "G2-10",
@@ -84,7 +84,7 @@
                          "Status":  "CONDITION",
                          "Evidence":  "Foundation gate G0b exit criteria verified; formal G2 Steering Committee sign-off occurs at Month 8 milestone review",
                          "Remedy":  "Convene Steering Committee for formal MS-04 Gate G2 review",
-                         "CheckedUtc":  "2026-10-16T12:40:00.9440920Z"
+                         "CheckedUtc":  "2026-10-16T12:48:43.3007016Z"
                      }
                  ]
 }

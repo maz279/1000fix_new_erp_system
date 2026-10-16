@@ -1,6 +1,6 @@
 {
     "schema":  "1000fix-erp/gate-g0a/1",
-    "ranAtUtc":  "2026-10-16T12:41:25.9822759Z",
+    "ranAtUtc":  "2026-10-16T12:48:54.3403348Z",
     "pass":  15,
     "conditions":  3,
     "openExternal":  0,
@@ -16,7 +16,7 @@
                          "Remedies":  [
                                           "Run tooling/architecture-baseline/extract-dependency-graph.ps1 -Json \u003cpath\u003e"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.8552004Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2150760Z"
                      },
                      {
                          "Id":  "B-04",
@@ -27,7 +27,7 @@
                          "Remedies":  [
                                           "Run tooling/requirements-baseline/scan-requirements.ps1"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.8675161Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2280142Z"
                      },
                      {
                          "Id":  "B-05b",
@@ -38,7 +38,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.8722724Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2343387Z"
                      },
                      {
                          "Id":  "B-05c",
@@ -49,7 +49,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.8749980Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2378364Z"
                      },
                      {
                          "Id":  "B-03",
@@ -60,7 +60,7 @@
                          "Remedies":  [
                                           "Run tooling/cd-register/generate-cd-register.ps1"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9101873Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2742641Z"
                      },
                      {
                          "Id":  "B-07",
@@ -71,7 +71,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9265264Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2868762Z"
                      },
                      {
                          "Id":  "B-08",
@@ -82,7 +82,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9301723Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2891997Z"
                      },
                      {
                          "Id":  "B-09",
@@ -93,7 +93,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9328516Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2915365Z"
                      },
                      {
                          "Id":  "B-19",
@@ -104,7 +104,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9350050Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2937036Z"
                      },
                      {
                          "Id":  "B-21",
@@ -115,7 +115,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9366093Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2959025Z"
                      },
                      {
                          "Id":  "B-22",
@@ -126,7 +126,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9397260Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.2986282Z"
                      },
                      {
                          "Id":  "B-02",
@@ -137,7 +137,7 @@
                          "Remedies":  [
                                           "Day-1 action: sign docs/p01-m02/DEP-31-engagement-scope.md letter 7"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9442927Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3024680Z"
                      },
                      {
                          "Id":  "B-11",
@@ -148,7 +148,7 @@
                          "Remedies":  [
                                           "Settle before contract signature - P01-M08-T02"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9490808Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3081519Z"
                      },
                      {
                          "Id":  "B-12",
@@ -159,7 +159,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9544321Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3136868Z"
                      },
                      {
                          "Id":  "B-06",
@@ -170,7 +170,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9588047Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3177239Z"
                      },
                      {
                          "Id":  "B-01",
@@ -181,7 +181,7 @@
                          "Remedies":  [
                                           "E1 evidence: signed minutes at docs/governance/BM-2026-10-D001-charter-and-governance.md"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9643577Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3232584Z"
                      },
                      {
                          "Id":  "B-13",
@@ -192,7 +192,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9673797Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3262604Z"
                      },
                      {
                          "Id":  "B-10",
@@ -203,7 +203,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:41:25.9699649Z"
+                         "CheckedUtc":  "2026-10-16T12:48:54.3287807Z"
                      }
                  ]
 }
