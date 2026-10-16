@@ -38,7 +38,8 @@ def parse_registry() -> list[dict]:
             cur = {"id": raw.split(":", 1)[1].strip()}
         elif cur is not None and raw.startswith("    ") and ":" in raw:
             k, v = raw.strip().split(":", 1)
-            cur[k.strip()] = v.strip()
+            v = v.split("#")[0].strip()
+            cur[k.strip()] = v
     if cur:
         checks.append(cur)
     return checks
@@ -46,14 +47,19 @@ def parse_registry() -> list[dict]:
 
 def safe_script_path(script: str) -> Path | None:
     """Resolve a registry script to a path strictly inside tooling/."""
-    candidate = (HERE / script).resolve()
-    try:
-        candidate.relative_to(TOOLING_ROOT)
-    except ValueError:
-        return None
-    if candidate.suffix not in ALLOWED_SUFFIXES or not candidate.is_file():
-        return None
-    return candidate
+    candidates = [
+        (HERE / script).resolve(),
+        (TOOLING_ROOT / "scripts" / script).resolve(),
+        (TOOLING_ROOT / script).resolve(),
+    ]
+    for candidate in candidates:
+        try:
+            candidate.relative_to(TOOLING_ROOT)
+        except ValueError:
+            continue
+        if candidate.suffix in ALLOWED_SUFFIXES and candidate.is_file():
+            return candidate
+    return None
 
 
 def build_command(script: str) -> list[str] | None:
@@ -64,6 +70,9 @@ def build_command(script: str) -> list[str] | None:
     if sp.suffix == ".py":
         return [sys.executable, str(sp)]
     if sp.suffix == ".sh":
+        git_bash = Path(r"C:\Program Files\Git\bin\bash.exe")
+        if sys.platform == "win32" and git_bash.is_file():
+            return [str(git_bash), str(sp)]
         return ["bash", str(sp)]
     return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(sp)]
 
@@ -89,8 +98,9 @@ def main() -> int:
             failures += 1
             continue
         if not enabled:
-            results.append(result(cid, "disabled-by-design", "SKIP", cid, 0,
-                                   f"built, disabled; promotes at {chk.get('promote_to_blocking_at', 'gate')} (FG-04)"))
+            msg = f"built, disabled; promotes at {chk.get('promote_to_blocking_at', 'gate')} (FG-04)"
+            results.append(result(cid, "disabled-by-design", "SKIP", cid, 0, msg))
+            print(f"[SKIP] {cid}: disabled-by-design - {msg}")
             continue
         cmd = build_command(script)
         if cmd is None:

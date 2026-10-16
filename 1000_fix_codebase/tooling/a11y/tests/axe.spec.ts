@@ -19,13 +19,19 @@ test.beforeEach(async ({ page }) => {
   await page.fill("input[name='login']", LOGIN.user);
   await page.fill("input[name='password']", LOGIN.password);
   await page.click("button[type='submit']");
-  await expect(page).toHaveURL(/\/web/);
+  // PP7: admin lands on the P03 workspace home action (/odoo/action-..)
+  // since PP2 — accept both the legacy /web and the /odoo client.
+  await expect(page).toHaveURL(/\/web|\/odoo/);
 });
 
 for (const route of W1_ROUTES) {
   test(`axe: ${route.name} has no WCAG 2.2 AA violations`, async ({ page }) => {
-    await page.goto(route.path);
-    await page.waitForLoadState("networkidle");
+    await page.goto(route.path, { waitUntil: "domcontentloaded" });
+    // Odoo's web client long-polls — networkidle never settles (PP7
+    // lesson); wait for an actual view surface instead.
+    await page.waitForSelector(
+      ".o_list_view, .o_kanban_view, .o_form_view, .p03-workspace-root, .o_view_controller",
+      { timeout: 45000 });
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"])
       .analyze();

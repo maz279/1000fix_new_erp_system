@@ -12,6 +12,19 @@
 // (tooling/a11y/check-expansion-static.py, FF-25 po completeness) carry the
 // workstation. CI stage 12 runs this suite with the stack up.
 import { defineConfig } from "@playwright/test";
+import path from "node:path";
+import fs from "node:fs";
+
+// The workstation's Playwright installs pair with chromium-1200; pin the
+// browser so a newer npm-resolved playwright-core never demands a fresh
+// download mid-suite (PP7 lesson — see tooling/e2e/playwright.config.ts).
+const CHROMIUM_DEFAULT = path.join(
+  process.env.USERPROFILE || process.env.HOME || ".",
+  "AppData/Local/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-win64/chrome-headless-shell.exe",
+);
+const CHROMIUM_EXE =
+  process.env.CHROMIUM_EXECUTABLE_PATH ||
+  (fs.existsSync(CHROMIUM_DEFAULT) ? CHROMIUM_DEFAULT : undefined);
 
 const BASE_URL = process.env.FIX_A11Y_BASE_URL ?? "http://127.0.0.1:8069";
 
@@ -31,9 +44,14 @@ export default defineConfig({
   testDir: "./tests",
   timeout: 60_000,
   retries: 0,
-  use: { baseURL: BASE_URL },
+  use: {
+    baseURL: BASE_URL,
+    ...(CHROMIUM_EXE ? { launchOptions: { executablePath: CHROMIUM_EXE } } : {}),
+  },
   projects: [
     { name: "axe", testMatch: /axe\.spec\.ts/ },
     { name: "expansion", testMatch: /expansion\.spec\.ts/ },
+    // PP7-M02: the WCAG 2.2 AA gatekeeper across every portal route.
+    { name: "gatekeeper", testMatch: /pp7-gatekeeper\.spec\.ts/ },
   ],
 });

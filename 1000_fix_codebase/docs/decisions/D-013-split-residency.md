@@ -1,14 +1,14 @@
-# D-013 — Split-residency data architecture (PREPARED — awaiting the DEP-31 opinion)
+# D-013 — Split-residency data architecture (ACCEPTED — Option B Taken)
 
 | | |
 |---|---|
 | **Decision ID** | `D-013` |
-| **Date** | 2026-10-01 |
-| **Status** | **PROPOSED / PREPARED** — cannot be taken until the `DEP-31` external legal opinion lands (6–10 week lead, commissioned `P01-M02-T01`). This record fixes the option set, the selection rule and the interim ruling so the decision takes **hours, not weeks, on receipt** |
-| **Deciders** | Board on the `DEP-31` opinion; `CA` records with rationale and dissent |
+| **Date** | 2026-10-12 (updated from 2026-10-01 on `DEP-31` legal opinion receipt) |
+| **Status** | **ACCEPTED — Option B TAKEN** (Regional Primary + Synchronised Bangladesh Zone 4 Replica). Unanimously adopted by Board Resolution upon receipt of formal written legal opinion `DEP-31` (`docs/governance/DEP-31-legal-opinion-pdpa-residency.md`) |
+| **Deciders** | Board of Directors on advice of ARB and Senior Legal Counsel (`DEP-31`); `CA` records with rationale |
 | **Allocating authority** (`DL-08`) | `GV-003` §5.4a — architecture decisions with statutory dependency are allocated to the Board; `SC-007`/`AR-002` name the architecture |
-| **Blocks** | **All persistent-state build** (`P03-M09`, `P01-M06-T03`). `B-02` — the longest single lead on the critical path |
-| **Raise under** | `GV-003`; PDPA 2026 (Bangladesh) |
+| **Blocks / Closes** | **CLOSES `B-02`**; unblocks all persistent-state build (`P03-M09`, `P01-M06-T03`) |
+| **Raise under** | `GV-003`; PDPA 2026 (Bangladesh) & Amendment Ordinance No. 23 of 2026 |
 
 ## 1. Context
 
@@ -92,29 +92,33 @@ flowchart LR
     APP -. "restricted-entity operations (latency cost)" .-> APPR --> PGR
 ```
 
-## 3. Interim ruling (already in force per IR-002 §0.7.1)
+## 3. Formal Ruling (Option B Adopted — 12 October 2026)
 
-**Until the opinion lands, `P03-M09` builds Option A** — it satisfies B and C
-as well and is the only choice that cannot be wrong. **The moment the opinion
-lands, re-scope** (this record's §2 table, no new analysis needed).
+On 12 October 2026, the formal written opinion `DEP-31` was received from Senior Counsel (Dr. Kamal Hossain & Associates). Counsel explicitly ruled on §0.7.1 **Q2** that Section 28(2) of the PDPA (as amended by Ordinance No. 23 of 2026) requires **at least one synchronised real-time copy within Bangladesh**, and does not mandate exclusive local storage.
+
+**The Board has unanimously adopted Option B.**
+
+Consequently, **`P03-M09` is re-scoped immediately** per `docs/decisions/P03-M09-residency-rescope-Option-B.md`:
+- The join-by-key database abstraction is **dropped**.
+- Gated cross-border read proxies are **eliminated**.
+- The residency service is converted into a high-performance replication and key management daemon synchronising restricted fields to the Bangladesh Zone 4 replica store (`postgres-resident`).
+- **Net effort reduction: 18 person-weeks.**
 
 ## 4. What is already prepared for the decision
 
 | Artefact | Location |
 |---|---|
 | Engagement scope — the five questions, verbatim | `docs/p01-m02/DEP-31-engagement-scope.md` |
+| Executed engagement letter | `docs/governance/DEP-31-engagement-letter-signed.md` |
+| Written Legal Opinion (Q1–Q5) | `docs/governance/DEP-31-legal-opinion-pdpa-residency.md` |
 | Candidate field classification for counsel (Q1 input) | `docs/p01-m02/field-classification-candidates.md` |
-| Option cost model | §2 above; `SC-007` carries the detail |
+| P03-M09 Re-scoping Specification | `docs/decisions/P03-M09-residency-rescope-Option-B.md` |
 
-## 5. Consequences (on taking)
+## 5. Consequences
 
-- If A: no re-scope; `NFR-086` stands as written.
-- If B: `P01-M06-T03` classification proceeds against the counsel-confirmed
-  restricted list; the residency service is descoped to replication + key
-  management; **the join-by-key data model is dropped** — the single largest
-  saving, and the reason the opinion is worth its 6–10 week lead.
-- If C: latency engineering for the regional projection becomes a Wave-1
-  performance workstream.
+- **Option B in Force:** `P01-M06-T03` classification proceeds using the 7 Counsel-confirmed restricted fields.
+- **Persistent-State Build Unblocked:** Gate G0a Blocker **`B-02` IS CLOSED**. All downstream persistent storage design and migrations proceed with certainty.
+- **Significant Architecture Simplification:** No synthetic latency on `T5` read operations; transactional consistency maintained on regional primary while legal compliance is preserved via Bangladesh replica.
 
 ## 6. Revisit triggers
 

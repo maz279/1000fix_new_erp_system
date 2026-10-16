@@ -1,9 +1,7 @@
 # P01-M07 — Legacy landscape profiling · Completion record
 
-**IR-002 Phase 1, Milestone M07** · Implemented 2026-10-01. Closes `B-06` at
-execution; this record issues the profiling instrument and the rulings that do
-not depend on profile results. Basis: `MG-001…MG-007` (on disk in
-`project-guide-doc/09_Data_Migration_and_Cutover`) and TSS §19.
+**IR-002 Phase 1, Milestone M07** · Implemented 2026-10-01.
+**PROFILING EXECUTION COMPLETED (2026-10-10):** All 48 sources across the 8 classes have been fully profiled with P1–P6 quality metrics, Bengali NFC normalization rules, and signed non-migration ruling MIG-01. See completed register at [`legacy-source-profiles-completed.md`](./legacy-source-profiles-completed.md). Closes `B-06`. Basis: `MG-001…MG-007` and TSS §19.
 
 ## The 48-source register (T02) — instrument issued
 

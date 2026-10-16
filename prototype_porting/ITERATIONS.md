@@ -725,3 +725,288 @@ tree simultaneously — the race corrupts both sessions' state and can
 silently reintroduce eliminated defect classes. Pause one before resuming
 the other; the PP6 gates (FF-39/44/45) are the tripwire that will catch
 a regression, but only if the battery is run after every foreign write.
+
+## P03 workspace deep-audit & real-wiring iterations (2026-10-08, working tree)
+
+**Authority**: User Request ("find all the blind spots, still not wired …
+every data entry form working perfectly … workspace wired to back office …
+visually check the screen … manually check all the hyperlinks … text out
+of the screen"). Four audit→fix→verify iterations over the uncommitted
+D365-style workspace changeset on cd_p03_portal.
+
+### Iteration 1 — state triage (evidence, not assumptions)
+- Fitness battery on the uncommitted tree: 0 failures — but the module's
+  OWN conformance suite failed **7/34** (KPI literals, hand-hex in the
+  template, rpc-service regression, SCSS conformance classes overwritten).
+- Wiring audit of the uncommitted controller found fabricated-data paths:
+  `/p03/orders/list` stamped **hardcoded ৳4,945/৳645 onto real orders**;
+  `/p03/order/get` fabricated fallback phone/serial; dispatch/inventory
+  were chatter posts only; `advance_stage` silently rerouted invalid hops.
+
+### Iteration 2 — real two-way wiring (backend + frontend)
+- **p03_service_order_api.py rewritten**: `/p03/stats` (read_group/search_count
+  aggregates, real my-activities, live branch/technician masters, company BIN),
+  `/p03/orders/list` (estimate-backed money or null), `/p03/order/get`
+  (full real payload: estimates+lines, work orders, mail.thread trail,
+  ir.attachment), `/p03/order/create` (AS-09 strict validation, DI-04
+  idempotency, entitlement→category mapping), `/p03/order/advance_stage`
+  (STRICT VALID_TRANSITIONS — invalid hops refused with the legal set),
+  `/p03/dispatch/assign` (real hr.employee + fix.work.order; the M22
+  certification gate stays authoritative, refusals surface structured),
+  `/p03/inventory/reserve` (real product.product by SKU at real cost).
+- **p03_modules_meta.js**: all 108 fabricated KPI values stripped (labels
+  kept — registry copy); `generateGridData` now returns column schemas
+  ONLY (FF-45 parity columns), rows come from live reads or an empty state.
+- **p03_workspace.js**: rpc via `useService("rpc")`; Role Center KPI cards,
+  My Approvals (real mail.activity inbox → opens the record), My Worklist
+  (live counts) and both charts (12-month trend, 30-day channel mix) all
+  render from `/p03/stats` with empty-states; record view loads the real
+  order (lines/attachments/audit from the backend); job card prints the
+  company's real BIN + today's date + the record's real fault; charts use
+  `var(--chart-*)` tokens; cross-nav resolves terms instead of hardcoding
+  M02; Reports open the real Report Center action.
+- **p03_workspace.xml** (4 asserted batches): every literal fabricated value
+  removed (1,284 / 96.2% / 3,952 / SO-2026-15754 / Power IC rows / fake
+  approvals / fake worklist / "Rahim Uddin (CTO)" / hash-chain footer);
+  all hex moved inside var() fallbacks; grid rows carry real order ids;
+  console pipeline renders live orders grouped by BPF stage; form modal
+  uses the model's REAL enums (walk_in/collection/onsite/mail_in/corporate;
+  normal/high/urgent/emergency) and the live branch master.
+- **p03_conformance.scss**: `:root` palette re-aliased to the DTCG
+  `--fix-*` tokens (41 aliases, CFM-01 single token source); the A4/A5
+  conformance classes restored (filter chips, sortable headers, 5 status
+  pills, focus-visible ring); top-bar overflow hardening (ellipsis,
+  min-width:0, responsive company hide ≤900/1100px) — the "text out of
+  the screen" defect class.
+- **Login page**: a "one-click demo fill" button carrying a **usable
+  credential literal was removed** (Mimosa standing rule), together with
+  fake SSO alert buttons and hardcoded loopback portal links; mega menu
+  footer links replaced with the architecture note.
+
+### Iteration 3 — accounting & links
+- 67/67 modules present in the meta (M01–M67, areas A02–A12) — every
+  module has its workspace, freg register, screens, reports, forms.
+- Template-handler cross-check: 28/28 t-on-click handlers exist in the JS.
+- Hyperlink sweep: no hardcoded host/port links remain in P03 assets;
+  breadcrumb anchors are `.prevent`-guarded navigations.
+
+### Iteration 4 — live-fire verification (new durable probe)
+- **`tooling/scripts/livefire-p03.py`** (loopback-pinned, no redirects):
+  **19/19 checks pass** against the running fix_dev — including two
+  pre-existing estate bugs it surfaced and that are now fixed:
+  1. `fix.service.order` sequence was never defined → every order was
+     named "NEW" (data/ir_sequence.xml added for SO/EST/WO; first portal
+     order is SO000001);
+  2. Odoo 19 read_group count keys differ from the legacy `<field>_count`
+     (stats now use explicit search_count over the model's selection).
+- The M22 certification gate (FR-LMS-039) verified LIVE: assigning an
+  uncertified technician is refused with the gate's reason — surfaced
+  structured to the workspace, never bypassed.
+- Live bundles verified: the served 1.1 MB backend CSS contains the
+  conformance classes + `--fix-*` aliases + topbar rules; the JS bundle
+  carries the workspace, mega menu, and the `/p03/stats` wiring.
+
+**Battery at exit**: fitness 0 failures · cd_p03_portal 34/34 ·
+cd_service_order 30/30 · livefire-p03 19/19 · Odoo left running on 8069.
+
+### Iteration 5 — runtime-template audit: the crash class static tests missed (2026-10-09)
+
+The previous four iterations verified data wiring, but never compiled the
+OWL templates the way the browser does. This pass closed that blind spot.
+
+**Two render-crash bugs found and fixed (all static tests had passed them):**
+1. `p03_workspace.xml` topbar: `t-att-title="userService.userName or ''"` —
+   the Python `or` operator is a JS syntax error inside a t-expression →
+   **the workspace would crash on open**. Also the user service exposes
+   `name`, not `userName` (verified against the vendored
+   `web/static/src/core/user.js` return object) — so even without the
+   crash, the topbar avatar/greeting/status-bar would render empty.
+   Fixed at all 4 sites.
+2. `p03_tellme.xml` (committed PP2 code, not the new changeset):
+   `t-if="state.results.length === 0 and state.query.length >= 2"` — same
+   `and` operator defect → the Tell-ME palette crashes once a ≥2-char
+   query returns no matches. Fixed to `&&` (entity-escaped).
+
+**Durable gates added** (test_p03_portal.py):
+- `test_owl_templates_carry_no_python_expressions` — string-literal-aware
+  lint for `or`/`and`/`not`/None/True/False inside t-esc/t-att/t-if/
+  t-foreach expressions across ALL module templates.
+- `test_every_owl_expression_compiles_as_javascript` — the full-strength
+  oracle: every t-* expression (XML entities decoded) compiled via Node
+  `new Function`, the same mechanism Owl uses at runtime (skips when no
+  Node runtime is present).
+
+**Verification evidence**:
+- Oracle run over all 5 module templates: **545/545 expressions compile
+  clean**; component template ids ↔ t-name definitions reconcile.
+- Served bundles re-verified after the fixes: fresh hash (bf5d903), the
+  two defect strings absent, `userService.name` present.
+- livefire-p03 re-run: **19/19** (API unaffected by template fixes).
+- Login page SSR check (7 probes): split-screen renders, helpline
+  present, demo-fill/credential literal/fake SSO/loopback links all gone.
+- Browser-level pixel check attempted two ways (in-app browser at
+  127.0.0.1 and at a dedicated `::1:8070` Odoo listener): the sandboxed
+  browser requires an interactive Chrome approval and is unavailable to
+  an autonomous session — the documented environment limit stands; the
+  expression-compile oracle + served-bundle probes are the accepted
+  render-fidelity evidence for this environment.
+
+**Battery at exit**: fitness 0 failures · cd_p03_portal 36/36 (2 new
+gates) · livefire-p03 19/19 · login SSR 7/7.
+
+## PP7 execution record — Hardening & 100%-Deployable Verification (2026-10-13)
+
+All five PP7 milestones implemented against the LIVE stack; every change
+verified end-to-end with headless Chromium (Playwright 1.63 pinned to the
+workstation's chromium-1200 build). **Gate GP: 9 PASS / 3 CONDITION / 0 FAIL.**
+
+### PP7-M03 — Security headers & gateway (D17)
+- `proxy.ts` (Next 16 nonce pattern) in all 8 portals: per-request nonce
+  CSP (`script-src 'self' 'nonce-…' 'strict-dynamic'`), env-tunable
+  `connect-src` (gateway origins) and `frame-ancestors` (P06 embed);
+  HSTS preload + Permissions-Policy added to every next.config.
+- Kong declarative policy extended with a response-transformer (HSTS/
+  nosniff/frame-deny/no-store + `X-Powered-By`/`Server` stripping) —
+  config validated inside the container (`kong config parse`).
+- **Two blocking defects found and fixed en route:**
+  1. *The portals never client-hydrated*: 7 apps' tsconfigs mapped
+     `react/jsx-runtime` to a **.d.ts file**, which Turbopack honours at
+     RUNTIME → every app component's JSX factory compiled to `(void 0)`.
+     Prerendered HTML masked it; the first real browser pass caught it.
+     Fix: mappings removed; `@types/react@19.3` installed at the monorepo
+     root (`package.json` `"type":"module"` so the ESM libs keep their
+     format); `force-dynamic` added to all 8 root layouts so the nonce
+     reaches Next's script tags.
+  2. 24-route browser sweep built as the regression gate (`tooling/e2e/
+     headers-sweep.mjs`): CSP-nonce on header AND scripts, HSTS, zero
+     console/page errors, hydration proven — **24/24 PASS**.
+
+### PP7-M01 — Journey E2E suite (D3)
+- `tooling/e2e/` — Playwright suite covering **all 10 journeys / 54
+  steps** (spec per journey, real UI navigation: P01 OTP → booking →
+  tracking writes, Odoo login → Tell-ME palette navigation to every
+  back-office surface, P04/P05/P07/P08 portal assertions; the 3 mobile
+  companion steps assert their web halves with the Patrol split noted).
+- **10/10 green across 3 consecutive runs — zero flakiness** (two
+  render-race bugs in the harness fixed: stale-h1 read, strict-mode `.or()`).
+- **Estate defect found**: 63 of 67 module titles in the hand-authored
+  workspace meta contradicted the frozen registry (M12 labelled as M11's
+  title, etc.). New durable sync `tooling/scripts/sync-p03-meta-titles.py`
+  re-aligns en/title/bn/icon/desc from `contracts/nav/registry.json`
+  (66 corrected, 0 post-verify drift; bundle re-served and verified).
+
+### PP7-M02 — WCAG 2.2 AA gatekeeper (D9)
+- `tooling/a11y/tests/pp7-gatekeeper.spec.ts` — axe-core across **24
+  portal routes + the P03 workspace scoped** (3 viewports not needed at
+  this tier: the AA rule set is viewport-independent; expansion suite
+  covers bn/en reflow). **25/25 PASS, zero serious/critical.**
+- Real fixes driven by the gate: corporate invoices footer 1.79:1
+  contrast (ink-faint → secondary ink, WCAG 1.4.3); the two workspace
+  chart SVGs got aria-labels. Odoo 19's own list-view chrome carries
+  ~1,700 vendor violations (aria-allowed-attr &c.) — recorded as an
+  upstream finding, never patched in vendor/ (FF-03).
+
+### PP7-M04 — Observability & budgets (D10/D18)
+- Budgets: all 8 portals re-measured post-headers — **202–250 KB gz vs
+  the 400 KB contract** (customer re-verified after the RUM seam).
+- `libs/ts/ui/src/observability.ts` — the RUM/OTel seam: OTLP-shaped
+  beacon (Web-Vitals via PerformanceObserver, js-error, TTI), inert
+  unless `NEXT_PUBLIC_OTEL_ENDPOINT` is set; wired into the customer
+  portal; 24/24 sweep re-verified with it live.
+- Host-blocked, honestly recorded: the pinned otel-collector image fails
+  `exec` on this Docker host (both contrib and core, fresh pulls); Tempo's
+  OTLP listener is loopback-bound inside its container. The staging trace
+  round-trip remains Gate GP-10 (CONDITION).
+
+### PP7-M05 — Gate GP verifier
+- `tooling/gate/verify-gate-gp.ps1` aggregates the machine-checkable DoD:
+  registry integrity, fixture-freedom, i18n, CFM tokens, live security
+  headers on 8 portals, a11y gatekeeper artifact, journey results,
+  budgets, fitness battery — **9 PASS / 3 CONDITION / 0 FAIL** (evidence
+  JSON written to tooling/gate/evidence/). The three CONDITIONs are the
+  deployment-side items that cannot be discharged on a workstation.
+
+### Parallel-session contamination, second wave (caught by PP7's live tests)
+The livefire probe exposed a duplicate `advance_order_stage` handler the
+parallel session had appended to p03_service_order_api.py — it shadowed
+the strict route and **forged auto-passed QC checklist rows** ("Standard
+Inspection (Passed)") plus direct sudo state writes. Removed; the strict
+handler now also serves its `/p03/service_order/advance` alias with
+`target_state` support; the QC pass transitions the order ONLY. Same
+sweep removed the map endpoint's fabricated technician GPS (jittered
+coordinates → real attendance geo or null), the "16743" phone default,
+and the synthetic "Seed Dhaka Circle" geofence (→ real fix.geofence
+record or null); the console's fake "SMS queued via Twilio" toast now
+posts a real chatter notification via `/p03/notify/collection`. Tests
+updated to pin these absiences.
+
+**Battery at exit**: fitness 0 failures · cd_p03_portal + cd_service_order
+71/71 · livefire-p03 19/19 (M22 cert AND M55 roster gates verified live) ·
+journeys 10/10 ×3 · a11y 25/25 · headers sweep 24/24 · budgets 8/8 ·
+**Gate GP 9 PASS / 3 CONDITION / 0 FAIL**.
+
+## Prototype-porting 100% claim audit — 5 iterations (2026-10-14)
+
+**Mandate**: verify the folder's own claim that the prototype port is
+100% complete; sweep every page/portal/frontend/endpoint visually; fix
+findings; report with evidence.
+
+### Iteration 1 — document-claims audit
+- Registry headline numbers re-derived from `contracts/nav/registry.json`:
+  **67 modules / 278 groups / 823 screens / 346 reports / 266 forms /
+  10 journeys — exact match** to every doc citation.
+- **Two documentation discrepancies found** (the only ones): README's
+  status table still said "PP7 | planned" (completed 2026-10-13) and its
+  "Production today" block still described the PP0-era "frontend portals
+  0% (empty apps/)" state. Both corrected to the audit-verified current
+  state with the Gate GP verdict.
+
+### Iteration 2 — every-endpoint sweep (NEW durable probe)
+- `tooling/scripts/livefire-all-endpoints.py` enumerates ALL
+  `@http.route` endpoints from source (**55 routes**) and probes each
+  twice: unauthenticated (must be refused cleanly, never 500) and
+  authenticated (must answer structured, never an unhandled traceback).
+  Result: **55/55 clean**.
+
+### Iteration 3 — visual drive (headless Chromium)
+- `tooling/e2e/visual-drive.mjs`: **31 surfaces** — all 25 portal pages
+  (8 portals incl. every subpage), the split-screen login, and the P03
+  workspace views (role center, Tell-ME palette, screen grid, Report
+  Center). Each: screenshot evidence (`tooling/e2e/results/screens/`,
+  31 PNGs), zero console/page errors, hydration + nonce-CSP verified.
+- One suspected defect investigated and cleared: the Report Center
+  deep link — `/odoo#action=` hashes are not consumed by Odoo 19's
+  client router; the real paths (`/web#action=…` and the module
+  workspace → Reports button) both verified live with the **346-report
+  count rendered** (screenshots captured). Drive script corrected.
+
+### Iteration 4 — fixes
+- README status + snapshot corrected (above); visual-drive URL form
+  fixed. No product-code defects to fix this round — every prior
+  finding (PP7 record) still holds green.
+
+### Iteration 5 — full regression, all legs green
+| Leg | Result |
+|---|---|
+| Fitness battery | 0 failures |
+| cd_p03_portal + cd_service_order tests | 71/71 |
+| livefire-p03 (incl. M22/M55 gates) | 19/19 |
+| ALL-endpoints sweep | 55/55 |
+| Journeys J01–J10 | 10/10 |
+| Security-headers sweep | 24/24 |
+| WCAG 2.2 AA gatekeeper | 25/25 |
+| Visual drive | 31/31 |
+| **Gate GP** | **9 PASS / 3 CONDITION / 0 FAIL** |
+
+### Verdict on the "100%" claim
+The folder's own DoD (05-DOD-100-PERCENT, Gate GP) is **100% green on
+every machine-checkable criterion** — verified independently in this
+audit. The three CONDITIONs are deployment-side by nature (staging OTel
+round-trip, migration rehearsal at production volume, build-once-promote
+drill) and are recorded as such, not hidden. Standing recorded residuals
+that remain outside the machine DoD by design: the 4 Flutter apps await
+their first SDK compile + device-lab E2E (no Dart SDK on this
+workstation); the 754-screen per-action data burn-down continues
+phase-by-phase per the coverage ledger; M10/M65 realisations ride their
+roadmap phases. **The claim "prototype porting 100%" is TRUE as the
+programme defines it, with those named residuals on the record.**

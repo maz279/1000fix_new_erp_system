@@ -79,7 +79,11 @@ nul
 tmp/
 scratch/
 *.local
+cookies.txt
+results/
+**/test-results/
 
 # --- Tool-local state (never repository content) ---
 .mimosa/
 .zcode/
+

@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Dynamics-365 Multi-Column Mega Menu Overlay (PP2-M06) -->
+<templates xml:space="preserve">
+
+<t t-name="cd_p03_portal.P03MegaMenu">
+    <!-- Systray Trigger Button -->
+    <div class="p03-mega-trigger-wrap position-relative d-inline-block">
+        <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1 px-2 py-1"
+                t-on-click="toggle"
+                title="1000FiX Mega Menu — All 11 Business Areas"
+                style="font-weight: 700; font-size: 12px; border-radius: 4px; border-color: #0E7A6E; color: #0E7A6E;">
+            <span style="font-size: 14px;">☰</span>
+            <span>Mega Menu</span>
+        </button>
+
+        <!-- Mega Menu Overlay Dropdown -->
+        <t t-if="state.isOpen">
+            <div class="p03-mega-backdrop position-fixed"
+                 style="inset: 0; background: rgba(0,0,0,0.4); z-index: 1050; backdrop-filter: blur(2px);"
+                 t-on-click="close"/>
+
+            <div class="p03-mega-panel position-fixed bg-white shadow-lg border rounded-3 overflow-hidden"
+                 style="top: 50px; left: 16px; right: 16px; max-width: 1360px; margin: 0 auto; z-index: 1055; height: 82vh; display: flex; flex-direction: column; border-color: #E2E8F0;">
+                
+                <!-- 1. Header Toolbar -->
+                <div class="p03-mega-header d-flex justify-content-between align-items-center px-4 py-3 border-bottom"
+                     style="background: #0E7A6E; color: #FFFFFF;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="fs-5">☰</span>
+                        <h4 class="m-0 fs-6 fw-bold">1000FiX Integrated Enterprise Navigation</h4>
+                        <span class="badge bg-light text-dark rounded-pill px-2 py-1 ms-2" style="font-size: 10px;">
+                            67 Modules · 823 Screens
+                        </span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2">
+                        <button class="btn btn-sm btn-light fw-bold text-dark"
+                                t-on-click="() => this.openScreen({ id: 'SO-NEW', en: 'New Service Order' }, { id: 'M01', en: 'Service Orders' })"
+                                style="font-size: 11px;">
+                            + New Service Order
+                        </button>
+                        <button class="btn btn-sm btn-link text-white text-decoration-none p-1 fs-5 p03-mega-close-btn"
+                                t-on-click="close"
+                                aria-label="Close Mega Menu">
+                            ✕
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Main Multi-Column Body -->
+                <div class="p03-mega-body d-flex flex-grow-1 overflow-hidden">
+                    <!-- Left Area Rail -->
+                    <div class="p03-mega-areas p-2 border-end overflow-auto"
+                         style="width: 260px; flex-shrink: 0; background: #F8FAFC;">
+                        <div class="text-muted text-uppercase px-2 py-1 mb-1 fw-bold" style="font-size: 10px; letter-spacing: 0.05em;">
+                            Business Areas (11)
+                        </div>
+                        <t t-foreach="areas" t-as="area" t-key="area.id">
+                            <button class="btn btn-sm w-100 text-start d-flex justify-content-between align-items-center py-2 px-3 mb-1 border-0 rounded-2"
+                                    t-att-class="state.activeArea === area.id ? 'btn-primary fw-bold text-white shadow-sm' : 'btn-light text-dark'"
+                                    t-attf-style="background: #{state.activeArea === area.id ? '#0E7A6E' : 'transparent'}; font-size: 12px;"
+                                    t-on-click="() => this.selectArea(area.id)">
+                                <span><t t-esc="area.id"/> · <t t-esc="area.en"/></span>
+                                <span class="badge rounded-pill"
+                                      t-attf-style="background: #{state.activeArea === area.id ? 'rgba(255,255,255,0.25)' : '#E2E8F0'}; color: #{state.activeArea === area.id ? '#fff' : '#64748B'}; font-size: 10px;">
+                                    <t t-esc="area.modules ? area.modules.length : 0"/>
+                                </span>
+                            </button>
+                        </t>
+                    </div>
+
+                    <!-- Right Multi-Column Modules Grid -->
+                    <div class="p03-mega-content flex-grow-1 p-4 overflow-auto" style="background: #FFFFFF;">
+                        <t t-if="activeAreaObj">
+                            <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
+                                <div>
+                                    <h5 class="fw-bold m-0" style="color: #0F172A; font-size: 16px;">
+                                        <t t-esc="activeAreaObj.id"/> — <t t-esc="activeAreaObj.en"/>
+                                    </h5>
+                                    <span class="text-muted" style="font-size: 11px;">
+                                        Select any screen or module to navigate directly with zero dead ends
+                                    </span>
+                                </div>
+                            </div>
+
+                            <!-- Modules Grid -->
+                            <div class="row g-3">
+                                <t t-foreach="modulesInActiveArea" t-as="mod" t-key="mod.id">
+                                    <div class="col-md-6 col-lg-4">
+                                        <div class="p03-mega-card h-100 p-3 rounded-2 border"
+                                             style="background: #F8FAFC; border-color: #E2E8F0;">
+                                            <!-- Module Header -->
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div>
+                                                    <span class="badge bg-secondary text-white me-1" style="font-size: 10px; background-color: #0E7A6E !important;">
+                                                        <t t-esc="mod.id"/>
+                                                    </span>
+                                                    <button type="button"
+                                                            class="btn btn-link p-0 fw-bold text-decoration-none text-dark text-start border-0"
+                                                            t-on-click="() => this.openWorkspace(mod.id)"
+                                                            style="font-size: 13px; outline: none; box-shadow: none;">
+                                                        <t t-esc="mod.en"/>
+                                                    </button>
+                                                </div>
+                                            </div>
+
+                                            <!-- Module Groups & Screens List -->
+                                            <div class="p03-mega-screens d-flex flex-column gap-1 mt-2">
+                                                <t t-foreach="mod.groups ? mod.groups.slice(0, 3) : []" t-as="group" t-key="group.en">
+                                                    <div class="text-muted fw-semibold" style="font-size: 10px; text-transform: uppercase;">
+                                                        <t t-esc="group.en"/>
+                                                    </div>
+                                                    <t t-foreach="group.screens ? group.screens.slice(0, 4) : []" t-as="screen" t-key="screen.id">
+                                                        <button type="button"
+                                                                class="btn btn-link text-decoration-none d-flex align-items-center gap-1 py-1 px-2 rounded-1 w-100 text-start border"
+                                                                t-on-click="() => this.openScreen(screen, mod)"
+                                                                style="color: #334155; font-size: 11px; background: #FFFFFF; border-color: #E2E8F0 !important; outline: none; box-shadow: none;">
+                                                            <span style="color: #0E7A6E; font-weight: bold; font-size: 10px;">
+                                                                <t t-esc="this.getGlyph(screen.t)"/>
+                                                            </span>
+                                                            <span class="text-truncate flex-grow-1">
+                                                                <t t-esc="screen.en"/>
+                                                            </span>
+                                                            <span class="badge bg-light text-muted" style="font-size: 9px;">
+                                                                <t t-esc="screen.t"/>
+                                                            </span>
+                                                        </button>
+                                                    </t>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                </div>
+
+                <!-- 3. Footer Legend & Cross-Portal Navigation -->
+                <div class="p03-mega-footer d-flex justify-content-between align-items-center px-4 py-2 border-top bg-light"
+                     style="font-size: 11px; color: #64748B;">
+                    <div class="d-flex align-items-center gap-3">
+                        <span class="fw-bold">Archetypes:</span>
+                        <span>▦ Workspace</span>
+                        <span>⛁ Form</span>
+                        <span>▤ Grid</span>
+                        <span>⌘ Board</span>
+                        <span>◫ Dashboard</span>
+                        <span>◈ Report</span>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-3">
+                        <span>12 production portals · all surfaces behind the Kong gateway (ARCHITECTURE_STATE §6)</span>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </div>
+</t>
+
+</templates>

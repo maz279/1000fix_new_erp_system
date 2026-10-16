@@ -83,7 +83,7 @@ services:
     # neither radosgw nor the container entrypoint - the demo shape lives in
     # the ceph/daemon wrapper image, which does (verified: radosgw +
     # /opt/ceph-container/bin/entrypoint.sh present).
-    image: ceph/daemon:latest@sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586
+    image: ceph/daemon@sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586
     profiles: ["core"]
     environment:
       # The demo entrypoint refuses to start without the public network and
@@ -232,7 +232,7 @@ services:
       retries: 10
 
   novu:
-    image: ghcr.io/novuhq/novu:4.0.0@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: ghcr.io/novuhq/novu:4.0.0@sha256:9396bf27ffbc7766cbff77cf02fb6f38fe1cb349479b3ba5c65f9733055e810a
     profiles: ["integration"]
     environment:
       FIX_ENV: local

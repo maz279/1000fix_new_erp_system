@@ -4,7 +4,7 @@
 # The asset-ml profile is OPT-IN: `docker compose --profile asset-ml up`.
 services:
   kafka-1:
-    image: apache/kafka@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
     profiles: ["asset-ml"]
     environment:
       KAFKA_NODE_ID: 1
@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: ghcr.io/mlflow/mlflow@sha256:65aa7a75fe37554bd7dd9e539b58e1ec130dac99f27fef9756df316a272dfee2
     profiles: ["asset-ml"]
     command: mlflow server --host 0.0.0.0 --port 5000
     ports:
@@ -26,7 +26,7 @@ services:
     restart: unless-stopped
 
   ollama:
-    image: ollama/ollama@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6
     profiles: ["asset-ml"]
     ports:
       - "127.0.0.1:11434:11434"

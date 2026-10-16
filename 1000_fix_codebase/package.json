@@ -1,0 +1,10 @@
+{
+  "name": "1000_fix_codebase",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Repository-root artefacts of the 1000FiX ERP System v2.0 build (IR-002). PP7: this root manifest exists so the shared libs under libs/ts/* resolve @types/react from the monorepo root for app typechecks — the per-app tsconfig paths mapping to .d.ts files poisoned Turbopack's runtime resolution (JSX factory compiled to undefined) and was removed.",
+  "type": "module",
+  "devDependencies": {
+    "@types/react": "19.3"
+  }
+}

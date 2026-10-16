@@ -8,8 +8,8 @@
  * × checklist × gauge pattern lands with the console actions that mutate
  * real records.
  */
-import { registry } from "@core/registry";
-import { useService } from "@core/utils";
+import { registry } from "@web/core/registry";
+import { useService } from "@web/core/utils/hooks";
 import { Component, onWillStart, useState } from "@odoo/owl";
 
 export class P03DispatchConsole extends Component {

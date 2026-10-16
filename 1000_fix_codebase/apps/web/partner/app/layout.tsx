@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Referral submission, tracking and commission statements (P12).",
 };
 
+// PP7-M03: nonce-CSP (proxy.ts) requires per-request rendering — a
+// statically prerendered shell would carry no nonce and strict-dynamic
+// would block every chunk at runtime.
+export const dynamic = "force-dynamic";
+
 /** The P12 partner shell — generated tokens only (CFM-01). */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

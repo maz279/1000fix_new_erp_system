@@ -1,19 +1,56 @@
 "use client";
 
-/* P01 live tracking — pick an order, watch state/technician/SLA.
- * Polling fallback today (15 s); the websocket upgrade rides the same
- * payload shape (backend note in /customer/tracking). */
-import { useCallback, useEffect, useState } from "react";
+/* P01 live tracking — 5-stage milestone stepper, deep-linking, technician ETA & SLA clocks (Dual Language).
+ * Polling fallback (15 s); rides the live Odoo 5-stage milestone payload.
+ * Tokens only (CFM-01) — no hand-authored colors. */
+import { Suspense, useCallback, useEffect, useState, useId } from "react";
+import { useSearchParams } from "next/navigation";
 import { tokens, SectionHead, Pill, Stat, Loading, LoadError } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
+import { useLanguage, Translations } from "../../components/language";
+import { useAuth } from "../../components/auth-modal";
 
 interface Booking { id: number; ref: string; state: string; device: string }
+
+interface StageItem {
+  id: string;
+  label_en: string;
+  label_bn: string;
+  completed: boolean;
+}
+
 interface Tracking {
-  id: number; ref: string; state: string; technician: string;
-  eta_resolution: string; sla_paused: boolean;
+  id: number;
+  ref: string;
+  state: string;
+  current_stage: number;
+  stages: StageItem[];
+  device: string;
+  branch: string;
+  service_type: string;
+  technician: string;
+  eta_resolution: string;
+  sla_paused: boolean;
+  created_at: string;
+}
+
+function getStateLabel(state: string, t: Translations): string {
+  switch (state) {
+    case "draft": return t.stateDraft;
+    case "sent": return t.stateSent;
+    case "confirmed": return t.stateConfirmed;
+    case "in_progress": return t.stateInProgress;
+    case "done": return t.stateDone;
+    case "delivered": return t.stateDelivered;
+    case "cancelled": return t.stateCancelled;
+    case "closed": return t.stateClosed;
+    default: return state;
+  }
 }
 
 const inputStyle: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
   padding: 10,
   background: tokens["color.surface.canvas"],
   color: tokens["color.text.primary"],
@@ -22,17 +59,38 @@ const inputStyle: React.CSSProperties = {
   fontSize: tokens["typography.size.200"],
 };
 
-export default function TrackingPage() {
+function TrackingContent() {
+  const { t, locale } = useLanguage();
+  const { user } = useAuth();
+  const searchParams = useSearchParams();
+  const queryOrderId = searchParams.get("order_id");
+
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [orderId, setOrderId] = useState<number | null>(null);
+  const [orderId, setOrderId] = useState<number | null>(queryOrderId ? Number(queryOrderId) : null);
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const selectId = useId();
+
+  // Load customer service bookings
   useEffect(() => {
     callOdoo<{ bookings: Booking[] }>("/customer/bookings")
-      .then((d) => setBookings(d.bookings || []))
+      .then((d) => {
+        const list = d.bookings || [];
+        setBookings(list);
+        if (!orderId && list.length > 0) {
+          setOrderId(list[0].id);
+        }
+      })
       .catch((e: Error) => setError(e.message));
-  }, []);
+  }, [user]);
+
+  // Deep-link query parameter synchronization
+  useEffect(() => {
+    if (queryOrderId) {
+      setOrderId(Number(queryOrderId));
+    }
+  }, [queryOrderId]);
 
   const refresh = useCallback(async (id: number) => {
     try {
@@ -45,52 +103,238 @@ export default function TrackingPage() {
     }
   }, []);
 
-  // polling fallback: every 15 s while an order is selected
+  // Poll every 15 s when order is selected
   useEffect(() => {
     if (orderId == null) return;
     refresh(orderId);
-    const t = setInterval(() => refresh(orderId), 15000);
-    return () => clearInterval(t);
+    const interval = setInterval(() => refresh(orderId), 15000);
+    return () => clearInterval(interval);
   }, [orderId, refresh]);
 
-  if (error && bookings.length === 0) return <LoadError what="ট্র্যাকিং" message={error} />;
+  if (error && bookings.length === 0) {
+    return <LoadError what={t.loadErrorTitle(locale === "bn" ? "ট্র্যাকিং" : "Tracking")} message={error} />;
+  }
+
+  const defaultStages: StageItem[] = [
+    { id: "intake", label_en: "Intake Received", label_bn: "ইন্ট্যাক গ্রহণ", completed: true },
+    { id: "diagnostic", label_en: "Diagnostic", label_bn: "রোগ নির্ণয় ও পরীক্ষা", completed: false },
+    { id: "in_repair", label_en: "Bench Repair", label_bn: "বেঞ্চ মেরামত", completed: false },
+    { id: "qc", label_en: "Quality Control", label_bn: "কোয়ালিটি কন্ট্রোল (QC)", completed: false },
+    { id: "ready", label_en: "Ready / Delivered", label_bn: "ডেলিভারি প্রস্তুত / সম্পন্ন", completed: false },
+  ];
+
+  const stagesToRender = tracking?.stages || defaultStages;
+  const currentStageIndex = tracking?.current_stage ?? 0;
 
   return (
-    <main style={{ padding: 32, maxWidth: 720 }}>
-      <SectionHead title="লাইভ ট্র্যাকিং" note="অবস্থা প্রতি ১৫ সেকেন্ডে সদ্য হয় (পোলিং)" />
-      <select value={orderId ?? ""} onChange={(e) => setOrderId(Number(e.target.value))}
-        style={inputStyle} aria-label="অর্ডার নির্বাচন">
-        <option value="">— অর্ডার নির্বাচন করুন —</option>
-        {bookings.map((b) => (
-          <option key={b.id} value={b.id}>{b.ref} — {b.device}</option>
-        ))}
-      </select>
+    <main style={{ padding: 32, maxWidth: 840 }}>
+      <SectionHead title={t.trackingTitle} note={t.trackingSubtitle} />
 
-      {orderId != null && !tracking && !error && <Loading label="ট্র্যাক আনা হচ্ছে…" />}
+      {/* Order Selector */}
+      <div style={{ marginTop: 16 }}>
+        <label
+          htmlFor={selectId}
+          style={{
+            display: "block",
+            marginBottom: 6,
+            color: tokens["color.text.secondary"],
+            fontSize: tokens["typography.size.200"],
+            fontWeight: 500,
+          }}
+        >
+          {locale === "bn" ? "সার্ভিস অর্ডার নির্বাচন করুন" : "Select Service Order"}
+        </label>
+        <select
+          id={selectId}
+          value={orderId ?? ""}
+          onChange={(e) => setOrderId(e.target.value ? Number(e.target.value) : null)}
+          style={inputStyle}
+          aria-label={locale === "bn" ? "অর্ডার নির্বাচন" : "Order selection"}
+        >
+          <option value="">{t.trackingSelectPlaceholder}</option>
+          {bookings.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.ref} — {b.device} ({b.state})
+            </option>
+          ))}
+        </select>
+      </div>
 
+      {orderId != null && !tracking && !error && (
+        <div style={{ marginTop: 20 }}>
+          <Loading label={t.trackingLoading} />
+        </div>
+      )}
+
+      {/* 5-STAGE MILESTONE STEPPER */}
       {tracking && (
         <div style={{ marginTop: 24 }}>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Stat label="রেফারেন্স" value={tracking.ref} />
-            <Stat label="অবস্থা" value={<Pill state={tracking.state} />} />
+          <div
+            style={{
+              padding: 24,
+              background: tokens["color.surface.primary"],
+              border: `1px solid ${tokens["color.border.default"]}`,
+              borderRadius: tokens["dimension.border.radius-md"],
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20, flexWrap: "wrap", gap: 10 }}>
+              <h3 style={{ margin: 0, fontSize: tokens["typography.size.300"], color: tokens["color.primary.base"] }}>
+                {t.trackingMilestonesTitle}
+              </h3>
+              <Pill state={tracking.state} label={getStateLabel(tracking.state, t)} />
+            </div>
+
+            {/* Stepper visual bar */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                position: "relative",
+                gap: 8,
+                marginTop: 10,
+              }}
+            >
+              {stagesToRender.map((stage, idx) => {
+                const isCompleted = idx <= currentStageIndex;
+                const isCurrent = idx === currentStageIndex;
+                const stageLabel = locale === "bn" ? stage.label_bn : stage.label_en;
+
+                return (
+                  <div key={stage.id} style={{ textAlign: "center", position: "relative" }}>
+                    {/* Circle badge */}
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        margin: "0 auto",
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: tokens["typography.size.200"],
+                        fontWeight: 700,
+                        background: isCurrent
+                          ? tokens["color.primary.base"]
+                          : isCompleted
+                          ? tokens["color.status.success-bg"]
+                          : tokens["color.surface.secondary"],
+                        color: isCurrent
+                          ? tokens["color.text.inverse"]
+                          : isCompleted
+                          ? tokens["color.status.success"]
+                          : tokens["color.text.secondary"],
+                        border: isCurrent
+                          ? `2px solid ${tokens["color.primary.base"]}`
+                          : isCompleted
+                          ? `2px solid ${tokens["color.status.success"]}`
+                          : `1px solid ${tokens["color.border.default"]}`,
+                        boxShadow: isCurrent ? "0 0 0 4px rgba(10, 126, 122, 0.2)" : "none",
+                        transition: "all 0.3s ease",
+                      }}
+                    >
+                      {idx < currentStageIndex ? "✓" : idx + 1}
+                    </div>
+
+                    {/* Stage Label */}
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: tokens["typography.size.100"],
+                        fontWeight: isCurrent ? 700 : isCompleted ? 600 : 400,
+                        color: isCurrent
+                          ? tokens["color.primary.base"]
+                          : isCompleted
+                          ? tokens["color.text.primary"]
+                          : tokens["color.text.secondary"],
+                        lineHeight: 1.25,
+                      }}
+                    >
+                      {stageLabel}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Progress Track Line */}
+            <div
+              style={{
+                height: 4,
+                background: tokens["color.surface.secondary"],
+                borderRadius: tokens["dimension.border.radius-pill"],
+                marginTop: 16,
+                overflow: "hidden",
+              }}
+            >
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.min(100, ((currentStageIndex + 1) / 5) * 100)}%`,
+                  background: tokens["color.primary.base"],
+                  transition: "width 0.5s ease",
+                }}
+              />
+            </div>
           </div>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 12 }}>
-            <Stat label="টেকনিশিয়ান" value={tracking.technician || "নির্ধারিত নয়"} />
-            <Stat label="সমাধানের সম্ভাব্য সময়" value={tracking.eta_resolution || "—"} />
-            <Stat label="SLA ঘড়ি" value={tracking.sla_paused ? "বিরত" : "চলমান"} />
+
+          {/* ORDER & TECHNICIAN STATS CARD */}
+          <div
+            style={{
+              marginTop: 16,
+              padding: 20,
+              background: tokens["color.surface.primary"],
+              border: `1px solid ${tokens["color.border.default"]}`,
+              borderRadius: tokens["dimension.border.radius-md"],
+            }}
+          >
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+              <Stat label={t.trackingStatRef} value={tracking.ref} />
+              <Stat label={t.trackingDeviceDetails} value={tracking.device || "—"} />
+              <Stat label={t.bookingBranchLabel} value={tracking.branch || "—"} />
+              <Stat label={t.trackingServiceMode} value={tracking.service_type === "walk_in" ? t.bookingModeWalkIn : tracking.service_type === "collection" ? t.bookingModeCollection : t.bookingModeOnsite} />
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16, marginTop: 16, paddingTop: 16, borderTop: `1px solid ${tokens["color.border.default"]}` }}>
+              <Stat
+                label={t.trackingStatTech}
+                value={tracking.technician || t.trackingStatTechUnassigned}
+              />
+              <Stat
+                label={t.trackingEtaDeadline}
+                value={tracking.eta_resolution || (locale === "bn" ? "প্রক্রিয়াধীন" : "In Progress")}
+              />
+              <Stat
+                label={t.trackingStatSla}
+                value={tracking.sla_paused ? t.trackingSlaPaused : t.trackingSlaRunning}
+              />
+            </div>
           </div>
         </div>
       )}
 
       {error && (
-        <p role="alert" style={{
-          marginTop: 16, padding: "10px 14px",
-          borderRadius: tokens["dimension.border.radius-sm"],
-          background: tokens["color.status.error-bg"],
-          color: tokens["color.status.error"],
-          fontSize: tokens["typography.size.200"],
-        }}>{error}</p>
+        <p
+          role="alert"
+          style={{
+            marginTop: 16,
+            padding: "10px 14px",
+            borderRadius: tokens["dimension.border.radius-sm"],
+            background: tokens["color.status.error-bg"],
+            color: tokens["color.status.error"],
+            fontSize: tokens["typography.size.200"],
+          }}
+        >
+          {error}
+        </p>
       )}
     </main>
+  );
+}
+
+export default function TrackingPage() {
+  return (
+    <Suspense fallback={<main style={{ padding: 32 }}><Loading label="Loading live tracking…" /></main>}>
+      <TrackingContent />
+    </Suspense>
   );
 }

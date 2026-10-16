@@ -498,6 +498,8 @@ Log-Step 'summary'
 $pass = @($script:Results | Where-Object Status -eq 'PASS').Count
 Write-Host ("  PASS {0}   WARN {1}   FAIL {2}" -f $pass, $script:WarnCount, $script:FailCount)
 if ($Json -ne '') {
+    $jsonDir = Split-Path -Parent $Json
+    if ($jsonDir -and -not (Test-Path $jsonDir)) { New-Item -ItemType Directory -Force -Path $jsonDir | Out-Null }
     [System.IO.File]::WriteAllText($Json, ($script:Results | ConvertTo-Json -Depth 5))
     Log-Ok "results JSON written: $Json"
 }

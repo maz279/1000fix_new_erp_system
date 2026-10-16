@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Unified queue, customer 360, call control and the softphone seam (P10, hotline 16743).",
 };
 
+// PP7-M03: nonce-CSP (proxy.ts) requires per-request rendering — a
+// statically prerendered shell would carry no nonce and strict-dynamic
+// would block every chunk at runtime.
+export const dynamic = "force-dynamic";
+
 /** The P10 agent console shell — generated tokens only (CFM-01). */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -17,11 +17,6 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "paths": {
-      "react/jsx-runtime": [
-        "./node_modules/@types/react/jsx-runtime.d.ts"
-      ]
-    },
     "plugins": [
       {
         "name": "next"

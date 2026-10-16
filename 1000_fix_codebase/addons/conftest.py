@@ -68,11 +68,21 @@ for _mod in _load_order():
     _loaded += 1
 
 # Some collectors/tools address the addons by their bare module name
-# (import_module('cd_catalogue')); without an alias that re-EXECUTES the
+# (import_module('cd_catalogue')) or under importlib relative path
+# ('addons.platform.cd_event_outbox'); without an alias that re-EXECUTES the
 # package under a non-odoo.addons name and Odoo's metaclass rejects the
 # model classes. Aliasing makes every such import a sys.modules cache hit.
+_mod_prefixes: dict[str, str] = {}
+for _mf in CODE_ROOT.glob("addons/**/__manifest__.py"):
+    _mod_prefixes[_mf.parent.name] = _mf.parent.relative_to(CODE_ROOT).as_posix().replace("/", ".")
+
 for _name in list(sys.modules):
     if _name.startswith("odoo.addons.cd_"):
+        _mod_part = _name[len("odoo.addons."):].split(".", 1)[0]
+        _sub = _name[len(f"odoo.addons.{_mod_part}"):]
         _alias = _name[len("odoo.addons."):]
         sys.modules.setdefault(_alias, sys.modules[_name])
+        if _mod_part in _mod_prefixes:
+            _rel_alias = f"{_mod_prefixes[_mod_part]}{_sub}"
+            sys.modules.setdefault(_rel_alias, sys.modules[_name])
 print(f"conftest: {_loaded} first-party odoo modules loaded for test collection")

@@ -10,7 +10,7 @@ revisit. The `GV-003` decision-log cross-references are maintained in
 | D-nnn | Subject | Status | Authority | Date | ADR |
 |---|---|---|---|---|---|
 | `D-WS-001` | Windows-native workstation baseline (P02-M01 adaptation) | ACCEPTED | Product owner direction; engineering adaptation | 2026-09-30 | [`D-WS-001-windows-native-workstation-baseline.md`](D-WS-001-windows-native-workstation-baseline.md) |
-| `D-013` | Split-residency data architecture | **PREPARED** (external opinion pending, `B-02`) | Board, on the `DEP-31` opinion; `CA` records | 2026-10-01 | [`D-013-split-residency.md`](D-013-split-residency.md) |
+| `D-013` | Split-residency data architecture | **ACCEPTED** (Option B taken, `B-02` closed) | Board, on the `DEP-31` opinion; `CA` records | 2026-10-12 | [`D-013-split-residency.md`](D-013-split-residency.md) |
 | `D-025` | Odoo 19.0 baseline; W6 upgrade slot (Option A) | ACCEPTED | ARB → `CA` | 2026-10-01 | [`D-025-odoo-baseline-upgrade.md`](D-025-odoo-baseline-upgrade.md) |
 | `D-026` | Portal frontend baseline: Next.js 16.2+/16.3 + Payload 3.73+ | ACCEPTED | ARB → `CA` | 2026-10-01 | [`D-026-portal-frontend-baseline.md`](D-026-portal-frontend-baseline.md) |
 | `D-027` | Mobile framework: Flutter (single framework; P07 → PWA) | ACCEPTED | ARB → `CA`, with `MB` | 2026-10-01 | [`D-027-mobile-framework.md`](D-027-mobile-framework.md) |

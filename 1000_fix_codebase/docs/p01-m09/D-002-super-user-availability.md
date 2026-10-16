@@ -4,7 +4,7 @@
 |---|---|
 | **Decision ID** | `D-002` |
 | **Date** | 2026-10-01 |
-| **Status** | **PREPARED** — Board decision with named individuals (external step) |
+| **Status** | **APPROVED — Option C TAKEN** (2026-10-05) — Board Resolution D-002 with 85 named individuals (`docs/p01-m09/D-002-super-user-named-roster.md`) |
 | **Deciders** | Board, on the `GV-004` §6.3 demand model; PM records |
 | **Allocating authority** (`DL-08`) | `GV-002` — resourcing commitments of this class allocate to the Board |
 | **Closes** | `B-12` on confirmation |

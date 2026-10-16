@@ -50,18 +50,21 @@ Check { if (-not (Test-Path vendor/odoo/odoo-bin)) { throw 'SKIP: vendor/odoo ab
         $pin = (Select-String '^VENDOR_ODOO_COMMIT=(.+)$' tooling/versions.lock).Matches[0].Groups[1].Value
         $cur = git -C vendor/odoo rev-parse HEAD
         if ($pin -eq 'PENDING-CLONE' -or $pin -ne $cur) { throw "submodule at $cur, pin = $pin" }
-        bash tooling/scripts/check-vendor-clean.sh; if ($LASTEXITCODE -ne 0) { throw 'vendor/ dirty (FF-03)' }
+        $gitBash = 'C:\Program Files\Git\bin\bash.exe'
+        $bash = if (Test-Path $gitBash) { $gitBash } else { 'bash' }
+        & $bash tooling/scripts/check-vendor-clean.sh; if ($LASTEXITCODE -ne 0) { throw 'vendor/ dirty (FF-03)' }
         "submodule pinned ($($cur.Substring(0,8))), vendor clean" } 2 'Repository integrity (FF-03)' 'vendor/ is read-only; FORKS.yaml + DA approval required'
 
 # 3 - Compose health (DE-03) - an EMPTY stack is not a healthy stack
-Check { $out = @(docker compose -f infra/compose/docker-compose.yml --env-file .env --profile core ps --format json 2>$null | ConvertFrom-Json)
+$envFile = if (Test-Path .env) { '.env' } else { '.env.example' }
+Check { $out = @(docker compose -f infra/compose/docker-compose.yml --env-file $envFile --profile core ps --format json 2>$null | ConvertFrom-Json)
         if ($out.Count -eq 0) { throw 'SKIP: core profile not running - tasks.ps1 -Target up' }
         $unhealthy = @($out | Where-Object { $_.Health -ne 'healthy' })
         if ($unhealthy.Count -gt 0) { throw ("unhealthy: " + ($unhealthy.Service -join ',')) }
         "$($out.Count) services, all healthy" } 3 'Compose health (DE-03)' 'tasks.ps1 -Target up (waits for health); docker logs <svc>'
 
 # 4 - database exists, UTF-8, reachable
-Check { $enc = (docker compose -f infra/compose/docker-compose.yml --env-file .env exec -T postgres psql -U fix -d fix_dev -tAc "SHOW server_encoding" 2>$null)
+Check { $enc = (docker compose -f infra/compose/docker-compose.yml --env-file $envFile exec -T postgres psql -U fix -d fix_dev -tAc "SHOW server_encoding" 2>$null)
         if (-not $enc -or "$enc".Trim() -eq '') { throw 'SKIP: fix_dev not reachable - core profile up + db-create' }
         if ("$enc".Trim() -ne 'UTF8') { throw "server_encoding = $enc" }
         "fix_dev reachable, UTF8" } 4 'Database' 'tasks.ps1 -Target db-create; UTF-8 is set by the image initdb args'
@@ -82,7 +85,7 @@ Check { $r = try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8069/web/
 # state 'installed' on fix_dev, via the compose postgres.
 Check { if (-not (Test-Path vendor/odoo/odoo-bin)) { throw 'SKIP: vendor absent (see check 2)' }
         $shipped = (Get-ChildItem addons -Recurse -Filter __manifest__.py | Measure-Object).Count
-        $psql = @('compose', '-f', 'infra/compose/docker-compose.yml', '--env-file', '.env',
+        $psql = @('compose', '-f', 'infra/compose/docker-compose.yml', '--env-file', $envFile,
                   'exec', '-T', 'postgres', 'psql', '-U', 'fix', '-d', 'fix_dev', '-tAc',
                   "SELECT count(*) FROM ir_module_module WHERE name LIKE 'cd_%' AND state = 'installed'")
         $installed = (& docker @psql 2>$null | Measure-Object -Line).Lines - 1
@@ -122,7 +125,7 @@ Check { $r = try { Invoke-WebRequest -UseBasicParsing http://127.0.0.1:8025/api/
         'Mailpit reachable; outbound SMTP blocked by design (SMTP_HOST=127.0.0.1)' } 11 'Mail capture (DE-07)' 'SMTP_HOST must be 127.0.0.1 - one misdirected batch is a reputational incident'
 
 # 12 - no residency-classified pattern in any table (DE-12/FF-09 local)
-Check { $hits = docker compose -f infra/compose/docker-compose.yml --env-file .env exec -T postgres psql -U fix -d fix_dev -tAc "SELECT count(*) FROM information_schema.tables" 2>$null
+Check { $hits = docker compose -f infra/compose/docker-compose.yml --env-file $envFile exec -T postgres psql -U fix -d fix_dev -tAc "SELECT count(*) FROM information_schema.tables" 2>$null
         if ("$hits".Trim() -eq '' -or "$hits".Trim() -eq '0') { throw 'SKIP: no tables yet (pre Phase 3)' }
         'pattern scan activates with kernel tables (residency stub is synthetic-only)' } 12 'Data safety (DE-12/FF-09)' 'never bring production data; a dump on a workstation is a security incident'
 

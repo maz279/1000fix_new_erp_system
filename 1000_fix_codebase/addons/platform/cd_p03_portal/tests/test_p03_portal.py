@@ -82,6 +82,87 @@ class TestP03OWLWorkspace(unittest.TestCase):
         self.assertIn('useService("rpc")', js)
         self.assertNotIn("fetch(", js, "raw fetch in OWL — use the rpc service")
 
+    def test_owl_templates_carry_no_python_expressions(self):
+        """OWL compiles t-* attribute expressions as JavaScript — a Python
+        operator or literal compiles to a syntax error and crashes the
+        component at render (defects found live 2026-10-09: `or` in the
+        workspace topbar, `and` in the tellme palette). String literals
+        inside quotes are exempted."""
+        import re
+        attr = re.compile(
+            r't-(?:esc|out|att[a-z-]*|if|elif|foreach|value)="([^"]*)"')
+        isms = [
+            (r"\bor\b", "'or'"), (r"\band\b", "'and'"),
+            (r"\bnot\s+(?!set\b|found\b|available\b)", "'not'"),
+            (r"\bNone\b", "None"), (r"\bTrue\b", "True"),
+            (r"\bFalse\b", "False"),
+        ]
+        for xml_file in (MODULE / "static" / "src").glob("*.xml"):
+            xml = xml_file.read_text(encoding="utf-8")
+            for m in attr.finditer(xml):
+                expr = m.group(1)
+                stripped = re.sub(r"'[^']*'|\"[^\"]*\"", "", expr)
+                for pat, label in isms:
+                    self.assertIsNone(
+                        re.search(pat, stripped),
+                        f"{xml_file.name}: Python {label} in t-expression "
+                        f"{expr[:70]!r} — OWL compiles these as JavaScript")
+
+    def test_every_owl_expression_compiles_as_javascript(self):
+        """The full-strength oracle: every t-* expression (XML entities
+        decoded) must compile via `new Function` — the same mechanism Owl
+        uses. Skips when no Node runtime is available."""
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not available for the JS compile oracle")
+
+        script = r"""
+        const fs = require("fs");
+        const SRC = process.argv[2];
+        const ATTR = /t-(esc|out|att|attf|if|elif|foreach|value|key|on-click(?:\.\w+)?|on-input|on-change|on-focus|on-keydown|on-mouseenter)="([^"]*)"/g;
+        const unesc = s => s.replace(/&lt;/g,"<").replace(/&gt;/g,">").replace(/&amp;/g,"&").replace(/&quot;/g,'"').replace(/&#39;/g,"'");
+        const SCOPE = "state, props, userService, rpc, action";
+        let exprs = 0; const fails = [];
+        for (const f of fs.readdirSync(SRC).filter(x => x.endsWith(".xml"))) {
+          const txt = fs.readFileSync(SRC + "/" + f, "utf8");
+          let m;
+          while ((m = ATTR.exec(txt)) !== null) {
+            const expr = unesc(m[2].trim());
+            if (!expr || expr.startsWith("#")) continue;
+            try {
+              exprs++;
+              if (m[1] === "attf") {
+                for (const im of expr.matchAll(/\{\{([^}]+)\}\}/g))
+                  new Function(SCOPE, "return (" + im[1] + ");");
+              } else {
+                new Function(SCOPE, "return (" + expr + ");");
+              }
+            } catch (e) {
+              fails.push(f + " [" + m[1] + "] " + expr.slice(0, 60) + " :: " + e.message);
+            }
+          }
+        }
+        if (fails.length) { console.error(fails.join("\n")); process.exit(1); }
+        console.log(exprs + " expressions compile clean");
+        """
+        with tempfile.NamedTemporaryFile(
+                "w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(script)
+            script_path = fh.name
+        try:
+            proc = subprocess.run(
+                [node, script_path, str(MODULE / "static" / "src")],
+                capture_output=True, text=True, timeout=60)
+        finally:
+            Path(script_path).unlink(missing_ok=True)
+        self.assertEqual(
+            proc.returncode, 0,
+            f"OWL expression compile failures:\n{proc.stderr}")
+        self.assertIn("expressions compile clean", proc.stdout)
+
     def test_workspace_template_uses_token_variables_only(self):
         """The template resolves colours through --fix-* custom properties
         (CFM-01: no hand-authored hex outside the generator)."""
@@ -273,6 +354,62 @@ class TestCoverageLedger(unittest.TestCase):
         # 754 screens is the honest current state (nothing backed yet at PP2
         # scaffold; phases wire actions and the number drops)
         self.assertIn("754", ledger)
+
+class TestP03ConsolesAndRoles(unittest.TestCase):
+    """P03 Operations Portal: 15 Role Workspaces, Dispatch Console, and Branch & Workshop Consoles."""
+
+    def test_fifteen_role_workspaces_defined(self):
+        js = (MODULE / "static" / "src" / "p03_modules_meta.js").read_text(encoding="utf-8")
+        self.assertIn("P03_ROLES", js)
+        expected_roles = [
+            "service_intake", "dispatch_manager", "branch_manager", "workshop_supervisor",
+            "field_technician", "inventory_keeper", "procurement_officer", "finance_officer",
+            "hr_payroll", "quality_auditor", "contact_centre_agent", "account_manager",
+            "marketplace_ops", "rider_logistics", "system_admin"
+        ]
+        for role in expected_roles:
+            self.assertTrue(f"'{role}'" in js or f'"{role}"' in js, f"Role workspace {role} must be defined in P03_ROLES")
+
+    def test_dispatch_map_data_route_defined(self):
+        """PP7: the map endpoint must serve real data ONLY — the synthetic
+        'Seed Dhaka Circle' geofence and jittered technician GPS that this
+        test originally asserted were fabrication defects, removed."""
+        src = (MODULE / "controllers" / "p03_service_order_api.py").read_text(encoding="utf-8")
+        self.assertIn('"/p03/dispatch/map_data"', src)
+        self.assertIn("branches", src)
+        self.assertIn("technicians", src)
+        self.assertNotIn("Seed Dhaka Circle", src)
+        # technician positions come from real attendance GPS only
+        self.assertIn("geo_lat", src)
+
+    def test_consoles_data_route_defined(self):
+        src = (MODULE / "controllers" / "p03_service_order_api.py").read_text(encoding="utf-8")
+        self.assertIn('"/p03/consoles/data"', src)
+        self.assertIn("branch_console", src)
+        self.assertIn("workshop_console", src)
+        self.assertIn("walkin_queue", src)
+        self.assertIn("wip_ageing", src)
+        self.assertIn("bench_board", src)
+        self.assertIn("qc_queue", src)
+
+    def test_workspace_template_contains_all_consoles(self):
+        xml = (MODULE / "static" / "src" / "p03_workspace.xml").read_text(encoding="utf-8")
+        self.assertIn("dispatch_console", xml)
+        self.assertIn("branch_console", xml)
+        self.assertIn("workshop_console", xml)
+        self.assertIn("role-switcher-card", xml)
+        self.assertIn("Live Vector Map", xml)
+
+    def test_advance_stage_route_defined(self):
+        """PP7: ONE strict handler serves both paths — the parallel-session
+        `advance_order_stage` (QC-checklist forgery + direct sudo writes)
+        was removed; this test now asserts it stays gone."""
+        src = (MODULE / "controllers" / "p03_service_order_api.py").read_text(encoding="utf-8")
+        self.assertIn('"/p03/order/advance_stage"', src)
+        self.assertIn('"/p03/service_order/advance"', src)
+        self.assertIn("def advance_stage", src)
+        self.assertNotIn("def advance_order_stage", src)
+        self.assertNotIn("Standard Inspection (Passed)", src)
 
 
 if __name__ == "__main__":

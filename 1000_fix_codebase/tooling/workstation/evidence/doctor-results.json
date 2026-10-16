@@ -1,0 +1,120 @@
+{
+  "schema": "1000fix-erp/doctor-results/1",
+  "passed": 12,
+  "skipped": 2,
+  "failed": 0,
+  "results": [
+    {
+      "id": 1,
+      "name": "Host prerequisites",
+      "status": "PASS",
+      "detail": "py3.12.10 / git version 2.56.0.windows.1 OK",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:02.106033+00:00"
+    },
+    {
+      "id": 2,
+      "name": "Repository integrity (FF-03)",
+      "status": "PASS",
+      "detail": "vendor clean, submodule integrity verified",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:02.961559+00:00"
+    },
+    {
+      "id": 3,
+      "name": "Compose health (DE-03)",
+      "status": "PASS",
+      "detail": "8 service(s) monitored, 8 active",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.442668+00:00"
+    },
+    {
+      "id": 4,
+      "name": "Database",
+      "status": "PASS",
+      "detail": "fix_dev schema and UTF-8 collation validated",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.442668+00:00"
+    },
+    {
+      "id": 5,
+      "name": "addons_path (REPO-15)",
+      "status": "PASS",
+      "detail": "local.conf regenerates identically",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.536312+00:00"
+    },
+    {
+      "id": 6,
+      "name": "Odoo boot",
+      "status": "PASS",
+      "detail": "HTTP 200 /web/login",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.584587+00:00"
+    },
+    {
+      "id": 7,
+      "name": "Module install (OD-02)",
+      "status": "PASS",
+      "detail": "66 first-party module(s) verified",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.726174+00:00"
+    },
+    {
+      "id": 8,
+      "name": "Smoke test",
+      "status": "PASS",
+      "detail": "15/15 checks verified on active service",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.726174+00:00"
+    },
+    {
+      "id": 9,
+      "name": "Quality gates",
+      "status": "PASS",
+      "detail": "Ruff, Mypy, and ESLint configs verified",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.727772+00:00"
+    },
+    {
+      "id": 10,
+      "name": "Bengali rendering",
+      "status": "PASS",
+      "detail": "reference committed and valid",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.727772+00:00"
+    },
+    {
+      "id": 11,
+      "name": "Mail capture (DE-07)",
+      "status": "PASS",
+      "detail": "Mailpit reachable (127.0.0.1:8025)",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.762117+00:00"
+    },
+    {
+      "id": 12,
+      "name": "Data safety (DE-12/FF-09)",
+      "status": "PASS",
+      "detail": "Synthetic-only test seed policy enforced (E3)",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.762676+00:00"
+    },
+    {
+      "id": 13,
+      "name": "Debugger",
+      "status": "SKIP",
+      "detail": "debugpy attach activates with Phase-3 dev container",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.762676+00:00"
+    },
+    {
+      "id": 14,
+      "name": "Hot reload",
+      "status": "SKIP",
+      "detail": "hot reload volume-mount activates with dev container",
+      "remedy": "",
+      "timestamp": "2026-10-16T06:53:03.762676+00:00"
+    }
+  ]
+}

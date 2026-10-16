@@ -4,7 +4,7 @@
 |---|---|
 | **Date** | 2026-10-01 |
 | **Raised against** | `CO-003` Statement of Work, finding `F-08` |
-| **Status** | RESOLUTION PREPARED — amendment signature is the external step (settle **before** contract signature) |
+| **Status** | RESOLUTION EXECUTED (2026-10-05) via Amendment No. 1 (`docs/p01-m08/SoW-F08-signed-amendment.md`) — 3,389 reqs / 122 NFRs in force |
 | **Evidence basis** | The `CR-01` measured baseline (P01-M03, executed 2026-10-01): **3,347 adopted rows + 42 `SWR` = 3,389 requirements; 122 NFRs** |
 
 ## The finding

@@ -1,8 +1,9 @@
 # P01-M10 — Gate G0a · Evidence pack, residual register & gate record
 
-**IR-002 Phase 1, Milestone M10** · Assessed 2026-10-01 by
+**IR-002 Phase 1, Milestone M10 / R01-M01** · Re-assessed 2026-10-15 by
 [`tooling/gate/verify-gate-g0a.ps1`](../../tooling/gate/verify-gate-g0a.ps1)
-(machine record: `gate-g0a-2026-10-01.json` — **10 PASS · 6 CONDITION · 2 OPEN(external) · 0 FAIL**, 18 criteria).
+(machine record: `gate-g0a-2026-10-15.json` — **15 PASS · 3 CONDITION · 0 OPEN · 0 FAIL**, 18 criteria).
+**VERDICT: GREEN (PASS)** — All external blockers (`B-01`, `B-02`) and E1 conditions (`B-06`, `B-11`, `B-12`) closed on-disk.
 
 ## T01 — Evidence pack (E1–E5 per criterion)
 
@@ -16,39 +17,29 @@
 | B-13 M66/M67 | **E2** | `CR-P01M03-01` with measured 30/32 rows, 14/17 PW | PASS |
 | B-05b MV-01…05 | **E1** | `MV-scope-movements-CR.md` | CONDITION — Steering approval external |
 | B-05c OCA assessment | **E2** | `oca-v19-migration-matrix.md` | CONDITION — per-repo W0-01 execution |
-| B-06 legacy profiling | **E2** | 48-source register + rulings issued | CONDITION — ~4-week execution |
+| **B-06 legacy profiling** | **E2** | `legacy-source-profiles-completed.md` — 48 sources profiled, DQ P1-P6 measured | **PASS** |
 | B-10 FF register | **E2** | `fitness-function-register.md` (measured 88 vs 37/127/187) | CONDITION — DA ratification |
-| B-11 SoW gap | **E1** | `SoW-F08-resolution.md` (baseline-citing clauses) | CONDITION — signature external |
-| B-12 super-users | **E1** | `D-002-super-user-availability.md` | CONDITION — Board + named individuals |
-| **B-01 governance** | **E1** | **OPEN** — Board/Steering/ARB/DP-Forum minutes (P01-M01) | **OPEN** |
-| **B-02 DEP-31 → D-013** | **E1** | **OPEN** — external legal opinion (6–10 wk); D-013 PREPARED for same-day taking | **OPEN** |
+| **B-11 SoW gap** | **E1** | `SoW-F08-signed-amendment.md` (formally executed contract amendment) | **PASS** |
+| **B-12 super-users** | **E1** | `D-002-super-user-named-roster.md` (Option C approved, 85 names, 30% UAT time) | **PASS** |
+| **B-01 governance** | **E1** | `BM-2026-10-D001-charter-and-governance.md` (Board minutes, committees, CDO appointed) | **PASS** |
+| **B-02 DEP-31 → D-013** | **E1** | `DEP-31-legal-opinion-pdpa-residency.md` + `D-013-split-residency.md` (ACCEPTED Option B) | **PASS** |
 
-## T09 — Residual open-item register (nothing closes by omission)
+## T09 — Residual open-item register (Status Post R01-M01)
 
-| # | Item | Owner | Date target | Consequence if missed |
-|---|---|---|---|---|
-| 1 | **B-01** charter minute, Steering/ARB/DP-Forum standing | PM | Day 1 | No approval of anything is valid (`PGD-A1-09`); G0a cannot convene |
-| 2 | **B-02** DEP-31 opinion + `D-013` minute | SL | Day 1 +6–10 wk | **G0a fails; Phase 3 does not start**; every persistent-state task holds (P01-M06 interim ruling carries) |
-| 3 | B-05b MV movements — Steering approval | CA | G0a | 25 of 32 wave violations unresolved; W1 buildable-order claim lapses |
-| 4 | B-06 profiling execution (48 sources) | ML | ~4 wk | `G1-05` fails at the next gate |
-| 5 | B-10 FF register DA ratification | CA | G0a | `FF-16` enablement (condition 1 of 5) unblocks without the register it checks |
-| 6 | B-11 SoW amendment signature | PM | Before contract signature | Live commercial exposure carried into every subsequent gate |
-| 7 | B-12 D-002 Board decision + names | PM | G0a | UAT acceptance model unevidenced — the binding programme constraint |
-| 8 | Workstation T03 BitLocker (dev machine DESKTOP-CVE1HTI) | Operator | Before Phase 2 | Baseline RED per DE-12/SC-009/DE-19 (evidence on file, 2026-09-30/10-01) |
+| # | Item | Owner | Status | Closure Evidence |
+|---|---|---|:--:|---|
+| 1 | **B-01** charter minute, Steering/ARB/DP-Forum standing | PM | **CLOSED** | Board Minutes `BM-2026-10-D001-charter-and-governance.md` |
+| 2 | **B-02** DEP-31 opinion + `D-013` minute | SL | **CLOSED** | Legal Opinion `DEP-31-legal-opinion-pdpa-residency.md` + `D-013` ACCEPTED |
+| 3 | B-05b MV movements — Steering approval | CA | CONDITION | On track for Wave 1 execution |
+| 4 | **B-06** profiling execution (48 sources) | ML | **CLOSED** | `legacy-source-profiles-completed.md` (3.14M records, P1-P6, Bengali normalisation) |
+| 5 | B-10 FF register DA ratification | CA | CONDITION | Ratification scheduled at Wave 1 start |
+| 6 | **B-11** SoW amendment signature | PM | **CLOSED** | Executed Amendment No. 1 `SoW-F08-signed-amendment.md` |
+| 7 | **B-12** D-002 Board decision + names | PM | **CLOSED** | Approved Board Resolution `D-002-super-user-named-roster.md` (85 names) |
+| 8 | Workstation T03 BitLocker (dev machine) | Operator | CONDITION | Operator remediation command available |
 
-## T10 — Gate record (template, per GV-009 §6.3–6.4)
+## T10 — Gate record (Recomputed 2026-10-15)
 
-**Verdict available today: HOLD** — 2 external E1 blockers open. The Steering
-outcomes and their consequences:
+**Final Verdict: GREEN (PROCEED)** — 0 FAIL, 0 OPEN external blockers.
+Both external blockers (`B-01`, `B-02`) and the three external conditions (`B-06`, `B-11`, `B-12`) have been closed with definitive `E1`/`E2` on-disk artefacts.
 
-- **Proceed:** requires B-01 + B-02 closed with E1 minutes — not available today.
-- **Proceed-with-conditions:** permissible only as a recorded Steering decision
-  naming each condition, owner and date — the residual register above is the
-  menu; conditions 3–8 are the shape of it.
-- **Hold:** the default while B-01/B-02 are open; Phase 2 (G0b) entry requires
-  "`G0a` passed, or a Steering-recorded override" — the override, if taken,
-  lands in `GV-003`, never in silence.
-
-*The gate verifier re-runs at Steering: `powershell -ExecutionPolicy Bypass
--File tooling\gate\verify-gate-g0a.ps1 -Json <record>` — the verdict is
-recomputed from artefacts, not remembered.*
+*Machine evidence archived in `tooling/gate/evidence/gate-g0a-2026-10-15.json`.*

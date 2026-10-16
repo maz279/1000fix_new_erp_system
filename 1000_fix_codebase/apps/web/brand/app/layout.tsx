@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Warranty claim submission status, decisions and remittance reconciliation per brand (P08).",
 };
 
+// PP7-M03: nonce-CSP (proxy.ts) requires per-request rendering — a
+// statically prerendered shell would carry no nonce and strict-dynamic
+// would block every chunk at runtime.
+export const dynamic = "force-dynamic";
+
 /** The P08 brand shell — per-brand isolation starts here: every request
  * this app makes carries brand_id (the server refuses unscoped reads). */
 export default function RootLayout({ children }: { children: React.ReactNode }) {

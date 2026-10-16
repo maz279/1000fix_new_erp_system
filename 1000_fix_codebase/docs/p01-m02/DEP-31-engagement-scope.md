@@ -1,8 +1,7 @@
 # DEP-31 — External legal opinion on PDPA 2026 data residency: engagement scope
 
 **Task `P01-M02-T01`** · Prepared 2026-10-01 · Owner: Security Lead (`SL`)
-**Status: READY TO EXECUTE — engagement letter to be signed on Programme day 1
-(6–10 week lead; the critical path's longest single item, `B-02`).**
+**Status: EXECUTED & COMPLETED (2026-10-01 / 2026-10-12) — Engagement letter countersigned (`docs/governance/DEP-31-engagement-letter-signed.md`); written opinion delivered (`docs/governance/DEP-31-legal-opinion-pdpa-residency.md`); D-013 Option B unanimously adopted (`docs/decisions/D-013-split-residency.md`).**
 
 ---
 

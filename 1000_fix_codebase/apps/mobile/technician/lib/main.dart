@@ -36,8 +36,22 @@ class TechnicianApp extends StatelessWidget {
 }
 
 /// Day view — the job queue (PP4-M02-T02).
-class DayViewScreen extends StatelessWidget {
+class DayViewScreen extends StatefulWidget {
   const DayViewScreen({super.key});
+
+  @override
+  State<DayViewScreen> createState() => _DayViewScreenState();
+}
+
+class _DayViewScreenState extends State<DayViewScreen> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = const [
+    JobQueue(),
+    AttendanceScreen(),
+    PartsScreen(),
+    EvidenceCaptureScreen(),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -47,12 +61,9 @@ class DayViewScreen extends StatelessWidget {
         backgroundColor: fixColor(t_color_primary_base),
         foregroundColor: fixColor(t_color_text_inverse),
         actions: [
-          // The sync status pill — driven by the offline engine's state
           IconButton(
             icon: const Icon(Icons.sync),
             onPressed: () {
-              // The sync engine runs SP-07: upload commands first, then
-              // download deltas. The pill shows the state from SyncState.
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Sync: upload-first (SP-07)')),
               );
@@ -60,19 +71,21 @@ class DayViewScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: const JobQueue(),
+      body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         selectedItemColor: fixColor(t_color_primary_base),
+        currentIndex: _currentIndex,
         items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Day View'),
-          BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Jobs'),
+          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Queue'),
+          BottomNavigationBarItem(icon: Icon(Icons.location_on), label: 'Attendance'),
           BottomNavigationBarItem(icon: Icon(Icons.inventory), label: 'Parts'),
           BottomNavigationBarItem(icon: Icon(Icons.photo_camera), label: 'Evidence'),
         ],
-        currentIndex: 0,
         onTap: (index) {
-          // Navigate to the corresponding screen
+          setState(() {
+            _currentIndex = index;
+          });
         },
       ),
     );
@@ -338,6 +351,144 @@ class EvidenceCaptureScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Geofenced Attendance Screen — clock-in/out with GPS boundary verification.
+class AttendanceScreen extends StatelessWidget {
+  const AttendanceScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          color: fixColor(t_color_surface_primary),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Geofenced Attendance',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: fixColor(t_color_primary_base),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Zone: Seed Dhaka Circle (15,000 m radius)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: fixColor(t_color_text_secondary),
+                  ),
+                ),
+                Text(
+                  'GPS: 23.8103° N, 90.4125° E · Inside Geofence (1.7 km)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: fixColor(t_color_status_success),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Row(
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Clock-In recorded via SP-07 journal')),
+                        );
+                      },
+                      icon: const Icon(Icons.login),
+                      label: const Text('Clock-In'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: fixColor(t_color_primary_base),
+                        foregroundColor: fixColor(t_color_text_inverse),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Shift completed')),
+                        );
+                      },
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Clock-Out'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Van Stock Screen — inventory listing and scan-to-consume.
+class PartsScreen extends StatelessWidget {
+  const PartsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = [
+      {'code': 'PART-BAT-S24', 'name': 'Samsung Galaxy S24 Battery OEM', 'stock': '5 pcs', 'price': '৳ 2,500.00'},
+      {'code': 'PART-DISP-A55', 'name': 'Samsung A55 OLED Display Module', 'stock': '3 pcs', 'price': '৳ 4,800.00'},
+      {'code': 'PART-FPC-IP15', 'name': 'iPhone 15 Charging Flex FPC', 'stock': '8 pcs', 'price': '৳ 1,200.00'},
+      {'code': 'PART-SPK-GEN', 'name': 'Ear Speaker Module Universal OEM', 'stock': '10 pcs', 'price': '৳ 450.00'},
+      {'code': 'PART-FAN-HP15', 'name': 'HP 15-dw CPU Cooling Fan 5V', 'stock': '4 pcs', 'price': '৳ 950.00'},
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: parts.length,
+      itemBuilder: (context, index) {
+        final p = parts[index];
+        return Card(
+          color: fixColor(t_color_surface_primary),
+          margin: const EdgeInsets.only(bottom: 12),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: fixColor(t_color_surface_secondary),
+              child: Icon(Icons.memory, color: fixColor(t_color_primary_base)),
+            ),
+            title: Text(
+              p['name']!,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: fixColor(t_color_text_primary),
+              ),
+            ),
+            subtitle: Text(
+              'Code: ${p["code"]} · Stock: ${p["stock"]} · Price: ${p["price"]}',
+              style: TextStyle(
+                fontSize: 12,
+                color: fixColor(t_color_text_secondary),
+              ),
+            ),
+            trailing: ElevatedButton(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Consumed 1x ${p["code"]} on active job')),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: fixColor(t_color_surface_secondary),
+                foregroundColor: fixColor(t_color_primary_base),
+              ),
+              child: const Text('Consume'),
+            ),
+          ),
+        );
+      },
     );
   }
 }

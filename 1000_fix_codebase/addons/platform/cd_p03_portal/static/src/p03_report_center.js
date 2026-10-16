@@ -7,13 +7,14 @@
  * to its module's existing QWeb report actions; reports without an
  * Odoo action yet are marked unbacked (the coverage ledger tracks them).
  */
-import { registry } from "@core/registry";
-import { useService } from "@core/utils";
+import { registry } from "@web/core/registry";
+import { useService } from "@web/core/utils/hooks";
+import { rpc } from "@web/core/network/rpc";
 import { Component, onWillStart, useState } from "@odoo/owl";
 
 export class P03ReportCenter extends Component {
     setup() {
-        this.rpc = useService("rpc");
+        this.rpc = rpc;
         this.action = useService("action");
         this.state = useState({
             registry: null,
@@ -23,6 +24,14 @@ export class P03ReportCenter extends Component {
         onWillStart(async () => {
             this.state.registry = await this.rpc("/p03/registry", {});
         });
+    }
+
+    onSearchInput(ev) {
+        this.state.query = ev.target.value;
+    }
+
+    onAreaChange(ev) {
+        this.state.areaFilter = ev.target.value;
     }
 
     get modulesWithReports() {

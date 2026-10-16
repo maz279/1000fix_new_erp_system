@@ -42,10 +42,13 @@ or **[TARGET]** is optional/unratified — see [`AUDIT_REPORT.md`](AUDIT_REPORT.
 
 - Prototype scope: 823 screens · 346 reports · 266 forms · 5,100 functions · 67 modules ·
   12 areas · 12 portals · 10 journeys · 4 personas · 8,566 verified routes
-- Production today: backend 100% (64 modules, 123 models, 725 tests, all gates green);
-  foundation 100% (PP0 complete: Service-Teal 231 tokens, i18n 493 keys with 0 pending,
-  nav registry active + FF-38 enforced, component contract +13 archetypes/+8 charts);
-  frontend portals 0% (empty `apps/`) — **that is what PP1 starts**
+- Production state (audit-verified 2026-10-14): all 8 phases PP0–PP7 executed; 8 web
+  portals live (202–250 KB gz vs the 400 KB contract) with nonce-CSP + HSTS; P03
+  workspace wired to the live backend; 12 portal surfaces in place (4 Flutter apps
+  structurally validated — device compile/E2E awaits an SDK machine); **Gate GP:
+  9 PASS / 3 CONDITION / 0 FAIL** (the 3 conditions are deployment-side: staging
+  OTel round-trip, migration rehearsal at volume, promote drill). The 754-screen
+  per-action data burn-down continues phase-by-phase per the coverage ledger.
 - Porting phases: 8 (PP0–PP7), dependency-ordered, each gated by the full existing
   battery + new GP criteria
 
@@ -60,4 +63,4 @@ or **[TARGET]** is optional/unratified — see [`AUDIT_REPORT.md`](AUDIT_REPORT.
 | PP4 Flutter apps | **COMPLETE** (2026-10-06 — `fix_offline` engine per AR-010: SP-07 upload-first sync, DI-05 idempotency, SP-09 deferred evidence, §6 two-state conflict disclosure; 4 apps: P02 technician (diagnostic tree/fault coding), P09 rider (custody chain), P11 auditor (8-item ISO checklist), APP-04 customer (Bengali-first); FF-41/FF-42 blocking; deep-audit fixes ee190f620d. Honest note: no Dart SDK on the build machine — structural validation only, first SDK run must `flutter analyze` + device-lab E2E) | PP5 (Next.js portal batch) |
 | PP5 Next.js portal batch | **COMPLETE + LIVE-VERIFIED** (2026-10-06 — 7 portals: P01 customer (Bengali-first, 7 routes, ~154-177KB gz), P05 vendor (new app), P06 analytics (config-only BI embed), P07 seller, P08 brand (brand_id isolation), P10 agent console (queue+360+softphone seam), P12 partner; 7 API controllers + NEW cd_customer_portal; OpenAPI 29 paths; FF-43 blocking parity gate; shared landing shell. Deep audit: all 25 routes LIVE-FIRED on fix_dev (45/45 positive+negative), 4 bugs fixed (invoice OU, None-default trap, brand kwargs collision, Decimal model bug), SSR visual 38/38 + CFM-01 hex-proof; 646 tests) | PP6 (data strategy execution) |
 | PP6 Data strategy execution | **COMPLETE** (2026-10-06 — the three data classes machine-enforced: FF-44 demo-literals gate (estate swept clean + Odoo demo-data policy), FF-45 data-shape parity (14 grids column-complete) + §7 statutory masks in libs (BIN/NID/e-TIN, no invented checksums) + bn007, FF-39 extended with a client money-arithmetic guard, seed double-run refusal in smoke (exit 2 verified), migration-staging profile + MIG-02 mig-totals verifier + MG-004 rehearsal record. 646 tests · fitness FF-38..45 green · smoke 15/15 · 7/7 builds) | PP7 (hardening + Gate GP) |
-| PP7 Hardening + Gate GP | planned | last |
+| PP7 Hardening + Gate GP | **COMPLETE** (2026-10-13 — nonce-CSP/HSTS on all 8 portals + Kong response policy; J01–J10 journey E2E 10/10 ×3 runs zero flakiness; WCAG 2.2 AA gatekeeper 25/25 routes 0 serious/critical; budgets 8/8 ≤250 KB gz; OTLP-shaped RUM seam (inert-by-default); Gate GP verifier 9 PASS / 3 CONDITION / 0 FAIL. Found+fixed en route: JSX-runtime void-0 hydration bug (7 apps), 63-of-67 registry title drift, parallel-session QC-forgery handler + fake GPS/Twilio remnants. See ITERATIONS.md PP7 record) | 3 deployment-side conditions (staging OTel round-trip; migration rehearsal; promote drill) + Flutter SDK compile pass |

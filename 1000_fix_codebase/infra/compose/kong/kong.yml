@@ -34,6 +34,7 @@ services:
           - "/partner"
           - "/seller"
           - "/corporate"
+          - "/technician"
           - "/web/session"
 
 plugins:
@@ -85,3 +86,20 @@ plugins:
     config:
       minute: 300
       policy: local
+  # PP7-M03 (D17): transport-security headers on every gateway response —
+  # the TLS-terminating edge is where HSTS/preload and
+  # upgrade-insecure-requests belong (the portal serves add their own CSP
+  # with per-request nonces; API responses get the transport headers here).
+  - name: response-transformer
+    config:
+      add:
+        headers:
+          - "Strict-Transport-Security: max-age=63072000; includeSubDomains; preload"
+          - "X-Content-Type-Options: nosniff"
+          - "X-Frame-Options: DENY"
+          - "Referrer-Policy: strict-origin-when-cross-origin"
+          - "Cache-Control: no-store"
+      remove:
+        headers:
+          - "X-Powered-By"
+          - "Server"

@@ -15,3 +15,5 @@ export {
   isValidId, maskId, bn007, BIN_13, NID_10, NID_17, ETIN_12,
 } from "../../../../libs/ts/ui/src/masks";
 export type { StatutoryId } from "../../../../libs/ts/ui/src/masks";
+// PP7-M04: the RUM/OTel seam (inert without NEXT_PUBLIC_OTEL_ENDPOINT).
+export { installRum } from "../../../../libs/ts/ui/src/observability";

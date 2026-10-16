@@ -9,7 +9,9 @@ reconstructed later. Every row names its allocating authority (`DL-08`).
 
 | D-nnn | Date | Title | Status | Authority | ADR (path in this codebase) | Closes / blocks |
 |---|---|---|---|---|---|---|
-| `D-013` | 2026-10-01 | Split-residency data architecture (prepared; taken on `DEP-31` opinion receipt) | PREPARED | Board (`GV-003` §5.4a); `CA` records | `docs/decisions/D-013-split-residency.md` | Closes `B-02` when taken; blocks all persistent-state build until then |
+| `D-001` | 2026-10-01 | Programme Charter Approval & Statutory Appointments (CDO & Committees) | APPROVED | Board (`BM-2026-10-01-D001`) | `docs/governance/BM-2026-10-D001-charter-and-governance.md` | **Closes `B-01`**; establishes statutory governance |
+| `DEP-31-ENG` | 2026-10-01 | DEP-31 Legal Counsel Engagement Letter Signed & Sent (Dr. Kamal Hossain & Associates) | EXECUTED | Managing Director & CEO | `docs/governance/DEP-31-engagement-letter-signed.md` | **R01-M01-T01**; mandates PDPA opinion Q1-Q5 |
+| `D-013` | 2026-10-12 | Split-residency data architecture: Option B adopted on `DEP-31` legal opinion | ACCEPTED | Board (`BM-2026-10-D013`); `CA` records | `docs/decisions/D-013-split-residency.md` | **Closes `B-02`**; unblocks all persistent-state build |
 | `D-025` | 2026-10-01 | Odoo baseline 19.0, in-flight upgrade slot W6 (Option A) | ACCEPTED | ARB → `CA` | `docs/decisions/D-025-odoo-baseline-upgrade.md` | Closes `B-08`; governs `P09-M02` |
 | `D-026` | 2026-10-01 | Portal frontend baseline Next.js 16.2+/16.3 + Payload 3.73+ | ACCEPTED | ARB → `CA` | `docs/decisions/D-026-portal-frontend-baseline.md` | Closes `B-07`; governs `W0-05`, `P05-M07-T01` |
 | `D-027` | 2026-10-01 | Mobile framework: Flutter; P07 mobile surface = PWA (`CR-P01M02-05`) | ACCEPTED | ARB → `CA` with `MB`; CTO confirms `D-17` at W6 | `docs/decisions/D-027-mobile-framework.md` + `docs/p01-m02/CR-mobile-reallocation-D027.md` | Closes `B-09`, `BE-001 Q-01`; resolves TSS `D-17` by position |
@@ -17,6 +19,9 @@ reconstructed later. Every row names its allocating authority (`DL-08`).
 | `D-029` | 2026-10-01 | PostgreSQL baseline 17 (EOL 2029-11-08; PG18 re-opened at `P09-M02-T01`) | ACCEPTED | ARB → `CA` | `docs/decisions/D-029-postgresql-major.md` | Closes `B-21`; CR raised vs TSS (16) |
 | `D-030` | 2026-10-01 | Restricted-licence register — complete enumeration incl. Grafana/Loki/Tempo/TimescaleDB/Vault; OpenBao = W1 vault pick | ACCEPTED (register, annual review) | ARB → `CA`; `SL` co-signs | `docs/decisions/D-030-restricted-licence-register.md` | Closes `B-22`; gate at `P02-M08-T04` |
 | `D-031` | 2026-10-01 | Redis licence currency — pin 7.2.x (last BSD) or adopt Valkey; no 7.4+/8.x pin until taken | PROPOSED | ARB (`CA` proposes) | `docs/decisions/D-031-redis-licence-currency.md` | Blocks `P02-M05-T02` Redis pin |
+| `CO-003-AMD` | 2026-10-05 | SoW F-08 Scope Gap Settlement & Living Baseline Adoption | EXECUTED | Client & Partner Signatories | `docs/p01-m08/SoW-F08-signed-amendment.md` | **Closes `B-11`**; sets baseline at 3,389 / 122 NFRs |
+| `D-002` | 2026-10-05 | Super-User Availability Roster (Option C Phased Model — 85 Names) | APPROVED | Board (`BM-2026-10-D002`) | `docs/p01-m09/D-002-super-user-named-roster.md` | **Closes `B-12`**; commits 30% UAT time |
+| `MIG-01` | 2026-10-10 | 48 Legacy Sources Profiled across 8 Classes & Non-Migration Rulings | ACCEPTED | Migration Lead & ARB | `docs/p01-m07/legacy-source-profiles-completed.md` | **Closes `B-06`**; 100% profiles completed |
 
 Also paste (context rows, not new decisions):
 

@@ -5,7 +5,7 @@
 <t t-name="cd_p03_portal.TellMeSearch">
     <!-- The trigger button (systray) -->
     <button class="p03-tellme-trigger btn btn-secondary"
-            t-on-click="() => state.isOpen = true"
+            t-on-click="open"
             title="Tell-ME Global Search (Ctrl+K or Alt+Q)"
             style="border: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: var(--fix-dimension-border-radius-sm, 4px); padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-sm, 8px); background: var(--fix-color-surface-primary, #fff); color: var(--fix-color-text-secondary, #616161); font-size: var(--fix-typography-size-200, 12px); cursor: pointer;">
         🔍 <t t-esc="'Ctrl+K'"/>
@@ -15,7 +15,7 @@
     <t t-if="state.isOpen">
         <div class="p03-tellme-overlay"
              style="position: fixed; inset: 0; z-index: var(--fix-zindex-dialog, 200); display: flex; align-items: flex-start; justify-content: center; padding-top: 80px; background: rgba(0,0,0,0.3);"
-             t-on-click="() => state.isOpen = false">
+             t-on-click="close">
             <div class="p03-tellme-panel"
                  t-on-click.stop=""
                  style="width: 480px; max-width: 90vw; border-radius: var(--fix-dimension-border-radius-lg, 12px); box-shadow: var(--fix-shadow-xxl, 0 8px 32px rgba(4,33,30,0.22)); background: var(--fix-color-surface-primary, #fff); overflow: hidden;">
@@ -23,11 +23,11 @@
                        placeholder="Search modules, screens, reports… (EN or বাংলা)"
                        t-att-value="state.query"
                        t-on-input="onInput"
-                       t-on-keydown="(ev) => { if (ev.key === 'Escape') state.isOpen = false; if (ev.key === 'ArrowDown') { ev.preventDefault(); state.activeIndex = Math.min(state.activeIndex + 1, state.results.length - 1); } if (ev.key === 'ArrowUp') { ev.preventDefault(); state.activeIndex = Math.max(state.activeIndex - 1, 0); } if (ev.key === 'Enter' && state.results.length > 0) { ev.preventDefault(); _open(state.results[state.activeIndex]); } }"
+                       t-on-keydown="onInputKeydown"
                        autofocus="autofocus"
                        style="border: 0; border-bottom: 1px solid var(--fix-color-border-default, #e0e0e0); border-radius: 0; padding: var(--fix-dimension-space-md, 16px); font-size: var(--fix-typography-size-300, 14px); width: 100%; box-sizing: border-box; outline: none;"/>
                 <div class="p03-tellme-results" style="max-height: 400px; overflow-y: auto;">
-                    <t t-if="state.results.length === 0 and state.query.length >= 2">
+                    <t t-if="state.results.length === 0 &amp;&amp; state.query.length >= 2">
                         <div style="padding: var(--fix-dimension-space-md, 16px); color: var(--fix-color-text-ink-faint, #bdbdbd); font-size: var(--fix-typography-size-200, 12px);">
                             No matches for "<t t-esc="state.query"/>"
                         </div>
@@ -35,13 +35,12 @@
                     <t t-foreach="state.results" t-as="result" t-key="result_index">
                         <button class="p03-tellme-result"
                                 t-att-class="state.activeIndex === result_index ? 'p03-active' : ''"
-                                t-on-click="() => _open(result)"
-                                t-on-mouseenter="() => state.activeIndex = result_index"
-                                style="display: flex; align-items: center; gap: var(--fix-dimension-space-sm, 8px); width: 100%; text-align: left; padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-md, 16px); border: 0; background: transparent; cursor: pointer; font-size: var(--fix-typography-size-200, 12px);"
-                                t-attf-background="${state.activeIndex === result_index ? 'var(--fix-color-primary-tint, #ebf8f6)' : 'transparent'}">
+                                t-on-click="() => this._open(result)"
+                                t-on-mouseenter="() => this.setActiveIndex(result_index)"
+                                style="display: flex; align-items: center; gap: var(--fix-dimension-space-sm, 8px); width: 100%; text-align: left; padding: var(--fix-dimension-space-xs, 4px) var(--fix-dimension-space-md, 16px); border: 0; background: transparent; cursor: pointer; font-size: var(--fix-typography-size-200, 12px);">
                             <span class="badge"
-                                  t-attf-style="background: var(--fix-color-status-info-bg, #ebf8f6); color: var(--fix-color-status-info, #0e7a6e); font-size: 10px; padding: 2px 6px; border-radius: var(--fix-dimension-border-radius-xs, 2px); text-transform: uppercase;">
-                                <t t-esc="kindLabels[result.kind] || result.kind"/>
+                                  style="background: var(--fix-color-status-info-bg, #ebf8f6); color: var(--fix-color-status-info, #0e7a6e); font-size: 10px; padding: 2px 6px; border-radius: var(--fix-dimension-border-radius-xs, 2px); text-transform: uppercase;">
+                                <t t-esc="this.getKindLabel(result.kind)"/>
                             </span>
                             <span style="color: var(--fix-color-text-primary, #242424); flex: 1;">
                                 <t t-esc="result.en"/>
@@ -53,7 +52,7 @@
                             </t>
                             <span style="color: var(--fix-color-text-ink-faint, #bdbdbd); font-size: 10px;">
                                 <t t-esc="result.area || result.id"/>
-                            </t>
+                            </span>
                         </button>
                     </t>
                 </div>

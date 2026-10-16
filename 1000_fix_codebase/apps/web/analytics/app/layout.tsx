@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "Executive, branch, technician, finance and warranty dashboards — embedded BI, no data in the portal layer (P06).",
 };
 
+// PP7-M03: nonce-CSP (proxy.ts) requires per-request rendering — a
+// statically prerendered shell would carry no nonce and strict-dynamic
+// would block every chunk at runtime.
+export const dynamic = "force-dynamic";
+
 /** The P06 analytics shell — generated tokens only (CFM-01). */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

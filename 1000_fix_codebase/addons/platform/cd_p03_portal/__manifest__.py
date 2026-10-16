@@ -24,6 +24,7 @@
         "views/p03_menus.xml",
         "views/p03_actions.xml",
         "views/p03_service_order_details.xml",
+        "views/p03_login_templates.xml",
     ],
     "assets": {
         "web.assets_backend": [
@@ -31,7 +32,7 @@
         ],
     },
     "installable": True,
-    "application": False,
+    "application": True,
     "x_cd_id": "CD-P03-01",
     "x_module_id": "P03",
     "x_wave": "PP2",

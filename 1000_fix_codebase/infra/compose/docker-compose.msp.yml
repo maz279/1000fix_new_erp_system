@@ -5,7 +5,7 @@
 
 services:
   meshcentral:
-    image: ylianyona/meshcentral@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: ylianyona/meshcentral@sha256:9ea262ff902fa18fcca8688af4c7fe62988254f5cf08f273193bec6b4cf626be
     profiles: ["msp"]
     environment:
       USE_MONGODB: "false"
@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
 
   wazuh-manager:
-    image: wazuh/wazuh-manager@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: wazuh/wazuh-manager@sha256:238c2f30c4a677e57467eaac5794be579d3ca6a58e4fc7dd54d470bce267f4c0
     profiles: ["msp"]
     ports:
       - "127.0.0.1:1514:1514"
@@ -23,7 +23,7 @@ services:
     restart: unless-stopped
 
   mayan-edms:
-    image: mayanedms/mayanedms@sha256:PLACEHOLDER-RESOLVE-AT-FIRST-PULL
+    image: mayanedms/mayanedms@sha256:03f7f43a686433e7dfc1151c3df37d8c376149e59b026008a5e846e578f03747
     profiles: ["msp"]
     environment:
       MAYAN_DATABASES: "default|postgres://fix:${POSTGRES_PASSWORD}@postgres:5432/mayan"

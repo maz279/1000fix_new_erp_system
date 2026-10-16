@@ -2,8 +2,7 @@
 
 > **Audit Date:** 2026-09-30
 > **Auditor:** Antigravity Comprehensive Audit Pipeline (3 specialist streams: Architecture, Delivery Waves, Data/PDPA)
-> **Subject:** `IR-002_Final_Production_Implementation_Roadmap.md` — produced by programmatic update of `IR-001` via `update_roadmap.py`
-> **Verdict:** **35 findings. 12 Critical, 14 High, 9 Medium.**
+> **Verdict:** **28 initial findings (8 Critical, 11 High, 9 Medium) + 9 follow-up findings (FU-01…FU-09) = 37 total findings. All remediated.** *(Reconciled per Audit D-4: prior provisional header count of 35 reconciled to the exact 28 numbered initial findings F-01…F-28)*
 
 ---
 
@@ -84,11 +83,15 @@ Findings are cross-referenced against the original `IR-001` (gold standard, 4,36
 
 | Severity | Count | Status |
 |:--:|:--:|:--:|
-| **CRITICAL** | 12 | ✅ **ALL REMEDIATED** |
-| **HIGH** | 14 | ✅ **ALL REMEDIATED** |
+| **CRITICAL** | 8 | ✅ **ALL REMEDIATED** |
+| **HIGH** | 11 | ✅ **ALL REMEDIATED** |
 | **MEDIUM** | 9 | ✅ **ALL REMEDIATED** |
-| **Total** | **35** | **✅ ALL 35 FINDINGS SURGICALLY CORRECTED IN IR-002** |
+| **Initial Register Total** | **28** | **✅ ALL 28 FINDINGS (F-01…F-28) SURGICALLY CORRECTED IN IR-002** |
+| **Follow-up Findings (FU-01…FU-09)** | **9** | **✅ ALL 9 RESIDUAL FINDINGS REMEDIATED** |
+| **Reconciled Grand Total** | **37** | **✅ ALL 37 FINDINGS REMEDIATED AND VERIFIED** |
 
+> **Audit Count Reconciliation (Audit D-4 / Milestone R01-M02-T05):**
+> The earlier provisional summary stated "35 findings (12 Critical, 14 High, 9 Medium)". Verification of the finding register shows exactly 28 numbered findings in the initial audit (F-01 through F-28: 8 Critical, 11 High, 9 Medium) plus 9 residual findings from the second pass (FU-01 through FU-09), totaling 37 findings, all remediated.
 > **Remediation Date:** 2026-09-30
 > **Remediation Method:** Manual surgical edits applied directly to `IR-002_Final_Production_Implementation_Roadmap.md` using line-precise content replacement. Each edit was verified against the original `IR-001` gold standard to ensure historical context, factual accuracy, and structural integrity were restored.
 
@@ -114,8 +117,8 @@ Findings are cross-referenced against the original `IR-001` (gold standard, 4,36
 | **FU-08** | `P09-M02-T01` (live task) + App. I `IRB-04` | "PG17 reaches EOL 8 Nov 2029 … roughly **month 25**, inside this wave" — month 25 (Nov 2028) is **PG16's** EOL arithmetic; 8 Nov 2029 from a Q4-2026 kickoff is month **37**, i.e. after Wave 6 (months 23–26) but inside the Month 42 benefits window. | Both rows corrected to month 37 with the wave/benefits-window framing |
 | **FU-09** | Revision History 1.2 + `P01-M02-T10` | "MinIO archived 25 Apr 2026 **(thus replaced by Ceph Object Storage)**" — the same "thus" incoherence as F-19. | Reworded to "replaced by Ceph Object Storage under `D-028`" |
 
-**Follow-up verdict:** the claim "ALL 35 REMEDIATED" was accurate for the live
-sections only; with FU-01…FU-09 remediated, the residual class is closed.
+**Follow-up verdict:** the initial claim "ALL 28 REMEDIATED" (rectifying the provisional "35" claim) was accurate for the live
+sections only; with FU-01…FU-09 remediated, the entire set of 37 findings is closed.
 Verification: `grep` for `ceph/ceph` returns **zero** matches (the archival
 narrative now names `minio/minio` everywhere it should); no `:latest` pins;
 Appendix I is internally coherent with §0.7.3. A further audit of the fixes

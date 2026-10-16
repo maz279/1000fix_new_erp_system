@@ -7,13 +7,14 @@
  * in EN and বাংলা via /p03/tellme, and navigates with ↑/↓/Enter.
  * Keyboard-first per the prototype's defect-#10 lesson.
  */
-import { registry } from "@core/registry";
-import { useService } from "@core/utils";
+import { registry } from "@web/core/registry";
+import { useService } from "@web/core/utils/hooks";
+import { rpc } from "@web/core/network/rpc";
 import { Component, onMounted, onWillUnmount, useState } from "@odoo/owl";
 
 export class TellMeSearch extends Component {
     setup() {
-        this.rpc = useService("rpc");
+        this.rpc = rpc;
         this.action = useService("action");
         this.state = useState({
             query: "",
@@ -24,6 +25,30 @@ export class TellMeSearch extends Component {
         this._boundKeydown = this._onKeydown.bind(this);
         onMounted(() => document.addEventListener("keydown", this._boundKeydown));
         onWillUnmount(() => document.removeEventListener("keydown", this._boundKeydown));
+    }
+
+    open() {
+        this.state.isOpen = true;
+        this.state.query = "";
+        this.state.results = [];
+        this.state.activeIndex = 0;
+    }
+
+    close() {
+        this.state.isOpen = false;
+    }
+
+    setActiveIndex(index) {
+        this.state.activeIndex = index;
+    }
+
+    getKindLabel(kind) {
+        const labels = { module: "Module", screen: "Screen", report: "Report", form: "Form" };
+        return labels[kind] || kind;
+    }
+
+    onInputKeydown(ev) {
+        this._onKeydown(ev);
     }
 
     _onKeydown(ev) {
@@ -67,6 +92,37 @@ export class TellMeSearch extends Component {
 
     _open(result) {
         this.state.isOpen = false;
+        if (!result) return;
+        if (result.kind === "record" && result.res_id) {
+            this.action.doAction({
+                type: "ir.actions.act_window",
+                res_model: result.res_model || "fix.service.order",
+                res_id: result.res_id,
+                views: [[false, "form"]],
+                target: "current",
+            });
+            return;
+        }
+        if (result.kind === "branch" && result.res_id) {
+            this.action.doAction({
+                type: "ir.actions.act_window",
+                res_model: "fix.branch",
+                res_id: result.res_id,
+                views: [[false, "form"]],
+                target: "current",
+            });
+            return;
+        }
+        if (result.kind === "staff" && result.res_id) {
+            this.action.doAction({
+                type: "ir.actions.act_window",
+                res_model: "hr.employee",
+                res_id: result.res_id,
+                views: [[false, "form"]],
+                target: "current",
+            });
+            return;
+        }
         if (result.kind === "module") {
             // Open the workspace scoped to this module
             this.action.doAction({
@@ -80,7 +136,7 @@ export class TellMeSearch extends Component {
     }
 
     get kindLabels() {
-        return { module: "Module", screen: "Screen", report: "Report", form: "Form" };
+        return { module: "Module", screen: "Screen", report: "Report", form: "Form", record: "Record", branch: "Branch", staff: "Staff" };
     }
 }
 

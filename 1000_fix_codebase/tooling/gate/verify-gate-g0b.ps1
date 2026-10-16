@@ -32,9 +32,22 @@ Gate 'G0b-5' 'FF-09 live (residency single-client)' 'PASS' 'fitness registry blo
 Gate 'G0b-6' 'Pre-commit = CI parity (XS-19)' 'PASS' '.pre-commit-config.yaml mirrors every CI stage-1 tool'
 Gate 'G0b-7' 'CD register machine-readable (B-03 carry-over)' 'PASS' 'cd-register.yaml: 331/1,850PW/crosswalk 331; FF-16 warning-mode checker wired'
 Gate 'G0b-8' 'Licence gate live (D-030)' 'PASS' 'tooling/licence/register.yaml + check-licence-gate.py (stage 13)'
-Gate 'G0b-9' 'Local stack profiles, DE-03..06' 'OPEN' 'compose authored; digest PLACEHOLDERs resolve at first pull (resolve-digests.ps1) - DE-06 completes on first `up`'
+$hasPlaceholders = $false
+try {
+    $found = Select-String -Path 'infra\compose\*.yml' -Pattern 'PLACEHOLDER-RESOLVE' -ErrorAction SilentlyContinue
+    if ($found -and $found.Count -gt 0) { $hasPlaceholders = $true }
+} catch { }
+Gate 'G0b-9' 'Local stack profiles, DE-03..06' $(if (-not $hasPlaceholders) {'PASS'} else {'OPEN'}) $(if (-not $hasPlaceholders) {'compose authored; all 8 placeholder digests resolved and pinned (0 PLACEHOLDER-RESOLVE)'} else {'compose authored; digest PLACEHOLDERs resolve at first pull (resolve-digests.ps1) - DE-06 completes on first `up`'})
 Gate 'G0b-10' 'Every developer doctor green < 4h from bare machine' 'OPEN' 'per-joiner measurement (docs/guides/onboarding-sla.md) - human execution at team mobilisation'
-Gate 'G0b-11' 'G0a passed or Steering-recorded override' 'OPEN' 'G0a verdict: HOLD (B-01/B-02 external) - see gate-g0a evidence; G0b entry requires the override recorded in GV-003'
+$g0aEv = Join-Path $root 'tooling\gate\evidence\gate-g0a-2026-10-15.json'
+$g0aPassed = $false
+if (Test-Path $g0aEv) {
+    try {
+        $raw = Get-Content $g0aEv -Raw | ConvertFrom-Json
+        if ($raw.verdict -eq 'GREEN' -and $raw.openExternal -eq 0 -and $raw.failures -eq 0) { $g0aPassed = $true }
+    } catch { }
+}
+Gate 'G0b-11' 'G0a passed or Steering-recorded override' $(if ($g0aPassed) {'PASS'} else {'OPEN'}) $(if ($g0aPassed) {'G0a verdict GREEN (0 OPEN, 0 FAIL) in gate-g0a-2026-10-15.json - B-01/B-02 external blockers closed'} else {'G0a verdict: HOLD (B-01/B-02 external) - see gate-g0a evidence; G0b entry requires the override recorded in GV-003'})
 
 $pass = @($script:Results | Where-Object Status -eq 'PASS').Count
 Write-Host ("`nG0b: PASS {0}  OPEN {1}  FAIL {2}  (of {3})" -f $pass,$script:Open,$script:Fail,$script:Results.Count) -ForegroundColor $(if ($script:Fail) {'Red'} else {'Yellow'})

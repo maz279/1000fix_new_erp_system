@@ -7,6 +7,11 @@ export const metadata: Metadata = {
   description: "PO acknowledgement, delivery confirmation and invoice submission feeding the three-way match (P05).",
 };
 
+// PP7-M03: nonce-CSP (proxy.ts) requires per-request rendering — a
+// statically prerendered shell would carry no nonce and strict-dynamic
+// would block every chunk at runtime.
+export const dynamic = "force-dynamic";
+
 /** The P05 vendor shell — generated tokens only (CFM-01). */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (

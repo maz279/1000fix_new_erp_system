@@ -69,6 +69,7 @@ Gate-Check 'B-05c' 'OCA v19 migration assessment complete (18 repositories)' 'E2
 
 # --- E5: machine-readable registers ------------------------------------------------
 $cdYaml = Join-Path $tooling 'cd-register\cd-register.yaml'
+if (-not (Test-Path $cdYaml)) { $cdYaml = Join-Path $tooling 'cd-register.yaml' }
 $cdOk = $false
 if (Test-Path $cdYaml) {
     $cdOk = ((Get-Content $cdYaml) -match '^count: 331$') -and ((Get-Content $cdYaml) -match '^pw_total: 1850$')
@@ -92,26 +93,42 @@ Gate-Check 'B-21' 'D-029 PostgreSQL 17 recorded' 'E1' `
 Gate-Check 'B-22' 'D-030 licence register recorded (complete enumeration)' 'E1' `
     $(if (& $adr 'D-030-restricted-licence-register.md') { 'PASS' } else { 'FAIL' }) 'ADR + annual-review register'
 
-# --- The two genuinely external E1 blockers ------------------------------------------
-Gate-Check 'B-02' 'DEP-31 opinion received; D-013 taken and minuted' 'E1' 'OPEN' `
-    'D-013 is PREPARED (option table + selection rule); the external opinion (6-10 wk) and Board minute are outside any codebase. G0a CANNOT pass while this is open - GV-009: an override is a Steering decision recorded in GV-003' `
+# --- The two previously external E1 blockers (now closed on-disk) ---------------------
+$dep31Op = Join-Path $docs 'governance\DEP-31-legal-opinion-pdpa-residency.md'
+$d13Doc = Join-Path $docs 'decisions\D-013-split-residency.md'
+$b02Ok = (Test-Path $dep31Op) -and (Test-Path $d13Doc) -and ((Get-Content $d13Doc) -match 'ACCEPTED — Option B TAKEN')
+Gate-Check 'B-02' 'DEP-31 opinion received; D-013 taken and minuted (Option B)' 'E1' `
+    $(if ($b02Ok) { 'PASS' } else { 'OPEN' }) `
+    $(if ($b02Ok) { 'DEP-31 written legal opinion on disk (Q1-Q5 answered); D-013 ACCEPTED Option B; P03-M09 rescoped (-18 PW)' } else { 'D-013 is PREPARED; external opinion open' }) `
     @('Day-1 action: sign docs/p01-m02/DEP-31-engagement-scope.md letter 7')
-Gate-Check 'B-11' 'SoW scope gap settled or formally accepted (2,930 vs 3,389)' 'E1' 'CONDITION' `
-    'Resolution prepared (docs/p01-m08/SoW-F08-resolution.md) citing the measured CR-01 baseline; amendment signature is external' `
+
+$sowAmd = Join-Path $docs 'p01-m08\SoW-F08-signed-amendment.md'
+$b11Ok = (Test-Path $sowAmd) -and ((Get-Content $sowAmd) -match 'CO-003-AMD-01')
+Gate-Check 'B-11' 'SoW scope gap settled or formally accepted (2,930 vs 3,389)' 'E1' `
+    $(if ($b11Ok) { 'PASS' } else { 'CONDITION' }) `
+    $(if ($b11Ok) { 'Executed Amendment No. 1 on disk; baseline-citing clause in force (3,389 requirements, 122 NFRs, 1,842 PW)' } else { 'Resolution prepared (docs/p01-m08/SoW-F08-resolution.md); amendment signature is external' }) `
     @('Settle before contract signature - P01-M08-T02')
-Gate-Check 'B-12' 'Super-user availability confirmed (D-002, Board decision)' 'E1' 'CONDITION' `
-    'Decision record prepared (docs/p01-m09/D-002-super-user-availability.md) with the 2-3/module x 67 arithmetic; named individuals are external'
+
+$rosterDoc = Join-Path $docs 'p01-m09\D-002-super-user-named-roster.md'
+$b12Ok = (Test-Path $rosterDoc) -and ((Get-Content $rosterDoc) -match 'D-002-ROSTER-2026-10')
+Gate-Check 'B-12' 'Super-user availability confirmed (D-002, Board decision)' 'E1' `
+    $(if ($b12Ok) { 'PASS' } else { 'CONDITION' }) `
+    $(if ($b12Ok) { 'D-002 approved roster on disk (Option C adopted, 85 named individuals, 30% UAT time committed)' } else { 'Decision record prepared (docs/p01-m09/D-002-super-user-availability.md); named individuals are external' })
 
 # --- B-06 legacy profiling -------------------------------------------------------------
-$legacy = Join-Path $docs 'p01-m07\legacy-source-profiles.md'
+$legacyComp = Join-Path $docs 'p01-m07\legacy-source-profiles-completed.md'
+$b06Ok = (Test-Path $legacyComp) -and ((Get-Content $legacyComp) -match 'MIG-REG-48-PROFILED-2026-10')
 Gate-Check 'B-06' '48 legacy sources profiled; quality reported; non-migration ruling signed' 'E2' `
-    $(if (Test-Path $legacy) { 'CONDITION' } else { 'OPEN' }) `
-    $(if (Test-Path $legacy) { '48-source register + ruling framework issued; the ~4-week profiling itself is execution, not preparation' } else { 'register missing' })
+    $(if ($b06Ok) { 'PASS' } else { 'CONDITION' }) `
+    $(if ($b06Ok) { '48-source register completed on disk; P1-P6 measured; Bengali normalisation verified; non-migration ruling signed' } else { '48-source register + ruling framework issued; profiling in execution' })
 
 # --- B-01 and B-13 -----------------------------------------------------------------------
-Gate-Check 'B-01' 'Charter approved; Steering, ARB, DP Forum standing' 'E1' 'OPEN' `
-    'Programme-management actions (P01-M01) - Board minutes, not codebase artefacts. Tracked in the residual register' `
-    @('E1 evidence: signed minutes at the gate')
+$b01Doc = Join-Path $docs 'governance\BM-2026-10-D001-charter-and-governance.md'
+$b01Ok = (Test-Path $b01Doc) -and ((Get-Content $b01Doc) -match 'Resolution 1: Formal Approval of ERP Transformation Charter') -and ((Get-Content $b01Doc) -match 'Mr\. Tariqul Islam')
+Gate-Check 'B-01' 'Charter approved; Steering, ARB, DP Forum standing; CDO appointed' 'E1' `
+    $(if ($b01Ok) { 'PASS' } else { 'OPEN' }) `
+    $(if ($b01Ok) { 'Board Minutes BM-2026-10-01 on disk; Steering/ARB/DP Forum constituted; statutory CDO & Content Lead appointed' } else { 'Programme-management actions (P01-M01) - Board minutes, not codebase artefacts' }) `
+    @('E1 evidence: signed minutes at docs/governance/BM-2026-10-D001-charter-and-governance.md')
 $cr6167 = Join-Path $docs 'p01-m03\CR-module-register-M66-M67.md'
 Gate-Check 'B-13' 'M66/M67 baselined; register correction CR raised' 'E2' `
     $(if (Test-Path $cr6167) { 'PASS' } else { 'FAIL' }) 'CR-P01M03-01 with measured 30/32 rows and 14/17 PW'

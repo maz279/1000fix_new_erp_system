@@ -14,11 +14,11 @@
             <input type="text" class="form-control"
                    placeholder="Filter reports…"
                    t-att-value="state.query"
-                   t-on-input="(ev) => state.query = ev.target.value"
+                   t-on-input="onSearchInput"
                    style="max-width: 280px;"/>
             <select class="form-select"
                     t-att-value="state.areaFilter"
-                    t-on-change="(ev) => state.areaFilter = ev.target.value"
+                    t-on-change="onAreaChange"
                     style="max-width: 180px;">
                 <option value="">All areas</option>
                 <t t-foreach="areas" t-as="area" t-key="area.id">

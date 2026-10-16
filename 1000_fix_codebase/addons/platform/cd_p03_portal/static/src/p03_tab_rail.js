@@ -8,7 +8,7 @@
  * Non-normative options (dirty-state guard, LRU eviction) land only if
  * measured need appears (the audit's ruling).
  */
-import { registry } from "@core/registry";
+import { registry } from "@web/core/registry";
 import { useEffect } from "@odoo/owl";
 
 const STORAGE_KEY = "p03_open_tabs";

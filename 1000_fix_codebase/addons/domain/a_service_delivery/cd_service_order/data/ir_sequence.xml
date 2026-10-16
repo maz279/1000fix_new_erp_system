@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The service-order reference sequence the model's name default has
+         always called (next_by_code('fix.service.order')); without it every
+         order on a fresh install is named 'NEW'. Surfaced by the P03
+         live-fire probe 2026-10-08. -->
+    <data noupdate="1">
+        <record id="seq_fix_service_order" model="ir.sequence">
+            <field name="name">Service Order</field>
+            <field name="code">fix.service.order</field>
+            <field name="prefix">SO</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_estimate" model="ir.sequence">
+            <field name="name">Repair Estimate</field>
+            <field name="code">fix.estimate</field>
+            <field name="prefix">EST</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_work_order" model="ir.sequence">
+            <field name="name">Work Order</field>
+            <field name="code">fix.work.order</field>
+            <field name="prefix">WO</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>
