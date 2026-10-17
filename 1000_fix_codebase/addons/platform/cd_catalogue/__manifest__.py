@@ -25,6 +25,7 @@ AS-10 (FF-22): every price is fields.Monetary with explicit currency_id.
     "depends": ["base", "mail", "product", "cd_entity_config", "cd_rbac_ext",
                  "cd_event_outbox"],
     "data": ["security/ir.model.access.csv", "data/fix_refurb_grades.xml",
+             "data/fix_brand_data.xml",
              "views/fix_catalogue_views.xml",
              "views/fix_catalogue_workspace_views.xml"],
     "installable": True,

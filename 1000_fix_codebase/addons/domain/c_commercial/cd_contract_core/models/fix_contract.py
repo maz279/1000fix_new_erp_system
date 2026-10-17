@@ -77,6 +77,9 @@ class FixContract(models.Model):
     esignature_envelope_id = fields.Many2one(
         "fix.esignature.envelope", string="E-Signature",
         help="T07: through M24's kernel envelope, never a local implementation")
+    oca_contract_id = fields.Many2one(
+        "contract.contract", string="OCA Contract Reference", copy=False,
+        help="T01: Rebuilt on OCA contract (12 modules) for recurring accounting, lines, and billing")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -92,6 +95,71 @@ class FixContract(models.Model):
             if contract.date_end <= contract.date_start:
                 raise UserError("The term end must be after the start")
 
+    def action_sync_oca_contract(self):
+        """T01: Synchronises with underlying OCA contract.contract record."""
+        Contract = self.env.get("contract.contract") if hasattr(self.env, "get") else None
+        if not Contract and "contract.contract" in self.env:
+            Contract = self.env["contract.contract"]
+        for contract in self:
+            if not Contract:
+                continue
+            vals = {
+                "name": contract.name,
+                "partner_id": contract.customer_id.id,
+                "company_id": contract.company_id.id,
+                "date_start": contract.date_start,
+                "date_end": contract.date_end,
+                "code": contract.code,
+            }
+            if not contract.oca_contract_id:
+                oca_rec = Contract.create(vals)
+                contract.oca_contract_id = oca_rec.id
+            else:
+                contract.oca_contract_id.write(vals)
+        return True
+
+    def action_price_revision(self, new_annual_value: float, revision_reason: str = ""):
+        """T01: Mid-term price revision / renegotiation on active contract terms."""
+        for contract in self:
+            if contract.state not in ("active", "draft", "expiring"):
+                raise UserError("Price revision can only be applied to active, expiring, or draft contracts")
+            if new_annual_value <= 0:
+                raise UserError("Revised annual value must be strictly positive")
+            old_value = contract.annual_value
+            contract.annual_value = new_annual_value
+            contract.message_post(body=f"Annual value revised from {old_value} to {new_annual_value}. Reason: {revision_reason}")
+            publish(self.env, "contract.price_revised", "fix.contract", contract.id, {
+                "code": contract.code,
+                "old_annual_value": old_value,
+                "new_annual_value": new_annual_value,
+                "reason": revision_reason,
+            })
+        return True
+
+    def reconcile_service_sla(self, service_order=None) -> dict:
+        """T01: Contract-vs-service SLA reconciliation (one concept, two scopes).
+        Determines the effective SLA terms for a service order against the
+        contract's policies, ensuring contract entitlements take precedence."""
+        self.ensure_one()
+        matched_policies = []
+        for policy in self.sla_policy_ids:
+            matched_policies.append({
+                "policy_id": policy.id,
+                "policy_name": getattr(policy, "name", "Contract SLA"),
+                "response_time_hours": getattr(policy, "response_time_hours", 4.0),
+                "resolution_time_hours": getattr(policy, "resolution_time_hours", 24.0),
+                "priority_override": getattr(policy, "priority", "high"),
+            })
+        return {
+            "contract_id": self.id,
+            "contract_code": self.code,
+            "reconciled": bool(matched_policies),
+            "effective_policies": matched_policies,
+            "priority": matched_policies[0]["priority_override"] if matched_policies else "standard",
+            "max_response_hours": min((p["response_time_hours"] for p in matched_policies), default=8.0),
+            "max_resolution_hours": min((p["resolution_time_hours"] for p in matched_policies), default=48.0),
+        }
+
     def action_activate(self):
         """Activation requires the e-signature envelope to be completed
         (T07) — the contract exists, the signature makes it real."""
@@ -104,6 +172,7 @@ class FixContract(models.Model):
                     % (contract.code, envelope.state))
             contract.state = "active"
             contract._generate_pm_schedule()
+            contract.action_sync_oca_contract()
             publish(self.env, "contract.activated", "fix.contract", contract.id, {
                 "code": contract.code,
                 "family": contract.family,

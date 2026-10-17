@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 18 Verified Brand Partners (H2-12 resolution, R05-M01-T04) -->
+<odoo>
+    <data noupdate="1">
+        <record id="brand_samsung" model="fix.brand">
+            <field name="name">Samsung</field>
+            <field name="name_bn">স্যামসাং</field>
+            <field name="code">BRD-001</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_walton" model="fix.brand">
+            <field name="name">Walton</field>
+            <field name="name_bn">ওয়ালটন</field>
+            <field name="code">BRD-002</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_dell" model="fix.brand">
+            <field name="name">Dell</field>
+            <field name="name_bn">ডেল</field>
+            <field name="code">BRD-003</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_hp" model="fix.brand">
+            <field name="name">HP</field>
+            <field name="name_bn">এইচপি</field>
+            <field name="code">BRD-004</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_lenovo" model="fix.brand">
+            <field name="name">Lenovo</field>
+            <field name="name_bn">লেনোভো</field>
+            <field name="code">BRD-005</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_lg" model="fix.brand">
+            <field name="name">LG</field>
+            <field name="name_bn">এলজি</field>
+            <field name="code">BRD-006</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_singer" model="fix.brand">
+            <field name="name">Singer</field>
+            <field name="name_bn">সিঙ্গার</field>
+            <field name="code">BRD-007</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_haier" model="fix.brand">
+            <field name="name">Haier</field>
+            <field name="name_bn">হায়ার</field>
+            <field name="code">BRD-008</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_gree" model="fix.brand">
+            <field name="name">Gree</field>
+            <field name="name_bn">গ্রী</field>
+            <field name="code">BRD-009</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_sony" model="fix.brand">
+            <field name="name">Sony</field>
+            <field name="name_bn">সনি</field>
+            <field name="code">BRD-010</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_xiaomi" model="fix.brand">
+            <field name="name">Xiaomi</field>
+            <field name="name_bn">শাওমি</field>
+            <field name="code">BRD-011</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_asus" model="fix.brand">
+            <field name="name">Asus</field>
+            <field name="name_bn">আসুস</field>
+            <field name="code">BRD-012</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_acer" model="fix.brand">
+            <field name="name">Acer</field>
+            <field name="name_bn">এসার</field>
+            <field name="code">BRD-013</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_apple" model="fix.brand">
+            <field name="name">Apple</field>
+            <field name="name_bn">অ্যাপল</field>
+            <field name="code">BRD-014</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_canon" model="fix.brand">
+            <field name="name">Canon</field>
+            <field name="name_bn">ক্যানন</field>
+            <field name="code">BRD-015</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_philips" model="fix.brand">
+            <field name="name">Philips</field>
+            <field name="name_bn">ফিলিপস</field>
+            <field name="code">BRD-016</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_panasonic" model="fix.brand">
+            <field name="name">Panasonic</field>
+            <field name="name_bn">প্যানাসনিক</field>
+            <field name="code">BRD-017</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+        <record id="brand_whirlpool" model="fix.brand">
+            <field name="name">Whirlpool</field>
+            <field name="name_bn">ওয়ার্লপুল</field>
+            <field name="code">BRD-018</field>
+            <field name="authorised">True</field>
+            <field name="active">True</field>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,337 @@
+{
+  "version": "1.0",
+  "generated_for": "R05-M01-T03",
+  "total_brands": 18,
+  "templates": [
+    {
+      "brand_code": "BRD-001",
+      "brand_name": "Samsung",
+      "counterparty": "Samsung Electronics Bangladesh Ltd.",
+      "channel": "api_rest",
+      "endpoint": "/api/v2/warranty/claims",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "external_claim_id": "claim_no",
+        "imei_or_serial": "device_serial",
+        "symptom_code": "fault_code",
+        "repair_description": "diagnostic_summary",
+        "replaced_parts": "parts_list",
+        "labor_charge_bdt": "labor_amount",
+        "parts_charge_bdt": "parts_amount",
+        "total_claim_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-002",
+      "brand_name": "Walton",
+      "counterparty": "Walton Hi-Tech Industries PLC",
+      "channel": "portal",
+      "endpoint": "/portal/partner/warranty/submit",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "walton_claim_ref": "claim_no",
+        "barcode_serial": "device_serial",
+        "defect_type": "fault_code",
+        "service_report": "diagnostic_summary",
+        "bill_of_materials": "parts_list",
+        "reimbursement_claimed": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-003",
+      "brand_name": "Dell",
+      "counterparty": "Dell Technologies Bangladesh",
+      "channel": "api_rest",
+      "endpoint": "/dsp/v1/warranty/dispatches",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "dsp_claim_number": "claim_no",
+        "service_tag": "device_serial",
+        "eps_diagnostic_log": "diagnostic_summary",
+        "part_numbers": "parts_list",
+        "claim_total_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-004",
+      "brand_name": "HP",
+      "counterparty": "HP Inc. Bangladesh",
+      "channel": "api_soap",
+      "endpoint": "/cso/v3/warrantyClaimsService",
+      "format": "XML",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "hpClaimId": "claim_no",
+        "serialNumber": "device_serial",
+        "failureCode": "fault_code",
+        "workPerformed": "diagnostic_summary",
+        "partsReplaced": "parts_list",
+        "claimAmountBDT": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-005",
+      "brand_name": "Lenovo",
+      "counterparty": "Lenovo Global Technology BD",
+      "channel": "portal",
+      "endpoint": "/awsp/claims/batch",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "lenovo_case_id": "claim_no",
+        "serial": "device_serial",
+        "fru_parts": "parts_list",
+        "diagnostic_code": "fault_code",
+        "reimbursement_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-006",
+      "brand_name": "LG",
+      "counterparty": "LG Electronics Bangladesh",
+      "channel": "portal",
+      "endpoint": "/gspn/claim/register",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "gspn_claim_no": "claim_no",
+        "serial_no": "device_serial",
+        "symptom": "fault_code",
+        "parts_used": "parts_list",
+        "total_cost": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-007",
+      "brand_name": "Singer",
+      "counterparty": "Singer Bangladesh Ltd.",
+      "channel": "portal",
+      "endpoint": "/service-partner/claim/submit",
+      "format": "JSON",
+      "claim_window_days": 60,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": false,
+      "payload_mapping": {
+        "claim_reference": "claim_no",
+        "item_serial": "device_serial",
+        "defect_category": "fault_code",
+        "itemized_parts": "parts_list",
+        "billable_amount": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-008",
+      "brand_name": "Haier",
+      "counterparty": "Haier Bangladesh Ltd.",
+      "channel": "api_rest",
+      "endpoint": "/gims/api/v1/warranty/claims",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "claim_no": "claim_no",
+        "bar_code": "device_serial",
+        "fault_code": "fault_code",
+        "solution": "diagnostic_summary",
+        "parts": "parts_list",
+        "amount": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-009",
+      "brand_name": "Gree",
+      "counterparty": "Gree Electro-Mechanical BD",
+      "channel": "portal",
+      "endpoint": "/gree-service/claims/create",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "claim_no": "claim_no",
+        "indoor_outdoor_serial": "device_serial",
+        "error_code": "fault_code",
+        "spare_parts": "parts_list",
+        "claim_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-010",
+      "brand_name": "Sony",
+      "counterparty": "Sony South East Asia / Rangs Electronics",
+      "channel": "portal",
+      "endpoint": "/sony-partner/warranty/entry",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "job_claim_no": "claim_no",
+        "model_serial": "device_serial",
+        "defect_code": "fault_code",
+        "components_replaced": "parts_list",
+        "total_charge": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-011",
+      "brand_name": "Xiaomi",
+      "counterparty": "Xiaomi Technologies Bangladesh",
+      "channel": "api_rest",
+      "endpoint": "/aftersales/v2/warranty/claims",
+      "format": "JSON",
+      "claim_window_days": 15,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "service_order_sn": "claim_no",
+        "imei": "device_serial",
+        "fault_phenomenon": "fault_code",
+        "bom_items": "parts_list",
+        "compensation_amount": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-012",
+      "brand_name": "Asus",
+      "counterparty": "ASUSTeK Computer BD",
+      "channel": "portal",
+      "endpoint": "/css/partner/claim/post",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "rma_claim_no": "claim_no",
+        "serial_number": "device_serial",
+        "test_result": "diagnostic_summary",
+        "parts_consumed": "parts_list",
+        "claim_val": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-013",
+      "brand_name": "Acer",
+      "counterparty": "Acer Bangladesh",
+      "channel": "portal",
+      "endpoint": "/asp/warranty/submit-claim",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "asp_claim_id": "claim_no",
+        "snid": "device_serial",
+        "diagnostic_log": "diagnostic_summary",
+        "parts": "parts_list",
+        "total_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-014",
+      "brand_name": "Apple",
+      "counterparty": "Apple Authorised Service Provider Network",
+      "channel": "api_rest",
+      "endpoint": "/gsx/v2/warranty/claims",
+      "format": "JSON",
+      "claim_window_days": 14,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "gsx_dispatch_id": "claim_no",
+        "device_serial": "device_serial",
+        "diags_suite_id": "fault_code",
+        "kbb_parts": "parts_list",
+        "reimbursement": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-015",
+      "brand_name": "Canon",
+      "counterparty": "Canon BD / J.A.N. Associates",
+      "channel": "portal",
+      "endpoint": "/canon-service/claim/new",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "claim_no": "claim_no",
+        "body_serial": "device_serial",
+        "error_code": "fault_code",
+        "shutter_or_lens_parts": "parts_list",
+        "claim_amount": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-016",
+      "brand_name": "Philips",
+      "counterparty": "Philips Bangladesh Ltd.",
+      "channel": "portal",
+      "endpoint": "/service-portal/claims/register",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": false,
+      "payload_mapping": {
+        "claim_ref": "claim_no",
+        "product_serial": "device_serial",
+        "problem_category": "fault_code",
+        "parts_details": "parts_list",
+        "amount_bdt": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-017",
+      "brand_name": "Panasonic",
+      "counterparty": "Panasonic Life Solutions Bangladesh",
+      "channel": "portal",
+      "endpoint": "/panasonic-asp/claims/submit",
+      "format": "JSON",
+      "claim_window_days": 30,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "asp_claim_number": "claim_no",
+        "set_serial_number": "device_serial",
+        "symptom": "fault_code",
+        "replaced_components": "parts_list",
+        "claim_cost": "total_amount"
+      }
+    },
+    {
+      "brand_code": "BRD-018",
+      "brand_name": "Whirlpool",
+      "counterparty": "Whirlpool Bangladesh Ltd.",
+      "channel": "portal",
+      "endpoint": "/service-partner/whirlpool/claim",
+      "format": "JSON",
+      "claim_window_days": 45,
+      "mandatory_evidence": ["photo_before", "photo_after", "diagnostic", "parts_issued", "device_serial", "technician_cert", "purchase_proof"],
+      "requires_certified_tech": true,
+      "payload_mapping": {
+        "whirlpool_claim_id": "claim_no",
+        "appliance_serial": "device_serial",
+        "fault_tag": "fault_code",
+        "parts_lines": "parts_list",
+        "settlement_due": "total_amount"
+      }
+    }
+  ]
+}

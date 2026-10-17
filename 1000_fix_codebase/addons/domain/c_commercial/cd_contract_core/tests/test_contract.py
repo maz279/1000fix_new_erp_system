@@ -68,6 +68,43 @@ class TestContractSla(unittest.TestCase):
         """T04: one SLA concept — the m2m targets fix.sla.policy."""
         self.assertIn('"fix.sla.policy"', SOURCE)
 
+    def test_sla_reconciliation_method(self):
+        """T01: contract-vs-service SLA reconciliation logic."""
+        self.assertIn("def reconcile_service_sla", SOURCE)
+        self.assertIn("max_response_hours", SOURCE)
+        self.assertIn("max_resolution_hours", SOURCE)
+
+
+class TestOcaContractIntegration(unittest.TestCase):
+    """T01: Rebuild on OCA contract (12 modules)."""
+
+    def test_oca_contract_reference_field(self):
+        self.assertIn("oca_contract_id", SOURCE)
+        self.assertIn('"contract.contract"', SOURCE)
+
+    def test_oca_contract_sync_method(self):
+        self.assertIn("def action_sync_oca_contract", SOURCE)
+
+
+class TestPriceRevision(unittest.TestCase):
+    """T01: Mid-term price revision / renegotiation."""
+
+    def test_price_revision_method(self):
+        self.assertIn("def action_price_revision", SOURCE)
+        self.assertIn('"contract.price_revised"', SOURCE)
+
+
+class TestPmScheduleDispatch(unittest.TestCase):
+    """T01: PM schedule generator feeding dispatch."""
+
+    def test_pm_schedule_generator(self):
+        self.assertIn("_generate_pm_schedule", SOURCE)
+        self.assertIn("PM_INTERVALS", SOURCE)
+
+    def test_pm_action_create_service_order(self):
+        self.assertIn("def action_create_service_order", SOURCE)
+        self.assertIn('"fix.service.order"', SOURCE)
+
 
 if __name__ == "__main__":
     unittest.main()

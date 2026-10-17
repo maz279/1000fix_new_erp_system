@@ -23,7 +23,7 @@ CD-M08-01..04: the contract engine.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Contracts",
-    "depends": ["base", "mail", "product", "cd_entity_config", "cd_event_outbox",
+    "depends": ["base", "mail", "product", "contract", "cd_entity_config", "cd_event_outbox",
                  "cd_party_master", "cd_device_registry", "cd_service_order",
                  "cd_esignature"],
     "data": ["security/ir.model.access.csv", "views/fix_contract_views.xml"],

@@ -89,6 +89,17 @@
         "operationId": "getBrandClaimStatus"
       }
     },
+    "/brand/claims/webhook": {
+      "post": {
+        "summary": "P08: inbound claim status webhook (M09/T05)",
+        "responses": {
+          "200": {
+            "description": "Acknowledged"
+          }
+        },
+        "operationId": "postBrandClaimWebhook"
+      }
+    },
     "/brand/reconciliation": {
       "get": {
         "summary": "P08: remittance reconciliation (flagged mismatches)",

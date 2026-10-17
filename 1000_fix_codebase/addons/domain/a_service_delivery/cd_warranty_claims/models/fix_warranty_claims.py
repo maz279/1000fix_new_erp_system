@@ -108,12 +108,22 @@ class FixWarrantyClaim(models.Model):
          ("rejected", "Rejected"), ("remitted", "Remitted")],
         default="draft", required=True, tracking=True)
     created_at = fields.Datetime(default=fields.Datetime.now, readonly=True)
+    job_completed_at = fields.Datetime(readonly=True, help="AUT-018: When warranty job completed")
     submitted_at = fields.Datetime(readonly=True)
     decided_at = fields.Datetime(readonly=True)
     rejection_reason = fields.Char()
     submission_deadline = fields.Datetime(
         readonly=True,
-        help="WTY-06: brand windows vary; the claim escalates at the deadline")
+        help="WTY-06: brand windows vary; default 72h from creation (G4-01)")
+    auto_creation_latency_hours = fields.Float(
+        string="Creation Latency (h)", compute="_compute_timing_latencies", store=True,
+        help="Hours elapsed between job completion and claim auto-creation (target <= 24h)")
+    submission_latency_hours = fields.Float(
+        string="Submission Latency (h)", compute="_compute_timing_latencies", store=True,
+        help="Hours elapsed between claim creation and brand submission (target <= 72h)")
+    is_submission_overdue = fields.Boolean(
+        string="Overdue", compute="_compute_overdue", store=True,
+        help="True if claim is pending submission past 72h deadline")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -122,9 +132,36 @@ class FixWarrantyClaim(models.Model):
                 vals["claim_no"] = self.env["ir.sequence"].next_by_code(
                     "fix.warranty.claim") or ("CLM/%s" % fields.Date.today())
             # WTY-06: submission window default 72h from creation (G4-01)
-            vals.setdefault("submission_deadline",
-                            fields.Datetime.now() + timedelta(hours=72))
+            now = fields.Datetime.now()
+            vals.setdefault("created_at", now)
+            vals.setdefault("submission_deadline", now + timedelta(hours=72))
+            if not vals.get("job_completed_at"):
+                vals["job_completed_at"] = now
         return super().create(vals_list)
+
+    @api.depends("job_completed_at", "created_at", "submitted_at")
+    def _compute_timing_latencies(self):
+        for claim in self:
+            if claim.job_completed_at and claim.created_at:
+                delta = claim.created_at - claim.job_completed_at
+                claim.auto_creation_latency_hours = max(0.0, round(delta.total_seconds() / 3600.0, 2))
+            else:
+                claim.auto_creation_latency_hours = 0.0
+
+            if claim.created_at and claim.submitted_at:
+                delta = claim.submitted_at - claim.created_at
+                claim.submission_latency_hours = max(0.0, round(delta.total_seconds() / 3600.0, 2))
+            else:
+                claim.submission_latency_hours = 0.0
+
+    @api.depends("submission_deadline", "state", "submitted_at")
+    def _compute_overdue(self):
+        now = fields.Datetime.now()
+        for claim in self:
+            if claim.state in ("draft", "ready") and claim.submission_deadline:
+                claim.is_submission_overdue = now > claim.submission_deadline
+            else:
+                claim.is_submission_overdue = False
 
     @api.depends("evidence_ids.requirement_key", "evidence_ids.document_id")
     def _compute_evidence(self):
@@ -137,6 +174,34 @@ class FixWarrantyClaim(models.Model):
                        if key not in present]
             claim.evidence_complete = not missing
             claim.missing_evidence = ", ".join(missing) if missing else False
+
+    def action_assemble_workshop_evidence_pack(self):
+        """T05 / R03-M02: Assembles evidence pack drawing from workshop repair records."""
+        Evidence = self.env["fix.warranty.evidence"]
+        for claim in self:
+            order = claim.service_order_id
+            if not order:
+                continue
+            existing_keys = {e.requirement_key for e in claim.evidence_ids}
+            # Attach available documents from service order or create stubs if workshop artifacts exist
+            for key, label in EVIDENCE_REQUIREMENTS:
+                if key not in existing_keys:
+                    # In production, resolves from order.document_ids or workshop inspection
+                    doc = self.env["fix.document"].search([
+                        ("res_model", "=", "fix.service.order"),
+                        ("res_id", "=", order.id),
+                        ("name", "ilike", key),
+                    ], limit=1) if "fix.document" in self.env else None
+                    if doc:
+                        Evidence.create({
+                            "claim_id": claim.id,
+                            "requirement_key": key,
+                            "document_id": doc.id,
+                        })
+            claim._compute_evidence()
+            if claim.evidence_complete and claim.state == "draft":
+                claim.state = "ready"
+        return True
 
     # --- AUT-018: the 24-hour auto-create -----------------------------
 
@@ -154,12 +219,23 @@ class FixWarrantyClaim(models.Model):
         order = self.env["fix.service.order"].browse(order_id)
         if not order.exists() or order.order_category != "warranty":
             return None
-        return self.create({
+        completed_time = payload.get("completed_at") or fields.Datetime.now()
+        claim = self.create({
             "service_order_id": order_id,
             "brand_id": order.device_id.brand_id.id,
             "claim_amount": order.estimate_ids and
                 order.estimate_ids[0].grand_total or 0.0,
+            "job_completed_at": completed_time,
         })
+        # Assemble workshop evidence pack automatically on creation
+        claim.action_assemble_workshop_evidence_pack()
+        publish(self.env, "warranty_claim.created", "fix.warranty.claim", claim.id, {
+            "claim_no": claim.claim_no,
+            "order_id": order_id,
+            "brand_id": claim.brand_id.id,
+            "deadline": str(claim.submission_deadline),
+        })
+        return claim
 
     # --- Submission with the blocking gate ------------------------------
 
@@ -175,13 +251,17 @@ class FixWarrantyClaim(models.Model):
                     % (claim.claim_no, claim.missing_evidence))
             if claim.state not in ("draft", "ready"):
                 raise UserError("Only a draft/ready claim submits")
+            now = fields.Datetime.now()
+            if claim.submission_deadline and now > claim.submission_deadline:
+                claim.message_post(body="Warning: Claim submitted past 72h deadline (escalated for brand acceptance)")
             claim.write({"state": "submitted",
-                         "submitted_at": fields.Datetime.now()})
+                         "submitted_at": now})
             publish(self.env, "warranty_claim.submitted", "fix.warranty.claim",
                     claim.id, {
                         "claim_no": claim.claim_no,
                         "brand_id": claim.brand_id.id,
                         "amount": claim.claim_amount,
+                        "submitted_at": str(now),
                     })
 
     def action_decide(self, approved: bool, reason: str = ""):

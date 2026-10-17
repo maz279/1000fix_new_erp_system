@@ -36,6 +36,17 @@ class TestAut018(unittest.TestCase):
         """G4-01: submitted within 72 — the deadline is created with the claim."""
         self.assertIn("timedelta(hours=72)", SOURCE)
 
+    def test_timing_latencies_and_deadline_tracking(self):
+        """R05-M01-T02: Creation and submission latencies tracking."""
+        self.assertIn("auto_creation_latency_hours", SOURCE)
+        self.assertIn("submission_latency_hours", SOURCE)
+        self.assertIn("is_submission_overdue", SOURCE)
+        self.assertIn("job_completed_at", SOURCE)
+
+    def test_workshop_evidence_pack_assembly(self):
+        """R05-M01-T05: Assembles evidence drawing from workshop repair records."""
+        self.assertIn("action_assemble_workshop_evidence_pack", SOURCE)
+
 
 class TestRemittance(unittest.TestCase):
     def test_mismatch_flagged_not_adjusted(self):

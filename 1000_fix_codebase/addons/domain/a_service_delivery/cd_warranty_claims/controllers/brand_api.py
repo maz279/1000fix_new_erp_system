@@ -137,6 +137,38 @@ class BrandApiController(http.Controller):
             },
         }}
 
+    @http.route("/brand/claims/webhook", type="json", auth="user", readonly=False)
+    def claim_webhook(self, **kwargs):
+        """T05: Inbound claim-status webhook for brand partner systems."""
+        brand_id = _brand_scope(kwargs)
+        if not brand_id:
+            return _error("missing_brand", "brand_id is required (per-brand isolation)")
+        claim_no = kwargs.get("claim_no")
+        event_type = kwargs.get("event_type")
+        if not claim_no or not event_type:
+            return _error("invalid_payload", "claim_no and event_type are required")
+
+        claim = request.env["fix.warranty.claim"].search(
+            [("claim_no", "=", claim_no), ("brand_id", "=", brand_id)], limit=1)
+        if not claim:
+            return _error("no_claim", "Claim not found for this brand")
+
+        decision = kwargs.get("decision")
+        reason = kwargs.get("reason", "")
+        if event_type == "claim.approved" or decision == "approve":
+            claim.action_decide(approved=True, reason=reason)
+        elif event_type == "claim.rejected" or decision == "reject":
+            claim.action_decide(approved=False, reason=reason)
+        elif event_type == "claim.in_review":
+            claim.write({"state": "in_review"})
+
+        return {
+            "status": "acknowledged",
+            "claim_no": claim.claim_no,
+            "state": claim.state,
+            "event_type": event_type,
+        }
+
     @http.route("/brand/reconciliation", type="json", auth="user",
                 readonly=False)
     def reconciliation(self, **kwargs):
@@ -157,12 +189,14 @@ class BrandApiController(http.Controller):
         for c in claims:
             mismatch = (c.state == "remitted"
                         and abs(c.remittance_amount - c.claim_amount) > 0.01)
+            diff = round(c.remittance_amount - c.claim_amount, 2)
             result.append({
                 "claim_no": c.claim_no,
                 "state": c.state,
                 "expected_bdt": _fmt_bdt(c.claim_amount),
                 "received_bdt": _fmt_bdt(c.remittance_amount),
                 "mismatch": mismatch,
+                "variance_bdt": _fmt_bdt(diff) if mismatch else "0.00",
             })
         return {"reconciliation": result, "total": len(result)}
 
@@ -178,10 +212,12 @@ class BrandApiController(http.Controller):
         except (UserError, ValidationError) as exc:
             return _error("remittance_rejected", str(exc))
         mismatch = abs(claim.remittance_amount - claim.claim_amount) > 0.01
+        diff = round(claim.remittance_amount - claim.claim_amount, 2)
         return {"remittance": {
             "claim_no": claim.claim_no,
             "state": claim.state,
             "expected_bdt": _fmt_bdt(claim.claim_amount),
             "received_bdt": _fmt_bdt(claim.remittance_amount),
             "mismatch": mismatch,  # flagged, never adjusted
+            "variance_bdt": _fmt_bdt(diff) if mismatch else "0.00",
         }}

@@ -11,6 +11,7 @@ import { callOdoo } from "../../lib/api";
 interface ReconRow {
   claim_no: string; state: string;
   expected_bdt: string; received_bdt: string; mismatch: boolean;
+  variance_bdt?: string;
 }
 
 const inputStyle: React.CSSProperties = {
@@ -83,6 +84,10 @@ export default function ReconciliationPage() {
     { header: "State", cell: (r) => <Pill state={r.state} /> },
     { header: "Expected (BDT)", cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.expected_bdt}</span> },
     { header: "Received (BDT)", cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.received_bdt}</span> },
+    {
+      header: "Variance (BDT)",
+      cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums", color: r.mismatch ? "#b23a2e" : "inherit" }}>{r.variance_bdt || "0.00"}</span>,
+    },
     {
       header: "Match",
       cell: (r) => r.mismatch

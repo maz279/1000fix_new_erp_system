@@ -13,8 +13,8 @@ class TestBrandIsolation(unittest.TestCase):
     brand_id filter is mandatory and unscoped reads are refused."""
 
     def test_brand_id_required_everywhere(self):
-        # every route method calls _brand_scope and rejects None
-        self.assertEqual(API.count("_brand_scope(kwargs)"), 4)
+        # every route method calls _brand_scope and rejects None (1 def + 4 endpoints)
+        self.assertEqual(API.count("_brand_scope(kwargs)"), 5)
         self.assertIn("missing_brand", API)
 
     def test_brand_id_popped_before_helper_dispatch(self):
@@ -51,6 +51,13 @@ class TestDecisionAndReconciliation(unittest.TestCase):
         # T08: a mismatch is flagged, never auto-adjusted
         self.assertIn("mismatch", API)
         self.assertIn("action_record_remittance(", API)
+        self.assertIn("variance_bdt", API)
+
+    def test_webhook_endpoint_implemented(self):
+        # T05: inbound status webhook acknowledging claim events
+        self.assertIn("@http.route(\"/brand/claims/webhook\"", API)
+        self.assertIn("event_type", API)
+        self.assertIn("claim.action_decide", API)
 
     def test_money_backend_formatted(self):
         self.assertIn("_fmt_bdt", API)
@@ -63,13 +70,14 @@ class TestApiSurface(unittest.TestCase):
                            / "w4-portals.json").read_text(encoding="utf-8"))
         self.assertIn("/brand/claims", spec["paths"])
         self.assertIn("/brand/claims/{claim_no}/status", spec["paths"])
+        self.assertIn("/brand/claims/webhook", spec["paths"])
         self.assertIn("/brand/reconciliation", spec["paths"])
 
     def test_routes_json_auth_user(self):
         routes = re.findall(
             r'@http\.route\("(/brand/[^"]+)"[^)]*type="json",\s*auth="user"',
             API)
-        self.assertEqual(len(routes), 3, routes)
+        self.assertEqual(len(routes), 4, routes)
 
 
 if __name__ == "__main__":
