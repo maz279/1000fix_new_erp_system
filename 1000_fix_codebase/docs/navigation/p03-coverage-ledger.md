@@ -32,7 +32,7 @@ generator. This is the Gate GP D1 denominator.
 | M28 Integration, API & Events | `menu_p03_ws_event_outbox` | 4 | 0 | 11 | 5 |
 | M29 Identity, Access & Security | `menu_p03_ws_rbac_ext` | 4 | 0 | 13 | 5 |
 | M30 Platform Administration | `menu_p03_ws_entity_config` | 4 | 0 | 13 | 4 |
-| M31 Workshop & Depot Repair | (shares `service_order` workspace) | — | 0 | 12 | 6 |
+| M31 Workshop & Depot Repair | `menu_p03_ws_workshop` | 4 | 0 | 12 | 6 |
 | M33 Customer & Party Master | `menu_p03_ws_party_master` | 5 | 0 | 15 | 6 |
 | M34 CX, Feedback & Complaints | `menu_p03_ws_cx_feedback` | 4 | 0 | 12 | 5 |
 | M35 Marketing Campaigns | `menu_p03_ws_campaign` | 4 | 0 | 10 | 5 |

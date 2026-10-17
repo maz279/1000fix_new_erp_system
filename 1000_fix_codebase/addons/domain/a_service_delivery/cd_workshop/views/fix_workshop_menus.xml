@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Actions -->
+    <record id="action_fix_workshop_job_wip_board" model="ir.actions.act_window">
+        <field name="name">WIP Operations Board</field>
+        <field name="res_model">fix.workshop.job</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="view_id" ref="view_fix_workshop_job_kanban"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No active repair jobs in the workshop.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_fix_workshop_job" model="ir.actions.act_window">
+        <field name="name">Workshop Repair Orders</field>
+        <field name="res_model">fix.workshop.job</field>
+        <field name="view_mode">list,kanban,form</field>
+        <field name="view_id" ref="view_fix_workshop_job_tree"/>
+    </record>
+
+    <record id="action_fix_workshop_bench" model="ir.actions.act_window">
+        <field name="name">Repair Bench Master</field>
+        <field name="res_model">fix.workshop.bench</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="view_id" ref="view_fix_workshop_bench_kanban"/>
+    </record>
+
+    <record id="action_fix_workshop" model="ir.actions.act_window">
+        <field name="name">Workshop Facilities</field>
+        <field name="res_model">fix.workshop</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_fix_workshop_tree"/>
+    </record>
+
+    <!-- Menus under Service Operations Root -->
+    <menuitem id="menu_fix_workshop_root"
+              name="Workshop &amp; Depot Repair"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_workshop.group_fix_workshop_user"
+              sequence="5"/>
+
+    <menuitem id="menu_fix_workshop_wip"
+              name="WIP Operations Board"
+              parent="menu_fix_workshop_root"
+              action="action_fix_workshop_job_wip_board"
+              sequence="10"/>
+
+    <menuitem id="menu_fix_workshop_jobs"
+              name="Repair Orders"
+              parent="menu_fix_workshop_root"
+              action="action_fix_workshop_job"
+              sequence="20"/>
+
+    <menuitem id="menu_fix_workshop_benches"
+              name="Bench Board &amp; Stations"
+              parent="menu_fix_workshop_root"
+              action="action_fix_workshop_bench"
+              sequence="30"/>
+
+    <menuitem id="menu_fix_workshop_facilities"
+              name="Workshop Facilities"
+              parent="menu_fix_workshop_root"
+              action="action_fix_workshop"
+              groups="cd_workshop.group_fix_workshop_manager"
+              sequence="40"/>
+</odoo>

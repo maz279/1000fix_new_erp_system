@@ -28,6 +28,6 @@
 "M32","W4","M26","W6","W2","ASSIGN-SA","no mechanical class - SA dispositions per AR-006 5","SA","G0a"
 "M32","W4","M61","W6","W2","ASSIGN-SA","no mechanical class - SA dispositions per AR-006 5","SA","G0a"
 "M16","W3","M42","W4","W1","BREAK-DESIGNED","pair has an AR-003 interface-break record (architecture-baseline.md)","SA","G0a"
-"M31","W2","M22","W5","W3","ASSIGN-SA","no mechanical class - SA dispositions per AR-006 5","SA","G0a"
-"M31","W2","M23","W5","W3","ASSIGN-SA","no mechanical class - SA dispositions per AR-006 5","SA","G0a"
+"M31","W2","M22","W5","W3","STUB-M31-M22-001 (expires R06-M02)","technician skill/cert stub returns eligible per GV-005; closes R06-M02","SA","G0a"
+"M31","W2","M23","W5","W3","STUB-M31-M23-001 (expires R06-M04)","M01/M31 local QC checklist ownership per GV-005; closes R06-M04","SA","G0a"
 "M31","W2","M45","W5","W3","ASSIGN-SA","no mechanical class - SA dispositions per AR-006 5","SA","G0a"

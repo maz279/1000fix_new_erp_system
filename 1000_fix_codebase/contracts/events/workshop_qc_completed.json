@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "workshop.qc.completed",
+  "description": "Event emitted when Quality Control inspection passes or fails, triggering release or rework loop (M31, BRU-SRM-18)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "workshop.qc.completed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_workshop"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["job_id", "job_name", "workshop_id", "qc_passed"],
+      "properties": {
+        "job_id": { "type": "integer" },
+        "job_name": { "type": "string" },
+        "order_id": { "type": ["integer", "boolean"] },
+        "workshop_id": { "type": "integer" },
+        "inspector_id": { "type": ["integer", "boolean"] },
+        "qc_passed": { "type": "boolean" },
+        "rework_count": { "type": "integer" },
+        "notes": { "type": "string" }
+      }
+    }
+  }
+}

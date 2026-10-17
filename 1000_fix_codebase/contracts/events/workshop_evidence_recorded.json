@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "workshop.evidence.recorded",
+  "description": "Event emitted when diagnostic data, photos, serial scan, or technician certifications are attached via cd_document_core (M31, AS-01)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "workshop.evidence.recorded"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_workshop"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["evidence_id", "job_id", "job_name", "document_id", "document_name", "evidence_type"],
+      "properties": {
+        "evidence_id": { "type": "integer" },
+        "job_id": { "type": "integer" },
+        "job_name": { "type": "string" },
+        "document_id": { "type": "integer" },
+        "document_name": { "type": "string" },
+        "evidence_type": { "type": "string" },
+        "captured_by_id": { "type": ["integer", "boolean"] },
+        "captured_at": { "type": "string" }
+      }
+    }
+  }
+}

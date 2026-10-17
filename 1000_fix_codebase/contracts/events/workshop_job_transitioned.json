@@ -1,0 +1,44 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "workshop.job.transitioned",
+  "description": "Event emitted when a workshop repair job transitions states across the unified AS-06 lifecycle (M31, CD-M31-01)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "workshop.job.transitioned"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_workshop"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["job_id", "job_name", "workshop_id", "workshop_code", "repair_level", "old_state", "new_state"],
+      "properties": {
+        "job_id": { "type": "integer" },
+        "job_name": { "type": "string" },
+        "order_id": { "type": ["integer", "boolean"] },
+        "order_reference": { "type": "string" },
+        "workshop_id": { "type": "integer" },
+        "workshop_code": { "type": "string" },
+        "bench_id": { "type": ["integer", "boolean"] },
+        "technician_id": { "type": ["integer", "boolean"] },
+        "repair_level": { "type": "string", "enum": ["l1", "l2", "l3"] },
+        "old_state": { "type": "string" },
+        "new_state": { "type": "string" },
+        "is_rework": { "type": "boolean" }
+      }
+    }
+  }
+}

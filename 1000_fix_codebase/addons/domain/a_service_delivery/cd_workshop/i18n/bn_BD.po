@@ -1,0 +1,89 @@
+# Bengali (Bangladesh) translation for cd_workshop.
+# 100% coverage — FF-24/FF-25 (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Workshop & Depot Repair"
+msgstr "ওয়ার্কশপ ও ডিপো মেরামত"
+
+msgid "WIP Operations Board"
+msgstr "ডব্লিউআইপি অপারেশন বোর্ড"
+
+msgid "Repair Orders"
+msgstr "মেরামত অর্ডার"
+
+msgid "Bench Board & Stations"
+msgstr "বেঞ্চ বোর্ড ও স্টেশন"
+
+msgid "Workshop Facilities"
+msgstr "ওয়ার্কশপ সুবিধাসমূহ"
+
+msgid "Job Reference"
+msgstr "কাজের রেফারেন্স"
+
+msgid "Parent Service Order"
+msgstr "মূল সার্ভিস অর্ডার"
+
+msgid "Workshop Facility"
+msgstr "ওয়ার্কশপ সুবিধা"
+
+msgid "Assigned Repair Bench"
+msgstr "নির্ধারিত মেরামত বেঞ্চ"
+
+msgid "Assigned Technician"
+msgstr "নির্ধারিত টেকনিশিয়ান"
+
+msgid "QC Inspector"
+msgstr "কিউসি পরিদর্শক"
+
+msgid "Repair Level"
+msgstr "মেরামত স্তর"
+
+msgid "Reported Fault"
+msgstr "রিপোর্টকৃত ত্রুটি"
+
+msgid "Diagnosis & Defect Coding"
+msgstr "ডায়াগনোসিস ও ত্রুটি কোডিং"
+
+msgid "Repair Actions Taken"
+msgstr "গৃহীত মেরামত পদক্ষেপ"
+
+msgid "Burn-In Duration (Hours)"
+msgstr "বার্ন-ইন সময়কাল (ঘণ্টা)"
+
+msgid "Burn-In Passed"
+msgstr "বার্ন-ইন উত্তীর্ণ"
+
+msgid "QC Passed"
+msgstr "কিউসি উত্তীর্ণ"
+
+msgid "Parts Consumed"
+msgstr "ব্যবহৃত যন্ত্রাংশ"
+
+msgid "Total Repair Cost"
+msgstr "মোট মেরামত ব্যয়"
+
+msgid "Internal Rework"
+msgstr "অভ্যন্তরীণ রিওয়ার্ক"
+
+msgid "Legacy Reference"
+msgstr "পূর্ববর্তী রেফারেন্স"
+
+msgid "Bench Code"
+msgstr "বেঞ্চ কোড"
+
+msgid "Bench Name"
+msgstr "বেঞ্চের নাম"
+
+msgid "Bench Status"
+msgstr "বেঞ্চের অবস্থা"
+
+msgid "ESD Safe Station"
+msgstr "ইএসডি নিরাপদ স্টেশন"
+
+msgid "Evidence Pack"
+msgstr "প্রমাণ নথি প্যাকেজ"

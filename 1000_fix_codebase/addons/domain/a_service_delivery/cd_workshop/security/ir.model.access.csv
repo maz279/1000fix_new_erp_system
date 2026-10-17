@@ -1,0 +1,14 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_workshop_user,fix.workshop.user,model_fix_workshop,cd_workshop.group_fix_workshop_user,1,0,0,0
+access_fix_workshop_mgr,fix.workshop.mgr,model_fix_workshop,cd_workshop.group_fix_workshop_manager,1,1,1,0
+access_fix_workshop_bench_user,fix.workshop.bench.user,model_fix_workshop_bench,cd_workshop.group_fix_workshop_user,1,1,0,0
+access_fix_workshop_bench_mgr,fix.workshop.bench.mgr,model_fix_workshop_bench,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_job_user,fix.workshop.job.user,model_fix_workshop_job,cd_workshop.group_fix_workshop_user,1,1,1,0
+access_fix_workshop_job_mgr,fix.workshop.job.mgr,model_fix_workshop_job,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_part_line_user,fix.workshop.part.line.user,model_fix_workshop_part_line,cd_workshop.group_fix_workshop_user,1,1,1,1
+access_fix_workshop_part_line_mgr,fix.workshop.part.line.mgr,model_fix_workshop_part_line,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_evidence_user,fix.workshop.evidence.user,model_fix_workshop_evidence,cd_workshop.group_fix_workshop_user,1,1,1,0
+access_fix_workshop_evidence_mgr,fix.workshop.evidence.mgr,model_fix_workshop_evidence,cd_workshop.group_fix_workshop_manager,1,1,1,1
+access_fix_workshop_internal_base,fix.workshop.internal.base,model_fix_workshop,base.group_user,1,0,0,0
+access_fix_workshop_bench_internal_base,fix.workshop.bench.internal.base,model_fix_workshop_bench,base.group_user,1,0,0,0
+access_fix_workshop_job_internal_base,fix.workshop.job.internal.base,model_fix_workshop_job,base.group_user,1,0,0,0

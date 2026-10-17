@@ -50,7 +50,7 @@ Realisation kinds: **cd** = first-party Odoo module(s) (manifest
 | M28 | Integration, API & Events | cd | cd_event_outbox |
 | M29 | Identity, Access & Security | cd | cd_rbac_ext |
 | M30 | Platform Administration | cd | cd_entity_config |
-| M31 | Workshop & Depot Repair | embedded | cd_service_order (fix.work.order + workshop states) |
+| M31 | Workshop & Depot Repair | cd | cd_workshop |
 | M32 | Conversational AI (Bengali) | l5-service | services/stt (Bengali STT + PDPA gate) |
 | M33 | Customer & Party Master | cd | cd_party_master |
 | M34 | CX, Feedback & Complaints | cd | cd_cx_feedback |

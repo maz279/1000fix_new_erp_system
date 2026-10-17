@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "workshop.bench.assigned",
+  "description": "Event emitted when a repair job is allocated to a workshop repair bench and technician (M31, CD-M31-02)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "workshop.bench.assigned"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_workshop"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["bench_id", "bench_code", "workshop_id", "workshop_code", "job_id", "job_name", "repair_level"],
+      "properties": {
+        "bench_id": { "type": "integer" },
+        "bench_code": { "type": "string" },
+        "workshop_id": { "type": "integer" },
+        "workshop_code": { "type": "string" },
+        "job_id": { "type": "integer" },
+        "job_name": { "type": "string" },
+        "repair_level": { "type": "string", "enum": ["l1", "l2", "l3"] },
+        "technician_id": { "type": ["integer", "boolean"] },
+        "technician_name": { "type": "string" }
+      }
+    }
+  }
+}

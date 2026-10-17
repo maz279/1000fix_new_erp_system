@@ -210,6 +210,14 @@
     <menuitem id="menu_p03_ws_entity_config_s2" name="Configuration" parent="menu_p03_ws_entity_config" sequence="20"/>
     <menuitem id="menu_p03_ws_entity_config_s3" name="Operations" parent="menu_p03_ws_entity_config" sequence="30"/>
     <menuitem id="menu_p03_ws_entity_config_s4" name="Comms" parent="menu_p03_ws_entity_config" sequence="40"/>
+    <!-- M31: Workshop &amp; Depot Repair (4 groups, 12 screens, 6 reports) -->
+    <menuitem id="menu_p03_ws_workshop" name="Workshop &amp; Depot Repair"
+              parent="cd_entity_config.menu_fix_operations_root"
+              sequence="62"/>
+    <menuitem id="menu_p03_ws_workshop_s1" name="Repair Orders" parent="menu_p03_ws_workshop" sequence="10"/>
+    <menuitem id="menu_p03_ws_workshop_s2" name="Bench Board" parent="menu_p03_ws_workshop" sequence="20"/>
+    <menuitem id="menu_p03_ws_workshop_s3" name="Execution" parent="menu_p03_ws_workshop" sequence="30"/>
+    <menuitem id="menu_p03_ws_workshop_s4" name="Costing &amp; Knowledge" parent="menu_p03_ws_workshop" sequence="40"/>
     <!-- M33: Customer &amp; Party Master (5 groups, 15 screens, 6 reports) -->
     <menuitem id="menu_p03_ws_party_master" name="Customer &amp; Party Master"
               parent="cd_entity_config.menu_fix_operations_root"

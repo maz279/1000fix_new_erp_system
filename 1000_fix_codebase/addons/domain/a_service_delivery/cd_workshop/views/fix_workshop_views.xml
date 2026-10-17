@@ -1,0 +1,365 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ==================== FIX.WORKSHOP.JOB VIEWS (WIP BOARD) ==================== -->
+    <!-- Kanban View: WIP Operations Board -->
+    <record id="view_fix_workshop_job_kanban" model="ir.ui.view">
+        <field name="name">fix.workshop.job.kanban</field>
+        <field name="model">fix.workshop.job</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" quick_create="false" class="o_kanban_small_column">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="order_reference"/>
+                <field name="repair_level"/>
+                <field name="priority"/>
+                <field name="state"/>
+                <field name="technician_id"/>
+                <field name="bench_id"/>
+                <field name="device_serial"/>
+                <field name="is_rework"/>
+                <field name="total_repair_cost"/>
+                <field name="currency_id"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click shadow-sm border rounded p-2 mb-2 #{record.is_rework.raw_value ? 'border-danger' : ''}">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-primary"><field name="name"/></strong>
+                                <span t-if="record.is_rework.raw_value" class="badge bg-danger">REWORK</span>
+                            </div>
+                            <div class="text-muted small mb-1">
+                                <span>Order: </span><field name="order_reference"/>
+                            </div>
+                            <div class="mb-1">
+                                <span t-if="record.repair_level.raw_value == 'l1'" class="badge bg-info text-dark">L1 Modular</span>
+                                <span t-elif="record.repair_level.raw_value == 'l2'" class="badge bg-warning text-dark">L2 Board</span>
+                                <span t-elif="record.repair_level.raw_value == 'l3'" class="badge bg-danger text-white">L3 Cleanroom</span>
+                                <span class="badge bg-secondary ms-1"><field name="priority"/></span>
+                            </div>
+                            <div class="small text-truncate mb-1">
+                                <span>S/N: </span><field name="device_serial"/>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-2 pt-1 border-top small">
+                                <span>Bench: <field name="bench_id"/></span>
+                                <span class="fw-bold"><field name="total_repair_cost" widget="monetary"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <!-- Tree View: Workshop Jobs -->
+    <record id="view_fix_workshop_job_tree" model="ir.ui.view">
+        <field name="name">fix.workshop.job.tree</field>
+        <field name="model">fix.workshop.job</field>
+        <field name="arch" type="xml">
+            <list string="Workshop Repair Jobs" decoration-danger="is_rework == True" decoration-warning="state == 'waiting_parts'" decoration-info="state == 'in_repair'" decoration-success="state == 'ready'">
+                <field name="name"/>
+                <field name="order_reference"/>
+                <field name="workshop_id"/>
+                <field name="bench_id"/>
+                <field name="repair_level"/>
+                <field name="device_serial"/>
+                <field name="technician_id"/>
+                <field name="priority"/>
+                <field name="state"/>
+                <field name="is_rework"/>
+                <field name="total_repair_cost" widget="monetary"/>
+                <field name="currency_id" column_invisible="True"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Form View: Workshop Job Record -->
+    <record id="view_fix_workshop_job_form" model="ir.ui.view">
+        <field name="name">fix.workshop.job.form</field>
+        <field name="model">fix.workshop.job</field>
+        <field name="arch" type="xml">
+            <form string="Workshop Repair Job">
+                <header>
+                    <button name="action_intake" type="object" string="Intake" invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_diagnostic" type="object" string="Start Diagnosis" invisible="state != 'intake'" class="btn-primary"/>
+                    <button name="action_wait_parts" type="object" string="Wait for Parts" invisible="state not in ('intake', 'diagnostic', 'in_repair')"/>
+                    <button name="action_start_repair" type="object" string="Start Repair on Bench" invisible="state not in ('intake', 'diagnostic', 'waiting_parts', 'qc_failed')" class="btn-primary"/>
+                    <button name="action_start_burn_in" type="object" string="Start Burn-In Testing" invisible="state != 'in_repair'" class="btn-secondary"/>
+                    <button name="action_pass_burn_in" type="object" string="Pass Burn-In" invisible="state != 'burn_in'" class="btn-success"/>
+                    <button name="action_pass_qc" type="object" string="Pass QC" invisible="state != 'qc_pending'" class="btn-success"/>
+                    <button name="action_fail_qc" type="object" string="Fail QC (Rework)" invisible="state != 'qc_pending'" class="btn-danger"/>
+                    <button name="action_deliver" type="object" string="Deliver / Release" invisible="state != 'ready'" class="btn-primary"/>
+                    <button name="action_cancel" type="object" string="Cancel Job" invisible="state in ('delivered', 'cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="intake,diagnostic,waiting_parts,in_repair,burn_in,qc_pending,ready,delivered"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Job Reference"/>
+                        <h1><field name="name"/></h1>
+                        <h3><field name="name_bn" placeholder="নথি নম্বর (বাংলা)"/></h3>
+                    </div>
+                    <group>
+                        <group string="Routing &amp; Facility Allocation">
+                            <field name="workshop_id"/>
+                            <field name="bench_id" domain="[('workshop_id', '=', workshop_id)]"/>
+                            <field name="repair_level"/>
+                            <field name="technician_id"/>
+                            <field name="qc_inspector_id"/>
+                            <field name="priority"/>
+                        </group>
+                        <group string="Service Order &amp; Device">
+                            <field name="order_id"/>
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="device_serial"/>
+                            <field name="multi_job_group_id"/>
+                            <field name="legacy_reference"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Fault &amp; Diagnosis">
+                            <group>
+                                <field name="fault_description"/>
+                                <field name="diagnostic_findings"/>
+                                <field name="repair_action_summary"/>
+                            </group>
+                        </page>
+
+                        <page string="Spare Parts Consumed">
+                            <field name="part_line_ids">
+                                <list editable="bottom">
+                                    <field name="product_id"/>
+                                    <field name="part_number"/>
+                                    <field name="quantity"/>
+                                    <field name="unit_cost" widget="monetary"/>
+                                    <field name="subtotal" widget="monetary"/>
+                                    <field name="lot_serial_number"/>
+                                    <field name="notes"/>
+                                    <field name="currency_id" column_invisible="True"/>
+                                </list>
+                            </field>
+                            <group class="oe_subtotal_footer">
+                                <field name="parts_total" widget="monetary"/>
+                                <field name="labour_total" widget="monetary"/>
+                                <field name="total_repair_cost" widget="monetary" class="oe_subtotal_footer_separator"/>
+                                <field name="currency_id" invisible="True"/>
+                            </group>
+                        </page>
+
+                        <page string="Evidence Pack (cd_document_core)">
+                            <field name="evidence_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="evidence_type"/>
+                                    <field name="document_id"/>
+                                    <field name="isolation_tier"/>
+                                    <field name="captured_by_id"/>
+                                    <field name="captured_at"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Burn-In &amp; Quality Control">
+                            <group>
+                                <group string="Burn-In Protocol (CD-M31-03)">
+                                    <field name="burn_in_duration_hours"/>
+                                    <field name="burn_in_temp_celsius"/>
+                                    <field name="burn_in_started_at"/>
+                                    <field name="burn_in_completed_at"/>
+                                    <field name="burn_in_passed"/>
+                                </group>
+                                <group string="Quality Control &amp; Rework">
+                                    <field name="qc_passed"/>
+                                    <field name="qc_notes"/>
+                                    <field name="is_rework"/>
+                                    <field name="rework_count"/>
+                                    <field name="rework_reason"/>
+                                    <field name="rework_of_id"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.WORKSHOP.BENCH VIEWS ==================== -->
+    <record id="view_fix_workshop_bench_kanban" model="ir.ui.view">
+        <field name="name">fix.workshop.bench.kanban</field>
+        <field name="model">fix.workshop.bench</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" quick_create="false">
+                <field name="id"/>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="repair_level"/>
+                <field name="state"/>
+                <field name="technician_id"/>
+                <field name="current_job_count"/>
+                <field name="max_concurrent_jobs"/>
+                <field name="is_esd_safe"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_card oe_kanban_global_click p-2 border rounded shadow-sm mb-2">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-primary"><field name="code"/></strong>
+                                <span t-if="record.is_esd_safe.raw_value" class="badge bg-success">ESD Safe</span>
+                            </div>
+                            <div class="fw-bold mb-1"><field name="name"/></div>
+                            <div class="mb-1">
+                                <span t-if="record.repair_level.raw_value == 'l1'" class="badge bg-info text-dark">L1 Modular</span>
+                                <span t-elif="record.repair_level.raw_value == 'l2'" class="badge bg-warning text-dark">L2 Board</span>
+                                <span t-elif="record.repair_level.raw_value == 'l3'" class="badge bg-danger text-white">L3 Cleanroom</span>
+                            </div>
+                            <div class="small text-muted mb-1">
+                                <span>Technician: <field name="technician_id"/></span>
+                            </div>
+                            <div class="border-top pt-1 small d-flex justify-content-between">
+                                <span>Capacity: <field name="current_job_count"/> / <field name="max_concurrent_jobs"/></span>
+                                <span class="badge bg-light text-dark border"><field name="state"/></span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_fix_workshop_bench_tree" model="ir.ui.view">
+        <field name="name">fix.workshop.bench.tree</field>
+        <field name="model">fix.workshop.bench</field>
+        <field name="arch" type="xml">
+            <list string="Repair Benches">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="workshop_id"/>
+                <field name="repair_level"/>
+                <field name="technician_id"/>
+                <field name="state"/>
+                <field name="current_job_count"/>
+                <field name="max_concurrent_jobs"/>
+                <field name="is_esd_safe"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_workshop_bench_form" model="ir.ui.view">
+        <field name="name">fix.workshop.bench.form</field>
+        <field name="model">fix.workshop.bench</field>
+        <field name="arch" type="xml">
+            <form string="Repair Bench">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Bench Name"/>
+                        <h1><field name="name"/></h1>
+                        <h3><field name="name_bn" placeholder="নাম (বাংলা)"/></h3>
+                    </div>
+                    <group>
+                        <group string="Identity &amp; Classification">
+                            <field name="code"/>
+                            <field name="workshop_id"/>
+                            <field name="repair_level"/>
+                            <field name="technician_id"/>
+                        </group>
+                        <group string="Status &amp; Capacity">
+                            <field name="state"/>
+                            <field name="max_concurrent_jobs"/>
+                            <field name="current_job_count"/>
+                            <field name="is_esd_safe"/>
+                            <field name="calibration_expiry_date"/>
+                        </group>
+                    </group>
+                    <group string="Equipment Specifications">
+                        <field name="equipment_specs"/>
+                        <field name="notes"/>
+                    </group>
+                    <notebook>
+                        <page string="Active Jobs on Bench">
+                            <field name="active_job_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="order_reference"/>
+                                    <field name="repair_level"/>
+                                    <field name="device_serial"/>
+                                    <field name="state"/>
+                                    <field name="priority"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.WORKSHOP VIEWS ==================== -->
+    <record id="view_fix_workshop_tree" model="ir.ui.view">
+        <field name="name">fix.workshop.tree</field>
+        <field name="model">fix.workshop</field>
+        <field name="arch" type="xml">
+            <list string="Workshop Facilities">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="workshop_type"/>
+                <field name="branch_id"/>
+                <field name="city"/>
+                <field name="manager_id"/>
+                <field name="bench_count"/>
+                <field name="bench_utilization" widget="progressbar"/>
+                <field name="is_esd_certified"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_workshop_form" model="ir.ui.view">
+        <field name="name">fix.workshop.form</field>
+        <field name="model">fix.workshop</field>
+        <field name="arch" type="xml">
+            <form string="Workshop Facility">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Facility Name"/>
+                        <h1><field name="name"/></h1>
+                        <h3><field name="name_bn" placeholder="নাম (বাংলা)"/></h3>
+                    </div>
+                    <group>
+                        <group string="Details">
+                            <field name="code"/>
+                            <field name="workshop_type"/>
+                            <field name="branch_id"/>
+                            <field name="manager_id"/>
+                            <field name="is_esd_certified"/>
+                        </group>
+                        <group string="Location &amp; Capacity">
+                            <field name="city"/>
+                            <field name="street"/>
+                            <field name="phone"/>
+                            <field name="email"/>
+                            <field name="bench_count"/>
+                            <field name="available_bench_count"/>
+                            <field name="bench_utilization"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Benches">
+                            <field name="bench_ids">
+                                <list>
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="repair_level"/>
+                                    <field name="technician_id"/>
+                                    <field name="state"/>
+                                    <field name="current_job_count"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+</odoo>

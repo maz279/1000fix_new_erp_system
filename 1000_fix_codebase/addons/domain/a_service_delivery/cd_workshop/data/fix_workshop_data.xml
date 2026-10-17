@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Workshops -->
+        <record id="ws_central_tejgaon" model="fix.workshop">
+            <field name="code">WS-TEJGAON-01</field>
+            <field name="name">Central Workshop Tejgaon</field>
+            <field name="name_bn">সেন্ট্রাল ওয়ার্কশপ তেজগাঁও</field>
+            <field name="workshop_type">central</field>
+            <field name="city">Dhaka</field>
+            <field name="street">Tejgaon Industrial Area, Dhaka-1208</field>
+            <field name="phone">+8801700000031</field>
+            <field name="is_esd_certified" eval="True"/>
+        </record>
+
+        <record id="ws_dhanmondi" model="fix.workshop">
+            <field name="code">WS-DHANMONDI-01</field>
+            <field name="name">Dhanmondi Hub Workshop</field>
+            <field name="name_bn">ধানমন্ডি হাব ওয়ার্কশপ</field>
+            <field name="workshop_type">regional</field>
+            <field name="city">Dhaka</field>
+            <field name="street">Road 27, Dhanmondi, Dhaka</field>
+            <field name="phone">+8801700000032</field>
+            <field name="is_esd_certified" eval="True"/>
+        </record>
+
+        <record id="ws_chattogram" model="fix.workshop">
+            <field name="code">WS-CTG-01</field>
+            <field name="name">Chattogram Central Depot</field>
+            <field name="name_bn">চট্টগ্রাম সেন্ট্রাল ডিপো</field>
+            <field name="workshop_type">regional</field>
+            <field name="city">Chattogram</field>
+            <field name="street">Agrabad Commercial Area, Chattogram</field>
+            <field name="phone">+8801700000033</field>
+            <field name="is_esd_certified" eval="True"/>
+        </record>
+
+        <!-- Benches for Central Workshop Tejgaon -->
+        <record id="bench_tej_l1_01" model="fix.workshop.bench">
+            <field name="code">BENCH-TEJ-L1-01</field>
+            <field name="name">Tejgaon Bench L1-01 (Screen &amp; Modular)</field>
+            <field name="name_bn">তেজগাঁও বেঞ্চ এল১-০১ (স্ক্রিন ও মডুলার)</field>
+            <field name="workshop_id" ref="ws_central_tejgaon"/>
+            <field name="repair_level">l1</field>
+            <field name="max_concurrent_jobs">2</field>
+            <field name="state">available</field>
+            <field name="is_esd_safe" eval="True"/>
+            <field name="equipment_specs">Screen heating separator, ESD mat, electric torque screwdriver</field>
+        </record>
+
+        <record id="bench_tej_l2_01" model="fix.workshop.bench">
+            <field name="code">BENCH-TEJ-L2-01</field>
+            <field name="name">Tejgaon Bench L2-01 (Board &amp; Component)</field>
+            <field name="name_bn">তেজগাঁও বেঞ্চ এল২-০১ (বোর্ড ও কম্পোনেন্ট)</field>
+            <field name="workshop_id" ref="ws_central_tejgaon"/>
+            <field name="repair_level">l2</field>
+            <field name="max_concurrent_jobs">1</field>
+            <field name="state">available</field>
+            <field name="is_esd_safe" eval="True"/>
+            <field name="equipment_specs">Hakko soldering station, Quick 861DW hot air, Trinocular stereo microscope, Fluke multimeter</field>
+        </record>
+
+        <record id="bench_tej_l3_01" model="fix.workshop.bench">
+            <field name="code">BENCH-TEJ-L3-01</field>
+            <field name="name">Tejgaon Bench L3-01 (BGA Cleanroom Depot)</field>
+            <field name="name_bn">তেজগাঁও বেঞ্চ এল৩-০১ (বিজিএ ক্লিনরুম ডিপো)</field>
+            <field name="workshop_id" ref="ws_central_tejgaon"/>
+            <field name="repair_level">l3</field>
+            <field name="max_concurrent_jobs">1</field>
+            <field name="state">available</field>
+            <field name="is_esd_safe" eval="True"/>
+            <field name="equipment_specs">BGA optical reballing rework station, Rigol 4-channel oscilloscope, programmable DC power load</field>
+        </record>
+
+        <!-- Bench for Dhanmondi -->
+        <record id="bench_dhn_l1_01" model="fix.workshop.bench">
+            <field name="code">BENCH-DHN-L1-01</field>
+            <field name="name">Dhanmondi Bench L1-01 (Modular Quick-Fix)</field>
+            <field name="name_bn">ধানমন্ডি বেঞ্চ এল১-০১ (মডুলার কুইক-ফিক্স)</field>
+            <field name="workshop_id" ref="ws_dhanmondi"/>
+            <field name="repair_level">l1</field>
+            <field name="max_concurrent_jobs">2</field>
+            <field name="state">available</field>
+            <field name="is_esd_safe" eval="True"/>
+        </record>
+    </data>
+</odoo>
