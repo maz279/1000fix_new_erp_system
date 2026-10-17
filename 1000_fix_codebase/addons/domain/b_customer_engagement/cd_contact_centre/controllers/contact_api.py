@@ -147,3 +147,94 @@ class ContactApiController(http.Controller):
             # itself lives in the softphone vendor's SDK
             "vendor": params.get_param("fix_softphone_vendor") or None,
         }}
+
+    @http.route("/contact/telephony/webhook", type="json", auth="user",
+                readonly=False)
+    def telephony_webhook(self, **kwargs):
+        """INT-015 Cloud telephony / CPaaS webhook: captures Hotline 16743
+        inbound calls, speech transcripts, and call disconnects in the
+        system of record (G4-04)."""
+        event = kwargs.get("event", "call.started")
+        caller = kwargs.get("caller") or kwargs.get("from", "")
+        call_sid = kwargs.get("call_sid") or kwargs.get("session_id", "")
+        utterance = kwargs.get("text") or kwargs.get("transcript", "")
+        lang = kwargs.get("lang", "bn")
+
+        if not caller and not call_sid:
+            return _error("missing_telephony_data", "caller or call_sid is required")
+
+        conv_env = request.env["fix.conversation"]
+        conv = False
+        if call_sid:
+            conv = conv_env.search([("call_sid", "=", call_sid)], limit=1)
+
+        if not conv:
+            conv = conv_env.intake_hotline_call(
+                caller_phone=caller,
+                call_sid=call_sid,
+                initial_utterance=utterance,
+                lang=lang,
+            )
+        elif utterance:
+            conv.intake_message(utterance, speaker="customer", lang=lang)
+
+        if event in ("call.ended", "call.hangup") and conv.state not in ("resolved_ai", "resolved_agent"):
+            conv.action_resolve(by_ai=conv.ai_resolved)
+
+        return {
+            "status": "ok",
+            "conversation": {
+                "id": conv.id,
+                "call_sid": conv.call_sid,
+                "state": conv.state,
+                "turns": len(conv.turn_ids),
+                "ai_resolved": conv.ai_resolved,
+            }
+        }
+
+    @http.route("/contact/chat/message", type="json", auth="user",
+                readonly=False)
+    def chat_message(self, **kwargs):
+        """INT-018 Omnichannel chat intake (WhatsApp, Web Chat, In-App).
+        Records turn in transcript and triggers M32 AI assistant."""
+        conversation_id = kwargs.get("conversation_id")
+        channel = kwargs.get("channel", "chat")
+        contact_identity = kwargs.get("contact_identity", "")
+        message = kwargs.get("message") or kwargs.get("text", "")
+        lang = kwargs.get("lang", "bn")
+
+        if not message:
+            return _error("empty_message", "message text is required")
+
+        conv_env = request.env["fix.conversation"]
+        if conversation_id:
+            conv = conv_env.browse(int(conversation_id))
+            if not conv.exists():
+                return _error("not_found", "Conversation not found")
+        else:
+            partner = conv_env.env["res.partner"].search([
+                "|", ("phone", "=", contact_identity), ("email", "=", contact_identity)
+            ], limit=1) if contact_identity else False
+            ou = conv_env.env["operating.unit"].search([], limit=1)
+            conv = conv_env.create({
+                "channel": channel if channel in ("whatsapp", "chat", "email", "in_app") else "chat",
+                "contact_identity": contact_identity,
+                "customer_id": partner.id if partner else False,
+                "operating_unit_id": ou.id if ou else False,
+                "state": "with_ai",
+                "started_at": fields.Datetime.now(),
+            })
+
+        conv.intake_message(message, speaker="customer", lang=lang)
+        latest_turn = conv.turn_ids.sorted(key=lambda t: t.sequence)[-1] if conv.turn_ids else False
+
+        return {
+            "conversation": {
+                "id": conv.id,
+                "state": conv.state,
+                "intent": conv.intent or "",
+                "ai_resolved": conv.ai_resolved,
+                "handoff_reason": conv.handoff_reason or "",
+                "reply": latest_turn.text if latest_turn and latest_turn.speaker == "ai" else "",
+            }
+        }

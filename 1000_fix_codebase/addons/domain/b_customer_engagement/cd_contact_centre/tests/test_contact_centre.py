@@ -65,5 +65,25 @@ class TestAssistantIntents(unittest.TestCase):
         self.assertIn("handoff_on_failure", SOURCE)
 
 
+class TestTelephonyAndPIIMasking(unittest.TestCase):
+    def test_call_sid_telephony_field(self):
+        self.assertIn("call_sid", SOURCE)
+
+    def test_pii_masked_pdpa_field(self):
+        self.assertIn("pii_masked", SOURCE)
+
+    def test_intake_hotline_call_method(self):
+        self.assertIn("def intake_hotline_call", SOURCE)
+        self.assertIn("conversation.hotline_captured", SOURCE)
+
+    def test_intake_message_method(self):
+        self.assertIn("def intake_message", SOURCE)
+
+    def test_mask_pii_for_mining_method(self):
+        self.assertIn("def mask_pii_for_mining", SOURCE)
+        self.assertIn("[PHONE_MASKED]", SOURCE)
+        self.assertIn("[EMAIL_MASKED]", SOURCE)
+
+
 if __name__ == "__main__":
     unittest.main()

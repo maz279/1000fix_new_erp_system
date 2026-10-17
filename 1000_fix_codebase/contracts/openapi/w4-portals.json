@@ -166,6 +166,28 @@
         "operationId": "handoffToAgent"
       }
     },
+    "/contact/telephony/webhook": {
+      "post": {
+        "summary": "P10 / INT-015: Inbound call event & speech transcript webhook (Hotline 16743)",
+        "responses": {
+          "200": {
+            "description": "Call captured"
+          }
+        },
+        "operationId": "handleTelephonyWebhook"
+      }
+    },
+    "/contact/chat/message": {
+      "post": {
+        "summary": "P10 / INT-018: Omnichannel chat message intake (WhatsApp, Web Chat, In-App)",
+        "responses": {
+          "200": {
+            "description": "Turn recorded and AI evaluated"
+          }
+        },
+        "operationId": "handleChatMessage"
+      }
+    },
     "/analytics/dashboards": {
       "get": {
         "summary": "P06: embedded dashboard registry (R5)",

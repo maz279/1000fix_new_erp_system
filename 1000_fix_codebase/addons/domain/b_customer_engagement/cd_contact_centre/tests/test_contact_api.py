@@ -56,12 +56,23 @@ class TestApiSurface(unittest.TestCase):
                            / "w4-portals.json").read_text(encoding="utf-8"))
         self.assertIn("/contact/conversations", spec["paths"])
         self.assertIn("/contact/handoff", spec["paths"])
+        self.assertIn("/contact/telephony/webhook", spec["paths"])
+        self.assertIn("/contact/chat/message", spec["paths"])
 
     def test_routes_json_auth_user(self):
         routes = re.findall(
             r'@http\.route\("(/contact/[^"]+)"[^)]*type="json",\s*auth="user"',
             API)
-        self.assertEqual(len(routes), 4, routes)
+        self.assertEqual(len(routes), 6, routes)
+
+    def test_telephony_webhook_intake_wiring(self):
+        self.assertIn("telephony_webhook", API)
+        self.assertIn("intake_hotline_call", API)
+        self.assertIn("call_sid", API)
+
+    def test_chat_message_intake_wiring(self):
+        self.assertIn("chat_message", API)
+        self.assertIn("intake_message", API)
 
     def test_team_queue_scope_is_honest(self):
         # no phantom agent-assignment column in the domain

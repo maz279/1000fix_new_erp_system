@@ -54,6 +54,10 @@ class FixConversation(models.Model):
     handoff_reason = fields.Char(readonly=True)
     intent = fields.Char(index=True,
                          help="The classified transactional intent (bn/en)")
+    call_sid = fields.Char(string="Call SID", index=True,
+                           help="Telephony session identifier from CPaaS (INT-015)")
+    pii_masked = fields.Boolean(string="PII Masked", default=False,
+                                help="SC-003: transcript masked for offline mining")
 
     def action_handoff_to_agent(self, reason: str = ""):
         """T07: the human-handoff path with FULL context transfer — the
@@ -86,6 +90,80 @@ class FixConversation(models.Model):
         handoffs = self.search_count([("handoff_reason", "!=", False)])
         total = ai + handoffs
         return round(100.0 * ai / total, 2) if total else 0.0
+
+    @api.model
+    def intake_hotline_call(self, caller_phone: str, call_sid: str = "",
+                            initial_utterance: str = "", lang: str = "bn"):
+        """INT-015: Inbound call on Hotline 16743 creates conversation in record (G4-04)."""
+        partner = self.env["res.partner"].search([("phone", "=", caller_phone)], limit=1)
+        ou = self.env["operating.unit"].search([], limit=1)
+        conv = self.create({
+            "channel": "voice",
+            "contact_identity": caller_phone,
+            "call_sid": call_sid,
+            "customer_id": partner.id if partner else False,
+            "operating_unit_id": ou.id if ou else False,
+            "state": "with_ai",
+            "started_at": fields.Datetime.now(),
+        })
+        greeting_bn = "১০০০ফিক্স কাস্টমার কেয়ারে আপনাকে স্বাগতম। আপনি কিভাবে সাহায্য চান?"
+        greeting_en = "Welcome to 1000FiX Customer Care. How can we assist you today?"
+        self.env["fix.conversation.turn"].create({
+            "conversation_id": conv.id,
+            "sequence": 10,
+            "speaker": "ai",
+            "text": greeting_bn if lang == "bn" else greeting_en,
+            "lang": lang,
+        })
+        publish(self.env, "conversation.hotline_captured", "fix.conversation",
+                conv.id, {
+                    "channel": "voice",
+                    "caller": caller_phone,
+                    "call_sid": call_sid,
+                })
+        if initial_utterance:
+            conv.intake_message(initial_utterance, speaker="customer", lang=lang)
+        return conv
+
+    def intake_message(self, text: str, speaker: str = "customer", lang: str = "bn"):
+        """Records a transcript turn and triggers transactional AI dialogue management."""
+        for conv in self:
+            seq = (max(conv.turn_ids.mapped("sequence"), default=0) + 10) if conv.turn_ids else 10
+            self.env["fix.conversation.turn"].create({
+                "conversation_id": conv.id,
+                "sequence": seq,
+                "speaker": speaker,
+                "text": text,
+                "lang": lang,
+            })
+            if speaker == "customer" and conv.state in ("new", "with_ai"):
+                from .assistant_engine import default_assistant_engine
+                res = default_assistant_engine.classify_intent(text)
+                conv.write({"intent": res.matched_intent or ""})
+                reply = res.response_text_bn if lang == "bn" else res.response_text_en
+                self.env["fix.conversation.turn"].create({
+                    "conversation_id": conv.id,
+                    "sequence": seq + 10,
+                    "speaker": "ai",
+                    "text": reply,
+                    "lang": lang,
+                })
+                if res.resolvable:
+                    conv.action_resolve(by_ai=True)
+                elif res.requires_handoff:
+                    conv.action_handoff_to_agent(reason=res.handoff_reason or "escalation")
+
+    def mask_pii_for_mining(self) -> bool:
+        """SC-003 DPIA requirement: Masks customer PII prior to offline mining."""
+        import re
+        for conv in self:
+            for turn in conv.turn_ids:
+                masked = re.sub(r"(\+?880?|0)1[3-9]\d{8}", "[PHONE_MASKED]", turn.text)
+                masked = re.sub(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+", "[EMAIL_MASKED]", masked)
+                masked = re.sub(r"\b\d{10}\b|\b\d{17}\b", "[NID_MASKED]", masked)
+                turn.write({"text": masked})
+            conv.write({"pii_masked": True})
+        return True
 
 
 class FixConversationTurn(models.Model):

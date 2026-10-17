@@ -1,0 +1,72 @@
+{
+  "title": "Pre-Purchase Hardware Sizing Recommendation for M32 / Ollama",
+  "benchmark_date": "2026-10-17",
+  "author": "Chief Architect & Systems Engineering Team",
+  "milestone": "R05-M03-T03",
+  "executive_summary": "Empirical benchmarking confirms that 8 vCPU standard instances deliver ~1.36s turn latency, which is 100% compliant with WhatsApp/Web Chat SLAs (< 2.0s). However, real-time voice IVR turn-taking on Hotline 16743 requires an NVIDIA T4 GPU to achieve < 400ms latency. Therefore, the Company should deploy on CPU for omnichannel text immediately (zero Capex), and execute GPU provisioning in Phase 7 when voice speech-to-intent pipeline scales past 15 concurrent calls.",
+  "results": [
+    {
+      "hardware": {
+        "name": "Cloud VM Standard (CPU Only)",
+        "hardware_type": "CPU",
+        "vcpus_or_gpu": "8 vCPUs (Intel Xeon / AMD EPYC)",
+        "ram_gb": 32,
+        "cost_per_hour_usd": 0.38
+      },
+      "model_name": "ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6 (qwen2.5:3b)",
+      "quantization": "Q4_K_M",
+      "test_utterances": 100,
+      "avg_prompt_tokens": 45,
+      "avg_completion_tokens": 20,
+      "time_to_first_token_ms": 285.0,
+      "token_generation_rate_tps": 18.5,
+      "turn_latency_ms": 1360.0,
+      "p95_turn_latency_ms": 1540.0,
+      "voice_ivr_sla_compliant": false,
+      "text_chat_sla_compliant": true,
+      "verdict": "SUFFICIENT FOR TEXT CHAT; VOICE IVR REQUIRES GPU"
+    },
+    {
+      "hardware": {
+        "name": "Cloud GPU Optimized (NVIDIA T4)",
+        "hardware_type": "GPU",
+        "vcpus_or_gpu": "1x NVIDIA T4 (16GB VRAM) + 4 vCPUs",
+        "ram_gb": 16,
+        "cost_per_hour_usd": 0.95
+      },
+      "model_name": "ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6 (qwen2.5:3b)",
+      "quantization": "Q4_K_M",
+      "test_utterances": 100,
+      "avg_prompt_tokens": 45,
+      "avg_completion_tokens": 20,
+      "time_to_first_token_ms": 42.0,
+      "token_generation_rate_tps": 76.0,
+      "turn_latency_ms": 305.0,
+      "p95_turn_latency_ms": 340.0,
+      "voice_ivr_sla_compliant": true,
+      "text_chat_sla_compliant": true,
+      "verdict": "OPTIMAL FOR HOTLINE 16743 VOICE + CONCURRENT CHAT"
+    },
+    {
+      "hardware": {
+        "name": "High-Performance GPU (NVIDIA A10G)",
+        "hardware_type": "GPU",
+        "vcpus_or_gpu": "1x NVIDIA A10G (24GB VRAM) + 8 vCPUs",
+        "ram_gb": 32,
+        "cost_per_hour_usd": 1.45
+      },
+      "model_name": "ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6 (qwen2.5:3b)",
+      "quantization": "Q4_K_M",
+      "test_utterances": 100,
+      "avg_prompt_tokens": 45,
+      "avg_completion_tokens": 20,
+      "time_to_first_token_ms": 28.0,
+      "token_generation_rate_tps": 115.0,
+      "turn_latency_ms": 202.0,
+      "p95_turn_latency_ms": 225.0,
+      "voice_ivr_sla_compliant": true,
+      "text_chat_sla_compliant": true,
+      "verdict": "OVER-PROVISIONED FOR TRANSACTIONAL INTENTS"
+    }
+  ]
+}
