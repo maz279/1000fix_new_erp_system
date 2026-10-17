@@ -1,0 +1,58 @@
+{
+  "timestamp": "2026-10-17T02:36:55.911085+00:00",
+  "task": "R03-M01-T01",
+  "milestone": "R03-M01",
+  "verdict": "PASS",
+  "results": [
+    {
+      "component": "odoo_core_stock",
+      "path": "vendor/odoo/addons/stock",
+      "status": "PASS",
+      "details": "Core Odoo stock module manifest present"
+    },
+    {
+      "component": "stock-logistics-workflow",
+      "path": "vendor/oca/stock-logistics-workflow",
+      "status": "PASS",
+      "modules_found": 45
+    },
+    {
+      "component": "stock-logistics-barcode",
+      "path": "vendor/oca/stock-logistics-barcode",
+      "status": "PASS",
+      "modules_found": 3
+    },
+    {
+      "component": "stock-logistics-warehouse",
+      "path": "vendor/oca/stock-logistics-warehouse",
+      "status": "PASS",
+      "modules_found": 19
+    },
+    {
+      "component": "stock-logistics-workflow/stock_no_negative",
+      "status": "PASS",
+      "details": "Manifest present and valid"
+    },
+    {
+      "component": "stock-logistics-workflow/scrap_reason_code",
+      "status": "PASS",
+      "details": "Manifest present and valid"
+    },
+    {
+      "component": "stock-logistics-barcode/barcodes_generator_product",
+      "status": "PASS",
+      "details": "Manifest present and valid"
+    },
+    {
+      "component": "stock-logistics-warehouse/stock_inventory",
+      "status": "PASS",
+      "details": "Manifest present and valid"
+    },
+    {
+      "component": "stock-logistics-warehouse/stock_location_is_sublocation",
+      "status": "PASS",
+      "details": "Manifest present and valid"
+    }
+  ],
+  "errors": []
+}

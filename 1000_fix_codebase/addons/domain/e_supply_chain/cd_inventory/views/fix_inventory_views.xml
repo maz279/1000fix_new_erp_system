@@ -1,0 +1,396 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_inventory views — M15 Spare Parts & Inventory Management (CD-M15-01) -->
+<odoo>
+
+    <!-- ===================================================================== -->
+    <!-- 1. fix.stock.location (Multi-location, Hubs, Service Centers, Vans)   -->
+    <!-- ===================================================================== -->
+    <record id="view_fix_stock_location_list" model="ir.ui.view">
+        <field name="name">fix.stock.location.list</field>
+        <field name="model">fix.stock.location</field>
+        <field name="arch" type="xml">
+            <list decoration-info="is_van_location" decoration-success="state == 'active'" decoration-muted="state == 'inactive'">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn" optional="show"/>
+                <field name="location_type"/>
+                <field name="branch_id"/>
+                <field name="is_van_location" widget="boolean_toggle"/>
+                <field name="technician_id" optional="show"/>
+                <field name="van_plate" optional="show"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_stock_location_form" model="ir.ui.view">
+        <field name="name">fix.stock.location.form</field>
+        <field name="model">fix.stock.location</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_audit_van_stock" string="Audit Van Stock" type="object" class="btn-primary" invisible="not is_van_location"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,inactive"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. Central Warehouse Mirpur"/></h1>
+                        <h3><field name="name_bn" placeholder="বাংলা নাম (যেমন: কেন্দ্রীয় গুদাম মিরপুর)"/></h3>
+                    </div>
+                    <group>
+                        <group string="Location Metadata">
+                            <field name="code"/>
+                            <field name="location_type"/>
+                            <field name="branch_id"/>
+                            <field name="parent_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Mobile Van Configuration">
+                            <field name="is_van_location"/>
+                            <field name="technician_id" invisible="not is_van_location" required="is_van_location"/>
+                            <field name="van_plate" invisible="not is_van_location"/>
+                            <field name="last_audit_date" readonly="1" invisible="not is_van_location"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_stock_location" model="ir.actions.act_window">
+        <field name="name">Stock Locations &amp; Vans</field>
+        <field name="res_model">fix.stock.location</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Manage branch warehouses, service centers, and technician mobile van stock locations.
+            </p>
+        </field>
+    </record>
+
+    <!-- ===================================================================== -->
+    <!-- 2. fix.spare.part (Spare Parts Catalog, Compatibility, Barcodes)     -->
+    <!-- ===================================================================== -->
+    <record id="view_fix_spare_part_list" model="ir.ui.view">
+        <field name="name">fix.spare.part.list</field>
+        <field name="model">fix.spare.part</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="qty_available &lt;= min_qty" decoration-danger="qty_available == 0">
+                <field name="part_number"/>
+                <field name="name"/>
+                <field name="name_bn" optional="show"/>
+                <field name="category"/>
+                <field name="brand"/>
+                <field name="barcode" optional="show"/>
+                <field name="is_serialized" optional="show"/>
+                <field name="qty_available"/>
+                <field name="uom"/>
+                <field name="unit_cost"/>
+                <field name="sales_price"/>
+                <field name="warranty_months"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_spare_part_form" model="ir.ui.view">
+        <field name="name">fix.spare.part.form</field>
+        <field name="model">fix.spare.part</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="active,discontinued,obsolete"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. 15.6 Inch FHD IPS Display Panel"/></h1>
+                        <h3><field name="name_bn" placeholder="যন্ত্রাংশের বাংলা বিবরণ"/></h3>
+                        <h2><field name="part_number" placeholder="SKU / Part Number"/></h2>
+                    </div>
+                    <group>
+                        <group string="Categorization &amp; Identification">
+                            <field name="category"/>
+                            <field name="brand"/>
+                            <field name="barcode"/>
+                            <field name="qr_code"/>
+                            <field name="is_serialized"/>
+                            <field name="uom"/>
+                        </group>
+                        <group string="Inventory &amp; Pricing">
+                            <field name="qty_available" readonly="1"/>
+                            <field name="unit_cost"/>
+                            <field name="sales_price"/>
+                            <field name="min_qty"/>
+                            <field name="max_qty"/>
+                            <field name="safety_stock"/>
+                            <field name="warranty_months"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Hardware Compatibility">
+                        <field name="compatible_models" placeholder="Comma-separated models, e.g. Dell Inspiron 15 3501, 3505, 3511"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_spare_part" model="ir.actions.act_window">
+        <field name="name">Spare Parts Catalog</field>
+        <field name="res_model">fix.spare.part</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===================================================================== -->
+    <!-- 3. fix.stock.consumption (Barcode Scan-to-Consume Engine)             -->
+    <!-- ===================================================================== -->
+    <record id="view_fix_stock_consumption_list" model="ir.ui.view">
+        <field name="name">fix.stock.consumption.list</field>
+        <field name="model">fix.stock.consumption</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'consumed'" decoration-warning="state == 'returned'" decoration-info="state == 'draft'">
+                <field name="name"/>
+                <field name="service_order_ref"/>
+                <field name="product_id"/>
+                <field name="location_id"/>
+                <field name="technician_id"/>
+                <field name="quantity"/>
+                <field name="serial_number" optional="show"/>
+                <field name="total_cost"/>
+                <field name="consumed_at" optional="show"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_stock_consumption_form" model="ir.ui.view">
+        <field name="name">fix.stock.consumption.form</field>
+        <field name="model">fix.stock.consumption</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_scan_and_consume" string="Confirm Consumption" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,consumed,returned"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3><field name="name_bn" readonly="1"/></h3>
+                    </div>
+                    <group>
+                        <group string="Repair Job Reference">
+                            <field name="service_order_ref" readonly="state != 'draft'"/>
+                            <field name="work_order_ref" readonly="state != 'draft'"/>
+                            <field name="technician_id" readonly="state != 'draft'"/>
+                            <field name="location_id" readonly="state != 'draft'"/>
+                        </group>
+                        <group string="Part Scan &amp; Valuation">
+                            <field name="product_id" readonly="state != 'draft'"/>
+                            <field name="scanned_code" readonly="state != 'draft'"/>
+                            <field name="serial_number" readonly="state != 'draft'"/>
+                            <field name="quantity" readonly="state != 'draft'"/>
+                            <field name="unit_cost" readonly="1"/>
+                            <field name="total_cost" readonly="1"/>
+                            <field name="consumed_at" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Return Information" invisible="state != 'returned'">
+                        <field name="return_reason" readonly="1"/>
+                        <field name="return_notes" readonly="1"/>
+                        <field name="returned_at" readonly="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_stock_consumption" model="ir.actions.act_window">
+        <field name="name">Parts Consumption (Scan-to-Consume)</field>
+        <field name="res_model">fix.stock.consumption</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===================================================================== -->
+    <!-- 4. fix.reorder.rule (Replenishment Alerts & M43 Seam)                 -->
+    <!-- ===================================================================== -->
+    <record id="view_fix_reorder_rule_list" model="ir.ui.view">
+        <field name="name">fix.reorder.rule.list</field>
+        <field name="model">fix.reorder.rule</field>
+        <field name="arch" type="xml">
+            <list decoration-danger="state == 'alert'" decoration-success="state == 'active'">
+                <field name="name"/>
+                <field name="spare_part_id"/>
+                <field name="location_id"/>
+                <field name="branch_id"/>
+                <field name="current_stock"/>
+                <field name="min_qty"/>
+                <field name="max_qty"/>
+                <field name="suggested_order_qty"/>
+                <field name="m43_ai_override" widget="boolean_toggle"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_reorder_rule_form" model="ir.ui.view">
+        <field name="name">fix.reorder.rule.form</field>
+        <field name="model">fix.reorder.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_trigger_reorder" string="Trigger Replenishment Alert" type="object" class="btn-primary" invisible="state == 'alert'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,alert,ordered"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3><field name="name_bn"/></h3>
+                    </div>
+                    <group>
+                        <group string="Reorder Scope">
+                            <field name="spare_part_id"/>
+                            <field name="location_id"/>
+                            <field name="branch_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group string="Thresholds &amp; Lead Time">
+                            <field name="current_stock" readonly="1"/>
+                            <field name="min_qty"/>
+                            <field name="max_qty"/>
+                            <field name="safety_stock"/>
+                            <field name="lead_time_days"/>
+                            <field name="suggested_order_qty" readonly="1"/>
+                            <field name="last_alert_date" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="M43 Machine Learning Forecasting Seam (Phase R07)">
+                        <group>
+                            <field name="m43_ai_override"/>
+                            <field name="m43_predicted_demand" invisible="not m43_ai_override"/>
+                        </group>
+                        <group>
+                            <field name="m43_model_version" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_reorder_rule" model="ir.actions.act_window">
+        <field name="name">Replenishment &amp; Reorder Rules</field>
+        <field name="res_model">fix.reorder.rule</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===================================================================== -->
+    <!-- 5. fix.inventory.valuation.suspense (GV-005 Suspense Ledger Stub)     -->
+    <!-- ===================================================================== -->
+    <record id="view_fix_inventory_valuation_suspense_list" model="ir.ui.view">
+        <field name="name">fix.inventory.valuation.suspense.list</field>
+        <field name="model">fix.inventory.valuation.suspense</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="status == 'pending_gl_cutover'" decoration-success="status == 'reconciled'">
+                <field name="name"/>
+                <field name="product_id"/>
+                <field name="quantity"/>
+                <field name="unit_cost"/>
+                <field name="total_valuation"/>
+                <field name="entry_type"/>
+                <field name="suspense_account_code"/>
+                <field name="stub_reference"/>
+                <field name="stub_expiry_date"/>
+                <field name="status" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_inventory_valuation_suspense_form" model="ir.ui.view">
+        <field name="name">fix.inventory.valuation.suspense.form</field>
+        <field name="model">fix.inventory.valuation.suspense</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <field name="status" widget="statusbar" statusbar_visible="pending_gl_cutover,reconciled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" readonly="1"/></h1>
+                        <h3><field name="name_bn" readonly="1"/></h3>
+                    </div>
+                    <group>
+                        <group string="Valuation Movement">
+                            <field name="product_id" readonly="1"/>
+                            <field name="consumption_id" readonly="1"/>
+                            <field name="quantity" readonly="1"/>
+                            <field name="unit_cost" readonly="1"/>
+                            <field name="total_valuation" readonly="1"/>
+                            <field name="entry_type" readonly="1"/>
+                        </group>
+                        <group string="GV-005 Suspense Stub Governance">
+                            <field name="suspense_account_code" readonly="1"/>
+                            <field name="stub_reference" readonly="1"/>
+                            <field name="stub_expiry_date" readonly="1"/>
+                            <field name="gl_cutover_ref"/>
+                            <field name="reconciled_at" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_inventory_valuation_suspense" model="ir.actions.act_window">
+        <field name="name">Valuation Suspense Ledger (GV-005)</field>
+        <field name="res_model">fix.inventory.valuation.suspense</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===================================================================== -->
+    <!-- Menu Structure                                                        -->
+    <!-- ===================================================================== -->
+    <menuitem id="menu_fix_inventory_root"
+              name="Spare Parts &amp; Inventory"
+              sequence="35"
+              groups="base.group_user"/>
+
+    <menuitem id="menu_fix_spare_parts"
+              name="Parts Catalog"
+              parent="menu_fix_inventory_root"
+              action="action_fix_spare_part"
+              sequence="10"/>
+
+    <menuitem id="menu_fix_stock_locations"
+              name="Locations &amp; Mobile Vans"
+              parent="menu_fix_inventory_root"
+              action="action_fix_stock_location"
+              sequence="20"/>
+
+    <menuitem id="menu_fix_stock_consumption"
+              name="Parts Consumption (Scan-to-Consume)"
+              parent="menu_fix_inventory_root"
+              action="action_fix_stock_consumption"
+              sequence="30"/>
+
+    <menuitem id="menu_fix_reorder_rules"
+              name="Replenishment &amp; Reorder Rules"
+              parent="menu_fix_inventory_root"
+              action="action_fix_reorder_rule"
+              sequence="40"/>
+
+    <menuitem id="menu_fix_valuation_suspense"
+              name="Valuation Suspense Ledger (GV-005)"
+              parent="menu_fix_inventory_root"
+              action="action_fix_inventory_valuation_suspense"
+              sequence="50"/>
+
+</odoo>

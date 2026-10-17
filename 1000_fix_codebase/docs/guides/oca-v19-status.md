@@ -26,9 +26,9 @@ execution step and updates this file under change control).
 | 11 | `account-financial-reporting` | Medium — M19 | ☐ | |
 | 12 | `reporting-engine` | Light — BI substrate | ☐ | |
 | 13 | `mis-builder` | Light — M19 MIS | ☐ | |
-| 14 | `stock-logistics-workflow` | Medium — M15/M41 | ☐ | |
-| 15 | `stock-logistics-barcode` | Medium | ☐ | |
-| 16 | `stock-logistics-warehouse` | Medium | ☐ | |
+| 14 | `stock-logistics-workflow` | Medium — M15/M41 | **M** | Consumed under Wave 2 M15 (R03-M01) |
+| 15 | `stock-logistics-barcode` | Medium | **M** | Consumed under Wave 2 M15 (R03-M01) |
+| 16 | `stock-logistics-warehouse` | Medium | **M** | Consumed under Wave 2 M15 (R03-M01) |
 | 17 | `purchase-workflow` | Medium — M16 | ☐ | |
 | 18 | `partner-contact` | Medium — M33 | ☐ | |
 | 19 | `contract` | Medium — M08 | ☐ | |

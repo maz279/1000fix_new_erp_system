@@ -1,0 +1,134 @@
+# Bengali (Bangladesh) translation for cd_inventory.
+# 100% coverage — FF-24/FF-25 block below 100% (DoD-08, AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0 - CD-M15-01\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "1000FiX Spare Parts & Inventory Management"
+msgstr "1000FiX খুচরা যন্ত্রাংশ ও ইনভেন্টরি ব্যবস্থাপনা"
+
+msgid "Spare Parts & Inventory"
+msgstr "খুচরা যন্ত্রাংশ ও ইনভেন্টরি"
+
+msgid "Parts Catalog"
+msgstr "যন্ত্রাংশ ক্যাটালগ"
+
+msgid "Stock Locations & Vans"
+msgstr "মজুদ অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+
+msgid "Locations & Mobile Vans"
+msgstr "অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+
+msgid "Parts Consumption (Scan-to-Consume)"
+msgstr "যন্ত্রাংশ ব্যবহার (স্ক্যান-টু-কনজিউম)"
+
+msgid "Replenishment & Reorder Rules"
+msgstr "পুনঃসরবরাহ ও রি-অর্ডার রুলস"
+
+msgid "Valuation Suspense Ledger (GV-005)"
+msgstr "মূল্যায়ন সাসপেন্স লেজার (GV-005)"
+
+msgid "Part Number / SKU"
+msgstr "যন্ত্রাংশ নম্বর / এসকেইউ"
+
+msgid "Part Name"
+msgstr "যন্ত্রাংশের নাম"
+
+msgid "Category"
+msgstr "বিভাগ"
+
+msgid "Brand"
+msgstr "ব্র্যান্ড"
+
+msgid "Barcode"
+msgstr "বারকোড"
+
+msgid "QR Code"
+msgstr "কিউআর কোড"
+
+msgid "Serialized Part (IMEI/Serial Tracking)"
+msgstr "ক্রমিক নম্বরযুক্ত যন্ত্রাংশ (IMEI/সিরিয়াল ট্র্যাকিং)"
+
+msgid "Stock On Hand"
+msgstr "মজুদ পরিমাণ"
+
+msgid "Unit Cost (BDT)"
+msgstr "একক খরচ (টাকা)"
+
+msgid "Sales Price (BDT)"
+msgstr "বিক্রয় মূল্য (টাকা)"
+
+msgid "Minimum Stock (Reorder Point)"
+msgstr "সর্বনিম্ন মজুদ (রি-অর্ডার পয়েন্ট)"
+
+msgid "Target Maximum Stock"
+msgstr "সর্বোচ্চ লক্ষ্য মজুদ"
+
+msgid "Safety Stock"
+msgstr "নিরাপত্তা মজুদ"
+
+msgid "Warranty Period (Months)"
+msgstr "ওয়ারেন্টি মেয়াদ (মাস)"
+
+msgid "Hardware Compatibility"
+msgstr "হার্ডওয়্যার সামঞ্জস্যতা"
+
+msgid "Location Code"
+msgstr "অবস্থান কোড"
+
+msgid "Location Name"
+msgstr "অবস্থানের নাম"
+
+msgid "Location Type"
+msgstr "অবস্থানের ধরন"
+
+msgid "Mobile Technician Van"
+msgstr "ভ্রাম্যমাণ টেকনিশিয়ান ভ্যান"
+
+msgid "Assigned Technician"
+msgstr "দায়িত্বপ্রাপ্ত টেকনিশিয়ান"
+
+msgid "Van Registration / Plate"
+msgstr "ভ্যান নম্বর / প্লেট"
+
+msgid "Consumption Reference"
+msgstr "ব্যবহারের রেফারেন্স"
+
+msgid "Service Order Reference"
+msgstr "সার্ভিস অর্ডার রেফারেন্স"
+
+msgid "Consumed Quantity"
+msgstr "ব্যবহৃত পরিমাণ"
+
+msgid "Confirm Consumption"
+msgstr "ব্যবহার নিশ্চিত করুন"
+
+msgid "Returned to Location"
+msgstr "অবস্থানে ফেরত পাঠানো হয়েছে"
+
+msgid "Return Reason"
+msgstr "ফেরতের কারণ"
+
+msgid "Suspense Account Code"
+msgstr "সাসপেন্স অ্যাকাউন্ট কোড"
+
+msgid "GL Status"
+msgstr "জিএল স্থিতি"
+
+msgid "Pending GL Cutover (M19 Suspense)"
+msgstr "জিএল স্থানান্তর অপেক্ষমাণ (M19 সাসপেন্স)"
+
+msgid "Reconciled to GL"
+msgstr "জিএলে সমন্বয়কৃত"
+
+msgid "M43 Dynamic AI Forecast Active"
+msgstr "M43 গতিশীল এআই পূর্বাভাস সক্রিয়"
+
+msgid "Trigger Replenishment Alert"
+msgstr "পুনঃসরবরাহ সতর্কতা ট্রিগার করুন"
+
+msgid "Audit Van Stock"
+msgstr "ভ্যান মজুদ নিরীক্ষা করুন"

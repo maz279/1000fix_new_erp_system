@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "stock.consumed",
+  "description": "Event emitted when spare parts are scanned and consumed on a repair job (M15, CD-M15-01)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "stock.consumed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["consumption_id", "consumption_ref", "service_order_ref", "part_id", "part_number", "quantity", "location_id", "technician_id"],
+      "properties": {
+        "consumption_id": { "type": "integer" },
+        "consumption_ref": { "type": "string" },
+        "service_order_ref": { "type": "string" },
+        "work_order_ref": { "type": "string" },
+        "part_id": { "type": "integer" },
+        "part_number": { "type": "string" },
+        "quantity": { "type": "number", "minimum": 0.01 },
+        "location_id": { "type": "integer" },
+        "location_code": { "type": "string" },
+        "technician_id": { "type": "integer" },
+        "serial_number": { "type": "string" },
+        "scanned_code": { "type": "string" },
+        "consumed_at": { "type": "string" },
+        "suspense_entry_id": { "type": "integer" }
+      }
+    }
+  }
+}

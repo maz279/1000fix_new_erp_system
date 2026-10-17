@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "stock.returned",
+  "description": "Event emitted when previously consumed parts are returned to inventory (M15, CD-M15-01)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "stock.returned"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["consumption_id", "consumption_ref", "service_order_ref", "part_id", "part_number", "quantity", "location_id", "return_reason"],
+      "properties": {
+        "consumption_id": { "type": "integer" },
+        "consumption_ref": { "type": "string" },
+        "service_order_ref": { "type": "string" },
+        "part_id": { "type": "integer" },
+        "part_number": { "type": "string" },
+        "quantity": { "type": "number", "minimum": 0.01 },
+        "location_id": { "type": "integer" },
+        "return_reason": { "type": "string" },
+        "returned_at": { "type": "string" },
+        "suspense_entry_id": { "type": "integer" }
+      }
+    }
+  }
+}

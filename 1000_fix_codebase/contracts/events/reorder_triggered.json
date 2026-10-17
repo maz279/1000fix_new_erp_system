@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "reorder.triggered",
+  "description": "Event emitted when stock drops below threshold and replenishment is triggered (M15, CD-M15-02)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "reorder.triggered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["rule_id", "rule_code", "spare_part_id", "part_number", "part_name", "location_id", "branch_id", "current_stock", "min_qty", "suggested_order_qty"],
+      "properties": {
+        "rule_id": { "type": "integer" },
+        "rule_code": { "type": "string" },
+        "spare_part_id": { "type": "integer" },
+        "part_number": { "type": "string" },
+        "part_name": { "type": "string" },
+        "location_id": { "type": "integer" },
+        "location_code": { "type": "string" },
+        "branch_id": { "type": "integer" },
+        "branch_name": { "type": "string" },
+        "current_stock": { "type": "number" },
+        "min_qty": { "type": "number" },
+        "suggested_order_qty": { "type": "number" },
+        "m43_dynamic_reorder_point": { "type": "number" },
+        "triggered_at": { "type": "string" }
+      }
+    }
+  }
+}
