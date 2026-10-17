@@ -1,0 +1,175 @@
+{
+  "consumer": {
+    "name": "1000fix-payment-orchestrator"
+  },
+  "provider": {
+    "name": "wave3-payment-gateways"
+  },
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "milestone": "R04-M03",
+    "gate": "G3",
+    "rule": "PS-01"
+  },
+  "interactions": [
+    {
+      "description": "INT-001 bKash initiate payment intent",
+      "providerStates": [
+        {
+          "name": "merchant account is active and funded"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/tokenized/checkout/create",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer TEST_TOKEN"
+        },
+        "body": {
+          "amount": 50000,
+          "currency": "BDT",
+          "merchantInvoiceNumber": "TRX-BKASH-001",
+          "callbackURL": "https://1000fix.local/pay/callback"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "statusCode": "0000",
+          "statusMessage": "Successful",
+          "paymentID": "BKASH-PAY-98765",
+          "bkashURL": "https://sandbox.payment.bkash.com/redirect/tokenized?paymentID=BKASH-PAY-98765"
+        }
+      }
+    },
+    {
+      "description": "INT-001 bKash read-back query payment state",
+      "providerStates": [
+        {
+          "name": "payment intent exists and is settled"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/tokenized/checkout/query",
+        "query": {
+          "trx_id": "TRX-BKASH-001"
+        },
+        "headers": {
+          "Authorization": "Bearer TEST_TOKEN"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "statusCode": "0000",
+          "transactionStatus": "Completed",
+          "trx_id": "TRX-BKASH-001",
+          "amount": 50000,
+          "currency": "BDT"
+        }
+      }
+    },
+    {
+      "description": "INT-002 Nagad initiate checkout intent",
+      "providerStates": [
+        {
+          "name": "merchant key registered"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/check-out/initialize",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer TEST_TOKEN"
+        },
+        "body": {
+          "amount": 50000,
+          "currency": "BDT",
+          "merchantInvoiceNumber": "TRX-NAGAD-001",
+          "callbackURL": "https://1000fix.local/pay/callback"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "Success",
+          "paymentReferenceId": "NAGAD-REF-12345",
+          "callbackUrl": "https://sandbox.mynagad.com/pay/12345"
+        }
+      }
+    },
+    {
+      "description": "INT-003 SSLCOMMERZ create hosted session",
+      "providerStates": [
+        {
+          "name": "store id configured"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/gwprocess/v4/api.php",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "amount": 50000,
+          "currency": "BDT",
+          "merchantInvoiceNumber": "TRX-SSLC-001",
+          "callbackURL": "https://1000fix.local/pay/callback"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "SUCCESS",
+          "sessionkey": "SSLC-SESS-55555",
+          "GatewayPageURL": "https://sandbox.sslcommerz.com/EasyCheckOut/testbox55555"
+        }
+      }
+    },
+    {
+      "description": "INT-006 Electronic Bank Statement Feed Import",
+      "providerStates": [
+        {
+          "name": "daily closing batch ready"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/feeds/daily-statement",
+        "headers": {
+          "Accept": "text/plain"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/plain"
+        },
+        "body": {
+          "statement_format": "MT940",
+          "account_number": "012345678901",
+          "statement_sequence": "00045/001",
+          "status": "DELIVERED"
+        }
+      }
+    }
+  ]
+}

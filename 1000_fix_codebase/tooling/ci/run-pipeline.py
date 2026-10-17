@@ -163,15 +163,16 @@ def run_pre_merge() -> tuple[list[StageResult], float, bool]:
     s_unit.measurements["target_coverage"] = "80%"
     stages.append(s_unit)
 
-    # Stage 6: contract (OpenAPI 3.1 specification validation)
-    s_openapi = StageResult("stage-06-contract", "OpenAPI 3.1 contract schema validation")
-    execute_stage(s_openapi, [sys.executable, "-m", "contracts.check", "openapi"])
+    # Stage 6: contract (OpenAPI 3.1 specification & consumer-driven pacts validation)
+    s_openapi = StageResult("stage-06-contract", "OpenAPI 3.1 contract and consumer-driven pact validation (PS-01)")
+    execute_stage(s_openapi, [sys.executable, "-m", "contracts.check", "all"])
     stages.append(s_openapi)
 
     # Stage 7: event (Event schema validation + AS-08 outbox coverage)
     s_events = StageResult("stage-07-event", "Event schema compatibility and outbox parity")
     execute_stage(s_events, [sys.executable, "-m", "contracts.check", "events"])
     stages.append(s_events)
+
 
     # Stage 8: security (Check docker-compose files for 0 PLACEHOLDER-RESOLVE)
     s_sec = StageResult("stage-08-security", "Secret leakage and digest immutability audit")

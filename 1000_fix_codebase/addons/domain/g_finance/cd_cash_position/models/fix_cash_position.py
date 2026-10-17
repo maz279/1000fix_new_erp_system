@@ -94,6 +94,54 @@ class FixBankStatementLine(models.Model):
          ("manual", "Manually Matched")], default="unmatched", required=True)
     matched_payment_id = fields.Many2one("fix.payment.execution", string="Matched Payment")
     matched_invoice_ref = fields.Char(string="Matched Invoice")
+    statement_sequence = fields.Char(string="Statement Sequence", index=True)
+    statement_file_hash = fields.Char(string="Statement File Hash", index=True)
+
+    @api.model
+    def import_bank_feed(self, file_content: str, format_type: str = "auto") -> dict:
+        """INT-006: Ingest electronic bank statement feed with deduplication and sequence audit."""
+        import hashlib
+        file_hash = hashlib.sha256(file_content.encode("utf-8")).hexdigest()
+
+        existing = self.search([("statement_file_hash", "=", file_hash)], limit=1)
+        if existing:
+            return {"imported": 0, "status": "duplicate_file", "file_hash": file_hash}
+
+        lines_to_create = []
+        try:
+            from services.reconciliation.src.bank_feed_parser import parse_bank_feed
+            parsed = parse_bank_feed(file_content, format_type=format_type)
+            for item in parsed.lines:
+                lines_to_create.append({
+                    "company_id": self.env.company.id,
+                    "date": item.date,
+                    "amount": float(item.amount),
+                    "reference": item.reference,
+                    "narration": item.narration,
+                    "statement_sequence": parsed.sequence_number,
+                    "statement_file_hash": file_hash,
+                })
+        except Exception:
+            import csv
+            import io
+            reader = csv.DictReader(io.StringIO(file_content))
+            for row in reader:
+                dt_str = row.get("Date") or row.get("date")
+                amt_str = row.get("Amount") or row.get("amount") or row.get("Credit") or row.get("credit", "0")
+                if dt_str and amt_str:
+                    lines_to_create.append({
+                        "company_id": self.env.company.id,
+                        "date": dt_str,
+                        "amount": float(amt_str),
+                        "reference": row.get("Reference") or row.get("reference") or "",
+                        "narration": row.get("Description") or row.get("narration") or "",
+                        "statement_file_hash": file_hash,
+                    })
+
+        if lines_to_create:
+            self.create(lines_to_create)
+
+        return {"imported": len(lines_to_create), "status": "success", "file_hash": file_hash}
 
     @api.model
     def auto_match(self) -> int:
@@ -129,6 +177,7 @@ class FixBankStatementLine(models.Model):
                     matched += 1
                     break
         return matched
+
 
 
 class FixCashPosition(models.Model):

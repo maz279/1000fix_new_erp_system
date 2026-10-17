@@ -110,6 +110,70 @@ def check_events() -> int:
     return 0
 
 
+PACTS_DIR = REPO_ROOT / "contracts" / "pacts"
+
+
+def check_pacts() -> int:
+    """Validate consumer-driven Pact contracts under contracts/pacts/ per PS-01."""
+    if not PACTS_DIR.is_dir():
+        print(f"contracts pacts: directory not found at {PACTS_DIR}", file=sys.stderr)
+        return 1
+
+    files = sorted(PACTS_DIR.glob("*.json"))
+    if not files:
+        print("contracts pacts: no contract files found in contracts/pacts/", file=sys.stderr)
+        return 1
+
+    errors: list[str] = []
+    checked = 0
+    total_interactions = 0
+
+    for path in files:
+        checked += 1
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as e:
+            errors.append(f"{path.name}: failed to parse JSON: {e}")
+            continue
+
+        if not isinstance(data, dict):
+            errors.append(f"{path.name}: root must be an object")
+            continue
+
+        consumer = data.get("consumer", {})
+        if not consumer.get("name"):
+            errors.append(f"{path.name}: missing consumer.name")
+
+        provider = data.get("provider", {})
+        if not provider.get("name"):
+            errors.append(f"{path.name}: missing provider.name")
+
+        interactions = data.get("interactions", [])
+        if not isinstance(interactions, list) or not interactions:
+            errors.append(f"{path.name}: missing or empty interactions list")
+            continue
+
+        for idx, inter in enumerate(interactions):
+            total_interactions += 1
+            if not inter.get("description"):
+                errors.append(f"{path.name}: interaction[{idx}] missing description")
+            req = inter.get("request", {})
+            if not req.get("method") or not req.get("path"):
+                errors.append(f"{path.name}: interaction[{idx}] request missing method or path")
+            resp = inter.get("response", {})
+            if "status" not in resp:
+                errors.append(f"{path.name}: interaction[{idx}] response missing status")
+
+    if errors:
+        for err in errors:
+            print(f"  [FAIL] {err}", file=sys.stderr)
+        print(f"contracts pacts: {len(errors)} violation(s) across {checked} contract(s)", file=sys.stderr)
+        return 1
+
+    print(f"contracts pacts: OK — {checked} pact contract(s) valid, {total_interactions} interaction(s) verified (PS-01)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
     target = args[0] if args else "openapi"
@@ -117,10 +181,18 @@ def main(argv: list[str] | None = None) -> int:
         return check_openapi()
     elif target == "events":
         return check_events()
+    elif target == "pacts":
+        return check_pacts()
+    elif target == "all":
+        rc1 = check_openapi()
+        rc2 = check_events()
+        rc3 = check_pacts()
+        return max(rc1, rc2, rc3)
     else:
-        print(f"contracts.check: unknown target '{target}'. Use 'openapi' or 'events'.", file=sys.stderr)
+        print(f"contracts.check: unknown target '{target}'. Use 'openapi', 'events', 'pacts', or 'all'.", file=sys.stderr)
         return 2
 
 
 if __name__ == "__main__":
     sys.exit(main())
+
