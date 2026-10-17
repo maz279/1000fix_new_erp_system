@@ -1,0 +1,89 @@
+{
+  "title": "1000FiX — Dispatch & Field Service Operations (PE-008)",
+  "uid": "fix-dispatch-operations",
+  "schemaVersion": 39,
+  "tags": ["1000fix", "dispatch", "field-service", "pe-008"],
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Dispatch Queue Depth",
+      "targets": [{ "expr": "fix_dispatch_queue_pending_orders" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 25 },
+              { "color": "red", "value": 50 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Auto-Dispatch Rate (Target >= 85%)",
+      "targets": [{ "expr": "sum(rate(fix_dispatch_assigned_auto_total[1h])) / sum(rate(fix_dispatch_orders_total[1h]))" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.75 },
+              { "color": "green", "value": 0.85 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "On-Time Arrival Rate (SLA 95%)",
+      "targets": [{ "expr": "sum(rate(fix_sla_ontime_arrival_total[6h])) / sum(rate(fix_sla_completed_trips_total[6h]))" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.90 },
+              { "color": "green", "value": 0.95 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Candidate Scoring & Allocation Latency p95 (ms)",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(fix_dispatch_scoring_latency_seconds_bucket[30m])) by (le)) * 1000" }],
+      "fieldConfig": { "defaults": { "unit": "ms" } }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Active Technicians by Status",
+      "targets": [
+        { "expr": "fix_technician_active_count{status='en_route'}", "legendFormat": "En Route" },
+        { "expr": "fix_technician_active_count{status='on_site'}", "legendFormat": "On Site" },
+        { "expr": "fix_technician_active_count{status='idle'}", "legendFormat": "Idle / Available" }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "SLA Escalation Events (AUT-009)",
+      "targets": [
+        { "expr": "sum(rate(fix_sla_escalation_total{threshold='75pct'}[1h]))", "legendFormat": "75% Warning" },
+        { "expr": "sum(rate(fix_sla_escalation_total{threshold='90pct'}[1h]))", "legendFormat": "90% Urgent" },
+        { "expr": "sum(rate(fix_sla_escalation_total{threshold='100pct'}[1h]))", "legendFormat": "Breach" }
+      ]
+    }
+  ]
+}

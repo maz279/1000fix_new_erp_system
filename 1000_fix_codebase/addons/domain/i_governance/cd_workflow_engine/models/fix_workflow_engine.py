@@ -66,14 +66,18 @@ class FixAutomation(models.Model):
         existing = {a.code for a in self.search([])}
         loaded = 0
         for row in data["automations"]:
+            engine_ref = row.get("engine_ref") or self._default_engine_ref(row["engine"])
             if row["id"] in existing:
+                rec = self.search([("code", "=", row["id"])], limit=1)
+                if rec and (not rec.engine_ref or "created at activation" in str(rec.engine_ref) or "Airflow sync" in str(rec.engine_ref) or "named in the action" in str(rec.engine_ref)):
+                    rec.write({"engine_ref": engine_ref})
                 continue
             self.create({
                 "code": row["id"],
                 "trigger": row["trigger"],
                 "action": row["action"],
                 "engine": row["engine"],
-                "engine_ref": self._default_engine_ref(row["engine"]),
+                "engine_ref": engine_ref,
             })
             loaded += 1
         publish(self.env, "automation.register.loaded", "fix.automation", 0,
@@ -91,12 +95,16 @@ class FixAutomation(models.Model):
     def action_report_engine_gap(self):
         """G3 evidence: any automation without a concrete engine_ref after
         activation is a gap, reported — never assumed done."""
+        placeholders = [
+            False,
+            "",
+            self._default_engine_ref("odoo_automated_action"),
+            self._default_engine_ref("airflow"),
+            self._default_engine_ref("domain_service"),
+        ]
         return self.search_read(
-            [("engine_ref", "in", (False,
-                                   self._default_engine_ref("odoo_automated_action"),
-                                   self._default_engine_ref("airflow"),
-                                   self._default_engine_ref("domain_service")))],
-            ["code", "engine", "trigger"])
+            [("engine_ref", "in", placeholders)],
+            ["code", "engine", "trigger", "engine_ref"])
 
 
 class FixApprovalMatrix(models.Model):

@@ -153,6 +153,12 @@ checks:
     stage: contract
     script: check-data-parity.py
     rationale: every ported grid must carry the prototype's columns in its API payload (nothing promised silently disappears) and the four statutory identifier masks + bn007 formatter must keep their audit-corrected shapes - drift here is a silent prototype regression or an invented validation rule
+  - id: FF-33
+    name: performance at 1.5x peak traffic (NFR-081, NFR-092, AR-001 QAS-10)
+    blocking: true
+    stage: performance
+    script: check_perf_peak.py
+    rationale: Gate G3 activation - system must sustain 150 req/s with transactional p95 <= 200ms, reporting p95 <= 500ms, and >= 99% correlation-id preservation
 
   # --- BUILT, DISABLED (2): promotion is a flag flip, not a build -----------
   - id: FF-16

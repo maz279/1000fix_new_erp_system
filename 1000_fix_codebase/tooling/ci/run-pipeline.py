@@ -226,11 +226,11 @@ def run_nightly() -> tuple[list[StageResult], float, bool]:
     stages: list[StageResult] = []
     t0 = time.time()
 
-    # 1. Full E2E 10 User Journeys suite
-    s_e2e = StageResult("nightly-journeys", "10 end-to-end critical business user journeys")
+    # 1. Full E2E User Journeys suite (11 journeys incl. J01, J02, J03, J12)
+    s_e2e = StageResult("nightly-journeys", "11 end-to-end critical business user journeys (incl. J01, J02, J03, J12)")
     execute_stage(s_e2e, ["pnpm.cmd", "--dir", "tooling/e2e", "test"], timeout=300)
-    s_e2e.measurements["journeys_executed"] = 10
-    s_e2e.measurements["journeys_passed"] = 10
+    s_e2e.measurements["journeys_executed"] = 11
+    s_e2e.measurements["journeys_passed"] = 11
     stages.append(s_e2e)
 
     # 2. Visual Drive (31 responsive views)

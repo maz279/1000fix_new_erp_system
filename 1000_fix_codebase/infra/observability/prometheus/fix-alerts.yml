@@ -40,3 +40,64 @@ groups:
         annotations:
           summary: "Inventory suspense non-zero approaching close (AR-006 section 5.4)"
           runbook: "Reconcile P05-M01-T06's registered stub before the period closes — a close with suspense is refused by the model."
+
+  - name: fix-dispatch-and-field
+    rules:
+      - alert: DispatchQueueStalled
+        expr: fix_dispatch_queue_pending_orders > 30 and rate(fix_dispatch_assigned_auto_total[15m]) == 0
+        for: 10m
+        labels: { severity: critical, team: operations }
+        annotations:
+          summary: "Dispatch queue has >30 pending orders and zero auto-assignments in 15m"
+          runbook: "Check cd_field_service candidate scoring engine and Redis cache connectivity; manually trigger batch dispatch if worker locked."
+      - alert: SlaBreachCluster
+        expr: sum(rate(fix_sla_escalation_total{threshold='100pct'}[15m])) > 5
+        for: 5m
+        labels: { severity: warning, team: operations }
+        annotations:
+          summary: "Cluster of SLA breaches (>5 in 15m) across field service orders"
+          runbook: "Open Operations Workspace > Dispatch Heatmap; redistribute high-priority orders to nearby floating technicians."
+
+  - name: fix-gps-telemetry
+    rules:
+      - alert: GpsSignalBlackoutCluster
+        expr: sum(rate(fix_gps_ping_timeout_total[10m])) > 10
+        for: 5m
+        labels: { severity: warning, team: platform }
+        annotations:
+          summary: ">10 active field technicians dropped GPS ping within 10 minutes"
+          runbook: "Inspect mobile gateway telemetry ingestion endpoint and Cloudflare WebSocket termination logs."
+
+  - name: fix-payment-rails
+    rules:
+      - alert: PaymentGatewayBurnRateCritical
+        expr: (sum(rate(fix_payment_transactions_total{status='failed'}[5m])) / sum(rate(fix_payment_transactions_total[5m]))) > 0.05
+        for: 2m
+        labels: { severity: critical, team: finance }
+        annotations:
+          summary: "Payment failure rate exceeds 5% across bKash/Nagad/SSLCOMMERZ rails (fast burn)"
+          runbook: "Check payment-connectors error status codes; verify bKash token refresh and SSLCOMMERZ gateway health status page."
+      - alert: PaymentReconciliationDrift
+        expr: fix_reconciliation_unmatched_lines_count > 50
+        for: 2h
+        labels: { severity: warning, team: finance }
+        annotations:
+          summary: "More than 50 unmatched bank/MFS settlement lines pending reconciliation"
+          runbook: "Trigger automated statement ingestion re-poll; inspect raw MFS transaction logs for format schema changes."
+
+  - name: fix-period-close
+    rules:
+      - alert: TrialBalanceOutOfBalance
+        expr: abs(fix_gl_trial_balance_discrepancy_bdt) > 0.01
+        for: 1m
+        labels: { severity: critical, team: finance }
+        annotations:
+          summary: "General Ledger Trial Balance debit != credit (integrity violation)"
+          runbook: "CRITICAL FINANCIAL INTEGRITY ALERT. Run verify_gl_integrity.py immediately to isolate un-balanced journal entry."
+      - alert: PeriodCloseStalled
+        expr: fix_period_close_duration_days > 5
+        for: 6h
+        labels: { severity: warning, team: finance }
+        annotations:
+          summary: "Monthly period close exceeds 5-day statutory SLA"
+          runbook: "Review open checklist items in fix.period.close model; clear unposted inventory journals and finalize VAT Mushak 9.1 return."

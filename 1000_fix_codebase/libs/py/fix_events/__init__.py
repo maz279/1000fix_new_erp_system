@@ -37,10 +37,25 @@ def publish(env, event_type: str, aggregate: str, aggregate_id: int,
     Raises:
         ValidationError: if event_type is malformed
     """
+    meta = dict(metadata or {})
+    # Check env context or telemetry if correlation_id not provided
+    if not meta.get("correlation_id"):
+        ctx_corr = None
+        if hasattr(env, "context") and isinstance(env.context, dict):
+            ctx_corr = env.context.get("fix_correlation_id")
+        if not ctx_corr:
+            try:
+                from libs.py.fix_telemetry import get_current_correlation_id
+                ctx_corr = get_current_correlation_id()
+            except ImportError:
+                pass
+        if ctx_corr:
+            meta["correlation_id"] = ctx_corr
+
     outbox = env["fix.event.outbox"]
-    record = outbox.emit(event_type, aggregate, aggregate_id, payload, metadata)
-    logger.debug("fix_events: emitted %s (id=%s, aggregate=%s/%s)",
-                 event_type, record.event_id, aggregate, aggregate_id)
+    record = outbox.emit(event_type, aggregate, aggregate_id, payload, meta)
+    logger.debug("fix_events: emitted %s (id=%s, aggregate=%s/%s, corr=%s)",
+                 event_type, record.event_id, aggregate, aggregate_id, meta.get("correlation_id"))
     return record.event_id
 
 

@@ -1,0 +1,82 @@
+{
+  "title": "1000FiX — Mobile Technician GPS & Telemetry Health (PE-008)",
+  "uid": "fix-gps-health",
+  "schemaVersion": 39,
+  "tags": ["1000fix", "gps", "telemetry", "pe-008"],
+  "time": { "from": "now-3h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Active GPS Beacons (Last 5m)",
+      "targets": [{ "expr": "count(fix_gps_ping_last_seen_seconds < 300)" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "green", "value": 20 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "GPS Ping Interval p95 (Target <= 30s in transit)",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(fix_gps_ping_interval_seconds_bucket{status='en_route'}[15m])) by (le))" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 45 },
+              { "color": "red", "value": 60 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Low Battery Alert Count (< 20%)",
+      "targets": [{ "expr": "count(fix_device_battery_percent < 20)" }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 3 },
+              { "color": "red", "value": 8 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "GPS Drifts & Accuracy Distribution (meters)",
+      "targets": [
+        { "expr": "histogram_quantile(0.50, sum(rate(fix_gps_accuracy_meters_bucket[30m])) by (le))", "legendFormat": "p50 Accuracy" },
+        { "expr": "histogram_quantile(0.95, sum(rate(fix_gps_accuracy_meters_bucket[30m])) by (le))", "legendFormat": "p95 Accuracy" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Anomalous Speed / Teleport Rejections",
+      "targets": [{ "expr": "sum(rate(fix_gps_anomaly_rejected_total[1h]))" }]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Offline Sync Store & Forward Queue Depth",
+      "targets": [{ "expr": "sum(fix_offline_events_pending_upload)" }]
+    }
+  ]
+}

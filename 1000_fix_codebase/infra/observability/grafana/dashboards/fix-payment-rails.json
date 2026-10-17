@@ -1,0 +1,78 @@
+{
+  "title": "1000FiX — Payment Gateway Rails & Settlement (PE-008)",
+  "uid": "fix-payment-rails",
+  "schemaVersion": 39,
+  "tags": ["1000fix", "payments", "bkash", "nagad", "sslcommerz", "pe-008"],
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Payment Gateway Success Rate (Last 1h)",
+      "targets": [{ "expr": "sum(rate(fix_payment_transactions_total{status='success'}[1h])) / sum(rate(fix_payment_transactions_total[1h]))" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.95 },
+              { "color": "green", "value": 0.98 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Total Settled Volume BDT (Today)",
+      "targets": [{ "expr": "sum(fix_payment_settled_amount_bdt_today)" }],
+      "fieldConfig": { "defaults": { "unit": "currencyBDT" } }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Gateway Response Latency p95 by Provider (s)",
+      "targets": [
+        { "expr": "histogram_quantile(0.95, sum(rate(fix_payment_latency_seconds_bucket{gateway='bkash'}[15m])) by (le))", "legendFormat": "bKash" },
+        { "expr": "histogram_quantile(0.95, sum(rate(fix_payment_latency_seconds_bucket{gateway='nagad'}[15m])) by (le))", "legendFormat": "Nagad" },
+        { "expr": "histogram_quantile(0.95, sum(rate(fix_payment_latency_seconds_bucket{gateway='sslcommerz'}[15m])) by (le))", "legendFormat": "SSLCOMMERZ" }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } }
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Payment Failures & Timeouts / min",
+      "targets": [
+        { "expr": "sum(rate(fix_payment_transactions_total{status='failed'}[5m])) * 60", "legendFormat": "Failed" },
+        { "expr": "sum(rate(fix_payment_transactions_total{status='timeout'}[5m])) * 60", "legendFormat": "Timeout" }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "stat",
+      "title": "Bank Reconciliation Match Rate (G3-02)",
+      "targets": [{ "expr": "fix_reconciliation_match_rate" }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "thresholds": {
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 0.85 },
+              { "color": "green", "value": 0.90 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "Unmatched Suspense Transactions Count",
+      "targets": [{ "expr": "fix_reconciliation_unmatched_lines_count" }]
+    }
+  ]
+}
