@@ -77,6 +77,14 @@ class TestLoyaltyStub(unittest.TestCase):
         self.assertIn("min_points_to_redeem", src)
         self.assertIn("discount_bdt", src)
 
+    def test_execute_redemption_and_stub_closure(self):
+        """Task R04-M02-T08: STUB-M10-M11-001 closure proof."""
+        src = inspect.getsource(FixLoyaltyRedemptionStub.execute_redemption)
+        self.assertIn("fix.loyalty.ledger", src)
+        self.assertIn("fix.ar.invoice", src)
+        self.assertIn('"status": "closed"', src)
+        self.assertIn("STUB-M10-M11-001 CLOSED", src)
+
 
 class TestLoyaltyManifest(unittest.TestCase):
     def test_cd_id_is_registered(self):

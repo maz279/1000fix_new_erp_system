@@ -88,6 +88,29 @@ class FixConsignment(models.Model):
             publish(self.env, "consignment.lost", "fix.consignment",
                     consignment.id, {"consignment": consignment.name})
 
+    def action_deliver(self):
+        """Deliver consignment enforcing unbroken chain of custody (Gate G3-05)."""
+        for consignment in self:
+            if consignment.chain_broken:
+                raise UserError("Cannot deliver consignment: custody chain is broken (Gate G3-05).")
+            last_scan = consignment.custody_ids.sorted("scanned_at")[-1:]
+            if not last_scan or last_scan.step != "delivered":
+                raise UserError("Cannot deliver consignment: terminal 'delivered' custody scan missing.")
+            consignment.state = "delivered"
+            publish(self.env, "consignment.delivered", "fix.consignment", consignment.id, {
+                "consignment": consignment.name,
+                "delivered_at": fields.Datetime.to_string(fields.Datetime.now()),
+            })
+
+    def action_return(self):
+        """Reverse logistics return transition."""
+        for consignment in self:
+            consignment.state = "returned"
+            publish(self.env, "consignment.returned", "fix.consignment", consignment.id, {
+                "consignment": consignment.name,
+                "returned_at": fields.Datetime.to_string(fields.Datetime.now()),
+            })
+
 
 class FixCustodyScan(models.Model):
     """One custody scan event — the chain's links. Scanned by the P09 rider

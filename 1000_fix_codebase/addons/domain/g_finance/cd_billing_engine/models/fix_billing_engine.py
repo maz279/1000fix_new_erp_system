@@ -58,6 +58,8 @@ class FixArInvoice(models.Model):
                                      compute="_compute_totals", store=True)
     vat_amount = fields.Monetary(string="VAT", currency_field="currency_id",
                                  compute="_compute_totals", store=True)
+    loyalty_points_redeemed = fields.Integer(string="Loyalty Points Redeemed", default=0)
+    loyalty_discount_amount = fields.Monetary(string="Loyalty Discount", currency_field="currency_id", default=0.0)
     total_payable = fields.Monetary(string="Total Payable", currency_field="currency_id",
                                     compute="_compute_totals", store=True)
     mushak_id = fields.Many2one("fix.mushak.register", string="Mushak 6.3",
@@ -67,12 +69,13 @@ class FixArInvoice(models.Model):
     generation_seconds = fields.Float(readonly=True,
                                       help="Closed-event to invoice duration — NFR-040 (5s)")
 
-    @api.depends("line_ids.taxable_amount", "line_ids.vat_amount")
+    @api.depends("line_ids.taxable_amount", "line_ids.vat_amount", "loyalty_discount_amount")
     def _compute_totals(self):
         for inv in self:
             inv.taxable_amount = sum(inv.line_ids.mapped("taxable_amount"))
             inv.vat_amount = sum(inv.line_ids.mapped("vat_amount"))
-            inv.total_payable = inv.taxable_amount + inv.vat_amount
+            subtotal_vat = inv.taxable_amount + inv.vat_amount
+            inv.total_payable = max(0.0, subtotal_vat - (inv.loyalty_discount_amount or 0.0))
 
     @api.model
     def from_closed_service_order(self, order, closed_event_at) -> "FixArInvoice":
@@ -196,6 +199,27 @@ class FixArInvoice(models.Model):
                 "total_payable": invoice.total_payable,
             })
 
+    @api.model
+    def benchmark_auto_invoice_timing(self, order_ids) -> dict:
+        """NFR-040 & Gate G3-01: benchmark auto-invoicing duration across orders.
+        Enforces duration <= 5.0s per closed order."""
+        orders = self.env["fix.service.order"].browse(order_ids) if isinstance(order_ids, (list, tuple)) else order_ids
+        durations = []
+        invoices = []
+        for order in orders:
+            inv = self.from_closed_service_order(order, fields.Datetime.now())
+            durations.append(inv.generation_seconds)
+            invoices.append(inv.id)
+        avg_sec = sum(durations) / len(durations) if durations else 0.0
+        max_sec = max(durations) if durations else 0.0
+        return {
+            "invoice_ids": invoices,
+            "durations": durations,
+            "average_seconds": avg_sec,
+            "max_seconds": max_sec,
+            "nfr_040_met": max_sec <= 5.0,
+        }
+
 
 class FixArInvoiceLine(models.Model):
     _name = "fix.ar.invoice.line"
@@ -300,4 +324,61 @@ class FixCreditNote(models.Model):
             publish(self.env, "credit_note.issued", "fix.credit.note", note.id, {
                 "invoice_ref": "AR/%s" % note.invoice_id.id,
                 "amount": note.amount, "reason": note.reason_code,
+            })
+
+
+class FixArConsolidatedBill(models.Model):
+    """Consolidated corporate billing hook (T03, P04/P06-M03).
+    Aggregates multiple closed/issued fix.ar.invoice records for a corporate partner into a monthly consolidated billing cycle."""
+
+    _name = "fix.ar.consolidated.bill"
+    _description = "Consolidated AR Bill"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _order = "period_end desc, id desc"
+
+    company_id = fields.Many2one("res.company", required=True, index=True,
+                                 default=lambda self: self.env.company)
+    operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
+    customer_id = fields.Many2one("res.partner", string="Corporate Customer",
+                                  required=True, index=True, ondelete="restrict")
+    currency_id = fields.Many2one("res.currency", required=True,
+                                  default=lambda self: self.env.ref("base.BDT"))
+    bill_ref = fields.Char(string="Bill Reference", required=True, index=True)
+    period_start = fields.Date(string="Period Start", required=True)
+    period_end = fields.Date(string="Period End", required=True)
+    invoice_ids = fields.Many2many("fix.ar.invoice", string="Included Invoices")
+    total_taxable = fields.Monetary(string="Total Taxable", currency_field="currency_id",
+                                    compute="_compute_totals", store=True)
+    total_vat = fields.Monetary(string="Total VAT", currency_field="currency_id",
+                                compute="_compute_totals", store=True)
+    total_payable = fields.Monetary(string="Total Payable", currency_field="currency_id",
+                                    compute="_compute_totals", store=True)
+    state = fields.Selection(
+        [("draft", "Draft"), ("generated", "Generated"), ("sent", "Sent"),
+         ("paid", "Paid"), ("cancelled", "Cancelled")],
+        default="draft", required=True, tracking=True)
+
+    @api.depends("invoice_ids.taxable_amount", "invoice_ids.vat_amount", "invoice_ids.total_payable")
+    def _compute_totals(self):
+        for bill in self:
+            bill.total_taxable = sum(bill.invoice_ids.mapped("taxable_amount"))
+            bill.total_vat = sum(bill.invoice_ids.mapped("vat_amount"))
+            bill.total_payable = sum(bill.invoice_ids.mapped("total_payable"))
+
+    def action_generate(self):
+        for bill in self:
+            if not bill.invoice_ids:
+                invoices = self.env["fix.ar.invoice"].search([
+                    ("customer_id", "=", bill.customer_id.id),
+                    ("invoice_date", ">=", bill.period_start),
+                    ("invoice_date", "<=", bill.period_end),
+                    ("state", "in", ["draft", "issued"]),
+                ])
+                bill.invoice_ids = [(6, 0, invoices.ids)]
+            bill.state = "generated"
+            publish(self.env, "consolidated_bill.generated", "fix.ar.consolidated.bill", bill.id, {
+                "bill_ref": bill.bill_ref,
+                "customer_id": bill.customer_id.id,
+                "total_payable": bill.total_payable,
+                "invoice_count": len(bill.invoice_ids),
             })

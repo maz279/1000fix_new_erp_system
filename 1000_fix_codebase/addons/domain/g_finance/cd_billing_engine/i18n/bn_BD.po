@@ -26,6 +26,9 @@ msgstr "ক্রেডিট পরিমাণ"
 msgid "Credit Notes"
 msgstr "ক্রেডিট নোটসমূহ"
 
+msgid "Consolidated Bills"
+msgstr "একত্রিত বিলসমূহ"
+
 msgid "Customer"
 msgstr "গ্রাহক"
 

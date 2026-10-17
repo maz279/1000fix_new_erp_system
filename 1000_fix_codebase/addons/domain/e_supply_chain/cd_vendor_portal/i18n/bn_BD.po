@@ -11,6 +11,9 @@ msgstr ""
 msgid "My Invoices"
 msgstr "আমার চালানসমূহ"
 
+msgid "My Invoice Submissions"
+msgstr "আমার দাখিলকৃত চালানসমূহ"
+
 msgid "My Purchase Orders"
 msgstr "আমার ক্রয় আদেশসমূহ"
 

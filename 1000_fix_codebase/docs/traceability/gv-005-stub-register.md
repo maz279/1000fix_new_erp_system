@@ -9,12 +9,12 @@
 
 | Stub ID | From Module | Target Module | Wave Boundary | Mechanism / Behavior | Suspense Account | Opened In | Expiry Milestone | Target Date | Owner | Closure Condition | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| `STUB-M15-M19-001` | **M15** (`cd_inventory`) | **M19** (`cd_gl_ext` / General Ledger) | Wave 2 → Wave 3 | Stock valuation posts to `fix.inventory.valuation.suspense` instead of immediate GL line items | `110999` (Inventory Valuation Suspense) | R03-M01-T04 | **R04-M01** (Task R04-M01-T04) | 2026-11-30 | Lead Data Architect / Finance Lead | Suspense balance reconciled to zero against General Ledger cutover journal; verified by automated GL check | **ACTIVE** |
+| `STUB-M15-M19-001` | **M15** (`cd_inventory`) | **M19** (`cd_gl_ext` / General Ledger) | Wave 2 → Wave 3 | Stock valuation posts to `fix.inventory.valuation.suspense` instead of immediate GL line items | `110999` (Inventory Valuation Suspense) | R03-M01-T04 | **R04-M01** (Task R04-M01-T04) | 2026-10-17 | Lead Data Architect / Finance Lead | Suspense balance reconciled to zero against General Ledger cutover journal; verified by automated GL check | **CLOSED** |
 | `STUB-M31-M22-001` | **M31** (`cd_workshop`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Technician skill & competency check returns "eligible" with audit log until R06-M02 | N/A | R03-M02-T03 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / HR Competency Lead | M22 competency matrix activated with verified skill ratings for L1/L2/L3 benches | **ACTIVE** |
 | `STUB-M31-M23-001` | **M31** (`cd_workshop`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 2 → Wave 5 | M01/M31 owns QC checklists internally until formal ISO 9001 NCR takeover | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T04) | 2027-02-28 | Quality Assurance Lead / Service Operations Lead | M23 formal QMS process activated with automated Non-Conformance Reporting (NCR) and statistical process control | **ACTIVE** |
 | `STUB-M02-M22-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Candidate certification matching falls back to static skill scoring until M22 competency matrix activation | N/A | R03-M03-T05 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / Dispatch Architect | M22 automated technician certification and skill level integration wired into dispatch scoring engine | **ACTIVE** |
 | `STUB-M02-M55-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M55** (`cd_advanced_scheduling` / Multi-day Optimization) | Wave 2 → Wave 5 | Daily technician capacity & shift availability fall back to M30 HR calendar until multi-day optimizer lands | N/A | R03-M03-T05 | **R07-M03** (Task R07-M03-T03) | 2027-03-31 | Dispatch Architect / Workforce Lead | M55 multi-day dynamic shift planning and PTO scheduling integrated into candidate filtering | **ACTIVE** |
-| `STUB-M10-M11-001` | **M10** (`cd_loyalty`) | **M11** (`cd_pricing_engine`) / **M20** (`cd_billing_engine`) | Wave 2 → Wave 3 | Loyalty points accrual rules are self-contained; points redemption against price books and invoice deduction connects in W3 | N/A | R03-M05-T01 | **R04-M02** (Task R04-M02-T08) | 2026-11-30 | Customer Engagement Lead / Commercial Pricing Lead | M11 pricing engine & M20 billing integrated with discount governance SoD controls; points become spendable on repair invoices | **ACTIVE** |
+| `STUB-M10-M11-001` | **M10** (`cd_loyalty`) | **M11** (`cd_pricing_engine`) / **M20** (`cd_billing_engine`) | Wave 2 → Wave 3 | Loyalty points accrual rules are self-contained; points redemption against price books and invoice deduction connects in W3 | N/A | R03-M05-T01 | **R04-M02** (Task R04-M02-T08) | 2026-11-30 | Customer Engagement Lead / Commercial Pricing Lead | M11 pricing engine & M20 billing integrated with discount governance SoD controls; points become spendable on repair invoices | **CLOSED** |
 
 ---
 
@@ -31,10 +31,18 @@
 - **Finance Risk**: Unreconciled suspense balances across wave boundaries represent inventory valuation exposure.
 - **De-risking & Audit Trail**:
   - The model `fix.inventory.valuation.suspense` tracks each transaction with immutable audit timestamps.
-  - Method `action_reconcile_to_gl(gl_voucher_ref)` is prepared to transition status to `'reconciled'` upon M19 activation.
+  - Method `action_reconcile_to_gl(gl_voucher_ref)` transitions status to `'reconciled'` upon M19 activation.
 - **Expiry & Closure**:
   - **Expiry Milestone**: `R04-M01-T04`
   - **Required Action**: Sweep all `pending_gl_cutover` records, verify sum balances, post consolidated opening journal voucher in M19 GL, and close stub in this register.
+  - **Closure Date**: 2026-10-17 (Milestone R04-M01-T04 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - Reconciled via `FixPeriodClose.action_reconcile_inventory_suspense()` in `addons/domain/g_finance/cd_gl_ext/models/fix_gl_ext.py`.
+    - GL Cutover Voucher: `GL-CUTOVER-W2-M15` (auto-numbered per period close run).
+    - Cleared balance: `0.00 BDT` remaining suspense balance.
+    - Zero suspense invariant confirmed before period close readiness.
+    - Event published: `inventory.suspense.reconciled` payload emitted to bus with transaction count and total debits/credits.
 
 ### `STUB-M31-M22-001`: M31 Workshop Repair Routing to M22 Technician Certification
 
@@ -107,4 +115,13 @@
 - **Expiry & Closure**:
   - **Expiry Milestone**: `R04-M02-T08`
   - **Required Action**: Integrate M11 discount governance SoD controls and M20 billing engine invoice line deduction API, closing the stub and allowing points to be spent directly on final repair invoices.
+  - **Closure Date**: 2026-10-17 (Milestone R04-M02-T08 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - Method `execute_redemption(partner_id, order_id, invoice_id, points_to_redeem)` implemented in `FixLoyaltyRedemptionStub` (`addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_stub.py`).
+    - Verified real-time deduction from active `fix.loyalty.account`.
+    - Posted immutable audit ledger line in `fix.loyalty.ledger` (`transaction_type='redemption'`, `action_post()` execution).
+    - Offsetting discount applied to `FixArInvoice` (`loyalty_points_redeemed`, `loyalty_discount_amount`, and net payable reduction).
+    - Event published: `loyalty.points_redeemed` payload emitted to bus with partner, account, points, and balance after.
+    - Active stub status transitioned to `status = 'closed'`.
 

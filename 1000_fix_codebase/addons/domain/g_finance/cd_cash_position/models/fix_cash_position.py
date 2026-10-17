@@ -103,14 +103,29 @@ class FixBankStatementLine(models.Model):
         matched = 0
         pending = self.search([("match_state", "=", "unmatched")])
         payments = self.env["fix.payment.execution"].search([("state", "=", "executed")])
+        already_matched_payment_ids = set()
         for line in pending:
-            # Rule 1: exact amount match on a payment whose source reference
-            # appears in the bank narration/reference.
+            line_ref = (line.reference or "") + " " + (line.narration or "")
             for payment in payments:
-                ref = "AR/%s" % payment.source_id if payment.source_model == "fix.ar.invoice" else None
-                if (ref and line.reference and ref in line.reference
-                        and payment.currency_id == line.currency_id):
-                    line.write({"match_state": "auto", "matched_payment_id": payment.id})
+                if payment.id in already_matched_payment_ids:
+                    continue
+                # Determine expected reference prefix by model
+                prefix = ("AR" if payment.source_model == "fix.ar.invoice" else
+                          "EXP" if payment.source_model == "fix.expense.claim" else
+                          "AP" if payment.source_model == "fix.vendor.invoice" else None)
+                ref = f"{prefix}/{payment.source_id}" if prefix else None
+                # Rule 1: Reference match in narration/reference
+                ref_matched = ref and ref in line_ref
+                # Rule 2: Exact amount match with same currency
+                amount_matched = abs(line.amount - payment.amount) < 0.01 and payment.currency_id == line.currency_id
+
+                if (ref_matched and amount_matched) or (ref_matched and payment.currency_id == line.currency_id) or (amount_matched and payment.payee in line_ref):
+                    line.write({
+                        "match_state": "auto",
+                        "matched_payment_id": payment.id,
+                        "matched_invoice_ref": ref or str(payment.source_id),
+                    })
+                    already_matched_payment_ids.add(payment.id)
                     matched += 1
                     break
         return matched

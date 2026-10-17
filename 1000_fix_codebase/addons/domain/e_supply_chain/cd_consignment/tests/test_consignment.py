@@ -37,3 +37,20 @@ class TestCustodyChain:
             __import__("odoo.addons.cd_consignment.models.fix_consignment",
                        fromlist=["FixCustodyScan"]).FixCustodyScan)
         assert "named exception" in source
+
+    def test_action_deliver_checks_unbroken_chain(self):
+        """Gate G3-05: action_deliver blocks delivery if the custody chain is broken."""
+        import inspect
+        source = inspect.getsource(
+            __import__("odoo.addons.cd_consignment.models.fix_consignment",
+                       fromlist=["FixConsignment"]).FixConsignment.action_deliver)
+        assert "chain_broken" in source
+        assert "Cannot deliver consignment" in source
+        assert '"consignment.delivered"' in source
+
+    def test_action_return_publishes_event(self):
+        import inspect
+        source = inspect.getsource(
+            __import__("odoo.addons.cd_consignment.models.fix_consignment",
+                       fromlist=["FixConsignment"]).FixConsignment.action_return)
+        assert '"consignment.returned"' in source

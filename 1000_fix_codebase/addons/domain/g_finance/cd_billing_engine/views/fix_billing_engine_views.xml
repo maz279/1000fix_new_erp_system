@@ -96,8 +96,16 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_fix_ar_consolidated_bill" model="ir.actions.act_window">
+        <field name="name">Consolidated Bills</field>
+        <field name="res_model">fix.ar.consolidated.bill</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fix_ar_invoice" name="AR Invoices"
               parent="cd_gl_ext.menu_ws_finance" action="action_fix_ar_invoice" sequence="50"/>
+    <menuitem id="menu_fix_ar_consolidated_bill" name="Consolidated Bills"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_ar_consolidated_bill" sequence="55"/>
     <menuitem id="menu_fix_dunning" name="Collections"
               parent="cd_gl_ext.menu_ws_finance" action="action_fix_dunning" sequence="60"/>
     <menuitem id="menu_fix_credit_note" name="Credit Notes"

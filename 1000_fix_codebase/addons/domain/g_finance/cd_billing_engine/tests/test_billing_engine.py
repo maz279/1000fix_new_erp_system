@@ -45,12 +45,43 @@ class TestAutoInvoice:
                        fromlist=["FixArInvoice"]).FixArInvoice.from_closed_service_order)
         assert "time.monotonic" in source  # NFR-040: the 5-second budget measured
 
+    def test_nfr040_benchmark_method_present(self):
+        from odoo.addons.cd_billing_engine.models.fix_billing_engine import FixArInvoice
+        assert hasattr(FixArInvoice, "benchmark_auto_invoice_timing")
+
+    def test_loyalty_discount_fields_and_compute(self):
+        from odoo.addons.cd_billing_engine.models.fix_billing_engine import FixArInvoice
+        assert hasattr(FixArInvoice, "loyalty_points_redeemed")
+        assert hasattr(FixArInvoice, "loyalty_discount_amount")
+        source = inspect.getsource(FixArInvoice._compute_totals)
+        assert "loyalty_discount_amount" in source
+        assert "total_payable" in source
+
     def test_company_bin_never_invented(self):
         """A Mushak without the supplier BIN must fail, not default."""
         source = inspect.getsource(
             __import__("odoo.addons.cd_billing_engine.models.fix_billing_engine",
                        fromlist=["FixArInvoice"]).FixArInvoice._company_bin)
         assert "raise UserError" in source
+
+
+class TestInterfaceConformance:
+    """T02 / AR-006 Section 4.1 Pairs 6 & 7 interface conformance proof."""
+
+    def test_m20_to_m51_is_synchronous_tax_determination(self):
+        source = inspect.getsource(
+            __import__("odoo.addons.cd_billing_engine.models.fix_billing_engine",
+                       fromlist=["FixArInvoice"]))
+        assert "from odoo.addons.cd_tax_engine_bd.models import tax_logic" in source
+        assert "tax_logic.determine_tax" in source
+
+    def test_m20_to_m50_is_strictly_asynchronous_events(self):
+        source = inspect.getsource(
+            __import__("odoo.addons.cd_billing_engine.models.fix_billing_engine",
+                       fromlist=["FixArInvoice"]))
+        assert "cd_cash_position" not in source
+        assert "action_register_paid" in source
+        assert '"invoice.paid"' in source
 
 
 class TestDunning:
@@ -70,3 +101,16 @@ class TestCreditNote:
             __import__("odoo.addons.cd_billing_engine.models.fix_billing_engine",
                        fromlist=["FixCreditNote"]).FixCreditNote.action_issue)
         assert "Approve before issuing" in source
+
+
+class TestConsolidatedBill:
+    def test_model_exists_and_inherits_mail(self):
+        from odoo.addons.cd_billing_engine.models.fix_billing_engine import FixArConsolidatedBill
+        assert FixArConsolidatedBill is not None
+        assert "mail.thread" in FixArConsolidatedBill._inherit
+
+    def test_generation_action_emits_event(self):
+        source = inspect.getsource(
+            __import__("odoo.addons.cd_billing_engine.models.fix_billing_engine",
+                       fromlist=["FixArConsolidatedBill"]).FixArConsolidatedBill.action_generate)
+        assert '"consolidated_bill.generated"' in source

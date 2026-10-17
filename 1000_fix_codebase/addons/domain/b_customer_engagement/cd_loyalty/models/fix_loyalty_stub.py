@@ -99,3 +99,58 @@ class FixLoyaltyRedemptionStub(models.Model):
             "discount_bdt": round(discount_bdt, 2),
             "tier": account.tier_id.name if account.tier_id else "Standard",
         }
+
+    @api.model
+    def execute_redemption(self, partner_id, order_id=None, invoice_id=None, points_to_redeem: int = 0) -> dict:
+        """Wave 3 (R04-M02-T08): Execute points redemption and apply discount to M20 invoice.
+        Closes STUB-M10-M11-001 and creates posted audit ledger line."""
+        eligibility = self.check_redemption_eligibility(partner_id, order_id, points_to_redeem)
+        if not eligibility.get("eligible"):
+            raise UserError(eligibility.get("reason", "Loyalty redemption not eligible"))
+
+        account = self.env["fix.loyalty.account"].browse(eligibility["account_id"])
+        discount_bdt = eligibility["discount_bdt"]
+
+        # Post immutable audit ledger line (action_post updates account points and emits event)
+        ledger_line = self.env["fix.loyalty.ledger"].create({
+            "account_id": account.id,
+            "company_id": account.company_id.id,
+            "operating_unit_id": account.operating_unit_id.id,
+            "transaction_type": "redemption",
+            "points": -abs(points_to_redeem),
+            "service_order_id": order_id if order_id else False,
+            "order_amount_bdt": discount_bdt,
+            "notes": f"Redeemed {points_to_redeem} pts (BDT {discount_bdt:.2f}) on Invoice {invoice_id or 'N/A'}",
+        })
+        ledger_line.action_post()
+
+        # Connect to M20 Billing invoice line offset
+        if invoice_id:
+            invoice = self.env["fix.ar.invoice"].browse(invoice_id)
+            if invoice.exists():
+                invoice.write({
+                    "loyalty_points_redeemed": points_to_redeem,
+                    "loyalty_discount_amount": discount_bdt,
+                })
+
+        # Transition stub record state to closed
+        active_stubs = self.search([("stub_code", "=", "STUB-M10-M11-001")])
+        if active_stubs:
+            active_stubs.write({"status": "closed"})
+
+        logger.info(
+            "STUB-M10-M11-001 CLOSED: Redeemed %d points (BDT %.2f) for Partner %s on Invoice %s.",
+            points_to_redeem, discount_bdt, partner_id, invoice_id
+        )
+
+        return {
+            "status": "closed",
+            "stub_status": "closed",
+            "stub_code": "STUB-M10-M11-001",
+            "partner_id": partner_id,
+            "points_redeemed": points_to_redeem,
+            "discount_bdt": discount_bdt,
+            "account_balance_after": account.points_balance,
+            "invoice_id": invoice_id,
+            "ledger_id": ledger_line.id,
+        }

@@ -10,6 +10,9 @@ msgstr ""
 msgid "My Invoices"
 msgstr ""
 
+msgid "My Invoice Submissions"
+msgstr ""
+
 msgid "My Purchase Orders"
 msgstr ""
 

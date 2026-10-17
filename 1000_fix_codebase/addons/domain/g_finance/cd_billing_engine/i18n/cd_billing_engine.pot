@@ -25,6 +25,9 @@ msgstr ""
 msgid "Credit Notes"
 msgstr ""
 
+msgid "Consolidated Bills"
+msgstr ""
+
 msgid "Customer"
 msgstr ""
 
