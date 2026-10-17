@@ -86,7 +86,7 @@ export default function ReconciliationPage() {
     { header: "Received (BDT)", cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums" }}>{r.received_bdt}</span> },
     {
       header: "Variance (BDT)",
-      cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums", color: r.mismatch ? "#b23a2e" : "inherit" }}>{r.variance_bdt || "0.00"}</span>,
+      cell: (r) => <span style={{ fontVariantNumeric: "tabular-nums", color: r.mismatch ? tokens["color.chart.5"] : "inherit" }}>{r.variance_bdt || "0.00"}</span>,
     },
     {
       header: "Match",

@@ -104,6 +104,8 @@ def check_relation_integrity() -> list[str]:
         "maintenance.equipment", "maintenance.equipment.category",
         # Odoo `fleet` (vendor) — present in the Wave-5 fleet profile
         "fleet.vehicle", "fleet.vehicle.model",
+        # OCA `contract` (vendor) — present in contracts profile (M08 / R05-M01)
+        "contract.contract", "contract.line", "contract.template",
     }
     defined: set[str] = set()
     sources: list[tuple[Path, str]] = []
