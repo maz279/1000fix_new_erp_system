@@ -173,3 +173,235 @@ def prepare_tds_return(withheld_totals: dict[str, Decimal],
         total_withheld=total, deductor_count=len(withheld_totals),
         due_date=tds_return_due_date(quarter, holidays),
     )
+
+
+# --------------------------------------------------- Sub-Ledger Reconciliation ----
+
+
+@dataclass(frozen=True)
+class SubledgerReconciliation:
+    period: str
+    subledger_output_vat: Decimal
+    gl_output_vat: Decimal
+    output_vat_variance: Decimal
+    subledger_input_vat: Decimal
+    gl_input_vat: Decimal
+    input_vat_variance: Decimal
+    is_reconciled: bool
+    status: str  # "RECONCILED" | "VARIANCE_DETECTED"
+    variance_reason: str = ""
+
+    @property
+    def output_variance(self) -> Decimal:
+        return self.output_vat_variance
+
+    @property
+    def input_variance(self) -> Decimal:
+        return self.input_vat_variance
+
+    @property
+    def notes(self) -> list[str]:
+        return [r.strip() for r in self.variance_reason.split(";") if r.strip()]
+
+
+def reconcile_vat_subledger(
+    period: str,
+    subledger_output_vat: Decimal | float | int | None = None,
+    gl_output_vat: Decimal | float | int | None = None,
+    subledger_input_vat: Decimal | float | int | None = None,
+    gl_input_vat: Decimal | float | int | None = None,
+    register_output_vat: Decimal | float | int | None = None,
+    gl_210100_output_vat: Decimal | float | int | None = None,
+    register_input_vat: Decimal | float | int | None = None,
+    gl_110500_input_vat: Decimal | float | int | None = None,
+) -> SubledgerReconciliation:
+    """T02: Strict comparison between operational VAT sub-ledgers and General Ledger accounts.
+    Output VAT: fix.mushak.register vs Account 210100 (VAT Output Payable).
+    Input VAT: purchase bills vs Account 110500 (VAT Input Credit Receivable).
+    Variances are never silently absorbed (IRB-09 zero-absorption mandate)."""
+    raw_out_sub = register_output_vat if register_output_vat is not None else subledger_output_vat
+    raw_out_gl = gl_210100_output_vat if gl_210100_output_vat is not None else gl_output_vat
+    raw_in_sub = register_input_vat if register_input_vat is not None else subledger_input_vat
+    raw_in_gl = gl_110500_input_vat if gl_110500_input_vat is not None else gl_input_vat
+
+    out_sub = Decimal(str(raw_out_sub or 0)).quantize(TWO, ROUND_HALF_UP)
+    out_gl = Decimal(str(raw_out_gl or 0)).quantize(TWO, ROUND_HALF_UP)
+    in_sub = Decimal(str(raw_in_sub or 0)).quantize(TWO, ROUND_HALF_UP)
+    in_gl = Decimal(str(raw_in_gl or 0)).quantize(TWO, ROUND_HALF_UP)
+
+    out_var = (out_sub - out_gl).quantize(TWO, ROUND_HALF_UP)
+    in_var = (in_sub - in_gl).quantize(TWO, ROUND_HALF_UP)
+    is_rec = (out_var == 0 and in_var == 0)
+    status = "RECONCILED" if is_rec else "VARIANCE_DETECTED"
+    reasons: list[str] = []
+    if out_var != 0:
+        reasons.append(f"GL 210100 Output VAT variance: subledger={out_sub}, gl={out_gl}, delta={out_var}")
+    if in_var != 0:
+        reasons.append(f"GL 110500 Input VAT variance: subledger={in_sub}, gl={in_gl}, delta={in_var}")
+
+    return SubledgerReconciliation(
+        period=period,
+        subledger_output_vat=out_sub,
+        gl_output_vat=out_gl,
+        output_vat_variance=out_var,
+        subledger_input_vat=in_sub,
+        gl_input_vat=in_gl,
+        input_vat_variance=in_var,
+        is_reconciled=is_rec,
+        status=status,
+        variance_reason="; ".join(reasons),
+    )
+
+
+# --------------------------------------------------- Statutory TDS Sections ----
+
+TDS_SECTION_RATES = {
+    "52": Decimal("0.05"),
+    "sec_52": Decimal("0.05"),
+    "52AA": Decimal("0.10"),
+    "52aa": Decimal("0.10"),
+    "sec_52aa": Decimal("0.10"),
+    "53A": Decimal("0.05"),
+    "53a": Decimal("0.05"),
+    "sec_53a": Decimal("0.05"),
+    "53F": Decimal("0.10"),
+    "53f": Decimal("0.10"),
+    "sec_53f": Decimal("0.10"),
+    "56": Decimal("0.20"),
+    "sec_56": Decimal("0.20"),
+}
+
+
+@dataclass(frozen=True)
+class TdsLine:
+    vendor_tin: str
+    vendor_name: str
+    section: str = ""
+    section_code: str = ""
+    base_amount: Decimal = Decimal("0")
+    withheld_amount: Decimal = Decimal("0")
+    tds_amount: Decimal = Decimal("0")
+    rate: Decimal = Decimal("0")
+    rate_percent: Decimal = Decimal("0")
+    vendor_bin: str = ""
+    challan_no: str = ""
+    challan_date: str | date = ""
+
+    def __post_init__(self) -> None:
+        sec = self.section_code or self.section or "52"
+        object.__setattr__(self, "section", sec)
+        object.__setattr__(self, "section_code", sec)
+
+        base = Decimal(str(self.base_amount or 0))
+        object.__setattr__(self, "base_amount", base)
+
+        withheld = Decimal(str(self.tds_amount or self.withheld_amount or 0))
+        object.__setattr__(self, "withheld_amount", withheld)
+        object.__setattr__(self, "tds_amount", withheld)
+
+        if base < 0 or withheld < 0:
+            raise ReturnError("TDS amounts cannot be negative")
+        if sec not in TDS_SECTION_RATES:
+            raise ReturnError(f"Unknown TDS statutory section {sec!r}")
+
+
+# --------------------------------------------------- Mushak 6.6 VDS Certificate ----
+
+
+@dataclass(frozen=True)
+class VdsCertificateData:
+    """Statutory Mushak 6.6 layout under Rule 40(1)/(2) of VAT & SD Rules 2016."""
+    certificate_no: str
+    issue_date: date
+    deductor_bin: str
+    deductor_name: str
+    deductee_bin: str
+    deductee_name: str
+    supplier_invoice_no: str
+    supplier_invoice_date: date
+    total_invoice_amount: Decimal
+    vat_amount: Decimal
+    vds_amount: Decimal
+    treasury_challan_no: str
+    treasury_challan_date: date
+    supplier_address: str = ""
+    bank_branch: str = ""
+    vat_rate: Decimal = Decimal("0.15")
+
+    @property
+    def supplier_bin(self) -> str:
+        return self.deductee_bin
+
+    @property
+    def supplier_name(self) -> str:
+        return self.deductee_name
+
+    @property
+    def net_payable_to_supplier(self) -> Decimal:
+        return (self.total_invoice_amount + self.vat_amount - self.vds_amount).quantize(TWO)
+
+
+def prepare_vds_certificate(
+    certificate_no: str,
+    issue_date: date | None = None,
+    deductor_bin: str = "",
+    deductor_name: str = "",
+    deductee_bin: str = "",
+    deductee_name: str = "",
+    customer_bin: str = "",
+    customer_name: str = "",
+    supplier_bin: str = "",
+    supplier_name: str = "",
+    supplier_address: str = "",
+    invoice_no: str = "",
+    invoice_date: date | None = None,
+    total_amount: Decimal | float | int | None = None,
+    taxable_amount: Decimal | float | int | None = None,
+    vat_rate: Decimal | float | int = Decimal("0.15"),
+    vat_amount: Decimal | float | int = Decimal("0"),
+    vds_amount: Decimal | float | int = Decimal("0"),
+    challan_no: str = "",
+    treasury_challan_no: str = "",
+    challan_date: date | None = None,
+    treasury_challan_date: date | None = None,
+    bank_branch: str = "",
+) -> VdsCertificateData:
+    """Validate and construct Mushak 6.6 VDS certificate data per Rule 40."""
+    eff_deductor_bin = (deductor_bin or customer_bin or "").strip()
+    eff_deductor_name = (deductor_name or customer_name or "1000 FiX Services Ltd.").strip()
+    eff_deductee_bin = (deductee_bin or supplier_bin or "").strip()
+    eff_deductee_name = (deductee_name or supplier_name or "").strip()
+
+    if not (len(eff_deductor_bin) == 13 and eff_deductor_bin.isdigit()):
+        raise ReturnError("Deductor BIN must be 13 digits")
+    if not (len(eff_deductee_bin) == 13 and eff_deductee_bin.isdigit()):
+        raise ReturnError("Deductee BIN must be 13 digits under Rule 40(1)")
+
+    raw_tot = total_amount if total_amount is not None else taxable_amount
+    tot = Decimal(str(raw_tot or 0)).quantize(TWO, ROUND_HALF_UP)
+    vat = Decimal(str(vat_amount or 0)).quantize(TWO, ROUND_HALF_UP)
+    vds = Decimal(str(vds_amount or 0)).quantize(TWO, ROUND_HALF_UP)
+
+    if vds <= 0 or vds > vat:
+        raise ReturnError("VDS amount must be positive and cannot exceed total VAT")
+
+    return VdsCertificateData(
+        certificate_no=certificate_no,
+        issue_date=issue_date or date.today(),
+        deductor_bin=eff_deductor_bin,
+        deductor_name=eff_deductor_name,
+        deductee_bin=eff_deductee_bin,
+        deductee_name=eff_deductee_name,
+        supplier_invoice_no=invoice_no,
+        supplier_invoice_date=invoice_date or date.today(),
+        total_invoice_amount=tot,
+        vat_amount=vat,
+        vds_amount=vds,
+        treasury_challan_no=treasury_challan_no or challan_no,
+        treasury_challan_date=treasury_challan_date or challan_date or date.today(),
+        supplier_address=supplier_address,
+        bank_branch=bank_branch,
+        vat_rate=Decimal(str(vat_rate)),
+    )
+
+

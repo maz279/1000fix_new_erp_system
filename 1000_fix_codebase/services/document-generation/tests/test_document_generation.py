@@ -19,6 +19,11 @@ class TestTemplates(unittest.TestCase):
     def test_w3_document_set_present(self):
         self.assertIn("mushak_6_3", DOCUMENT_TEMPLATES)
         self.assertTrue(DOCUMENT_TEMPLATES["mushak_6_3"]["statutory"])
+        self.assertIn("mushak_6_6", DOCUMENT_TEMPLATES)
+        self.assertTrue(DOCUMENT_TEMPLATES["mushak_6_6"]["statutory"])
+        self.assertIn("withholding_certificate", DOCUMENT_TEMPLATES)
+        self.assertTrue(DOCUMENT_TEMPLATES["withholding_certificate"]["statutory"])
+
 
     def test_statutory_templates_carry_reference_images(self):
         for name, tpl in DOCUMENT_TEMPLATES.items():

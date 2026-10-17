@@ -3,4 +3,6 @@ access_fix_vat_treatment,fix.vat.treatment,model_fix_vat_treatment,base.group_us
 access_fix_mushak_register,fix.mushak.register,model_fix_mushak_register,base.group_user,1,1,1,0
 access_fix_vat_return,fix.vat.return,model_fix_vat_return,base.group_user,1,1,1,0
 access_fix_tds_return,fix.tds.return,model_fix_tds_return,base.group_user,1,1,1,0
+access_fix_tds_return_line,fix.tds.return.line,model_fix_tds_return_line,base.group_user,1,1,1,0
 access_fix_withholding_certificate,fix.withholding.certificate,model_fix_withholding_certificate,base.group_user,1,1,1,0
+

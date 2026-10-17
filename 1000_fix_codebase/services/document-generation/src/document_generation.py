@@ -34,6 +34,18 @@ DOCUMENT_TEMPLATES: dict[str, dict] = {
         "reference": "docs/guides/reference/bengali-conjunct-reference.png",
         "statutory": True,
     },
+    "mushak_6_6": {
+        "qweb": "cd_tax_engine_bd.report_mushak66",
+        "model": "fix.withholding.certificate",
+        "reference": "docs/guides/reference/bengali-conjunct-reference.png",
+        "statutory": True,
+    },
+    "withholding_certificate": {
+        "qweb": "cd_tax_engine_bd.report_withholding_certificate",
+        "model": "fix.withholding.certificate",
+        "reference": "docs/guides/reference/bengali-conjunct-reference.png",
+        "statutory": True,
+    },
     "service_receipt": {
         "qweb": "cd_service_order.report_jobcard",
         "model": "fix.service.order",
@@ -41,6 +53,7 @@ DOCUMENT_TEMPLATES: dict[str, dict] = {
         "statutory": False,
     },
 }
+
 
 
 @dataclass

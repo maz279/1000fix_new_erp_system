@@ -18,13 +18,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
 
 from return_logic import (  # noqa: E402
     ReturnError,
+    TDS_SECTION_RATES,
+    SubledgerReconciliation,
+    TdsLine,
+    VdsCertificateData,
     next_working_day,
     prepare_tds_return,
     prepare_vat_return,
+    prepare_vds_certificate,
+    reconcile_vat_subledger,
     tds_quarter_for_date,
     tds_return_due_date,
     vat_return_due_date,
 )
+
 
 D = Decimal
 
@@ -136,6 +143,133 @@ class TestTdsDueDates(unittest.TestCase):
     def test_negative_withheld_refused(self):
         with self.assertRaises(ReturnError):
             prepare_tds_return({"v": D("-1")}, date(2026, 8, 15))
+
+
+class TestVatSubledgerReconciliation(unittest.TestCase):
+    def test_reconciliation_zero_variance(self):
+        recon = reconcile_vat_subledger(
+            period="2026-10",
+            register_output_vat=D("150000.00"),
+            gl_210100_output_vat=D("150000.00"),
+            register_input_vat=D("45000.00"),
+            gl_110500_input_vat=D("45000.00"),
+        )
+        self.assertTrue(recon.is_reconciled)
+        self.assertEqual(recon.output_variance, D("0.00"))
+        self.assertEqual(recon.input_variance, D("0.00"))
+        self.assertEqual(len(recon.notes), 0)
+
+    def test_reconciliation_output_variance_detected(self):
+        recon = reconcile_vat_subledger(
+            period="2026-10",
+            register_output_vat=D("150000.00"),
+            gl_210100_output_vat=D("148500.00"),
+            register_input_vat=D("45000.00"),
+            gl_110500_input_vat=D("45000.00"),
+        )
+        self.assertFalse(recon.is_reconciled)
+        self.assertEqual(recon.output_variance, D("1500.00"))
+        self.assertEqual(recon.input_variance, D("0.00"))
+        self.assertTrue(any("GL 210100" in n for n in recon.notes))
+
+    def test_reconciliation_input_variance_detected(self):
+        recon = reconcile_vat_subledger(
+            period="2026-10",
+            register_output_vat=D("150000.00"),
+            gl_210100_output_vat=D("150000.00"),
+            register_input_vat=D("45000.00"),
+            gl_110500_input_vat=D("47200.00"),
+        )
+        self.assertFalse(recon.is_reconciled)
+        self.assertEqual(recon.output_variance, D("0.00"))
+        self.assertEqual(recon.input_variance, D("-2200.00"))
+        self.assertTrue(any("GL 110500" in n for n in recon.notes))
+
+
+class TestTdsSectionLines(unittest.TestCase):
+    def test_statutory_rates(self):
+        self.assertEqual(TDS_SECTION_RATES["52"], D("0.05"))
+        self.assertEqual(TDS_SECTION_RATES["52AA"], D("0.10"))
+        self.assertEqual(TDS_SECTION_RATES["53A"], D("0.05"))
+        self.assertEqual(TDS_SECTION_RATES["53F"], D("0.10"))
+        self.assertEqual(TDS_SECTION_RATES["56"], D("0.20"))
+
+    def test_tds_line_dataclass(self):
+        line = TdsLine(
+            vendor_name="Acme Corp Ltd.",
+            vendor_tin="123456789012",
+            vendor_bin="1234567890123",
+            section_code="52",
+            base_amount=D("100000.00"),
+            rate_percent=D("5.0"),
+            tds_amount=D("5000.00"),
+            challan_no="CH-2026-001",
+            challan_date=date(2026, 10, 10),
+        )
+        self.assertEqual(line.vendor_name, "Acme Corp Ltd.")
+        self.assertEqual(line.section_code, "52")
+        self.assertEqual(line.tds_amount, D("5000.00"))
+
+
+class TestMushak66VdsCertificate(unittest.TestCase):
+    def test_valid_vds_certificate(self):
+        cert = prepare_vds_certificate(
+            certificate_no="VDS-6.6/202610/00001",
+            issue_date=date(2026, 10, 20),
+            supplier_name="Apex Logistics Ltd.",
+            supplier_bin="1234567890123",
+            supplier_address="Tejgaon I/A, Dhaka",
+            customer_name="1000 FiX Services Ltd.",
+            customer_bin="9876543210123",
+            invoice_no="INV-2026-099",
+            invoice_date=date(2026, 10, 15),
+            taxable_amount=D("100000.00"),
+            vat_rate=D("0.15"),
+            vat_amount=D("15000.00"),
+            vds_amount=D("15000.00"),
+            treasury_challan_no="CH-987654",
+            treasury_challan_date=date(2026, 10, 18),
+            bank_branch="Sonali Bank, Principal Branch",
+        )
+        self.assertEqual(cert.certificate_no, "VDS-6.6/202610/00001")
+        self.assertEqual(cert.net_payable_to_supplier, D("100000.00"))  # Base + VAT - VDS = 100k + 15k - 15k
+        self.assertEqual(cert.supplier_bin, "1234567890123")
+
+    def test_invalid_supplier_bin_raises(self):
+        with self.assertRaises(ReturnError):
+            prepare_vds_certificate(
+                certificate_no="VDS-6.6/202610/00002",
+                issue_date=date(2026, 10, 20),
+                supplier_name="Apex Logistics Ltd.",
+                supplier_bin="12345",  # invalid BIN length
+                supplier_address="Dhaka",
+                customer_name="1000 FiX Services Ltd.",
+                customer_bin="9876543210123",
+                invoice_no="INV-2026-100",
+                invoice_date=date(2026, 10, 15),
+                taxable_amount=D("50000.00"),
+                vat_rate=D("0.15"),
+                vat_amount=D("7500.00"),
+                vds_amount=D("7500.00"),
+            )
+
+    def test_vds_exceeds_vat_raises(self):
+        with self.assertRaises(ReturnError):
+            prepare_vds_certificate(
+                certificate_no="VDS-6.6/202610/00003",
+                issue_date=date(2026, 10, 20),
+                supplier_name="Apex Logistics Ltd.",
+                supplier_bin="1234567890123",
+                supplier_address="Dhaka",
+                customer_name="1000 FiX Services Ltd.",
+                customer_bin="9876543210123",
+                invoice_no="INV-2026-101",
+                invoice_date=date(2026, 10, 15),
+                taxable_amount=D("50000.00"),
+                vat_rate=D("0.15"),
+                vat_amount=D("7500.00"),
+                vds_amount=D("10000.00"),  # Exceeds VAT
+            )
 
 
 class TestPurity(unittest.TestCase):

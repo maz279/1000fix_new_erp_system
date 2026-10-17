@@ -170,6 +170,44 @@
           "status": "DELIVERED"
         }
       }
+    },
+    {
+      "description": "INT-038 NBR IVAS Mushak 9.1 Return Online Submission",
+
+      "providerStates": [
+        {
+          "name": "taxpayer registered with valid 13-digit BIN in NBR IVAS"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v2/returns/mushak-9-1",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer TEST_TOKEN"
+        },
+        "body": {
+          "taxpayer_bin": "1234567890123",
+          "tax_period": "2026-10",
+          "total_sales_taxable": 105000,
+          "output_vat_amount": 15000,
+          "input_vat_rebate": 3000,
+          "net_vat_payable": 12000,
+          "nil_return": false
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "accepted": true,
+          "acknowledgment_token": "NBR-IVAS-202610-M91-ACCEPTED",
+          "status": "ACCEPTED"
+        }
+      }
     }
   ]
 }
+

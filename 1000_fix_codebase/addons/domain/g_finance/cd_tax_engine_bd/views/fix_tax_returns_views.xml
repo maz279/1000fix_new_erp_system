@@ -24,22 +24,37 @@
         <field name="model">fix.vat.return</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <button name="action_subledger_reconciliation" type="object" string="Reconcile Sub-Ledger" class="btn-primary" invisible="state == 'filed'"/>
+                    <button name="action_file_online" type="object" string="Submit to NBR (INT-038)" class="btn-success" invisible="state == 'filed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,prepared,filed"/>
+                </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="period" readonly="1"/> — Mushak 9.1</h1></div>
                     <group>
-                        <group>
+                        <group string="Statutory Return Amounts">
                             <field name="currency_id" invisible="1"/>
                             <field name="total_taxable"/>
                             <field name="output_vat"/>
                             <field name="input_vat"/>
                             <field name="net_payable"/>
                         </group>
-                        <group>
+                        <group string="Filing &amp; NBR Status">
                             <field name="nil_return"/>
                             <field name="due_date" readonly="1"/>
-                            <field name="state"/>
                             <field name="filed_at" readonly="1"/>
-                            <field name="nbr_confirmation"/>
+                            <field name="nbr_confirmation" readonly="1"/>
+                        </group>
+                    </group>
+                    <group string="Sub-Ledger Reconciliation (GL 210100 &amp; 110500)">
+                        <group>
+                            <field name="subledger_status" widget="badge"/>
+                            <field name="subledger_output_variance"/>
+                            <field name="subledger_input_variance"/>
+                        </group>
+                        <group>
+                            <field name="subledger_reconciled_at" readonly="1"/>
+                            <field name="subledger_notes" readonly="1"/>
                         </group>
                     </group>
                 </sheet>
@@ -63,8 +78,119 @@
                 <field name="total_withheld"/>
                 <field name="deductor_count" optional="show"/>
                 <field name="due_date"/>
+                <field name="nbr_acknowledgment" optional="show"/>
                 <field name="state" widget="badge"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_tds_return_form" model="ir.ui.view">
+        <field name="name">fix.tds.return.form</field>
+        <field name="model">fix.tds.return</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_file" type="object" string="File Return with NBR" class="btn-primary" invisible="state == 'filed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,prepared,filed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="quarter" readonly="1"/> — TDS Quarterly Return</h1></div>
+                    <group>
+                        <group>
+                            <field name="fiscal_year" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="total_withheld"/>
+                            <field name="deductor_count"/>
+                        </group>
+                        <group>
+                            <field name="due_date" readonly="1"/>
+                            <field name="filed_at" readonly="1"/>
+                            <field name="nbr_acknowledgment" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Withholding Breakdown Lines">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="vendor_name"/>
+                                    <field name="vendor_tin"/>
+                                    <field name="vendor_bin"/>
+                                    <field name="section_code"/>
+                                    <field name="base_amount"/>
+                                    <field name="rate_percent"/>
+                                    <field name="tds_amount"/>
+                                    <field name="challan_no"/>
+                                    <field name="challan_date"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_withholding_certificate_tree" model="ir.ui.view">
+        <field name="name">fix.withholding.certificate.tree</field>
+        <field name="model">fix.withholding.certificate</field>
+        <field name="arch" type="xml">
+            <list decoration-success="state == 'issued'">
+                <field name="certificate_no"/>
+                <field name="certificate_type"/>
+                <field name="supplier_name"/>
+                <field name="supplier_bin" optional="show"/>
+                <field name="currency_id" invisible="1"/>
+                <field name="base_amount"/>
+                <field name="withheld_amount"/>
+                <field name="issued_at"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_withholding_certificate_form" model="ir.ui.view">
+        <field name="name">fix.withholding.certificate.form</field>
+        <field name="model">fix.withholding.certificate</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_issue" type="object" string="Issue Statutory Certificate" class="btn-primary" invisible="state == 'issued'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,issued"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="certificate_no" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group string="Certificate Info">
+                            <field name="certificate_type"/>
+                            <field name="supplier_name"/>
+                            <field name="supplier_bin" invisible="certificate_type != 'mushak_6_6'"/>
+                            <field name="supplier_tin" invisible="certificate_type != 'section_52_income_tax'"/>
+                            <field name="supplier_address"/>
+                        </group>
+                        <group string="Financials &amp; Challan">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="base_amount"/>
+                            <field name="rate_percent"/>
+                            <field name="withheld_amount"/>
+                            <field name="challan_no"/>
+                            <field name="challan_date"/>
+                            <field name="bank_branch"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -80,9 +206,18 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="action_fix_withholding_certificate" model="ir.actions.act_window">
+        <field name="name">Withholding Certificates</field>
+        <field name="res_model">fix.withholding.certificate</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fix_vat_return" name="VAT Returns"
               parent="cd_gl_ext.menu_ws_finance" action="action_fix_vat_return" sequence="140"/>
     <menuitem id="menu_fix_tds_return" name="TDS Returns"
               parent="cd_gl_ext.menu_ws_finance" action="action_fix_tds_return" sequence="150"/>
+    <menuitem id="menu_fix_withholding_certificate" name="Withholding Certificates"
+              parent="cd_gl_ext.menu_ws_finance" action="action_fix_withholding_certificate" sequence="160"/>
+
 
 </odoo>
