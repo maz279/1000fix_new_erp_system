@@ -11,6 +11,15 @@
     <menuitem id="menu_p03_ws_service_order_s3" name="Diagnosis &amp; Estimates" parent="menu_p03_ws_service_order" sequence="30"/>
     <menuitem id="menu_p03_ws_service_order_s4" name="Entitlement &amp; SLA" parent="menu_p03_ws_service_order" sequence="40"/>
     <menuitem id="menu_p03_ws_service_order_s5" name="Quality &amp; Release" parent="menu_p03_ws_service_order" sequence="50"/>
+    <!-- M02: Field Service &amp; Dispatch (5 groups, 19 screens, 6 reports) -->
+    <menuitem id="menu_p03_ws_field_service" name="Field Service &amp; Dispatch"
+              parent="cd_entity_config.menu_fix_operations_root"
+              sequence="4"/>
+    <menuitem id="menu_p03_ws_field_service_s1" name="Dispatch Console" parent="menu_p03_ws_field_service" sequence="10"/>
+    <menuitem id="menu_p03_ws_field_service_s2" name="Work Orders" parent="menu_p03_ws_field_service" sequence="20"/>
+    <menuitem id="menu_p03_ws_field_service_s3" name="Routing &amp; Territories" parent="menu_p03_ws_field_service" sequence="30"/>
+    <menuitem id="menu_p03_ws_field_service_s4" name="Technician App (P02)" parent="menu_p03_ws_field_service" sequence="40"/>
+    <menuitem id="menu_p03_ws_field_service_s5" name="Safety &amp; Payments" parent="menu_p03_ws_field_service" sequence="50"/>
     <!-- M03: Service Logistics (Pick &amp; Drop) (5 groups, 16 screens, 6 reports) -->
     <menuitem id="menu_p03_ws_consignment" name="Service Logistics (Pick &amp; Drop)"
               parent="cd_entity_config.menu_fix_operations_root"

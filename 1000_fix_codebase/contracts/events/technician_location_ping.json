@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "technician.location.ping",
+  "description": "Event emitted when an unthrottled technician location ping is recorded per NFR-056 (M02, CD-M02-03)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "technician.location.ping"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_field_service"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["technician_id", "latitude", "longitude", "ping_time"],
+      "properties": {
+        "technician_id": { "type": "integer" },
+        "latitude": { "type": "number" },
+        "longitude": { "type": "number" },
+        "accuracy_meters": { "type": "number" },
+        "speed_mps": { "type": "number" },
+        "bearing_deg": { "type": "number" },
+        "battery_level": { "type": "number" },
+        "is_charging": { "type": "boolean" },
+        "connectivity_state": { "type": "string", "enum": ["online", "degraded", "offline_buffered"] },
+        "is_throttled": { "type": "boolean" },
+        "ping_time": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

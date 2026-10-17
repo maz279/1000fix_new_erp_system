@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ==================== FIX.FIELD.ORDER VIEWS ==================== -->
+    <record id="view_fix_field_order_kanban" model="ir.ui.view">
+        <field name="name">fix.field.order.kanban</field>
+        <field name="model">fix.field.order</field>
+        <field name="arch" type="xml">
+            <kanban default_group_by="state" sample="1">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="technician_id"/>
+                <field name="zone_id"/>
+                <field name="priority"/>
+                <field name="state"/>
+                <field name="scheduled_start"/>
+                <field name="distance_km"/>
+                <field name="travel_time_est_minutes"/>
+                <templates>
+                    <t t-name="kanban-box">
+                        <div class="oe_kanban_global_click p-3 mb-2 rounded border bg-white shadow-sm">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <strong class="text-primary"><field name="name"/></strong>
+                                <span t-attf-class="badge #{record.priority.raw_value == '3' ? 'text-bg-danger' : (record.priority.raw_value == '2' ? 'text-bg-warning' : 'text-bg-info')}">
+                                    <field name="priority"/>
+                                </span>
+                            </div>
+                            <div class="text-muted small mb-1">
+                                <span>Order: </span><field name="order_id"/>
+                            </div>
+                            <div class="text-muted small mb-1">
+                                <span>Zone: </span><field name="zone_id"/>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center small text-secondary">
+                                <span><i class="fa fa-user me-1"/> <field name="technician_id"/></span>
+                                <span><i class="fa fa-clock-o me-1"/> <field name="travel_time_est_minutes"/>m</span>
+                            </div>
+                        </div>
+                    </t>
+                </templates>
+            </kanban>
+        </field>
+    </record>
+
+    <record id="view_fix_field_order_list" model="ir.ui.view">
+        <field name="name">fix.field.order.list</field>
+        <field name="model">fix.field.order</field>
+        <field name="arch" type="xml">
+            <list string="Field Orders">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="technician_id"/>
+                <field name="zone_id"/>
+                <field name="scheduled_start"/>
+                <field name="distance_km"/>
+                <field name="travel_time_est_minutes"/>
+                <field name="priority" widget="badge"/>
+                <field name="state" widget="badge"
+                       decoration-info="state in ('draft', 'pending_dispatch')"
+                       decoration-warning="state in ('dispatched', 'en_route')"
+                       decoration-success="state in ('accepted', 'arrived', 'in_progress', 'completed')"
+                       decoration-danger="state in ('declined', 'cancelled')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_field_order_form" model="ir.ui.view">
+        <field name="name">fix.field.order.form</field>
+        <field name="model">fix.field.order</field>
+        <field name="arch" type="xml">
+            <form string="Field Service Order">
+                <header>
+                    <button name="action_request_dispatch" string="Request Dispatch" type="object"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_accept" string="Accept Job" type="object"
+                            invisible="state != 'dispatched'" class="btn-success"/>
+                    <button name="action_decline" string="Decline Job" type="object"
+                            invisible="state != 'dispatched'" class="btn-outline-danger"/>
+                    <button name="action_start_travel" string="Start Travel (En Route)" type="object"
+                            invisible="state != 'accepted'" class="btn-primary"/>
+                    <button name="action_arrive" string="Mark Arrival" type="object"
+                            invisible="state != 'en_route'" class="btn-info"/>
+                    <button name="action_start_work" string="Start Work" type="object"
+                            invisible="state != 'arrived'" class="btn-primary"/>
+                    <button name="action_complete" string="Complete Order" type="object"
+                            invisible="state != 'in_progress'" class="btn-success"/>
+                    <button name="action_cancel" string="Cancel" type="object"
+                            invisible="state in ('completed', 'cancelled')" class="btn-secondary"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,pending_dispatch,dispatched,accepted,en_route,arrived,in_progress,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title mb-3">
+                        <label for="name" string="Order Reference"/>
+                        <h1 class="d-flex align-items-center">
+                            <field name="name" readonly="1"/>
+                            <field name="priority" widget="priority" class="ms-3"/>
+                        </h1>
+                        <field name="name_bn" placeholder="অর্ডার রেফারেন্স (বাংলা)"/>
+                    </div>
+                    <group>
+                        <group string="Service &amp; Assignment">
+                            <field name="order_id"/>
+                            <field name="technician_id"/>
+                            <field name="van_location_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Schedule &amp; SLAs">
+                            <field name="zone_id"/>
+                            <field name="geofence_id"/>
+                            <field name="scheduled_start"/>
+                            <field name="scheduled_end"/>
+                            <field name="sla_deadline"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group string="Location &amp; Distance">
+                            <field name="customer_address"/>
+                            <field name="latitude"/>
+                            <field name="longitude"/>
+                        </group>
+                        <group string="Travel Metrics">
+                            <field name="distance_km"/>
+                            <field name="travel_time_est_minutes"/>
+                            <field name="actual_travel_minutes"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Instructions &amp; Notes">
+                            <field name="notes" placeholder="Enter site access codes, contact instructions, or symptom details..."/>
+                        </page>
+                        <page string="Decline Details" invisible="state != 'declined' and not decline_reason">
+                            <group>
+                                <field name="decline_reason" readonly="1"/>
+                                <field name="decline_notes" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.FIELD.ROUTE VIEWS ==================== -->
+    <record id="view_fix_field_route_list" model="ir.ui.view">
+        <field name="name">fix.field.route.list</field>
+        <field name="model">fix.field.route</field>
+        <field name="arch" type="xml">
+            <list string="Technician Routes">
+                <field name="name"/>
+                <field name="technician_id"/>
+                <field name="date"/>
+                <field name="order_count"/>
+                <field name="total_distance_km"/>
+                <field name="total_duration_hours"/>
+                <field name="baseline_duration_hours"/>
+                <field name="improvement_pct" widget="percentage"/>
+                <field name="route_state" widget="badge"
+                       decoration-info="route_state == 'draft'"
+                       decoration-warning="route_state == 'in_progress'"
+                       decoration-success="route_state in ('optimized', 'completed')"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_field_route_form" model="ir.ui.view">
+        <field name="name">fix.field.route.form</field>
+        <field name="model">fix.field.route</field>
+        <field name="arch" type="xml">
+            <form string="Field Route Itinerary">
+                <header>
+                    <button name="action_optimize_route" string="Optimize via VROOM" type="object"
+                            invisible="route_state not in ('draft', 'optimized')" class="btn-primary"/>
+                    <button name="action_start_route" string="Start Route" type="object"
+                            invisible="route_state != 'optimized'" class="btn-success"/>
+                    <button name="action_complete_route" string="Complete Route" type="object"
+                            invisible="route_state != 'in_progress'" class="btn-info"/>
+                    <field name="route_state" widget="statusbar"
+                           statusbar_visible="draft,optimized,in_progress,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title mb-3">
+                        <label for="name" string="Route Reference"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                        <field name="name_bn" placeholder="রুট রেফারেন্স (বাংলা)"/>
+                    </div>
+                    <group>
+                        <group string="Route Details">
+                            <field name="technician_id"/>
+                            <field name="date"/>
+                            <field name="depot_location"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Optimization Performance (G2-03)">
+                            <field name="order_count"/>
+                            <field name="total_distance_km"/>
+                            <field name="baseline_duration_hours"/>
+                            <field name="total_duration_hours"/>
+                            <field name="improvement_pct" widget="percentage" class="text-success fw-bold"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Scheduled Stops">
+                            <field name="field_order_ids"/>
+                        </page>
+                        <page string="Notes">
+                            <field name="notes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.FIELD.DECLINE.LOG VIEWS ==================== -->
+    <record id="view_fix_field_decline_log_list" model="ir.ui.view">
+        <field name="name">fix.field.decline.log.list</field>
+        <field name="model">fix.field.decline.log</field>
+        <field name="arch" type="xml">
+            <list string="Dispatch Decline Audit Log">
+                <field name="name"/>
+                <field name="field_order_id"/>
+                <field name="technician_id"/>
+                <field name="decline_date"/>
+                <field name="reason" widget="badge" decoration-danger="1"/>
+                <field name="notes"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.TECHNICIAN.LOCATION VIEWS ==================== -->
+    <record id="view_fix_technician_location_list" model="ir.ui.view">
+        <field name="name">fix.technician.location.list</field>
+        <field name="model">fix.technician.location</field>
+        <field name="arch" type="xml">
+            <list string="Technician Telemetry Pings">
+                <field name="name"/>
+                <field name="technician_id"/>
+                <field name="timestamp"/>
+                <field name="latitude"/>
+                <field name="longitude"/>
+                <field name="speed_kmh"/>
+                <field name="battery_pct"/>
+                <field name="is_throttled" widget="boolean"/>
+            </list>
+        </field>
+    </record>
+</odoo>

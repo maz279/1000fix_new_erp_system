@@ -1,0 +1,9 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_field_order_user,fix.field.order.user,model_fix_field_order,group_fix_field_service_user,1,1,1,0
+access_fix_field_order_manager,fix.field.order.manager,model_fix_field_order,group_fix_field_service_manager,1,1,1,1
+access_fix_field_route_user,fix.field.route.user,model_fix_field_route,group_fix_field_service_user,1,1,1,0
+access_fix_field_route_manager,fix.field.route.manager,model_fix_field_route,group_fix_field_service_manager,1,1,1,1
+access_fix_field_decline_log_user,fix.field.decline.log.user,model_fix_field_decline_log,group_fix_field_service_user,1,1,1,0
+access_fix_field_decline_log_manager,fix.field.decline.log.manager,model_fix_field_decline_log,group_fix_field_service_manager,1,1,1,1
+access_fix_technician_location_user,fix.technician.location.user,model_fix_technician_location,group_fix_field_service_user,1,1,1,0
+access_fix_technician_location_manager,fix.technician.location.manager,model_fix_technician_location,group_fix_field_service_manager,1,1,1,1

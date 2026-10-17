@@ -15,7 +15,7 @@ execution step and updates this file under change control).
 |---|---|---|:--:|---|
 | 1 | `server-tools` | **Heavy** — M29/M30/M64 | ☐ | migrate-or-reclassify per module |
 | 2 | `web` | **Heavy** — portal UX surface | ☐ | |
-| 3 | `field-service` | **Heavy** — M01/M02 service core, substatus, SLA | ☐ | |
+| 3 | `field-service` | **Heavy** — M01/M02 service core, substatus, SLA | **M** | Consumed under Wave 2 M02 (R03-M03) |
 | 4 | `helpdesk` | **Heavy** — M01 helpdesk mgmt/SLA | ☐ | |
 | 5 | `hr` | Medium — M21/M55/M56 (priority raised by `MV-01`) | ☐ | |
 | 6 | `payroll` | Medium — M56 | ☐ | BD statutory rates extend at L5 (M56 CR) |

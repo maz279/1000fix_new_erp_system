@@ -1,0 +1,80 @@
+# Bengali (Bangla) translation for 1000FiX Field Service & Dispatch (CD-M02-01)
+# Copyright (C) 2026 1000FiX Services Ltd.
+msgid ""
+msgstr ""
+"Project-Id-Version: cd_field_service 19.0.1.0.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-17 03:40+0000\n"
+"PO-Revision-Date: 2026-10-17 03:40+0000\n"
+"Last-Translator: 1000FiX Localization Team\n"
+"Language-Team: Bengali (Bangladesh)\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_field_service
+#: model:ir.module.category,name:cd_field_service.module_category_field_service
+msgid "Field Service"
+msgstr "ফিল্ড সার্ভিস"
+
+#. module: cd_field_service
+#: model:res.groups,name:cd_field_service.group_fix_field_service_user
+msgid "Field Service / Technician"
+msgstr "ফিল্ড সার্ভিস / টেকনিশিয়ান"
+
+#. module: cd_field_service
+#: model:res.groups,name:cd_field_service.group_fix_field_service_manager
+msgid "Field Service / Dispatcher & Manager"
+msgstr "ফিল্ড সার্ভিস / ডিসপ্যাচার ও ম্যানেজার"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_order
+msgid "Field Service Order"
+msgstr "ফিল্ড সার্ভিস অর্ডার"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_route
+msgid "Field Route Itinerary"
+msgstr "ফিল্ড রুট ভ্রমণসূচি"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_field_decline_log
+msgid "Field Dispatch Decline Log"
+msgstr "ফিল্ড ডিসপ্যাচ প্রত্যাখ্যান লগ"
+
+#. module: cd_field_service
+#: model:ir.model,name:cd_field_service.model_fix_technician_location
+msgid "Technician Location Ping"
+msgstr "টেকনিশিয়ান অবস্থান পিং"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_service_root
+msgid "Field Service"
+msgstr "ফিল্ড সার্ভিস"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_dispatch_board
+msgid "Dispatch Board"
+msgstr "ডিসপ্যাচ বোর্ড"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_orders
+msgid "Field Work Orders"
+msgstr "ফিল্ড ওয়ার্ক অর্ডার"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_routes
+msgid "Routing & Optimization"
+msgstr "রুট ও অপ্টিমাইজেশন"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_tracking
+msgid "Fleet Telemetry"
+msgstr "ফ্লিট টেলিমেট্রি"
+
+#. module: cd_field_service
+#: model:ir.ui.menu,name:cd_field_service.menu_fix_field_audit
+msgid "Decline Audit Log"
+msgstr "প্রত্যাখ্যান অডিট লগ"

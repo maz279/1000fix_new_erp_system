@@ -347,5 +347,63 @@ class TestProductionSsrfGuard(unittest.TestCase):
             self.assertIn("production SSRF guard", str(exc))
 
 
+class TestInt011RedundantSMS(unittest.TestCase):
+    """Test suite validating INT-011 redundant SMS secondary route and failover (CD-M02-06)."""
+
+    def test_redundant_only_dry_run_when_unconfigured(self):
+        old_env = os.environ.get("FIX_SMS_REDUNDANT_ONLY")
+        try:
+            os.environ["FIX_SMS_REDUNDANT_ONLY"] = "1"
+            channel = SMSChannel()
+            res = channel.send("8801700000000", "OTP code: 1234", sms_route="masking")
+            self.assertEqual(res.status, "dry-run")
+            self.assertIn("INT-011 redundant SMS dry-run", res.detail)
+        finally:
+            if old_env is None:
+                os.environ.pop("FIX_SMS_REDUNDANT_ONLY", None)
+            else:
+                os.environ["FIX_SMS_REDUNDANT_ONLY"] = old_env
+
+    def test_redundant_dispatch_with_mock_gateway(self):
+        old_only = os.environ.get("FIX_SMS_REDUNDANT_ONLY")
+        old_url = os.environ.get("FIX_SMS_REDUNDANT_GATEWAY_URL")
+        try:
+            os.environ["FIX_SMS_REDUNDANT_ONLY"] = "1"
+            os.environ["FIX_SMS_REDUNDANT_GATEWAY_URL"] = "http://localhost:8080/sms/redundant"
+            channel = SMSChannel()
+            channel._post_gateway = lambda url, token, payload: {"id": "RED-998811"}
+
+            res = channel.send("8801700000000", "Important alert", sms_route="masking")
+            self.assertEqual(res.status, "delivered")
+            self.assertEqual(res.provider_id, "RED-998811")
+            self.assertIn("INT-011 redundant secondary gateway", res.detail)
+        finally:
+            if old_only is None:
+                os.environ.pop("FIX_SMS_REDUNDANT_ONLY", None)
+            else:
+                os.environ["FIX_SMS_REDUNDANT_ONLY"] = old_only
+            if old_url is None:
+                os.environ.pop("FIX_SMS_REDUNDANT_GATEWAY_URL", None)
+            else:
+                os.environ["FIX_SMS_REDUNDANT_GATEWAY_URL"] = old_url
+
+    def test_primary_failover_to_redundant_on_network_error(self):
+        channel = SMSChannel()
+        channel.url = "http://localhost:8069/primary_sms"
+        channel.redundant_url = "http://localhost:8069/backup_sms"
+
+        import urllib.error
+        def failing_post(payload):
+            raise urllib.error.URLError("Primary gateway unreachable")
+
+        channel._post = failing_post
+        channel._post_gateway = lambda url, token, payload: {"id": "FAILOVER-12345"}
+
+        res = channel.send("8801700000000", "Critical field service dispatch", sms_route="masking")
+        self.assertEqual(res.status, "delivered")
+        self.assertEqual(res.provider_id, "FAILOVER-12345")
+        self.assertIn("INT-011 failover", res.detail)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -21,7 +21,7 @@ Realisation kinds: **cd** = first-party Odoo module(s) (manifest
 | M-id | Registry name | Kind | Production realisation |
 |---|---|---|---|
 | M01 | Service Requests & Orders | cd | cd_service_order |
-| M02 | Field Service & Dispatch | embedded | cd_service_order (dispatch board + work orders); route-orchestrator seam W3 |
+| M02 | Field Service & Dispatch | cd | cd_field_service |
 | M03 | Service Logistics (Pick & Drop) | cd | cd_consignment |
 | M04 | Branch & Front-Desk | cd | cd_front_desk |
 | M05 | Remote Support & MSP | cd | cd_msp_contract |

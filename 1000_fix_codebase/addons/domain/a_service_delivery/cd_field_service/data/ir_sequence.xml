@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <record id="seq_fix_field_order" model="ir.sequence">
+        <field name="name">Field Service Order</field>
+        <field name="code">fix.field.order</field>
+        <field name="prefix">FO/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_field_route" model="ir.sequence">
+        <field name="name">Field Route Itinerary</field>
+        <field name="code">fix.field.route</field>
+        <field name="prefix">RO/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_field_decline_log" model="ir.sequence">
+        <field name="name">Field Dispatch Decline Log</field>
+        <field name="code">fix.field.decline.log</field>
+        <field name="prefix">DEC/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_technician_location" model="ir.sequence">
+        <field name="name">Technician Location Ping</field>
+        <field name="code">fix.technician.location</field>
+        <field name="prefix">LOC/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

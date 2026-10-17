@@ -15,13 +15,14 @@ Hard rules baked into every adapter:
    is decided, logged and counted, but no packet leaves the process. A local
    developer workstation cannot reach a customer (DE-12/DE-15 companions).
 
-INT-011 (redundant SMS) is designed here as a secondary route entry but is a
-W2 deliverable — its adapter raises NotImplemented until P04's W2 window.
+INT-011 (redundant SMS) is implemented as automatic secondary gateway failover
+on primary route failure (Wave-2 CD-M02-06 / Milestone R03-M03).
 """
 from __future__ import annotations
 
 import json
 import os
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -146,34 +147,83 @@ class BaseChannel:
 
 
 class SMSChannel(BaseChannel):
-    """INT-010 (primary) — masking/non-masking route per BD-01/BD-02."""
+    """INT-010 (primary) & INT-011 (redundant secondary) — masking/non-masking route per BD-01/BD-02."""
 
     channel = "sms"
-    url_env = "FIX_SMS_GATEWAY_URL"       # INT-010 aggregator endpoint
-    token_env = "FIX_SMS_GATEWAY_TOKEN"   # aggregator credential (env only)
+    url_env = "FIX_SMS_GATEWAY_URL"                 # INT-010 primary aggregator endpoint
+    token_env = "FIX_SMS_GATEWAY_TOKEN"             # primary aggregator credential (env only)
+    redundant_url_env = "FIX_SMS_REDUNDANT_GATEWAY_URL"     # INT-011 secondary aggregator endpoint
+    redundant_token_env = "FIX_SMS_REDUNDANT_GATEWAY_TOKEN" # secondary credential
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.redundant_url = os.environ.get(self.redundant_url_env, "").strip()
+        self.redundant_token = os.environ.get(self.redundant_token_env, "").strip()
+
+    @property
+    def redundant_configured(self) -> bool:
+        return bool(self.redundant_url)
+
+    def _post_gateway(self, url: str, token: str, payload: dict) -> dict:
+        validated_url = _validate_outbound_url(url, "SMS_REDUNDANT_GATEWAY")
+        data = json.dumps(payload).encode("utf-8")
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        request = urllib.request.Request(validated_url, data=data, headers=headers, method="POST")
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return json.loads(response.read() or b"{}")
 
     def send(self, recipient: str, rendered: str, *, sms_route: str = "") -> DeliveryResult:
-        if os.environ.get("FIX_SMS_REDUNDANT_ONLY", "") == "1":
-            return DeliveryResult("sms", "not-implemented", detail="INT-011 redundant SMS is W2")
-        # Policy guards run BEFORE the dry-run branch: a policy violation must
-        # refuse even when the gateway is unconfigured.
+        # Policy guards run BEFORE the dry-run or send branches
         if sms_route not in ("masking", "non-masking"):
             raise SendRefused(f"sms send without a declared route (BD-01): {sms_route!r}")
         if sms_route == "non-masking" and "1000FiX" in rendered:
             # BD-03 guard: a numeric-sender message must not carry the
             # registered masking sender signature.
             raise SendRefused("promotional message carrying the masking signature (BD-02/BD-03)")
-        if not self.configured:
-            return DeliveryResult("sms", "dry-run", detail="gateway unconfigured (local default)")
-        result = self._post(
-            {
-                "to": recipient,
-                "message": rendered,
-                "route": sms_route,
-                "sender": "1000FiX" if sms_route == "masking" else "numeric",
-            }
-        )
-        return DeliveryResult("sms", "delivered", provider_id=str(result.get("id", "")))
+
+        payload = {
+            "to": recipient,
+            "message": rendered,
+            "route": sms_route,
+            "sender": "1000FiX" if sms_route == "masking" else "numeric",
+        }
+
+        # Dedicated INT-011 test mode: force redundant route
+        if os.environ.get("FIX_SMS_REDUNDANT_ONLY", "") == "1":
+            if not self.redundant_configured:
+                return DeliveryResult("sms", "dry-run", detail="INT-011 redundant SMS dry-run (secondary gateway unconfigured)")
+            try:
+                res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
+                return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="dispatched via INT-011 redundant secondary gateway")
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                return DeliveryResult("sms", "failed", detail=f"INT-011 redundant gateway error: {e}")
+
+        # Normal route: attempt INT-010 primary first
+        if self.configured:
+            try:
+                result = self._post(payload)
+                return DeliveryResult("sms", "delivered", provider_id=str(result.get("id", "")))
+            except (urllib.error.URLError, TimeoutError, OSError) as primary_err:
+                # Primary failed: trigger INT-011 automatic failover if secondary configured
+                if self.redundant_configured:
+                    try:
+                        res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
+                        return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="INT-011 failover after primary error")
+                    except (urllib.error.URLError, TimeoutError, OSError) as sec_err:
+                        return DeliveryResult("sms", "failed", detail=f"primary and redundant gateways failed: {sec_err}")
+                return DeliveryResult("sms", "failed", detail=f"primary gateway failed: {primary_err}")
+
+        # If primary is unconfigured, check if redundant is configured
+        if self.redundant_configured:
+            try:
+                res = self._post_gateway(self.redundant_url, self.redundant_token, payload)
+                return DeliveryResult("sms", "delivered", provider_id=str(res.get("id", "")), detail="INT-011 redundant secondary dispatch")
+            except (urllib.error.URLError, TimeoutError, OSError) as e:
+                return DeliveryResult("sms", "failed", detail=f"redundant gateway error: {e}")
+
+        return DeliveryResult("sms", "dry-run", detail="gateway unconfigured (local default)")
 
 
 class WhatsAppChannel(BaseChannel):

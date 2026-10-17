@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "field.order.dispatched",
+  "description": "Event emitted when a field service order is dispatched to a technician (M02, CD-M02-01)",
+  "type": "object",
+  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "field.order.dispatched"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_field_service"
+    },
+    "payload": {
+      "type": "object",
+      "required": ["order_id", "order_name", "technician_id", "technician_name", "zone_code", "scheduled_start"],
+      "properties": {
+        "order_id": { "type": "integer" },
+        "order_name": { "type": "string" },
+        "service_order_ref": { "type": "string" },
+        "technician_id": { "type": "integer" },
+        "technician_name": { "type": "string" },
+        "operating_unit_id": { "type": ["integer", "boolean"] },
+        "zone_code": { "type": "string" },
+        "customer_name": { "type": "string" },
+        "customer_phone": { "type": "string" },
+        "customer_lat": { "type": "number" },
+        "customer_lon": { "type": "number" },
+        "scheduled_start": { "type": "string", "format": "date-time" },
+        "scheduled_end": { "type": "string", "format": "date-time" },
+        "composite_score": { "type": "number" }
+      }
+    }
+  }
+}

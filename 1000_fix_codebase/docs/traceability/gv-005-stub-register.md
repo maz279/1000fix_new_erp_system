@@ -12,6 +12,8 @@
 | `STUB-M15-M19-001` | **M15** (`cd_inventory`) | **M19** (`cd_gl_ext` / General Ledger) | Wave 2 → Wave 3 | Stock valuation posts to `fix.inventory.valuation.suspense` instead of immediate GL line items | `110999` (Inventory Valuation Suspense) | R03-M01-T04 | **R04-M01** (Task R04-M01-T04) | 2026-11-30 | Lead Data Architect / Finance Lead | Suspense balance reconciled to zero against General Ledger cutover journal; verified by automated GL check | **ACTIVE** |
 | `STUB-M31-M22-001` | **M31** (`cd_workshop`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Technician skill & competency check returns "eligible" with audit log until R06-M02 | N/A | R03-M02-T03 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / HR Competency Lead | M22 competency matrix activated with verified skill ratings for L1/L2/L3 benches | **ACTIVE** |
 | `STUB-M31-M23-001` | **M31** (`cd_workshop`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 2 → Wave 5 | M01/M31 owns QC checklists internally until formal ISO 9001 NCR takeover | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T04) | 2027-02-28 | Quality Assurance Lead / Service Operations Lead | M23 formal QMS process activated with automated Non-Conformance Reporting (NCR) and statistical process control | **ACTIVE** |
+| `STUB-M02-M22-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Candidate certification matching falls back to static skill scoring until M22 competency matrix activation | N/A | R03-M03-T05 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / Dispatch Architect | M22 automated technician certification and skill level integration wired into dispatch scoring engine | **ACTIVE** |
+| `STUB-M02-M55-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M55** (`cd_advanced_scheduling` / Multi-day Optimization) | Wave 2 → Wave 5 | Daily technician capacity & shift availability fall back to M30 HR calendar until multi-day optimizer lands | N/A | R03-M03-T05 | **R07-M03** (Task R07-M03-T03) | 2027-03-31 | Dispatch Architect / Workforce Lead | M55 multi-day dynamic shift planning and PTO scheduling integrated into candidate filtering | **ACTIVE** |
 
 ---
 
@@ -62,4 +64,31 @@
 - **Expiry & Closure**:
   - **Expiry Milestone**: `R06-M04-T04`
   - **Required Action**: Integrate M23 `fix.ncr` creation on `action_fail_qc()`, linking failed workshop inspections directly to ISO 9001 Corrective Action Requests (CAR) and vendor RMA claims.
+
+### `STUB-M02-M22-001`: M02 Dispatch Scoring to M22 Competency & Certification
+
+- **Context**: In Wave 2 (Milestone R03-M03), `services/dispatch-scoring` scores field technician candidates across 6 dimensions: skill matching, certifications, van stock parts, home zone proximity, SLA urgency, and route proximity. Full dynamic competency management (M22) is scheduled for Wave 5 (Phase R06).
+- **Architecture Mechanism**:
+  - In `services/dispatch-scoring/src/scorer.py`, `_score_certification(candidate, job_req)` checks candidate.certifications against required list.
+  - If candidate certifications are unpopulated or M22 service is unactivated, a fallback evaluation is performed and logged under `STUB-M02-M22-001`.
+- **Quality Risk**: Over-optimistic dispatch scoring could assign complex enterprise server jobs to junior technicians lacking vendor warranty certifications.
+- **De-risking & Audit Trail**:
+  - Dispatch recommendations include full candidate score breakdowns and eligible boolean flags.
+  - Required skills act as a hard barrier; candidates with zero skill match are penalized or rejected.
+- **Expiry & Closure**:
+  - **Expiry Milestone**: `R06-M02-T05`
+  - **Required Action**: Integrate M22 REST client into `scorer.py` to verify active OEM and vendor warranty credentials in real-time.
+
+### `STUB-M02-M55-001`: M02 Dispatch to M55 Advanced Scheduling & Multi-Day Shifts
+
+- **Context**: In Wave 2 (Milestone R03-M03), candidate daily capacity and work shifts are evaluated based on M30 employee working calendar. Advanced multi-day shift optimization and dynamic overtime leveling (M55) land in Wave 5 (Phase R07).
+- **Architecture Mechanism**:
+  - `_score_sla_and_workload(candidate, job_req)` enforces `current_workload_count < max_daily_capacity`.
+  - Shift availability relies on standard working hours without predictive multi-day buffer calculations.
+- **Workforce Risk**: Manual shift adjustments during peak festival seasons may cause uneven technician distribution.
+- **De-risking & Audit Trail**:
+  - Daily capacity limit strictly enforced; candidates at maximum capacity are marked `eligible=False` with `rejection_reason='Technician exceeded max daily capacity'`.
+- **Expiry & Closure**:
+  - **Expiry Milestone**: `R07-M03-T03`
+  - **Required Action**: Wire M55 multi-day schedule availability API into candidate filtering pipeline.
 

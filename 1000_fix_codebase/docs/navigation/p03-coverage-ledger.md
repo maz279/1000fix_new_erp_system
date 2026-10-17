@@ -7,7 +7,7 @@ generator. This is the Gate GP D1 denominator.
 | Module | Workspace menu | Sections (registry groups) | Screens backed | Screens unbacked | Reports (registry) |
 |---|---|---|---|---|---|
 | M01 Service Requests & Orders | `menu_p03_ws_service_order` | 5 | 0 | 21 | 7 |
-| M02 Field Service & Dispatch | (shares `service_order` workspace) | — | 0 | 19 | 6 |
+| M02 Field Service & Dispatch | `menu_p03_ws_field_service` | 5 | 0 | 19 | 6 |
 | M03 Service Logistics (Pick & Drop) | `menu_p03_ws_consignment` | 5 | 0 | 16 | 6 |
 | M04 Branch & Front-Desk | `menu_p03_ws_front_desk` | 5 | 0 | 15 | 6 |
 | M05 Remote Support & MSP | `menu_p03_ws_msp_contract` | 5 | 0 | 13 | 6 |

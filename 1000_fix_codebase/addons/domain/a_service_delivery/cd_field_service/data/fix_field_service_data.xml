@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- Sample Field Service Order 1 -->
+    <record id="field_order_dhaka_01" model="fix.field.order">
+        <field name="name">FO/2026/00001</field>
+        <field name="name_bn">এফও/২০২৬/০০০১</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="operating_unit_id" search="[('company_id', '=', ref('base.main_company'))]" model="operating.unit"/>
+        <field name="order_id" search="[]" model="fix.service.order"/>
+        <field name="zone_id" search="[]" model="fix.zone"/>
+        <field name="state">pending_dispatch</field>
+        <field name="priority">2</field>
+        <field name="customer_address">House 42, Road 11, Banani, Dhaka</field>
+        <field name="latitude">23.7937</field>
+        <field name="longitude">90.4066</field>
+        <field name="travel_time_est_minutes">25.0</field>
+        <field name="distance_km">6.2</field>
+        <field name="notes">Corporate workstation on-site power failure diagnosis.</field>
+    </record>
+
+    <!-- Sample Field Service Order 2 -->
+    <record id="field_order_dhaka_02" model="fix.field.order">
+        <field name="name">FO/2026/00002</field>
+        <field name="name_bn">এফও/২০২৬/০০০২</field>
+        <field name="company_id" ref="base.main_company"/>
+        <field name="operating_unit_id" search="[('company_id', '=', ref('base.main_company'))]" model="operating.unit"/>
+        <field name="order_id" search="[]" model="fix.service.order"/>
+        <field name="zone_id" search="[]" model="fix.zone"/>
+        <field name="state">pending_dispatch</field>
+        <field name="priority">1</field>
+        <field name="customer_address">Plot 12, Gulshan Avenue, Dhaka</field>
+        <field name="latitude">23.7925</field>
+        <field name="longitude">90.4167</field>
+        <field name="travel_time_est_minutes">30.0</field>
+        <field name="distance_km">8.1</field>
+        <field name="notes">Home appliance split AC compressor refrigerant leak repair.</field>
+    </record>
+</odoo>

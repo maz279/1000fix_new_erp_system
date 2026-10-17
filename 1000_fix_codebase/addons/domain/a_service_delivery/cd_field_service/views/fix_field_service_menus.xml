@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Actions -->
+    <record id="action_fix_field_order_dispatch" model="ir.actions.act_window">
+        <field name="name">Live Dispatch Board</field>
+        <field name="res_model">fix.field.order</field>
+        <field name="view_mode">kanban,list,form</field>
+        <field name="context">{'search_default_pending_dispatch': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                No active field orders in the dispatch queue.
+            </p>
+        </field>
+    </record>
+
+    <record id="action_fix_field_order_all" model="ir.actions.act_window">
+        <field name="name">All Field Orders</field>
+        <field name="res_model">fix.field.order</field>
+        <field name="view_mode">list,kanban,form</field>
+    </record>
+
+    <record id="action_fix_field_route" model="ir.actions.act_window">
+        <field name="name">Technician Routes</field>
+        <field name="res_model">fix.field.route</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_technician_location" model="ir.actions.act_window">
+        <field name="name">Fleet Telemetry Pings</field>
+        <field name="res_model">fix.technician.location</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_field_decline_log" model="ir.actions.act_window">
+        <field name="name">Decline Audit Logs</field>
+        <field name="res_model">fix.field.decline.log</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_fix_field_service_root"
+              name="Field Service"
+              sequence="25"
+              groups="group_fix_field_service_user"/>
+
+    <menuitem id="menu_fix_field_dispatch_board"
+              name="Dispatch Board"
+              parent="menu_fix_field_service_root"
+              action="action_fix_field_order_dispatch"
+              sequence="10"/>
+
+    <menuitem id="menu_fix_field_orders"
+              name="Field Work Orders"
+              parent="menu_fix_field_service_root"
+              action="action_fix_field_order_all"
+              sequence="20"/>
+
+    <menuitem id="menu_fix_field_routes"
+              name="Routing &amp; Optimization"
+              parent="menu_fix_field_service_root"
+              action="action_fix_field_route"
+              sequence="30"/>
+
+    <menuitem id="menu_fix_field_tracking"
+              name="Fleet Telemetry"
+              parent="menu_fix_field_service_root"
+              action="action_fix_technician_location"
+              sequence="40"/>
+
+    <menuitem id="menu_fix_field_audit"
+              name="Decline Audit Log"
+              parent="menu_fix_field_service_root"
+              action="action_fix_field_decline_log"
+              sequence="50"
+              groups="group_fix_field_service_manager"/>
+</odoo>
