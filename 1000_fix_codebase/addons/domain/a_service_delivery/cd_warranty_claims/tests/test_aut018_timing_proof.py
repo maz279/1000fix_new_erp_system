@@ -185,7 +185,7 @@ class TestAut018TimingProof(unittest.TestCase):
         self.assertLessEqual(max_s, 72.0)
 
         # Output timing telemetry
-        print(f"\n=== AUT-018 LIVE TIMING HARNESS EVIDENCE (50 Jobs) ===")
+        print("\n=== AUT-018 LIVE TIMING HARNESS EVIDENCE (50 Jobs) ===")
         print(f"Auto-Creation (Limit: 24.0h) -> Max: {max_c:.2f}h, Avg: {avg_c:.2f}h, 100% PASS")
         print(f"Submission    (Limit: 72.0h) -> Max: {max_s:.2f}h, Avg: {avg_s:.2f}h, 100% PASS")
 

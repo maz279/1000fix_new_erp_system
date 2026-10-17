@@ -1,6 +1,6 @@
 # fix_settlement_ext — M53 W7: commission ledger + payout runs (P10-M02).
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, AccessError
 
 from libs.py.fix_events import publish
 
@@ -79,24 +79,52 @@ class FixPayoutRun(models.Model):
     total_payable = fields.Monetary(compute="_compute_total",
                                      string="Total Payable",
                                      currency_field="currency_id")
+    total_tds = fields.Monetary(compute="_compute_total",
+                                string="Total TDS Withheld",
+                                currency_field="currency_id")
     state = fields.Selection([("draft", "Draft"), ("approved", "Approved"),
                               ("executed", "Executed")],
                               default="draft", required=True, tracking=True)
+    prepared_by_id = fields.Many2one("res.users", string="Prepared By",
+                                     default=lambda self: self.env.user,
+                                     readonly=True)
+    approved_by_id = fields.Many2one("res.users", string="Approved By",
+                                     readonly=True)
+    approved_date = fields.Datetime(string="Approved Date", readonly=True)
+    sod_verified = fields.Boolean(string="SoD Verified", readonly=True, default=False)
     commission_ids = fields.Many2many("fix.commission.ledger",
                                        string="Commissions")
 
-    @api.depends("commission_ids.net_payable")
+    @api.depends("commission_ids.net_payable", "commission_ids.tds_amount")
     def _compute_total(self):
         for rec in self:
             rec.total_payable = sum(rec.commission_ids.mapped("net_payable"))
+            rec.total_tds = sum(rec.commission_ids.mapped("tds_amount"))
 
     def action_approve(self):
+        """Two-person Segregation of Duties (SoD) gate.
+        Rule 1: Preparer cannot approve their own payout run.
+        Rule 2: Approver must possess financial managerial authority."""
         for rec in self:
             if not rec.commission_ids:
                 raise UserError("No commissions in this payout run")
-            rec.state = "approved"
+            if rec.prepared_by_id and self.env.user.id == rec.prepared_by_id.id:
+                raise UserError("SoD Violation: Preparer cannot approve their own payout run.")
+            if not (self.env.user.has_group("account.group_account_manager") or
+                    self.env.user.has_group("base.group_system")):
+                raise AccessError("SoD Violation: Only Finance Managers can approve payout runs.")
+            rec.write({
+                "state": "approved",
+                "approved_by_id": self.env.user.id,
+                "approved_date": fields.Datetime.now(),
+                "sod_verified": True,
+            })
             publish(self.env, "payout.approved", "fix.payout.run",
-                    rec.id, {"total": float(rec.total_payable)})
+                    rec.id, {
+                        "total": float(rec.total_payable),
+                        "tds": float(rec.total_tds),
+                        "approved_by": self.env.user.name,
+                    })
 
     def action_execute(self):
         for rec in self:
@@ -105,4 +133,8 @@ class FixPayoutRun(models.Model):
             rec.state = "executed"
             rec.commission_ids.write({"state": "paid"})
             publish(self.env, "payout.executed", "fix.payout.run",
-                    rec.id, {"sellers": len(rec.commission_ids)})
+                    rec.id, {
+                        "sellers": len(rec.commission_ids),
+                        "total_disbursed": float(rec.total_payable),
+                        "tds_withheld": float(rec.total_tds),
+                    })
