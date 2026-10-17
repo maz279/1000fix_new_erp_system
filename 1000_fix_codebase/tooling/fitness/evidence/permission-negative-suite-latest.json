@@ -1,5 +1,5 @@
 {
-  "timestamp": "20261017T112945Z",
+  "timestamp": "20261017T133742Z",
   "milestone": "R02-M02",
   "description": "Permission negative tests: 53 roles \u00d7 6 isolation tiers",
   "governance_rule": "DoD-07",
@@ -34,7 +34,7 @@
       "status": "PASS",
       "tests_run": 64,
       "tests_passed": 64,
-      "duration_seconds": 2.13
+      "duration_seconds": 2.36
     },
     "t5_invariants": {
       "status": "PASS",
@@ -42,6 +42,6 @@
       "requires_audit": true
     }
   },
-  "duration_seconds": 2.29,
+  "duration_seconds": 2.54,
   "overall_verdict": "PASS"
 }
