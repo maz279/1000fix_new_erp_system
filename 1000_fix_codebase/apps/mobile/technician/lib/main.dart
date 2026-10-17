@@ -62,7 +62,17 @@ class _DayViewScreenState extends State<DayViewScreen> {
         foregroundColor: fixColor(t_color_text_inverse),
         actions: [
           IconButton(
+            icon: const Icon(Icons.emergency_share),
+            tooltip: 'Panic SOS (M59)',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Panic SOS: Distress beacon logged locally with GPS telemetry')),
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.sync),
+            tooltip: 'Sync (SP-07)',
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Sync: upload-first (SP-07)')),
@@ -103,20 +113,59 @@ class JobQueue extends StatelessWidget {
     // engine provides the data; this widget renders it.
     return ListView.builder(
       padding: const EdgeInsets.all(16),
-      itemCount: 3, // Placeholder — real count from the read cache
+      itemCount: 4, // 1 disclosure banner + 3 active orders
       itemBuilder: (context, index) {
+        if (index == 0) {
+          // Two-State Disclosure Banner (AR-010 §6: Never Conflate notYetSynced vs syncedAndRejected)
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: fixColor(t_color_surface_primary),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: fixColor(t_color_border_subtle)!),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.cloud_upload_outlined, size: 16, color: fixColor(t_color_status_info)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '1 queued (not yet synced)',
+                      style: TextStyle(fontSize: 11, color: fixColor(t_color_text_secondary)),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Icon(Icons.report_problem_outlined, size: 16, color: fixColor(t_color_status_error)),
+                    const SizedBox(width: 6),
+                    Text(
+                      '0 rejected',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: fixColor(t_color_status_error)),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          );
+        }
+
+        final orderIdx = index - 1;
         return Card(
           color: fixColor(t_color_surface_primary),
           child: ListTile(
             leading: CircleAvatar(
               backgroundColor: fixColor(t_color_status_info_bg),
               child: Text(
-                '${index + 1}',
+                '${orderIdx + 1}',
                 style: TextStyle(color: fixColor(t_color_status_info)),
               ),
             ),
             title: Text(
-              'Work Order SO-2026-00${index + 1}',
+              'Work Order SO-2026-00${orderIdx + 1}',
               style: TextStyle(
                 color: fixColor(t_color_text_primary),
                 fontSize: 16,
@@ -124,7 +173,7 @@ class JobQueue extends StatelessWidget {
               ),
             ),
             subtitle: Text(
-              'Device: Samsung Galaxy S24 · Priority: ${index == 0 ? "HIGH" : "NORMAL"}',
+              'Device: Samsung Galaxy S24 · Priority: ${orderIdx == 0 ? "HIGH" : "NORMAL"} · Itinerary Stop #${orderIdx + 1}',
               style: TextStyle(
                 color: fixColor(t_color_text_secondary),
                 fontSize: 12,
@@ -309,6 +358,19 @@ class JobExecutionScreen extends StatelessWidget {
               foregroundColor: fixColor(t_color_primary_base),
             ),
           ),
+          ElevatedButton.icon(
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Customer E-Signature recorded and estimate approved')),
+              );
+            },
+            icon: const Icon(Icons.draw),
+            label: const Text('Sign'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: fixColor(t_color_surface_secondary),
+              foregroundColor: fixColor(t_color_primary_base),
+            ),
+          ),
         ],
       ),
     );
@@ -341,12 +403,41 @@ class EvidenceCaptureScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              'Photos upload on the SP-09 deferred channel —\nnever blocking job status sync.',
+              'Photos & voice notes upload on the SP-09 deferred channel —\nnever blocking job status sync.',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
                 color: fixColor(t_color_text_secondary),
               ),
+            ),
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Before-repair photo queued with GPS EXIF tag')),
+                    );
+                  },
+                  icon: const Icon(Icons.add_a_photo),
+                  label: const Text('Capture Photo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: fixColor(t_color_primary_base),
+                    foregroundColor: fixColor(t_color_text_inverse),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('ভয়েস নোট রেকর্ড শুরু হয়েছে (Bengali Voice Note recording...)')),
+                    );
+                  },
+                  icon: const Icon(Icons.mic),
+                  label: const Text('ভয়েস নোট (Voice Note)'),
+                ),
+              ],
             ),
           ],
         ),

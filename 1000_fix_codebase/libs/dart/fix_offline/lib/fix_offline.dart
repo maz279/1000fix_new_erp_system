@@ -15,3 +15,4 @@ export 'src/idempotency_ledger.dart';
 export 'src/conflict_disclosure.dart';
 export 'src/evidence_channel.dart';
 export 'src/sync_state.dart';
+export 'src/sqlcipher_journal_store.dart';
