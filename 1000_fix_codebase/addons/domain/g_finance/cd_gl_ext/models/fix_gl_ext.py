@@ -61,8 +61,6 @@ class FixPeriodClose(models.Model):
     _description = "Period Close Checklist"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "period_end desc, company_id"
-    # Odoo 19 dropped the legacy constraint tuple list;
-    # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _company_period_unique = models.Constraint('UNIQUE (company_id, period_end)', 'One close checklist per company and period')
 
     CLOSE_TARGET_DAYS = 5  # G3-04: month-end close within 5 days
@@ -71,10 +69,22 @@ class FixPeriodClose(models.Model):
                                  index=True, default=lambda self: self.env.company)
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
     period_end = fields.Date(string="Period End", required=True)
+    started_at = fields.Datetime(string="Started At", default=fields.Datetime.now)
+    target_completion_date = fields.Date(
+        string="Target Completion Date",
+        compute="_compute_target_completion",
+        store=True,
+    )
     state = fields.Selection(
         [("open", "Open"), ("in_progress", "In Progress"),
          ("ready_to_close", "Ready to Close"), ("closed", "Closed")],
         default="open", required=True, tracking=True)
+    sla_status = fields.Selection(
+        [("within_sla", "Within 5-Day SLA"), ("breached", "Breached Target")],
+        string="SLA Performance",
+        compute="_compute_duration",
+        store=True,
+    )
     line_ids = fields.One2many("fix.period.close.line", "close_id", string="Close Steps")
     currency_id = fields.Many2one("res.currency", required=True,
                                   default=lambda self: self.env.ref("base.BDT"))
@@ -82,18 +92,95 @@ class FixPeriodClose(models.Model):
     suspense_opening = fields.Monetary(string="Suspense Opening", currency_field="currency_id",
                                        help="Balance in the W2 inventory suspense account at period start")
     suspense_closing = fields.Monetary(string="Suspense Closing", currency_field="currency_id")
+    suspense_reconciled = fields.Boolean(string="Suspense Reconciled", default=False)
+    cutover_voucher_ref = fields.Char(string="Suspense Cutover Voucher Ref")
     closed_at = fields.Datetime(readonly=True)
     close_duration_days = fields.Float(compute="_compute_duration", store=True,
                                        string="Close Duration (days)")
 
+    @api.depends("period_end")
+    def _compute_target_completion(self):
+        for close in self:
+            target_days = getattr(close, "CLOSE_TARGET_DAYS", getattr(self, "CLOSE_TARGET_DAYS", 5))
+            if close.period_end:
+                close.target_completion_date = fields.Date.add(close.period_end, days=target_days)
+            else:
+                close.target_completion_date = False
+
     @api.depends("period_end", "closed_at")
     def _compute_duration(self):
         for close in self:
+            target_days = getattr(close, "CLOSE_TARGET_DAYS", getattr(self, "CLOSE_TARGET_DAYS", 5))
             if close.closed_at:
                 delta = fields.Datetime.from_string(close.closed_at).date() - close.period_end
-                close.close_duration_days = max(delta.days, 0.0)
+                duration = max(delta.days, 0.0)
+                close.close_duration_days = duration
+                close.sla_status = "within_sla" if duration <= target_days else "breached"
             else:
                 close.close_duration_days = 0.0
+                close.sla_status = "within_sla"
+
+    def action_generate_standard_steps(self):
+        """Generate the 10 statutory close steps from SOP SP-020."""
+        self.ensure_one()
+        steps_data = [
+            (10, "Subledger Cut-Off & Physical Inventory Counts", "Supply Chain Lead", 0, True),
+            (20, "Bank Statement Feeds Import & Automated Reconciliation", "Treasury Lead", 1, True),
+            (30, "AR Billing & Auto-Invoice Clearance", "Billing Specialist", 2, True),
+            (40, "AP Three-Way Match & Vendor Invoice Clearance", "AP Accountant", 3, True),
+            (50, "VAT Sub-Ledger & Mushak 9.1 Return Preparation", "Tax Manager", 3, True),
+            (60, "Inventory Suspense Account Zero-Balance Clearance", "Inventory Accountant", 4, True),
+            (70, "Fixed Asset Capitalisation Interface Review", "Asset Accountant", 4, False),
+            (80, "Inter-Branch & Operating Unit Dimension Balancing", "GL Lead", 5, True),
+            (90, "Accruals, Depreciation & Tax Withholding Postings", "Senior Accountant", 5, True),
+            (100, "General Ledger Lock & Financial Statements Generation", "Chief Financial Officer", 5, True),
+        ]
+        line_model = self.env["fix.period.close.line"]
+        for seq, name, role, day, blocking in steps_data:
+            line_model.create({
+                "close_id": self.id,
+                "sequence": seq,
+                "name": name,
+                "owner_role": role,
+                "target_day": day,
+                "blocking": blocking,
+                "state": "pending",
+            })
+        self.write({"state": "in_progress"})
+        return True
+
+    def action_reconcile_inventory_suspense(self) -> dict:
+        """T04: Reconcile all W2 inventory suspense entries and zero out suspense balance."""
+        self.ensure_one()
+        suspense_model = self.env["fix.inventory.valuation.suspense"]
+        pending_entries = suspense_model.search([
+            ("status", "=", "pending_gl_cutover"),
+            ("company_id", "=", self.company_id.id),
+        ])
+        total_suspense = sum(pending_entries.mapped("total_valuation"))
+        voucher_ref = f"GL-CUTOVER-W2-M15-{self.id}"
+        for entry in pending_entries:
+            entry.action_reconcile_to_gl(voucher_ref)
+
+        self.write({
+            "suspense_closing": 0.0,
+            "suspense_reconciled": True,
+            "cutover_voucher_ref": voucher_ref,
+        })
+        publish(self.env, "inventory.suspense.reconciled", "fix.period.close", self.id, {
+            "company_id": self.company_id.id,
+            "period_end": str(self.period_end),
+            "reconciled_entries_count": len(pending_entries),
+            "total_valuation_cleared": float(total_suspense),
+            "voucher_ref": voucher_ref,
+            "suspense_balance": 0.0,
+        })
+        return {
+            "reconciled_entries": len(pending_entries),
+            "total_valuation": float(total_suspense),
+            "voucher_ref": voucher_ref,
+            "status": "zero_cleared",
+        }
 
     def action_ready(self):
         for close in self:
@@ -113,21 +200,24 @@ class FixPeriodClose(models.Model):
             if close.state != "ready_to_close":
                 raise UserError("Run the ready check before closing")
             close.write({"state": "closed", "closed_at": fields.Datetime.now()})
-            publish(self.env, "period.closed", "fix.period.close", close.id, {
+            publish(close.env, "period.closed", "fix.period.close", close.id, {
                 "company_id": close.company_id.id,
                 "period_end": str(close.period_end),
                 "duration_days": close.close_duration_days,
+                "sla_status": close.sla_status,
+                "step_count": len(close.line_ids),
             })
-            if close.close_duration_days > self.CLOSE_TARGET_DAYS:
+            target_days = getattr(close, "CLOSE_TARGET_DAYS", getattr(self, "CLOSE_TARGET_DAYS", 5))
+            if close.close_duration_days > target_days:
                 _logger.warning(
                     "P06 G3-04 breach: close took %.1f days (target %d)",
-                    close.close_duration_days, self.CLOSE_TARGET_DAYS)
+                    close.close_duration_days, target_days)
 
     def action_fail_close_target(self):
         """Report-only helper for the G3 gate: which closes exceeded 5 days."""
         return self.search_read(
             [("state", "=", "closed"), ("close_duration_days", ">", self.CLOSE_TARGET_DAYS)],
-            ["period_end", "close_duration_days"])
+            ["period_end", "close_duration_days", "sla_status"])
 
 
 class FixPeriodCloseLine(models.Model):
@@ -149,6 +239,17 @@ class FixPeriodCloseLine(models.Model):
         default="pending", required=True)
     evidence_ref = fields.Char(string="Evidence Reference",
                                help="Report ID or reconciliation record proving the step")
+
+    def action_mark_done(self, evidence: str = "VERIFIED"):
+        for line in self:
+            line.write({"state": "done", "evidence_ref": evidence})
+        return True
+
+    def action_set_state(self, new_state: str):
+        if new_state not in ("pending", "in_progress", "done"):
+            raise UserError(f"Invalid state: {new_state}")
+        self.write({"state": new_state})
+        return True
 
 
 class FixFixedAssetSeam(models.Model):

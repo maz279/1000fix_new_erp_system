@@ -2,6 +2,7 @@
 <!-- cd_gl_ext views — M19 core workspace (finance console W3 slice). -->
 <odoo>
 
+    <!-- Period Close Views -->
     <record id="view_fix_period_close_tree" model="ir.ui.view">
         <field name="name">fix.period.close.tree</field>
         <field name="model">fix.period.close</field>
@@ -11,8 +12,10 @@
                 <field name="period_end"/>
                 <field name="company_id" groups="base.group_multi_company"/>
                 <field name="state" widget="badge"/>
+                <field name="sla_status" widget="badge"/>
                 <field name="suspense_closing"/>
                 <field name="close_duration_days" optional="show"/>
+                <field name="target_completion_date" optional="show"/>
             </list>
         </field>
     </record>
@@ -23,21 +26,34 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_generate_standard_steps" string="Generate 10 SOP Steps"
+                            type="object" class="oe_highlight" invisible="state != 'open'"/>
+                    <button name="action_reconcile_inventory_suspense" string="Reconcile Inventory Suspense"
+                            type="object" class="btn-secondary" invisible="suspense_reconciled"/>
+                    <button name="action_ready" string="Check Ready to Close"
+                            type="object" class="oe_highlight" invisible="state not in ('open', 'in_progress')"/>
+                    <button name="action_close" string="Close Period"
+                            type="object" class="oe_highlight" invisible="state != 'ready_to_close'"/>
                     <field name="state" widget="statusbar" statusbar_visible="open,in_progress,ready_to_close,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="period_end" readonly="1"/></h1></div>
                     <group>
-                        <group string="Period">
+                        <group string="Period &amp; Target">
                             <field name="company_id" groups="base.group_multi_company" readonly="1"/>
                             <field name="operating_unit_id" groups="operating_unit.group_multi_operating_unit"/>
+                            <field name="started_at" readonly="1"/>
+                            <field name="target_completion_date" readonly="1"/>
                             <field name="closed_at" readonly="1"/>
                             <field name="close_duration_days" readonly="1"/>
+                            <field name="sla_status" readonly="1"/>
                         </group>
-                        <group string="Suspense (AR-006 section 5.4)">
+                        <group string="Suspense Clearance (AR-006 §5.4)">
                             <field name="currency_id" invisible="1"/>
                             <field name="suspense_opening"/>
                             <field name="suspense_closing"/>
+                            <field name="suspense_reconciled" readonly="1"/>
+                            <field name="cutover_voucher_ref" readonly="1"/>
                         </group>
                     </group>
                     <field name="line_ids">
@@ -67,19 +83,130 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Chart of Accounts Views -->
+    <record id="view_fix_chart_account_tree" model="ir.ui.view">
+        <field name="name">fix.chart.account.tree</field>
+        <field name="model">fix.chart.account</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="account_code"/>
+                <field name="name"/>
+                <field name="account_type"/>
+                <field name="is_postable"/>
+                <field name="is_control_account"/>
+                <field name="control_subledger" optional="show"/>
+                <field name="statutory_group"/>
+                <field name="balance"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_chart_account_form" model="ir.ui.view">
+        <field name="name">fix.chart.account.form</field>
+        <field name="model">fix.chart.account</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="account_code" placeholder="T-GG-SS-NNN"/></h1>
+                        <h2><field name="name" placeholder="Account Name"/></h2>
+                    </div>
+                    <group>
+                        <group string="Classification">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="account_type"/>
+                            <field name="account_subtype"/>
+                            <field name="statutory_group"/>
+                        </group>
+                        <group string="Posting Controls">
+                            <field name="is_postable"/>
+                            <field name="is_control_account"/>
+                            <field name="control_subledger" invisible="not is_control_account"/>
+                            <field name="requires_dimension"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="balance" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_chart_account" model="ir.actions.act_window">
+        <field name="name">Chart of Accounts</field>
+        <field name="res_model">fix.chart.account</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Master Data Loader Views -->
+    <record id="view_fix_chart_loader_form" model="ir.ui.view">
+        <field name="name">fix.chart.loader.form</field>
+        <field name="model">fix.chart.loader</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_load_from_csv" string="Import MD-035 CoA"
+                            type="object" class="oe_highlight" invisible="state != 'draft'"/>
+                    <button name="action_reconcile_chart" string="Reconcile Chart"
+                            type="object" class="oe_highlight" invisible="state != 'loaded'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,loaded,reconciled"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Source Specification">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="source_file"/>
+                            <field name="loaded_at" readonly="1"/>
+                        </group>
+                        <group string="Verification Telemetry">
+                            <field name="account_count" readonly="1"/>
+                            <field name="postable_count" readonly="1"/>
+                            <field name="control_count" readonly="1"/>
+                            <field name="checksum" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_chart_loader" model="ir.actions.act_window">
+        <field name="name">CoA Master Data Loader</field>
+        <field name="res_model">fix.chart.loader</field>
+        <field name="view_mode">form</field>
+    </record>
+
     <record id="action_fix_fixed_asset_seam" model="ir.actions.act_window">
         <field name="name">Fixed Asset Seam</field>
         <field name="res_model">fix.fixed.asset.seam</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- The Finance workspace menu (UX-002 workspace 7, W3 slice). -->
+    <!-- Menus -->
     <menuitem id="menu_ws_finance" name="Finance"
               parent="cd_entity_config.menu_fix_operations_root"
               groups="cd_rbac_ext.group_fix_portal_user"
               sequence="80"/>
+    <menuitem id="menu_fix_chart_account" name="Chart of Accounts"
+              parent="menu_ws_finance" action="action_fix_chart_account" sequence="5"/>
     <menuitem id="menu_fix_period_close" name="Period Close"
               parent="menu_ws_finance" action="action_fix_period_close" sequence="10"/>
+    <menuitem id="menu_fix_chart_loader" name="CoA Master Loader"
+              parent="menu_ws_finance" action="action_fix_chart_loader" sequence="15"/>
     <menuitem id="menu_fix_fixed_asset_seam" name="Fixed Asset Seam"
               parent="menu_ws_finance" action="action_fix_fixed_asset_seam" sequence="20"/>
 

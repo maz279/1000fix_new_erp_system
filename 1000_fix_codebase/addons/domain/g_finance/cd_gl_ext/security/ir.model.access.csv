@@ -3,3 +3,7 @@ access_fix_journal_dimension,fix.journal.dimension,model_fix_journal_dimension,b
 access_fix_period_close,fix.period.close,model_fix_period_close,base.group_user,1,1,1,0
 access_fix_period_close_line,fix.period.close.line,model_fix_period_close_line,base.group_user,1,1,1,1
 access_fix_fixed_asset_seam,fix.fixed.asset.seam,model_fix_fixed_asset_seam,base.group_user,1,1,1,0
+access_fix_chart_account,fix.chart.account,model_fix_chart_account,base.group_user,1,1,1,0
+access_fix_chart_loader,fix.chart.loader,model_fix_chart_loader,base.group_user,1,1,1,0
+access_fix_fiscal_period_bridge,fix.fiscal.period.bridge,model_fix_fiscal_period_bridge,base.group_user,1,1,1,0
+access_fix_financial_report_bridge,fix.financial.report.bridge,model_fix_financial_report_bridge,base.group_user,1,1,1,0

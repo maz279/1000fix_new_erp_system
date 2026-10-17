@@ -97,8 +97,9 @@ def check_relation_integrity() -> list[str]:
         "mail.template", "mail.thread", "mail.activity.mixin", "operating.unit",
         "ir.attachment", "ir.model", "ir.model.fields", "ir.actions.report",
         "ir.ui.view", "ir.sequence",
-        # Odoo `account` (vendor) — present in every profile that installs finance
+        # Odoo `account` & OCA `account-financial-tools` (vendor) — present in finance profile
         "account.move", "account.move.line", "account.account", "account.journal",
+        "account.fiscal.year",
         # Odoo `maintenance` (vendor) — present in the Wave-5 EAM profile
         "maintenance.equipment", "maintenance.equipment.category",
         # Odoo `fleet` (vendor) — present in the Wave-5 fleet profile

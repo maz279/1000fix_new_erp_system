@@ -1,0 +1,80 @@
+account_code,entity_code,account_name,account_type,account_subtype,is_postable,is_control_account,control_subledger,requires_dimension,statutory_group,active
+1-00-00-000,EN-01,Total Assets,asset,current_asset,FALSE,FALSE,,,Current assets,TRUE
+1-10-00-000,EN-01,Current Assets,asset,current_asset,FALSE,FALSE,,,Current assets,TRUE
+1-10-10-000,EN-01,Cash and cash equivalents,asset,cash,FALSE,FALSE,,branch,Current assets,TRUE
+1-10-10-010,EN-01,Cash in hand - branch,asset,cash,TRUE,FALSE,,branch;cost_centre,Current assets,TRUE
+1-10-10-020,EN-01,Petty cash float,asset,cash,TRUE,FALSE,,branch;cost_centre,Current assets,TRUE
+1-10-20-000,EN-01,Bank and gateway accounts,asset,bank,FALSE,FALSE,,branch,Current assets,TRUE
+1-10-20-010,EN-01,Operating bank account - BDT,asset,bank,TRUE,FALSE,,branch,Current assets,TRUE
+1-10-20-020,EN-01,bKash merchant float,asset,bank,TRUE,FALSE,,branch;cost_centre,Current assets,TRUE
+1-10-20-030,EN-01,Nagad merchant float,asset,bank,TRUE,FALSE,,branch;cost_centre,Current assets,TRUE
+1-10-20-040,EN-01,SSLCOMMERZ settlement account,asset,bank,TRUE,FALSE,,branch,Current assets,TRUE
+1-10-30-000,EN-01,Inventories,asset,stock,FALSE,TRUE,stock,,Current assets,TRUE
+1-10-30-010,EN-01,Spare parts inventory - central hub,asset,stock,TRUE,TRUE,stock,branch;cost_centre,Current assets,TRUE
+1-10-30-020,EN-01,Spare parts inventory - branch vans,asset,stock,TRUE,TRUE,stock,branch;cost_centre,Current assets,TRUE
+1-10-30-030,EN-01,Goods in transit,asset,stock,TRUE,TRUE,stock,branch,Current assets,TRUE
+1-10-30-040,EN-01,Refurbished device stock,asset,stock,TRUE,TRUE,stock,branch;business_line,Current assets,TRUE
+1-10-99-000,EN-01,Suspense and clearing accounts,asset,current_asset,FALSE,FALSE,,,Current assets,TRUE
+1-10-99-999,EN-01,Inventory valuation suspense,asset,current_asset,TRUE,FALSE,,branch;cost_centre,Current assets,TRUE
+1-10-99-998,EN-01,POS payment clearing,asset,current_asset,TRUE,FALSE,,branch,Current assets,TRUE
+1-10-99-997,EN-01,Inter-branch transfer clearing,asset,current_asset,TRUE,FALSE,,branch,Current assets,TRUE
+1-20-00-000,EN-01,Trade and other receivables,asset,receivable,FALSE,TRUE,receivable,,Current assets,TRUE
+1-20-10-000,EN-01,Trade receivables,asset,receivable,FALSE,TRUE,receivable,,Current assets,TRUE
+1-20-10-010,EN-01,Trade receivables - retail repair,asset,receivable,TRUE,TRUE,receivable,branch;cost_centre,Current assets,TRUE
+1-20-10-020,EN-01,Trade receivables - corporate AMC,asset,receivable,TRUE,TRUE,receivable,business_line;cost_centre,Current assets,TRUE
+1-20-10-030,EN-01,Brand warranty claim receivables,asset,receivable,TRUE,TRUE,receivable,business_line,Current assets,TRUE
+1-20-20-010,EN-01,Employee advance - field technicians,asset,receivable,TRUE,FALSE,,branch,Current assets,TRUE
+1-20-20-020,EN-01,Security deposits and prepayments,asset,current_asset,TRUE,FALSE,,branch,Current assets,TRUE
+1-50-00-000,EN-01,Property plant and equipment,asset,fixed_asset,FALSE,TRUE,fixed_asset,,Non-current assets,TRUE
+1-50-10-010,EN-01,Workshop diagnostic and bench equipment,asset,fixed_asset,TRUE,TRUE,fixed_asset,branch;cost_centre,Non-current assets,TRUE
+1-50-10-020,EN-01,IT infrastructure and servers,asset,fixed_asset,TRUE,TRUE,fixed_asset,cost_centre,Non-current assets,TRUE
+1-50-10-030,EN-01,Service vehicles and mobile vans,asset,fixed_asset,TRUE,TRUE,fixed_asset,branch;cost_centre,Non-current assets,TRUE
+1-50-10-040,EN-01,Office and service centre furniture,asset,fixed_asset,TRUE,TRUE,fixed_asset,branch,Non-current assets,TRUE
+1-50-90-010,EN-01,Accumulated depreciation - equipment,asset,fixed_asset,TRUE,TRUE,fixed_asset,branch;cost_centre,Non-current assets,TRUE
+1-50-90-020,EN-01,Accumulated depreciation - IT,asset,fixed_asset,TRUE,TRUE,fixed_asset,cost_centre,Non-current assets,TRUE
+1-50-90-030,EN-01,Accumulated depreciation - vehicles,asset,fixed_asset,TRUE,TRUE,fixed_asset,branch;cost_centre,Non-current assets,TRUE
+2-00-00-000,EN-01,Total Liabilities,liability,liability,FALSE,FALSE,,,Current liabilities,TRUE
+2-10-00-000,EN-01,Current Liabilities,liability,liability,FALSE,FALSE,,,Current liabilities,TRUE
+2-10-10-000,EN-01,Trade payables,liability,payable,FALSE,TRUE,payable,,Current liabilities,TRUE
+2-10-10-010,EN-01,Trade payables - spare parts suppliers,liability,payable,TRUE,TRUE,payable,cost_centre,Current liabilities,TRUE
+2-10-10-020,EN-01,Trade payables - logistics and delivery,liability,payable,TRUE,TRUE,payable,branch;cost_centre,Current liabilities,TRUE
+2-30-00-000,EN-01,Statutory tax and VAT liabilities,liability,tax,FALSE,TRUE,tax,,Current liabilities,TRUE
+2-30-10-010,EN-01,VAT payable - output Mushak 6.3 15%,liability,tax,TRUE,TRUE,tax,branch;cost_centre,Current liabilities,TRUE
+2-30-10-020,EN-01,VAT payable - output truncated rate,liability,tax,TRUE,TRUE,tax,branch;cost_centre,Current liabilities,TRUE
+2-30-20-010,EN-01,Input VAT credit deductible,liability,tax,TRUE,TRUE,tax,cost_centre,Current liabilities,TRUE
+2-30-30-010,EN-01,TDS payable - supplier withholding,liability,tax,TRUE,TRUE,tax,cost_centre,Current liabilities,TRUE
+2-30-30-020,EN-01,TDS payable - payroll salary withholding,liability,tax,TRUE,TRUE,tax,cost_centre,Current liabilities,TRUE
+2-30-30-030,EN-01,VDS payable - VAT deducted at source,liability,tax,TRUE,TRUE,tax,cost_centre,Current liabilities,TRUE
+2-40-10-010,EN-01,Accrued employee salaries and wages,liability,payroll,TRUE,FALSE,,branch;cost_centre,Current liabilities,TRUE
+2-40-10-020,EN-01,Accrued branch utilities and rent,liability,liability,TRUE,FALSE,,branch;cost_centre,Current liabilities,TRUE
+2-40-20-010,EN-01,Customer advance repair deposits,liability,liability,TRUE,FALSE,,branch,Current liabilities,TRUE
+2-40-30-010,EN-01,Warranty service provision,liability,liability,TRUE,FALSE,,business_line;cost_centre,Current liabilities,TRUE
+2-80-10-010,EN-01,Long-term bank borrowings,liability,liability,TRUE,FALSE,,,Non-current liabilities,TRUE
+3-00-00-000,EN-01,Total Equity,equity,equity,FALSE,FALSE,,,Equity,TRUE
+3-10-10-010,EN-01,Paid-up share capital,equity,equity,TRUE,FALSE,,,Equity,TRUE
+3-20-10-010,EN-01,Retained earnings opening,equity,equity,TRUE,FALSE,,,Equity,TRUE
+3-20-20-010,EN-01,General statutory reserve,equity,equity,TRUE,FALSE,,,Equity,TRUE
+3-30-10-010,EN-01,Current year retained earnings,equity,equity,TRUE,FALSE,,,Equity,TRUE
+4-00-00-000,EN-01,Total Revenue,income,revenue,FALSE,FALSE,,,Revenue,TRUE
+4-10-00-000,EN-01,Operating service revenue,income,revenue,FALSE,FALSE,,,Revenue,TRUE
+4-10-10-010,EN-01,Service revenue - out of warranty repair,income,revenue,TRUE,FALSE,,cost_centre;business_line;branch,Revenue,TRUE
+4-10-10-020,EN-01,Service revenue - warranty reimbursement,income,revenue,TRUE,FALSE,,cost_centre;business_line;branch,Revenue,TRUE
+4-10-10-030,EN-01,Service revenue - corporate AMC contracts,income,revenue,TRUE,FALSE,,cost_centre;business_line,Revenue,TRUE
+4-10-10-040,EN-01,Service revenue - pick and drop logistics fee,income,revenue,TRUE,FALSE,,branch;cost_centre,Revenue,TRUE
+4-20-10-010,EN-01,Commercial sales - spare parts,income,revenue,TRUE,FALSE,,branch;cost_centre,Revenue,TRUE
+4-20-10-020,EN-01,Commercial sales - refurbished devices,income,revenue,TRUE,FALSE,,business_line;branch,Revenue,TRUE
+4-90-10-010,EN-01,Other income - scrap and e-waste recycling,income,revenue,TRUE,FALSE,,cost_centre,Revenue,TRUE
+5-00-00-000,EN-01,Total Cost of Sales and Operating Expenses,expense,cogs,FALSE,FALSE,,,Operating expenses,TRUE
+5-10-00-000,EN-01,Cost of goods and services sold,expense,cogs,FALSE,FALSE,,,Operating expenses,TRUE
+5-10-10-010,EN-01,Direct spare parts consumed,expense,cogs,TRUE,FALSE,,branch;cost_centre;business_line,Operating expenses,TRUE
+5-10-10-020,EN-01,Workshop consumables and flux,expense,cogs,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-10-20-010,EN-01,Direct technician labor wages,expense,cogs,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-10-30-010,EN-01,Rider and pickup logistics cost,expense,cogs,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-20-00-000,EN-01,Administrative and operating expenses,expense,opex,FALSE,FALSE,,,Operating expenses,TRUE
+5-20-10-010,EN-01,Branch rent and premises,expense,opex,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-20-10-020,EN-01,Branch electricity and utilities,expense,opex,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-20-10-030,EN-01,Telecommunication and data lines,expense,opex,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-20-20-010,EN-01,Office staff salaries and allowances,expense,opex,TRUE,FALSE,,cost_centre,Operating expenses,TRUE
+5-20-30-010,EN-01,Marketing and customer outreach,expense,opex,TRUE,FALSE,,cost_centre,Operating expenses,TRUE
+5-20-40-010,EN-01,Bank and payment gateway fees,expense,opex,TRUE,FALSE,,branch;cost_centre,Operating expenses,TRUE
+5-20-50-010,EN-01,Depreciation expense,expense,opex,TRUE,FALSE,,cost_centre,Operating expenses,TRUE

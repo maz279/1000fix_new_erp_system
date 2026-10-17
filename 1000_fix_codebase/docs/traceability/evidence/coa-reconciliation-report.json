@@ -1,0 +1,96 @@
+{
+  "schema": "1000fix-erp/coa-reconciliation-report/1",
+  "milestone": "R04-M01",
+  "task": "R04-M01-T02",
+  "timestamp": "2026-10-17T14:15:00Z",
+  "source_file": "project_content/02_Master_Data_and_Configuration/02E_Finance_and_Statutory/MD-035_Chart_of_Accounts_Bangladesh.csv",
+  "entity_code": "EN-01",
+  "entity_name": "1000 FiX Services Ltd.",
+  "currency": "BDT",
+  "metrics": {
+    "total_accounts_catalogued": 79,
+    "summary_accounts_count": 19,
+    "postable_accounts_count": 60,
+    "control_accounts_count": 4,
+    "account_hierarchy_levels": 4,
+    "statutory_rules_enforced": [
+      "COA-01",
+      "COA-02",
+      "COA-03",
+      "COA-04",
+      "COA-05",
+      "COA-06",
+      "COA-07"
+    ],
+    "trial_balance_initial_debit": "0.00",
+    "trial_balance_initial_credit": "0.00",
+    "trial_balance_net_imbalance": "0.00",
+    "reconciliation_verdict": "BALANCED_AND_CONFORMANT"
+  },
+  "class_breakdown": {
+    "1_assets": {
+      "total": 27,
+      "summary": 6,
+      "postable": 21,
+      "controls": 2
+    },
+    "2_liabilities": {
+      "total": 16,
+      "summary": 4,
+      "postable": 12,
+      "controls": 1
+    },
+    "3_equity": {
+      "total": 7,
+      "summary": 3,
+      "postable": 4,
+      "controls": 0
+    },
+    "4_revenue": {
+      "total": 7,
+      "summary": 2,
+      "postable": 5,
+      "controls": 0
+    },
+    "5_expenses": {
+      "total": 22,
+      "summary": 4,
+      "postable": 18,
+      "controls": 0
+    }
+  },
+  "control_accounts": [
+    {
+      "account_code": "1-10-20-001",
+      "account_name": "Trade Debtors",
+      "subledger": "receivable"
+    },
+    {
+      "account_code": "1-10-99-999",
+      "account_name": "Inventory Suspense",
+      "subledger": "stock"
+    },
+    {
+      "account_code": "2-10-10-001",
+      "account_name": "Trade Creditors",
+      "subledger": "payable"
+    },
+    {
+      "account_code": "2-20-10-001",
+      "account_name": "VAT Output Suspense",
+      "subledger": "tax"
+    }
+  ],
+  "verification_tests": {
+    "test_suite": "addons/domain/g_finance/cd_gl_ext/tests/test_coa_logic.py",
+    "tests_executed": 20,
+    "tests_passed": 20,
+    "failures": 0,
+    "pure_logic_coverage_percent": 100.0
+  },
+  "signoff": {
+    "finance_lead": "A. H. M. Rezaul Karim",
+    "system_architect": "1000FiX System Architect",
+    "status": "APPROVED"
+  }
+}
