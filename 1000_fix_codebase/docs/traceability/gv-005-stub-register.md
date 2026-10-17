@@ -14,6 +14,7 @@
 | `STUB-M31-M23-001` | **M31** (`cd_workshop`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 2 → Wave 5 | M01/M31 owns QC checklists internally until formal ISO 9001 NCR takeover | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T04) | 2027-02-28 | Quality Assurance Lead / Service Operations Lead | M23 formal QMS process activated with automated Non-Conformance Reporting (NCR) and statistical process control | **ACTIVE** |
 | `STUB-M02-M22-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Candidate certification matching falls back to static skill scoring until M22 competency matrix activation | N/A | R03-M03-T05 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / Dispatch Architect | M22 automated technician certification and skill level integration wired into dispatch scoring engine | **ACTIVE** |
 | `STUB-M02-M55-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M55** (`cd_advanced_scheduling` / Multi-day Optimization) | Wave 2 → Wave 5 | Daily technician capacity & shift availability fall back to M30 HR calendar until multi-day optimizer lands | N/A | R03-M03-T05 | **R07-M03** (Task R07-M03-T03) | 2027-03-31 | Dispatch Architect / Workforce Lead | M55 multi-day dynamic shift planning and PTO scheduling integrated into candidate filtering | **ACTIVE** |
+| `STUB-M10-M11-001` | **M10** (`cd_loyalty`) | **M11** (`cd_pricing_engine`) / **M20** (`cd_billing_engine`) | Wave 2 → Wave 3 | Loyalty points accrual rules are self-contained; points redemption against price books and invoice deduction connects in W3 | N/A | R03-M05-T01 | **R04-M02** (Task R04-M02-T08) | 2026-11-30 | Customer Engagement Lead / Commercial Pricing Lead | M11 pricing engine & M20 billing integrated with discount governance SoD controls; points become spendable on repair invoices | **ACTIVE** |
 
 ---
 
@@ -91,4 +92,19 @@
 - **Expiry & Closure**:
   - **Expiry Milestone**: `R07-M03-T03`
   - **Required Action**: Wire M55 multi-day schedule availability API into candidate filtering pipeline.
+
+### `STUB-M10-M11-001`: M10 Loyalty Points Redemption to M11 Pricing & M20 Billing
+
+- **Context**: In Wave 2 (Milestone R03-M05), `cd_loyalty` introduces privilege programmes, point earning rules (1 point per 100 BDT), membership tiers (Bronze, Silver, Gold, Platinum), and single-use privilege vouchers. However, dynamic discount rate cards on the catalogue kernel (M11) and formal invoice line deduction (M20) land in Wave 3 (Milestone R04-M02-T08).
+- **Architecture Mechanism**:
+  1. Method `check_redemption_eligibility(partner_id, order_id, points_to_redeem)` in `fix.loyalty.redemption.stub` evaluates customer active status and point balance.
+  2. For Wave 2, the check converts points to BDT value, validates minimum redemption thresholds, and logs `STUB-M10-M11-001` execution under warning level.
+  3. All simulated redemptions carry the stub identifier and tier bonus records.
+- **Financial Risk**: Allowing point redemptions without Segregation of Duties (SoD) discount governance and automated general ledger invoice offsets creates unreconciled commercial variance.
+- **De-risking & Audit Trail**:
+  - All point deductions are recorded in the append-only ledger `fix.loyalty.ledger` with immutable balance snapshots.
+  - Vouchers are strictly single-use and tracked against service orders upon redemption.
+- **Expiry & Closure**:
+  - **Expiry Milestone**: `R04-M02-T08`
+  - **Required Action**: Integrate M11 discount governance SoD controls and M20 billing engine invoice line deduction API, closing the stub and allowing points to be spent directly on final repair invoices.
 

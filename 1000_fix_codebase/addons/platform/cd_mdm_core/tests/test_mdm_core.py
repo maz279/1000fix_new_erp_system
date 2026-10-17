@@ -37,3 +37,16 @@ class TestFixMdmMatchRule:
     def test_model_exists(self):
         from odoo.addons.cd_mdm_core.models.fix_mdm_match_rule import FixMdmMatchRule
         assert FixMdmMatchRule is not None
+
+
+class TestFixMdmStewardship:
+    def test_model_exists(self):
+        from odoo.addons.cd_mdm_core.models.fix_mdm_stewardship import FixMdmStewardship
+        assert FixMdmStewardship is not None
+        assert FixMdmStewardship._name == "fix.mdm.stewardship"
+
+    def test_quality_index_compute_and_actions(self):
+        from odoo.addons.cd_mdm_core.models.fix_mdm_stewardship import FixMdmStewardship
+        assert "_compute_quality_index" in dir(FixMdmStewardship)
+        assert "action_audit_data_quality" in dir(FixMdmStewardship)
+        assert hasattr(FixMdmStewardship, "_domain_company_unique")

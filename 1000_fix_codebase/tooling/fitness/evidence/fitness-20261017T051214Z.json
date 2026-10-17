@@ -1,0 +1,302 @@
+{
+  "schema": "1000fix-erp/fitness-results/1",
+  "results": [
+    {
+      "suite": "FF-02",
+      "case": "check_naming.py",
+      "status": "PASS",
+      "duration_ms": 96,
+      "verifies": "FF-02",
+      "artefacts": [],
+      "message": "",
+      "remedy": "naming: OK - 11 modules, 39 model names conform to AS-04",
+      "ran_at_utc": "2026-10-17T05:11:56.137864+00:00"
+    },
+    {
+      "suite": "FF-03",
+      "case": "check-vendor-clean.sh",
+      "status": "PASS",
+      "duration_ms": 755,
+      "verifies": "FF-03",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check-vendor-clean: OK - vendor/ clean (FF-03)",
+      "ran_at_utc": "2026-10-17T05:11:56.893935+00:00"
+    },
+    {
+      "suite": "FF-04",
+      "case": "check_ff17_layers.py",
+      "status": "PASS",
+      "duration_ms": 229,
+      "verifies": "FF-04",
+      "artefacts": [],
+      "message": "",
+      "remedy": "FF-17: OK - 11 platform manifest(s) checked, 0 layer violations",
+      "ran_at_utc": "2026-10-17T05:11:57.130066+00:00"
+    },
+    {
+      "suite": "FF-06",
+      "case": "check_cross_table.py",
+      "status": "PASS",
+      "duration_ms": 120,
+      "verifies": "FF-06",
+      "artefacts": [],
+      "message": "",
+      "remedy": "cross-table: OK - 89 files, 0 cross-module table reads",
+      "ran_at_utc": "2026-10-17T05:11:57.250204+00:00"
+    },
+    {
+      "suite": "FF-09",
+      "case": "check_ff09_residency.py",
+      "status": "PASS",
+      "duration_ms": 334,
+      "verifies": "FF-09",
+      "artefacts": [],
+      "message": "",
+      "remedy": "FF-09: OK - no residency bypass paths; fix_residency is the sole client",
+      "ran_at_utc": "2026-10-17T05:11:57.584892+00:00"
+    },
+    {
+      "suite": "FF-19",
+      "case": "check_event_schemas.py",
+      "status": "PASS",
+      "duration_ms": 63,
+      "verifies": "FF-19",
+      "artefacts": [],
+      "message": "",
+      "remedy": "event-schemas: OK - 13 schema(s) conform to AR-009 event envelope specification; outbox model verified",
+      "ran_at_utc": "2026-10-17T05:11:57.648229+00:00"
+    },
+    {
+      "suite": "FF-20",
+      "case": "check_model_registry.py",
+      "status": "PASS",
+      "duration_ms": 338,
+      "verifies": "FF-20",
+      "artefacts": [],
+      "message": "",
+      "remedy": "model-registry: OK - 148 models checked, all carry AS-02/AS-03 conformant fields; all relation targets resolve",
+      "ran_at_utc": "2026-10-17T05:11:57.989392+00:00"
+    },
+    {
+      "suite": "FF-21",
+      "case": "check_model_registry.py",
+      "status": "PASS",
+      "duration_ms": 419,
+      "verifies": "FF-21",
+      "artefacts": [],
+      "message": "",
+      "remedy": "model-registry: OK - 148 models checked, all carry AS-02/AS-03 conformant fields; all relation targets resolve",
+      "ran_at_utc": "2026-10-17T05:11:58.407937+00:00"
+    },
+    {
+      "suite": "FF-22",
+      "case": "check_model_registry.py",
+      "status": "PASS",
+      "duration_ms": 335,
+      "verifies": "FF-22",
+      "artefacts": [],
+      "message": "",
+      "remedy": "model-registry: OK - 148 models checked, all carry AS-02/AS-03 conformant fields; all relation targets resolve",
+      "ran_at_utc": "2026-10-17T05:11:58.758284+00:00"
+    },
+    {
+      "suite": "FF-23",
+      "case": "check_tests_present.py",
+      "status": "PASS",
+      "duration_ms": 153,
+      "verifies": "FF-23",
+      "artefacts": [],
+      "message": "",
+      "remedy": "tests-present: OK - 70 modules, all have tests/",
+      "ran_at_utc": "2026-10-17T05:11:58.910800+00:00"
+    },
+    {
+      "suite": "FF-25",
+      "case": "check_translations.py",
+      "status": "PASS",
+      "duration_ms": 371,
+      "verifies": "FF-25",
+      "artefacts": [],
+      "message": "",
+      "remedy": "translations: OK - Bengali field coverage present; every shipped bn_BD.po is 100% translated",
+      "ran_at_utc": "2026-10-17T05:11:59.281791+00:00"
+    },
+    {
+      "suite": "FF-30",
+      "case": "check_assets.py",
+      "status": "PASS",
+      "duration_ms": 240,
+      "verifies": "FF-30",
+      "artefacts": [],
+      "message": "",
+      "remedy": "assets: OK - 70 manifest(s) and 5 OWL asset template(s) verified for build reproducibility",
+      "ran_at_utc": "2026-10-17T05:11:59.521336+00:00"
+    },
+    {
+      "suite": "FF-32",
+      "case": "check_demo_data.py",
+      "status": "PASS",
+      "duration_ms": 174,
+      "verifies": "FF-32",
+      "artefacts": [],
+      "message": "",
+      "remedy": "demo-data: OK - 70 manifest(s) and db/seeds/seed.py conform to seed isolation policy (E3)",
+      "ran_at_utc": "2026-10-17T05:11:59.695045+00:00"
+    },
+    {
+      "suite": "FF-37",
+      "case": "check_code_lists.py",
+      "status": "PASS",
+      "duration_ms": 185,
+      "verifies": "FF-37",
+      "artefacts": [],
+      "message": "",
+      "remedy": "code-lists: OK - 131 model file(s) checked, 82 state machine(s) conform to DA-009",
+      "ran_at_utc": "2026-10-17T05:11:59.880173+00:00"
+    },
+    {
+      "suite": "FF-13",
+      "case": "check_api_budget.py",
+      "status": "PASS",
+      "duration_ms": 50,
+      "verifies": "FF-13",
+      "artefacts": [],
+      "message": "",
+      "remedy": "api-budget: OK - 0 OpenAPI contract(s) and 0 route clients within latency budget (p95 <= 200 ms)",
+      "ran_at_utc": "2026-10-17T05:11:59.930038+00:00"
+    },
+    {
+      "suite": "FF-14",
+      "case": "../architecture-baseline/extract-dependency-graph.ps1",
+      "status": "PASS",
+      "duration_ms": 938,
+      "verifies": "FF-14",
+      "artefacts": [],
+      "message": "",
+      "remedy": "[ ok ] dependency graph regenerated GREEN (warnings are recorded drift, not extraction failures).",
+      "ran_at_utc": "2026-10-17T05:12:00.879399+00:00"
+    },
+    {
+      "suite": "FF-27",
+      "case": "check_portal_contract.py",
+      "status": "WARN",
+      "duration_ms": 4356,
+      "verifies": "FF-27",
+      "artefacts": [],
+      "message": "",
+      "remedy": "  domain/e_supply_chain/cd_inventory/views/fix_inventory_views.xml: view[fix.spare.part] references unknown field 'uom'",
+      "ran_at_utc": "2026-10-17T05:12:05.235436+00:00"
+    },
+    {
+      "suite": "FF-38",
+      "case": "check-nav-registry.py",
+      "status": "PASS",
+      "duration_ms": 150,
+      "verifies": "FF-38",
+      "artefacts": [],
+      "message": "",
+      "remedy": "nav-registry: OK \u00e2\u20ac\u201d 67 modules, 278 groups, 823 screens, 346 reports, 266 forms, 5100 functions, 10 journeys; ledger, ids, areas, i18n parity, freshness all verified",
+      "ran_at_utc": "2026-10-17T05:12:05.401768+00:00"
+    },
+    {
+      "suite": "FF-39",
+      "case": "check-no-fixtures.py",
+      "status": "PASS",
+      "duration_ms": 5030,
+      "verifies": "FF-39",
+      "artefacts": [],
+      "message": "",
+      "remedy": "no-fixtures: OK - runtime space clean (fixtures only under tests/stories/seeds; no PRNG in app code; no raw fetch outside api-client)",
+      "ran_at_utc": "2026-10-17T05:12:10.431874+00:00"
+    },
+    {
+      "suite": "FF-40",
+      "case": "check-openapi.py",
+      "status": "PASS",
+      "duration_ms": 52,
+      "verifies": "FF-40",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check-openapi: OK - 3 specs valid (3.x, info, servers, operations, refs resolve)",
+      "ran_at_utc": "2026-10-17T05:12:10.484673+00:00"
+    },
+    {
+      "suite": "FF-41",
+      "case": "check-dart-offline.py",
+      "status": "PASS",
+      "duration_ms": 47,
+      "verifies": "FF-41",
+      "artefacts": [],
+      "message": "",
+      "remedy": "dart-offline: OK \u00e2\u20ac\u201d 7 source files, all AR-010 mandates present (command model, append-only journal, SP-07 upload-first, DI-05 idempotency, \u00c2\u00a76 two-state disclosure, SP-09 evidence channel, sync state machine)",
+      "ran_at_utc": "2026-10-17T05:12:10.531976+00:00"
+    },
+    {
+      "suite": "FF-42",
+      "case": "check-dart-apps.py",
+      "status": "PASS",
+      "duration_ms": 58,
+      "verifies": "FF-42",
+      "artefacts": [],
+      "message": "",
+      "remedy": "dart-apps: OK \u00e2\u20ac\u201d 4 apps, 10 screens, all consuming fix_ui tokens + fix_offline engine (FL-03), CFM-01 clean, customer app Bengali-first (DE-17)",
+      "ran_at_utc": "2026-10-17T05:12:10.590404+00:00"
+    },
+    {
+      "suite": "FF-43",
+      "case": "check-portal-batch.py",
+      "status": "FAIL",
+      "duration_ms": 69,
+      "verifies": "FF-43",
+      "artefacts": [],
+      "message": "",
+      "remedy": "  app calls /customer/tracking/public but no PP5 controller matrix entry covers it",
+      "ran_at_utc": "2026-10-17T05:12:10.659567+00:00"
+    },
+    {
+      "suite": "FF-44",
+      "case": "check-demo-literals.py",
+      "status": "PASS",
+      "duration_ms": 3579,
+      "verifies": "FF-44",
+      "artefacts": [],
+      "message": "",
+      "remedy": "demo-literals: OK \u00e2\u20ac\u201d estate views/static carry no fabricated literals and no module ships Odoo demo data (TEST data enters via db/seeds/seed.py only, 03-DATA-STRATEGY \u00c2\u00a71/E3)",
+      "ran_at_utc": "2026-10-17T05:12:14.238507+00:00"
+    },
+    {
+      "suite": "FF-45",
+      "case": "check-data-parity.py",
+      "status": "FAIL",
+      "duration_ms": 49,
+      "verifies": "FF-45",
+      "artefacts": [],
+      "message": "",
+      "remedy": "  parity customer.tracking: prototype columns missing from the API payload: ['eta_resolution', 'technician']",
+      "ran_at_utc": "2026-10-17T05:12:14.287199+00:00"
+    },
+    {
+      "suite": "FF-16",
+      "case": "../scripts/check-cd-id.py",
+      "status": "PASS",
+      "duration_ms": 63,
+      "verifies": "FF-16",
+      "artefacts": [],
+      "message": "",
+      "remedy": "check-cd-id: OK - all CD references resolve in the register (331 items)",
+      "ran_at_utc": "2026-10-17T05:12:14.350516+00:00"
+    },
+    {
+      "suite": "FF-26",
+      "case": "disabled-by-design",
+      "status": "SKIP",
+      "duration_ms": 0,
+      "verifies": "FF-26",
+      "artefacts": [],
+      "message": "",
+      "remedy": "built, disabled; promotes at G3 (FG-04)",
+      "ran_at_utc": "2026-10-17T05:12:14.350516+00:00"
+    }
+  ]
+}

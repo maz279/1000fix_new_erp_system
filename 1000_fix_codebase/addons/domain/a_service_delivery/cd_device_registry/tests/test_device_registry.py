@@ -46,3 +46,18 @@ class TestFixDeviceHistory:
     def test_model_exists(self):
         from odoo.addons.cd_device_registry.models.fix_device_history import FixDeviceHistory
         assert FixDeviceHistory is not None
+
+
+class TestFixDeviceW2Extensions:
+    def test_lifecycle_and_compatibility_fields(self):
+        from odoo.addons.cd_device_registry.models.fix_device import FixDevice
+        assert "lifecycle_stage" in dir(FixDevice)
+        assert "end_of_support_date" in dir(FixDevice)
+        assert "estimated_residual_value_bdt" in dir(FixDevice)
+        assert "get_compatible_parts" in dir(FixDevice)
+
+    def test_device_part_compatibility_model(self):
+        from odoo.addons.cd_device_registry.models.fix_device_part_compatibility import FixDevicePartCompatibility
+        assert FixDevicePartCompatibility is not None
+        assert FixDevicePartCompatibility._name == "fix.device.part.compatibility"
+        assert hasattr(FixDevicePartCompatibility, "_unique_model_part")

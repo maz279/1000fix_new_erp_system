@@ -3,3 +3,4 @@ from . import fix_device
 from . import fix_device_ownership
 from . import fix_device_history
 from . import fix_warranty
+from . import fix_device_part_compatibility

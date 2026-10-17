@@ -64,54 +64,81 @@ function TrackingContent() {
   const { user } = useAuth();
   const searchParams = useSearchParams();
   const queryOrderId = searchParams.get("order_id");
+  const queryRef = searchParams.get("ref");
+  const queryToken = searchParams.get("token");
 
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [orderId, setOrderId] = useState<number | null>(queryOrderId ? Number(queryOrderId) : null);
+  const [activeRef, setActiveRef] = useState<string | null>(queryRef || null);
   const [tracking, setTracking] = useState<Tracking | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectId = useId();
 
-  // Load customer service bookings
+  const refresh = useCallback(async (id?: number | null, refStr?: string | null) => {
+    try {
+      if (refStr) {
+        const d = await callOdoo<{ tracking?: Tracking; error?: { message: string } }>(
+          "/customer/tracking", { ref: refStr, token: queryToken || undefined });
+        if (d.error) setError(d.error.message);
+        else setTracking(d.tracking || null);
+      } else if (id != null) {
+        const d = await callOdoo<{ tracking?: Tracking; error?: { message: string } }>(
+          "/customer/tracking", { order_id: id });
+        if (d.error) setError(d.error.message);
+        else setTracking(d.tracking || null);
+      }
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }, [queryToken]);
+
+  // Load customer service bookings if user is logged in
   useEffect(() => {
+    if (queryRef) {
+      setActiveRef(queryRef);
+      refresh(null, queryRef);
+    }
+
     callOdoo<{ bookings: Booking[] }>("/customer/bookings")
       .then((d) => {
         const list = d.bookings || [];
         setBookings(list);
-        if (!orderId && list.length > 0) {
+        if (!orderId && !queryRef && list.length > 0) {
           setOrderId(list[0].id);
         }
       })
-      .catch((e: Error) => setError(e.message));
-  }, [user]);
+      .catch((e: Error) => {
+        if (!queryRef) {
+          setError(e.message);
+        }
+      });
+  }, [user, queryRef, refresh, orderId]);
 
   // Deep-link query parameter synchronization
   useEffect(() => {
     if (queryOrderId) {
       setOrderId(Number(queryOrderId));
+      setActiveRef(null);
+    } else if (queryRef) {
+      setActiveRef(queryRef);
     }
-  }, [queryOrderId]);
+  }, [queryOrderId, queryRef]);
 
-  const refresh = useCallback(async (id: number) => {
-    try {
-      const d = await callOdoo<{ tracking?: Tracking; error?: { message: string } }>(
-        "/customer/tracking", { order_id: id });
-      if (d.error) setError(d.error.message);
-      else setTracking(d.tracking || null);
-    } catch (e) {
-      setError((e as Error).message);
-    }
-  }, []);
-
-  // Poll every 15 s when order is selected
+  // Poll every 15 s when order or ref is selected
   useEffect(() => {
+    if (activeRef) {
+      refresh(null, activeRef);
+      const interval = setInterval(() => refresh(null, activeRef), 15000);
+      return () => clearInterval(interval);
+    }
     if (orderId == null) return;
-    refresh(orderId);
-    const interval = setInterval(() => refresh(orderId), 15000);
+    refresh(orderId, null);
+    const interval = setInterval(() => refresh(orderId, null), 15000);
     return () => clearInterval(interval);
-  }, [orderId, refresh]);
+  }, [orderId, activeRef, refresh]);
 
-  if (error && bookings.length === 0) {
+  if (error && bookings.length === 0 && !activeRef) {
     return <LoadError what={t.loadErrorTitle(locale === "bn" ? "ট্র্যাকিং" : "Tracking")} message={error} />;
   }
 

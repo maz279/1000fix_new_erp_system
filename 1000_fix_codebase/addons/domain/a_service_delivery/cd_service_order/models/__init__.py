@@ -5,3 +5,4 @@ from . import fix_estimate
 from . import fix_qc_checklist
 from . import fix_sla_policy
 from . import fix_device_history_ext
+from . import fix_service_order_fault

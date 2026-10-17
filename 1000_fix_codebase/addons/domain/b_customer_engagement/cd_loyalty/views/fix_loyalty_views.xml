@@ -1,0 +1,261 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_loyalty views — M10 Privilege Programme, Points & Vouchers (CD-M10-01). -->
+<odoo>
+    <!-- ==================== FIX.LOYALTY.PROGRAM ==================== -->
+    <record id="view_fix_loyalty_program_tree" model="ir.ui.view">
+        <field name="name">fix.loyalty.program.list</field>
+        <field name="model">fix.loyalty.program</field>
+        <field name="arch" type="xml">
+            <list string="Loyalty Programmes">
+                <field name="name"/>
+                <field name="code"/>
+                <field name="points_per_bdt"/>
+                <field name="bdt_per_point"/>
+                <field name="expiry_months"/>
+                <field name="account_count"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_loyalty_program_form" model="ir.ui.view">
+        <field name="name">fix.loyalty.program.form</field>
+        <field name="model">fix.loyalty.program</field>
+        <field name="arch" type="xml">
+            <form string="Loyalty Programme">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Programme Name (e.g., 1000FiX Care Club)"/>
+                        </h1>
+                        <h3>
+                            <field name="name_bn" placeholder="বাংলা নাম"/>
+                        </h3>
+                    </div>
+                    <group>
+                        <group string="Configuration">
+                            <field name="code"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Earning &amp; Redemption Rules">
+                            <field name="points_per_bdt"/>
+                            <field name="bdt_per_point"/>
+                            <field name="min_points_to_redeem"/>
+                            <field name="expiry_months"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Membership Tiers">
+                            <field name="tier_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="name"/>
+                                    <field name="code"/>
+                                    <field name="min_points_threshold"/>
+                                    <field name="points_multiplier"/>
+                                    <field name="labour_discount_pct"/>
+                                    <field name="parts_discount_pct"/>
+                                    <field name="priority_diagnostic"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.LOYALTY.ACCOUNT ==================== -->
+    <record id="view_fix_loyalty_account_tree" model="ir.ui.view">
+        <field name="name">fix.loyalty.account.list</field>
+        <field name="model">fix.loyalty.account</field>
+        <field name="arch" type="xml">
+            <list string="Customer Loyalty Accounts">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="program_id"/>
+                <field name="tier_id"/>
+                <field name="points_balance"/>
+                <field name="lifetime_points_earned"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_loyalty_account_form" model="ir.ui.view">
+        <field name="name">fix.loyalty.account.form</field>
+        <field name="model">fix.loyalty.account</field>
+        <field name="arch" type="xml">
+            <form string="Customer Loyalty Account">
+                <header>
+                    <button name="check_and_update_tier" string="Recalculate Tier" type="object" class="btn-primary"/>
+                    <button name="action_suspend" string="Suspend" type="object" invisible="state != 'active'"/>
+                    <button name="action_activate" string="Activate" type="object" invisible="state != 'suspended'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="active,suspended,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Member Information">
+                            <field name="partner_id"/>
+                            <field name="program_id"/>
+                            <field name="tier_id"/>
+                            <field name="enrollment_date"/>
+                            <field name="tier_upgraded_date"/>
+                        </group>
+                        <group string="Point Accumulators">
+                            <field name="points_balance"/>
+                            <field name="lifetime_points_earned"/>
+                            <field name="lifetime_points_redeemed"/>
+                            <field name="lifetime_spend_bdt"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Points Ledger">
+                            <field name="ledger_ids" readonly="1">
+                                <list decoration-success="points &gt; 0" decoration-danger="points &lt; 0">
+                                    <field name="create_date"/>
+                                    <field name="transaction_type"/>
+                                    <field name="points"/>
+                                    <field name="balance_after"/>
+                                    <field name="service_order_id"/>
+                                    <field name="expiry_date"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Vouchers">
+                            <field name="voucher_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="discount_type"/>
+                                    <field name="discount_value"/>
+                                    <field name="valid_until"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== FIX.LOYALTY.VOUCHER ==================== -->
+    <record id="view_fix_loyalty_voucher_tree" model="ir.ui.view">
+        <field name="name">fix.loyalty.voucher.list</field>
+        <field name="model">fix.loyalty.voucher</field>
+        <field name="arch" type="xml">
+            <list string="Privilege Vouchers">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="discount_type"/>
+                <field name="discount_value"/>
+                <field name="min_spend_bdt"/>
+                <field name="valid_from"/>
+                <field name="valid_until"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_loyalty_voucher_form" model="ir.ui.view">
+        <field name="name">fix.loyalty.voucher.form</field>
+        <field name="model">fix.loyalty.voucher</field>
+        <field name="arch" type="xml">
+            <form string="Privilege Voucher">
+                <header>
+                    <button name="action_activate" string="Activate" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('redeemed', 'cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,redeemed,expired"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Beneficiary">
+                            <field name="partner_id"/>
+                            <field name="account_id"/>
+                            <field name="campaign_id"/>
+                            <field name="points_cost"/>
+                        </group>
+                        <group string="Benefit Terms">
+                            <field name="discount_type"/>
+                            <field name="discount_value"/>
+                            <field name="min_spend_bdt"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="valid_from"/>
+                            <field name="valid_until"/>
+                        </group>
+                    </group>
+                    <group string="Redemption Details" invisible="state != 'redeemed'">
+                        <field name="service_order_id" readonly="1"/>
+                        <field name="redeemed_at" readonly="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- ==================== ACTIONS & MENUS ==================== -->
+    <record id="action_fix_loyalty_program" model="ir.actions.act_window">
+        <field name="name">Loyalty Programmes</field>
+        <field name="res_model">fix.loyalty.program</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_loyalty_account" model="ir.actions.act_window">
+        <field name="name">Customer Accounts</field>
+        <field name="res_model">fix.loyalty.account</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_loyalty_voucher" model="ir.actions.act_window">
+        <field name="name">Privilege Vouchers</field>
+        <field name="res_model">fix.loyalty.voucher</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="action_fix_loyalty_ledger" model="ir.actions.act_window">
+        <field name="name">Points Audit Ledger</field>
+        <field name="res_model">fix.loyalty.ledger</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menu structure under Customer Engagement -->
+    <menuitem id="menu_fix_loyalty_root" name="Privilege &amp; Loyalty" parent="cd_party_master.menu_cd_root" sequence="40"/>
+    <menuitem id="menu_fix_loyalty_accounts" name="Customer Accounts" parent="menu_fix_loyalty_root" action="action_fix_loyalty_account" sequence="10"/>
+    <menuitem id="menu_fix_loyalty_vouchers" name="Vouchers" parent="menu_fix_loyalty_root" action="action_fix_loyalty_voucher" sequence="20"/>
+    <menuitem id="menu_fix_loyalty_ledger" name="Points Audit Ledger" parent="menu_fix_loyalty_root" action="action_fix_loyalty_ledger" sequence="30"/>
+    <menuitem id="menu_fix_loyalty_programs" name="Programmes &amp; Tiers" parent="menu_fix_loyalty_root" action="action_fix_loyalty_program" sequence="40"/>
+</odoo>

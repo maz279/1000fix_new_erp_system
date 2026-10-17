@@ -83,6 +83,31 @@ class FixDevice(models.Model):
                                    domain=[("res_model", "=", "fix.device")],
                                    string="Documents")
 
+    # M17 W2 Completion Slice: Device Lifecycle Management
+    lifecycle_stage = fields.Selection(
+        [
+            ("active", "Active Lifecycle"),
+            ("vintage", "Vintage (Limited Parts Support)"),
+            ("end_of_life", "End of Life (No OEM Parts)"),
+            ("obsolete", "Obsolete / Recycle Only"),
+        ],
+        default="active",
+        required=True,
+        tracking=True,
+        help="M17 W2: device hardware lifecycle progression affecting spare parts availability",
+    )
+    end_of_support_date = fields.Date(string="End of Support Date", tracking=True)
+    estimated_residual_value_bdt = fields.Monetary(
+        string="Estimated Residual Value (BDT)",
+        currency_field="currency_id",
+        default=0.0,
+    )
+    currency_id = fields.Many2one(
+        "res.currency",
+        string="Currency",
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+    )
+
     active = fields.Boolean(default=True, tracking=True)
     name = fields.Char(compute="_compute_name", store=True)
 
@@ -169,3 +194,11 @@ class FixDevice(models.Model):
             "service_order_id": order_id,
             "date": fields.Datetime.now(),
         })
+
+    def get_compatible_parts(self, category=None):
+        """M17 W2: Query spare parts compatibility matrix for this device model."""
+        self.ensure_one()
+        domain = [("model_id", "=", self.device_model_id.id), ("active", "=", True)]
+        if category:
+            domain.append(("category", "=", category))
+        return self.env["fix.device.part.compatibility"].search(domain)

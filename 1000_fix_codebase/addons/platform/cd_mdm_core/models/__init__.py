@@ -2,3 +2,4 @@
 from . import fix_mdm_change_request
 from . import fix_mdm_golden_rule
 from . import fix_mdm_match_rule
+from . import fix_mdm_stewardship

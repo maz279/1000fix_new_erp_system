@@ -8,3 +8,4 @@ access_fix_qc_checklist,fix.qc.checklist,model_fix_qc_checklist,base.group_user,
 access_fix_qc_item,fix.qc.item,model_fix_qc_item,base.group_user,1,1,1,1
 access_fix_sla_policy,fix.sla.policy,model_fix_sla_policy,base.group_user,1,1,1,0
 access_fix_diagnostic_node,fix.diagnostic.node,model_fix_diagnostic_node,base.group_user,1,1,1,0
+access_fix_service_order_fault,fix.service.order.fault,model_fix_service_order_fault,base.group_user,1,1,1,1

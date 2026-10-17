@@ -1,0 +1,37 @@
+# Translation of Odoo Server.
+# This file contains the translation of the following modules:
+# 	* cd_loyalty
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-17 12:00+0000\n"
+"PO-Revision-Date: 2026-10-17 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Bengali (Bangladesh)\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__name
+msgid "Programme Name"
+msgstr "প্রোগ্রামের নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__name
+msgid "Tier Name"
+msgstr "টায়ারের নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__name
+msgid "Membership Number"
+msgstr "সদস্যপদ নম্বর"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__name
+msgid "Voucher Code"
+msgstr "ভাউচার কোড"

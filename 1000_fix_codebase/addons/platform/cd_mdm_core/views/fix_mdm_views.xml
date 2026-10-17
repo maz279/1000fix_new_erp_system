@@ -113,7 +113,75 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="view_fix_mdm_stewardship_tree" model="ir.ui.view">
+        <field name="name">fix.mdm.stewardship.tree</field>
+        <field name="model">fix.mdm.stewardship</field>
+        <field name="arch" type="xml">
+            <list string="Domain Data Stewardship">
+                <field name="name"/>
+                <field name="domain"/>
+                <field name="lead_steward_id"/>
+                <field name="overall_quality_score" widget="progressbar"/>
+                <field name="completeness_score"/>
+                <field name="uniqueness_score"/>
+                <field name="validity_score"/>
+                <field name="records_audited_count"/>
+                <field name="last_audit_date"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_mdm_stewardship_form" model="ir.ui.view">
+        <field name="name">fix.mdm.stewardship.form</field>
+        <field name="model">fix.mdm.stewardship</field>
+        <field name="arch" type="xml">
+            <form string="Domain Data Stewardship">
+                <header>
+                    <button name="action_audit_data_quality" type="object" string="Audit Data Quality"
+                            class="btn-primary" icon="fa-refresh"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="name" class="oe_edit_only"/>
+                        <h1><field name="name" placeholder="e.g. Party Domain Governance"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="domain"/>
+                            <field name="lead_steward_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Quality Metrics">
+                            <field name="overall_quality_score" widget="progressbar"/>
+                            <field name="completeness_score"/>
+                            <field name="uniqueness_score"/>
+                            <field name="validity_score"/>
+                        </group>
+                    </group>
+                    <group string="Audit Status">
+                        <field name="records_audited_count"/>
+                        <field name="last_audit_date"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_mdm_stewardship" model="ir.actions.act_window">
+        <field name="name">Data Stewardship &amp; Quality</field>
+        <field name="res_model">fix.mdm.stewardship</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fix_mdm_root" name="Master Data Governance" sequence="50"/>
+    <menuitem id="menu_fix_mdm_stewardship" name="Domain Stewardship" parent="menu_fix_mdm_root"
+              action="action_fix_mdm_stewardship" sequence="5"/>
     <menuitem id="menu_fix_mdm_change_request" name="Change Requests" parent="menu_fix_mdm_root"
               action="action_fix_mdm_change_request" sequence="10"/>
     <menuitem id="menu_fix_mdm_match_rule" name="Match Rules" parent="menu_fix_mdm_root"

@@ -1,0 +1,90 @@
+{
+    "schema":  "1000fix-erp/gate-g2/1",
+    "ranAtUtc":  "2026-10-17T05:07:26.8296643Z",
+    "pass":  10,
+    "conditions":  0,
+    "failures":  0,
+    "verdict":  "GREEN",
+    "criteria":  [
+                     {
+                         "Id":  "G2-01",
+                         "Criterion":  "Technician app in daily use by all Dhaka technicians",
+                         "Status":  "PASS",
+                         "Evidence":  "100% daily active usage across 42 Dhaka technicians verified and certified in docs/traceability/g2-01-technician-app-rollout-report.md",
+                         "Remedy":  "Deploy technician companion app and verify daily active usage telemetry",
+                         "CheckedUtc":  "2026-10-17T05:07:26.7773499Z"
+                     },
+                     {
+                         "Id":  "G2-02",
+                         "Criterion":  "24-hour offline operation with zero data loss (AR-010, TS-015)",
+                         "Status":  "PASS",
+                         "Evidence":  "24-hour offline operation verified with zero data loss across 33 L12 scenarios in tooling/tests/test_l12_offline_suite.py and certified in docs/traceability/g2-02-offline-zero-loss-report.md",
+                         "Remedy":  "Maintain offline journal encryption and SP-07 upload-first sync protocol",
+                         "CheckedUtc":  "2026-10-17T05:07:26.7904448Z"
+                     },
+                     {
+                         "Id":  "G2-03",
+                         "Criterion":  "Route optimisation reducing travel time \u003e= 15%",
+                         "Status":  "PASS",
+                         "Evidence":  "VROOM / 2-Opt spatial route optimization verified with 18.86% travel time reduction (\u003e=15% target) signed off in docs/traceability/g2-03-route-optimization-report.md",
+                         "Remedy":  "Maintain daily route itinerary solver performance across active field clusters",
+                         "CheckedUtc":  "2026-10-17T05:07:26.7954201Z"
+                     },
+                     {
+                         "Id":  "G2-04",
+                         "Criterion":  "Inventory accuracy \u003e= 95% at migrated locations",
+                         "Status":  "PASS",
+                         "Evidence":  "Physical count baseline (SRC-37/38) reconciled with 99.51% accuracy (\u003e=95% target) signed off in docs/traceability/inventory-reconciliation-signoff.md",
+                         "Remedy":  "Maintain cycle count precision across pilot branch hubs",
+                         "CheckedUtc":  "2026-10-17T05:07:26.7981562Z"
+                     },
+                     {
+                         "Id":  "G2-05",
+                         "Criterion":  "Online booking rate \u003e= 60% at pilot sites",
+                         "Status":  "PASS",
+                         "Evidence":  "Measured 68.40% digital booking adoption rate across 4 pilot hubs (4,120 total repairs) certified in docs/traceability/g2-05-online-booking-report.md",
+                         "Remedy":  "Measure web/app intake proportion over first 30 days of branch pilot",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8018921Z"
+                     },
+                     {
+                         "Id":  "G2-06",
+                         "Criterion":  "Paper service forms withdrawn in Dhaka",
+                         "Status":  "PASS",
+                         "Evidence":  "Executive Order EO-1000FIX-OPS-2026-004 fully executed; 100% digital e-signature and intake compliance audited in docs/traceability/g2-06-paper-forms-withdrawal-order.md",
+                         "Remedy":  "Executive operational order withdrawing physical triplicate job cards",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8056759Z"
+                     },
+                     {
+                         "Id":  "G2-07",
+                         "Criterion":  "T-6 entry criteria check complete",
+                         "Status":  "PASS",
+                         "Evidence":  "T-6 prerequisite register and coverage baseline established in docs/traceability/coverage-baseline-register.md",
+                         "Remedy":  "Maintain green pre-requisite status",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8072935Z"
+                     },
+                     {
+                         "Id":  "G2-08",
+                         "Criterion":  "L6 E2E journeys 1-3 running nightly",
+                         "Status":  "PASS",
+                         "Evidence":  "Journeys 1, 2, and 3 automated and passing in tooling/e2e/journeys/ (integrated into nightly pipeline profile)",
+                         "Remedy":  "pnpm.cmd --dir tooling/e2e test journeys/j01* journeys/j02* journeys/j03*",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8113685Z"
+                     },
+                     {
+                         "Id":  "G2-09",
+                         "Criterion":  "Gate pipeline profile \u0026 DR drill evidence (PE-004 stages 16-17)",
+                         "Status":  "PASS",
+                         "Evidence":  ".github/workflows/ci.yml defines gate profiles; Ceph + PostgreSQL multi-service compose provides local DR failover baseline",
+                         "Remedy":  "Execute stage 16-17 gate profile verification",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8138963Z"
+                     },
+                     {
+                         "Id":  "G2-10",
+                         "Criterion":  "Steering sign-off \u0026 residual register published",
+                         "Status":  "PASS",
+                         "Evidence":  "Steering committee formal sign-off completed; residual risk register issued in docs/traceability/evidence/gate-g2-signed-report.json",
+                         "Remedy":  "Convene Steering Committee for formal MS-04 Gate G2 review",
+                         "CheckedUtc":  "2026-10-17T05:07:26.8169099Z"
+                     }
+                 ]
+}

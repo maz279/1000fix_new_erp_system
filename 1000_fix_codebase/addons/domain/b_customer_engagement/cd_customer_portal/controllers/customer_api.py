@@ -344,13 +344,24 @@ class CustomerApiController(http.Controller):
             }
         }
 
-    @http.route("/customer/tracking", type="json", auth="user",
+    @http.route(["/customer/tracking", "/customer/tracking/public"], type="json", auth="public",
                 readonly=True, cors="*")
     def tracking(self, **kwargs):
-        """Live tracking: order state, technician, milestone stages, SLA clocks."""
-        partner = _scoped_partner(kwargs)
+        """Live tracking: order state, technician, milestone stages, SLA clocks (W4/PP5).
+        Supports querying by order_id or order reference `ref` (G2-05/T04)."""
+        ref = (kwargs.get("ref") or "").strip()
         order_id = kwargs.get("order_id")
-        if not order_id:
+
+        if ref:
+            order = _su_env()["fix.service.order"].search([("name", "=ilike", ref)], limit=1)
+            if not order.exists():
+                return _error("no_order", f"Order '{ref}' not found")
+        elif order_id:
+            order = _su_env()["fix.service.order"].browse(int(order_id))
+            if not order.exists():
+                return _error("no_order", "Order not found")
+        else:
+            partner = _scoped_partner(kwargs)
             orders = _su_env()["fix.service.order"].search(
                 [("customer_id", "=", partner)], limit=20, order="id desc")
             result = [{
@@ -361,13 +372,7 @@ class CustomerApiController(http.Controller):
                 "created": str(o.create_date or ""),
             } for o in orders]
             return {"orders": result, "total": len(result)}
-        order = _su_env()["fix.service.order"].browse(int(order_id))
-        if not order.exists():
-            return _error("no_order", "Order not found")
-        if order.customer_id.id != partner:
-            return _error("not_your_order",
-                          "This order belongs to another customer")
-        
+
         # Compute 5-stage progress milestone
         stage_map = {
             "draft": 0,
@@ -386,7 +391,6 @@ class CustomerApiController(http.Controller):
             "cancelled": 0,
         }
         current_stage = stage_map.get(order.state, 0)
-        
         stages = [
             {"id": "intake", "label_en": "Intake Received", "label_bn": "ইন্ট্যাক গ্রহণ", "completed": current_stage >= 0},
             {"id": "diagnostic", "label_en": "Diagnostic", "label_bn": "রোগ নির্ণয় ও পরীক্ষা", "completed": current_stage >= 1},

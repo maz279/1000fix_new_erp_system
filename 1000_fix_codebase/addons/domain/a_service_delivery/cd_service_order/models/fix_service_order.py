@@ -98,12 +98,18 @@ class FixServiceOrder(models.Model):
         required=True, default="walk_in", tracking=True)
     # BRU-SRM-02/03: the commercial classification gating creation
     order_category = fields.Selection(
-        [("standard", "Standard (Paid)"), ("warranty", "Warranty"),
-         ("amc", "AMC / Contract"), ("rework", "Rework")],
+        [
+            ("standard", "Standard (Paid)"),
+            ("warranty", "Warranty"),
+            ("amc", "AMC / Contract"),
+            ("rework", "Rework"),
+            ("rental", "Rental Asset Service"),
+            ("refurbishment", "Refurbishment Intake"),
+            ("recycling", "Recycling / E-Waste"),
+            ("goodwill", "Goodwill (Zero-Charge)"),
+        ],
         string="Order Category", default="standard", required=True, tracking=True,
-        help="Warranty orders require an ACTIVE warranty at the request date "
-             "(BRU-SRM-02); AMC orders require the device on an active contract's "
-             "covered-asset list (BRU-SRM-03 — contracts land in Phase 7)")
+        help="Commercial classification gating order workflow (BRU-SRM-02/03 & W2 business lines)")
     is_rework = fields.Boolean(
         string="Rework", default=False, copy=False, tracking=True,
         help="BRU-SRM-06: auto-flagged when the same device returns with the same "
@@ -116,6 +122,134 @@ class FixServiceOrder(models.Model):
     priority = fields.Selection(
         [("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"), ("emergency", "Emergency")],
         default="normal", required=True, tracking=True)
+
+    # FR-SRM-080: Priority Override Logging
+    priority_override_reason = fields.Text(string="Priority Override Justification", tracking=True)
+    priority_override_user_id = fields.Many2one("res.users", string="Priority Overridden By")
+
+    # FR-SRM-081: Customer-Preferred Technician
+    preferred_technician_id = fields.Many2one("hr.employee", string="Customer-Preferred Technician")
+
+    # FR-SRM-082: Repeat-Visit Case Linkage
+    parent_case_id = fields.Many2one("fix.service.order", string="Parent Customer Problem Case", index=True)
+    linked_order_ids = fields.One2many("fix.service.order", "parent_case_id", string="Linked Visit Orders")
+
+    # Currency
+    currency_id = fields.Many2one(
+        "res.currency",
+        string="Currency",
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+    )
+
+    # --- W2 Business-Line Extensions (FR-SRM-063..088) ---
+    # FR-SRM-063: Rental Service Intake
+    is_rental = fields.Boolean(string="Rental Intake", default=False, tracking=True)
+    rental_agreement_ref = fields.Char(string="Rental Agreement Ref", tracking=True)
+    rental_deposit_bdt = fields.Monetary(string="Rental Deposit (BDT)", currency_field="currency_id", default=0.0)
+    rental_liability_bdt = fields.Monetary(string="Rental Liability (BDT)", currency_field="currency_id", default=0.0)
+    rental_start_date = fields.Date(string="Rental Start Date")
+    rental_end_date = fields.Date(string="Rental End Date")
+
+    # FR-SRM-064: Rental Swap-Out
+    is_swap_out = fields.Boolean(string="Swap-Out Triggered", default=False, tracking=True)
+    swap_device_id = fields.Many2one("fix.device", string="Replacement Swap Device", tracking=True)
+    swap_reason = fields.Selection(
+        [
+            ("unrepairable", "Irreparable Fault"),
+            ("sla_breach_risk", "Expedited SLA Swap"),
+            ("customer_request", "Customer Preference"),
+        ],
+        string="Swap Reason",
+    )
+    swap_condition_grade = fields.Selection(
+        [
+            ("grade_a", "Grade A (Like New)"),
+            ("grade_b", "Grade B (Minor Blemishes)"),
+            ("grade_c", "Grade C (Functional)"),
+        ],
+        string="Swap Condition Grade",
+    )
+    swap_logistics_status = fields.Selection(
+        [
+            ("pending", "Pending Dispatch"),
+            ("dispatched", "In Transit"),
+            ("completed", "Device Swapped & Signed"),
+        ],
+        string="Swap Logistics Status",
+        default="pending",
+    )
+
+    # Deferred Repair Block
+    is_deferred_block = fields.Boolean(string="Deferred Repair Hold", default=False, tracking=True)
+    deferred_reason = fields.Selection(
+        [
+            ("parts_backorder", "Parts Backorder (Supply Chain Hold)"),
+            ("customer_travel", "Customer Unavailable / Travel"),
+            ("disputed_liability", "Liability / Estimate Dispute"),
+            ("third_party_vendor", "OEM Escalation Hold"),
+        ],
+        string="Deferred Reason",
+    )
+    deferred_until = fields.Date(string="Deferred Resumption Date", tracking=True)
+    deferred_notes = fields.Text(string="Deferred Hold Justification")
+
+    # FR-SRM-065: Data Services Case Intake
+    is_data_service = fields.Boolean(string="Data Recovery / Migration", default=False)
+    data_confidentiality_level = fields.Selection(
+        [
+            ("standard", "Standard Commercial"),
+            ("confidential", "Confidential"),
+            ("strict_nda", "Strict NDA / Legal Hold"),
+        ],
+        default="standard",
+        string="Confidentiality Level",
+    )
+    data_retention_days = fields.Integer(string="Data Retention Window (Days)", default=14)
+
+    # FR-SRM-066: Refurbishment Work Order Intake
+    is_refurbishment = fields.Boolean(string="Refurbishment Intake", default=False)
+    refurb_source = fields.Selection(
+        [
+            ("trade_in", "Customer Trade-in"),
+            ("unrepairable_scrap", "Unrepairable Conversion"),
+            ("rental_retirement", "Rental Fleet Retirement"),
+        ],
+        string="Refurbishment Source",
+    )
+    target_grade = fields.Selection(
+        [("grade_a", "Grade A"), ("grade_b", "Grade B"), ("grade_c", "Grade C")],
+        string="Target Grade",
+    )
+
+    # FR-SRM-067: Recycling Intake
+    is_recycling = fields.Boolean(string="E-Waste / Recycling Intake", default=False)
+    disposition_triage = fields.Selection(
+        [
+            ("parts_harvest", "Component / Parts Harvesting"),
+            ("metals_recovery", "Metals & PCB Recovery"),
+            ("safe_destruction", "Certified Data & Device Destruction"),
+        ],
+        string="Disposition Triage",
+    )
+    e_waste_cert_ref = fields.Char(string="E-Waste Green Certificate Ref")
+
+    # FR-SRM-075: Goodwill Repair
+    is_goodwill = fields.Boolean(string="Goodwill Repair (Zero-Charge)", default=False, tracking=True)
+    goodwill_cost_attribution_bdt = fields.Monetary(
+        string="Goodwill Cost Absorbed (BDT)",
+        currency_field="currency_id",
+        default=0.0,
+    )
+    goodwill_approved_by = fields.Many2one("res.users", string="Goodwill Approved By")
+
+    # FR-SRM-076: Loan Device Management
+    loan_device_id = fields.Many2one("fix.device", string="Temporary Loan Device")
+    loan_issued_at = fields.Datetime(string="Loan Issued At")
+    loan_returned_at = fields.Datetime(string="Loan Returned At")
+    loan_condition = fields.Char(string="Loan Device Return Condition")
+
+    # FR-SRM-077: Multi-Fault Handling Lines
+    fault_line_ids = fields.One2many("fix.service.order.fault", "order_id", string="Fault Diagnosis Lines")
 
     # SLA (T04: clocks and escalation — computation in services/sla-engine/)
     sla_policy_id = fields.Many2one("fix.sla.policy", string="SLA Policy")
@@ -219,6 +353,51 @@ class FixServiceOrder(models.Model):
 
     def action_cancel(self):
         self.state = "cancelled"
+
+    # --- W2 Business-Line Actions ---
+    def action_swap_device(self, replacement_device_id, reason="unrepairable", grade="grade_a"):
+        """FR-SRM-064: Convert an irreparable fault or SLA risk into an asset swap."""
+        self.ensure_one()
+        replacement = self.env["fix.device"].browse(replacement_device_id)
+        if not replacement.exists():
+            raise UserError("Selected replacement swap device does not exist.")
+        self.write({
+            "is_swap_out": True,
+            "swap_device_id": replacement.id,
+            "swap_reason": reason,
+            "swap_condition_grade": grade,
+            "swap_logistics_status": "dispatched",
+        })
+        self.message_post(
+            body=f"FR-SRM-064: Asset swap triggered. Replacement device {replacement.name} "
+                 f"assigned with reason '{reason}' and condition '{grade}'."
+        )
+        self._emit("service_order.device_swapped", self)
+
+    def action_defer_order(self, reason="parts_backorder", resume_date=None, notes=None):
+        """Pause active SLA clocks and record deferred hold."""
+        self.ensure_one()
+        self.write({
+            "is_deferred_block": True,
+            "deferred_reason": reason,
+            "deferred_until": resume_date,
+            "deferred_notes": notes,
+            "sla_clock_paused": True,
+        })
+        self.message_post(
+            body=f"Deferred repair hold activated: {reason}. Resumption target: {resume_date or 'Indefinite'}."
+        )
+        self._emit("service_order.deferred", self)
+
+    def action_resume_order(self):
+        """Resume repair order and restart SLA clock."""
+        self.ensure_one()
+        self.write({
+            "is_deferred_block": False,
+            "sla_clock_paused": False,
+        })
+        self.message_post(body="Deferred repair hold lifted — order processing resumed.")
+        self._emit("service_order.resumed", self)
 
     # --- Idempotency (T08, DI-04) ---
     @api.model_create_multi

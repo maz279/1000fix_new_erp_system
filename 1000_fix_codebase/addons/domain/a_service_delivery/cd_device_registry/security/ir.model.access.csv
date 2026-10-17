@@ -3,3 +3,4 @@ access_fix_device,fix.device,model_fix_device,base.group_user,1,1,1,0
 access_fix_warranty,fix.warranty,model_fix_warranty,base.group_user,1,1,1,0
 access_fix_device_ownership,fix.device.ownership,model_fix_device_ownership,base.group_user,1,1,1,0
 access_fix_device_history,fix.device.history,model_fix_device_history,base.group_user,1,0,1,0
+access_fix_device_part_compatibility,fix.device.part.compatibility,model_fix_device_part_compatibility,base.group_user,1,1,1,0
