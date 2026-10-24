@@ -3,6 +3,10 @@
  * Authenticates against Odoo via the Kong gateway (/web/session/authenticate).
  * In browsers, the Odoo session cookie (session_id) is automatically preserved
  * with credentials: "include", allowing all customer endpoints (/customer/*) to pass auth="user".
+ *
+ * The Odoo session cookie is the ONLY credential: this module mints no
+ * bearer/"session" token of its own (security fix 2026-10-23). sessionStorage
+ * keeps only the display profile (`fix_user`), which grants nothing.
  */
 export interface UserSession {
   uid: number;
@@ -14,7 +18,22 @@ export interface UserSession {
 
 const API_BASE = (process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
-export async function login(loginName: string, password: string, db: string = "fix_dev"): Promise<UserSession> {
+/** Pre-fix builds stored a fake `session_<uid>_<ts>` bearer here; it is purged on login/logout. */
+const LEGACY_TOKEN_KEY = "fix_token";
+
+/**
+ * The Odoo database to sign in to. NEXT_PUBLIC_ODOO_DB (a database name is
+ * not a secret) is inlined at build time; the local `fix_dev` fallback exists
+ * only in development builds — a production build without it refuses to log in.
+ */
+export function odooDatabase(): string {
+  const configured = process.env.NEXT_PUBLIC_ODOO_DB?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV !== "production") return "fix_dev";
+  throw new Error("Sign-in is not configured on this server (NEXT_PUBLIC_ODOO_DB is not set)");
+}
+
+export async function login(loginName: string, password: string, db: string = odooDatabase()): Promise<UserSession> {
   const res = await fetch(`${API_BASE}/web/session/authenticate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -52,7 +71,7 @@ export async function login(loginName: string, password: string, db: string = "f
 
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem("fix_user", JSON.stringify(session));
-    window.sessionStorage.setItem("fix_token", `session_${result.uid}_${Date.now()}`);
+    window.sessionStorage.removeItem(LEGACY_TOKEN_KEY);
   }
 
   return session;
@@ -121,7 +140,7 @@ export async function loginWithOtp(phone: string, otp: string): Promise<UserSess
 
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem("fix_user", JSON.stringify(session));
-    window.sessionStorage.setItem("fix_token", `session_${user.uid}_${Date.now()}`);
+    window.sessionStorage.removeItem(LEGACY_TOKEN_KEY);
   }
 
   return session;
@@ -146,7 +165,7 @@ export async function logout(): Promise<void> {
 
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem("fix_user");
-    window.sessionStorage.removeItem("fix_token");
+    window.sessionStorage.removeItem(LEGACY_TOKEN_KEY);
   }
 }
 

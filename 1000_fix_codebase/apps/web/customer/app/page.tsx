@@ -37,7 +37,7 @@ function getStateLabel(state: string, t: Translations): string {
 
 export default function CustomerHome() {
   const { t, locale } = useLanguage();
-  const { user, openLoginModal, loginWithCredentials } = useAuth();
+  const { user, openLoginModal } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -93,20 +93,6 @@ export default function CustomerHome() {
               }}
             >
               {t.homeSignInButton}
-            </button>
-            <button
-              onClick={() => loginWithCredentials("admin", "admin")}
-              style={{
-                padding: "8px 14px",
-                background: tokens["color.surface.secondary"],
-                color: tokens["color.text.primary"],
-                border: `1px solid ${tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-                fontSize: tokens["typography.size.100"],
-              }}
-            >
-              {locale === "bn" ? "⚡ এক-ক্লিক ডেমো লগইন" : "⚡ One-Click Demo Sign In"}
             </button>
           </div>
         </div>

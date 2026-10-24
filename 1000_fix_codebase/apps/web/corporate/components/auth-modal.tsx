@@ -3,7 +3,8 @@
 /**
  * Corporate Authentication Modal & Context.
  * Enables direct sign-in against Odoo via the Kong gateway (/web/session/authenticate).
- * Supports both custom credential entry and one-click enterprise demo personas.
+ * Credential entry only: no prefilled, demo or one-click persona credentials
+ * (removed in the security fix of 2026-10-23).
  * Fully accessible: aria-modal, role="dialog", Escape key listener, focus styles.
  * Tokens only (CFM-01) — no hand-authored colors.
  */
@@ -77,8 +78,8 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
   const usernameId = useId();
   const passwordId = useId();
 
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,11 +102,6 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
       setError((err as Error).message || "Authentication failed");
       setLoading(false);
     }
-  };
-
-  const selectPersona = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
   };
 
   return (
@@ -197,98 +193,6 @@ export function AuthModal({ onClose }: { onClose: () => void }) {
             ⚠️ {error}
           </div>
         )}
-
-        {/* Demo Personas */}
-        <div style={{ marginBottom: 20 }}>
-          <p
-            style={{
-              fontSize: tokens["typography.size.100"],
-              fontWeight: Number(tokens["typography.weight.semibold"]),
-              color: tokens["color.text.secondary"],
-              textTransform: "uppercase",
-              letterSpacing: "0.06em",
-              margin: "0 0 8px",
-            }}
-          >
-            Quick Enterprise Personas:
-          </p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => selectPersona("admin", "admin")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "admin" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "admin" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🔑 {t.personaAdmin} (admin)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.primary.base"], fontWeight: 600 }}>
-                  Active Root
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaAdminRole}
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPersona("portal", "portal")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "portal" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "portal" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🏢 {t.personaPortal} (portal)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                  Partner Client
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaPortalRole}
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => selectPersona("demo", "demo")}
-              style={{
-                textAlign: "left",
-                padding: "8px 12px",
-                background: username === "demo" ? tokens["color.surface.secondary"] : "transparent",
-                border: `1px solid ${username === "demo" ? tokens["color.primary.base"] : tokens["color.border.default"]}`,
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <strong style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.primary"] }}>
-                  🧪 {t.personaDemo} (demo)
-                </strong>
-                <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                  Evaluator
-                </span>
-              </div>
-              <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                {t.personaDemoRole}
-              </div>
-            </button>
-          </div>
-        </div>
 
         {/* Credentials Form */}
         <form onSubmit={handleSubmit}>

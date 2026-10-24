@@ -191,6 +191,7 @@ export interface Translations {
   estimatesMushakTitle: string;
   estimatesPartsTotal: string;
   estimatesLabourTotal: string;
+  estimatesDiagnosticTotal: string;
   estimatesDiscount: string;
   estimatesVatRate: string;
   estimatesGrandTotal: string;
@@ -339,7 +340,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     channelMarketing: "মার্কেটিং (সব চ্যানেল)",
 
     authOtpTab: "মোবাইল ওটিপি (২৫০K+ গ্রাহক)",
-    authCredsTab: "পাসওয়ার্ড ও ডেমো পারসোনা",
+    authCredsTab: "পাসওয়ার্ড",
     authPhoneLabel: "১১-সংখ্যার মোবাইল নম্বর",
     authPhonePlaceholder: "০১৭১১২২৩৩৪৪ বা 017XXXXXXXX",
     authSendOtpBtn: "ওটিপি কোড পাঠান",
@@ -379,6 +380,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     estimatesMushakTitle: "মূসক-৬.৩ সার্ভিস এস্টিমেট ও ট্যাক্স ইনভয়েস প্রিভিউ",
     estimatesPartsTotal: "যন্ত্রাংশের মূল্য (Parts Total)",
     estimatesLabourTotal: "মেরামত পারিশ্রমিক (Labour Service)",
+    estimatesDiagnosticTotal: "ডায়াগনস্টিক ফি (Diagnostic Fee)",
     estimatesDiscount: "বিশেষ ছাড় (Discount)",
     estimatesVatRate: "ভ্যাট (১৫% মূসক)",
     estimatesGrandTotal: "সর্বমোট প্রদেয় (Grand Total BDT)",
@@ -524,7 +526,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     channelMarketing: "Marketing (All Channels)",
 
     authOtpTab: "Mobile OTP (250K+ Customers)",
-    authCredsTab: "Credentials & Demo Persona",
+    authCredsTab: "Password",
     authPhoneLabel: "11-Digit Mobile Number",
     authPhonePlaceholder: "017XXXXXXXX or 018XXXXXXXX",
     authSendOtpBtn: "Send OTP Code",
@@ -564,6 +566,7 @@ export const DICTIONARY: Record<Locale, Translations> = {
     estimatesMushakTitle: "Mushak 6.3 Service Estimate & Tax Breakdown Preview",
     estimatesPartsTotal: "Parts Total",
     estimatesLabourTotal: "Labour Service Fee",
+    estimatesDiagnosticTotal: "Diagnostic Fee",
     estimatesDiscount: "Special Discount",
     estimatesVatRate: "VAT (15% Mushak)",
     estimatesGrandTotal: "Grand Total Payable (BDT)",

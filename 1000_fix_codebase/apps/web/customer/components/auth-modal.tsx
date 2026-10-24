@@ -6,7 +6,8 @@
  * Supports:
  *   1. 11-digit Bangladesh Phone + SMS OTP verification (/customer/auth/otp/send & verify)
  *      for 250K+/mo retail customers.
- *   2. Odoo username/password credential entry and one-click demo personas.
+ *   2. Odoo username/password credential entry (no prefilled or one-click
+ *      demo credentials — removed in the security fix of 2026-10-23).
  * Fully accessible: aria-modal, role="dialog", Escape key listener, focus styles.
  * Tokens only (CFM-01) — no hand-authored colors.
  */
@@ -100,15 +101,16 @@ function AuthModal({ onClose, onLoginCredentials, onLoginOtp }: AuthModalProps) 
   const [activeTab, setActiveTab] = useState<"otp" | "credentials">("otp");
 
   // Phone OTP State
-  const [phone, setPhone] = useState("01711223344");
+  const [phone, setPhone] = useState("");
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [maskedPhone, setMaskedPhone] = useState("");
   const [devCode, setDevCode] = useState<string | null>(null);
 
   // Credentials State
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  // Never prefilled: the portal ships no default or demo credentials.
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -164,20 +166,6 @@ function AuthModal({ onClose, onLoginCredentials, onLoginOtp }: AuthModalProps) 
     setError(null);
     try {
       await onLoginCredentials(username, password);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const handlePersonaLogin = async (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    setBusy(true);
-    setError(null);
-    try {
-      await onLoginCredentials(u, p);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -450,7 +438,7 @@ function AuthModal({ onClose, onLoginCredentials, onLoginOtp }: AuthModalProps) 
           </div>
         )}
 
-        {/* TAB 2: CREDENTIALS & DEMO PERSONAS */}
+        {/* TAB 2: CREDENTIALS */}
         {activeTab === "credentials" && (
           <div>
             <p
@@ -461,53 +449,9 @@ function AuthModal({ onClose, onLoginCredentials, onLoginOtp }: AuthModalProps) 
               }}
             >
               {locale === "bn"
-                ? "ওডু ইআরপি অ্যাকাউন্ট বা এক-ক্লিক ডেমো পারসোনা:"
-                : "Sign in with your Odoo ERP account or select a one-click persona:"}
+                ? "আপনার ওডু ইআরপি অ্যাকাউন্ট দিয়ে লগইন করুন:"
+                : "Sign in with your Odoo ERP account:"}
             </p>
-
-            {/* One-click Persona Buttons */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 16 }}>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => handlePersonaLogin("admin", "admin")}
-                style={{
-                  padding: "8px 10px",
-                  background: tokens["color.surface.secondary"],
-                  color: tokens["color.text.primary"],
-                  border: `1px solid ${tokens["color.border.default"]}`,
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  fontSize: tokens["typography.size.100"],
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <strong>Mitchell Admin</strong>
-                <div style={{ fontSize: "11px", color: tokens["color.text.secondary"] }}>
-                  {locale === "bn" ? "অ্যাডমিন পারসোনা" : "Admin Persona"}
-                </div>
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => handlePersonaLogin("portal", "portal")}
-                style={{
-                  padding: "8px 10px",
-                  background: tokens["color.surface.secondary"],
-                  color: tokens["color.text.primary"],
-                  border: `1px solid ${tokens["color.border.default"]}`,
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  fontSize: tokens["typography.size.100"],
-                  cursor: "pointer",
-                  textAlign: "left",
-                }}
-              >
-                <strong>Joel Willis</strong>
-                <div style={{ fontSize: "11px", color: tokens["color.text.secondary"] }}>
-                  {locale === "bn" ? "পোর্টাল কাস্টমার" : "Portal Customer"}
-                </div>
-              </button>
-            </div>
 
             <form onSubmit={handleCredentialSubmit} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div>

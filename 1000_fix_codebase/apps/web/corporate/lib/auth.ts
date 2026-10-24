@@ -5,6 +5,16 @@
  *    with credentials: "include" for browser-preserved session cookies.
  * 2. Keycloak OIDC authorization code flow for enterprise SSO.
  *
+ * Security fix 2026-10-23:
+ * - Odoo sign-in mints no bearer token of its own: the Odoo session cookie is
+ *   the credential (no more `session_<uid>_<ts>` in sessionStorage).
+ * - The database name comes from NEXT_PUBLIC_ODOO_DB (not a secret); the
+ *   `fix_dev` fallback exists only in development builds.
+ * - OIDC: the browser only navigates to /api/auth/login (server: state + PKCE
+ *   S256 in httpOnly cookies) and posts the returned code + state to
+ *   /api/auth/callback (server: state check + code exchange with the
+ *   non-public OIDC_CLIENT_SECRET). No client secret is ever read here.
+ *
  * Exemption note (FF-39): auth.ts is permitted to call fetch() directly
  * to authenticate browser sessions without going through business logic layers.
  */
@@ -19,10 +29,26 @@ export interface UserSession {
 
 const API_BASE = (process.env.NEXT_PUBLIC_FIX_API_BASE || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
-// Public OIDC metadata — from env at build time
+// Public OIDC metadata (used only for the SSO logout redirect) — from env at build time
 const OIDC_ISSUER = process.env.NEXT_PUBLIC_OIDC_ISSUER || "http://127.0.0.1:8080/realms/1000fix-dev";
 const OIDC_CLIENT_ID = process.env.NEXT_PUBLIC_OIDC_CLIENT_ID || "1000fix-corporate-web";
 const OIDC_REDIRECT_URI = process.env.NEXT_PUBLIC_OIDC_REDIRECT_URI || "http://127.0.0.1:3001/auth/callback";
+
+/** sessionStorage keys of the OIDC access token (read by lib/api.ts as the bearer). */
+const TOKEN_KEY = "fix_token";
+const TOKEN_EXPIRES_KEY = "fix_token_expires";
+
+/**
+ * The Odoo database to sign in to. NEXT_PUBLIC_ODOO_DB (a database name is
+ * not a secret) is inlined at build time; the local `fix_dev` fallback exists
+ * only in development builds — a production build without it refuses to log in.
+ */
+export function odooDatabase(): string {
+  const configured = process.env.NEXT_PUBLIC_ODOO_DB?.trim();
+  if (configured) return configured;
+  if (process.env.NODE_ENV !== "production") return "fix_dev";
+  throw new Error("Sign-in is not configured on this server (NEXT_PUBLIC_ODOO_DB is not set)");
+}
 
 function validatedIssuer(): string {
   const url = new URL(OIDC_ISSUER);
@@ -36,7 +62,7 @@ function validatedIssuer(): string {
 export async function loginWithOdoo(
   loginName: string,
   password: string,
-  db: string = "fix_dev"
+  db: string = odooDatabase()
 ): Promise<UserSession> {
   const res = await fetch(`${API_BASE}/web/session/authenticate`, {
     method: "POST",
@@ -75,7 +101,10 @@ export async function loginWithOdoo(
 
   if (typeof window !== "undefined") {
     window.sessionStorage.setItem("fix_corporate_user", JSON.stringify(session));
-    window.sessionStorage.setItem("fix_token", `session_${result.uid}_${Date.now()}`);
+    // The Odoo session cookie is the credential; drop any stale bearer so
+    // lib/api.ts does not send a token that is not this session's.
+    window.sessionStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(TOKEN_EXPIRES_KEY);
   }
 
   return session;
@@ -101,8 +130,8 @@ export async function logoutOdoo(): Promise<void> {
 
   if (typeof window !== "undefined") {
     window.sessionStorage.removeItem("fix_corporate_user");
-    window.sessionStorage.removeItem("fix_token");
-    window.sessionStorage.removeItem("fix_token_expires");
+    window.sessionStorage.removeItem(TOKEN_KEY);
+    window.sessionStorage.removeItem(TOKEN_EXPIRES_KEY);
   }
 }
 
@@ -123,16 +152,12 @@ export function isAuthenticated(): boolean {
   return getCurrentUser() !== null;
 }
 
-/** Redirect to the Keycloak login page (OIDC SSO flow) */
+/**
+ * Start the Keycloak OIDC SSO flow. The server route mints `state` and the
+ * PKCE verifier (httpOnly cookies) and redirects to the IdP.
+ */
 export function login() {
-  const issuer = validatedIssuer();
-  const params = new URLSearchParams({
-    client_id: OIDC_CLIENT_ID,
-    redirect_uri: OIDC_REDIRECT_URI,
-    response_type: "code",
-    scope: "openid profile email",
-  });
-  window.location.href = `${issuer}/protocol/openid-connect/auth?${params}`;
+  window.location.assign("/api/auth/login");
 }
 
 /** Log out from Keycloak SSO */
@@ -146,37 +171,32 @@ export function logout() {
   window.location.href = `${issuer}/protocol/openid-connect/logout?${params}`;
 }
 
-/** Exchange authorization code for tokens (OIDC SSO callback) */
-export async function exchangeCode(code: string): Promise<{
+/**
+ * OIDC SSO callback: hand the authorization code and `state` to the server
+ * route, which verifies the state against its httpOnly cookie and performs the
+ * PKCE code-for-token exchange with the confidential client secret.
+ */
+export async function exchangeCode(code: string, state: string): Promise<{
   access_token: string;
   expires_in: number;
 }> {
-  const issuer = validatedIssuer();
-  const tokenUrl = `${issuer}/protocol/openid-connect/token`;
-  if (!tokenUrl.startsWith(issuer)) {
-    throw new Error("Token endpoint does not match the trusted issuer");
-  }
-  const body = new URLSearchParams({
-    grant_type: "authorization_code",
-    code,
-    client_id: OIDC_CLIENT_ID,
-    redirect_uri: OIDC_REDIRECT_URI,
-  });
-  const secret = process.env.NEXT_PUBLIC_OIDC_CLIENT_SECRET;
-  if (secret) {
-    body.set("client_secret", secret);
-  }
-  const res = await fetch(tokenUrl, {
+  const res = await fetch("/api/auth/callback", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body,
-    redirect: "error",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    cache: "no-store",
+    body: JSON.stringify({ code, state }),
   });
-  if (!res.ok) {
-    throw new Error(`OIDC token exchange failed: ${res.status}`);
+  let data: { access_token?: unknown; expires_in?: unknown; error?: { message?: string } } = {};
+  try {
+    data = await res.json();
+  } catch {
+    /* non-JSON body — reported below */
   }
-  const data = await res.json();
-  sessionStorage.setItem("fix_token", data.access_token);
-  sessionStorage.setItem("fix_token_expires", String(Date.now() + data.expires_in * 1000));
-  return data;
+  if (!res.ok || typeof data.access_token !== "string" || typeof data.expires_in !== "number") {
+    throw new Error(data.error?.message || `OIDC sign-in failed: ${res.status}`);
+  }
+  sessionStorage.setItem(TOKEN_KEY, data.access_token);
+  sessionStorage.setItem(TOKEN_EXPIRES_KEY, String(Date.now() + data.expires_in * 1000));
+  return { access_token: data.access_token, expires_in: data.expires_in };
 }

@@ -21,6 +21,22 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const FRAME_ANCESTORS = process.env.FRAME_ANCESTORS?.trim() || "'self'";
+
+// frame-src: the analytics page embeds Superset dashboards in an iframe.
+// default-src 'self' would block that frame, so the Superset ORIGIN is
+// allowed here — but only when the deployment sets NEXT_PUBLIC_SUPERSET_URL.
+// Unset (or unparseable) means no third-party frame is permitted and the
+// page does not render the iframe at all (see app/page.tsx).
+function supersetOrigin(): string | null {
+  const raw = process.env.NEXT_PUBLIC_SUPERSET_URL?.trim();
+  if (!raw) return null;
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return null;
+  }
+}
+const SUPERSET_ORIGIN = supersetOrigin();
 const CONNECT_SRC = [
   "'self'",
   process.env.CSP_CONNECT_SRC?.trim() ?? "http://127.0.0.1:8000 http://localhost:8000",
@@ -36,6 +52,7 @@ export function proxy(request: NextRequest) {
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src ${CONNECT_SRC}`,
+    ...(SUPERSET_ORIGIN ? [`frame-src 'self' ${SUPERSET_ORIGIN}`] : []),
     `frame-ancestors ${FRAME_ANCESTORS}`,
     "base-uri 'self'",
     "form-action 'self'",

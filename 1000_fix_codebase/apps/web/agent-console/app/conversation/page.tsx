@@ -3,156 +3,43 @@
 /* P10 conversation detail — the transcript (the record, G4-04) beside
  * the customer 360 (open orders, devices, recent conversations) with
  * call control (claim / hand back / end — G4-05).
- * Features DPIA / PDPA 2026 PII Redaction toggle, rich Bengali/English turns,
- * and robust demo fallback. */
+ * Everything renders from /contact/conversations/detail; call control goes
+ * through /contact/handoff and the UI only changes state on a confirmed
+ * backend answer. A missing id, a failed load or a failed action is shown
+ * as an error — nothing is simulated. */
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { tokens, Pill, SectionHead, Loading } from "../../lib/imports";
 import { callOdoo } from "../../lib/api";
 
+type ConvState = "new" | "with_ai" | "with_agent" | "resolved_ai" | "resolved_agent";
+
 interface Turn {
   seq: number;
-  speaker: "customer" | "assistant" | "agent";
+  speaker: "customer" | "ai" | "agent";
   text: string;
   lang: string;
   at: string;
-  grounding?: string;
 }
 
 interface Detail {
   id: number;
   channel: string;
-  state: "new" | "with_ai" | "with_agent" | "resolved_ai" | "resolved_agent";
+  state: ConvState;
   intent: string;
   customer: string;
-  contact_identity: string;
-  call_sid?: string;
-  pii_masked: boolean;
   transcript: Turn[];
   customer_360: {
-    open_orders: { ref: string; state: string; device: string; issue: string }[];
+    open_orders: { ref: string; state: string; device: string }[];
     devices: { model: string; identifier: string; warranty_status: string }[];
     recent_conversations: { id: number; channel: string; state: string; started_at: string }[];
   };
 }
 
-const DEMO_DETAIL_MAP: Record<number, Detail> = {
-  101: {
-    id: 101,
-    channel: "voice",
-    state: "with_ai",
-    intent: "order.status",
-    customer: "Anisur Rahman",
-    contact_identity: "+8801711998877",
-    call_sid: "CA_hotline_16743_demo_01",
-    pii_masked: true,
-    transcript: [
-      {
-        seq: 1,
-        speaker: "customer",
-        text: "আমার সার্ভিস অর্ডারের বর্তমান অবস্থা কী?",
-        lang: "bn",
-        at: "14:22:10",
-      },
-      {
-        seq: 2,
-        speaker: "assistant",
-        text: "ধন্যবাদ। আপনার অর্ডার SO-2026-0891 যাচাই করা হয়েছে। ডিভাইসটি (Dell Latitude 5420) বর্তমানে ধানমন্ডি ল্যাবে পার্টস প্রতিস্থাপন ধাপে রয়েছে। আনুমানিক ডেলিভারি আগামী সোমবার।",
-        lang: "bn",
-        at: "14:22:12",
-        grounding: "fix.service.order.state",
-      },
-      {
-        seq: 3,
-        speaker: "customer",
-        text: "Can I pick it up earlier if parts arrive tomorrow?",
-        lang: "en",
-        at: "14:22:25",
-      },
-      {
-        seq: 4,
-        speaker: "assistant",
-        text: "As soon as the display assembly is fitted and QC-tested, our technician will send an SMS alert. You may track live updates at portal.1000fix.com.",
-        lang: "en",
-        at: "14:22:27",
-        grounding: "fix.service.order.state",
-      },
-    ],
-    customer_360: {
-      open_orders: [
-        {
-          ref: "SO-2026-0891",
-          state: "in_progress",
-          device: "Dell Latitude 5420",
-          issue: "Screen Flickering & Battery Degradation",
-        },
-      ],
-      devices: [
-        {
-          model: "Dell Latitude 5420",
-          identifier: "SN: 8F2K9M2",
-          warranty_status: "Under Brand Warranty (Dell Official)",
-        },
-        {
-          model: "Walton Primo S8",
-          identifier: "IMEI: 864920040192841",
-          warranty_status: "Expired (Out-of-Warranty)",
-        },
-      ],
-      recent_conversations: [
-        { id: 98, channel: "voice", state: "resolved_ai", started_at: "2026-10-10 11:00" },
-        { id: 92, channel: "whatsapp", state: "resolved_agent", started_at: "2026-09-28 16:15" },
-      ],
-    },
-  },
-};
-
-const DEFAULT_DEMO: Detail = {
-  id: 102,
-  channel: "whatsapp",
-  state: "with_ai",
-  intent: "repair.price_estimate",
-  customer: "Fatema Begum",
-  contact_identity: "+8801812345678",
-  pii_masked: true,
-  transcript: [
-    {
-      seq: 1,
-      speaker: "customer",
-      text: "ডিসপ্লে পরিবর্তনের খরচ কত?",
-      lang: "bn",
-      at: "14:25:30",
-    },
-    {
-      seq: 2,
-      speaker: "assistant",
-      text: "আমাদের অফিসিয়াল ওএম স্ক্রিন পরিবর্তনের প্রাক্কলন ৩,৫০০৳ থেকে ৫,০০০৳ (মডেলভেদে)। সাথে ৯০ দিনের অফিশিয়াল ওয়ারেন্টি অন্তর্ভুক্ত।",
-      lang: "bn",
-      at: "14:25:32",
-      grounding: "fix.pricing.card",
-    },
-  ],
-  customer_360: {
-    open_orders: [
-      {
-        ref: "SO-2026-0904",
-        state: "new",
-        device: "Samsung Galaxy A54",
-        issue: "Cracked AMOLED Panel",
-      },
-    ],
-    devices: [
-      {
-        model: "Samsung Galaxy A54",
-        identifier: "IMEI: 359124098765432",
-        warranty_status: "Out-of-Warranty",
-      },
-    ],
-    recent_conversations: [
-      { id: 84, channel: "chat", state: "resolved_ai", started_at: "2026-10-02 09:30" },
-    ],
-  },
-};
+interface Notice {
+  kind: "success" | "error";
+  text: string;
+}
 
 const btn: React.CSSProperties = {
   padding: "8px 16px",
@@ -168,12 +55,25 @@ const btn: React.CSSProperties = {
   gap: 6,
 };
 
+const secondaryBtn: React.CSSProperties = {
+  ...btn,
+  background: tokens["color.surface.secondary"],
+  color: tokens["color.text.primary"],
+  border: `1px solid ${tokens["color.border.default"]}`,
+};
+
 const card: React.CSSProperties = {
   border: `1px solid ${tokens["color.border.default"]}`,
   borderRadius: tokens["dimension.border.radius-md"],
   background: tokens["color.surface.primary"],
   padding: 24,
   boxShadow: "0 1px 3px rgba(0,0,0,0.05)",
+};
+
+const emptyText: React.CSSProperties = {
+  margin: 0,
+  fontSize: tokens["typography.size.200"],
+  color: tokens["color.text.secondary"],
 };
 
 function SpeakerBadge({ speaker }: { speaker: string }) {
@@ -191,7 +91,7 @@ function SpeakerBadge({ speaker }: { speaker: string }) {
       </span>
     );
   }
-  if (speaker === "assistant") {
+  if (speaker === "ai") {
     return (
       <span style={{
         background: tokens["color.status.info-bg"],
@@ -202,7 +102,7 @@ function SpeakerBadge({ speaker }: { speaker: string }) {
         fontSize: tokens["typography.size.100"],
         fontWeight: 600,
       }}>
-        🤖 AI Assistant (M32)
+        AI Assistant (M32)
       </span>
     );
   }
@@ -215,7 +115,7 @@ function SpeakerBadge({ speaker }: { speaker: string }) {
       fontSize: tokens["typography.size.100"],
       fontWeight: 600,
     }}>
-      👤 Customer
+      Customer
     </span>
   );
 }
@@ -228,112 +128,126 @@ export default function ConversationPage() {
   );
 }
 
+function ErrorMain({ message }: { message: string }) {
+  return (
+    <main style={{ padding: "32px 40px", maxWidth: 1400, margin: "0 auto" }}>
+      <p role="alert" style={{ color: tokens["color.status.error"], fontSize: tokens["typography.size.200"] }}>
+        {message}
+      </p>
+      <a href="/" style={{ color: tokens["color.primary.base"], fontSize: tokens["typography.size.200"] }}>
+        ← Back to the queue
+      </a>
+    </main>
+  );
+}
+
 function ConversationDetail() {
   const params = useSearchParams();
-  const id = Number(params.get("id") || 101);
+  const rawId = params.get("id");
+  const id = rawId && /^\d+$/.test(rawId) ? Number(rawId) : null;
+
   const [detail, setDetail] = useState<Detail | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [maskPII, setMaskPII] = useState<boolean>(true);
+  const [loading, setLoading] = useState(id !== null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [handoffOpen, setHandoffOpen] = useState(false);
+  const [handoffReason, setHandoffReason] = useState("");
 
   const reload = useCallback(async (cid: number) => {
     try {
-      const d = await callOdoo<{ conversation?: Detail; error?: { message: string } }>(
+      const d = await callOdoo<{ conversation?: Detail; error?: { message: string } } | undefined>(
         "/contact/conversations/detail",
         { conversation_id: cid }
       );
-      if (d && d.conversation) {
+      if (!d) throw new Error("The server returned an empty response.");
+      if (d.error) {
+        setLoadError(d.error.message);
+        setDetail(null);
+      } else if (d.conversation) {
         setDetail(d.conversation);
+        setLoadError(null);
       } else {
-        setDetail(DEMO_DETAIL_MAP[cid] || { ...DEFAULT_DEMO, id: cid });
+        setLoadError("The server returned no conversation.");
+        setDetail(null);
       }
-    } catch {
-      setDetail(DEMO_DETAIL_MAP[cid] || { ...DEFAULT_DEMO, id: cid });
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : String(e));
+      setDetail(null);
     }
   }, []);
 
   useEffect(() => {
+    if (id === null) return;
+    setLoading(true);
     reload(id).finally(() => setLoading(false));
   }, [id, reload]);
 
-  async function control(action: "claim" | "handoff" | "end") {
-    let reason = "";
-    if (action === "handoff") {
-      reason = window.prompt("Hand back to the AI lane — reason for transfer:") || "customer_request";
-      if (!reason) return;
-    }
-
+  async function control(action: "claim" | "handoff" | "end", reason = "") {
+    if (id === null) return;
+    setBusy(true);
     try {
-      const d = await callOdoo<{ conversation?: { state: Detail["state"] }; error?: { message: string } }>(
-        "/contact/handoff",
-        { conversation_id: id, action, reason }
-      );
+      const d = await callOdoo<
+        { conversation?: { id: number; state: ConvState }; error?: { message: string } } | undefined
+      >("/contact/handoff", { conversation_id: id, action, reason });
+      if (!d) throw new Error("The server returned an empty response.");
       if (d.error) {
-        setNotice(d.error.message);
-      } else {
-        const nextState = d.conversation?.state || (action === "claim" ? "with_agent" : action === "handoff" ? "with_ai" : "resolved_agent");
-        setNotice(`Action '${action}' executed. State: ${nextState}`);
-        setDetail((prev) => (prev ? { ...prev, state: nextState } : null));
+        setNotice({ kind: "error", text: `Could not ${action} this conversation: ${d.error.message}` });
+        return;
       }
-    } catch {
-      const nextState = action === "claim" ? "with_agent" : action === "handoff" ? "with_ai" : "resolved_agent";
-      setNotice(`Demo Action '${action}' executed. State: ${nextState}`);
-      setDetail((prev) => (prev ? { ...prev, state: nextState } : null));
+      const nextState = d.conversation?.state;
+      if (nextState) {
+        setDetail((prev) => (prev ? { ...prev, state: nextState } : prev));
+      }
+      setNotice({ kind: "success", text: `Done — conversation is now ${nextState ?? "updated"}.` });
+      setHandoffOpen(false);
+      setHandoffReason("");
+    } catch (e: unknown) {
+      setNotice({
+        kind: "error",
+        text: `Could not ${action} this conversation: ${e instanceof Error ? e.message : String(e)}`,
+      });
+    } finally {
+      setBusy(false);
     }
   }
 
-  if (loading) return <Loading />;
-  if (!detail) return <p style={{ padding: 32 }}>Conversation not found.</p>;
+  function submitHandoff(e: React.FormEvent) {
+    e.preventDefault();
+    const reason = handoffReason.trim();
+    if (!reason) return;
+    void control("handoff", reason);
+  }
 
-  const displayPhone = maskPII && detail.contact_identity.startsWith("+880")
-    ? detail.contact_identity.slice(0, 6) + "****" + detail.contact_identity.slice(-4)
-    : detail.contact_identity;
+  if (id === null) {
+    return <ErrorMain message="No conversation selected — open one from the queue." />;
+  }
+  if (loading) return <Loading />;
+  if (loadError || !detail) {
+    return <ErrorMain message={`Failed to load conversation #${id}: ${loadError ?? "not found"}`} />;
+  }
+
+  const { open_orders, devices, recent_conversations } = detail.customer_360;
 
   return (
     <main style={{ padding: "32px 40px", maxWidth: 1400, margin: "0 auto" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
         <div>
           <SectionHead
-            title={detail.customer || "(Caller Identity)"}
-            note={`Conversation #${detail.id} · Channel: ${detail.channel.toUpperCase()} · Intent: ${detail.intent || "—"} (G4-04: The Transcript IS the System of Record)`}
+            title={detail.customer || "(Unidentified customer)"}
+            note={`Conversation #${detail.id} · Channel: ${detail.channel.toUpperCase()} · Intent: ${detail.intent || "—"} (G4-04: the transcript is the system of record)`}
           />
-          <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 4 }}>
-            <span style={{ fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}>
-              Caller: <strong>{displayPhone}</strong>
-            </span>
-            {detail.call_sid && (
-              <span style={{
-                fontSize: tokens["typography.size.100"],
-                background: tokens["color.surface.secondary"],
-                padding: "2px 8px",
-                borderRadius: 4,
-              }}>
-                Call SID: {detail.call_sid}
-              </span>
-            )}
+          <div style={{ marginTop: 4 }}>
             <Pill state={detail.state} />
           </div>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {/* DPIA PII Redaction toggle */}
-          <button
-            onClick={() => setMaskPII(!maskPII)}
-            aria-label="Toggle PDPA 2026 PII redaction"
-            style={{
-              ...btn,
-              background: maskPII ? tokens["color.surface.secondary"] : tokens["color.status.warning-bg"],
-              color: maskPII ? tokens["color.text.primary"] : tokens["color.status.warning"],
-              border: `1px solid ${tokens["color.border.default"]}`,
-            }}
-          >
-            {maskPII ? "🔒 PDPA 2026 Masked" : "🔓 Unmasked View"}
-          </button>
-
-          {/* Call Controls */}
-          {detail.state !== "with_agent" && detail.state !== "resolved_agent" && (
+        {/* Call Controls */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          {(detail.state === "new" || detail.state === "with_ai") && (
             <button
               style={btn}
+              disabled={busy}
               onClick={() => control("claim")}
               aria-label="Claim conversation from AI assistant"
             >
@@ -341,16 +255,12 @@ function ConversationDetail() {
             </button>
           )}
 
-          {detail.state === "with_agent" && (
+          {detail.state === "with_agent" && !handoffOpen && (
             <>
               <button
-                style={{
-                  ...btn,
-                  background: tokens["color.surface.secondary"],
-                  color: tokens["color.text.primary"],
-                  border: `1px solid ${tokens["color.border.default"]}`,
-                }}
-                onClick={() => control("handoff")}
+                style={secondaryBtn}
+                disabled={busy}
+                onClick={() => setHandoffOpen(true)}
                 aria-label="Hand conversation back to AI assistant"
               >
                 ↩ Hand back to AI
@@ -362,6 +272,7 @@ function ConversationDetail() {
                   color: tokens["color.status.success"],
                   border: `1px solid ${tokens["color.status.success"]}`,
                 }}
+                disabled={busy}
                 onClick={() => control("end")}
                 aria-label="End conversation and mark resolved"
               >
@@ -372,160 +283,210 @@ function ConversationDetail() {
         </div>
       </div>
 
+      {detail.state === "with_agent" && handoffOpen && (
+        <form
+          onSubmit={submitHandoff}
+          aria-label="Hand back to AI"
+          style={{ ...card, marginTop: 20, padding: 16, display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}
+        >
+          <div style={{ flex: "1 1 320px" }}>
+            <label
+              htmlFor="handoff-reason"
+              style={{ display: "block", marginBottom: 6, fontSize: tokens["typography.size.200"], color: tokens["color.text.secondary"] }}
+            >
+              Reason for handing back to the AI lane (recorded on the conversation)
+            </label>
+            <input
+              id="handoff-reason"
+              type="text"
+              required
+              autoFocus
+              value={handoffReason}
+              onChange={(e) => setHandoffReason(e.target.value)}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "8px 12px",
+                background: tokens["color.surface.canvas"],
+                color: tokens["color.text.primary"],
+                border: `1px solid ${tokens["color.border.default"]}`,
+                borderRadius: tokens["dimension.border.radius-sm"],
+                fontSize: tokens["typography.size.200"],
+              }}
+            />
+          </div>
+          <button type="submit" style={btn} disabled={busy || !handoffReason.trim()}>
+            {busy ? "Handing back…" : "Hand back"}
+          </button>
+          <button
+            type="button"
+            style={secondaryBtn}
+            disabled={busy}
+            onClick={() => {
+              setHandoffOpen(false);
+              setHandoffReason("");
+            }}
+          >
+            Cancel
+          </button>
+        </form>
+      )}
+
       {notice && (
         <div
-          role="status"
+          role={notice.kind === "error" ? "alert" : "status"}
           aria-live="polite"
           style={{
             padding: "12px 18px",
             margin: "20px 0",
             borderRadius: tokens["dimension.border.radius-sm"],
-            background: tokens["color.status.info-bg"],
-            color: tokens["color.status.info"],
+            background: notice.kind === "error" ? tokens["color.status.error-bg"] : tokens["color.status.success-bg"],
+            color: notice.kind === "error" ? tokens["color.status.error"] : tokens["color.status.success"],
             fontSize: tokens["typography.size.200"],
             border: `1px solid ${tokens["color.border.default"]}`,
           }}
         >
-          {notice}
+          {notice.text}
         </div>
       )}
 
       {/* Main 2-column layout: Transcript (Left 60%) + Customer 360 (Right 40%) */}
       <div style={{ display: "grid", gridTemplateColumns: "3fr 2fr", gap: 24, marginTop: 24, alignItems: "start" }}>
-        {/* Left Column: Omnichannel Live Transcript */}
         <section style={card} aria-label="Conversation Transcript Record">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${tokens["color.border.default"]}`, paddingBottom: 12, marginBottom: 16 }}>
             <h2 style={{ margin: 0, fontSize: tokens["typography.size.300"], fontWeight: 600 }}>
-              Live Conversation Transcript
+              Conversation Transcript
             </h2>
             <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-              {detail.transcript.length} turns recorded · System of Record
+              {detail.transcript.length} turns recorded
             </span>
           </div>
 
-          <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 14 }}>
-            {detail.transcript.map((t) => (
-              <li
-                key={t.seq}
-                style={{
-                  padding: "14px 18px",
-                  borderRadius: tokens["dimension.border.radius-sm"],
-                  background: t.speaker === "assistant" ? "rgba(14, 165, 233, 0.05)" : tokens["color.surface.canvas"],
-                  border: `1px solid ${t.speaker === "assistant" ? "rgba(14, 165, 233, 0.2)" : tokens["color.border.default"]}`,
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <SpeakerBadge speaker={t.speaker} />
-                    <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                      Turn #{t.seq}
-                    </span>
-                  </div>
-                  <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                    {t.at} · {t.lang.toUpperCase()}
-                  </span>
-                </div>
-
-                <p style={{ margin: "6px 0 0", fontSize: tokens["typography.size.200"], lineHeight: 1.5, color: tokens["color.text.primary"] }}>
-                  {t.text}
-                </p>
-
-                {t.grounding && (
-                  <div style={{ marginTop: 8, fontSize: tokens["typography.size.100"], color: tokens["color.status.info"] }}>
-                    ↳ Grounded ERP Source: <code>{t.grounding}</code>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {/* Right Column: Customer 360 Information */}
-        <section style={{ display: "grid", gap: 20 }} aria-label="Customer 360 Panel">
-          {/* Open Orders */}
-          <div style={card}>
-            <h3 style={{ margin: "0 0 12px", fontSize: tokens["typography.size.300"], fontWeight: 600 }}>
-              Open Service Orders
-            </h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
-              {detail.customer_360.open_orders.map((o) => (
+          {detail.transcript.length === 0 ? (
+            <p style={emptyText}>No turns recorded yet.</p>
+          ) : (
+            <ol style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 14 }}>
+              {detail.transcript.map((t) => (
                 <li
-                  key={o.ref}
+                  key={t.seq}
                   style={{
-                    padding: 12,
-                    background: tokens["color.surface.canvas"],
+                    padding: "14px 18px",
                     borderRadius: tokens["dimension.border.radius-sm"],
+                    background: t.speaker === "ai" ? tokens["color.status.info-bg"] : tokens["color.surface.canvas"],
                     border: `1px solid ${tokens["color.border.default"]}`,
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <strong style={{ fontSize: tokens["typography.size.200"] }}>{o.ref}</strong>
-                    <Pill state={o.state} />
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <SpeakerBadge speaker={t.speaker} />
+                      <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
+                        Turn #{t.seq}
+                      </span>
+                    </div>
+                    <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
+                      {t.at}{t.lang ? ` · ${t.lang.toUpperCase()}` : ""}
+                    </span>
                   </div>
-                  <div style={{ fontSize: tokens["typography.size.200"], marginTop: 4 }}>{o.device}</div>
-                  <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                    Issue: {o.issue}
-                  </div>
+                  <p style={{ margin: "6px 0 0", fontSize: tokens["typography.size.200"], lineHeight: 1.5, color: tokens["color.text.primary"] }}>
+                    {t.text}
+                  </p>
                 </li>
               ))}
-            </ul>
+            </ol>
+          )}
+        </section>
+
+        <section style={{ display: "grid", gap: 20 }} aria-label="Customer 360 Panel">
+          <div style={card}>
+            <h3 style={{ margin: "0 0 12px", fontSize: tokens["typography.size.300"], fontWeight: 600 }}>
+              Service Orders
+            </h3>
+            {open_orders.length === 0 ? (
+              <p style={emptyText}>No service orders for this customer.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+                {open_orders.map((o) => (
+                  <li
+                    key={o.ref}
+                    style={{
+                      padding: 12,
+                      background: tokens["color.surface.canvas"],
+                      borderRadius: tokens["dimension.border.radius-sm"],
+                      border: `1px solid ${tokens["color.border.default"]}`,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <strong style={{ fontSize: tokens["typography.size.200"] }}>{o.ref}</strong>
+                      <Pill state={o.state} />
+                    </div>
+                    {o.device && <div style={{ fontSize: tokens["typography.size.200"], marginTop: 4 }}>{o.device}</div>}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {/* Registered Devices */}
           <div style={card}>
             <h3 style={{ margin: "0 0 12px", fontSize: tokens["typography.size.300"], fontWeight: 600 }}>
               Registered Customer Devices
             </h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
-              {detail.customer_360.devices.map((d, i) => (
-                <li
-                  key={i}
-                  style={{
-                    padding: 12,
-                    background: tokens["color.surface.canvas"],
-                    borderRadius: tokens["dimension.border.radius-sm"],
-                    border: `1px solid ${tokens["color.border.default"]}`,
-                  }}
-                >
-                  <div style={{ fontWeight: 600, fontSize: tokens["typography.size.200"] }}>{d.model}</div>
-                  <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
-                    {d.identifier}
-                  </div>
-                  <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.status.success"], marginTop: 4, fontWeight: 500 }}>
-                    {d.warranty_status}
-                  </div>
-                </li>
-              ))}
-            </ul>
+            {devices.length === 0 ? (
+              <p style={emptyText}>No registered devices.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+                {devices.map((d, i) => (
+                  <li
+                    key={`${d.identifier}-${i}`}
+                    style={{
+                      padding: 12,
+                      background: tokens["color.surface.canvas"],
+                      borderRadius: tokens["dimension.border.radius-sm"],
+                      border: `1px solid ${tokens["color.border.default"]}`,
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, fontSize: tokens["typography.size.200"] }}>{d.model || "(Unknown model)"}</div>
+                    <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 2 }}>
+                      {d.identifier}
+                    </div>
+                    <div style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"], marginTop: 4, fontWeight: 500 }}>
+                      Warranty: {d.warranty_status}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
-          {/* Past Interventions */}
           <div style={card}>
             <h3 style={{ margin: "0 0 12px", fontSize: tokens["typography.size.300"], fontWeight: 600 }}>
               Recent Contact History
             </h3>
-            <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-              {detail.customer_360.recent_conversations.map((c) => (
-                <li
-                  key={c.id}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    fontSize: tokens["typography.size.200"],
-                    padding: "6px 0",
-                    borderBottom: `1px solid ${tokens["color.border.default"]}`,
-                  }}
-                >
-                  <span>
-                    #{c.id} via <strong>{c.channel.toUpperCase()}</strong>
-                  </span>
-                  <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
-                    {c.started_at} ({c.state})
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {recent_conversations.length === 0 ? (
+              <p style={emptyText}>No other conversations on record.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+                {recent_conversations.map((c) => (
+                  <li
+                    key={c.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: tokens["typography.size.200"],
+                      padding: "6px 0",
+                      borderBottom: `1px solid ${tokens["color.border.default"]}`,
+                    }}
+                  >
+                    <a href={`/conversation?id=${c.id}`} style={{ color: tokens["color.primary.base"] }}>
+                      #{c.id} via <strong>{c.channel.toUpperCase()}</strong>
+                    </a>
+                    <span style={{ fontSize: tokens["typography.size.100"], color: tokens["color.text.secondary"] }}>
+                      {c.started_at} ({c.state})
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </section>
       </div>
