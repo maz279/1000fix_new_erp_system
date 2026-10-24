@@ -10,7 +10,11 @@
         <field name="comment">P01 access: customers see their own devices, orders, estimates and consent rows (EA-05).</field>
     </record>
 
-    <!-- EA-05: every P01 row is scoped to the owning partner. -->
+    <!-- EA-05: every P01 row is scoped to the owning partner. The group is
+         READ-ONLY at the ORM level (ir.model.access.csv): every portal write
+         (booking, registration, transfer, estimate decision, consent) is
+         performed by the controller with sudo() AFTER its own ownership
+         check, so a portal session cannot write these models over RPC. -->
     <record id="rule_fix_device_customer_self" model="ir.rule">
         <field name="name">P01 device: own devices only</field>
         <field name="model_id" ref="cd_device_registry.model_fix_device"/>
@@ -21,6 +25,24 @@
         <field name="name">P01 order: own orders only</field>
         <field name="model_id" ref="cd_service_order.model_fix_service_order"/>
         <field name="domain_force">[('customer_id','=',user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
+    </record>
+    <record id="rule_fix_estimate_customer_self" model="ir.rule">
+        <field name="name">P01 estimate: estimates on own orders only</field>
+        <field name="model_id" ref="cd_service_order.model_fix_estimate"/>
+        <field name="domain_force">[('order_id.customer_id','=',user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
+    </record>
+    <record id="rule_fix_consent_customer_self" model="ir.rule">
+        <field name="name">P01 consent: own consent rows only</field>
+        <field name="model_id" ref="cd_party_master.model_fix_consent"/>
+        <field name="domain_force">[('partner_id','=',user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
+    </record>
+    <record id="rule_fix_device_history_customer_self" model="ir.rule">
+        <field name="name">P01 device history: own devices only</field>
+        <field name="model_id" ref="cd_device_registry.model_fix_device_history"/>
+        <field name="domain_force">[('device_id.owner_id','=',user.partner_id.id)]</field>
         <field name="groups" eval="[(4, ref('group_fix_customer_portal'))]"/>
     </record>
 </odoo>

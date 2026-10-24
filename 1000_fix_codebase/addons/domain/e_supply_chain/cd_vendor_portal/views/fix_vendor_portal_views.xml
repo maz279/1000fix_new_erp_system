@@ -12,12 +12,21 @@
     <!-- group_fix_vendor_portal moved to security/fix_vendor_portal_security.xml
          (loads before ir.model.access.csv, which references the group id) -->
 
-    <!-- EA-05: a vendor sees only records where they are the vendor -->
+    <!-- EA-05: a vendor sees only records where IT is the vendor (its
+         commercial partner and that partner's contacts). The former domain
+         [('vendor_id.partner_share', '=', True)] matched EVERY external
+         vendor - any vendor read all vendors' POs. -->
     <record id="rule_fix_vendor_po_self" model="ir.rule">
         <field name="name">P05: vendors see their own POs</field>
         <field name="model_id" ref="cd_requisition.model_fix_purchase_order"/>
         <field name="groups" eval="[(4, ref('group_fix_vendor_portal'))]"/>
-        <field name="domain_force">[('vendor_id.partner_share', '=', True)]</field>
+        <field name="domain_force">[('vendor_id', 'child_of', [user.commercial_partner_id.id])]</field>
+    </record>
+    <record id="rule_fix_vendor_invoice_self" model="ir.rule">
+        <field name="name">P05: vendors see their own invoices</field>
+        <field name="model_id" ref="cd_ap_ext.model_fix_vendor_invoice"/>
+        <field name="groups" eval="[(4, ref('group_fix_vendor_portal'))]"/>
+        <field name="domain_force">[('vendor_id', 'child_of', [user.commercial_partner_id.id])]</field>
     </record>
 
     <!-- Portal views: the R3 (QWeb) surface -->

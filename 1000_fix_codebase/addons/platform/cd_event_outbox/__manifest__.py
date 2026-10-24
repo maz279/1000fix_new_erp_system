@@ -21,6 +21,7 @@ dead-letters.
     "depends": ["base", "mail", "cd_entity_config"],
     "data": [
         "security/ir.model.access.csv",
+        "security/fix_event_outbox_security.xml",
         "views/fix_event_outbox_views.xml",
     ],
     "installable": True,

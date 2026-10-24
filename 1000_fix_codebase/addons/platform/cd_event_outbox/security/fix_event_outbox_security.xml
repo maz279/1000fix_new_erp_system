@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_event_outbox security (authorization audit 2026-10-23).
+     Employees READ the outbox (ir.model.access.csv); rows are written only by
+     server code (fix.event.outbox.emit, sudo, @api.private) and the publisher
+     (base.group_system). AS-03: a user reads only the events of the
+     companies they are allowed in. -->
+<odoo>
+    <record id="rule_fix_event_outbox_company" model="ir.rule">
+        <field name="name">fix.event.outbox: allowed companies</field>
+        <field name="model_id" ref="model_fix_event_outbox"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

@@ -11,33 +11,42 @@
                 No active field orders in the dispatch queue.
             </p>
         </field>
+        <field name="group_ids" eval="[(4, ref('group_fix_field_service_manager'))]"/>
     </record>
 
     <record id="action_fix_field_order_all" model="ir.actions.act_window">
         <field name="name">All Field Orders</field>
         <field name="res_model">fix.field.order</field>
         <field name="view_mode">list,kanban,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_field_service_user'))]"/>
     </record>
 
     <record id="action_fix_field_route" model="ir.actions.act_window">
         <field name="name">Technician Routes</field>
         <field name="res_model">fix.field.route</field>
         <field name="view_mode">list,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_field_service_user'))]"/>
     </record>
 
     <record id="action_fix_technician_location" model="ir.actions.act_window">
         <field name="name">Fleet Telemetry Pings</field>
         <field name="res_model">fix.technician.location</field>
         <field name="view_mode">list,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_field_service_manager'))]"/>
     </record>
 
     <record id="action_fix_field_decline_log" model="ir.actions.act_window">
         <field name="name">Decline Audit Logs</field>
         <field name="res_model">fix.field.decline.log</field>
         <field name="view_mode">list,form</field>
+        <field name="group_ids" eval="[(4, ref('group_fix_field_service_manager'))]"/>
     </record>
 
-    <!-- Menus -->
+    <!-- Menus: every entry carries its Field Service group (authorization
+         audit 2026-10-23) - without it the children were listed to users
+         holding no Field Service ACL, whose click then raised AccessError.
+         Dispatch board + fleet telemetry (live technician GPS) are dispatcher
+         / manager surfaces; technicians see their orders and routes. -->
     <menuitem id="menu_fix_field_service_root"
               name="Field Service"
               sequence="25"
@@ -47,25 +56,29 @@
               name="Dispatch Board"
               parent="menu_fix_field_service_root"
               action="action_fix_field_order_dispatch"
-              sequence="10"/>
+              sequence="10"
+              groups="group_fix_field_service_manager"/>
 
     <menuitem id="menu_fix_field_orders"
               name="Field Work Orders"
               parent="menu_fix_field_service_root"
               action="action_fix_field_order_all"
-              sequence="20"/>
+              sequence="20"
+              groups="group_fix_field_service_user"/>
 
     <menuitem id="menu_fix_field_routes"
               name="Routing &amp; Optimization"
               parent="menu_fix_field_service_root"
               action="action_fix_field_route"
-              sequence="30"/>
+              sequence="30"
+              groups="group_fix_field_service_user"/>
 
     <menuitem id="menu_fix_field_tracking"
               name="Fleet Telemetry"
               parent="menu_fix_field_service_root"
               action="action_fix_technician_location"
-              sequence="40"/>
+              sequence="40"
+              groups="group_fix_field_service_manager"/>
 
     <menuitem id="menu_fix_field_audit"
               name="Decline Audit Log"
