@@ -7,11 +7,12 @@ contracts (AMC/RAMC), and device protection plans.
 Enforces BRU-LOY-12: Revenue is recognized ratably over the performance term,
 never at the point of sale. 100% unit-testable calculation paths (DoD-03).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
+from datetime import date
+from decimal import ROUND_HALF_UP, Decimal
 
 TWO = Decimal("0.01")
 
@@ -23,6 +24,7 @@ class RevRecError(ValueError):
 @dataclass(frozen=True)
 class RecognitionPeriodResult:
     """Output of a period recognition calculation."""
+
     as_of: date
     start_date: date
     end_date: date
@@ -107,6 +109,7 @@ def compute_straight_line_recognition(
 @dataclass(frozen=True)
 class CancellationRefundResult:
     """Output of mid-cycle subscription cancellation & refund computation."""
+
     cancellation_date: date
     total_amount: Decimal
     earned_revenue: Decimal

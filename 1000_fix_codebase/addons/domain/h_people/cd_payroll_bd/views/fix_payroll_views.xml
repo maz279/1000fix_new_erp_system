@@ -1,17 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_payroll_bd views — M56 (P08-M03). -->
+<!-- cd_payroll_bd views — M56 (P08-M03). Statutory completion, BEFTN & Bengali Payslip. -->
 <odoo>
+    <!-- ======================================================== -->
+    <!-- PAYROLL PERIOD VIEWS                                      -->
+    <!-- ======================================================== -->
     <record id="view_fix_payroll_period_list" model="ir.ui.view">
         <field name="name">fix.payroll.period.list</field>
         <field name="model">fix.payroll.period</field>
         <field name="arch" type="xml">
-            <list>
+            <list decoration-muted="state == 'draft'"
+                  decoration-info="state == 'calculated'"
+                  decoration-primary="state == 'approved'"
+                  decoration-warning="state == 'paid'"
+                  decoration-success="state == 'posted'">
                 <field name="name"/>
                 <field name="period_start"/>
                 <field name="period_end"/>
                 <field name="slip_count"/>
+                <field name="gross_total"/>
+                <field name="tax_total"/>
+                <field name="pf_total"/>
                 <field name="net_total"/>
-                <field name="state"/>
+                <field name="calculator_id"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
@@ -26,39 +37,66 @@
                             string="Verify Attendance Lock" class="btn-primary"
                             invisible="state != 'draft'"/>
                     <button name="action_calculate" type="object"
-                            string="Calculate"
+                            string="Calculate Payroll" class="btn-primary"
                             invisible="state != 'attendance_locked'"/>
-                    <button name="action_approve" type="object" string="Approve"
+                    <button name="action_approve" type="object"
+                            string="Approve (Maker-Checker)" class="btn-success"
                             invisible="state != 'calculated'"/>
-                    <button name="action_pay" type="object" string="Pay (BEFTN)"
+                    <button name="action_pay" type="object"
+                            string="Pay &amp; Generate BEFTN" class="btn-primary"
                             invisible="state != 'approved'"/>
-                    <button name="action_post" type="object" string="Post to GL"
+                    <button name="action_post" type="object"
+                            string="Post to GL (Balanced)" class="btn-primary"
                             invisible="state != 'paid'"/>
-                    <field name="state" widget="statusbar"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="draft,attendance_locked,calculated,approved,paid,posted"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Period Reference"/>
+                        <h1><field name="name" placeholder="e.g. 2026-10 (October 2026)"/></h1>
+                    </div>
                     <group>
-                        <group>
-                            <field name="name"/>
+                        <group string="Period Schedule">
                             <field name="period_start"/>
                             <field name="period_end"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="calculator_id"/>
+                            <field name="company_account_no"
+                                   readonly="state in ('paid', 'posted')"/>
+                            <field name="company_routing_no"
+                                   readonly="state in ('paid', 'posted')"/>
                         </group>
-                        <group>
+                        <group string="Financial Summary (BDT)">
                             <field name="slip_count"/>
-                            <field name="net_total"/>
+                            <field name="gross_total"/>
+                            <field name="tax_total"/>
+                            <field name="pf_total"/>
+                            <field name="net_total" class="oe_subtotal_footer_separator font-weight-bold"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="beftn_batch_id"/>
+                            <field name="gl_move_id"/>
                         </group>
                     </group>
-                    <field name="payslip_ids">
-                        <list>
-                            <field name="employee_id"/>
-                            <field name="gross"/>
-                            <field name="pf_employee"/>
-                            <field name="tax_withheld"/>
-                            <field name="net"/>
-                        </list>
-                    </field>
+                    <notebook>
+                        <page string="Employee Payslips" name="payslips">
+                            <field name="payslip_ids">
+                                <list decoration-info="net &gt; 0">
+                                    <field name="employee_id"/>
+                                    <field name="basic"/>
+                                    <field name="overtime"/>
+                                    <field name="gross"/>
+                                    <field name="pf_employee"/>
+                                    <field name="pf_employer"/>
+                                    <field name="tax_withheld"/>
+                                    <field name="net" class="font-weight-bold"/>
+                                    <field name="taxpayer_category"/>
+                                    <field name="bank_name"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -73,34 +111,19 @@
         <field name="name">Payroll Periods</field>
         <field name="res_model">fix.payroll.period</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create the first monthly payroll period!
+            </p>
+            <p>
+                Follow Journey 13: Attendance Lock &gt; Calculation &gt; SoD Approval &gt; BEFTN &gt; Double-entry Posting.
+            </p>
+        </field>
     </record>
 
-    <!-- The Bengali payslip: TR-07's named rendering failure mode, first
-         class. Odoo qweb report on the payslip model. -->
-    <record id="action_report_payslip_bn" model="ir.actions.report">
-        <field name="name">বেতন স্লিপ (Payslip)</field>
-        <field name="model">fix.payslip</field>
-        <field name="report_type">qweb-pdf</field>
-        <field name="report_name">cd_payroll_bd.report_payslip_bn</field>
-        <field name="report_file">cd_payroll_bd.report_payslip_bn</field>
-    </record>
-
-    <template id="report_payslip_bn">
-        <t t-call="web.html_container">
-            <t t-foreach="docs" t-as="doc">
-                <div class="page">
-                    <h1>বেতন স্লিপ</h1>
-                    <p>কর্মী: <span t-field="doc.employee_id.name"/></p>
-                    <p>মূল বেতন: <span t-field="doc.basic"/></p>
-                    <p>অতিরিক্ত কর্মঘণ্টা: <span t-field="doc.overtime"/></p>
-                    <p>প্রভিডেন্ট ফান্ড (কর্মী): <span t-field="doc.pf_employee"/></p>
-                    <p>আয়কর কর্তন: <span t-field="doc.tax_withheld"/></p>
-                    <h2>নিট বেতন: <span t-field="doc.net"/></h2>
-                </div>
-            </t>
-        </t>
-    </template>
-
+    <!-- ======================================================== -->
+    <!-- PAYSLIP FORM & LIST VIEWS                                 -->
+    <!-- ======================================================== -->
     <record id="view_fix_payslip_list" model="ir.ui.view">
         <field name="name">fix.payslip.list</field>
         <field name="model">fix.payslip</field>
@@ -108,9 +131,99 @@
             <list>
                 <field name="employee_id"/>
                 <field name="period_id"/>
+                <field name="basic"/>
+                <field name="ot_hours"/>
+                <field name="overtime"/>
                 <field name="gross"/>
-                <field name="net"/>
+                <field name="pf_employee"/>
+                <field name="tax_withheld"/>
+                <field name="net" class="font-weight-bold"/>
+                <field name="bank_account_no"/>
+                <field name="routing_no"/>
             </list>
+        </field>
+    </record>
+
+    <!-- ======================================================== -->
+    <!-- BENGALI PAYSLIP QWEB REPORT (declared before the form that
+         references it: %(...)d resolves at load time) (TR-07) -->
+    <!-- ======================================================== -->
+    <record id="action_report_payslip_bn" model="ir.actions.report">
+        <field name="name">বেতন স্লিপ (Payslip)</field>
+        <field name="model">fix.payslip</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_payroll_bd.report_payslip_bn</field>
+        <field name="report_file">cd_payroll_bd.report_payslip_bn</field>
+        <field name="print_report_name">'Payslip_%s_%s' % (object.employee_id.name, object.period_id.name)</field>
+        <field name="binding_model_id" ref="model_fix_payslip"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="view_fix_payslip_form" model="ir.ui.view">
+        <field name="name">fix.payslip.form</field>
+        <field name="model">fix.payslip</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="%(action_report_payslip_bn)d" type="action"
+                            string="প্রিন্ট পে-স্লিপ (Print Bengali Payslip)"
+                            class="btn-primary" icon="fa-print"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="employee_id" string="Employee"/>
+                        <h1><field name="employee_id"/></h1>
+                        <h3><field name="period_id"/></h3>
+                    </div>
+                    <group>
+                        <group string="Earnings &amp; Compensation (উপার্জন)">
+                            <field name="basic"/>
+                            <field name="ot_hours"/>
+                            <field name="overtime"/>
+                            <field name="incentive"/>
+                            <field name="gross" class="font-weight-bold"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group string="Deductions &amp; Statutory (কর্তন)">
+                            <field name="pf_employee_pct"/>
+                            <field name="pf_employee"/>
+                            <field name="pf_employer_pct"/>
+                            <field name="pf_employer"/>
+                            <field name="tax_withheld"/>
+                            <field name="net" class="oe_subtotal_footer_separator font-weight-bold text-success"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Statutory Tax &amp; Rebate Settings" name="tax_settings">
+                            <group>
+                                <group string="Income Tax Act 2023 Parameters">
+                                    <field name="taxpayer_category"/>
+                                    <field name="has_disabled_child"/>
+                                    <field name="minimum_tax_location"/>
+                                </group>
+                                <group string="Rebates &amp; Historical Balances">
+                                    <field name="investment_allowance"/>
+                                    <field name="annual_taxable_other"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="BEFTN Disbursement Banking" name="bank_details">
+                            <group>
+                                <group string="Disbursement Account">
+                                    <field name="bank_name"/>
+                                    <field name="bank_account_no"/>
+                                    <field name="routing_no"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -120,10 +233,256 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ======================================================== -->
+    <!-- BEFTN BATCH VIEWS                                         -->
+    <!-- ======================================================== -->
+    <record id="view_fix_beftn_batch_list" model="ir.ui.view">
+        <field name="name">fix.beftn.batch.list</field>
+        <field name="model">fix.beftn.batch</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="state == 'submitted'"
+                  decoration-success="state == 'settled'">
+                <field name="period_id"/>
+                <field name="submitted_at"/>
+                <field name="settlement_date"/>
+                <field name="employee_count"/>
+                <field name="total_amount"/>
+                <field name="company_routing_no"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_beftn_batch_form" model="ir.ui.view">
+        <field name="name">fix.beftn.batch.form</field>
+        <field name="model">fix.beftn.batch</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate_beftn_file" type="object"
+                            string="Regenerate 128-Byte File" class="btn-secondary"
+                            invisible="state == 'settled'"/>
+                    <button name="action_settle" type="object"
+                            string="Mark Settled" class="btn-success"
+                            invisible="state == 'settled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="submitted,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <label for="period_id" string="BEFTN Batch for Period"/>
+                        <h1><field name="period_id"/></h1>
+                    </div>
+                    <group>
+                        <group string="Batch Submission Details">
+                            <field name="submitted_at"/>
+                            <field name="settlement_date"/>
+                            <field name="company_account_no"/>
+                            <field name="company_routing_no"/>
+                        </group>
+                        <group string="Settlement Figures">
+                            <field name="employee_count"/>
+                            <field name="total_amount"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="file_name"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="128-Byte ASCII File Preview (Bangladesh Bank Standard)" name="file_content">
+                            <field name="file_content" widget="text" style="font-family: monospace; font-size: 11px; white-space: pre; background-color: #f8f9fa;"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_beftn_batch" model="ir.actions.act_window">
+        <field name="name">BEFTN Batches</field>
+        <field name="res_model">fix.beftn.batch</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <template id="report_payslip_bn">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page" style="font-family: 'SolaimanLipi', 'Kalpurush', 'Noto Sans Bengali', sans-serif; font-size: 12px; line-height: 1.4; color: #1e293b; padding: 20px;">
+                    <!-- Corporate Header -->
+                    <div style="border-bottom: 2px solid #0f766e; padding-bottom: 12px; margin-bottom: 18px; display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div>
+                            <h2 style="margin: 0; color: #0f766e; font-size: 22px; font-weight: bold;">১০০০ ফিক্স সার্ভিসেস লিমিটেড</h2>
+                            <p style="margin: 2px 0 0 0; font-size: 11px; color: #64748b;">1000 FiX Services Ltd. — বাংলাদেশের বৃহত্তম আইএসও ৯০০১:২০১৫ সার্টিফাইড সেবা প্রদানকারী প্রতিষ্ঠান</p>
+                            <p style="margin: 2px 0 0 0; font-size: 10px; color: #64748b;">হটলাইন: ১৬৭৪৩ | ওয়েবসাইট: https://1000fix.com</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="background-color: #f0fdfa; border: 1px solid #0f766e; color: #0f766e; font-weight: bold; padding: 6px 12px; border-radius: 4px; display: inline-block;">
+                                মাসিক বেতন স্লিপ ও কর কর্তন বিবরণী
+                            </div>
+                            <p style="margin: 4px 0 0 0; font-size: 10px; color: #64748b;">তারিখ: <span t-esc="datetime.datetime.now().strftime('%d/%m/%Y')"/></p>
+                        </div>
+                    </div>
+
+                    <!-- Employee and Period Summary Table -->
+                    <table style="width: 100%; margin-bottom: 16px; border-collapse: collapse; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 4px;">
+                        <tr>
+                            <td style="padding: 6px 10px; width: 25%; font-weight: bold; color: #475569;">কর্মীর নাম:</td>
+                            <td style="padding: 6px 10px; width: 25%;"><span t-field="doc.employee_id.name"/></td>
+                            <td style="padding: 6px 10px; width: 25%; font-weight: bold; color: #475569;">বেতন সময়কাল:</td>
+                            <td style="padding: 6px 10px; width: 25%;"><span t-field="doc.period_id.name"/></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">কর্মী পরিচিতি নং:</td>
+                            <td style="padding: 6px 10px;">EMP<span t-field="doc.employee_id.id"/></td>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">ব্যাংক হিসাব নং:</td>
+                            <td style="padding: 6px 10px;"><span t-field="doc.bank_account_no"/></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">ব্যাংকের নাম ও শাখা:</td>
+                            <td style="padding: 6px 10px;"><span t-field="doc.bank_name"/></td>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">রাউটিং নম্বর:</td>
+                            <td style="padding: 6px 10px;"><span t-field="doc.routing_no"/></td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">করদাতা বিভাগ:</td>
+                            <td style="padding: 6px 10px;"><span t-field="doc.taxpayer_category"/></td>
+                            <td style="padding: 6px 10px; font-weight: bold; color: #475569;">কর অঞ্চল:</td>
+                            <td style="padding: 6px 10px;"><span t-field="doc.minimum_tax_location"/></td>
+                        </tr>
+                    </table>
+
+                    <!-- Two-Column Breakdown: Earnings and Deductions -->
+                    <div style="display: flex; gap: 16px; margin-bottom: 16px;">
+                        <!-- Earnings Column -->
+                        <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
+                            <div style="background-color: #0f766e; color: white; padding: 6px 10px; font-weight: bold; font-size: 13px;">
+                                উপার্জন বিবরণী (Earnings)
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px;">মূল বেতন (Basic Monthly)</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.basic)"/></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px;">অতিরিক্ত কর্মঘণ্টা ভাতা (<span t-field="doc.ot_hours"/> ঘণ্টা)</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.overtime)"/></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px;">পারফরম্যান্স প্রণোদনা (Incentive M57)</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold;">৳ <span t-esc="'{0:,.2f}'.format(doc.incentive)"/></td>
+                                </tr>
+                                <tr style="background-color: #f8fafc; font-weight: bold;">
+                                    <td style="padding: 8px 10px; color: #0f766e;">মোট অর্জিত আয় (Gross Earnings)</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: #0f766e;">৳ <span t-esc="'{0:,.2f}'.format(doc.gross)"/></td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <!-- Deductions Column -->
+                        <div style="flex: 1; border: 1px solid #cbd5e1; border-radius: 4px; overflow: hidden;">
+                            <div style="background-color: #b91c1c; color: white; padding: 6px 10px; font-weight: bold; font-size: 13px;">
+                                কর্তন বিবরণী (Deductions)
+                            </div>
+                            <table style="width: 100%; border-collapse: collapse;">
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px;">প্রভিডেন্ট ফান্ড - কর্মী অংশ (<span t-field="doc.pf_employee_pct"/>%)</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employee)"/></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px;">উৎসে আয়কর কর্তন (TDS Income Tax)</td>
+                                    <td style="padding: 8px 10px; text-align: right; font-weight: bold; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.tax_withheld)"/></td>
+                                </tr>
+                                <tr style="border-bottom: 1px solid #f1f5f9;">
+                                    <td style="padding: 8px 10px; color: #64748b; font-size: 11px;">(প্রতিষ্ঠান পিএফ অবদান: ১০%)</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: #64748b; font-size: 11px;">(৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employer)"/>)</td>
+                                </tr>
+                                <tr style="background-color: #fef2f2; font-weight: bold;">
+                                    <td style="padding: 8px 10px; color: #b91c1c;">মোট কর্তন (Total Deductions)</td>
+                                    <td style="padding: 8px 10px; text-align: right; color: #b91c1c;">৳ <span t-esc="'{0:,.2f}'.format(doc.pf_employee + doc.tax_withheld)"/></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Net Payable Banner -->
+                    <div style="background-color: #ecfdf5; border: 2px solid #059669; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: bold; color: #065f46;">নিট প্রদেয় বেতন (Net Payable via BEFTN):</div>
+                            <div style="font-size: 11px; color: #047857;">বাংলাদেশ ব্যাংক অনুমোদিত ইলেকট্রনিক ফান্ড ট্রান্সফারের মাধ্যমে সরাসরি ব্যাংক হিসাবে প্রেরিত।</div>
+                        </div>
+                        <div style="font-size: 24px; font-weight: bold; color: #065f46;">
+                            ৳ <span t-esc="'{0:,.2f}'.format(doc.net)"/>
+                        </div>
+                    </div>
+
+                    <!-- Statutory & Compliance Footnote -->
+                    <div style="background-color: #f8fafc; border-left: 4px solid #0f766e; padding: 10px 14px; margin-bottom: 25px; font-size: 10px; color: #475569;">
+                        <strong>সংবিধিবদ্ধ নিশ্চয়তা ও আইনি ভিত্তি:</strong><br/>
+                        ১. এই বেতন হিসাবটি বাংলাদেশ শ্রম আইন ২০০৬, শ্রম (সংশোধনী) আইন ২০২৬ এবং আয়কর আইন ২০২৩ এর বিধানাবলী কঠোরভাবে অনুসরণ করে স্বয়ংক্রিয় অ্যালগরিদমে প্রস্তুতকৃত।<br/>
+                        ২. প্রভিডেন্ট ফান্ড কর্তন এবং সমপরিমাণ প্রতিষ্ঠান অনুদান বাংলাদেশ শ্রম বিধিমালা ২০১৫ এর বিধি ৩৫১ অনুযায়ী নির্ধারিত ট্রাস্ট তহবিলে সংরক্ষিত।<br/>
+                        ৩. উৎসে আয়কর কর্তন ধারা ১২৪/১৪০ অনুসারে সরকারি কোষাগারে সরাসরি ই-চালানের মাধ্যমে জমাকৃত।
+                    </div>
+
+                    <!-- Signatures Section -->
+                    <div style="display: flex; justify-content: space-between; margin-top: 45px; text-align: center; font-size: 11px;">
+                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
+                            <strong>হিসাব প্রস্তুতকারক</strong><br/>
+                            <span style="font-size: 10px; color: #64748b;">(Maker / Payroll Officer)</span>
+                        </div>
+                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
+                            <strong>যাচাইকারী কর্মকর্তা</strong><br/>
+                            <span style="font-size: 10px; color: #64748b;">(Internal Audit / Compliance)</span>
+                        </div>
+                        <div style="border-top: 1px dashed #94a3b8; width: 28%; padding-top: 6px;">
+                            <strong>অনুমোদনকারী কর্তৃপক্ষ</strong><br/>
+                            <span style="font-size: 10px; color: #64748b;">(Checker / Head of Finance)</span>
+                        </div>
+                    </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <!-- ======================================================== -->
+    <!-- MENU ENTRIES                                              -->
+    <!-- ======================================================== -->
     <menuitem id="menu_fix_payroll" name="Payroll"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_payroll_period" sequence="100"/>
     <menuitem id="menu_fix_payslips" name="Payslips"
               parent="cd_hr_core.menu_ws_people"
               action="action_fix_payslip" sequence="110"/>
+    <menuitem id="menu_fix_beftn_batch" name="BEFTN Batches"
+              parent="cd_hr_core.menu_ws_people"
+              action="action_fix_beftn_batch" sequence="120"/>
+
+    <!-- Payroll GL configuration (M56 -> M19): entered by finance, never defaulted -->
+    <record id="view_company_form_payroll_accounting" model="ir.ui.view">
+        <field name="name">res.company.form.payroll.accounting</field>
+        <field name="model">res.company</field>
+        <field name="inherit_id" ref="base.view_company_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Payroll Accounting" name="payroll_accounting">
+                    <group>
+                        <group string="Journal">
+                            <field name="payroll_journal_id"/>
+                        </group>
+                        <group string="Expense">
+                            <field name="payroll_salary_expense_account_id"/>
+                            <field name="payroll_pf_expense_account_id"/>
+                        </group>
+                        <group string="Liabilities">
+                            <field name="payroll_net_payable_account_id"/>
+                            <field name="payroll_tax_payable_account_id"/>
+                            <field name="payroll_pf_payable_account_id"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
 </odoo>

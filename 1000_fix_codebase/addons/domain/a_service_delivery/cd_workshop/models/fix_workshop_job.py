@@ -1,9 +1,9 @@
 # fix.workshop.job — Workshop Repair Order & Execution Job (CD-M31-01, RR-03 Milestone R03-M02).
 # Full state machine unified with AS-06, bench routing, multi-job handling, burn-in, costing, and stubs.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class FixWorkshopJob(models.Model):
     Carries repair-level routing (L1/L2/L3), bench allocation, spare parts consumption,
     evidence packs, burn-in testing, and quality control.
     """
+
     _name = "fix.workshop.job"
     _description = "Workshop Repair Job"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -111,6 +112,11 @@ class FixWorkshopJob(models.Model):
         string="QC Inspector",
         tracking=True,
         help="Independent QC inspector (BRU-SRM-18: must differ from repairing technician)",
+    )
+    equipment_id = fields.Many2one(
+        "fix.equipment",
+        string="Test Equipment Used",
+        help="M45 calibration-tracked test instrument used for verification / QC (ISO 9001 Clause 7.1.5)",
     )
 
     # Repair Classification & Multi-job handling
@@ -197,13 +203,25 @@ class FixWorkshopJob(models.Model):
     # Quality Control & Checklists
     qc_passed = fields.Boolean(string="QC Passed", default=False, tracking=True)
     qc_notes = fields.Text(string="QC Inspection Notes")
+    ncr_id = fields.Many2one(
+        "fix.ncr",
+        string="NCR (M23)",
+        ondelete="set null",
+        help="Formal ISO 9001 Non-Conformance Record (STUB-M31-M23-001 CLOSED)",
+    )
+    certification_waiver = fields.Boolean(
+        string="Certification Waiver",
+        help="Manager waiver for L2/L3 repair assignment (audited)",
+    )
+    certification_waiver_reason = fields.Char(string="Waiver Justification")
 
     # Costing & Monetary (AS-10)
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
         required=True,
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
     parts_total = fields.Monetary(
         string="Parts Total",
@@ -280,9 +298,13 @@ class FixWorkshopJob(models.Model):
             # Business Gate: In Repair requires bench & technician eligibility check
             if new_state == "in_repair":
                 if not rec.bench_id:
-                    raise UserError(f"Job {rec.name} cannot enter 'In Repair' without an assigned workbench.")
+                    raise UserError(
+                        f"Job {rec.name} cannot enter 'In Repair' without an assigned workbench."
+                    )
                 if not rec.technician_id:
-                    raise UserError(f"Job {rec.name} cannot enter 'In Repair' without an assigned technician.")
+                    raise UserError(
+                        f"Job {rec.name} cannot enter 'In Repair' without an assigned technician."
+                    )
                 # Execute Cross-Wave Stub STUB-M31-M22-001 (Certification check)
                 rec._check_technician_certification(rec.technician_id, rec.repair_level)
 
@@ -291,14 +313,21 @@ class FixWorkshopJob(models.Model):
                 rec.burn_in_started_at = fields.Datetime.now()
 
             # Business Gate: QC Pending requires burn-in pass if L2 or L3
-            if new_state == "qc_pending" and rec.repair_level in ("l2", "l3"):
-                if not rec.burn_in_passed:
-                    raise UserError(f"Job {rec.name} ({rec.repair_level.upper()}) requires burn-in test to pass before QC.")
+            if (
+                new_state == "qc_pending"
+                and rec.repair_level in ("l2", "l3")
+                and not rec.burn_in_passed
+            ):
+                raise UserError(
+                    f"Job {rec.name} ({rec.repair_level.upper()}) requires burn-in test to pass before QC."
+                )
 
             # Business Gate: Ready requires QC inspection
             if new_state == "ready":
                 if not rec.qc_passed:
-                    raise UserError(f"Job {rec.name} cannot be marked 'Ready' without passing Quality Control.")
+                    raise UserError(
+                        f"Job {rec.name} cannot be marked 'Ready' without passing Quality Control."
+                    )
                 rec.completed_at = fields.Datetime.now()
                 # Release bench upon completion
                 if rec.bench_id:
@@ -341,14 +370,20 @@ class FixWorkshopJob(models.Model):
         return True
 
     def action_fail_qc(self, reason=""):
-        """Fail QC inspection, increment rework loop and return to in_repair."""
+        """Fail QC inspection: raise the NCR and open the rework loop (qc_failed).
+
+        The transition is validated FIRST - the old body wrote ``state`` directly,
+        so a draft or delivered job could "fail QC" - and goes through
+        action_transition (transition event + service-order sync). The QC event is
+        emitted once, by _run_qc_inspection: the old body emitted it a second time,
+        so every failure was counted twice downstream."""
         for rec in self:
+            rec._validate_transition("qc_failed")
             rec._run_qc_inspection(passed=False, notes=reason)
-            rec.is_rework = True
-            rec.rework_count += 1
-            rec.rework_reason = reason
-            rec.state = "qc_failed"
-            rec._emit_qc_completed(passed=False, notes=reason)
+            rec.write(
+                {"is_rework": True, "rework_count": rec.rework_count + 1, "rework_reason": reason}
+            )
+            rec.action_transition("qc_failed")
         return True
 
     def action_deliver(self):
@@ -363,16 +398,33 @@ class FixWorkshopJob(models.Model):
 
         Wave Boundary: Wave 2 -> Wave 5.
         Expiry Milestone: R06-M02 (Milestone R06-M02: M22 Competency & Certification Engine).
-        Rule: In Wave 2, technician competency matrix is stubbed with qualification fallback.
+        Rule: In Wave 2, technician competency matrix was stubbed with qualification fallback.
+        In Wave 5 (R06-M04), STUB-M31-M22-001 is CLOSED: L2/L3 benches strictly require active certification.
         """
         # Validate that technician exists and is active
         if not technician or not technician.active:
             raise UserError("Repair technician is invalid or inactive.")
 
+        # L2 and L3 chip-level / soldering repairs require M22 certification
+        if (
+            repair_level in ("l2", "l3")
+            and "fix.certification" in self.env
+            and not self.certification_waiver
+        ):
+            device_type = self.device_id.device_type or None
+            eligible, reason = self.env["fix.certification"].dispatch_eligibility(
+                technician, device_type=device_type
+            )
+            if not eligible:
+                raise UserError(
+                    f"M22 Certification Gate (STUB-M31-M22-001 CLOSED): Assignment blocked — {reason}"
+                )
+
         logger.info(
-            "STUB-M31-M22-001 evaluated for technician %s (ID %s) on level %s. "
-            "Returns ELIGIBLE until R06-M02 cutover.",
-            technician.name, technician.id, repair_level
+            "STUB-M31-M22-001 CLOSED: Verified certification for technician %s (ID %s) on level %s.",
+            technician.name,
+            technician.id,
+            repair_level,
         )
         return True
 
@@ -381,7 +433,8 @@ class FixWorkshopJob(models.Model):
 
         Wave Boundary: Wave 2 -> Wave 5.
         Expiry Milestone: R06-M04 (Milestone R06-M04: M23 ISO 9001 QMS Process Governance).
-        Rule: M01/M31 owns checklists locally until R06-M04 where M23 takes over with formal NCR.
+        Rule: M01/M31 owned checklists locally until R06-M04 where M23 takes over with formal NCR.
+        STUB-M31-M23-001 is CLOSED: A failed inspection raises a formal fix.ncr record.
         Enforces BRU-SRM-18: QC inspector must differ from repairing technician.
         """
         inspector = self.qc_inspector_id or self.env.user.employee_id
@@ -391,10 +444,33 @@ class FixWorkshopJob(models.Model):
                 f"cannot perform their own Quality Control inspection."
             )
 
+        # M45 Test-Equipment Calibration check (ISO 9001 Clause 7.1.5);
+        # cd_equipment_register is a manifest dependency (the method always exists)
+        if self.equipment_id:
+            self.equipment_id.action_assert_usable()
+
         self.qc_passed = passed
         self.qc_notes = notes
         if inspector and not self.qc_inspector_id:
             self.qc_inspector_id = inspector.id
+
+        if not passed:
+            # STUB-M31-M23-001 CLOSED: create formal ISO 9001 Non-Conformance Record
+            # (fix.ncr: cd_qms_process is a manifest dependency, always installed)
+            ncr = self.env["fix.ncr"].create(
+                {
+                    "source": "qc",
+                    "order_id": self.order_id.id,
+                    "severity": "major",
+                    "description": f"Workshop job {self.name} failed QC inspection: {notes or 'No details provided'}",
+                }
+            )
+            self.ncr_id = ncr.id
+            logger.info(
+                "STUB-M31-M23-001 CLOSED: Raised formal NCR %s for failed job %s",
+                ncr.name,
+                self.name,
+            )
 
         self._emit_qc_completed(passed, notes)
         return passed
@@ -407,47 +483,70 @@ class FixWorkshopJob(models.Model):
         mapping = {
             "in_repair": "in_repair",
             "qc_pending": "qc_pending",
+            # the rework loop: without it the order stayed qc_pending and the
+            # job's return to in_repair could never be mirrored (qc_pending ->
+            # in_repair is not an order transition)
+            "qc_failed": "qc_failed",
             "ready": "ready",
             "delivered": "delivered",
         }
         so_target = mapping.get(new_state)
         if so_target and self.order_id.state != so_target:
             try:
-                self.order_id._validate_transition(so_target)
-                self.order_id.state = so_target
-            except Exception as e:
+                with self.env.cr.savepoint():
+                    if so_target == "ready":
+                        # BRU-SRM-04: the order's QC-checklist gate applies - a
+                        # plain state write let a job push the order to Ready
+                        # without a passed checklist.
+                        self.order_id.action_ready()
+                    else:
+                        self.order_id.state = so_target
+            except (UserError, ValidationError) as e:
                 logger.warning(
-                    "Service order %s sync to %s skipped: %s",
-                    self.order_id.name, so_target, str(e)
+                    "Service order %s sync to %s skipped: %s", self.order_id.name, so_target, str(e)
                 )
 
     # --- Domain Events (AS-08) ---
     def _emit_job_transitioned(self, old_state: str, new_state: str):
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.job.transitioned", "fix.workshop.job", self.id, {
-            "job_id": self.id,
-            "job_name": self.name,
-            "order_id": self.order_id.id if self.order_id else False,
-            "order_reference": self.order_id.name if self.order_id else "",
-            "workshop_id": self.workshop_id.id,
-            "workshop_code": self.workshop_id.code,
-            "bench_id": self.bench_id.id if self.bench_id else False,
-            "technician_id": self.technician_id.id if self.technician_id else False,
-            "repair_level": self.repair_level,
-            "old_state": old_state,
-            "new_state": new_state,
-            "is_rework": self.is_rework,
-        })
+
+        publish(
+            self.env,
+            "workshop.job.transitioned",
+            "fix.workshop.job",
+            self.id,
+            {
+                "job_id": self.id,
+                "job_name": self.name,
+                "order_id": self.order_id.id if self.order_id else False,
+                "order_reference": self.order_id.name if self.order_id else "",
+                "workshop_id": self.workshop_id.id,
+                "workshop_code": self.workshop_id.code,
+                "bench_id": self.bench_id.id if self.bench_id else False,
+                "technician_id": self.technician_id.id if self.technician_id else False,
+                "repair_level": self.repair_level,
+                "old_state": old_state,
+                "new_state": new_state,
+                "is_rework": self.is_rework,
+            },
+        )
 
     def _emit_qc_completed(self, passed: bool, notes: str = ""):
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.qc.completed", "fix.workshop.job", self.id, {
-            "job_id": self.id,
-            "job_name": self.name,
-            "order_id": self.order_id.id if self.order_id else False,
-            "workshop_id": self.workshop_id.id,
-            "inspector_id": self.qc_inspector_id.id if self.qc_inspector_id else False,
-            "qc_passed": passed,
-            "rework_count": self.rework_count,
-            "notes": notes,
-        })
+
+        publish(
+            self.env,
+            "workshop.qc.completed",
+            "fix.workshop.job",
+            self.id,
+            {
+                "job_id": self.id,
+                "job_name": self.name,
+                "order_id": self.order_id.id if self.order_id else False,
+                "workshop_id": self.workshop_id.id,
+                "inspector_id": self.qc_inspector_id.id if self.qc_inspector_id else False,
+                "qc_passed": passed,
+                "rework_count": self.rework_count,
+                "notes": notes,
+            },
+        )

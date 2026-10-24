@@ -5,23 +5,24 @@ BD-01/02/03 routing, CH-04/CH-06 channel rules, NT-001 §4 fallbacks and the
 never-silent-drop guarantee. All channel adapters are dry-run (unconfigured),
 so no test can send anything anywhere.
 """
+
 from __future__ import annotations
 
 import os
 import sys
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "libs" / "py"))
 
-from src import kpis  # noqa: E402
-from src.channels import SMSChannel, SendRefused  # noqa: E402
-from src.delivery import FALLBACK_REGISTER  # noqa: E402
-from src.dispatcher import Dispatcher, load_registry  # noqa: E402
-from src.policy import DHAKA_TZ, RecipientState, evaluate, rules_from_registry  # noqa: E402
-from src.router import INTERNAL_AUDIENCES, Router, RoutingError  # noqa: E402
+from src import kpis
+from src.channels import SendRefused, SMSChannel
+from src.delivery import FALLBACK_REGISTER
+from src.dispatcher import Dispatcher, load_registry
+from src.policy import DHAKA_TZ, RecipientState, evaluate, rules_from_registry
+from src.router import Router, RoutingError
 
 REGISTRY = load_registry()
 RULES = rules_from_registry(REGISTRY)
@@ -55,7 +56,9 @@ class TestWindows(unittest.TestCase):
     def test_qh01_security_never_delayed(self):
         rule = RULES["security"]
         for hour in (0, 2, 13, 23):
-            self.assertEqual(evaluate(rule, customer(), now=at_dhaka(hour), channel="sms").action, "send")
+            self.assertEqual(
+                evaluate(rule, customer(), now=at_dhaka(hour), channel="sms").action, "send"
+            )
 
     def test_qh01_transactional_24_7(self):
         rule = RULES["transactional"]
@@ -77,14 +80,20 @@ class TestWindows(unittest.TestCase):
     def test_qh03_stale_held_discarded(self):
         rule = RULES["service"]
         event_time = at_dhaka(21) - timedelta(hours=30)
-        verdict = evaluate(rule, customer(), now=at_dhaka(21), channel="sms",
-                           stale_after_hours=24, event_time=event_time)
+        verdict = evaluate(
+            rule,
+            customer(),
+            now=at_dhaka(21),
+            channel="sms",
+            stale_after_hours=24,
+            event_time=event_time,
+        )
         self.assertEqual(verdict.action, "discard")
         self.assertIn("QH-03", verdict.reason)
 
     def test_qh04_timezone_is_dhaka(self):
         # 15:00 UTC == 21:00 Dhaka — service window closes at 21:00.
-        utc = datetime(2026, 3, 2, 15, tzinfo=timezone.utc)
+        utc = datetime(2026, 3, 2, 15, tzinfo=UTC)
         rule = RULES["service"]
         verdict = evaluate(rule, customer(), now=utc, channel="sms")
         self.assertEqual(verdict.action, "hold")
@@ -111,7 +120,9 @@ class TestCapsAndConsent(unittest.TestCase):
         rule = RULES["service"]
         now = at_dhaka(12)
         sent = customer()
-        sent.sent = [("service", now - timedelta(days=1))] * 2 + [("marketing", now - timedelta(days=2))] * 2
+        sent.sent = [("service", now - timedelta(days=1))] * 2 + [
+            ("marketing", now - timedelta(days=2))
+        ] * 2
         self.assertEqual(evaluate(rule, sent, now=now, channel="sms").reason, "frequency-cap")
 
     def test_transactional_uncapped(self):
@@ -215,35 +226,41 @@ class TestDispatcher(unittest.TestCase):
                 "recipients": recipients,
                 "addresses": {"customer": "8801XXXXXXXXX"},
                 "variables": variables or {},
-                "event_time": datetime.now(timezone.utc).timestamp(),
+                "event_time": datetime.now(UTC).timestamp(),
             },
         }
 
     def test_w1_lifecycle_send_dry_run(self):
         dispatcher = self.make_dispatcher(at_dhaka(12))
-        decisions = dispatcher.handle(self.event(
-            "service.order.ready_for_collection",
-            [{"audience": "customer", "party_id": 7}],
-            {"customer_name": "Rahim", "tracking_ref": "TRK-1", "branch_name": "Gulshan"},
-        ))
+        decisions = dispatcher.handle(
+            self.event(
+                "service.order.ready_for_collection",
+                [{"audience": "customer", "party_id": 7}],
+                {"customer_name": "Rahim", "tracking_ref": "TRK-1", "branch_name": "Gulshan"},
+            )
+        )
         self.assertEqual(len(decisions), 1)
         self.assertEqual(decisions[0]["state"], "delivered")
         self.assertIn("dry-run", decisions[0]["reason"])  # unconfigured channels
 
     def test_held_at_night_for_service_class(self):
         dispatcher = self.make_dispatcher(at_dhaka(22))
-        decisions = dispatcher.handle(self.event(
-            "service.order.awaiting_parts",  # service class, window 08-21
-            [{"audience": "customer", "party_id": 7}],
-        ))
+        decisions = dispatcher.handle(
+            self.event(
+                "service.order.awaiting_parts",  # service class, window 08-21
+                [{"audience": "customer", "party_id": 7}],
+            )
+        )
         self.assertEqual(decisions[0]["state"], "held")
 
     def test_transactional_sends_at_night(self):
         dispatcher = self.make_dispatcher(at_dhaka(2))
-        decisions = dispatcher.handle(self.event(
-            "service.order.ready_for_collection",  # transactional
-            [{"audience": "customer", "party_id": 7}],
-        ))
+        decisions = dispatcher.handle(
+            self.event(
+                "service.order.ready_for_collection",  # transactional
+                [{"audience": "customer", "party_id": 7}],
+            )
+        )
         self.assertEqual(decisions[0]["state"], "delivered")
 
     def test_unrouted_event_becomes_dead_letter_not_silence(self):
@@ -254,18 +271,25 @@ class TestDispatcher(unittest.TestCase):
 
     def test_kpis_exclude_otp(self):
         dispatcher = self.make_dispatcher(at_dhaka(12))
-        dispatcher.handle(self.event("security.otp_requested",
-                                     [{"audience": "audience_any", "party_id": 9}]))
+        dispatcher.handle(
+            self.event("security.otp_requested", [{"audience": "audience_any", "party_id": 9}])
+        )
         self.assertEqual(dispatcher.kpi_snapshot()["counts"]["total"], 0)
 
 
 class TestDeliveryAndKpis(unittest.TestCase):
     def test_retry_once_per_channel(self):
-        from src.delivery import DeliveryRecord, DeliveryTracker
+        from src.delivery import DeliveryTracker
 
         tracker = DeliveryTracker()
-        record = tracker.open(event="e", party_id=1, recipient="r",
-                              consent_class="transactional", language="bn", rendered="x")
+        record = tracker.open(
+            event="e",
+            party_id=1,
+            recipient="r",
+            consent_class="transactional",
+            language="bn",
+            rendered="x",
+        )
         tracker.record_attempt(record, "sms", "failed")
         self.assertTrue(tracker.should_retry(record, "sms"))
         tracker.record_attempt(record, "sms", "failed")
@@ -275,8 +299,14 @@ class TestDeliveryAndKpis(unittest.TestCase):
         from src.delivery import DeliveryTracker
 
         tracker = DeliveryTracker()
-        record = tracker.open(event="e", party_id=1, recipient="r",
-                              consent_class="transactional", language="bn", rendered="x")
+        record = tracker.open(
+            event="e",
+            party_id=1,
+            recipient="r",
+            consent_class="transactional",
+            language="bn",
+            rendered="x",
+        )
         task = tracker.mark_dead(record, "all channels failed")
         self.assertEqual(task["task"], "notification.all_channels_failed")
         self.assertEqual(len(tracker.dead_letters), 1)
@@ -291,13 +321,25 @@ class TestDeliveryAndKpis(unittest.TestCase):
 
         records = []
         for i, channel in enumerate(["sms", "sms", "email", "push"]):
-            record = DeliveryRecord(event="e", party_id=i, recipient="r",
-                                    consent_class="transactional", language="bn", rendered="x")
+            record = DeliveryRecord(
+                event="e",
+                party_id=i,
+                recipient="r",
+                consent_class="transactional",
+                language="bn",
+                rendered="x",
+            )
             record.state, record.final_channel = "delivered", channel
             record.delivered_at = record.created_at + timedelta(milliseconds=100 + i * 50)
             records.append(record)
-        held = DeliveryRecord(event="e", party_id=99, recipient="r",
-                              consent_class="service", language="bn", rendered="x")
+        held = DeliveryRecord(
+            event="e",
+            party_id=99,
+            recipient="r",
+            consent_class="service",
+            language="bn",
+            rendered="x",
+        )
         held.state = "held"
         records.append(held)
         snap = kpis.snapshot(records)
@@ -393,6 +435,7 @@ class TestInt011RedundantSMS(unittest.TestCase):
         channel.redundant_url = "http://localhost:8069/backup_sms"
 
         import urllib.error
+
         def failing_post(payload):
             raise urllib.error.URLError("Primary gateway unreachable")
 

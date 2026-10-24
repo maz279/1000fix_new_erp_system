@@ -20,8 +20,7 @@ REPO = Path(__file__).resolve().parents[2]
 ADDONS = REPO / "addons"
 VENDOR = REPO / "vendor"
 
-FIELD_RE = re.compile(
-    r"fields\.(?:Many2one|One2many|Many2many)\(\s*[\"']([a-z0-9_.]+)[\"']")
+FIELD_RE = re.compile(r"fields\.(?:Many2one|One2many|Many2many)\(\s*[\"']([a-z0-9_.]+)[\"']")
 NAME_RE = re.compile(r"_name\s*=\s*[\"']([a-z0-9_.]+)[\"']")
 
 
@@ -57,9 +56,7 @@ def load_defining_modules() -> dict[str, set[str]]:
 def load_manifest_closure() -> tuple[dict[str, set[str]], dict[str, set[str]]]:
     """tech name -> direct depends; plus reverse map for first-party."""
     manifest_dirs: dict[str, Path] = {}
-    for root in [ADDONS / "platform"] + [
-        d for d in (ADDONS / "domain").iterdir() if d.is_dir()
-    ]:
+    for root in [ADDONS / "platform"] + [d for d in (ADDONS / "domain").iterdir() if d.is_dir()]:
         for mod in root.iterdir():
             if (mod / "__manifest__.py").exists():
                 manifest_dirs[mod.name] = mod
@@ -79,7 +76,9 @@ def load_manifest_closure() -> tuple[dict[str, set[str]], dict[str, set[str]]]:
         try:
             mt = (mod / "__manifest__.py").read_text(encoding="utf-8")
             found = re.search(r"[\"']depends[\"']\s*:\s*\[(.*?)\]", mt, re.S)
-            deps[name] = set(re.findall(r"[\"']([A-Za-z0-9_.]+)[\"']", found.group(1))) if found else set()
+            deps[name] = (
+                set(re.findall(r"[\"']([A-Za-z0-9_.]+)[\"']", found.group(1))) if found else set()
+            )
         except Exception:
             deps[name] = set()
     return deps, manifest_dirs
@@ -108,7 +107,9 @@ def main() -> int:
             for comodel in FIELD_RE.findall(text):
                 owners = defines.get(comodel)
                 if not owners:
-                    print(f"[FAIL] {tech}: {py.name} references {comodel} - defined NOWHERE in addons or vendor")
+                    print(
+                        f"[FAIL] {tech}: {py.name} references {comodel} - defined NOWHERE in addons or vendor"
+                    )
                     failures += 1
                     continue
                 # same-module references are registry-safe (Odoo loads a
@@ -117,13 +118,17 @@ def main() -> int:
                     continue
                 if not (owners & clo):
                     where = ",".join(sorted(owners))
-                    print(f"[FAIL] {tech}: {py.name} field comodel {comodel} (defined by {where}) "
-                          f"not in depends closure")
+                    print(
+                        f"[FAIL] {tech}: {py.name} field comodel {comodel} (defined by {where}) "
+                        f"not in depends closure"
+                    )
                     failures += 1
     if failures:
         print(f"check-comodel-deps: {failures} violation(s)")
         return 1
-    print("check-comodel-deps: OK - every relational field comodel is in its module's depends closure")
+    print(
+        "check-comodel-deps: OK - every relational field comodel is in its module's depends closure"
+    )
     return 0
 
 

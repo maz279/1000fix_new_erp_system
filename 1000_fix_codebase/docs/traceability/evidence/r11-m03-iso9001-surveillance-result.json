@@ -1,0 +1,65 @@
+{
+  "task_id": "R11-M03-T03",
+  "milestone": "R11-M03",
+  "evaluated_at_utc": "2026-10-22T14:34:38.750370+00:00",
+  "standards": [
+    "ISO 9001:2015",
+    "CON-11 Binding Rule",
+    "M23 QMS Process"
+  ],
+  "checks": [
+    {
+      "id": "M23_QMS_MODELS_PRESENT",
+      "status": "PASS",
+      "detail": "fix.internal.audit, fix.ncr, fix.capa defined in cd_qms_process",
+      "models_found": [
+        "fix.capa",
+        "fix.internal.audit",
+        "fix.ncr"
+      ]
+    },
+    {
+      "id": "CAPA_CLOSE_REQUIRES_VERIFICATION",
+      "status": "PASS",
+      "detail": "fix.capa.action_close raises unless the CAPA is 'verified'"
+    },
+    {
+      "id": "QMS_AUDIT_RECORDS",
+      "status": "UNMEASURED",
+      "detail": "production M23 records (fix.internal.audit / fix.ncr / fix.capa) are not available on a workstation (DE-12); the local database holds synthetic seed rows only. Requires an export from the production QMS for the surveillance period"
+    },
+    {
+      "id": "CON11_ZERO_MAJOR_SYSTEM_NCRS",
+      "status": "UNMEASURED",
+      "detail": "production M23 records (fix.internal.audit / fix.ncr / fix.capa) are not available on a workstation (DE-12); the local database holds synthetic seed rows only. Requires an export from the production QMS for the surveillance period"
+    },
+    {
+      "id": "CAPA_CLOSURE_RATE",
+      "status": "UNMEASURED",
+      "detail": "production M23 records (fix.internal.audit / fix.ncr / fix.capa) are not available on a workstation (DE-12); the local database holds synthetic seed rows only. Requires an export from the production QMS for the surveillance period"
+    },
+    {
+      "id": "SURVEILLANCE_CERTIFICATE",
+      "status": "UNMEASURED",
+      "detail": "certificate maintenance is decided by the external certification body; requires its ISO 9001:2015 surveillance audit report"
+    }
+  ],
+  "qms_audit": {
+    "audits_conducted": null,
+    "major_non_conformances_traced_to_systems": null,
+    "unclosed_capas": null,
+    "con11_verdict": "UNMEASURED",
+    "status": "UNMEASURED",
+    "detail": "production M23 records (fix.internal.audit / fix.ncr / fix.capa) are not available on a workstation (DE-12); the local database holds synthetic seed rows only. Requires an export from the production QMS for the surveillance period"
+  },
+  "surveillance_certificate": {
+    "status": "UNMEASURED",
+    "detail": "certificate maintenance is decided by the external certification body; requires its ISO 9001:2015 surveillance audit report"
+  },
+  "summary": {
+    "checks_passed": 2,
+    "checks_failed": 0,
+    "checks_unmeasured": 4
+  },
+  "verdict": "INCOMPLETE"
+}

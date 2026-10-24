@@ -1,0 +1,65 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "loyalty.tier_upgraded",
+  "description": "Published by cd_loyalty through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "loyalty.tier_upgraded"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_loyalty"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "partner_id",
+        "account_no",
+        "old_tier",
+        "new_tier"
+      ],
+      "properties": {
+        "partner_id": {
+          "type": "integer"
+        },
+        "account_no": {
+          "type": "string"
+        },
+        "old_tier": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "new_tier": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_loyalty",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_account.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

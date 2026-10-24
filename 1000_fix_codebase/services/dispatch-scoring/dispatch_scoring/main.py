@@ -1,22 +1,32 @@
 """FastAPI service for automated dispatch scoring and route optimization (CD-M02-02)."""
-from fastapi import FastAPI, HTTPException, status
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
 
-from .models import (
-    FieldJobRequest,
-    DispatchScoreResponse,
-    CandidateScoreBreakdown,
-)
-from .scorer import DispatchScorer
-from .route_optimizer import RouteOptimizer, RouteStop, RouteOptimizationResult
+from typing import Any
+
+from fastapi import FastAPI, HTTPException, status
+from pydantic import BaseModel
+
 from .geospatial_client import GeospatialClient
+from .models import (
+    CandidateScoreBreakdown,
+    DispatchScoreResponse,
+    FieldJobRequest,
+)
+from .route_optimizer import RouteOptimizationResult, RouteOptimizer, RouteStop
+from .scorer import DispatchScorer
 
 app = FastAPI(
     title="1000FiX Automated Dispatch Scoring & Route Engine",
     description="Event-driven 6-dimensional candidate scoring and VROOM route optimization",
     version="1.0.0",
 )
+
+# NFR-092 / PE-08: per-request span + correlation-id propagation (R01 re-audit).
+try:
+    from libs.py.fix_telemetry import http_span_middleware
+
+    app.middleware("http")(http_span_middleware("dispatch-scoring"))
+except ImportError:  # standalone deployment without the repo on sys.path
+    pass
 
 geo_client = GeospatialClient()
 
@@ -25,7 +35,7 @@ class HealthResponse(BaseModel):
     status: str
     service: str
     version: str
-    stubs_active: List[str]
+    stubs_active: list[str]
 
 
 class RouteOptimizationRequest(BaseModel):
@@ -34,7 +44,7 @@ class RouteOptimizationRequest(BaseModel):
     depot_name: str = "Tejgaon Central Service Hub"
     depot_lat: float = 23.7644
     depot_lon: float = 90.3928
-    stops: List[Dict[str, Any]]
+    stops: list[dict[str, Any]]
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -44,7 +54,7 @@ def health_check():
         status="healthy",
         service="dispatch-scoring",
         version="1.0.0",
-        stubs_active=["STUB-M02-M22-001 (technician certification check)"],
+        stubs_active=["STUB-M02-M22-001 (technician certification check - CLOSED in R06-M04)"],
     )
 
 

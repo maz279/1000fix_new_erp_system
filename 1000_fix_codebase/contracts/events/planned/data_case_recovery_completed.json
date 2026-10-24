@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data_case.recovery_completed",
+  "description": "Event emitted upon cleanroom forensic data recovery extraction (Journey 11)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "data_case.recovery_completed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_data_case"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "recovered_bytes",
+        "integrity_hash",
+        "completed_at"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "integer"
+        },
+        "recovered_bytes": {
+          "type": "integer"
+        },
+        "integrity_hash": {
+          "type": "string"
+        },
+        "completed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

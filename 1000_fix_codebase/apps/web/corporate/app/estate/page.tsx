@@ -57,7 +57,15 @@ export default function EstatePage() {
       })
       .catch((e: Error) => {
         const msg = e.message || "";
-        if (msg.includes("Session expired") || msg.includes("Odoo Session Expired")) {
+        if (
+          msg.includes("Session expired") ||
+          msg.includes("Odoo Session Expired") ||
+          msg.includes("network") ||
+          msg.includes("Unexpected token") ||
+          msg.includes("is not valid JSON") ||
+          msg.includes("<!DOCTYPE") ||
+          !user
+        ) {
           setAuthError(true);
         } else {
           setError(msg);

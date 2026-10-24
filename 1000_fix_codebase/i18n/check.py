@@ -4,6 +4,7 @@
 Usage:
     python -m i18n.check --completeness 100
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,10 +25,12 @@ def load_json(p: Path) -> dict:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify translation completeness")
-    parser.add_argument("--completeness", type=float, default=100.0,
-                        help="Required completeness percentage (0-100)")
-    parser.add_argument("--allow-baseline", action="store_true",
-                        help="Record baseline measurement without failing")
+    parser.add_argument(
+        "--completeness", type=float, default=100.0, help="Required completeness percentage (0-100)"
+    )
+    parser.add_argument(
+        "--allow-baseline", action="store_true", help="Record baseline measurement without failing"
+    )
     args = parser.parse_args(argv if argv is not None else sys.argv[1:])
 
     total_keys = 0
@@ -41,7 +44,11 @@ def main(argv: list[str] | None = None) -> int:
                 continue
             locales_dir = app_dir / "locales"
             messages_dir = app_dir / "messages"
-            target_dir = locales_dir if locales_dir.is_dir() else (messages_dir if messages_dir.is_dir() else None)
+            target_dir = (
+                locales_dir
+                if locales_dir.is_dir()
+                else (messages_dir if messages_dir.is_dir() else None)
+            )
             if not target_dir:
                 continue
 
@@ -61,13 +68,20 @@ def main(argv: list[str] | None = None) -> int:
 
             missing = set(en_data.keys()) - set(bn_data.keys())
             if missing:
-                missing_details.append(f"{app_dir.name}: {len(missing)}/{app_keys} keys missing in bn.json")
+                missing_details.append(
+                    f"{app_dir.name}: {len(missing)}/{app_keys} keys missing in bn.json"
+                )
 
     pct = (translated_keys / total_keys * 100.0) if total_keys > 0 else 100.0
-    print(f"i18n.check: MEASURED completeness = {pct:.1f}% ({translated_keys}/{total_keys} keys across {portal_count} portal(s)) — Target: {args.completeness:.1f}%")
+    print(
+        f"i18n.check: MEASURED completeness = {pct:.1f}% ({translated_keys}/{total_keys} keys across {portal_count} portal(s)) — Target: {args.completeness:.1f}%"
+    )
 
     if pct < args.completeness:
-        print(f"i18n.check: FAIL — completeness {pct:.1f}% is below required threshold {args.completeness:.1f}%", file=sys.stderr)
+        print(
+            f"i18n.check: FAIL — completeness {pct:.1f}% is below required threshold {args.completeness:.1f}%",
+            file=sys.stderr,
+        )
         for detail in missing_details:
             print(f"  {detail}", file=sys.stderr)
         if args.allow_baseline:

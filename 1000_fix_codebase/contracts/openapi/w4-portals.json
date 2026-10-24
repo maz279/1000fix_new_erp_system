@@ -210,6 +210,72 @@
         "operationId": "getKpis"
       }
     },
+    "/analytics/kpis/register": {
+      "get": {
+        "summary": "P06: the 95-KPI registry and BM-002 reconciliation (M25 / R05-M04-T03)",
+        "responses": {
+          "200": {
+            "description": "95 KPI Register and BM-002 reconciliation"
+          }
+        },
+        "operationId": "getKpiRegister"
+      }
+    },
+    "/analytics/governance/catalogue": {
+      "get": {
+        "summary": "P06 / R09-M02-T01: Estate-wide data catalogue (1,335 owned entities, 12 domains, DA-002/DA-003)",
+        "responses": {
+          "200": {
+            "description": "Data catalogue summary"
+          }
+        },
+        "operationId": "getGovernanceCatalogue"
+      }
+    },
+    "/analytics/governance/lineage": {
+      "get": {
+        "summary": "P06 / R09-M02-T02: Warehouse source-to-target feed lineage (DA-003 §6 / DA-007)",
+        "responses": {
+          "200": {
+            "description": "Lineage audit"
+          }
+        },
+        "operationId": "getGovernanceLineage"
+      }
+    },
+    "/analytics/governance/dq": {
+      "get": {
+        "summary": "P06 / R09-M02-T03: Data quality monitoring rules, thresholds, and alert dispatch (DA-008)",
+        "responses": {
+          "200": {
+            "description": "Data quality monitoring evidence"
+          }
+        },
+        "operationId": "getGovernanceDataQuality"
+      }
+    },
+    "/analytics/governance/residency": {
+      "get": {
+        "summary": "P06 / R09-M02-T04: NFR-086c residency classification compliance scan across warehouse",
+        "responses": {
+          "200": {
+            "description": "NFR-086c residency compliance scan"
+          }
+        },
+        "operationId": "getGovernanceResidency"
+      }
+    },
+    "/analytics/stt/dashboard": {
+      "get": {
+        "summary": "P06 / R09-M03-T04: Speech-to-Text productionisation, WER tracking and model drift monitoring",
+        "responses": {
+          "200": {
+            "description": "Bengali STT accuracy metrics, WER distribution, drift status, and PDPA compliance"
+          }
+        },
+        "operationId": "getSTTDashboardMetrics"
+      }
+    },
     "/customer/devices": {
       "post": {
         "summary": "P01: the customer's devices with the M17 history timeline",

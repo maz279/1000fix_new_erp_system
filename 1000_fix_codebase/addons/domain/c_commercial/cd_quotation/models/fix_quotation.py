@@ -16,20 +16,33 @@ class FixEstimate(models.Model):
     _inherit = "fix.estimate"
 
     quotation_state = fields.Selection(
-        [("internal", "Internal Estimate"), ("quoted", "Quoted to Customer"),
-         ("negotiating", "Negotiating"), ("accepted", "Accepted"),
-         ("declined", "Declined")],
-        string="Quotation State", default="internal", tracking=True,
-        help="M01 created the estimate; M36 quotes it — one record, one lifecycle")
-    valid_days = fields.Integer(default=15,
-                                help="Quotation validity window in days (BRU-SRM-13: "
-                                     "expired estimates are re-issued, never extended)")
+        [
+            ("internal", "Internal Estimate"),
+            ("quoted", "Quoted to Customer"),
+            ("negotiating", "Negotiating"),
+            ("accepted", "Accepted"),
+            ("declined", "Declined"),
+        ],
+        string="Quotation State",
+        default="internal",
+        tracking=True,
+        help="M01 created the estimate; M36 quotes it — one record, one lifecycle",
+    )
+    valid_days = fields.Integer(
+        default=15,
+        help="Quotation validity window in days (BRU-SRM-13: "
+        "expired estimates are re-issued, never extended)",
+    )
     sent_at = fields.Datetime(readonly=True)
     accepted_at = fields.Datetime(readonly=True)
-    approval_ids = fields.One2many("fix.discount.approval", "quotation_id",
-                                   string="Discount Approvals")
-    tender_ref = fields.Char(string="Tender Reference", index=True,
-                             help="Tender management seam (CD-M36-05, P04 portal W4+)")
+    approval_ids = fields.One2many(
+        "fix.discount.approval", "quotation_id", string="Discount Approvals"
+    )
+    tender_ref = fields.Char(
+        string="Tender Reference",
+        index=True,
+        help="Tender management seam (CD-M36-05, P04 portal W4+)",
+    )
 
     def action_quote(self):
         for estimate in self:
@@ -39,22 +52,33 @@ class FixEstimate(models.Model):
             if pending:
                 raise UserError("A pending discount approval blocks quoting")
             estimate.write({"quotation_state": "quoted", "sent_at": fields.Datetime.now()})
-            publish(self.env, "quotation.sent", "fix.estimate", estimate.id, {
-                "version": estimate.version,
-                "grand_total": estimate.grand_total,
-                "valid_days": estimate.valid_days,
-            })
+            publish(
+                self.env,
+                "quotation.sent",
+                "fix.estimate",
+                estimate.id,
+                {
+                    "version": estimate.version,
+                    "grand_total": estimate.grand_total,
+                    "valid_days": estimate.valid_days,
+                },
+            )
 
     def action_accept(self):
         for estimate in self:
             if estimate.quotation_state not in ("quoted", "negotiating"):
                 raise UserError("Only a quoted quotation can be accepted")
-            estimate.write({"quotation_state": "accepted",
-                            "accepted_at": fields.Datetime.now()})
-            publish(self.env, "quotation.accepted", "fix.estimate", estimate.id, {
-                "version": estimate.version,
-                "grand_total": estimate.grand_total,
-            })
+            estimate.write({"quotation_state": "accepted", "accepted_at": fields.Datetime.now()})
+            publish(
+                self.env,
+                "quotation.accepted",
+                "fix.estimate",
+                estimate.id,
+                {
+                    "version": estimate.version,
+                    "grand_total": estimate.grand_total,
+                },
+            )
 
     def action_decline(self):
         for estimate in self:
@@ -76,16 +100,21 @@ class FixDiscountApproval(models.Model):
     _description = "Discount Approval"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
-    quotation_id = fields.Many2one("fix.estimate", string="Quotation",
-                                   required=True, ondelete="cascade")
+    quotation_id = fields.Many2one(
+        "fix.estimate", string="Quotation", required=True, ondelete="cascade"
+    )
     discount_pct = fields.Float(string="Discount (%)", required=True)
     justification = fields.Text(required=True)
     state = fields.Selection(
         [("pending", "Pending"), ("approved", "Approved"), ("rejected", "Rejected")],
-        default="pending", required=True, tracking=True)
+        default="pending",
+        required=True,
+        tracking=True,
+    )
     approved_by = fields.Many2one("res.users", readonly=True)
     # Authority matrix (05-04 section 7): agent 5%, branch manager 10%,
     # above that the commercial director.
@@ -103,10 +132,16 @@ class FixDiscountApproval(models.Model):
     def action_approve(self):
         for approval in self:
             if approval.discount_pct > self.MANAGER_MAX and not self.env.user.has_group(
-                    "base.group_system"):
+                "base.group_system"
+            ):
                 raise UserError(
-                    "Discounts above %.1f%% require commercial-director approval"
-                    % self.MANAGER_MAX)
+                    "Discounts above %.1f%% require commercial-director approval" % self.MANAGER_MAX
+                )
             approval.write({"state": "approved", "approved_by": self.env.user.id})
-            publish(self.env, "discount.approved", "fix.discount.approval",
-                    approval.id, {"pct": approval.discount_pct})
+            publish(
+                self.env,
+                "discount.approved",
+                "fix.discount.approval",
+                approval.id,
+                {"pct": approval.discount_pct},
+            )

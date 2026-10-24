@@ -10,7 +10,11 @@ CD-M11-01 (P10) — Dynamic Pricing (W7).
     "author": "1000FiX Services Ltd",
     "category": "Dynamic Pricing (W7)",
     "depends": ["base", "mail", "cd_entity_config", "cd_rate_card", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/cd_dynamic_pricing_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/cd_dynamic_pricing_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M11-01",

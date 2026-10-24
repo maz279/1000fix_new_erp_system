@@ -88,7 +88,15 @@ export default function CorporateHomePage() {
       setLoading(false);
     } catch (err: unknown) {
       const msg = (err as Error).message || "";
-      if (msg.includes("Session expired") || msg.includes("Odoo Session Expired") || msg.includes("network")) {
+      if (
+        msg.includes("Session expired") ||
+        msg.includes("Odoo Session Expired") ||
+        msg.includes("network") ||
+        msg.includes("Unexpected token") ||
+        msg.includes("is not valid JSON") ||
+        msg.includes("<!DOCTYPE") ||
+        !user
+      ) {
         setAuthError(true);
       } else {
         setErrorMsg(msg);

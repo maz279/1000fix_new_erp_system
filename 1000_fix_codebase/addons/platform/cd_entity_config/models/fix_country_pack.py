@@ -8,20 +8,28 @@ from odoo import fields, models
 
 class FixCountryPack(models.Model):
     """The Bangladesh reference-data pack: divisions, districts, holidays."""
+
     _name = "fix.country.pack"
     _description = "Country Data Pack"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'Pack code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "Pack code must be unique")
 
     name = fields.Char(string="Pack Name", required=True, tracking=True)
-    code = fields.Char(string="Pack Code", required=True, size=16,
-                       help="e.g. BD-DIV-2026, BD-HOL-2026")
+    code = fields.Char(
+        string="Pack Code", required=True, size=16, help="e.g. BD-DIV-2026, BD-HOL-2026"
+    )
     kind = fields.Selection(
-        [("divisions", "Divisions & Districts"), ("holidays", "Public Holidays"),
-         ("postcodes", "Postcodes")],
-        string="Kind", required=True, default="divisions")
+        [
+            ("divisions", "Divisions & Districts"),
+            ("holidays", "Public Holidays"),
+            ("postcodes", "Postcodes"),
+        ],
+        string="Kind",
+        required=True,
+        default="divisions",
+    )
     version = fields.Char(string="Version", required=True, default="2026.1")
     loaded_at = fields.Datetime(string="Loaded At", readonly=True)
     line_ids = fields.One2many("fix.country.pack.line", "pack_id", string="Lines")
@@ -41,13 +49,17 @@ class FixCountryPackLine(models.Model):
     _description = "Country Data Pack Line"
 
     pack_id = fields.Many2one("fix.country.pack", required=True, ondelete="cascade")
-    parent_code = fields.Char(string="Parent Code",
-                              help="District lines point at their division code")
+    parent_code = fields.Char(
+        string="Parent Code", help="District lines point at their division code"
+    )
     code = fields.Char(string="Code", required=True)
     name = fields.Char(string="Name (English)", required=True)
-    name_bn = fields.Char(string="Name (Bengali)", required=True,
-                          help="DE-17: Bengali is not optional for place names")
+    name_bn = fields.Char(
+        string="Name (Bengali)",
+        required=True,
+        help="DE-17: Bengali is not optional for place names",
+    )
     date_value = fields.Date(string="Date (holiday packs)")
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _pack_code_unique = models.Constraint('UNIQUE (pack_id, code)', 'Code appears once per pack')
+    _pack_code_unique = models.Constraint("UNIQUE (pack_id, code)", "Code appears once per pack")

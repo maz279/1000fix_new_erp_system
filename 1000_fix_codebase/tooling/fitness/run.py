@@ -12,6 +12,7 @@ Checks whose script is not yet present report SKIP with a remedy (a missing
 check is visible, never silent). Until Phase 3 code lands, SKIP-visibility
 is the honest state and the runner exits 0.
 """
+
 from __future__ import annotations
 
 import json
@@ -79,9 +80,14 @@ def build_command(script: str) -> list[str] | None:
 
 def result(suite: str, case: str, status: str, verifies: str, ms: float, remedy: str = "") -> dict:
     return {
-        "suite": suite, "case": case, "status": status,
-        "duration_ms": round(ms), "verifies": verifies,
-        "artefacts": [], "message": "", "remedy": remedy,
+        "suite": suite,
+        "case": case,
+        "status": status,
+        "duration_ms": round(ms),
+        "verifies": verifies,
+        "artefacts": [],
+        "message": "",
+        "remedy": remedy,
         "ran_at_utc": datetime.now(UTC).isoformat(),
     }
 
@@ -98,19 +104,38 @@ def main() -> int:
             failures += 1
             continue
         if not enabled:
-            msg = f"built, disabled; promotes at {chk.get('promote_to_blocking_at', 'gate')} (FG-04)"
+            msg = (
+                f"built, disabled; promotes at {chk.get('promote_to_blocking_at', 'gate')} (FG-04)"
+            )
             results.append(result(cid, "disabled-by-design", "SKIP", cid, 0, msg))
             print(f"[SKIP] {cid}: disabled-by-design - {msg}")
             continue
         cmd = build_command(script)
         if cmd is None:
-            results.append(result(cid, "runner", "SKIP", cid, 0,
-                                   f"check script not present/allowed under tooling/: {script} (visible, never silent)"))
-            print(f"[SKIP] {cid}: script missing ({script}) - Phase 3 lands it with the code it checks")
+            results.append(
+                result(
+                    cid,
+                    "runner",
+                    "SKIP",
+                    cid,
+                    0,
+                    f"check script not present/allowed under tooling/: {script} (visible, never silent)",
+                )
+            )
+            print(
+                f"[SKIP] {cid}: script missing ({script}) - Phase 3 lands it with the code it checks"
+            )
             continue
         t0 = datetime.now()
-        proc = subprocess.run(cmd, capture_output=True, text=True, shell=False, cwd=REPO_ROOT,
-                              timeout=600, check=False)
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            shell=False,
+            cwd=REPO_ROOT,
+            timeout=600,
+            check=False,
+        )
         ms = (datetime.now() - t0).total_seconds() * 1000
         status = "PASS" if proc.returncode == 0 else ("FAIL" if blocking else "WARN")
         if status == "FAIL":
@@ -122,8 +147,10 @@ def main() -> int:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     out = HERE / "evidence" / f"fitness-{stamp}.json"
     out.parent.mkdir(exist_ok=True)
-    out.write_text(json.dumps({"schema": "1000fix-erp/fitness-results/1", "results": results},
-                              indent=2), encoding="utf-8")
+    out.write_text(
+        json.dumps({"schema": "1000fix-erp/fitness-results/1", "results": results}, indent=2),
+        encoding="utf-8",
+    )
     print(f"\nfitness: {failures} failure(s); results -> {out.relative_to(REPO_ROOT)}")
     return 1 if failures else 0
 

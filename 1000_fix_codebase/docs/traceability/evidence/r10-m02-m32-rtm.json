@@ -1,0 +1,45 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M02",
+  "task": "R10-M02-T03",
+  "title": "M32 Conversational AI & Virtual Assistant Traceability Matrix",
+  "timestamp": "2026-10-22T09:13:18.668349+00:00",
+  "module_id": "M32",
+  "cr_id": "CR-R10M02-03",
+  "requirements_seeded": 38,
+  "requirements_in_cr_register": 38,
+  "requirements_count": 38,
+  "requirements_range": "FR-CAI-001 ... FR-CAI-038",
+  "untraced_requirements": [],
+  "broken_path_references": {},
+  "seeded_not_in_cr_register": [],
+  "delivery_units": [
+    {
+      "unit": "contact centre",
+      "path": "addons/domain/b_customer_engagement/cd_contact_centre",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "Ollama self-hosted assistant",
+      "path": "infra/compose/docker-compose.asset-ml.yml",
+      "requires": "ollama:",
+      "present": true
+    },
+    {
+      "unit": "benchmark & intent runtime",
+      "path": "services/conversational-ai",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "R07 knowledge upgrade (M61 knowledge-base intents)",
+      "path": "addons/domain/b_customer_engagement/cd_contact_centre/models/assistant_engine.py",
+      "requires": "R07-M04-T04",
+      "present": true
+    }
+  ],
+  "failures": [],
+  "verdict": "PASS",
+  "status": "PASS"
+}

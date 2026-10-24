@@ -2,8 +2,7 @@
 import inspect
 import unittest
 
-from odoo.addons.cd_equipment_register.models.fix_equipment import (
-    FixCalibration, FixEquipment)
+from odoo.addons.cd_equipment_register.models.fix_equipment import FixCalibration, FixEquipment
 
 
 class TestCalibrationModel(unittest.TestCase):

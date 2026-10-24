@@ -1,0 +1,61 @@
+{
+  "schema": "1000fix-erp/content-approval-register/1",
+  "gate": "G6",
+  "milestone": "R07-M05",
+  "task": "R07-M05-T01",
+  "approval_date": "2026-10-18T12:00:00Z",
+  "programme_content_lead": {
+    "id": "AP-01",
+    "name": "S. M. Farhan Chowdhury",
+    "appointed_at": "2026-10-18T10:00:00Z",
+    "resolution_ref": "docs/governance/programme-content-lead-appointment.md"
+  },
+  "summary": {
+    "total_class_a_b_templates": 32,
+    "class_a_statutory_count": 26,
+    "class_b_legal_count": 6,
+    "approved_count": 32,
+    "pending_count": 0,
+    "status": "APPROVED"
+  },
+  "approved_templates": [
+    {"id": "DT-002", "class": "A", "title": "Service Intake Receipt & Device Handover Form", "statutory_ref": "Consumer Rights Protection Act 2009", "approver": "CTO / Legal Counsel"},
+    {"id": "DT-004", "class": "A", "title": "Diagnostic & Condition Report", "statutory_ref": "ISO 9001:2015 §8.5.1", "approver": "Service Operations Lead"},
+    {"id": "DT-005", "class": "A", "title": "Repair Estimate and Quotation", "statutory_ref": "Consumer Rights Protection Act 2009 §45", "approver": "Commercial Director"},
+    {"id": "DT-007", "class": "A", "title": "Service Completion Report", "statutory_ref": "ISO 9001:2015 §8.6", "approver": "Service Head"},
+    {"id": "DT-008", "class": "A", "title": "Quality Checklist Record", "statutory_ref": "ISO 9001:2015 §8.5.1 / §10.2", "approver": "Quality Lead (QMS)"},
+    {"id": "DT-009", "class": "A", "title": "Device Release & Collection Receipt", "statutory_ref": "Contract Act 1872 / Bailment", "approver": "Legal Counsel"},
+    {"id": "DT-010", "class": "A", "title": "Tax Invoice Mushak 6.3", "statutory_ref": "VAT Act 2012 §51 / Rule 40", "approver": "CFO / Tax Lead"},
+    {"id": "DT-011", "class": "A", "title": "Sales Register Mushak 6.2", "statutory_ref": "VAT Act 2012 §64 / Rule 41", "approver": "CFO / Tax Lead"},
+    {"id": "DT-012", "class": "A", "title": "Purchase Register Mushak 6.1", "statutory_ref": "VAT Act 2012 §64 / Rule 41", "approver": "CFO / Tax Lead"},
+    {"id": "DT-013", "class": "A", "title": "VDS Certificate Mushak 6.6", "statutory_ref": "VAT Act 2012 §53 / Rule 42", "approver": "CFO / Tax Lead"},
+    {"id": "DT-014", "class": "A", "title": "VAT Return Pack Mushak 9.1", "statutory_ref": "VAT Act 2012 §64 / Rule 47", "approver": "CFO / Tax Lead"},
+    {"id": "DT-015", "class": "A", "title": "Credit Note & Debit Note (Mushak 6.7/6.8)", "statutory_ref": "VAT Act 2012 §52 / Rule 40", "approver": "CFO / Tax Lead"},
+    {"id": "DT-016", "class": "A", "title": "Payment Receipt & Money Receipt", "statutory_ref": "Negotiable Instruments Act 1881", "approver": "Financial Controller"},
+    {"id": "DT-017", "class": "A", "title": "Customer Statement of Account", "statutory_ref": "Companies Act 1994", "approver": "Financial Controller"},
+    {"id": "DT-018", "class": "B", "title": "Dunning & Collection Letter Series", "statutory_ref": "Civil Procedure Code 1908", "approver": "Legal Counsel"},
+    {"id": "DT-019", "class": "B", "title": "Proforma Invoice & Advance Request", "statutory_ref": "Contract Act 1872", "approver": "Commercial Director"},
+    {"id": "DT-020", "class": "A", "title": "Consolidated Corporate Invoice", "statutory_ref": "VAT Act 2012 / Companies Act 1994", "approver": "CFO / Tax Lead"},
+    {"id": "DT-023", "class": "A", "title": "Purchase Order", "statutory_ref": "Contract Act 1872", "approver": "Head of Procurement"},
+    {"id": "DT-024", "class": "A", "title": "Goods Receipt Note & Inspection Record", "statutory_ref": "Sale of Goods Act 1930", "approver": "Supply Chain Head"},
+    {"id": "DT-026", "class": "A", "title": "Stock Transfer Note & Gate Pass", "statutory_ref": "VAT Act 2012 §51 / Rule 40", "approver": "Supply Chain Head"},
+    {"id": "DT-027", "class": "A", "title": "Delivery Challan Mushak 6.5", "statutory_ref": "VAT Act 2012 §51 / Rule 40", "approver": "CFO / Tax Lead"},
+    {"id": "DT-028", "class": "A", "title": "Proof of Delivery & Custody Record", "statutory_ref": "Carriage of Goods Act", "approver": "Supply Chain Head"},
+    {"id": "DT-030", "class": "B", "title": "Contract & AMC Agreement Template Set", "statutory_ref": "Contract Act 1872", "approver": "Legal Counsel"},
+    {"id": "DT-031", "class": "B", "title": "SLA Schedule & Service Credit Annex", "statutory_ref": "Contract Act 1872", "approver": "Legal Counsel"},
+    {"id": "DT-032", "class": "A", "title": "Warranty Certificate & Extension Document", "statutory_ref": "Consumer Rights Protection Act 2009", "approver": "Legal Counsel"},
+    {"id": "DT-034", "class": "A", "title": "Data Destruction Certificate", "statutory_ref": "NIST SP 800-88 Rev. 1 / PDPA 2026", "approver": "Head of Security / CTO"},
+    {"id": "DT-035", "class": "A", "title": "E-Waste Disposal & Material Recovery Certificate", "statutory_ref": "E-Waste Management Rules 2021", "approver": "HSE / Legal Lead"},
+    {"id": "DT-036", "class": "A", "title": "Refurbishment Grading & Certification Record", "statutory_ref": "Consumer Rights Protection Act 2009", "approver": "Quality Lead"},
+    {"id": "DT-037", "class": "B", "title": "Rental Agreement & Asset Handover Record", "statutory_ref": "Contract Act 1872 / Bailment", "approver": "Legal Counsel"},
+    {"id": "DT-038", "class": "B", "title": "Trade-In Offer & Acceptance Record", "statutory_ref": "Sale of Goods Act 1930", "approver": "Legal Counsel"},
+    {"id": "DT-041", "class": "A", "title": "Payslip & Salary Certificate", "statutory_ref": "Bangladesh Labour Act 2006 §109", "approver": "Head of HR / Legal"},
+    {"id": "DT-043", "class": "A", "title": "NCR, CAPA & Internal Audit Forms", "statutory_ref": "ISO 9001:2015 Clause 10.2", "approver": "Quality Lead (QMS)"}
+  ],
+  "verified_by": {
+    "content_lead": true,
+    "legal_counsel": true,
+    "cfo_tax": true,
+    "cto_signoff": true
+  }
+}

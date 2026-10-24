@@ -5,7 +5,12 @@ Specification: docs/p04/migration-etl-specs.md (ETL-4) and MIG-06 residency rout
 Target models: hr.employee, fix.party.role, fix_event_outbox (AS-08 JML events).
 Classified storage: NID routed to Z4 via libs.py.fix_residency.
 Legacy reference: EMP:PAYROLL_2026:<employee_code>
+Company / operating unit: the employee's branch (fix_branch.company_id /
+operating_unit_id). An employee whose branch or primary role is not on the target
+is rejected (counted and listed) - never defaulted to HQ / R-01 / "the first
+company", and a missing hire date stays empty (never invented).
 """
+
 from __future__ import annotations
 
 import json
@@ -29,43 +34,50 @@ def load_employees(extract_path: Path, db_conn) -> dict[str, Any]:
     residency = get_residency_client()
 
     with db_conn.cursor() as cur:
-        # Default company and operating unit
-        cur.execute("SELECT id FROM res_company LIMIT 1;")
-        company_id = cur.fetchone()[0]
-        cur.execute("SELECT id FROM operating_unit WHERE code = 'OU1' LIMIT 1;")
-        ou_row = cur.fetchone()
-        operating_unit_id = ou_row[0] if ou_row else 1
-
         for item in data:
             emp_code = item["employee_code"]
             name = item["name"]
             name_bn = item.get("name_bn", "")
             email = item.get("email", "")
             phone = item.get("phone", "")
-            branch_code = item.get("branch_code", "HQ")
-            role_code = item.get("primary_role", "R-01")
+            branch_code = item.get("branch_code")
+            role_code = item.get("primary_role")
             nid = item.get("nid", "").strip()
-            hire_date = item.get("hire_date", "2024-01-15")
+            hire_date = item.get("hire_date") or None
             legacy_ref = item["legacy_reference"]
 
-            # Resolve branch_id
-            cur.execute("SELECT id FROM fix_branch WHERE code = %s LIMIT 1;", (branch_code,))
-            branch_row = cur.fetchone()
-            branch_id = branch_row[0] if branch_row else None
-
-            # Resolve primary_role_id from fix.role
-            cur.execute("SELECT id FROM fix_role WHERE code = %s LIMIT 1;", (role_code,))
-            role_row = cur.fetchone()
-            role_id = role_row[0] if role_row else None
+            # Branch -> company / operating unit; primary role from fix.role
+            cur.execute(
+                "SELECT id, company_id, operating_unit_id FROM fix_branch WHERE code = %s;",
+                (branch_code,),
+            )
+            branch_rows = cur.fetchall()
+            cur.execute("SELECT id FROM fix_role WHERE code = %s;", (role_code,))
+            role_rows = cur.fetchall()
+            reason = None
+            if len(branch_rows) != 1:
+                reason = f"branch {branch_code!r} not found on target (fix_branch.code)"
+            elif len(role_rows) != 1:
+                reason = f"primary role {role_code!r} not found on target (fix_role.code)"
+            if reason:
+                rejected_count += 1
+                rejections.append({"legacy_reference": legacy_ref, "reason": reason})
+                continue
+            branch_id, company_id, operating_unit_id = branch_rows[0]
+            role_id = role_rows[0][0]
 
             cur.execute("SAVEPOINT employee_sp;")
             try:
                 # 1. Partner & Party Role for Employee (Multi-role design rule: employee is a party)
                 cur.execute(
-                    "SELECT id FROM res_partner WHERE email = %s OR legacy_reference = %s;",
-                    (email, f"PARTNER:{legacy_ref}")
+                    "SELECT id FROM res_partner WHERE legacy_reference = %s;",
+                    (f"PARTNER:{legacy_ref}",),
                 )
                 partner_row = cur.fetchone()
+                if not partner_row and email:
+                    # the same person may already be a party (multi-role design rule)
+                    cur.execute("SELECT id FROM res_partner WHERE email = %s;", (email,))
+                    partner_row = cur.fetchone()
                 if partner_row:
                     partner_id = partner_row[0]
                 else:
@@ -75,14 +87,14 @@ def load_employees(extract_path: Path, db_conn) -> dict[str, Any]:
                                autopost_bills, legacy_reference, active, create_date, write_date
                            ) VALUES (%s, %s, %s, %s, %s, 'bn', 'ask', %s, true, NOW(), NOW())
                            RETURNING id;""",
-                        (name, name_bn, email, phone, company_id, f"PARTNER:{legacy_ref}")
+                        (name, name_bn, email, phone, company_id, f"PARTNER:{legacy_ref}"),
                     )
                     partner_id = cur.fetchone()[0]
 
                 # fix.party.role
                 cur.execute(
                     "SELECT id FROM fix_party_role WHERE partner_id = %s AND role_type = 'employee';",
-                    (partner_id,)
+                    (partner_id,),
                 )
                 party_role_row = cur.fetchone()
                 if party_role_row:
@@ -94,38 +106,59 @@ def load_employees(extract_path: Path, db_conn) -> dict[str, Any]:
                                create_date, write_date
                            ) VALUES (%s, %s, 'employee', 'active', NOW(), NOW())
                            RETURNING id;""",
-                        (partner_id, company_id)
+                        (partner_id, company_id),
                     )
                     party_role_id = cur.fetchone()[0]
 
-                # 2. Resource record (resource.resource) required by hr.employee
+                # 2. Insert or update hr.employee (with its resource.resource)
                 cur.execute(
-                    """INSERT INTO resource_resource (
-                           name, resource_type, company_id, tz, time_efficiency, active, create_date, write_date
-                       ) VALUES (%s, 'user', %s, 'Asia/Dhaka', 100.0, true, NOW(), NOW())
-                       RETURNING id;""",
-                    (name, company_id)
-                )
-                resource_id = cur.fetchone()[0]
-
-                # 3. Insert or update hr.employee
-                cur.execute(
-                    "SELECT id FROM hr_employee WHERE legacy_reference = %s OR employee_code = %s;",
-                    (legacy_ref, emp_code)
+                    "SELECT id, resource_id FROM hr_employee WHERE legacy_reference = %s OR employee_code = %s;",
+                    (legacy_ref, emp_code),
                 )
                 existing_emp = cur.fetchone()
                 if existing_emp:
-                    emp_id = existing_emp[0]
+                    emp_id, resource_id = existing_emp
+                    # Re-run: keep the employee's resource, refresh it (no orphan rows)
+                    cur.execute(
+                        """UPDATE resource_resource
+                           SET name = %s, tz = 'Asia/Dhaka', time_efficiency = 100.0,
+                               active = true, write_date = NOW()
+                           WHERE id = %s;""",
+                        (name, resource_id),
+                    )
                     cur.execute(
                         """UPDATE hr_employee
                            SET name = %s, name_bn = %s, work_email = %s, work_phone = %s,
-                               branch_id = %s, primary_role_id = %s, party_role_id = %s,
+                               branch_id = %s, company_id = %s, operating_unit_id = %s,
+                               primary_role_id = %s, party_role_id = %s,
                                partner_id = %s, legacy_reference = %s, active = true
                            WHERE id = %s;""",
-                        (name, name_bn, email, phone, branch_id, role_id,
-                         party_role_id, partner_id, legacy_ref, emp_id)
+                        (
+                            name,
+                            name_bn,
+                            email,
+                            phone,
+                            branch_id,
+                            company_id,
+                            operating_unit_id,
+                            role_id,
+                            party_role_id,
+                            partner_id,
+                            legacy_ref,
+                            emp_id,
+                        ),
                     )
                 else:
+                    # Resource record (resource.resource) required by hr.employee
+                    cur.execute(
+                        """INSERT INTO resource_resource (
+                               name, resource_type, company_id, tz, time_efficiency, active,
+                               create_date, write_date
+                           ) VALUES (%s, 'user', %s, 'Asia/Dhaka', 100.0, true, NOW(), NOW())
+                           RETURNING id;""",
+                        (name, company_id),
+                    )
+                    resource_id = cur.fetchone()[0]
                     cur.execute(
                         """INSERT INTO hr_employee (
                                name, name_bn, employee_code, work_email, work_phone,
@@ -134,38 +167,74 @@ def load_employees(extract_path: Path, db_conn) -> dict[str, Any]:
                                legacy_reference, active, create_date, write_date
                            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, true, NOW(), NOW())
                            RETURNING id;""",
-                        (name, name_bn, emp_code, email, phone, branch_id, role_id,
-                         party_role_id, partner_id, resource_id, company_id,
-                         operating_unit_id, legacy_ref)
+                        (
+                            name,
+                            name_bn,
+                            emp_code,
+                            email,
+                            phone,
+                            branch_id,
+                            role_id,
+                            party_role_id,
+                            partner_id,
+                            resource_id,
+                            company_id,
+                            operating_unit_id,
+                            legacy_ref,
+                        ),
                     )
                     emp_id = cur.fetchone()[0]
 
-                # 4. MIG-06 Residency routing for Employee NID
+                # 3. MIG-06 Residency routing for Employee NID. The Z4 reference is kept
+                # on the employee's party (fix.identity.document) so MG-007 rollback can
+                # erase it, and a re-run never stores a second, orphan Z4 key.
                 if nid:
-                    residency_ref = str(uuid.uuid4())
-                    z4_key = f"employee identity:{residency_ref}"
-                    residency.put(z4_key, nid)
+                    doc_type = "nid_10" if len(nid) <= 10 else "nid_17"
+                    cur.execute(
+                        "SELECT id FROM fix_identity_document WHERE partner_id = %s AND document_type = %s;",
+                        (partner_id, doc_type),
+                    )
+                    if not cur.fetchone():
+                        residency_ref = str(uuid.uuid4())
+                        residency.put(f"employee identity:{residency_ref}", nid)
+                        cur.execute(
+                            """INSERT INTO fix_identity_document (
+                                   partner_id, document_type, residency_ref, company_id,
+                                   is_primary, active, create_date, write_date
+                               ) VALUES (%s, %s, %s, %s, true, true, NOW(), NOW());""",
+                            (partner_id, doc_type, residency_ref, company_id),
+                        )
 
-                # 5. JML Event emission to fix_event_outbox (AS-08)
-                event_payload = json.dumps({
-                    "event": "employee.imported",
-                    "employee_id": emp_id,
-                    "employee_code": emp_code,
-                    "name": name,
-                    "primary_role": role_code,
-                    "branch_code": branch_code,
-                    "hire_date": hire_date,
-                    "legacy_reference": legacy_ref,
-                })
-                event_uuid = str(uuid.uuid4())
+                # 4. JML Event emission to fix_event_outbox (AS-08) - once per employee:
+                # a re-run must not re-announce the joiner downstream
                 cur.execute(
-                    """INSERT INTO fix_event_outbox (
-                           event_id, event_type, aggregate, aggregate_id, payload,
-                           company_id, operating_unit_id, status, publish_attempts,
-                           create_date, write_date
-                       ) VALUES (%s, 'employee.imported', 'hr.employee', %s, %s, %s, %s, 'pending', 0, NOW(), NOW());""",
-                    (event_uuid, str(emp_id), event_payload, company_id, operating_unit_id)
+                    """SELECT 1 FROM fix_event_outbox
+                       WHERE event_type = 'employee.imported' AND aggregate = 'hr.employee'
+                         AND aggregate_id = %s LIMIT 1;""",
+                    (str(emp_id),),
                 )
+                if not cur.fetchone():
+                    event_payload = json.dumps(
+                        {
+                            "event": "employee.imported",
+                            "employee_id": emp_id,
+                            "employee_code": emp_code,
+                            "name": name,
+                            "primary_role": role_code,
+                            "branch_code": branch_code,
+                            "hire_date": hire_date,
+                            "legacy_reference": legacy_ref,
+                        }
+                    )
+                    event_uuid = str(uuid.uuid4())
+                    cur.execute(
+                        """INSERT INTO fix_event_outbox (
+                               event_id, event_type, aggregate, aggregate_id, payload,
+                               company_id, operating_unit_id, status, bus_target, publish_attempts,
+                               create_date, write_date
+                           ) VALUES (%s, 'employee.imported', 'hr.employee', %s, %s, %s, %s, 'pending', 'dual', 0, NOW(), NOW());""",
+                        (event_uuid, str(emp_id), event_payload, company_id, operating_unit_id),
+                    )
 
                 cur.execute("RELEASE SAVEPOINT employee_sp;")
                 loaded_count += 1

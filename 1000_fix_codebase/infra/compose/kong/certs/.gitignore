@@ -1,0 +1,6 @@
+gateway.key
+gateway.crt
+dev-root-ca.key
+dev-root-ca.srl
+gateway.ext
+gateway.csr

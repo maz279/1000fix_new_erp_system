@@ -1,0 +1,64 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "payroll.beftn_generated",
+  "description": "Event emitted when 128-byte Bangladesh Electronic Fund Transfer Network batch is created (Journey 13)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "payroll.beftn_generated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_payroll_bd"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "batch_id",
+        "period_id",
+        "records_count",
+        "batch_amount_bdt",
+        "generated_at"
+      ],
+      "properties": {
+        "batch_id": {
+          "type": "string"
+        },
+        "period_id": {
+          "type": "string"
+        },
+        "records_count": {
+          "type": "integer"
+        },
+        "batch_amount_bdt": {
+          "type": "number"
+        },
+        "bank_routing_no": {
+          "type": "string"
+        },
+        "generated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

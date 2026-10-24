@@ -1,0 +1,83 @@
+# =============================================================================
+# 1000fix-erp - uat environment overlay (PE-002-D-02, infra/environments.yaml)
+#
+# Business acceptance environment for stakeholder sign-off.
+# Data rule: full TS-002 set, frozen-for-cycle; residency_classified: never.
+#
+# Ports:
+#   PostgreSQL: 127.0.0.1:5437
+#   Redis:      127.0.0.1:6383
+#   Odoo:       127.0.0.1:8073
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.uat.yml --profile uat up -d
+# =============================================================================
+services:
+  postgres-uat:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["uat"]
+    environment:
+      FIX_ENV: uat
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${UAT_DB_PASSWORD:-fix_uat_secret_insecure}
+      POSTGRES_DB: fix_uat_frozen
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5437:5432"]
+    volumes:
+      - pgdata-uat:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_uat_frozen"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-uat:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["uat"]
+    environment:
+      FIX_ENV: uat
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6383:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-uat:
+    image: 1000fix/odoo:19.0-uat@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["uat"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: uat
+      HOST: postgres-uat
+      PORT: 5432
+      USER: fix
+      PASSWORD: ${UAT_DB_PASSWORD:-fix_uat_secret_insecure}
+    ports: ["127.0.0.1:8073:8069"]
+    volumes:
+      - odoo-data-uat:/var/lib/odoo
+    depends_on:
+      postgres-uat:
+        condition: service_healthy
+      redis-uat:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-uat:
+  odoo-data-uat:

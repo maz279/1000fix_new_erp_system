@@ -1,8 +1,10 @@
 # cd_contract_core tests — M08 (P07-M01).
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_contract.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_contract.py").read_text(
+    encoding="utf-8"
+)
 
 
 class TestFamilies(unittest.TestCase):

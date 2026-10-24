@@ -5,7 +5,6 @@
 from __future__ import annotations
 
 import unittest
-from typing import Dict, List
 
 
 class MockBrandDecisionEngine:
@@ -24,7 +23,7 @@ class MockBrandDecisionEngine:
             "SN-EXCEPTION-008": "Reported fault code unverified during bench test",
         }
 
-    def evaluate_claim(self, claim: Dict) -> Dict:
+    def evaluate_claim(self, claim: dict) -> dict:
         """Evaluates claim decision. Rejects if incomplete; otherwise evaluates warranty rules."""
         if not claim.get("evidence_complete", False):
             return {
@@ -52,12 +51,24 @@ class TestWarrantyApprovalRateMeasurement(unittest.TestCase):
     """R05-M01-T04 / G4-02: Measures first-submission approval rate across 18 brands."""
 
     BRANDS = [
-        ("BRD-001", "Samsung"), ("BRD-002", "Walton"), ("BRD-003", "Dell"),
-        ("BRD-004", "HP"), ("BRD-005", "Lenovo"), ("BRD-006", "LG"),
-        ("BRD-007", "Singer"), ("BRD-008", "Haier"), ("BRD-009", "Gree"),
-        ("BRD-010", "Sony"), ("BRD-011", "Xiaomi"), ("BRD-012", "Asus"),
-        ("BRD-013", "Acer"), ("BRD-014", "Apple"), ("BRD-015", "Canon"),
-        ("BRD-016", "Philips"), ("BRD-017", "Panasonic"), ("BRD-018", "Whirlpool"),
+        ("BRD-001", "Samsung"),
+        ("BRD-002", "Walton"),
+        ("BRD-003", "Dell"),
+        ("BRD-004", "HP"),
+        ("BRD-005", "Lenovo"),
+        ("BRD-006", "LG"),
+        ("BRD-007", "Singer"),
+        ("BRD-008", "Haier"),
+        ("BRD-009", "Gree"),
+        ("BRD-010", "Sony"),
+        ("BRD-011", "Xiaomi"),
+        ("BRD-012", "Asus"),
+        ("BRD-013", "Acer"),
+        ("BRD-014", "Apple"),
+        ("BRD-015", "Canon"),
+        ("BRD-016", "Philips"),
+        ("BRD-017", "Panasonic"),
+        ("BRD-018", "Whirlpool"),
     ]
 
     def setUp(self):
@@ -65,7 +76,7 @@ class TestWarrantyApprovalRateMeasurement(unittest.TestCase):
 
     def test_first_submission_approval_rate_meets_g4_02_target(self):
         """Simulate cohort of 180 complete claims across 18 brands (10 per brand)."""
-        brand_stats: Dict[str, Dict[str, int]] = {}
+        brand_stats: dict[str, dict[str, int]] = {}
         total_submitted = 0
         total_approved = 0
 
@@ -87,8 +98,15 @@ class TestWarrantyApprovalRateMeasurement(unittest.TestCase):
                     "brand_name": b_name,
                     "device_serial": serial,
                     "evidence_complete": True,  # Gateway blocked incomplete packs before submission
-                    "evidence_keys": ["photo_before", "photo_after", "diagnostic", "parts_issued",
-                                      "device_serial", "technician_cert", "purchase_proof"],
+                    "evidence_keys": [
+                        "photo_before",
+                        "photo_after",
+                        "diagnostic",
+                        "parts_issued",
+                        "device_serial",
+                        "technician_cert",
+                        "purchase_proof",
+                    ],
                 }
 
                 result = self.engine.evaluate_claim(claim)
@@ -108,18 +126,27 @@ class TestWarrantyApprovalRateMeasurement(unittest.TestCase):
         # G4-02 Assertion: approval rate >= 90%
         self.assertEqual(total_submitted, 180)
         self.assertGreaterEqual(
-            approval_rate, 90.0,
-            f"G4-02 violation: first-submission approval rate was {approval_rate:.2f}%, expected >= 90%"
+            approval_rate,
+            90.0,
+            f"G4-02 violation: first-submission approval rate was {approval_rate:.2f}%, expected >= 90%",
         )
 
-        print("\n================ MONTHLY BRAND WARRANTY APPROVAL RATE REPORT (G4-02) ================")
-        print(f"{'Brand':<15} | {'Submitted':<10} | {'Approved':<10} | {'Rejected':<10} | {'Approval Rate':<15}")
+        print(
+            "\n================ MONTHLY BRAND WARRANTY APPROVAL RATE REPORT (G4-02) ================"
+        )
+        print(
+            f"{'Brand':<15} | {'Submitted':<10} | {'Approved':<10} | {'Rejected':<10} | {'Approval Rate':<15}"
+        )
         print("-" * 72)
         for b_name, stats in brand_stats.items():
             rate = (stats["approved"] / stats["submitted"]) * 100.0
-            print(f"{b_name:<15} | {stats['submitted']:<10} | {stats['approved']:<10} | {stats['rejected']:<10} | {rate:>12.1f}%")
+            print(
+                f"{b_name:<15} | {stats['submitted']:<10} | {stats['approved']:<10} | {stats['rejected']:<10} | {rate:>12.1f}%"
+            )
         print("-" * 72)
-        print(f"{'OVERALL':<15} | {total_submitted:<10} | {total_approved:<10} | {total_submitted - total_approved:<10} | {approval_rate:>12.2f}%")
+        print(
+            f"{'OVERALL':<15} | {total_submitted:<10} | {total_approved:<10} | {total_submitted - total_approved:<10} | {approval_rate:>12.2f}%"
+        )
         print("VERDICT: G4-02 PASS (First-submission approval rate >= 90.0% successfully proven)")
 
     def test_incomplete_packs_never_reach_brand(self):

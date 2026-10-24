@@ -5,12 +5,14 @@
     <!-- group_fix_corporate_portal moved to security/fix_corporate_portal_security.xml
          (loads before ir.model.access.csv, which references the group id) -->
 
-    <!-- EA-05: a corporate user sees only their own contracts -->
+    <!-- EA-05: a corporate user sees only their own company's contracts.
+         (The former domain [('customer_id.partner_share', '=', True)] matched
+         EVERY customer contract - any corporate user read all tenants'.) -->
     <record id="rule_fix_contract_corporate_self" model="ir.rule">
         <field name="name">P04: corporates see their own contracts</field>
         <field name="model_id" ref="cd_contract_core.model_fix_contract"/>
         <field name="groups" eval="[(4, ref('group_fix_corporate_portal'))]"/>
-        <field name="domain_force">[('customer_id.partner_share', '=', True)]</field>
+        <field name="domain_force">[('customer_id', 'child_of', [user.commercial_partner_id.id])]</field>
     </record>
 
     <record id="action_fix_contract_portal" model="ir.actions.act_window">

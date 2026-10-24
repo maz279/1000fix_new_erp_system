@@ -7,18 +7,30 @@
 #    The claim record, the evidence pack and the reconciliation stay in Odoo."
 from __future__ import annotations
 
-import os
 from datetime import datetime, timedelta
 from pathlib import Path
-import json
 
 # Fallback shims for environment where airflow is not pip-installed
 try:
     from airflow import DAG
+    from airflow.exceptions import AirflowFailException
     from airflow.operators.python import PythonOperator
 except ImportError:
+
+    class AirflowFailException(Exception):
+        """Shim: Airflow's fail-without-retry task exception."""
+
     class DAG:
-        def __init__(self, dag_id, description=None, schedule=None, start_date=None, catchup=False, default_args=None, tags=None):
+        def __init__(
+            self,
+            dag_id,
+            description=None,
+            schedule=None,
+            start_date=None,
+            catchup=False,
+            default_args=None,
+            tags=None,
+        ):
             self.dag_id = dag_id
             self.description = description
             self.schedule = schedule
@@ -40,15 +52,16 @@ except ImportError:
         def __rshift__(self, other):
             return other
 
+
 import sys
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from services.workflow.brand_submission_engine import (
-    BrandTemplateRegistry,
+from services.workflow.brand_submission_engine import (  # noqa: E402 - after sys.path bootstrap
     BrandSubmissionWorkflow,
-    CompletenessViolationError,
+    BrandTemplateRegistry,
 )
 
 CONFIG_PATH = Path(__file__).resolve().parents[1] / "services" / "workflow" / "brand_templates.json"
@@ -66,47 +79,94 @@ registry = BrandTemplateRegistry(CONFIG_PATH)
 templates = registry.list_all_templates()
 
 
+def _slug(brand_name: str) -> str:
+    return brand_name.lower().replace(" ", "_")
+
+
+def fetch_task_id(brand_name: str) -> str:
+    return f"fetch_ready_{_slug(brand_name)}_claims"
+
+
+def check_task_id(brand_name: str) -> str:
+    return f"blocking_completeness_check_{_slug(brand_name)}"
+
+
+def submit_task_id(brand_name: str) -> str:
+    return f"transform_and_submit_{_slug(brand_name)}"
+
+
 def _task_fetch_ready_claims(brand_code: str, **kwargs):
-    """Task 1: Fetch claims in 'ready' state for this brand from Odoo."""
-    # Queries Odoo fix.warranty.claim where brand_code == brand_code and state == 'ready'
+    """Task 1: Fetch claims in 'ready' state for this brand.
+
+    The Odoo query (fix.warranty.claim, brand_code == brand_code, state ==
+    'ready') is not wired yet; claims arrive through the DAG run's conf
+    (``{"claims": [...]}``). The count is the number actually received - an
+    empty run reports 0, it never claims a fetched claim that does not exist.
+    """
+    dag_run = kwargs.get("dag_run")
+    conf = (getattr(dag_run, "conf", None) or {}) if dag_run is not None else {}
+    claims = [
+        claim
+        for claim in conf.get("claims", [])
+        if isinstance(claim, dict) and claim.get("brand_code", brand_code) == brand_code
+    ]
     return {
         "brand_code": brand_code,
-        "status": "claims_fetched",
-        "count": 1,
+        "status": "claims_fetched" if claims else "no_ready_claims",
+        "count": len(claims),
+        "claims": claims,
     }
 
 
-def _task_blocking_completeness_check(brand_code: str, **kwargs):
-    """Task 2: The BLOCKING completeness check — blocks incomplete packs."""
+def _pull_claims(ti, upstream_task_id: str) -> list[dict]:
+    """Pull the claims an upstream task pushed to XCom; [] when there are none."""
+    if ti is None:
+        raise AirflowFailException(
+            "no task instance in context - cannot pull claims from XCom; refusing to validate"
+        )
+    pushed = ti.xcom_pull(task_ids=upstream_task_id)
+    if not isinstance(pushed, dict):
+        return []
+    claims = pushed.get("claims")
+    return [c for c in claims if isinstance(c, dict)] if isinstance(claims, list) else []
+
+
+def _task_blocking_completeness_check(brand_code: str, upstream_task_id: str, **kwargs):
+    """Task 2: The BLOCKING completeness check — blocks incomplete packs.
+
+    Validates the REAL claims fetched by ``upstream_task_id`` (pulled from
+    XCom). No claim to validate fails the task: the gate never passes on a
+    sample. An incomplete pack raises CompletenessViolationError.
+    """
     template = registry.get_template(brand_code)
     workflow = BrandSubmissionWorkflow(template)
-    ti = kwargs.get("ti")
-    # In production, claims are pulled from xcom; here we evaluate mock or active claim
-    claim = kwargs.get("claim_data") or {
-        "claim_no": f"CLM/{brand_code}/SAMPLE",
-        "evidence_keys": ["photo_before", "photo_after", "diagnostic", "parts_issued",
-                          "device_serial", "technician_cert", "purchase_proof"],
+    claims = _pull_claims(kwargs.get("ti"), upstream_task_id)
+    if not claims:
+        raise AirflowFailException(
+            f"{brand_code}: no claim in XCom from {upstream_task_id!r} - "
+            "nothing was validated, the completeness gate cannot pass"
+        )
+    for claim in claims:
+        workflow.check_completeness(claim)
+    return {
+        "status": "completeness_verified",
+        "claim_nos": [c.get("claim_no") for c in claims],
+        "claims": claims,
     }
-    workflow.check_completeness(claim)
-    return {"status": "completeness_verified", "claim_no": claim.get("claim_no")}
 
 
-def _task_transform_and_submit(brand_code: str, **kwargs):
-    """Task 3 & 4: Transform into brand schema and dispatch to brand portal/API."""
+def _task_transform_and_submit(brand_code: str, upstream_task_id: str, **kwargs):
+    """Task 3 & 4: Transform the claims that passed the blocking check into the
+    brand schema and dispatch them to the brand portal/API."""
     template = registry.get_template(brand_code)
     workflow = BrandSubmissionWorkflow(template)
-    claim = kwargs.get("claim_data") or {
-        "claim_no": f"CLM/{brand_code}/SAMPLE",
-        "device_serial": "SN-SAMPLE-001",
-        "fault_code": "FLT-001",
-        "diagnostic_summary": "Replaced damaged panel",
-        "parts_list": [{"part_no": "PN-001", "qty": 1}],
-        "total_amount": 4500.0,
-        "evidence_keys": ["photo_before", "photo_after", "diagnostic", "parts_issued",
-                          "device_serial", "technician_cert", "purchase_proof"],
-    }
-    result = workflow.execute_submission(claim)
-    return result
+    claims = _pull_claims(kwargs.get("ti"), upstream_task_id)
+    if not claims:
+        raise AirflowFailException(
+            f"{brand_code}: no completeness-verified claim in XCom from {upstream_task_id!r} - "
+            "nothing to submit"
+        )
+    return [workflow.execute_submission(claim) for claim in claims]
 
 
 # Dynamically register one DAG per brand template
@@ -114,7 +174,7 @@ generated_dags = {}
 
 for tmpl in templates:
     b_code = tmpl["brand_code"]
-    b_name = tmpl["brand_name"].lower().replace(" ", "_")
+    b_name = _slug(tmpl["brand_name"])
     dag_id = f"warranty_submission_{b_name}"
 
     dag = DAG(
@@ -128,23 +188,23 @@ for tmpl in templates:
     )
 
     t1 = PythonOperator(
-        task_id=f"fetch_ready_{b_name}_claims",
+        task_id=fetch_task_id(tmpl["brand_name"]),
         python_callable=_task_fetch_ready_claims,
         op_kwargs={"brand_code": b_code},
         dag=dag,
     )
 
     t2 = PythonOperator(
-        task_id=f"blocking_completeness_check_{b_name}",
+        task_id=check_task_id(tmpl["brand_name"]),
         python_callable=_task_blocking_completeness_check,
-        op_kwargs={"brand_code": b_code},
+        op_kwargs={"brand_code": b_code, "upstream_task_id": t1.task_id},
         dag=dag,
     )
 
     t3 = PythonOperator(
-        task_id=f"transform_and_submit_{b_name}",
+        task_id=submit_task_id(tmpl["brand_name"]),
         python_callable=_task_transform_and_submit,
-        op_kwargs={"brand_code": b_code},
+        op_kwargs={"brand_code": b_code, "upstream_task_id": t2.task_id},
         dag=dag,
     )
 

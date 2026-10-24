@@ -1,7 +1,7 @@
 # cd_metric_registry tests — P06 Analytics API surface (source-level).
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -18,7 +18,7 @@ class TestNoDataInPortalLayer(unittest.TestCase):
 
     def test_no_business_model_search(self):
         # no per-record search loops — only grouped aggregation
-        self.assertNotIn('.search(\n', API)
+        self.assertNotIn(".search(\n", API)
 
     def test_embed_urls_from_config_only(self):
         self.assertIn("ir.config_parameter", API)
@@ -40,16 +40,34 @@ class TestNoDataInPortalLayer(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_analytics_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
         self.assertIn("/analytics/dashboards", spec["paths"])
         self.assertIn("/analytics/kpis", spec["paths"])
+        self.assertIn("/analytics/kpis/register", spec["paths"])
+        self.assertIn("/analytics/governance/catalogue", spec["paths"])
+        self.assertIn("/analytics/governance/lineage", spec["paths"])
+        self.assertIn("/analytics/governance/dq", spec["paths"])
+        self.assertIn("/analytics/governance/residency", spec["paths"])
+        self.assertIn("/analytics/stt/dashboard", spec["paths"])
 
     def test_routes_json_auth_user_readonly(self):
         routes = re.findall(
-            r'@http\.route\("(/analytics/[^"]+)"[^)]*type="json",\s*'
-            r'auth="user",\s*readonly=True', API)
-        self.assertEqual(len(routes), 2, routes)
+            r'@http\.route\("(/analytics/[^"]+)"[^)]*type="jsonrpc",\s*'
+            r'auth="user",\s*readonly=True',
+            API,
+        )
+        self.assertEqual(len(routes), 8, routes)
+        self.assertIn("/analytics/dashboards", routes)
+        self.assertIn("/analytics/kpis", routes)
+        self.assertIn("/analytics/kpis/register", routes)
+        self.assertIn("/analytics/governance/catalogue", routes)
+        self.assertIn("/analytics/governance/lineage", routes)
+        self.assertIn("/analytics/governance/dq", routes)
+        self.assertIn("/analytics/governance/residency", routes)
+        self.assertIn("/analytics/stt/dashboard", routes)
 
     def test_invalid_dashboard_is_rejected(self):
         self.assertIn("invalid_dashboard", API)

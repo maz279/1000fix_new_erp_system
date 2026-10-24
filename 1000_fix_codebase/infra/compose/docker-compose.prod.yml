@@ -1,0 +1,161 @@
+# =============================================================================
+# 1000fix-erp - prod environment overlay (infra/environments.yaml, TSS §21.3)
+#
+# Production live environment.
+# Data rule: live; residency_classified: yes-Z4-only.
+# The ONLY environment holding sovereign classified data.
+#
+# Ports:
+#   PostgreSQL Primary: 127.0.0.1:5442
+#   Redis:              127.0.0.1:6388
+#   Odoo:               127.0.0.1:8078
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.prod.yml --profile prod up -d
+#
+# PostgreSQL TLS (postgres-prod runs ssl=on; the DR standby connects with
+# sslmode=require). The server certificate and key are NEVER in the repo
+# (EP-06) and none is generated here. Provisioning, per site:
+#   1. Issue a server certificate for the primary's host name from the
+#      organisation CA (PEM certificate + chain, PEM private key).
+#   2. Place both on the host outside the repo, readable only by the
+#      deploying user (e.g. Vault/OpenBao-rendered files, mode 0600).
+#   3. Export PG_TLS_CERT_FILE and PG_TLS_KEY_FILE with their absolute paths.
+# Compose refuses to load this overlay while either variable is unset, and
+# postgres-prod refuses to start if either file is missing or empty - TLS is
+# fail-closed. The key is re-installed as postgres:0600 on every start.
+# Local/dev stacks (docker-compose.yml core profile) are unaffected.
+# =============================================================================
+services:
+  postgres-prod:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["prod"]
+    environment:
+      FIX_ENV: prod
+      POSTGRES_USER: fix_admin
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+      POSTGRES_DB: fix_production
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+      # Streaming-replication primary for the DR standby (docker-compose.dr.yml,
+      # R01 DR audit): postgres-replication/primary-init.sh creates the
+      # replication role, the DR slot and a hostssl-only pg_hba entry at initdb.
+      # The default hba scope is `samenet` (this compose network); a DR standby
+      # on another site sets PG_REPLICATION_ALLOWED_ADDRESS to its CIDR.
+      PG_REPLICATION_USER: ${PG_REPLICATION_USER:-fix_replicator}
+      PG_REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG replication password must be Vault injected}
+      PG_REPLICATION_SLOTS: postgres_dr_standby
+      PG_REPLICATION_HBA_TYPE: hostssl
+      PG_REPLICATION_ALLOWED_ADDRESS: ${PG_REPLICATION_ALLOWED_ADDRESS:-samenet}
+    # The named WAL-archive volume is created root-owned, so every
+    # archive_command failed with "Permission denied" (observed in the R01
+    # replication proof) and archive_mode=on then pins WAL in pg_wal until the
+    # disk fills. Hand the directory to postgres, then run the stock entrypoint.
+    # It also installs the TLS certificate/key (compose secrets below) where
+    # postgres accepts them (key owned by postgres, 0600) - fail closed when absent.
+    entrypoint:
+      - bash
+      - -Eeuo
+      - pipefail
+      - -c
+      - |
+        for f in /run/secrets/pg_tls_cert /run/secrets/pg_tls_key; do
+          if [ ! -s "$$f" ]; then
+            echo "postgres-prod: TLS material $$f is missing or empty - set PG_TLS_CERT_FILE / PG_TLS_KEY_FILE (see the header of docker-compose.prod.yml); refusing to start with ssl=on" >&2
+            exit 1
+          fi
+        done
+        install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/wal_archive /var/lib/postgresql/tls
+        install -o postgres -g postgres -m 0644 /run/secrets/pg_tls_cert /var/lib/postgresql/tls/server.crt
+        install -o postgres -g postgres -m 0600 /run/secrets/pg_tls_key /var/lib/postgresql/tls/server.key
+        exec docker-entrypoint.sh "$$@"
+      - postgres-prod-entrypoint
+    command: [
+      "postgres",
+      "-c", "wal_level=replica",
+      "-c", "max_wal_senders=10",
+      "-c", "max_replication_slots=10",
+      # caps the WAL a lagging/absent standby's slot may pin (then it must re-clone)
+      "-c", "max_slot_wal_keep_size=16GB",
+      "-c", "archive_mode=on",
+      "-c", "archive_command=test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f",
+      "-c", "ssl=on",
+      "-c", "ssl_cert_file=/var/lib/postgresql/tls/server.crt",
+      "-c", "ssl_key_file=/var/lib/postgresql/tls/server.key",
+      "-c", "shared_buffers=2GB",
+      "-c", "work_mem=64MB"
+    ]
+    ports: ["127.0.0.1:5442:5432"]
+    volumes:
+      - pgdata-prod:/var/lib/postgresql/data
+      - pgwal-archive-prod:/var/lib/postgresql/wal_archive
+      - ./postgres-replication/primary-init.sh:/docker-entrypoint-initdb.d/10-replication-primary.sh:ro
+    secrets:
+      - pg_tls_cert
+      - pg_tls_key
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix_admin -d fix_production"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-prod:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["prod"]
+    environment:
+      FIX_ENV: prod
+    command: ["redis-server", "--save", "60", "1000", "--appendonly", "yes", "--maxmemory", "2gb", "--maxmemory-policy", "volatile-lru"]
+    ports: ["127.0.0.1:6388:6379"]
+    volumes:
+      - redis-data-prod:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-prod:
+    image: 1000fix/odoo:19.0-prod@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["prod"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: prod
+      HOST: postgres-prod
+      PORT: 5432
+      USER: fix_admin
+      PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+    ports: ["127.0.0.1:8078:8069"]
+    volumes:
+      - odoo-data-prod:/var/lib/odoo
+    depends_on:
+      postgres-prod:
+        condition: service_healthy
+      redis-prod:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+secrets:
+  # required - see the TLS provisioning note in the header (fail closed)
+  pg_tls_cert:
+    file: ${PG_TLS_CERT_FILE:?postgres-prod TLS certificate (PEM) path required - see the header of docker-compose.prod.yml}
+  pg_tls_key:
+    file: ${PG_TLS_KEY_FILE:?postgres-prod TLS private key (PEM) path required - see the header of docker-compose.prod.yml}
+
+volumes:
+  pgdata-prod:
+  pgwal-archive-prod:
+  redis-data-prod:
+  odoo-data-prod:

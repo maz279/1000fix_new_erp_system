@@ -1,57 +1,128 @@
 {
-  "timestamp": "2026-10-17T02:36:55.911085+00:00",
+  "timestamp": "2026-10-22T09:00:27.619211+00:00",
   "task": "R03-M01-T01",
   "milestone": "R03-M01",
   "verdict": "PASS",
+  "measurement": "manifests parsed with ast.literal_eval; depends resolved against modules present under vendor/; OCA versions compared with vendor/odoo/odoo/release.py series",
+  "checks_total": 10,
+  "checks_passed": 10,
   "results": [
+    {
+      "component": "odoo_series",
+      "path": "vendor/odoo/odoo/release.py",
+      "status": "PASS",
+      "observed": {
+        "series": "19.0"
+      },
+      "problems": []
+    },
     {
       "component": "odoo_core_stock",
       "path": "vendor/odoo/addons/stock",
       "status": "PASS",
-      "details": "Core Odoo stock module manifest present"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "product",
+          "barcodes_gs1_nomenclature",
+          "digest"
+        ],
+        "unresolved_depends": [],
+        "version": "1.1"
+      },
+      "problems": []
     },
     {
       "component": "stock-logistics-workflow",
       "path": "vendor/oca/stock-logistics-workflow",
       "status": "PASS",
-      "modules_found": 45
+      "modules_found": 45,
+      "problems": []
     },
     {
       "component": "stock-logistics-barcode",
       "path": "vendor/oca/stock-logistics-barcode",
       "status": "PASS",
-      "modules_found": 3
+      "modules_found": 3,
+      "problems": []
     },
     {
       "component": "stock-logistics-warehouse",
       "path": "vendor/oca/stock-logistics-warehouse",
       "status": "PASS",
-      "modules_found": 19
+      "modules_found": 19,
+      "problems": []
     },
     {
       "component": "stock-logistics-workflow/stock_no_negative",
+      "path": "vendor/oca/stock-logistics-workflow/stock_no_negative",
       "status": "PASS",
-      "details": "Manifest present and valid"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "stock"
+        ],
+        "unresolved_depends": [],
+        "version": "19.0.1.0.0"
+      },
+      "problems": []
     },
     {
       "component": "stock-logistics-workflow/scrap_reason_code",
+      "path": "vendor/oca/stock-logistics-workflow/scrap_reason_code",
       "status": "PASS",
-      "details": "Manifest present and valid"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "stock"
+        ],
+        "unresolved_depends": [],
+        "version": "19.0.1.0.0"
+      },
+      "problems": []
     },
     {
       "component": "stock-logistics-barcode/barcodes_generator_product",
+      "path": "vendor/oca/stock-logistics-barcode/barcodes_generator_product",
       "status": "PASS",
-      "details": "Manifest present and valid"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "barcodes_generator_abstract",
+          "product"
+        ],
+        "unresolved_depends": [],
+        "version": "19.0.1.0.0"
+      },
+      "problems": []
     },
     {
       "component": "stock-logistics-warehouse/stock_inventory",
+      "path": "vendor/oca/stock-logistics-warehouse/stock_inventory",
       "status": "PASS",
-      "details": "Manifest present and valid"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "stock"
+        ],
+        "unresolved_depends": [],
+        "version": "19.0.1.0.0"
+      },
+      "problems": []
     },
     {
       "component": "stock-logistics-warehouse/stock_location_is_sublocation",
+      "path": "vendor/oca/stock-logistics-warehouse/stock_location_is_sublocation",
       "status": "PASS",
-      "details": "Manifest present and valid"
+      "observed": {
+        "installable": true,
+        "depends": [
+          "stock"
+        ],
+        "unresolved_depends": [],
+        "version": "19.0.1.0.0"
+      },
+      "problems": []
     }
   ],
   "errors": []

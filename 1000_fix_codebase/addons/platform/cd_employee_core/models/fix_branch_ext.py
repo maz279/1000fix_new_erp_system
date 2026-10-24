@@ -9,6 +9,8 @@ class FixBranchEmployeeExt(models.Model):
     _inherit = "fix.branch"
 
     employee_manager_id = fields.Many2one(
-        "hr.employee", string="Branch Manager (Employee)",
+        "hr.employee",
+        string="Branch Manager (Employee)",
         help="HR-grade manager record; manager_id (res.users) is the "
-             "accountable login, this is the employment record.")
+        "accountable login, this is the employment record.",
+    )

@@ -1,4 +1,5 @@
 """dsr-orchestrator tests — P07-M08 (the G4-06 PDPA criterion)."""
+
 from __future__ import annotations
 
 import sys
@@ -8,13 +9,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from dsr_orchestrator import (  # noqa: E402
+from dsr_orchestrator import (
     BREACH_RUNBOOK,
+    NOTIFICATION_DAYS,
+    PROCESSING_RECORD_YEARS,
     DsrError,
     DsrRequest,
     DsrType,
-    NOTIFICATION_DAYS,
-    PROCESSING_RECORD_YEARS,
     SagaState,
     SagaStep,
     assemble_export,
@@ -46,6 +47,7 @@ class FakeResidency:
 
     def tombstone(self, party_ref, key):
         self.tombstoned.append((party_ref, key))
+        return {"erased": True, "key": party_ref, "scope": key}
 
 
 class TestExport(unittest.TestCase):
@@ -61,6 +63,7 @@ class TestExport(unittest.TestCase):
 
     def test_machine_readable_enforced(self):
         from dsr_orchestrator import ExportBundle
+
         bundle = ExportBundle("p", machine_readable=False)
         with self.assertRaises(DsrError):
             bundle.to_portable()
@@ -70,11 +73,14 @@ class TestErasureSaga(unittest.TestCase):
     def _executors(self, fail_at=None):
         ex = {}
         for step in SagaStep:
+
             def make(failing):
                 def run(party):
                     if failing:
                         raise RuntimeError("boom")
+
                 return run
+
             ex[step] = make(step is fail_at)
         return ex
 
@@ -94,10 +100,14 @@ class TestErasureSaga(unittest.TestCase):
             run_erasure_saga(state, executors)
         self.assertIn("compensations run", str(ctx.exception))
         # compensations ran for the completed prefix, in reverse order
-        self.assertEqual(state.compensations_run,
-                         [SagaStep.PURGE_REPLICAS.compensation,
-                          SagaStep.TOMBSTONE_RESIDENT.compensation,
-                          SagaStep.ANONYMIZE_REGIONAL.compensation])
+        self.assertEqual(
+            state.compensations_run,
+            [
+                SagaStep.PURGE_REPLICAS.compensation,
+                SagaStep.TOMBSTONE_RESIDENT.compensation,
+                SagaStep.ANONYMIZE_REGIONAL.compensation,
+            ],
+        )
 
     def test_missing_executor_refused(self):
         state = SagaState("S3", "party:3")
@@ -127,7 +137,9 @@ class TestBreachRunbook(unittest.TestCase):
 class TestPurity(unittest.TestCase):
     def test_no_odoo_imports(self):
         import inspect
+
         import dsr_orchestrator
+
         source = inspect.getsource(dsr_orchestrator)
         self.assertNotIn("from odoo", source)
         self.assertNotIn("DELETE FROM", source.upper().replace("NOT A DELETE", ""))

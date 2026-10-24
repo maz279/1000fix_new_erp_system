@@ -2,165 +2,186 @@
 #
 # Claim submission status, decision capture and remittance
 # reconciliation for the brands 1000FiX recovers warranty costs from.
-# BRAND ISOLATION: brand_id is REQUIRED on every endpoint — a claim
-# outside the caller's brand is indistinguishable from a claim that
-# does not exist. Decisions ride fix.warranty.claim.action_decide
-# (SoD-11 companion lives with the callers); reconciliation surfaces
-# FLAGGED mismatches, never auto-adjusts (T08).
-from odoo import http
+# Decisions ride fix.warranty.claim.action_decide (SoD-11 companion lives
+# with the callers); reconciliation surfaces FLAGGED mismatches, never
+# auto-adjusts (T08).
+#
+# Security model (R01 re-audit 2026-10-22, same model as the P02 technician API):
+# - every route is ``auth="bearer"``: an Odoo API key in ``Authorization: Bearer``
+#   (a brand partner system / the webhook) or an authenticated interactive session.
+#   No CORS header is emitted.
+# - BRAND ISOLATION: the brand is ALWAYS resolved from the authenticated user
+#   (``fix.brand.api_user_ids``, ``resolve_brand``). The ``brand_id`` request
+#   parameter never selects the brand: it may only confirm one of the caller's
+#   brands (required when the caller acts for several) and is refused with
+#   ``forbidden`` otherwise. A claim outside the resolved brand is
+#   indistinguishable from a claim that does not exist.
+# - the superuser environment is only used for model access (brand partners are
+#   not internal users); every read and write is scoped to the resolved brand.
+
+from odoo import SUPERUSER_ID, http
+from odoo.addons.cd_service_order.controllers.technician_api import _error, _fmt_bdt, _to_int
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
-import json
+
+def _su_env():
+    return request.env(user=SUPERUSER_ID, su=True)
 
 
-def _fmt_bdt(amount):
-    """BN-007 South Asian grouping — the portal receives the string (AS-10)."""
-    try:
-        n = float(amount)
-    except (TypeError, ValueError):
-        return "0.00"
-    whole = int(n)
-    frac = f"{n - whole:.2f}"[1:]
-    s = str(whole)
-    if len(s) > 3:
-        last3 = s[-3:]
-        rest = s[:-3]
-        parts = []
-        while len(rest) > 2:
-            parts.insert(0, rest[-2:])
-            rest = rest[:-2]
-        if rest:
-            parts.insert(0, rest)
-        return ",".join(parts) + "," + last3 + frac
-    return s + frac
+def resolve_brand(kwargs):
+    """Resolve the acting brand from the AUTHENTICATED user only.
+
+    Returns ``(brand, None)`` or ``(None, error_dict)``:
+    - no authenticated (non-public) user -> ``unauthenticated``;
+    - the user is linked to no brand -> ``no_brand`` (never an all-brands default);
+    - ``brand_id`` naming a brand the user does not act for -> ``forbidden``;
+    - no ``brand_id`` while the user acts for several brands -> ``missing_brand``.
+    """
+    user = request.env.user
+    if not user or user._is_public():
+        return None, _error("unauthenticated", "Brand partner authentication is required")
+    brands = _su_env()["fix.brand"].search([("api_user_ids", "in", user.id)])
+    if not brands:
+        return None, _error("no_brand", "No brand is linked to the authenticated user")
+    claimed = kwargs.get("brand_id")
+    if claimed in (None, "", False):
+        if len(brands) > 1:
+            return None, _error(
+                "missing_brand", "brand_id is required: the user acts for several brands"
+            )
+        return brands, None
+    brand = brands.filtered(lambda b: b.id == _to_int(claimed))
+    if not brand:
+        return None, _error("forbidden", "brand_id is not a brand of the authenticated user")
+    return brand, None
 
 
-def _error(code, message):
-    return {"error": {"code": code, "message": message}}
+def _brand_claim(brand, claim_id):
+    """The claim ``claim_id`` if it belongs to ``brand``, else an empty recordset
+    (another brand's claim and an unknown id are indistinguishable)."""
+    claim_int = _to_int(claim_id)
+    if claim_int is None:
+        return _su_env()["fix.warranty.claim"]
+    return _su_env()["fix.warranty.claim"].search(
+        [("id", "=", claim_int), ("brand_id", "=", brand.id)], limit=1
+    )
 
 
-def _brand_scope(kwargs):
-    """Per-brand isolation (PP5 special requirement): brand_id is required.
-    Without it the surface refuses rather than defaulting to all-brands —
-    an unscoped claim list IS the isolation breach."""
-    brand_id = kwargs.get("brand_id")
-    if not brand_id:
-        return None
-    return int(brand_id)
+def _variance(claim):
+    mismatch = abs(claim.remittance_amount - claim.claim_amount) > 0.01
+    diff = round(claim.remittance_amount - claim.claim_amount, 2)
+    return mismatch, _fmt_bdt(diff) if mismatch else "0.00"
 
 
 class BrandApiController(http.Controller):
     """The P08 brand partner portal API (W4 contract)."""
 
-    @http.route("/brand/claims", type="json", auth="user", readonly=False)
+    @http.route("/brand/claims", type="jsonrpc", auth="bearer", readonly=False)
     def claims(self, **kwargs):
         """Combined endpoint: decide when `claim_id`+`decision` are present,
-        otherwise list. brand_id is REQUIRED (isolation)."""
-        brand_id = _brand_scope(kwargs)
-        if not brand_id:
-            return _error("missing_brand",
-                          "brand_id is required (per-brand isolation)")
-        # the dispatcher passes every param as a kwarg — drop brand_id so
-        # the helpers don't receive it twice (positional + kwargs)
-        kwargs.pop("brand_id", None)
+        otherwise list the resolved brand's claims."""
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
         if kwargs.get("claim_id") and kwargs.get("decision"):
-            return self._decide_claim(brand_id, **kwargs)
-        return self._list_claims(brand_id, **kwargs)
+            return self._decide_claim(brand, **kwargs)
+        return self._list_claims(brand, **kwargs)
 
-    def _list_claims(self, brand_id, **kwargs):
-        domain = [("brand_id", "=", brand_id)]
+    def _list_claims(self, brand, **kwargs):
+        domain = [("brand_id", "=", brand.id)]
         state = kwargs.get("state")
         if state:
             domain.append(("state", "=", state))
-        claims = request.env["fix.warranty.claim"].search(
-            domain, limit=100, order="id desc")
-        result = [{
-            "id": c.id,
-            "claim_no": c.claim_no,
-            "state": c.state,
-            "amount_bdt": _fmt_bdt(c.claim_amount),
-            "submitted_at": str(c.submitted_at or "") or None,
-            "decided_at": str(c.decided_at or "") or None,
-            "rejection_reason": c.rejection_reason or "",
-            "evidence_complete": c.evidence_complete,
-            "missing_evidence": c.missing_evidence or "",
-        } for c in claims]
+        claims = _su_env()["fix.warranty.claim"].search(domain, limit=100, order="id desc")
+        result = [
+            {
+                "id": c.id,
+                "claim_no": c.claim_no,
+                "state": c.state,
+                "amount_bdt": _fmt_bdt(c.claim_amount),
+                "submitted_at": str(c.submitted_at or "") or None,
+                "decided_at": str(c.decided_at or "") or None,
+                "rejection_reason": c.rejection_reason or "",
+                "evidence_complete": c.evidence_complete,
+                "missing_evidence": c.missing_evidence or "",
+            }
+            for c in claims
+        ]
         return {"claims": result, "total": len(result)}
 
-    def _decide_claim(self, brand_id, **kwargs):
-        """The brand's decision (approve/reject with reason). Only a
-        SUBMITTED claim in this brand can be decided."""
+    def _decide_claim(self, brand, **kwargs):
+        """The brand's decision (approve/reject with reason). Only a submitted /
+        in-review claim of the resolved brand can be decided (model gate)."""
         decision = kwargs.get("decision")
         if decision not in ("approve", "reject"):
-            return _error("invalid_decision",
-                          "decision must be approve|reject")
-        claim = request.env["fix.warranty.claim"].browse(
-            int(kwargs.get("claim_id")))
-        if not claim.exists() or claim.brand_id.id != brand_id:
+            return _error("invalid_decision", "decision must be approve|reject")
+        claim = _brand_claim(brand, kwargs.get("claim_id"))
+        if not claim:
             # isolation: another brand's claim "does not exist"
             return _error("no_claim", "Claim not found for this brand")
         try:
-            claim.action_decide(
-                approved=(decision == "approve"),
-                reason=kwargs.get("reason", ""))
+            claim.action_decide(approved=(decision == "approve"), reason=kwargs.get("reason", ""))
         except (UserError, ValidationError) as exc:
             return _error("decision_rejected", str(exc))
-        return {"claim": {"id": claim.id, "claim_no": claim.claim_no,
-                          "state": claim.state}}
+        return {"claim": {"id": claim.id, "claim_no": claim.claim_no, "state": claim.state}}
 
-    @http.route("/brand/claims/status", type="json", auth="user",
-                readonly=True)
+    @http.route("/brand/claims/status", type="jsonrpc", auth="bearer", readonly=True)
     def claim_status(self, **kwargs):
         """Single-claim status (webhook-fed path shape: claim_no + brand)."""
-        brand_id = _brand_scope(kwargs)
-        if not brand_id:
-            return _error("missing_brand",
-                          "brand_id is required (per-brand isolation)")
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
         claim_no = kwargs.get("claim_no")
         if not claim_no:
             return _error("missing_claim_no", "claim_no is required")
-        claim = request.env["fix.warranty.claim"].search(
-            [("claim_no", "=", claim_no),
-             ("brand_id", "=", brand_id)], limit=1)
+        claim = _su_env()["fix.warranty.claim"].search(
+            [("claim_no", "=", claim_no), ("brand_id", "=", brand.id)], limit=1
+        )
         if not claim:
             return _error("no_claim", "Claim not found for this brand")
-        return {"claim": {
-            "claim_no": claim.claim_no,
-            "state": claim.state,
-            "amount_bdt": _fmt_bdt(claim.claim_amount),
-            "remitted_bdt": _fmt_bdt(claim.remittance_amount),
-            "decision": {
-                "approved": claim.state in ("approved", "remitted"),
-                "reason": claim.rejection_reason or "",
-                "decided_at": str(claim.decided_at or "") or None,
-            },
-        }}
+        return {
+            "claim": {
+                "claim_no": claim.claim_no,
+                "state": claim.state,
+                "amount_bdt": _fmt_bdt(claim.claim_amount),
+                "remitted_bdt": _fmt_bdt(claim.remittance_amount),
+                "decision": {
+                    "approved": claim.state in ("approved", "remitted"),
+                    "reason": claim.rejection_reason or "",
+                    "decided_at": str(claim.decided_at or "") or None,
+                },
+            }
+        }
 
-    @http.route("/brand/claims/webhook", type="json", auth="user", readonly=False)
+    @http.route("/brand/claims/webhook", type="jsonrpc", auth="bearer", readonly=False)
     def claim_webhook(self, **kwargs):
         """T05: Inbound claim-status webhook for brand partner systems."""
-        brand_id = _brand_scope(kwargs)
-        if not brand_id:
-            return _error("missing_brand", "brand_id is required (per-brand isolation)")
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
         claim_no = kwargs.get("claim_no")
         event_type = kwargs.get("event_type")
         if not claim_no or not event_type:
             return _error("invalid_payload", "claim_no and event_type are required")
 
-        claim = request.env["fix.warranty.claim"].search(
-            [("claim_no", "=", claim_no), ("brand_id", "=", brand_id)], limit=1)
+        claim = _su_env()["fix.warranty.claim"].search(
+            [("claim_no", "=", claim_no), ("brand_id", "=", brand.id)], limit=1
+        )
         if not claim:
             return _error("no_claim", "Claim not found for this brand")
 
         decision = kwargs.get("decision")
         reason = kwargs.get("reason", "")
-        if event_type == "claim.approved" or decision == "approve":
-            claim.action_decide(approved=True, reason=reason)
-        elif event_type == "claim.rejected" or decision == "reject":
-            claim.action_decide(approved=False, reason=reason)
-        elif event_type == "claim.in_review":
-            claim.write({"state": "in_review"})
+        try:
+            if event_type == "claim.approved" or decision == "approve":
+                claim.action_decide(approved=True, reason=reason)
+            elif event_type == "claim.rejected" or decision == "reject":
+                claim.action_decide(approved=False, reason=reason)
+            elif event_type == "claim.in_review":
+                claim.action_mark_in_review()
+        except (UserError, ValidationError) as exc:
+            return _error("event_rejected", str(exc))
 
         return {
             "status": "acknowledged",
@@ -169,55 +190,54 @@ class BrandApiController(http.Controller):
             "event_type": event_type,
         }
 
-    @http.route("/brand/reconciliation", type="json", auth="user",
-                readonly=False)
+    @http.route("/brand/reconciliation", type="jsonrpc", auth="bearer", readonly=False)
     def reconciliation(self, **kwargs):
         """Combined endpoint: record a remittance when `bank_ref` is
         present, otherwise the reconciliation view (T08: mismatches are
         FLAGGED, never auto-adjusted)."""
-        brand_id = _brand_scope(kwargs)
-        if not brand_id:
-            return _error("missing_brand",
-                          "brand_id is required (per-brand isolation)")
-        kwargs.pop("brand_id", None)
+        brand, err = resolve_brand(kwargs)
+        if err:
+            return err
         if kwargs.get("bank_ref") and kwargs.get("claim_id"):
-            return self._record_remittance(brand_id, **kwargs)
-        claims = request.env["fix.warranty.claim"].search(
-            [("brand_id", "=", brand_id),
-             ("state", "in", ("approved", "remitted"))], limit=100)
+            return self._record_remittance(brand, **kwargs)
+        claims = _su_env()["fix.warranty.claim"].search(
+            [("brand_id", "=", brand.id), ("state", "in", ("approved", "remitted"))], limit=100
+        )
         result = []
         for c in claims:
-            mismatch = (c.state == "remitted"
-                        and abs(c.remittance_amount - c.claim_amount) > 0.01)
-            diff = round(c.remittance_amount - c.claim_amount, 2)
-            result.append({
-                "claim_no": c.claim_no,
-                "state": c.state,
-                "expected_bdt": _fmt_bdt(c.claim_amount),
-                "received_bdt": _fmt_bdt(c.remittance_amount),
-                "mismatch": mismatch,
-                "variance_bdt": _fmt_bdt(diff) if mismatch else "0.00",
-            })
+            mismatch, variance = _variance(c) if c.state == "remitted" else (False, "0.00")
+            result.append(
+                {
+                    "claim_no": c.claim_no,
+                    "state": c.state,
+                    "expected_bdt": _fmt_bdt(c.claim_amount),
+                    "received_bdt": _fmt_bdt(c.remittance_amount),
+                    "mismatch": mismatch,
+                    "variance_bdt": variance,
+                }
+            )
         return {"reconciliation": result, "total": len(result)}
 
-    def _record_remittance(self, brand_id, **kwargs):
-        claim = request.env["fix.warranty.claim"].browse(
-            int(kwargs.get("claim_id")))
-        if not claim.exists() or claim.brand_id.id != brand_id:
+    def _record_remittance(self, brand, **kwargs):
+        claim = _brand_claim(brand, kwargs.get("claim_id"))
+        if not claim:
             return _error("no_claim", "Claim not found for this brand")
         try:
-            claim.action_record_remittance(
-                float(kwargs.get("amount", 0.0)),
-                str(kwargs.get("bank_ref", "")))
+            amount = float(kwargs.get("amount", 0.0))
+        except (TypeError, ValueError):
+            return _error("invalid_amount", "amount must be a number")
+        try:
+            claim.action_record_remittance(amount, str(kwargs.get("bank_ref", "")))
         except (UserError, ValidationError) as exc:
             return _error("remittance_rejected", str(exc))
-        mismatch = abs(claim.remittance_amount - claim.claim_amount) > 0.01
-        diff = round(claim.remittance_amount - claim.claim_amount, 2)
-        return {"remittance": {
-            "claim_no": claim.claim_no,
-            "state": claim.state,
-            "expected_bdt": _fmt_bdt(claim.claim_amount),
-            "received_bdt": _fmt_bdt(claim.remittance_amount),
-            "mismatch": mismatch,  # flagged, never adjusted
-            "variance_bdt": _fmt_bdt(diff) if mismatch else "0.00",
-        }}
+        mismatch, variance = _variance(claim)
+        return {
+            "remittance": {
+                "claim_no": claim.claim_no,
+                "state": claim.state,
+                "expected_bdt": _fmt_bdt(claim.claim_amount),
+                "received_bdt": _fmt_bdt(claim.remittance_amount),
+                "mismatch": mismatch,  # flagged, never adjusted
+                "variance_bdt": variance,
+            }
+        }

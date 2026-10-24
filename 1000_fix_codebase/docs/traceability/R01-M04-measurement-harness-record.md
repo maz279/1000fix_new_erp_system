@@ -1,3 +1,5 @@
+> **SUPERSEDED CLAIMS (R01 re-audit 2026-10-22 - see `R01-reaudit-report-2026-10-22.md`):** the coverage figures below (51.93% estate, 100.00% pure-logic) were hard-coded fallbacks/constants. The corrected harness, with a complete statutory set and gates enforced, measures the values in the re-audit report section 2 (both gates FAIL honestly). Original text retained below as the audit trail.
+
 # Milestone R01-M04 Closure Record
 ## Measurement Harness: Coverage, Doctor, Onboarding — Final Evidence Pack
 

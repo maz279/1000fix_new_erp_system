@@ -13,9 +13,7 @@ class TestAutEnginesCoverage(unittest.TestCase):
     """T06: All 60 business automations mapped to concrete named engines with zero gaps."""
 
     def setUp(self):
-        register_file = (
-            Path(__file__).resolve().parents[1] / "data" / "aut_register.yaml"
-        )
+        register_file = Path(__file__).resolve().parents[1] / "data" / "aut_register.yaml"
         self.data = yaml.safe_load(register_file.read_text(encoding="utf-8"))["automations"]
 
     def test_sixty_automations_count(self):

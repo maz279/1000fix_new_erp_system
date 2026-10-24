@@ -1,0 +1,1918 @@
+{
+  "bomFormat": "CycloneDX",
+  "specVersion": "1.5",
+  "serialNumber": "urn:uuid:25ad040a-35ac-4e83-84cf-5e5d6b91e548",
+  "version": 1,
+  "metadata": {
+    "timestamp": "2026-10-22T14:34:40.667260+00:00",
+    "component": {
+      "name": "1000fix-erp",
+      "version": "0.1.0",
+      "type": "application"
+    },
+    "manufacture": {
+      "name": "1000FiX Services Ltd."
+    }
+  },
+  "components": [
+    {
+      "name": "annotated-doc",
+      "version": "0.0.5",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/annotated-doc@0.0.5",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.0.5)"
+    },
+    {
+      "name": "annotated-types",
+      "version": "0.8.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/annotated-types@0.8.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.8.0)"
+    },
+    {
+      "name": "anyio",
+      "version": "4.15.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/anyio@4.15.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (4.15.1)"
+    },
+    {
+      "name": "ast-serialize",
+      "version": "0.13.1",
+      "licenses": [],
+      "purl": "pkg:pypi/ast-serialize@0.13.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "boolean-py",
+      "version": "5.0",
+      "licenses": [],
+      "purl": "pkg:pypi/boolean-py@5.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "cachecontrol",
+      "version": "0.14.4",
+      "licenses": [],
+      "purl": "pkg:pypi/cachecontrol@0.14.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "certifi",
+      "version": "2026.10.19",
+      "licenses": [
+        "Mozilla Public License 2.0 (MPL 2.0)"
+      ],
+      "purl": "pkg:pypi/certifi@2026.10.19",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2026.7.22)"
+    },
+    {
+      "name": "cffi",
+      "version": "2.1.1",
+      "licenses": [
+        "MIT-0"
+      ],
+      "purl": "pkg:pypi/cffi@2.1.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.1.1)"
+    },
+    {
+      "name": "cfgv",
+      "version": "3.5.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/cfgv@3.5.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.5.0)"
+    },
+    {
+      "name": "charset-normalizer",
+      "version": "3.5.2",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/charset-normalizer@3.5.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.5.2)"
+    },
+    {
+      "name": "colorama",
+      "version": "0.4.6",
+      "licenses": [
+        "BSD License"
+      ],
+      "purl": "pkg:pypi/colorama@0.4.6",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.4.6)"
+    },
+    {
+      "name": "coverage",
+      "version": "7.16.2",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:pypi/coverage@7.16.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (7.16.2)"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "licenses": [
+        "Apache Software License OR BSD License"
+      ],
+      "purl": "pkg:pypi/cryptography@50.0.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (42.0.8)"
+    },
+    {
+      "name": "cyclonedx-python-lib",
+      "version": "11.12.0",
+      "licenses": [],
+      "purl": "pkg:pypi/cyclonedx-python-lib@11.12.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "defusedxml",
+      "version": "0.7.1",
+      "licenses": [],
+      "purl": "pkg:pypi/defusedxml@0.7.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "distlib",
+      "version": "0.4.4",
+      "licenses": [
+        "Python Software Foundation License"
+      ],
+      "purl": "pkg:pypi/distlib@0.4.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.4.3)"
+    },
+    {
+      "name": "fastapi",
+      "version": "0.159.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/fastapi@0.159.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.142.2)"
+    },
+    {
+      "name": "filelock",
+      "version": "4.2.4",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/filelock@4.2.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (4.2.0)"
+    },
+    {
+      "name": "h11",
+      "version": "0.16.0",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/h11@0.16.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.16.0)"
+    },
+    {
+      "name": "httpcore",
+      "version": "1.0.9",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "purl": "pkg:pypi/httpcore@1.0.9",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.0.9)"
+    },
+    {
+      "name": "httpx",
+      "version": "0.28.1",
+      "licenses": [
+        "BSD License"
+      ],
+      "purl": "pkg:pypi/httpx@0.28.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.28.1)"
+    },
+    {
+      "name": "identify",
+      "version": "2.6.20",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/identify@2.6.20",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.6.20)"
+    },
+    {
+      "name": "idna",
+      "version": "3.20",
+      "licenses": [
+        "BSD License"
+      ],
+      "purl": "pkg:pypi/idna@3.20",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.6)"
+    },
+    {
+      "name": "iniconfig",
+      "version": "2.3.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/iniconfig@2.3.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.3.0)"
+    },
+    {
+      "name": "librt",
+      "version": "0.16.0",
+      "licenses": [],
+      "purl": "pkg:pypi/librt@0.16.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "license-expression",
+      "version": "30.4.4",
+      "licenses": [],
+      "purl": "pkg:pypi/license-expression@30.4.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "lxml",
+      "version": "6.1.3",
+      "licenses": [
+        "BSD License"
+      ],
+      "purl": "pkg:pypi/lxml@6.1.3",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (5.2.1)"
+    },
+    {
+      "name": "markdown-it-py",
+      "version": "4.2.0",
+      "licenses": [],
+      "purl": "pkg:pypi/markdown-it-py@4.2.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "mdurl",
+      "version": "0.1.2",
+      "licenses": [],
+      "purl": "pkg:pypi/mdurl@0.1.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "msgpack",
+      "version": "1.2.3",
+      "licenses": [],
+      "purl": "pkg:pypi/msgpack@1.2.3",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "mypy",
+      "version": "2.4.0",
+      "licenses": [],
+      "purl": "pkg:pypi/mypy@2.4.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "mypy-extensions",
+      "version": "1.1.0",
+      "licenses": [],
+      "purl": "pkg:pypi/mypy-extensions@1.1.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "nodeenv",
+      "version": "1.11.0",
+      "licenses": [
+        "BSD License"
+      ],
+      "purl": "pkg:pypi/nodeenv@1.11.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.11.0)"
+    },
+    {
+      "name": "opentelemetry-api",
+      "version": "1.45.1",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:pypi/opentelemetry-api@1.45.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.45.0)"
+    },
+    {
+      "name": "packageurl-python",
+      "version": "0.17.6",
+      "licenses": [],
+      "purl": "pkg:pypi/packageurl-python@0.17.6",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "packaging",
+      "version": "26.3",
+      "licenses": [
+        "Apache-2.0 OR BSD-2-Clause"
+      ],
+      "purl": "pkg:pypi/packaging@26.3",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (26.3)"
+    },
+    {
+      "name": "pathspec",
+      "version": "1.1.1",
+      "licenses": [],
+      "purl": "pkg:pypi/pathspec@1.1.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "pip",
+      "version": "26.2.2",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/pip@26.2.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (25.0.1)"
+    },
+    {
+      "name": "pip-api",
+      "version": "0.0.35",
+      "licenses": [],
+      "purl": "pkg:pypi/pip-api@0.0.35",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "pip-audit",
+      "version": "2.10.1",
+      "licenses": [],
+      "purl": "pkg:pypi/pip-audit@2.10.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "pip-requirements-parser",
+      "version": "32.0.1",
+      "licenses": [],
+      "purl": "pkg:pypi/pip-requirements-parser@32.0.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "platformdirs",
+      "version": "4.13.5",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/platformdirs@4.13.5",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (4.12.2)"
+    },
+    {
+      "name": "pluggy",
+      "version": "1.7.0",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/pluggy@1.7.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.6.0)"
+    },
+    {
+      "name": "pre-commit",
+      "version": "4.7.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pre-commit@4.7.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (4.7.0)"
+    },
+    {
+      "name": "py-serializable",
+      "version": "2.1.0",
+      "licenses": [],
+      "purl": "pkg:pypi/py-serializable@2.1.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "pycparser",
+      "version": "3.11",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "purl": "pkg:pypi/pycparser@3.11",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.0)"
+    },
+    {
+      "name": "pydantic",
+      "version": "2.14.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pydantic@2.14.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.13.5)"
+    },
+    {
+      "name": "pydantic-core",
+      "version": "2.50.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pydantic-core@2.50.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.46.5)"
+    },
+    {
+      "name": "pygments",
+      "version": "2.21.0",
+      "licenses": [
+        "BSD-2-Clause"
+      ],
+      "purl": "pkg:pypi/pygments@2.21.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.21.0)"
+    },
+    {
+      "name": "pyparsing",
+      "version": "3.3.3",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pyparsing@3.3.3",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.3.3)"
+    },
+    {
+      "name": "pytest",
+      "version": "9.1.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pytest@9.1.1",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (9.1.1)"
+    },
+    {
+      "name": "pytest-cov",
+      "version": "7.1.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/pytest-cov@7.1.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (7.1.0)"
+    },
+    {
+      "name": "python-discovery",
+      "version": "1.6.4",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/python-discovery@1.6.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.6.3)"
+    },
+    {
+      "name": "pyyaml",
+      "version": "6.0.3",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/pyyaml@6.0.3",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (6.0.3)"
+    },
+    {
+      "name": "requests",
+      "version": "2.34.2",
+      "licenses": [
+        "Apache Software License"
+      ],
+      "purl": "pkg:pypi/requests@2.34.2",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.31.0)"
+    },
+    {
+      "name": "rich",
+      "version": "15.0.0",
+      "licenses": [],
+      "purl": "pkg:pypi/rich@15.0.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "ruff",
+      "version": "0.8.4",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/ruff@0.8.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.17.1)"
+    },
+    {
+      "name": "signxml",
+      "version": "5.2.0",
+      "licenses": [
+        "Apache Software License"
+      ],
+      "purl": "pkg:pypi/signxml@5.2.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (3.2.2)"
+    },
+    {
+      "name": "sortedcontainers",
+      "version": "2.4.0",
+      "licenses": [],
+      "purl": "pkg:pypi/sortedcontainers@2.4.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "starlette",
+      "version": "1.9.0",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "purl": "pkg:pypi/starlette@1.9.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (1.7.0)"
+    },
+    {
+      "name": "tomli",
+      "version": "2.5.0",
+      "licenses": [],
+      "purl": "pkg:pypi/tomli@2.5.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "tomli-w",
+      "version": "1.2.0",
+      "licenses": [],
+      "purl": "pkg:pypi/tomli-w@1.2.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": ""
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "licenses": [
+        "PSF-2.0"
+      ],
+      "purl": "pkg:pypi/typing-extensions@4.16.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (4.16.0)"
+    },
+    {
+      "name": "typing-inspection",
+      "version": "0.4.4",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/typing-inspection@0.4.4",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (0.4.4)"
+    },
+    {
+      "name": "tzdata",
+      "version": "2026.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:pypi/tzdata@2026.5",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2026.4)"
+    },
+    {
+      "name": "urllib3",
+      "version": "2.8.0",
+      "licenses": [
+        "MIT License"
+      ],
+      "purl": "pkg:pypi/urllib3@2.8.0",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (2.0.7)"
+    },
+    {
+      "name": "virtualenv",
+      "version": "21.14.12",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:pypi/virtualenv@21.14.12",
+      "type": "library",
+      "manifest": "uv.lock",
+      "licence_source": "installed metadata (21.14.8)"
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@types/react@19.3.0",
+      "type": "library",
+      "manifest": "package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/csstype@3.2.3",
+      "type": "library",
+      "manifest": "package-lock.json, apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@emnapi/runtime",
+      "version": "1.11.3",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@emnapi/runtime@1.11.3",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/colour",
+      "version": "1.1.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@img/colour@1.1.0",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-darwin-arm64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-darwin-arm64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-darwin-x64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-darwin-x64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-freebsd-wasm32",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-freebsd-wasm32@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-darwin-arm64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-darwin-arm64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-darwin-x64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-darwin-x64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-arm",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-arm@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-arm64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-arm64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-ppc64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-ppc64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-riscv64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-riscv64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-s390x",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-s390x@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linux-x64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linux-x64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linuxmusl-arm64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linuxmusl-arm64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-libvips-linuxmusl-x64",
+      "version": "1.3.4",
+      "licenses": [
+        "LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-libvips-linuxmusl-x64@1.3.4",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-arm",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-arm@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-arm64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-arm64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-ppc64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-ppc64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-riscv64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-riscv64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-s390x",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-s390x@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linux-x64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linux-x64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linuxmusl-arm64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linuxmusl-arm64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-linuxmusl-x64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-linuxmusl-x64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-wasm32",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0 AND LGPL-3.0-or-later AND MIT"
+      ],
+      "purl": "pkg:npm/@img/sharp-wasm32@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-webcontainers-wasm32",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@img/sharp-webcontainers-wasm32@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-win32-arm64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0 AND LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-win32-arm64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-win32-ia32",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0 AND LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-win32-ia32@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@img/sharp-win32-x64",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0 AND LGPL-3.0-or-later"
+      ],
+      "purl": "pkg:npm/@img/sharp-win32-x64@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/env",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/env@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-darwin-arm64",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-darwin-arm64@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-darwin-x64",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-darwin-x64@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-linux-arm64-gnu",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-linux-arm64-gnu@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-linux-arm64-musl",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-linux-arm64-musl@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-linux-x64-gnu",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-linux-x64-gnu@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-linux-x64-musl",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-linux-x64-musl@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-win32-arm64-msvc",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-win32-arm64-msvc@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@next/swc-win32-x64-msvc",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@next/swc-win32-x64-msvc@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@swc/helpers",
+      "version": "0.5.23",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@swc/helpers@0.5.23",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@types/node",
+      "version": "24.10.5",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@types/node@24.10.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@types/react",
+      "version": "19.1.10",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@types/react@19.1.10",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.1.7",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@types/react-dom@19.1.7",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "baseline-browser-mapping",
+      "version": "2.11.27",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/baseline-browser-mapping@2.11.27",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "caniuse-lite",
+      "version": "1.0.30001814",
+      "licenses": [
+        "CC-BY-4.0"
+      ],
+      "purl": "pkg:npm/caniuse-lite@1.0.30001814",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "client-only",
+      "version": "0.0.1",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/client-only@0.0.1",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/detect-libc@2.1.2",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "nanoid",
+      "version": "3.3.20",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/nanoid@3.3.20",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "next",
+      "version": "16.3.8",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/next@16.3.8",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "picocolors",
+      "version": "1.1.1",
+      "licenses": [
+        "ISC"
+      ],
+      "purl": "pkg:npm/picocolors@1.1.1",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "postcss",
+      "version": "8.5.23",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/postcss@8.5.23",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "react",
+      "version": "19.3.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/react@19.3.0",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/react-dom@19.3.0",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/scheduler@0.28.0",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "semver",
+      "version": "7.8.5",
+      "licenses": [
+        "ISC"
+      ],
+      "purl": "pkg:npm/semver@7.8.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "sharp",
+      "version": "0.35.5",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/sharp@0.35.5",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "source-map-js",
+      "version": "1.2.2",
+      "licenses": [
+        "BSD-3-Clause"
+      ],
+      "purl": "pkg:npm/source-map-js@1.2.2",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "styled-jsx",
+      "version": "5.1.6",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/styled-jsx@5.1.6",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "licenses": [
+        "0BSD"
+      ],
+      "purl": "pkg:npm/tslib@2.8.1",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "typescript",
+      "version": "5.9.3",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/typescript@5.9.3",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "undici-types",
+      "version": "7.16.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/undici-types@7.16.0",
+      "type": "library",
+      "manifest": "apps/web/agent-console/package-lock.json, apps/web/analytics/package-lock.json, apps/web/brand/package-lock.json, apps/web/corporate/package-lock.json, apps/web/customer/package-lock.json, apps/web/partner/package-lock.json, apps/web/seller/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@axe-core/playwright",
+      "version": "4.10.2",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "purl": "pkg:npm/@axe-core/playwright@4.10.2",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@playwright/test",
+      "version": "1.63.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/@playwright/test@1.63.0",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json, tooling/e2e/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "@types/node",
+      "version": "26.6.4",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/@types/node@26.6.4",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "axe-core",
+      "version": "4.10.3",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "purl": "pkg:npm/axe-core@4.10.3",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/playwright@1.63.0",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json, tooling/e2e/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/playwright-core@1.63.0",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json, tooling/e2e/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "typescript",
+      "version": "5.7.3",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:npm/typescript@5.7.3",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "undici-types",
+      "version": "8.9.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:npm/undici-types@8.9.0",
+      "type": "library",
+      "manifest": "tooling/a11y/package-lock.json",
+      "licence_source": "package-lock.json"
+    },
+    {
+      "name": "apache/kafka",
+      "version": "sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.asset-ml.yml:kafka-1, infra/compose/docker-compose.asset-ml.yml:kafka-2, infra/compose/docker-compose.asset-ml.yml:kafka-3",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "ghcr.io/mlflow/mlflow",
+      "version": "sha256:65aa7a75fe37554bd7dd9e539b58e1ec130dac99f27fef9756df316a272dfee2",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/ghcr.io/mlflow/mlflow@sha256:65aa7a75fe37554bd7dd9e539b58e1ec130dac99f27fef9756df316a272dfee2",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.asset-ml.yml:mlflow",
+      "licence_source": "version-currency TC-035"
+    },
+    {
+      "name": "ollama/ollama",
+      "version": "sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:oci/ollama/ollama@sha256:926d40fd6eeeebd346b5c358a63de2a10ec995371cd93dd22f1843200694b1a6",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.asset-ml.yml:ollama",
+      "licence_source": "version-currency TC-036"
+    },
+    {
+      "name": "postgres",
+      "version": "17.4",
+      "licenses": [
+        "PostgreSQL Licence"
+      ],
+      "purl": "pkg:oci/postgres@17.4",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.dev.yml:postgres-dev, infra/compose/docker-compose.dr.yml:postgres-dr, infra/compose/docker-compose.dr.yml:dr-promoted-check, infra/compose/docker-compose.ha.yml:postgres-ha-primary, infra/compose/docker-compose.ha.yml:postgres-ha-standby, infra/compose/docker-compose.migration-staging.yml:postgres-migration, infra/compose/docker-compose.perf.yml:postgres-perf, infra/compose/docker-compose.prod.yml:postgres-prod, infra/compose/docker-compose.sandbox.yml:postgres-sandbox, infra/compose/docker-compose.sit.yml:postgres-sit, infra/compose/docker-compose.staging.yml:postgres-staging, infra/compose/docker-compose.superset.yml:postgres-replica, infra/compose/docker-compose.training.yml:postgres-training, infra/compose/docker-compose.uat.yml:postgres-uat, infra/compose/docker-compose.yml:postgres",
+      "licence_source": "version-currency TC-010"
+    },
+    {
+      "name": "redis",
+      "version": "7.2.5",
+      "licenses": [
+        "BSD-3-Clause (<=7.2 only)"
+      ],
+      "purl": "pkg:oci/redis@7.2.5",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.dev.yml:redis-dev, infra/compose/docker-compose.dr.yml:redis-dr, infra/compose/docker-compose.perf.yml:redis-perf, infra/compose/docker-compose.prod.yml:redis-prod, infra/compose/docker-compose.sandbox.yml:redis-sandbox, infra/compose/docker-compose.sit.yml:redis-sit, infra/compose/docker-compose.staging.yml:redis-staging, infra/compose/docker-compose.training.yml:redis-training, infra/compose/docker-compose.uat.yml:redis-uat, infra/compose/docker-compose.yml:redis",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-dev",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-dev",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.dev.yml:odoo-dev",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-dr",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-dr",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.dr.yml:odoo-dr",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "quay.io/keycloak/keycloak",
+      "version": "26.0.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/quay.io/keycloak/keycloak@26.0.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.ha.yml:keycloak-ha-01, infra/compose/docker-compose.ha.yml:keycloak-ha-02",
+      "licence_source": "version-currency TC-015"
+    },
+    {
+      "name": "kong",
+      "version": "3.8.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/kong@3.8.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.ha.yml:kong-ha-01, infra/compose/docker-compose.ha.yml:kong-ha-02",
+      "licence_source": "version-currency TC-016"
+    },
+    {
+      "name": "nginx",
+      "version": "1.27-alpine",
+      "licenses": [
+        "BSD-2"
+      ],
+      "purl": "pkg:oci/nginx@1.27-alpine",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.ha.yml:nginx-ha-01, infra/compose/docker-compose.ha.yml:nginx-ha-02",
+      "licence_source": "version-currency TC-013"
+    },
+    {
+      "name": "clickhouse/clickhouse-server",
+      "version": "sha256:bdb5c911a23d92fd364e246ab20b5a0a485f00112f3663fa626b083fb46c146b",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/clickhouse/clickhouse-server@sha256:bdb5c911a23d92fd364e246ab20b5a0a485f00112f3663fa626b083fb46c146b",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.intelligence.yml:clickhouse",
+      "licence_source": "version-currency TC-037"
+    },
+    {
+      "name": "python",
+      "version": "3.12-slim",
+      "licenses": [
+        "PSF"
+      ],
+      "purl": "pkg:oci/python@3.12-slim",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.migration-staging.yml:migration-runner",
+      "licence_source": "version-currency APP-python"
+    },
+    {
+      "name": "meshcentral",
+      "version": "1.1.60",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/ghcr.io/ylianst/meshcentral@1.1.60",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.msp.yml:meshcentral",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "wazuh/wazuh-manager",
+      "version": "sha256:238c2f30c4a677e57467eaac5794be579d3ca6a58e4fc7dd54d470bce267f4c0",
+      "licenses": [
+        "GPL-2"
+      ],
+      "purl": "pkg:oci/wazuh/wazuh-manager@sha256:238c2f30c4a677e57467eaac5794be579d3ca6a58e4fc7dd54d470bce267f4c0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.msp.yml:wazuh-manager",
+      "licence_source": "version-currency TC-032"
+    },
+    {
+      "name": "mayanedms/mayanedms",
+      "version": "sha256:03f7f43a686433e7dfc1151c3df37d8c376149e59b026008a5e846e578f03747",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/mayanedms/mayanedms@sha256:03f7f43a686433e7dfc1151c3df37d8c376149e59b026008a5e846e578f03747",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.msp.yml:mayan-edms",
+      "licence_source": "version-currency TC-030"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-perf",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-perf",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.perf.yml:odoo-perf",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-prod",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-prod",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.prod.yml:odoo-prod",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-sandbox",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-sandbox",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.sandbox.yml:odoo-sandbox",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-sit",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-sit",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.sit.yml:odoo-sit",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-staging",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-staging",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.staging.yml:odoo-staging",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "apache/superset",
+      "version": "4.0.2",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/apache/superset@4.0.2",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.superset.yml:superset",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-training",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-training",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.training.yml:odoo-training",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "1000fix/odoo",
+      "version": "19.0-uat",
+      "licenses": [
+        "LGPL-3"
+      ],
+      "purl": "pkg:oci/1000fix/odoo@19.0-uat",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.uat.yml:odoo-uat",
+      "licence_source": "version-currency L1-odoo"
+    },
+    {
+      "name": "openbao",
+      "version": "2.7.1",
+      "licenses": [
+        "MPL-2.0"
+      ],
+      "purl": "pkg:oci/openbao/openbao@2.7.1",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.vault.yml:vault",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "ceph",
+      "version": "sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586",
+      "licenses": [
+        "LGPL-2.1/3"
+      ],
+      "purl": "pkg:oci/ceph/daemon@sha256:261bbe628f4b438f5bf10de5a8ee05282f2697a5a2cb7ff7668f776b61b9d586",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:object-store",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "axllent/mailpit",
+      "version": "v1.22",
+      "licenses": [],
+      "purl": "pkg:oci/axllent/mailpit@v1.22",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:mailpit",
+      "licence_source": ""
+    },
+    {
+      "name": "quay.io/keycloak/keycloak",
+      "version": "26.3.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/quay.io/keycloak/keycloak@26.3.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:keycloak",
+      "licence_source": "version-currency TC-015"
+    },
+    {
+      "name": "edoburu/pgbouncer",
+      "version": "v1.24.0-p0",
+      "licenses": [
+        "ISC"
+      ],
+      "purl": "pkg:oci/edoburu/pgbouncer@v1.24.0-p0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:pgbouncer",
+      "licence_source": "version-currency TC-011"
+    },
+    {
+      "name": "kong",
+      "version": "3.9",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/kong@3.9",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:kong",
+      "licence_source": "version-currency TC-016"
+    },
+    {
+      "name": "apache/airflow",
+      "version": "3.1.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/apache/airflow@3.1.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:airflow",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "mongo",
+      "version": "7.0.14",
+      "licenses": [],
+      "purl": "pkg:oci/mongo@7.0.14",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:novu-mongo",
+      "licence_source": ""
+    },
+    {
+      "name": "ghcr.io/novuhq/novu/api",
+      "version": "2.3.0",
+      "licenses": [
+        "MIT"
+      ],
+      "purl": "pkg:oci/ghcr.io/novuhq/novu/api@2.3.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:novu",
+      "licence_source": "version-currency TC-018"
+    },
+    {
+      "name": "traccar/traccar",
+      "version": "6.7",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/traccar/traccar@6.7",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:traccar",
+      "licence_source": "version-currency TC-020"
+    },
+    {
+      "name": "osrm/osrm-backend",
+      "version": "v5.25.0",
+      "licenses": [
+        "BSD-2"
+      ],
+      "purl": "pkg:oci/osrm/osrm-backend@v5.25.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:osrm",
+      "licence_source": "version-currency TC-021"
+    },
+    {
+      "name": "vroomvrp/vroom-docker",
+      "version": "v1.13.0",
+      "licenses": [
+        "BSD-2"
+      ],
+      "purl": "pkg:oci/vroomvrp/vroom-docker@v1.13.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:vroom",
+      "licence_source": "version-currency TC-022"
+    },
+    {
+      "name": "otel/opentelemetry-collector-contrib",
+      "version": "0.116.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/otel/opentelemetry-collector-contrib@0.116.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:otel-collector",
+      "licence_source": "version-currency TC-025"
+    },
+    {
+      "name": "prom/prometheus",
+      "version": "v3.3.0",
+      "licenses": [
+        "Apache-2.0"
+      ],
+      "purl": "pkg:oci/prom/prometheus@v3.3.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:prometheus",
+      "licence_source": "version-currency TC-026"
+    },
+    {
+      "name": "grafana",
+      "version": "11.6.0",
+      "licenses": [
+        "AGPL-3.0-and-later"
+      ],
+      "purl": "pkg:oci/grafana/grafana@11.6.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:grafana",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "loki",
+      "version": "3.4.0",
+      "licenses": [
+        "AGPL-3.0-and-later"
+      ],
+      "purl": "pkg:oci/grafana/loki@3.4.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:loki",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "tempo",
+      "version": "2.7.0",
+      "licenses": [
+        "AGPL-3.0-and-later"
+      ],
+      "purl": "pkg:oci/grafana/tempo@2.7.0",
+      "type": "container",
+      "manifest": "infra/compose/docker-compose.yml:tempo",
+      "licence_source": "licence register"
+    },
+    {
+      "name": "timescaledb",
+      "version": "unpinned",
+      "licenses": [
+        "Apache-2.0/TSL dual"
+      ],
+      "purl": "pkg:generic/timescaledb",
+      "type": "library",
+      "manifest": "migrations/sql/timescaledb_telemetry_hypertable.sql",
+      "licence_source": "licence register"
+    }
+  ]
+}

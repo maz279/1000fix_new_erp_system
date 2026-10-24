@@ -1,0 +1,58 @@
+version: 2
+
+sources:
+  - name: oltp_replica
+    database: fix_analytics
+    schema: public
+    description: "PostgreSQL 17 read-replica source tables (LB-06 read-only downstream, no OLTP mutation)."
+    loader: "services/bi-warehouse/src/warehouse_sync.py"
+    freshness:
+      warn_after: { count: 24, period: hour }
+      error_after: { count: 48, period: hour }
+    loaded_at_field: write_date
+    tables:
+      - name: fix_service_order
+        description: "OLTP service orders from M02 Service Delivery"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+          - name: name
+            tests: [not_null]
+          - name: branch_id
+            tests: [not_null]
+
+      - name: account_move
+        description: "AR invoices Mushak-paired"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+
+      - name: fix_warranty_claim
+        description: "Warranty claims under OEM agreements"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+
+      - name: mail_message
+        description: "Customer service conversations and interactions"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+
+      - name: fix_nps
+        description: "Customer feedback and satisfaction survey records"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+
+      - name: res_partner
+        description: "Party entities (customers, partners, vendors)"
+        columns:
+          - name: id
+            tests: [unique, not_null]
+
+      - name: res_branch
+        description: "Service centre branches (53 branches nationwide)"
+        columns:
+          - name: id
+            tests: [unique, not_null]

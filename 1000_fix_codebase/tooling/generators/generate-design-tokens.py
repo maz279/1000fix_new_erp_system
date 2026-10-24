@@ -17,6 +17,7 @@ output (deterministic ordering, LF endings, no timestamps).
 
 Exit: 0 regenerated / 1 source invalid.
 """
+
 from __future__ import annotations
 
 import json
@@ -88,7 +89,10 @@ def main() -> int:
 
     # R1 — SCSS variables + CSS custom properties for the Odoo asset bundler.
     scss = [HEADER, ""]
-    css = ["/* " + " ".join(line.removeprefix("// ") for line in HEADER.strip().splitlines()) + " */", ""]
+    css = [
+        "/* " + " ".join(line.removeprefix("// ") for line in HEADER.strip().splitlines()) + " */",
+        "",
+    ]
     for path, value in flat:
         note = ""
         node = tree
@@ -123,15 +127,14 @@ def main() -> int:
         "$schema": "generated — conformance input (CFM-02 value parity)",
         "source": str(SOURCE.relative_to(REPO)).replace("\\", "/"),
         "count": len(flat),
-        "tokens": {path: value for path, value in flat},
+        "tokens": dict(flat),
     }
 
     # R4 — Dart realisation (Flutter fix_ui theme). Dart identifiers cannot
     # contain dots; the canonical path is preserved in a doc comment per
     # constant so cross-runtime tracing stays possible (UX-001 §3.2).
-    dart_header = (
-        HEADER.replace("// GENERATED", "// GENERATED")
-        .replace("tokens.json (DTCG", "tokens.json (DTCG")
+    dart_header = HEADER.replace("// GENERATED", "// GENERATED").replace(
+        "tokens.json (DTCG", "tokens.json (DTCG"
     )
     dart = [dart_header, "", "/// fix_ui theme constants — the R4 realisation.", "library;", ""]
     for path, value in flat:
@@ -152,8 +155,10 @@ def main() -> int:
         json.dumps(flat_doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
     )
 
-    print(f"design-tokens: {len(flat)} tokens -> "
-          + ", ".join(str(p.relative_to(REPO)).replace('\\', '/') for p in GENERATED.values()))
+    print(
+        f"design-tokens: {len(flat)} tokens -> "
+        + ", ".join(str(p.relative_to(REPO)).replace("\\", "/") for p in GENERATED.values())
+    )
     return 0
 
 

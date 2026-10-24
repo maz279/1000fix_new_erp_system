@@ -1,8 +1,7 @@
 # fix.workshop.part.line — Consumed Spare Part Line (CD-M31-01 / M15 Integration).
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
-
 import logging
+
+from odoo import api, fields, models
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +12,7 @@ class FixWorkshopPartLine(models.Model):
     Integrates with M15 cd_inventory for barcode scanning, stock decrements,
     and suspense valuation postings.
     """
+
     _name = "fix.workshop.part.line"
     _description = "Workshop Consumed Part Line"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -49,10 +49,11 @@ class FixWorkshopPartLine(models.Model):
         related="product_id.default_code",
         store=True,
     )
+    # Not stored: a stored related of the translatable product name is computed in
+    # one language only (Odoo warns); nothing needs a frozen snapshot of the name.
     part_name = fields.Char(
         string="Part Description",
         related="product_id.name",
-        store=True,
     )
     quantity = fields.Float(
         string="Quantity",
@@ -65,7 +66,8 @@ class FixWorkshopPartLine(models.Model):
         "res.currency",
         string="Currency",
         required=True,
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
     unit_cost = fields.Monetary(
         string="Unit Cost",

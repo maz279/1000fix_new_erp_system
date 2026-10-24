@@ -7,39 +7,130 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__aggregate
 msgid "Aggregate"
 msgstr "অ্যাগ্রিগেট"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__aggregate_id
 msgid "Aggregate ID"
 msgstr "অ্যাগ্রিগেট আইডি"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__bus_target
+msgid "Bus Target"
+msgstr "বাস লক্ষ্য"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__bus_target__dual
+msgid "Dual-Write (Redis + Kafka)"
+msgstr "দ্বৈত-লিখন (Redis + Kafka)"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__event_id
 msgid "Event ID"
 msgstr "ইভেন্ট আইডি"
 
+#. module: cd_event_outbox
+#: model:ir.actions.act_window,name:cd_event_outbox.action_fix_event_outbox
+#: model:ir.model,name:cd_event_outbox.model_fix_event_outbox
+#: model:ir.ui.menu,name:cd_event_outbox.menu_fix_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_tree
 msgid "Event Outbox"
 msgstr "ইভেন্ট আউটবক্স"
 
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Event Outbox Entry"
 msgstr "ইভেন্ট আউটবক্স এন্ট্রি"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__event_type
 msgid "Event Type"
 msgstr "ইভেন্টের ধরন"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_event_outbox
+#: model:ir.ui.menu,name:cd_event_outbox.menu_fix_event_outbox_root
 msgid "Integration Platform"
 msgstr "ইন্টিগ্রেশন প্ল্যাটফর্ম"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__bus_target__kafka
+msgid "Kafka (Production)"
+msgstr "Kafka (প্রোডাকশন)"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__kafka_offset
+msgid "Kafka Offset"
+msgstr "Kafka অফসেট"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__kafka_partition
+msgid "Kafka Partition"
+msgstr "Kafka পার্টিশন"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__kafka_published_at
+msgid "Kafka Published At"
+msgstr "Kafka-তে প্রকাশের সময়"
+
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Metadata"
 msgstr "মেটাডেটা"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__metadata_json
 msgid "Metadata (JSON)"
 msgstr "মেটাডেটা (JSON)"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Payload"
 msgstr "পেলোড"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__payload
 msgid "Payload (JSON)"
 msgstr "পেলোড (JSON)"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__payload_sha256
+msgid "Payload SHA-256"
+msgstr "পেলোড SHA-256"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
+msgid "Publication Metadata"
+msgstr "প্রকাশনার মেটাডেটা"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__published
+msgid "Published"
+msgstr "প্রকাশিত"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__bus_target__redis
+msgid "Redis Streams"
+msgstr "Redis Streams"
+
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
+msgid "Routing & Status"
+msgstr "রাউটিং ও অবস্থা"

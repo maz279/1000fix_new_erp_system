@@ -1,12 +1,14 @@
 # fix.technician.location — Real-Time GPS Tracking with NFR-056 Throttle Guard (CD-M02-01)
 import math
-from datetime import datetime, timedelta, timezone
 
 from odoo import api, fields, models
+
+from libs.py.fix_events import publish  # FF-28
 
 
 class FixTechnicianLocation(models.Model):
     """Latest GPS location telemetry ping with NFR-056 event-storm throttle protection."""
+
     _name = "fix.technician.location"
     _description = "Technician Location Ping"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -76,7 +78,9 @@ class FixTechnicianLocation(models.Model):
         for vals in vals_list:
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.technician.location")
-                vals["name"] = seq or f"LOC/{fields.Date.today().year}/{self.search_count([]) + 1:06d}"
+                vals["name"] = (
+                    seq or f"LOC/{fields.Date.today().year}/{self.search_count([]) + 1:06d}"
+                )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
         return super().create(vals_list)
@@ -88,7 +92,9 @@ class FixTechnicianLocation(models.Model):
         if not tech.exists():
             return False
 
-        last_ping = self.search([("technician_id", "=", technician_id)], order="timestamp desc", limit=1)
+        last_ping = self.search(
+            [("technician_id", "=", technician_id)], order="timestamp desc", limit=1
+        )
         now = fields.Datetime.now()
         is_throttled = False
 
@@ -106,36 +112,39 @@ class FixTechnicianLocation(models.Model):
             first_ou = self.env["operating.unit"].search([("company_id", "=", comp_id)], limit=1)
             ou_id = first_ou.id if first_ou else False
 
-        ping = self.create({
-            "technician_id": technician_id,
-            "company_id": comp_id,
-            "operating_unit_id": ou_id,
-            "latitude": lat,
-            "longitude": lon,
-            "speed_kmh": speed,
-            "accuracy_m": accuracy,
-            "battery_pct": battery,
-            "timestamp": now,
-            "is_throttled": is_throttled,
-        })
+        ping = self.create(
+            {
+                "technician_id": technician_id,
+                "company_id": comp_id,
+                "operating_unit_id": ou_id,
+                "latitude": lat,
+                "longitude": lon,
+                "speed_kmh": speed,
+                "accuracy_m": accuracy,
+                "battery_pct": battery,
+                "timestamp": now,
+                "is_throttled": is_throttled,
+            }
+        )
 
-        # Only emit outbox event if not throttled
+        # Only emit outbox event if not throttled (the old guard tested an EMPTY,
+        # hence falsy, outbox recordset and called a non-existent create_event:
+        # no ping event was ever emitted).
         if not is_throttled:
-            Outbox = self.env.get("fix.event.outbox")
-            if Outbox:
-                Outbox.create_event(
-                    event_type="technician.location.ping",
-                    aggregate_type="fix.technician.location",
-                    aggregate_id=str(ping.id),
-                    payload={
-                        "technician_id": technician_id,
-                        "latitude": lat,
-                        "longitude": lon,
-                        "speed_kmh": speed,
-                        "battery_pct": battery,
-                        "timestamp": now.isoformat(),
-                    },
-                )
+            publish(
+                self.env,
+                "technician.location.ping",
+                "fix.technician.location",
+                ping.id,
+                {
+                    "technician_id": technician_id,
+                    "latitude": lat,
+                    "longitude": lon,
+                    "speed_kmh": speed,
+                    "battery_pct": battery,
+                    "timestamp": now.isoformat(),
+                },
+            )
 
         return ping
 

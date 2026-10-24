@@ -1,46 +1,62 @@
-# -*- coding: utf-8 -*-
 """offline_sync_api — Production-depth offline sync controller (SP-07, SP-01..03, DI-05, AR-010 §6).
 
-Implements the upload-first offline synchronization protocol:
-1. Upload pending journal commands from technician device.
-2. Verify batch checksum and execute each command in an isolated savepoint.
-3. Check and record in fix.offline.idempotency.ledger (DI-05 exactly-once semantics).
-4. Evaluate server-authoritative conflict matrix (apply, reject, conflict_applied).
-5. Download deltas since client's sync_token.
-6. Return single unified response.
+Implements the upload-first offline synchronization protocol
+(docs/guides/offline-sync-protocol.md):
+1. Authenticate (``auth="bearer"``) and resolve the technician from the
+   authenticated user only — never from a request parameter.
+2. Verify the SP-03 batch checksum BEFORE dispatching anything; a missing or
+   mismatching digest rejects the whole batch and executes nothing.
+3. Execute each command in an isolated savepoint (SP-02), scoped to records
+   assigned to the authenticated technician.
+4. Check and record in fix.offline.idempotency.ledger (DI-05 exactly-once semantics).
+5. Evaluate server-authoritative conflict matrix (apply, reject, conflict_applied).
+6. Download deltas changed after the client's sync_token (full resync when the
+   token is missing or malformed).
+7. Return single unified response.
 """
 
 import hashlib
-import json
 import logging
-from odoo import http, fields, api, SUPERUSER_ID
+import math
+
+from odoo import SUPERUSER_ID, fields, http
+from odoo.addons.cd_service_order.controllers.technician_api import (
+    _error,
+    _to_int,
+    clock_in_values,
+    collect_deltas,
+    evaluate_clock_in_position,
+    ledger_lookup,
+    parse_clock_in_position,
+    payload_digest,
+    resolve_technician,
+    verify_batch_checksum,
+)
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
+FIELD_ORDER_OPERATIONS = ("start_order", "complete_order", "decline_order")
+
 
 def _su_env():
-    return api.Environment(request.cr, SUPERUSER_ID, {})
+    return request.env(user=SUPERUSER_ID, su=True)
 
 
-def _resolve_technician(kwargs):
-    """Resolve technician employee from explicit ID or authenticated session."""
-    env = _su_env()
-    tech_id = kwargs.get("technician_id")
-    if tech_id:
-        tech = env["hr.employee"].browse(int(tech_id))
-        if tech.exists():
-            return tech
-    
-    # Try by current user
-    if request.session.uid:
-        tech = env["hr.employee"].search([("user_id", "=", request.session.uid)], limit=1)
-        if tech:
-            return tech
-            
-    # Fallback to any active technician
-    tech = env["hr.employee"].search([("active", "=", True)], limit=1)
-    return tech
+def _field_order_delta(ord_rec):
+    return {
+        "model": "fix.field.order",
+        "record_id": ord_rec.id,
+        "state": ord_rec.state,
+        "name": ord_rec.name,
+        "customer_name": ord_rec.order_id.customer_id.name or "",
+        "customer_phone": ord_rec.order_id.customer_id.phone or "",
+        "address": ord_rec.customer_address or "",
+        "priority": ord_rec.priority,
+        "scheduled_date": str(ord_rec.scheduled_start or ""),
+        "fault_description": ord_rec.order_id.fault_description or "",
+        "write_date": str(ord_rec.write_date or ""),
+    }
 
 
 class OfflineSyncApiController(http.Controller):
@@ -48,22 +64,20 @@ class OfflineSyncApiController(http.Controller):
 
     @http.route(
         ["/api/v1/offline/sync", "/technician/offline/sync"],
-        type="json",
-        auth="public",
+        type="jsonrpc",
+        auth="bearer",
         methods=["POST"],
-        csrf=False,
-        cors="*"
     )
     def offline_sync(self, **kwargs):
         """SP-07 Upload-first offline synchronization cycle.
-        
-        Payload:
+
+        Payload (the technician is the authenticated user; ``technician_id`` is
+        ignored when it names that user's employee and refused otherwise):
         {
             "client_id": "P02-TECH-001",
             "device_id": "DEV-UUID-1234",
-            "technician_id": 1,
-            "sync_token": "TOKEN-...",
-            "batch_checksum": "...",
+            "sync_token": "TOKEN-2026-10-22T08:15:30.123456",
+            "batch_checksum": "<sha256 hex of the canonical JSON of commands>",
             "commands": [
                 {
                     "command_id": "cmd-uuid-...",
@@ -76,16 +90,23 @@ class OfflineSyncApiController(http.Controller):
             ]
         }
         """
-        env = _su_env()
-        tech = _resolve_technician(kwargs)
-        device_id = kwargs.get("device_id", "DEV-UNKNOWN")
-        sync_token = kwargs.get("sync_token", "")
-        commands = kwargs.get("commands", [])
-        client_checksum = kwargs.get("batch_checksum", "")
+        tech, err = resolve_technician(kwargs)
+        if err:
+            return err
 
+        commands = kwargs.get("commands") or []
+        if not isinstance(commands, list):
+            return _error("invalid_batch", "commands must be a list")
+
+        # SP-03: verify the client digest before any command is dispatched.
+        checksum_error = verify_batch_checksum(commands, kwargs.get("batch_checksum"))
+        if checksum_error:
+            return checksum_error
+
+        env = _su_env()
+        device_id = kwargs.get("device_id", "DEV-UNKNOWN")
         ledger_model = env["fix.offline.idempotency.ledger"]
-        field_order_model = env.get("fix.field.order")
-        
+
         acknowledged = {}
         rejected = {}
         conflicts = {}
@@ -94,28 +115,29 @@ class OfflineSyncApiController(http.Controller):
         # STEP 1: SP-07 UPLOAD FIRST — Process all commands in journal
         # -----------------------------------------------------------------
         for cmd in commands:
-            cmd_id = cmd.get("command_id")
-            if not cmd_id:
+            if not isinstance(cmd, dict) or not cmd.get("command_id"):
                 continue
+            cmd_id = str(cmd["command_id"])
 
             model_name = cmd.get("model", "fix.field.order")
             record_id = cmd.get("record_id")
             operation = cmd.get("operation")
-            payload = cmd.get("payload", {})
+            payload = cmd.get("payload") or {}
             client_ts = cmd.get("client_created_at")
+            if not isinstance(payload, dict):
+                rejected[cmd_id] = "payload must be an object"
+                continue
 
-            # DI-05: Check idempotency ledger
-            cached = ledger_model.get_cached_result(cmd_id)
-            if cached:
-                if cached["status"] == "rejected":
-                    rejected[cmd_id] = cached["conflict_reason"] or "Command previously rejected"
-                else:
-                    acknowledged[cmd_id] = cached["response"]
+            # DI-05: Check idempotency ledger — a replay only returns the cached
+            # result to the technician who issued the command.
+            replay = ledger_lookup(ledger_model, cmd_id, tech)
+            if replay:
+                outcome, value = replay
+                (rejected if outcome == "rejected" else acknowledged)[cmd_id] = value
                 continue
 
             # Compute payload SHA-256 for integrity auditing
-            payload_str = json.dumps(payload, sort_keys=True, default=str)
-            payload_hash = hashlib.sha256(payload_str.encode("utf-8")).hexdigest()
+            payload_hash = payload_digest(payload)
 
             # SP-02: Isolated transaction per command
             try:
@@ -126,7 +148,7 @@ class OfflineSyncApiController(http.Controller):
 
                     ledger_model.record_execution(
                         command_id=cmd_id,
-                        technician_id=tech.id if tech else None,
+                        technician_id=tech.id,
                         device_id=device_id,
                         model=model_name,
                         record_id=record_id,
@@ -135,7 +157,7 @@ class OfflineSyncApiController(http.Controller):
                         status=cmd_status,
                         response_dict=cmd_res,
                         conflict_reason=conflict_msg,
-                        client_created_at=client_ts
+                        client_created_at=client_ts,
                     )
 
                     if cmd_status == "rejected":
@@ -146,13 +168,15 @@ class OfflineSyncApiController(http.Controller):
                             conflicts[cmd_id] = conflict_msg
 
             except Exception as exc:
-                _logger.exception("Failed executing offline command %s (%s): %s", cmd_id, operation, exc)
+                _logger.exception(
+                    "Failed executing offline command %s (%s): %s", cmd_id, operation, exc
+                )
                 err_msg = str(exc)
                 try:
                     with env.cr.savepoint():
                         ledger_model.record_execution(
                             command_id=cmd_id,
-                            technician_id=tech.id if tech else None,
+                            technician_id=tech.id,
                             device_id=device_id,
                             model=model_name,
                             record_id=record_id,
@@ -161,10 +185,10 @@ class OfflineSyncApiController(http.Controller):
                             status="rejected",
                             response_dict={"error": err_msg},
                             conflict_reason=err_msg,
-                            client_created_at=client_ts
+                            client_created_at=client_ts,
                         )
                 except Exception:
-                    pass
+                    _logger.exception("offline sync: could not record rejected command %s", cmd_id)
                 rejected[cmd_id] = err_msg
 
         # Compute server batch checksum over processed commands
@@ -172,35 +196,19 @@ class OfflineSyncApiController(http.Controller):
         for k in sorted(acknowledged.keys()):
             hasher.update(k.encode("utf-8"))
         for k in sorted(rejected.keys()):
-            hasher.update(f"rej:{k}".encode("utf-8"))
+            hasher.update(f"rej:{k}".encode())
         server_checksum = hasher.hexdigest()[:16]
 
         # -----------------------------------------------------------------
-        # STEP 2: SP-07 DOWNLOAD DELTAS — Gather latest server updates
+        # STEP 2: SP-07 DOWNLOAD DELTAS — records changed after sync_token
         # -----------------------------------------------------------------
-        deltas = []
-        if field_order_model is not None and tech:
-            orders = field_order_model.search([
-                ("technician_id", "=", tech.id),
-                ("active", "=", True)
-            ], limit=50)
-
-            for ord_rec in orders:
-                deltas.append({
-                    "model": "fix.field.order",
-                    "record_id": ord_rec.id,
-                    "state": ord_rec.state,
-                    "name": ord_rec.name,
-                    "customer_name": ord_rec.customer_name,
-                    "customer_phone": ord_rec.customer_phone,
-                    "address": ord_rec.street_address or ord_rec.district,
-                    "priority": ord_rec.priority,
-                    "scheduled_date": str(ord_rec.scheduled_date or ""),
-                    "fault_description": ord_rec.fault_description,
-                    "write_date": str(ord_rec.write_date or ""),
-                })
-
-        next_sync_token = f"TOKEN-{fields.Datetime.now()}-{server_checksum}"
+        # fix.field.order is defined by this module, so it is always in the registry.
+        deltas, next_sync_token, has_more, full_resync = collect_deltas(
+            env["fix.field.order"],
+            [("technician_id", "=", tech.id), ("active", "=", True)],
+            kwargs.get("sync_token"),
+            _field_order_delta,
+        )
 
         return {
             "status": "success",
@@ -209,18 +217,33 @@ class OfflineSyncApiController(http.Controller):
             "conflicts": conflicts,
             "batch_checksum": server_checksum,
             "next_token": next_sync_token,
+            "full_resync": full_resync,
+            "has_more": has_more,
             "deltas": deltas,
             "stats": {
                 "total_uploaded": len(commands),
                 "acknowledged_count": len(acknowledged),
                 "rejected_count": len(rejected),
                 "deltas_count": len(deltas),
-            }
+            },
         }
+
+    @staticmethod
+    def _own_record(env, model_name, record_id, tech):
+        """``model_name``/``record_id`` if that record is assigned to ``tech``, else
+        an empty recordset (unknown and foreign ids are indistinguishable)."""
+        rec_id = _to_int(record_id)
+        if rec_id is None:
+            return env[model_name]
+        return env[model_name].search(
+            [("id", "=", rec_id), ("technician_id", "=", tech.id)], limit=1
+        )
 
     def _dispatch_command(self, env, tech, model_name, record_id, operation, payload):
         """Dispatch individual command and apply conflict authority rules.
-        
+
+        Every record-targeting command must address a record assigned to ``tech``.
+
         Returns: (status, response_dict, conflict_reason)
         where status is in ('applied', 'rejected', 'conflict_applied')
         """
@@ -228,106 +251,153 @@ class OfflineSyncApiController(http.Controller):
 
         # 1. Geofenced Clock-in
         if operation == "clock_in":
-            lat = float(payload.get("geo_lat", 23.8000))
-            lng = float(payload.get("geo_long", 90.4000))
+            # the same own-zone geofence + accuracy evaluation (M55 AUT-WFM-02) as
+            # /technician/attendance/clock_in; coordinates are required
+            try:
+                lat, lng, accuracy_m = parse_clock_in_position(payload)
+            except ValueError as exc:
+                return "rejected", {}, str(exc)
             device_ref = payload.get("device_ref", "P02-TECH-MOBILE")
 
             open_att = env["fix.attendance.record"].search(
-                [("employee_id", "=", tech.id), ("check_out", "=", False)],
-                order="id desc", limit=1
+                [("employee_id", "=", tech.id), ("check_out", "=", False)], order="id desc", limit=1
             )
             if open_att:
-                return "applied", {
-                    "attendance_id": open_att.id,
-                    "already_clocked_in": True,
-                    "check_in": str(open_att.check_in),
-                }, None
+                return (
+                    "applied",
+                    {
+                        "attendance_id": open_att.id,
+                        "already_clocked_in": True,
+                        "check_in": str(open_att.check_in),
+                    },
+                    None,
+                )
 
-            att = env["fix.attendance.record"].create({
-                "employee_id": tech.id,
-                "check_in": now,
-                "geo_lat": lat,
-                "geo_long": lng,
-                "source": "mobile",
-                "device_ref": device_ref,
-                "company_id": 1,
-            })
-            return "applied", {"attendance_id": att.id, "check_in": str(now)}, None
+            evaluation = evaluate_clock_in_position(env, tech, lat, lng, accuracy_m)
+            att = env["fix.attendance.record"].create(
+                clock_in_values(
+                    tech, lat, lng, accuracy_m, evaluation, "mobile_offline", device_ref, now
+                )
+            )
+            return (
+                "applied",
+                {
+                    "attendance_id": att.id,
+                    "check_in": str(now),
+                    "geofence_result": evaluation["geofence_result"],
+                    "approval_state": evaluation["approval_state"],
+                    "approval_reason": evaluation["reason"],
+                },
+                None,
+            )
 
         # 2. Clock-out
         if operation == "clock_out":
             open_att = env["fix.attendance.record"].search(
-                [("employee_id", "=", tech.id), ("check_out", "=", False)],
-                order="id desc", limit=1
+                [("employee_id", "=", tech.id), ("check_out", "=", False)], order="id desc", limit=1
             )
             if not open_att:
                 return "rejected", {}, "No open attendance shift found for technician"
-            
+
             open_att.write({"check_out": now})
-            return "applied", {
-                "attendance_id": open_att.id,
-                "check_out": str(now),
-                "worked_hours": round(open_att.worked_hours or 0.0, 2),
-            }, None
+            return (
+                "applied",
+                {
+                    "attendance_id": open_att.id,
+                    "check_out": str(now),
+                    "worked_hours": round(open_att.worked_hours or 0.0, 2),
+                },
+                None,
+            )
 
         # 3. Field Order State Management & Conflicts
-        if model_name == "fix.field.order" or operation in ("start_order", "complete_order", "decline_order"):
+        if operation in FIELD_ORDER_OPERATIONS:
             order_id = record_id or payload.get("order_id")
             if not order_id:
                 return "rejected", {}, "Missing field order ID"
 
-            order = env["fix.field.order"].browse(int(order_id))
-            if not order.exists():
+            order = env["fix.field.order"].browse(_to_int(order_id) or 0).exists()
+            if not order:
                 return "rejected", {}, f"Field order {order_id} not found on server"
+
+            # Conflict Detection: Technician Assignment (server authoritative)
+            if order.technician_id.id != tech.id:
+                if order.technician_id:
+                    return (
+                        "rejected",
+                        {},
+                        f"Order {order.name} was reassigned to another technician",
+                    )
+                return "rejected", {}, f"Order {order.name} is not assigned to you"
 
             # Conflict Detection: Terminal or Locked state
             if order.state in ("cancelled", "closed"):
-                return "rejected", {}, f"Order {order.name} is {order.state} on server; technician action disallowed"
-
-            # Conflict Detection: Technician Assignment
-            if order.technician_id and tech and order.technician_id.id != tech.id:
-                return "rejected", {}, f"Order {order.name} was reassigned to technician {order.technician_id.name}"
+                return (
+                    "rejected",
+                    {},
+                    f"Order {order.name} is {order.state} on server; technician action disallowed",
+                )
 
             if operation == "start_order":
                 if order.state == "in_progress":
                     # Idempotent or concurrent start
-                    return "conflict_applied", {
-                        "order_id": order.id,
-                        "state": order.state,
-                        "server_start_time": str(order.actual_start_time or ""),
-                    }, "Order was already marked in_progress on server"
-                
-                order.action_start()
-                return "applied", {
-                    "order_id": order.id,
-                    "state": order.state,
-                    "actual_start_time": str(order.actual_start_time or ""),
-                }, None
+                    return (
+                        "conflict_applied",
+                        {
+                            "order_id": order.id,
+                            "state": order.state,
+                            "server_write_date": str(order.write_date or ""),
+                        },
+                        "Order was already marked in_progress on server",
+                    )
 
-            elif operation == "complete_order":
-                if order.state == "completed":
-                    return "conflict_applied", {
+                order.action_start_work()
+                return (
+                    "applied",
+                    {
                         "order_id": order.id,
                         "state": order.state,
-                    }, "Order already marked completed on server"
+                    },
+                    None,
+                )
+
+            if operation == "complete_order":
+                if order.state == "completed":
+                    return (
+                        "conflict_applied",
+                        {
+                            "order_id": order.id,
+                            "state": order.state,
+                        },
+                        "Order already marked completed on server",
+                    )
 
                 res_notes = payload.get("resolution_notes", "")
                 if res_notes:
-                    order.resolution_notes = res_notes
+                    order.notes = f"{order.notes or ''}\n[Resolution]: {res_notes}".strip()
                 order.action_complete()
-                return "applied", {
-                    "order_id": order.id,
-                    "state": order.state,
-                    "actual_end_time": str(order.actual_end_time or ""),
-                }, None
+                return (
+                    "applied",
+                    {
+                        "order_id": order.id,
+                        "state": order.state,
+                    },
+                    None,
+                )
 
-            elif operation == "decline_order":
-                reason = payload.get("reason", "offline_technician_decline")
-                order.action_decline(reason=reason)
-                return "applied", {
+            # decline_order
+            reason = payload.get("reason") or "other"
+            reasons = dict(order._fields["decline_reason"].selection)
+            notes = payload.get("notes") or ("" if reason in reasons else str(reason))
+            order.action_decline(reason=reason if reason in reasons else "other", notes=notes)
+            return (
+                "applied",
+                {
                     "order_id": order.id,
                     "state": order.state,
-                }, None
+                },
+                None,
+            )
 
         # 4. Diagnostic Submit
         if operation == "diagnose":
@@ -338,16 +408,16 @@ class OfflineSyncApiController(http.Controller):
 
             if not wo_id:
                 return "rejected", {}, "Missing work_order_id for diagnosis"
-            
-            wo = env["fix.work.order"].browse(int(wo_id))
-            if not wo.exists():
-                return "rejected", {}, f"Work order {wo_id} not found"
+
+            wo = self._own_record(env, "fix.work.order", wo_id, tech)
+            if not wo:
+                return "rejected", {}, f"Work order {wo_id} not found or not assigned to you"
 
             vals = {}
             if fault_code:
                 vals["diagnosed_fault_code"] = fault_code
             if node_id:
-                node = env["fix.diagnostic.node"].browse(int(node_id))
+                node = env["fix.diagnostic.node"].browse(_to_int(node_id) or 0)
                 if node.exists():
                     vals["diagnostic_tree_id"] = node.id
                     if not vals.get("diagnosed_fault_code") and node.fault_code:
@@ -356,10 +426,14 @@ class OfflineSyncApiController(http.Controller):
                 vals["notes"] = f"{wo.notes or ''}\n[Diagnosis]: {notes}".strip()
 
             wo.write(vals)
-            return "applied", {
-                "work_order_id": wo.id,
-                "fault_code": wo.diagnosed_fault_code,
-            }, None
+            return (
+                "applied",
+                {
+                    "work_order_id": wo.id,
+                    "fault_code": wo.diagnosed_fault_code,
+                },
+                None,
+            )
 
         # 5. Parts Consumption
         if operation == "consume_part":
@@ -370,62 +444,88 @@ class OfflineSyncApiController(http.Controller):
 
             if not wo_id:
                 return "rejected", {}, "Missing work_order_id for part consumption"
+            if not (product_id or barcode):
+                return "rejected", {}, "Missing product_id or barcode for part consumption"
+            if not (math.isfinite(qty) and qty > 0):
+                return "rejected", {}, "quantity must be a positive number"
 
-            wo = env["fix.work.order"].browse(int(wo_id))
-            if not wo.exists():
-                return "rejected", {}, f"Work order {wo_id} not found"
+            wo = self._own_record(env, "fix.work.order", wo_id, tech)
+            if not wo:
+                return "rejected", {}, f"Work order {wo_id} not found or not assigned to you"
 
-            prod = None
             if product_id:
-                prod = env["product.product"].browse(int(product_id))
-            elif barcode:
-                prod = env["product.product"].search([
-                    "|", ("barcode", "=", barcode), ("default_code", "=", barcode)
-                ], limit=1)
+                prod = env["product.product"].browse(_to_int(product_id) or 0).exists()
+            else:
+                prod = env["product.product"].search(
+                    ["|", ("barcode", "=", barcode), ("default_code", "=", barcode)], limit=1
+                )
 
-            if not prod or not prod.exists():
-                return "rejected", {}, f"Part product {product_id or barcode} not found in inventory"
+            if not prod:
+                return (
+                    "rejected",
+                    {},
+                    f"Part product {product_id or barcode} not found in inventory",
+                )
 
-            bdt_curr = env.ref("base.BDT", raise_if_not_found=False) or env["res.currency"].search([("name", "=", "BDT")], limit=1)
-            part_line = env["fix.work.order.part"].create({
-                "work_order_id": wo.id,
-                "product_id": prod.id,
-                "quantity": qty,
-                "unit_cost": prod.list_price or 0.0,
-                "currency_id": bdt_curr.id if bdt_curr else 1,
-            })
+            bdt_curr = env.ref("base.BDT", raise_if_not_found=False) or env["res.currency"].search(
+                [("name", "=", "BDT")], limit=1
+            )
+            part_line = env["fix.work.order.part"].create(
+                {
+                    "work_order_id": wo.id,
+                    "product_id": prod.id,
+                    "quantity": qty,
+                    "unit_cost": prod.list_price or 0.0,
+                    "currency_id": bdt_curr.id if bdt_curr else 1,
+                }
+            )
 
-            return "applied", {
-                "part_line_id": part_line.id,
-                "product_code": prod.default_code,
-                "quantity": qty,
-            }, None
+            return (
+                "applied",
+                {
+                    "part_line_id": part_line.id,
+                    "product_code": prod.default_code,
+                    "quantity": qty,
+                },
+                None,
+            )
 
         # 6. Customer E-Signature
         if operation == "customer_signature":
             order_id = record_id or payload.get("order_id")
             sig_name = payload.get("signer_name", "Customer")
             sig_token = payload.get("signature_token") or payload.get("signature_base64", "")[:32]
-            
-            if order_id:
-                order = env["fix.field.order"].browse(int(order_id))
-                if order.exists():
-                    msg = f"Customer signature captured offline for {sig_name}. Token: {sig_token}"
-                    order.message_post(body=msg)
-                    return "applied", {"order_id": order.id, "signer": sig_name, "verified": True}, None
 
-            return "applied", {"signer": sig_name, "verified": True}, None
+            if not order_id:
+                return "rejected", {}, "Missing field order ID for customer signature"
+            order = self._own_record(env, "fix.field.order", order_id, tech)
+            if not order:
+                return "rejected", {}, f"Field order {order_id} not found or not assigned to you"
+
+            msg = f"Customer signature captured offline for {sig_name}. Token: {sig_token}"
+            order.message_post(body=msg)
+            return (
+                "applied",
+                {"order_id": order.id, "signer": sig_name, "verified": True},
+                None,
+            )
 
         # 7. Panic SOS Distress Signal (M59 slice)
         if operation == "panic_sos":
             lat = payload.get("lat")
             lng = payload.get("lng")
             notes = payload.get("notes", "Technician distress alert triggered from mobile P02")
-            _logger.critical("PANIC SOS RECEIVED from technician %s at (%s, %s): %s", tech.name if tech else "Unknown", lat, lng, notes)
-            return "applied", {
-                "sos_acknowledged": True,
-                "timestamp": str(now),
-                "dispatch_notified": True
-            }, None
+            _logger.critical(
+                "PANIC SOS RECEIVED from technician %s at (%s, %s): %s",
+                tech.name,
+                lat,
+                lng,
+                notes,
+            )
+            return (
+                "applied",
+                {"sos_acknowledged": True, "timestamp": str(now), "dispatch_notified": True},
+                None,
+            )
 
         return "rejected", {}, f"Unrecognized operation: {operation}"

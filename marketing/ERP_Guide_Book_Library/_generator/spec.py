@@ -12,6 +12,7 @@ Everything here is *measured from the source file*, never restated from a
 register — the same "count, do not consult" discipline the programme's own
 rule RG-06 imposes.
 """
+
 import os
 import re
 from collections import OrderedDict, Counter
@@ -109,12 +110,15 @@ class Spec(object):
     def _derive(self):
         fm = self.fm
         self.is_portal = "portal_id" in fm or bool(re.match(r"^P\d\d", self.filename))
-        self.uid = (fm.get("module_id") or fm.get("portal_id") or
-                    self.filename.split("_")[0])
+        self.uid = (
+            fm.get("module_id") or fm.get("portal_id") or self.filename.split("_")[0]
+        )
         self.code = (fm.get("module_code") or fm.get("portal_code") or "").strip("` ")
         self.name = (fm.get("module_name") or fm.get("portal_name") or "").strip()
         if not self.name:
-            h1 = next((b for b in self.blocks if b["t"] == "h" and b["level"] == 1), None)
+            h1 = next(
+                (b for b in self.blocks if b["t"] == "h" and b["level"] == 1), None
+            )
             if h1:
                 t = _norm(h1["text"])
                 self.name = re.sub(r"^[MP]\d\d\s*[—-]\s*", "", t)
@@ -129,7 +133,9 @@ class Spec(object):
         self.system_owner = fm.get("system_owner", "")
         self.priority = fm.get("priority", "").strip() or "P2"
         self.wave = fm.get("wave", "").strip()
-        self.classification = fm.get("classification", "CONFIDENTIAL — Internal Use Only")
+        self.classification = fm.get(
+            "classification", "CONFIDENTIAL — Internal Use Only"
+        )
 
         self._identity_table()
         self._scope()
@@ -158,8 +164,14 @@ class Spec(object):
             for r in t["rows"]:
                 if len(r) >= 2 and _norm(r[0]):
                     self.identity[_norm(r[0])] = _norm(r[1])
-        get = lambda *k: next((v for kk, v in self.identity.items()
-                               if any(x.lower() in kk.lower() for x in k)), "")
+        get = lambda *k: next(
+            (
+                v
+                for kk, v in self.identity.items()
+                if any(x.lower() in kk.lower() for x in k)
+            ),
+            "",
+        )
         self.effort_txt = get("Effort")
         m = RE_PW.search(self.effort_txt)
         self.effort_pw = float(m.group(1)) if m else None
@@ -197,16 +209,20 @@ class Spec(object):
         return out.strip()
 
     def evidence_rows(self):
-        t = MD.find_table(self.sec_blocks(2), "source", "what it establishes", min_hits=1)
+        t = MD.find_table(
+            self.sec_blocks(2), "source", "what it establishes", min_hits=1
+        )
         return t["rows"] if t else []
 
     # ----------------------------------------------------------- §3 scope
     def _scope(self):
         self.in_scope, self.out_scope, self.shared = [], [], []
         self.in_header, self.out_header, self.shared_header = [], [], []
-        for key, attr, hattr in (("3.1", "in_scope", "in_header"),
-                                 ("3.2", "out_scope", "out_header"),
-                                 ("3.3", "shared", "shared_header")):
+        for key, attr, hattr in (
+            ("3.1", "in_scope", "in_header"),
+            ("3.2", "out_scope", "out_header"),
+            ("3.3", "shared", "shared_header"),
+        ):
             t = self.sub_table(3, key)
             if t:
                 setattr(self, attr, t["rows"])
@@ -223,15 +239,16 @@ class Spec(object):
 
     # ------------------------------------------------------- §4 benchmark
     def _benchmark(self):
-        t = MD.find_table(self.sec_blocks(4), "reference system", "equivalent capability",
-                          min_hits=1)
+        t = MD.find_table(
+            self.sec_blocks(4), "reference system", "equivalent capability", min_hits=1
+        )
         self.benchmark = t["rows"] if t else []
         self.benchmark_header = t["header"] if t else []
         self.design_position = [b for b in self.sec_blocks(4) if b["t"] == "p"]
 
     # ---------------------------------------------------- §5 requirements
     def _requirements(self):
-        self.areas = OrderedDict()     # area title -> list of req dicts
+        self.areas = OrderedDict()  # area title -> list of req dicts
         self.reqs = []
         cur = self.name
         for b in self.sec_blocks(5):
@@ -249,7 +266,9 @@ class Spec(object):
                 ci_lay = MD.col_index(b, "Layer")
                 self.areas.setdefault(cur, [])
                 for r in b["rows"]:
-                    rid = _norm(r[ci_id]) if ci_id is not None and ci_id < len(r) else ""
+                    rid = (
+                        _norm(r[ci_id]) if ci_id is not None and ci_id < len(r) else ""
+                    )
                     if not RE_FR.search(rid):
                         continue
                     pri = ""
@@ -263,8 +282,12 @@ class Spec(object):
                     rec = {
                         "id": RE_FR.search(rid).group(0),
                         "area": cur,
-                        "feature": _norm(r[ci_feat]) if ci_feat is not None and ci_feat < len(r) else "",
-                        "function": _norm(r[ci_fn]) if ci_fn is not None and ci_fn < len(r) else "",
+                        "feature": _norm(r[ci_feat])
+                        if ci_feat is not None and ci_feat < len(r)
+                        else "",
+                        "function": _norm(r[ci_fn])
+                        if ci_fn is not None and ci_fn < len(r)
+                        else "",
                         "pri": pri or self.priority,
                         "layer": lay or "L5",
                     }
@@ -278,7 +301,9 @@ class Spec(object):
 
     # ------------------------------------------------- §6 technical funcs
     def _technical(self):
-        t = MD.find_table(self.sec_blocks(6), "technical function", "requirement", min_hits=1)
+        t = MD.find_table(
+            self.sec_blocks(6), "technical function", "requirement", min_hits=1
+        )
         self.tech_funcs = t["rows"] if t else []
         self.tech_header = t["header"] if t else []
 
@@ -287,9 +312,11 @@ class Spec(object):
         self.role_change, self.role_change_header = [], []
         self.quant_benefit, self.quant_header = [], []
         self.inst_benefit, self.inst_header = [], []
-        for key, attr, hattr in (("7.1", "role_change", "role_change_header"),
-                                 ("7.2", "quant_benefit", "quant_header"),
-                                 ("7.3", "inst_benefit", "inst_header")):
+        for key, attr, hattr in (
+            ("7.1", "role_change", "role_change_header"),
+            ("7.2", "quant_benefit", "quant_header"),
+            ("7.3", "inst_benefit", "inst_header"),
+        ):
             t = self.sub_table(7, key)
             if t:
                 setattr(self, attr, t["rows"])
@@ -332,12 +359,18 @@ class Spec(object):
                 if ci_cls is not None and ci_cls < len(r):
                     mc = re.search(r"\b([HASC])\b", _norm(r[ci_cls]))
                     cls = mc.group(1) if mc else ""
-                self.rules.append({
-                    "id": _norm(r[ci_id]) if ci_id < len(r) else "",
-                    "rule": _norm(r[ci_rule]) if ci_rule is not None and ci_rule < len(r) else "",
-                    "class": cls,
-                    "owner": _norm(r[ci_own]) if ci_own is not None and ci_own < len(r) else "",
-                })
+                self.rules.append(
+                    {
+                        "id": _norm(r[ci_id]) if ci_id < len(r) else "",
+                        "rule": _norm(r[ci_rule])
+                        if ci_rule is not None and ci_rule < len(r)
+                        else "",
+                        "class": cls,
+                        "owner": _norm(r[ci_own])
+                        if ci_own is not None and ci_own < len(r)
+                        else "",
+                    }
+                )
         self.rule_mix = Counter(r["class"] for r in self.rules if r["class"])
 
     # -------------------------------------------------------- §10 entities
@@ -428,9 +461,11 @@ class Spec(object):
                 if "int id" in hdr or ("direction" in hdr and "system" in hdr):
                     self.externals, self.ext_header = tb["rows"], tb["header"]
                     break
-        self.iface_subtitles = {t: len(self._first_table(subs[t])["rows"])
-                                for t in titles
-                                if self._first_table(subs[t]) is not None}
+        self.iface_subtitles = {
+            t: len(self._first_table(subs[t])["rows"])
+            for t in titles
+            if self._first_table(subs[t]) is not None
+        }
 
     # ----------------------------------------------------------- §13 roles
     def _roles(self):
@@ -445,13 +480,21 @@ class Spec(object):
                 if not nm:
                     continue
                 acc = _norm(r[ci_a]) if ci_a is not None and ci_a < len(r) else ""
-                self.roles.append({
-                    "id": (RE_ROLE.search(nm).group(0) if RE_ROLE.search(nm) else ""),
-                    "name": re.sub(r"^R\d\d\s*", "", nm),
-                    "access": acc,
-                    "perms": set(re.findall(r"[CRUDA]", acc.upper().replace("—", ""))),
-                    "scope": _norm(r[ci_s]) if ci_s is not None and ci_s < len(r) else "",
-                })
+                self.roles.append(
+                    {
+                        "id": (
+                            RE_ROLE.search(nm).group(0) if RE_ROLE.search(nm) else ""
+                        ),
+                        "name": re.sub(r"^R\d\d\s*", "", nm),
+                        "access": acc,
+                        "perms": set(
+                            re.findall(r"[CRUDA]", acc.upper().replace("—", ""))
+                        ),
+                        "scope": _norm(r[ci_s])
+                        if ci_s is not None and ci_s < len(r)
+                        else "",
+                    }
+                )
         self.role_notes = [b for b in self.sec_blocks(13) if b["t"] == "p"]
 
     # --------------------------------------------------------- §14 reports
@@ -492,18 +535,22 @@ class Spec(object):
                 share = (pct / len(layers)) if pct is not None else None
                 comp = _norm(r[1]) if len(r) > 1 else ""
                 for L in layers:
-                    cur = self.layer_alloc.setdefault(L, {"component": comp, "pct": 0.0,
-                                                          "parts": []})
+                    cur = self.layer_alloc.setdefault(
+                        L, {"component": comp, "pct": 0.0, "parts": []}
+                    )
                     if share is not None:
                         cur["pct"] = (cur["pct"] or 0.0) + share
                     if comp and comp not in cur["parts"]:
                         cur["parts"].append(comp)
         # normalise: drop zero-valued placeholders, order L1..L6
         self.layer_alloc = OrderedDict(
-            (k, self.layer_alloc[k]) for k in
-            sorted(self.layer_alloc, key=lambda x: x) if self.layer_alloc[k])
-        self.layer_total_pct = sum((v.get("pct") or 0.0)
-                                   for v in self.layer_alloc.values())
+            (k, self.layer_alloc[k])
+            for k in sorted(self.layer_alloc, key=lambda x: x)
+            if self.layer_alloc[k]
+        )
+        self.layer_total_pct = sum(
+            (v.get("pct") or 0.0) for v in self.layer_alloc.values()
+        )
 
         t = self.sub_table(16, "16.2", "custom development")
         if t:
@@ -539,6 +586,7 @@ class Spec(object):
     def _deps(self):
         def ids(txt, rx, pre):
             return sorted({pre + m for m in rx.findall(txt or "")})
+
         self.depends_on = ids(self.depends_txt, RE_MOD, "M")
         self.depended_by = ids(self.depended_txt, RE_MOD, "M")
         self.depends_on_portals = ids(self.depends_txt, RE_POR, "P")
@@ -562,41 +610,47 @@ class Spec(object):
 
         allrefs = set(RE_MOD.findall(self.raw))
         self.mentions = sorted({"M" + m for m in allrefs} - {self.uid})
-        self.mentions_portals = sorted({"P" + m for m in RE_POR.findall(self.raw)} - {self.uid})
+        self.mentions_portals = sorted(
+            {"P" + m for m in RE_POR.findall(self.raw)} - {self.uid}
+        )
 
         self.waves = sorted({"W" + w for w in RE_WAVE.findall(self.wave or "")})
 
     # --------------------------------------------------------------- totals
     def scorecard(self):
         if self.is_portal:
-            return OrderedDict([
+            return OrderedDict(
+                [
+                    ("Functional requirements", self.req_count),
+                    ("Capability areas", len(self.areas)),
+                    ("Portal rules", len(self.rules)),
+                    ("Automations & notifications", len(self.automations)),
+                    ("Modules consumed", len(self.upstream)),
+                    ("Write-back targets", len(self.downstream)),
+                    ("Events subscribed", len(self.events)),
+                    ("Referenced entities", len(self.ref_entities)),
+                    ("Roles served", len(self.roles)),
+                    ("KPIs", len(self.kpis)),
+                    ("Acceptance criteria", len(self.acceptance)),
+                    ("Open questions", len(self.questions)),
+                ]
+            )
+        return OrderedDict(
+            [
                 ("Functional requirements", self.req_count),
-                ("Capability areas", len(self.areas)),
-                ("Portal rules", len(self.rules)),
-                ("Automations & notifications", len(self.automations)),
-                ("Modules consumed", len(self.upstream)),
-                ("Write-back targets", len(self.downstream)),
-                ("Events subscribed", len(self.events)),
+                ("Functional areas", len(self.areas)),
+                ("Business rules", len(self.rules)),
+                ("Automations", len(self.automations)),
+                ("Owned entities", len(self.owned_entities)),
                 ("Referenced entities", len(self.ref_entities)),
-                ("Roles served", len(self.roles)),
+                ("Domain events published", len(self.events)),
+                ("API endpoints", len(self.api)),
+                ("Roles with access", len(self.roles)),
+                ("Reports & dashboards", len(self.reports)),
                 ("KPIs", len(self.kpis)),
                 ("Acceptance criteria", len(self.acceptance)),
-                ("Open questions", len(self.questions)),
-            ])
-        return OrderedDict([
-            ("Functional requirements", self.req_count),
-            ("Functional areas", len(self.areas)),
-            ("Business rules", len(self.rules)),
-            ("Automations", len(self.automations)),
-            ("Owned entities", len(self.owned_entities)),
-            ("Referenced entities", len(self.ref_entities)),
-            ("Domain events published", len(self.events)),
-            ("API endpoints", len(self.api)),
-            ("Roles with access", len(self.roles)),
-            ("Reports & dashboards", len(self.reports)),
-            ("KPIs", len(self.kpis)),
-            ("Acceptance criteria", len(self.acceptance)),
-        ])
+            ]
+        )
 
     def __repr__(self):
         return "<Spec %s %s reqs=%d>" % (self.uid, self.name, self.req_count)

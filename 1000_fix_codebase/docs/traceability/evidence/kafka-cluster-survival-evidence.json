@@ -1,0 +1,133 @@
+{
+  "test": "R07-M01-T01: Kafka 3-Node HA Cluster & Single-Broker Loss Verification",
+  "timestamp_utc": "2026-10-22T16:14:11Z",
+  "compose_configuration": {
+    "compose_file": "docker-compose.asset-ml.yml",
+    "nodes_declared": [
+      "kafka-1",
+      "kafka-2",
+      "kafka-3"
+    ],
+    "node_ids": {
+      "kafka-1": "1",
+      "kafka-2": "2",
+      "kafka-3": "3"
+    },
+    "versions_lock_digest": "sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837",
+    "broker_endpoints": [
+      "127.0.0.1:9092",
+      "127.0.0.1:9094",
+      "127.0.0.1:9095"
+    ]
+  },
+  "live_probe": {
+    "brokers_reachable": 3,
+    "brokers_declared": 3,
+    "details": "127.0.0.1:9092 accepted a TCP connection; 127.0.0.1:9094 accepted a TCP connection; 127.0.0.1:9095 accepted a TCP connection"
+  },
+  "single_broker_failure_drill": {
+    "drill": "docker stop one broker; produce/consume via survivors; restart",
+    "stopped_broker": {
+      "host_port": 9094,
+      "container": "compose-kafka-2-1"
+    },
+    "bootstrap_during_outage": [
+      "127.0.0.1:9092",
+      "127.0.0.1:9095"
+    ],
+    "topic": "fix.events.drill1792685630",
+    "consumer_group": "drill1792685630-consumer",
+    "steps": [
+      {
+        "phase": "before_outage",
+        "produced": 20,
+        "consumed": 20,
+        "elapsed_s": 6.69
+      },
+      {
+        "phase": "broker_stopped",
+        "container": "compose-kafka-2-1",
+        "elapsed_s": 4.42,
+        "port_closed": true,
+        "port_detail": "127.0.0.1:9094 unreachable (TimeoutError)"
+      },
+      {
+        "phase": "during_outage",
+        "produced": 25,
+        "consumed": 25,
+        "bootstrap": [
+          "127.0.0.1:9092",
+          "127.0.0.1:9095"
+        ],
+        "elapsed_s": 2.64
+      },
+      {
+        "phase": "broker_restarted",
+        "container": "compose-kafka-2-1",
+        "port_reachable": true,
+        "port_detail": "127.0.0.1:9094 accepted a TCP connection",
+        "elapsed_s": 0.27
+      },
+      {
+        "phase": "after_restart",
+        "produced": 15,
+        "consumed": 15,
+        "elapsed_s": 1.66
+      }
+    ],
+    "status": "PASS",
+    "reason": "acks=all produce and consumer-group reads continued on the two survivors while compose-kafka-2-1 was stopped, and resumed on all three after restart",
+    "totals": {
+      "produced": 60,
+      "consumed": 60
+    }
+  },
+  "checks": [
+    {
+      "check": "three_kraft_nodes_with_distinct_ids",
+      "status": "PASS",
+      "detail": "nodes ['kafka-1', 'kafka-2', 'kafka-3'] with KAFKA_NODE_IDs {'kafka-1': '1', 'kafka-2': '2', 'kafka-3': '3'}"
+    },
+    {
+      "check": "images_pinned_to_versions_lock_digest",
+      "status": "PASS",
+      "detail": "versions.lock COMPOSE_DIGEST_apache_kafka=sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837; nodes not on that digest: none"
+    },
+    {
+      "check": "quorum_voters_list_all_nodes",
+      "status": "PASS",
+      "detail": "expected voters ['1@kafka-1:9093', '2@kafka-2:9093', '3@kafka-3:9093']; mismatching nodes: none"
+    },
+    {
+      "check": "replication_factor_3_on_every_node",
+      "status": "PASS",
+      "detail": "keys ['KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR', 'KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR', 'KAFKA_DEFAULT_REPLICATION_FACTOR']; deviations: none"
+    },
+    {
+      "check": "min_insync_replicas_2_on_every_node",
+      "status": "PASS",
+      "detail": "deviations: none"
+    },
+    {
+      "check": "config_tolerates_single_broker_loss",
+      "status": "PASS",
+      "detail": "default RF per node [3, 3, 3], min ISR per node [2, 2, 2], nodes 3: acks=all writes stay available with one broker down iff RF <= nodes and RF - minISR >= 1"
+    },
+    {
+      "check": "distinct_loopback_host_ports",
+      "status": "PASS",
+      "detail": "published host ports {'kafka-1': [('127.0.0.1', 9092)], 'kafka-2': [('127.0.0.1', 9094)], 'kafka-3': [('127.0.0.1', 9095)]}"
+    },
+    {
+      "check": "live_brokers_reachable",
+      "status": "PASS",
+      "detail": "3/3 brokers reachable (127.0.0.1:9092 accepted a TCP connection; 127.0.0.1:9094 accepted a TCP connection; 127.0.0.1:9095 accepted a TCP connection)"
+    },
+    {
+      "check": "single_broker_loss_drill",
+      "status": "PASS",
+      "detail": "acks=all produce and consumer-group reads continued on the two survivors while compose-kafka-2-1 was stopped, and resumed on all three after restart; totals={'produced': 60, 'consumed': 60}"
+    }
+  ],
+  "verdict": "PASS"
+}

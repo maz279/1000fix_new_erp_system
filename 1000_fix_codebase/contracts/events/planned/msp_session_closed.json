@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "msp.session_closed",
+  "description": "Event emitted when remote assistance session closes and signs off SLA compliance (Journey 6)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "msp.session_closed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_msp_contract"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "session_id",
+        "alert_id",
+        "resolution_summary",
+        "closed_at"
+      ],
+      "properties": {
+        "session_id": {
+          "type": "string"
+        },
+        "alert_id": {
+          "type": "string"
+        },
+        "resolution_summary": {
+          "type": "string"
+        },
+        "duration_minutes": {
+          "type": "integer"
+        },
+        "closed_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "task_id": "R11-M03-T02",
+  "milestone": "R11-M03",
+  "evaluated_at_utc": "2026-10-22T14:34:38.663741+00:00",
+  "standards": [
+    "PDPA 2026 (Law 63 of 2026)",
+    "Cyber Security Ordinance 2025 (No. 25 of 2025)",
+    "Section 0.7.4 item 3",
+    "NFR-093",
+    "NFR-095"
+  ],
+  "checks": {
+    "dsr_erasure_drill": {
+      "status": "PASS",
+      "mode": "in-process against services/dsr-orchestrator with a simulated residency vault",
+      "saga_status": "completed",
+      "steps_expected": 7,
+      "steps_executed": 7,
+      "execution_trace": [
+        "anonymize_regional",
+        "tombstone_resident",
+        "purge_read_replicas",
+        "purge_warehouse_rows",
+        "purge_object_store",
+        "purge_search_index",
+        "mark_backups_out_of_scope_next_cycle"
+      ],
+      "resident_tombstoned": true,
+      "problems": []
+    },
+    "dsr_compensation_drill": {
+      "status": "PASS",
+      "injected_failure_at": "purge_warehouse_rows",
+      "saga_status": "rolled_back",
+      "compensations_run": [
+        "restore_purge_read_replicas",
+        "restore_tombstone_resident",
+        "restore_anonymize_regional"
+      ],
+      "problems": []
+    },
+    "dsr_statutory_clocks": {
+      "status": "PASS",
+      "notification_clock_days": 30,
+      "processing_record_retention_years": 5,
+      "processing_record_survives_until": "2031-10-21",
+      "problems": []
+    },
+    "production_dsr_drill": {
+      "status": "UNMEASURED",
+      "reason": "no production residency vault / regional database is reachable from this workstation; the drills above ran in-process"
+    },
+    "breach_runbook": {
+      "status": "PASS",
+      "runbook_steps": 6,
+      "phases_missing": [],
+      "states_72_hour_window": true,
+      "problems": []
+    },
+    "breach_drill_tests": {
+      "status": "PASS",
+      "target": "tests/test_pdpa_breach_notification_drill.py",
+      "exit_code": 0,
+      "output_tail": ""
+    },
+    "regulatory_breach_filing": {
+      "status": "UNMEASURED",
+      "reason": "a statutory filing to the authority and customer dispatch are external acts with no incident timestamps here to time against the 72-hour window"
+    },
+    "cii_flow_down": {
+      "status": "UNMEASURED",
+      "contract_model_fields": [],
+      "reason": "fix.msp.contract carries no CII-designation or flow-down covenant field, so the system holds nothing to audit; executed-contract covenants need legal review"
+    },
+    "dp_forum_attestation": {
+      "status": "UNMEASURED",
+      "reason": "a minuted Data Protection Forum resolution signed by DPO/CDO/CISO is a human act; no signed minute is observable here"
+    }
+  },
+  "checks_total": 9,
+  "checks_passed": 5,
+  "checks_failed": 0,
+  "checks_unmeasured": 4,
+  "verdict": "INCOMPLETE"
+}

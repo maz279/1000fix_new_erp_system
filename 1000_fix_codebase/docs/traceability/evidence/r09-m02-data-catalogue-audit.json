@@ -1,0 +1,45 @@
+{
+  "milestone": "R09-M02",
+  "task": "R09-M02-T01",
+  "standard": "DA-002 / DA-003",
+  "audit_timestamp": "2026-10-22T14:45:47.026271+00:00",
+  "total_entities_catalogued": 31,
+  "target_entity_count": 1335,
+  "completeness_pct": 2.32,
+  "owner_module_coverage_pct": 100.0,
+  "named_steward_coverage_pct": 100.0,
+  "classification_coverage_pct": 100.0,
+  "retention_policy_coverage_pct": 100.0,
+  "status": "FAIL",
+  "finding": "Catalogue holds 31 real entities = 2.32% of the DA-002 estate target (1335); no entities were synthesised to pad the count, so the audit FAILs until the remaining estate is genuinely catalogued.",
+  "domain_breakdown": {
+    "Service & work": 4,
+    "Commercial agreement": 2,
+    "Finance & tax": 2,
+    "Party & customer": 4,
+    "Organisation & network": 1,
+    "Workforce": 3,
+    "Device & asset": 2,
+    "Supply & inventory": 2,
+    "Codes & reference": 1,
+    "Analytical & derived": 10
+  },
+  "classification_breakdown": {
+    "internal": 19,
+    "confidential": 7,
+    "residency_classified": 2,
+    "public": 3
+  },
+  "steward_breakdown": {
+    "Kazi Mahbub": 4,
+    "Tanvir Rahman": 2,
+    "Mahmudul Huq": 2,
+    "Farhana Ahmed": 4,
+    "Imran Hossain": 1,
+    "Shamima Akter": 3,
+    "Tariqul Islam": 2,
+    "Nasrin Sultana": 2,
+    "Zaved Karim": 1,
+    "Rezaul Karim": 10
+  }
+}

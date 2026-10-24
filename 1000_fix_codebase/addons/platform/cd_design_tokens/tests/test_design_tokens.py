@@ -5,6 +5,7 @@ assets are fresh, complete and token-pure. These tests run the same
 assertions as the CFM suite so a stale or hand-edited realisation fails at
 module level too, not only in CI.
 """
+
 from __future__ import annotations
 
 import json

@@ -1,9 +1,9 @@
 # fix.workshop.evidence — Workshop Evidence Pack (CD-M31-01 / AS-01 Document Attachment API).
 # Consumed by Warranty in Phase R05 (MV-02).
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
-
 import logging
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +15,7 @@ class FixWorkshopEvidence(models.Model):
     attachment API (AS-01), ensuring residency classification, retention rules,
     and audit trails are maintained centrally.
     """
+
     _name = "fix.workshop.evidence"
     _description = "Workshop Repair Evidence Record"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -125,15 +126,19 @@ class FixWorkshopEvidence(models.Model):
             isolation_tier=isolation_tier,
         )
 
-        evidence = self.create({
-            "job_id": job.id,
-            "name": name,
-            "evidence_type": evidence_type,
-            "document_id": doc.id,
-            "description": description,
-            "captured_by_id": self.env.user.employee_id.id if self.env.user.employee_id else False,
-            "captured_at": fields.Datetime.now(),
-        })
+        evidence = self.create(
+            {
+                "job_id": job.id,
+                "name": name,
+                "evidence_type": evidence_type,
+                "document_id": doc.id,
+                "description": description,
+                "captured_by_id": self.env.user.employee_id.id
+                if self.env.user.employee_id
+                else False,
+                "captured_at": fields.Datetime.now(),
+            }
+        )
 
         evidence._emit_evidence_recorded(job, doc)
         return evidence
@@ -141,13 +146,20 @@ class FixWorkshopEvidence(models.Model):
     def _emit_evidence_recorded(self, job, doc):
         """Emit workshop.evidence.recorded domain event via outbox."""
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.evidence.recorded", "fix.workshop.evidence", self.id, {
-            "evidence_id": self.id,
-            "job_id": job.id,
-            "job_name": job.name,
-            "document_id": doc.id,
-            "document_name": doc.name,
-            "evidence_type": self.evidence_type,
-            "captured_by_id": self.captured_by_id.id if self.captured_by_id else False,
-            "captured_at": str(self.captured_at),
-        })
+
+        publish(
+            self.env,
+            "workshop.evidence.recorded",
+            "fix.workshop.evidence",
+            self.id,
+            {
+                "evidence_id": self.id,
+                "job_id": job.id,
+                "job_name": job.name,
+                "document_id": doc.id,
+                "document_name": doc.name,
+                "evidence_type": self.evidence_type,
+                "captured_by_id": self.captured_by_id.id if self.captured_by_id else False,
+                "captured_at": str(self.captured_at),
+            },
+        )

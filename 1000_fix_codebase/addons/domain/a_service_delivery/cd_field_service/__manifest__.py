@@ -15,18 +15,29 @@
         "cd_document_core",
         "cd_event_outbox",
         "cd_employee_core",
+        # hr.employee.operating_unit_id (read by fix.technician.location.record_ping)
+        # is defined by cd_hr_core - no cycle: cd_hr_core never reaches this module
+        "cd_hr_core",
         "cd_inventory",
     ],
     "data": [
+        "security/fix_isolation_rules.xml",
         "security/fix_field_service_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
-        "data/fix_field_service_data.xml",
+        # sample field orders removed from install data (R01 re-audit 2026-10-22):
+        # synthetic records belong in db/seeds (DE-12/13), and they required a
+        # service order that a clean install does not have (NOT NULL order_id).
         "views/fix_field_service_views.xml",
         "views/fix_field_service_menus.xml",
     ],
     "installable": True,
     "application": True,
     "auto_install": False,
-    "x_module_id": "CD-M02-01",
+    "x_module_id": "M02",
+    "x_cd_id": "CD-M02-01",
+    "x_wave": "W2",
+    "x_tier": "T2",
+    "x_owner": "Service Delivery",
+    "x_category": "A_Service_Delivery",
 }

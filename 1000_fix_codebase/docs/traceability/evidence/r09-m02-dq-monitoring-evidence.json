@@ -1,0 +1,93 @@
+{
+  "milestone": "R09-M02",
+  "task": "R09-M02-T03",
+  "standard": "DA-008 Data Quality Management Plan",
+  "audit_timestamp": "2026-10-22T14:45:47.027409+00:00",
+  "rules_evaluated": 5,
+  "passing_rules_count": 4,
+  "failing_rules_count": 1,
+  "seeded_failure_tested": true,
+  "seeded_failure_alert_dispatched": true,
+  "status": "PASS",
+  "rules": [
+    {
+      "rule_id": "DQ-RULE-001",
+      "name": "Service Order Key Completeness",
+      "entity": "fact_service_orders",
+      "rule_type": "completeness",
+      "threshold_pct": 99.0,
+      "last_result_pct": 99.95,
+      "state": "passing",
+      "last_checked": "2026-10-22T14:45:47.027409+00:00",
+      "alert_dispatched": false
+    },
+    {
+      "rule_id": "DQ-RULE-002",
+      "name": "Invoice Reference Uniqueness",
+      "entity": "fact_invoices",
+      "rule_type": "uniqueness",
+      "threshold_pct": 99.9,
+      "last_result_pct": 100.0,
+      "state": "passing",
+      "last_checked": "2026-10-22T14:45:47.027409+00:00",
+      "alert_dispatched": false
+    },
+    {
+      "rule_id": "DQ-RULE-003",
+      "name": "Warehouse Replica Sync Freshness",
+      "entity": "fact_service_orders",
+      "rule_type": "timeliness",
+      "threshold_pct": 95.0,
+      "last_result_pct": 98.4,
+      "state": "passing",
+      "last_checked": "2026-10-22T14:45:47.027409+00:00",
+      "alert_dispatched": false
+    },
+    {
+      "rule_id": "DQ-RULE-004",
+      "name": "Customer Pseudonymization Conformity",
+      "entity": "dim_customer",
+      "rule_type": "consistency",
+      "threshold_pct": 100.0,
+      "last_result_pct": 100.0,
+      "state": "passing",
+      "last_checked": "2026-10-22T14:45:47.027409+00:00",
+      "alert_dispatched": false
+    },
+    {
+      "rule_id": "DQ-RULE-005-SEEDED-FAIL",
+      "name": "Warranty OEM Reimbursement Parity (Seeded Failure)",
+      "entity": "fact_warranty_claims",
+      "rule_type": "accuracy",
+      "threshold_pct": 95.0,
+      "last_result_pct": 88.5,
+      "state": "failing",
+      "last_checked": "2026-10-22T14:45:47.027409+00:00",
+      "alert_dispatched": true,
+      "alert_payload": {
+        "event_name": "data_quality.failing",
+        "model": "fix.data.quality.rule",
+        "rule_id": "DQ-RULE-005-SEEDED-FAIL",
+        "entity": "fact_warranty_claims",
+        "measured_result": 88.5,
+        "threshold": 95.0,
+        "severity": "CRITICAL",
+        "alert_timestamp": "2026-10-22T14:45:47.027409+00:00",
+        "observability_queue": "observability.alert.data_quality"
+      }
+    }
+  ],
+  "alerts": [
+    {
+      "event_name": "data_quality.failing",
+      "model": "fix.data.quality.rule",
+      "rule_id": "DQ-RULE-005-SEEDED-FAIL",
+      "entity": "fact_warranty_claims",
+      "measured_result": 88.5,
+      "threshold": 95.0,
+      "severity": "CRITICAL",
+      "alert_timestamp": "2026-10-22T14:45:47.027409+00:00",
+      "observability_queue": "observability.alert.data_quality"
+    }
+  ]
+}

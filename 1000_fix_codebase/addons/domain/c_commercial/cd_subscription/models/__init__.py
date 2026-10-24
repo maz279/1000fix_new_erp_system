@@ -1,3 +1,2 @@
 # cd_subscription models.
-from . import rev_rec_engine
-from . import fix_subscription
+from . import fix_subscription, rev_rec_engine

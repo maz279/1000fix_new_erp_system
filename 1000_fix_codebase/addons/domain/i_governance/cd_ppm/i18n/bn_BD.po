@@ -1,8 +1,216 @@
-# Bengali translations for cd_ppm (P10).
+# Bengali translations for cd_ppm (P10 / M67).
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_ppm
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__actual_cost
+msgid "Actual Cost"
+msgstr "প্রকৃত খরচ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__actual_hours
+msgid "Actual Hours"
+msgstr "প্রকৃত ঘণ্টা"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__assigned_to
+msgid "Assigned To"
+msgstr "দায়িত্বপ্রাপ্ত"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__budget
+msgid "Budget"
+msgstr "বাজেট"
+
+#. module: cd_ppm
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Budget & Progress"
+msgstr "বাজেট ও অগ্রগতি"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__budget_variance
+msgid "Budget Variance"
+msgstr "বাজেট তারতম্য"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__state__cancelled
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_task__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__project_type__client
+msgid "Client Project"
+msgstr "ক্লায়েন্ট প্রকল্প"
+
+#. module: cd_ppm
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Complete Project"
+msgstr "প্রকল্প সম্পন্ন করুন"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_milestone__state__done
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_task__state__done
+msgid "Done"
+msgstr "সম্পন্ন"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_task__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__project_type__infrastructure
+msgid "Infrastructure"
+msgstr "অবকাঠামো"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__project_type__internal
+msgid "Internal"
+msgstr "অভ্যন্তরীণ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__milestone_id
+msgid "Milestone"
+msgstr "মাইলফলক"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_milestone__task_ids
+msgid "Milestone Tasks"
+msgstr "মাইলফলকের কাজসমূহ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__milestone_ids
+#: model:ir.ui.menu,name:cd_ppm.menu_fix_project_milestone
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Milestones"
+msgstr "মাইলফলকসমূহ"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project__state__on_hold
+msgid "On Hold"
+msgstr "স্থগিত"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__operating_unit_id
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_milestone__operating_unit_id
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_milestone__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__planned_hours
+msgid "Planned Hours"
+msgstr "পরিকল্পিত ঘণ্টা"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__progress_pct
+msgid "Progress %"
+msgstr "অগ্রগতি %"
+
+#. module: cd_ppm
+#: model:ir.model,name:cd_ppm.model_fix_project
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_milestone__project_id
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project_task__project_id
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Project"
+msgstr "প্রকল্প"
+
+#. module: cd_ppm
+#: model:ir.ui.menu,name:cd_ppm.menu_fix_ppm_root
+msgid "Project & Portfolio (PPM)"
+msgstr "প্রকল্প ও পোর্টফোলিও (পিপিএম)"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__code
+msgid "Project Code"
+msgstr "প্রকল্প কোড"
+
+#. module: cd_ppm
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Project Details"
+msgstr "প্রকল্পের বিবরণ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__manager_id
+msgid "Project Manager"
+msgstr "প্রকল্প ব্যবস্থাপক"
+
+#. module: cd_ppm
+#: model:ir.model,name:cd_ppm.model_fix_project_milestone
+msgid "Project Milestone"
+msgstr "প্রকল্প মাইলফলক"
+
+#. module: cd_ppm
+#: model:ir.actions.act_window,name:cd_ppm.action_fix_project_milestone
+msgid "Project Milestones"
+msgstr "প্রকল্প মাইলফলকসমূহ"
+
+#. module: cd_ppm
+#: model:ir.model,name:cd_ppm.model_fix_project_task
+msgid "Project Task"
+msgstr "প্রকল্পের কাজ (টাস্ক)"
+
+#. module: cd_ppm
+#: model:ir.actions.act_window,name:cd_ppm.action_fix_project_task
+msgid "Project Tasks"
+msgstr "প্রকল্পের কাজসমূহ"
+
+#. module: cd_ppm
 msgid "Project, Program & Portfolio Management"
-msgstr "Project, Program & Portfolio Management (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "প্রকল্প, প্রোগ্রাম ও পোর্টফোলিও ব্যবস্থাপনা"
+
+#. module: cd_ppm
+#: model:ir.ui.menu,name:cd_ppm.menu_fix_project
+msgid "Projects"
+msgstr "প্রকল্পসমূহ"
+
+#. module: cd_ppm
+#: model:ir.actions.act_window,name:cd_ppm.action_fix_project
+msgid "Projects & Programs"
+msgstr "প্রকল্প ও প্রোগ্রামসমূহ"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__task_ids
+#: model:ir.ui.menu,name:cd_ppm.menu_fix_project_task
+#: model_terms:ir.ui.view,arch_db:cd_ppm.view_fix_project_form
+msgid "Tasks"
+msgstr "কাজসমূহ"
+
+#. module: cd_ppm
+#: model:ir.model.fields.selection,name:cd_ppm.selection__fix_project_task__state__todo
+msgid "To Do"
+msgstr "করণীয়"
+
+#. module: cd_ppm
+#: model:ir.model.fields,field_description:cd_ppm.field_fix_project__variance_pct
+msgid "Variance %"
+msgstr "তারতম্য %"

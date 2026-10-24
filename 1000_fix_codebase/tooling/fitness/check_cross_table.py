@@ -13,6 +13,7 @@ Patterns checked:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,7 +23,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 ADDONS = REPO_ROOT / "addons"
 
-SQL_TABLE_PATTERN = re.compile(r'(?:FROM|JOIN|INTO|UPDATE)\s+(fix_\w+)', re.IGNORECASE)
+SQL_TABLE_PATTERN = re.compile(r"(?:FROM|JOIN|INTO|UPDATE)\s+(fix_\w+)", re.IGNORECASE)
 ENV_MODEL_PATTERN = re.compile(r"env\[\"(fix\.[^\"]+)\"\]")
 
 
@@ -65,17 +66,19 @@ def main() -> int:
                 # Check raw SQL for foreign tables
                 for m in SQL_TABLE_PATTERN.finditer(text):
                     table = m.group(1).lower()
-                    # Check if this module owns the model for that table
-                    model_name = table.replace("fix_", "fix.", 1).replace("_", ".")
-                    # More precise: check all fix.* models declared in this module
+                    # Check whether a fix.* model declared in this module owns the table
                     if not _owns_table(cd_dir, table):
-                        violations.append((rel, f"AS-01: raw SQL references foreign table {table!r}"))
+                        violations.append(
+                            (rel, f"AS-01: raw SQL references foreign table {table!r}")
+                        )
 
     if violations:
         print(f"cross-table: FAIL - {len(violations)} violation(s) ({files_checked} files):")
         for rel, msg in violations[:15]:
             print(f"  {rel}: {msg}")
-        print("  remedy: AS-01 forbids cross-module table reads. Use the published API or the event bus.")
+        print(
+            "  remedy: AS-01 forbids cross-module table reads. Use the published API or the event bus."
+        )
         return 1
     print(f"cross-table: OK - {files_checked} files, 0 cross-module table reads")
     return 0

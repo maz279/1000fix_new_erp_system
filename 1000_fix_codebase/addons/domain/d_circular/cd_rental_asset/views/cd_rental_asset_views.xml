@@ -1,41 +1,143 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_rental_asset views (P09). -->
+<!-- cd_rental_asset views (P09-M03 / R07-M03). -->
 <odoo>
+    <!-- Rental Reservation Views -->
     <record id="view_fix_rental_reservation_list" model="ir.ui.view">
         <field name="name">fix.rental.reservation.list</field>
         <field name="model">fix.rental.reservation</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="Rental Reservations">
                 <field name="name"/>
                 <field name="customer_id"/>
+                <field name="rental_sku_id"/>
+                <field name="device_id"/>
                 <field name="date_from"/>
                 <field name="date_to"/>
-                <field name="state"/>
+                <field name="duration_days"/>
+                <field name="deposit_collected"/>
+                <field name="deposit_refunded"/>
+                <field name="rental_charge"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_rental_reservation_form" model="ir.ui.view">
+        <field name="name">fix.rental.reservation.form</field>
+        <field name="model">fix.rental.reservation</field>
+        <field name="arch" type="xml">
+            <form string="Rental Reservation">
+                <header>
+                    <button name="action_reserve" string="Confirm Reservation" type="object" invisible="state != 'draft'" class="oe_highlight"/>
+                    <button name="action_generate_delivery_consignment" string="Create Delivery Dispatch" type="object" invisible="state != 'reserved' or delivery_consignment_id"/>
+                    <button name="action_deliver" string="Mark Delivered" type="object" invisible="state != 'reserved'"/>
+                    <button name="action_activate" string="Activate Rental" type="object" invisible="state != 'delivered'"/>
+                    <button name="action_generate_return_consignment" string="Create Return Logistics" type="object" invisible="state != 'active' or return_consignment_id"/>
+                    <button name="action_return" string="Receive Return" type="object" invisible="state != 'active'"/>
+                    <button name="action_assess_damage" string="Damage Inspection" type="object" invisible="state != 'returned'"/>
+                    <button name="action_close" string="Settle &amp; Close" type="object" invisible="state != 'damage_assess'" class="oe_highlight"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,reserved,delivered,active,returned,damage_assess,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Customer &amp; Rental SKU">
+                            <field name="customer_id"/>
+                            <field name="rental_sku_id"/>
+                            <field name="device_id"/>
+                            <field name="contract_id"/>
+                            <field name="service_order_id"/>
+                        </group>
+                        <group string="Schedule &amp; Rates">
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="actual_return_date"/>
+                            <field name="duration_days"/>
+                            <field name="daily_rate"/>
+                            <field name="weekly_rate"/>
+                            <field name="monthly_rate"/>
+                            <field name="rental_charge"/>
+                        </group>
+                    </group>
+                    <group string="Financials &amp; Deposit Settlement">
+                        <group>
+                            <field name="deposit_collected"/>
+                            <field name="damage_total"/>
+                            <field name="late_fee"/>
+                        </group>
+                        <group>
+                            <field name="deposit_refunded"/>
+                            <field name="excess_billed"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Logistics (M03 Consignment)">
+                        <group>
+                            <field name="delivery_consignment_id" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="return_consignment_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Damage Assessment Records">
+                            <field name="damage_ids">
+                                <list editable="bottom">
+                                    <field name="category"/>
+                                    <field name="description"/>
+                                    <field name="cost"/>
+                                    <field name="inspector_id"/>
+                                    <field name="disputed"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_rental_reservation" model="ir.actions.act_window">
-        <field name="name">Rental Reservation</field>
+        <field name="name">Rental Reservations</field>
         <field name="res_model">fix.rental.reservation</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Create your first rental reservation.
+            </p>
+        </field>
     </record>
+
+    <!-- Rental Damage Views -->
     <record id="view_fix_rental_damage_list" model="ir.ui.view">
         <field name="name">fix.rental.damage.list</field>
         <field name="model">fix.rental.damage</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="Rental Damage Assessments">
                 <field name="reservation_id"/>
                 <field name="category"/>
                 <field name="cost"/>
+                <field name="inspector_id"/>
+                <field name="disputed"/>
             </list>
         </field>
     </record>
+
     <record id="action_fix_rental_damage" model="ir.actions.act_window">
         <field name="name">Rental Damage</field>
         <field name="res_model">fix.rental.damage</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_rental_reservation" name="Rental Reservation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_reservation" sequence="200"/>
-    <menuitem id="menu_fix_rental_damage" name="Rental Damage" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_damage" sequence="210"/>
+    <menuitem id="menu_fix_rental_reservation" name="Rental Reservations" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_reservation" sequence="200"/>
+    <menuitem id="menu_fix_rental_damage" name="Rental Damage Records" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_rental_damage" sequence="210"/>
 </odoo>

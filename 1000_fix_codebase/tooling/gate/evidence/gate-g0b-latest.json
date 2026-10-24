@@ -1,79 +1,99 @@
-[
-    {
-        "Id":  "G0b-1",
-        "Criterion":  "Doctor implemented, all 14 checks, DE-18 remedies",
-        "Status":  "PASS",
-        "Evidence":  "doctor.ps1 (+doctor.py canonical path via Makefile)",
-        "Remedy":  "P02-M10-T01..T05"
-    },
-    {
-        "Id":  "G0b-2",
-        "Criterion":  "Pipeline: 17 stages, 5 profiles, blocking map",
-        "Status":  "PASS",
-        "Evidence":  ".github/workflows/ci.yml (stages 2-12+15 pre-merge; 13-14 release; 16-17 gate)",
-        "Remedy":  "P02-M09-T03/T04"
-    },
-    {
-        "Id":  "G0b-3",
-        "Criterion":  "Twelve environments provisioned per PE-002-D-01",
-        "Status":  "PASS",
-        "Evidence":  "infra/environments.yaml (12 envs + binding data rules)",
-        "Remedy":  "provisioning execution is Phase-2 runtime work on real infra"
-    },
-    {
-        "Id":  "G0b-4",
-        "Criterion":  "FF-03 live (vendor read-only)",
-        "Status":  "PASS",
-        "Evidence":  "check-vendor-clean.sh + FORKS.yaml + pre-commit no-vendor-edit hook",
-        "Remedy":  "activates with first vendored commit"
-    },
-    {
-        "Id":  "G0b-5",
-        "Criterion":  "FF-09 live (residency single-client)",
-        "Status":  "PASS",
-        "Evidence":  "fitness registry blocking set + synthetic-only local stub (FF-09 check script lands with first residency-typed code)",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-6",
-        "Criterion":  "Pre-commit = CI parity (XS-19)",
-        "Status":  "PASS",
-        "Evidence":  ".pre-commit-config.yaml mirrors every CI stage-1 tool",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-7",
-        "Criterion":  "CD register machine-readable (B-03 carry-over)",
-        "Status":  "PASS",
-        "Evidence":  "cd-register.yaml: 331/1,850PW/crosswalk 331; FF-16 warning-mode checker wired",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-8",
-        "Criterion":  "Licence gate live (D-030)",
-        "Status":  "PASS",
-        "Evidence":  "tooling/licence/register.yaml + check-licence-gate.py (stage 13)",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-9",
-        "Criterion":  "Local stack profiles, DE-03..06",
-        "Status":  "PASS",
-        "Evidence":  "compose authored; all 8 placeholder digests resolved and pinned (0 PLACEHOLDER-RESOLVE)",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-10",
-        "Criterion":  "Every developer doctor green \u003c 4h from bare machine",
-        "Status":  "PASS",
-        "Evidence":  "onboarding SLA measured: 1.8h on core (within budget) - evidence in onboarding-sla-core-joiner-1.json",
-        "Remedy":  ""
-    },
-    {
-        "Id":  "G0b-11",
-        "Criterion":  "G0a passed or Steering-recorded override",
-        "Status":  "PASS",
-        "Evidence":  "G0a verdict GREEN (0 OPEN, 0 FAIL) in gate-g0a-2026-10-15.json - B-01/B-02 external blockers closed",
-        "Remedy":  ""
-    }
-]
+{
+    "schema":  "1000fix-erp/gate-g0b/2",
+    "ranAtUtc":  "2026-10-23T09:29:40.1183007Z",
+    "verdict":  "RED-OPEN",
+    "pass":  9,
+    "conditions":  1,
+    "open":  1,
+    "failures":  0,
+    "criteria":  [
+                     {
+                         "Id":  "G0b-1",
+                         "Criterion":  "Doctor implemented, all 14 checks, DE-18 remedies",
+                         "Status":  "PASS",
+                         "Evidence":  "doctor.ps1 defines 14 distinct check id(s) [1,2,3,4,5,6,7,8,9,10,11,12,13,14]; missing: none (definition count only - a green run is G0b-10)",
+                         "Remedy":  "P02-M10-T01..T05 - implement the missing doctor checks",
+                         "CheckedUtc":  "2026-10-23T09:28:11.4640172Z"
+                     },
+                     {
+                         "Id":  "G0b-2",
+                         "Criterion":  "Pipeline: 17 stages, 5 profiles, blocking map",
+                         "Status":  "PASS",
+                         "Evidence":  "validate-workflow.py exit 0 (validate-workflow: PASS); 17 job(s) in ../.github/workflows/ci.yml (17 required). Structural validity only - no GitHub Actions run is evidenced here",
+                         "Remedy":  "P02-M09-T03/T04 - fix the findings printed by python tooling/ci/validate-workflow.py",
+                         "CheckedUtc":  "2026-10-23T09:28:11.6161458Z"
+                     },
+                     {
+                         "Id":  "G0b-3",
+                         "Criterion":  "Twelve environments provisioned per PE-002-D-01",
+                         "Status":  "CONDITION",
+                         "Evidence":  "infra/environments.yaml DEFINES 12 environment(s) (12 required); provisioning on real infrastructure is Phase-2 runtime work and no provisioning evidence is read by this verifier",
+                         "Remedy":  "P02-M09-T09 - provision the environments and record machine evidence of each",
+                         "CheckedUtc":  "2026-10-23T09:28:11.6204946Z"
+                     },
+                     {
+                         "Id":  "G0b-4",
+                         "Criterion":  "FF-03 live (vendor read-only)",
+                         "Status":  "PASS",
+                         "Evidence":  "check-vendor-clean.sh executed: exit 0 (check-vendor-clean: OK - vendor/ clean (FF-03)); FORKS.yaml + pre-commit no-vendor-edit hook present: True",
+                         "Remedy":  "restore tooling/scripts/check-vendor-clean.sh, FORKS.yaml or the no-vendor-edit hook; fix the reported vendor edits",
+                         "CheckedUtc":  "2026-10-23T09:28:12.2094480Z"
+                     },
+                     {
+                         "Id":  "G0b-5",
+                         "Criterion":  "FF-09 live (residency single-client)",
+                         "Status":  "PASS",
+                         "Evidence":  "tooling/fitness/registry.yaml: FF-09 entry with blocking: true",
+                         "Remedy":  "register FF-09 with blocking: true in tooling/fitness/registry.yaml",
+                         "CheckedUtc":  "2026-10-23T09:28:12.2184366Z"
+                     },
+                     {
+                         "Id":  "G0b-6",
+                         "Criterion":  "Pre-commit = CI parity (XS-19)",
+                         "Status":  "PASS",
+                         "Evidence":  ".pre-commit-config.yaml (13 hooks) and ../.github/workflows/ci.yml both present; ci.yml references ruff: True",
+                         "Remedy":  "align .pre-commit-config.yaml with ../.github/workflows/ci.yml stage 1",
+                         "CheckedUtc":  "2026-10-23T09:28:12.2243155Z"
+                     },
+                     {
+                         "Id":  "G0b-7",
+                         "Criterion":  "CD register machine-readable (B-03 carry-over)",
+                         "Status":  "PASS",
+                         "Evidence":  "cd-register.yaml: count=332, pw_total=1853, 332 item rows on disk (rule CDR-11); IR-002 baseline 331 - see G0a B-03 for the rebaseline condition",
+                         "Remedy":  "regenerate tooling/cd-register.yaml via tooling/cd-register/generate-cd-register.ps1",
+                         "CheckedUtc":  "2026-10-23T09:28:12.2328941Z"
+                     },
+                     {
+                         "Id":  "G0b-8",
+                         "Criterion":  "Licence gate live (D-030)",
+                         "Status":  "PASS",
+                         "Evidence":  "tooling/licence/register.yaml + check-licence-gate.py verified on disk (stage 13)",
+                         "Remedy":  "restore tooling/licence/register.yaml or check-licence-gate.py",
+                         "CheckedUtc":  "2026-10-23T09:28:12.2746379Z"
+                     },
+                     {
+                         "Id":  "G0b-9",
+                         "Criterion":  "Local stack profiles, DE-03..06",
+                         "Status":  "PASS",
+                         "Evidence":  "17 compose file(s); 0 PLACEHOLDER-RESOLVE, 0 PENDING-FIRST-BUILD reference(s) (locally-built 1000fix/odoo images unpinned until first build - DE-06 not met); verify-compose-digests.py exit 0 (verify-compose-digests: 81 refs, 0 failed, 0 pending-first-build)",
+                         "Remedy":  "build and push the 1000fix/odoo images, pin their digests (docs/guides/digest-pinning-policy.md), rerun verify-compose-digests.py",
+                         "CheckedUtc":  "2026-10-23T09:29:39.9520518Z"
+                     },
+                     {
+                         "Id":  "G0b-10",
+                         "Criterion":  "Every developer doctor green \u003c 4h from bare machine",
+                         "Status":  "PASS",
+                         "Evidence":  "onboarding SLA measured: 1.8h on core (within budget) - evidence in onboarding-sla-core-joiner-1.json",
+                         "Remedy":  "",
+                         "CheckedUtc":  "2026-10-23T09:29:40.0493691Z"
+                     },
+                     {
+                         "Id":  "G0b-11",
+                         "Criterion":  "G0a passed or Steering-recorded override",
+                         "Status":  "OPEN",
+                         "Evidence":  "gate-g0a-latest.json (2026-10-23T09:28:10.8926994Z): verdict RED-OPEN-BLOCKERS; 0 FAIL, 1 OPEN [B-05b], 5 CONDITION; E1 open: B-05b - G0a not passed; G0b entry requires a Steering override recorded in GV-003",
+                         "Remedy":  "close the G0a OPEN blockers or record the Steering override in GV-003",
+                         "CheckedUtc":  "2026-10-23T09:29:40.1112005Z"
+                     }
+                 ]
+}

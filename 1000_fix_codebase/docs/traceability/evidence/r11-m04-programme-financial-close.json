@@ -1,0 +1,72 @@
+{
+  "$schema": "1000fix-erp/financial-closure/2",
+  "standard": "GV-004 / GV-008 / CO-005 / IAS 38 Intangible Assets",
+  "milestone": "R11-M04",
+  "task": "R11-M04-T03",
+  "closure_timestamp": "2026-10-22T14:34:45.979819+00:00",
+  "planned_effort": {
+    "contract_baseline_pw": 1842,
+    "register_planned_pw": 1853,
+    "register_units": 332,
+    "register_planned_pw_by_wave": {
+      "W1": 238,
+      "W2": 240,
+      "W3": 281,
+      "W4": 347,
+      "W5": 247,
+      "W6": 227,
+      "W7": 203,
+      "W8": 47,
+      "W9": 23
+    }
+  },
+  "actuals": {
+    "actual_effort_pw": null,
+    "actual_spend": null,
+    "status": "UNMEASURED",
+    "detail": "actual spend, budget envelope, blended rate, FX rate and variance need the finance general ledger / programme cost centre; none is committed to the repository"
+  },
+  "checks": [
+    {
+      "id": "EFFORT_BASELINE_SOURCE",
+      "status": "PASS",
+      "detail": "SoW-F08-signed-amendment.md states 1,842 PW baseline and 1,850 PW across 331 register units"
+    },
+    {
+      "id": "CD_REGISTER_RECONCILIATION",
+      "status": "FAIL",
+      "detail": "register carries 1853 PW across 332 units vs CO-003-AMD-01 1850 PW / 331 units (delta +3 PW, +1 units) - unreconciled to the contract",
+      "register_units": 332,
+      "register_planned_pw": 1853,
+      "contract_baseline_pw": 1842,
+      "amendment_register_pw": 1850,
+      "amendment_register_units": 331
+    },
+    {
+      "id": "ACTUAL_EFFORT_BY_PHASE",
+      "status": "UNMEASURED",
+      "detail": "actual person-weeks per phase need the timesheet / effort ledger; no effort ledger is committed to the repository"
+    },
+    {
+      "id": "ACTUAL_SPEND_AND_VARIANCE",
+      "status": "UNMEASURED",
+      "detail": "actual spend, budget envelope, blended rate, FX rate and variance need the finance general ledger / programme cost centre; none is committed to the repository"
+    },
+    {
+      "id": "IAS38_CAPITALISATION_SPLIT",
+      "status": "UNMEASURED",
+      "detail": "the IAS 38 CapEx/OpEx split needs ledger cost classification and auditor review; neither is available to this tool"
+    },
+    {
+      "id": "FINANCIAL_SIGN_OFF",
+      "status": "UNMEASURED",
+      "detail": "financial close sign-off (Finance Director, CEO, Audit Committee chair) is a named-person act a tool cannot observe"
+    }
+  ],
+  "summary": {
+    "checks_passed": 1,
+    "checks_failed": 1,
+    "checks_unmeasured": 4,
+    "financial_verdict": "FAIL"
+  }
+}

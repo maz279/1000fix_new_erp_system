@@ -1,35 +1,54 @@
 #!/usr/bin/env python3
 """
 demonstrate-walkin-intake.py - Milestone R02-M05 Task T02 (Gate G1-02 Evidence):
-Execute runtime proof of the 3-minute branch walk-in intake flow against fix_walkin_intake.
-Measures intake_duration_seconds, handover acknowledgement, and emits evidence to
-tooling/fitness/evidence/walkin-intake-timing-latest.json.
+Measure the 3-minute branch walk-in intake flow from fix_walkin_intake records and emit
+evidence to tooling/fitness/evidence/walkin-intake-timing-latest.json.
+
+GV-009 (measure, never fabricate). An earlier version of this script INSERTED ten rows with
+random.randint(110, 142) "durations" and a hard-coded PASS / 100% compliance / named staff.
+This version is READ-ONLY (a read-only Postgres session; no DDL, no INSERT):
+
+- `application_recorded_intake_timings`: completed intakes are read from fix_walkin_intake;
+  each duration is recomputed from intake_start -> handover_complete and cross-checked with the
+  stored intake_duration_seconds. Rows matching the signature of the rows the earlier version
+  synthesised are excluded and counted. FAIL if any measured intake exceeds the 180 s target or
+  is internally inconsistent; UNMEASURED if the DB is unreachable or fewer than MIN_RUNS
+  qualifying intakes exist; PASS otherwise.
+- `branch_staff_demonstration`: G1-02 requires the intake to be performed by branch staff at a
+  pilot branch. fix.walkin.intake records no staff-role attestation (access is base.group_user)
+  and the local DB is synthetic-only (DE-12), so this is UNMEASURED - it needs a human-observed
+  pilot session.
+
+Overall verdict: FAIL if any check FAILs, else INCOMPLETE while anything is UNMEASURED.
+Exit code: 0 PASS, 1 FAIL, 2 INCOMPLETE.
 """
 
-import os
 import json
-import random
-from datetime import datetime, timedelta, timezone
+import os
+import sys
+from datetime import UTC, datetime
 from pathlib import Path
-import psycopg2
-from psycopg2.extras import RealDictCursor
 
 DB_HOST = os.environ.get("PGHOST", "localhost")
 DB_PORT = int(os.environ.get("PGPORT", "5433"))
 DB_NAME = os.environ.get("PGDATABASE", "fix_dev")
 DB_USER = os.environ.get("PGUSER", "fix")
 DB_PASS = os.environ.get("PGPASSWORD", "change-me-dev-only")
+CONNECT_TIMEOUT_S = 5
 
 CODEBASE_DIR = Path(__file__).resolve().parent.parent.parent
-EVIDENCE_FILE = CODEBASE_DIR / "tooling" / "fitness" / "evidence" / "walkin-intake-timing-latest.json"
+EVIDENCE_FILE = (
+    CODEBASE_DIR / "tooling" / "fitness" / "evidence" / "walkin-intake-timing-latest.json"
+)
 
-STAFF_ROSTER = [
-    {"staff_id": "EMP-00101", "name": "Mohammad Rafiqul Islam", "role": "R-08 Service Desk Intake Agent", "branch": "DHA-01 Dhanmondi"},
-    {"staff_id": "EMP-00102", "name": "Fatima Begum", "role": "R-08 Service Desk Intake Agent", "branch": "DHA-01 Dhanmondi"},
-    {"staff_id": "EMP-00103", "name": "Kamrul Hassan", "role": "R-07 Branch Manager", "branch": "DHA-02 Banani"},
-    {"staff_id": "EMP-00104", "name": "Nusrat Jahan", "role": "R-08 Service Desk Intake Agent", "branch": "DHA-02 Banani"},
-]
+TARGET_SECONDS = 180
+MIN_RUNS = 10
+DURATION_TOLERANCE_S = 1
 
+# Signature of the rows the earlier (fabricating) version of this script inserted:
+# customer_statement = f"Customer stated: {fault}" with fault taken from this list.
+# Such rows carry random durations, so they are excluded from every measurement.
+SYNTHESISED_STATEMENT_PREFIX = "Customer stated: "
 COMMON_FAULTS = [
     "Display flickering and vertical green lines after drop",
     "Device not charging, loose USB-C port connection",
@@ -41,162 +60,204 @@ COMMON_FAULTS = [
     "Liquid exposure, device fails to power on",
 ]
 
-def main():
-    print("================================================================================")
-    print("  1000FiX ERP v2.0 - Walk-in Intake 3-Minute Demonstration (G1-02)")
-    print("  Conducted by Branch Staff (Dhanmondi & Banani Pilot Service Centres)")
-    print("================================================================================")
+EXIT_CODES = {"PASS": 0, "FAIL": 1, "INCOMPLETE": 2}
 
-    conn = psycopg2.connect(
+COMPLETED_INTAKES_SQL = """
+    SELECT id, intake_start, handover_complete, intake_duration_seconds,
+           handover_acknowledged, handover_method, fault_description,
+           customer_statement, state
+    FROM fix_walkin_intake
+    WHERE state = 'completed' AND handover_complete IS NOT NULL
+    ORDER BY id
+"""
+
+
+def overall_verdict(statuses: list[str]) -> str:
+    if not statuses:
+        return "INCOMPLETE"
+    if "FAIL" in statuses:
+        return "FAIL"
+    if any(s != "PASS" for s in statuses):
+        return "INCOMPLETE"
+    return "PASS"
+
+
+def fetch_completed_intakes(connect=None) -> list[dict]:
+    """Read completed intakes in a READ-ONLY session. Raises on any connection/query error."""
+    if connect is None:
+        import psycopg2
+
+        connect = psycopg2.connect
+    from psycopg2.extras import RealDictCursor
+
+    conn = connect(
         host=DB_HOST,
         port=DB_PORT,
         dbname=DB_NAME,
         user=DB_USER,
-        password=DB_PASS
+        password=DB_PASS,
+        connect_timeout=CONNECT_TIMEOUT_S,
     )
-    conn.autocommit = True
-    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        conn.set_session(readonly=True)
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute("SELECT to_regclass('fix_walkin_intake') AS t")
+            if not cur.fetchone()["t"]:
+                raise LookupError("table fix_walkin_intake is not present in the database")
+            cur.execute(COMPLETED_INTAKES_SQL)
+            return [dict(r) for r in cur.fetchall()]
+    finally:
+        conn.close()
 
-    # Fetch available company, operating unit, branches, customers, and devices
-    cur.execute("SELECT id FROM res_company LIMIT 1;")
-    company_id = cur.fetchone()["id"]
 
-    cur.execute("SELECT id FROM operating_unit LIMIT 1;")
-    ou_row = cur.fetchone()
-    ou_id = ou_row["id"] if ou_row else 1
+def is_synthesised(row: dict) -> bool:
+    statement = row.get("customer_statement") or ""
+    return (
+        statement.startswith(SYNTHESISED_STATEMENT_PREFIX)
+        and row.get("fault_description") in COMMON_FAULTS
+    )
 
-    cur.execute("SELECT id, code, name FROM fix_branch WHERE legacy_reference LIKE 'BR:%' LIMIT 6;")
-    branches = cur.fetchall()
-    if not branches:
-        cur.execute("SELECT id, code, name FROM fix_branch LIMIT 6;")
-        branches = cur.fetchall()
 
-    cur.execute("SELECT id, name, phone FROM res_partner WHERE legacy_reference LIKE 'CUST:%' LIMIT 15;")
-    customers = cur.fetchall()
-
-    cur.execute("SELECT id, serial_number, name FROM fix_device WHERE legacy_reference LIKE 'DEV:%' LIMIT 15;")
-    devices = cur.fetchall()
-
-    # Ensure table fix_walkin_intake exists
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS fix_walkin_intake (
-            id SERIAL PRIMARY KEY,
-            company_id INTEGER NOT NULL REFERENCES res_company(id),
-            operating_unit_id INTEGER NOT NULL,
-            branch_id INTEGER NOT NULL REFERENCES fix_branch(id),
-            customer_id INTEGER NOT NULL REFERENCES res_partner(id),
-            device_id INTEGER REFERENCES fix_device(id),
-            device_serial_input VARCHAR(64),
-            fault_description TEXT NOT NULL,
-            customer_statement TEXT,
-            intake_start TIMESTAMP WITH TIME ZONE NOT NULL,
-            handover_complete TIMESTAMP WITH TIME ZONE NOT NULL,
-            intake_duration_seconds INTEGER NOT NULL,
-            handover_acknowledged BOOLEAN DEFAULT TRUE,
-            handover_acknowledged_at TIMESTAMP WITH TIME ZONE,
-            handover_method VARCHAR(32) NOT NULL,
-            create_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-            write_date TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-        );
-    """)
-
-    runs = []
-    base_time = datetime(2026, 10, 16, 10, 0, 0, tzinfo=timezone.utc)
-
-    for i in range(10):
-        staff = STAFF_ROSTER[i % len(STAFF_ROSTER)]
-        branch = branches[i % len(branches)]
-        customer = customers[i % len(customers)]
-        device = devices[i % len(devices)]
-        fault = COMMON_FAULTS[i % len(COMMON_FAULTS)]
-
-        # Realistic step timings:
-        # Step 1: Greeting & Customer party lookup (15-25s)
-        # Step 2: Device serial scan / lookup (20-30s)
-        # Step 3: Diagnostic fault recording (35-50s)
-        # Step 4: Digital token & physical condition check (25-35s)
-        # Step 5: Customer acknowledgement (signature/OTP) & handover receipt (15-25s)
-        duration_secs = random.randint(110, 142)  # Between 1m50s and 2m22s (Hard target: <180s)
-        intake_start = base_time + timedelta(minutes=i * 15)
-        handover_complete = intake_start + timedelta(seconds=duration_secs)
-        method = "otp" if i % 2 == 0 else "signature"
-
-        cur.execute("""
-            INSERT INTO fix_walkin_intake (
-                company_id, operating_unit_id, branch_id, customer_id, device_id,
-                device_serial_input, fault_description, customer_statement,
-                intake_start, handover_complete, intake_duration_seconds,
-                handover_acknowledged, handover_acknowledged_at, handover_method, state
-            ) VALUES (
-                %s, %s, %s, %s, %s,
-                %s, %s, %s,
-                %s, %s, %s,
-                true, %s, %s, 'completed'
-            ) RETURNING id;
-        """, (
-            company_id, ou_id, branch["id"], customer["id"], device["id"],
-            device["serial_number"], fault, f"Customer stated: {fault}",
-            intake_start, handover_complete, duration_secs,
-            handover_complete, method
-        ))
-        intake_id = cur.fetchone()["id"]
-
-        runs.append({
-            "test_run": i + 1,
-            "intake_id": intake_id,
-            "staff_id": staff["staff_id"],
-            "staff_name": staff["name"],
-            "staff_role": staff["role"],
-            "branch_code": branch["code"],
-            "customer_name": customer["name"],
-            "device_serial": device["serial_number"],
-            "fault": fault,
-            "duration_seconds": duration_secs,
-            "duration_formatted": f"{duration_secs // 60}m {duration_secs % 60}s",
-            "acknowledged_method": method,
-            "verdict": "PASS (< 180s)"
-        })
-
-        print(f"Run {i+1:2d}: Intake #{intake_id} | Staff: {staff['name']:<24} | Branch: {branch['code']:<6} | Duration: {duration_secs}s ({duration_secs//60}m {duration_secs%60}s) | [PASS]")
-
-    cur.close()
-    conn.close()
+def measure_intakes(rows: list[dict]) -> tuple[dict, list[dict], dict]:
+    """Return (check, measured_runs, stats) for the completed intake rows."""
+    excluded = [r["id"] for r in rows if is_synthesised(r)]
+    runs: list[dict] = []
+    for row in rows:
+        if is_synthesised(row):
+            continue
+        problems: list[str] = []
+        start, end = row["intake_start"], row["handover_complete"]
+        duration = (end - start).total_seconds()
+        stored = row.get("intake_duration_seconds")
+        if duration < 0:
+            problems.append("handover_complete precedes intake_start")
+        if stored is None or abs(stored - duration) > DURATION_TOLERANCE_S:
+            problems.append(f"stored intake_duration_seconds {stored} != measured {duration:.0f}")
+        if not row.get("handover_acknowledged"):
+            problems.append("handover not acknowledged")
+        within = 0 <= duration < TARGET_SECONDS
+        if not within:
+            problems.append(f"duration {duration:.0f}s not under {TARGET_SECONDS}s target")
+        runs.append(
+            {
+                "intake_id": row["id"],
+                "intake_start": start.isoformat(),
+                "handover_complete": end.isoformat(),
+                "duration_seconds": round(duration, 1),
+                "stored_duration_seconds": stored,
+                "acknowledged_method": row.get("handover_method"),
+                "within_target": within,
+                "status": "FAIL" if problems else "PASS",
+                "problems": problems,
+            }
+        )
 
     durations = [r["duration_seconds"] for r in runs]
-    mean_duration = sum(durations) / len(durations)
-    max_duration = max(durations)
-    min_duration = min(durations)
+    stats = {
+        "qualifying_intakes": len(runs),
+        "excluded_synthesised_records": len(excluded),
+        "excluded_synthesised_ids": excluded,
+        "mean_duration_seconds": round(sum(durations) / len(durations), 1) if durations else None,
+        "min_duration_seconds": min(durations) if durations else None,
+        "max_duration_seconds": max(durations) if durations else None,
+        "compliance_pct": (
+            round(100.0 * sum(1 for r in runs if r["within_target"]) / len(runs), 1)
+            if runs
+            else None
+        ),
+    }
+    failing = [r["intake_id"] for r in runs if r["status"] == "FAIL"]
+    if failing:
+        status = "FAIL"
+        detail = f"{len(failing)} of {len(runs)} measured intakes failed: ids {failing}"
+    elif len(runs) < MIN_RUNS:
+        status = "UNMEASURED"
+        detail = (
+            f"only {len(runs)} application-recorded completed intake(s) (need {MIN_RUNS}); "
+            f"{len(excluded)} row(s) excluded as synthesised by an earlier version of this script"
+        )
+    else:
+        status = "PASS"
+        detail = f"{len(runs)} measured intakes all under {TARGET_SECONDS}s"
+    check = {"check": "application_recorded_intake_timings", "status": status, "detail": detail}
+    return check, runs, stats
 
-    print("\n--------------------------------------------------------------------------------")
-    print(f"  Total Intakes Timed: {len(runs)}")
-    print(f"  Fastest Intake:     {min_duration}s ({min_duration//60}m {min_duration%60}s)")
-    print(f"  Slowest Intake:     {max_duration}s ({max_duration//60}m {max_duration%60}s)")
-    print(f"  Mean Intake Time:   {mean_duration:.1f}s (Target: < 180s / 3.0 min)")
-    print("  Compliance Rate:    100% (10/10 intakes completed under 3 minutes)")
-    print("--------------------------------------------------------------------------------")
 
-    evidence = {
+def run_measurement(fetch=None) -> dict:
+    checks: list[dict] = []
+    runs: list[dict] = []
+    stats: dict = {}
+    try:
+        rows = (fetch or fetch_completed_intakes)()
+    except Exception as exc:  # unreachable DB / missing table -> UNMEASURED, never PASS
+        checks.append(
+            {
+                "check": "application_recorded_intake_timings",
+                "status": "UNMEASURED",
+                "detail": f"cannot read fix_walkin_intake ({DB_HOST}:{DB_PORT}/{DB_NAME}): "
+                f"{type(exc).__name__}: {exc}",
+            }
+        )
+    else:
+        check, runs, stats = measure_intakes(rows)
+        checks.append(check)
+    checks.append(
+        {
+            "check": "branch_staff_demonstration",
+            "status": "UNMEASURED",
+            "detail": (
+                "G1-02 requires intakes performed by branch staff at a pilot branch; "
+                "fix.walkin.intake records no staff-role attestation and the local DB is "
+                "synthetic-only (DE-12) - needs a human-observed pilot session"
+            ),
+        }
+    )
+    verdict = overall_verdict([c["status"] for c in checks])
+    return {
         "milestone": "R02-M05",
         "task": "R02-M05-T02",
         "gate_criterion": "G1-02",
-        "verdict": "PASS",
-        "target_seconds": 180,
-        "mean_duration_seconds": round(mean_duration, 1),
-        "min_duration_seconds": min_duration,
-        "max_duration_seconds": max_duration,
-        "compliance_pct": 100.0,
-        "demonstrated_by": "Branch Operations Staff (R-08 / R-07)",
-        "demonstration_date": "2026-10-16",
-        "recorded_at": datetime.now(timezone.utc).isoformat(),
-        "runs": runs
+        "verdict": verdict,
+        "target_seconds": TARGET_SECONDS,
+        "min_runs_required": MIN_RUNS,
+        "source": f"read-only SELECT on fix_walkin_intake @ {DB_HOST}:{DB_PORT}/{DB_NAME}",
+        "recorded_at": datetime.now(UTC).isoformat(),
+        "checks": checks,
+        **stats,
+        "runs": runs,
     }
 
-    EVIDENCE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(EVIDENCE_FILE, "w", encoding="utf-8") as f:
-        json.dump(evidence, f, indent=2)
 
-    print(f"[+] Evidence JSON saved to: {EVIDENCE_FILE}")
+def main() -> int:
+    print("================================================================================")
+    print("  1000FiX ERP v2.0 - Walk-in Intake 3-Minute Measurement (G1-02)")
+    print("  Read-only: durations measured from fix_walkin_intake timestamps")
     print("================================================================================")
 
+    evidence = run_measurement()
+    for r in evidence["runs"]:
+        print(
+            f"Intake #{r['intake_id']}: {r['duration_seconds']}s "
+            f"(stored {r['stored_duration_seconds']}) [{r['status']}]"
+        )
+    print("--------------------------------------------------------------------------------")
+    for c in evidence["checks"]:
+        print(f"  [{c['status']}] {c['check']}: {c['detail']}")
+    if evidence.get("qualifying_intakes"):
+        print(
+            f"  Mean {evidence['mean_duration_seconds']}s, max {evidence['max_duration_seconds']}s, "
+            f"compliance {evidence['compliance_pct']}% over {evidence['qualifying_intakes']} intakes"
+        )
+    print("--------------------------------------------------------------------------------")
+
+    EVIDENCE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(EVIDENCE_FILE, "w", encoding="utf-8", newline="\n") as f:
+        json.dump(evidence, f, indent=2)
+
+    print(f"[{evidence['verdict']}] Evidence JSON saved to: {EVIDENCE_FILE}")
+    print("================================================================================")
+    return EXIT_CODES.get(evidence["verdict"], 2)
+
+
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

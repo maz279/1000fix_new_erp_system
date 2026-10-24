@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# =============================================================================
+# pre-commit hook - P02-M08-T01 / XS-19 (installed, NOT optional).
+# core.hooksPath points at this directory (bootstrap), which makes
+# `pre-commit install` refuse to write .git/hooks - so until R01 re-audit
+# 2026-10-22 NO pre-commit hook ever ran at commit time. This shim runs the
+# codebase's .pre-commit-config.yaml against the staged files.
+# XS-20: --no-verify is permitted ONLY on hotfix/* branches.
+# =============================================================================
+set -eu
+hp=$(git config core.hooksPath)
+cfg="$hp/../.pre-commit-config.yaml"
+if ! command -v pre-commit >/dev/null 2>&1; then
+  echo "pre-commit: NOT INSTALLED - XS-19 makes this hook mandatory." >&2
+  echo "  remedy: pip install pre-commit  (or: uv sync, then use 'uv run git commit')" >&2
+  exit 1
+fi
+exec pre-commit run --config "$cfg" --hook-stage pre-commit

@@ -17,6 +17,7 @@ The default catalogue service line is standard_15 unless the tariff entry
 says otherwise; the tariff itself loads from M30's country pack (T06 — the
 dependency is cd_entity_config's fix.country.pack, never M65).
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -38,20 +39,20 @@ class DeterminationError(ValueError):
 @dataclass(frozen=True)
 class TaxLine:
     """One invoice line in, one determined line out."""
+
     product_code: str
     qty: Decimal
-    unit_price: Decimal          # exclusive of VAT
+    unit_price: Decimal  # exclusive of VAT
     discount: Decimal = ZERO
-    hs_code: str = ""            # tariff lookup key where applicable
-    treatment: str = ""          # override; empty = tariff/standard default
+    hs_code: str = ""  # tariff lookup key where applicable
+    treatment: str = ""  # override; empty = tariff/standard default
     rate_override: Decimal | None = None
 
     def __post_init__(self) -> None:
         if self.qty < 0 or self.unit_price < 0 or self.discount < 0:
             raise DeterminationError(f"negative value on line {self.product_code!r}")
         if self.discount > self.qty * self.unit_price:
-            raise DeterminationError(
-                f"discount exceeds line amount on {self.product_code!r}")
+            raise DeterminationError(f"discount exceeds line amount on {self.product_code!r}")
 
 
 @dataclass(frozen=True)
@@ -61,12 +62,13 @@ class DeterminedLine:
     rate: Decimal
     taxable_amount: Decimal
     vat_amount: Decimal
-    line_total: Decimal          # taxable + VAT
+    line_total: Decimal  # taxable + VAT
 
 
 @dataclass(frozen=True)
 class Determination:
     """determine_tax(line_set) -> treatment set (the M51 public API)."""
+
     lines: list[DeterminedLine] = field(default_factory=list)
     total_taxable: Decimal = ZERO
     total_vat: Decimal = ZERO
@@ -80,7 +82,9 @@ class Determination:
     def requires_mushak(self) -> bool:
         """A Mushak 6.3 must be issued when VAT applies to any line OR the
         supply value exceeds BDT 25,000 (mandatory-invoice threshold)."""
-        return any(l.vat_amount > 0 for l in self.lines) or self.total_taxable > Decimal("25000")
+        return any(line.vat_amount > 0 for line in self.lines) or self.total_taxable > Decimal(
+            "25000"
+        )
 
 
 def _rate_for(line: TaxLine) -> tuple[str, Decimal]:
@@ -101,7 +105,7 @@ def _rate_for(line: TaxLine) -> tuple[str, Decimal]:
         "reduced": (treatment, Decimal("5")),  # default reduced; tariff may set 7.5/10
         "zero_rated": (treatment, ZERO),
         "exempt": (treatment, ZERO),
-        "truncated": (treatment, ZERO),        # fixed base handled by tariff config
+        "truncated": (treatment, ZERO),  # fixed base handled by tariff config
     }[treatment]
 
 
@@ -119,14 +123,16 @@ def determine_tax(lines: list[TaxLine]) -> Determination:
         gross = (line.qty * line.unit_price).quantize(TWO_PLACES, ROUND_HALF_UP)
         taxable = (gross - line.discount).quantize(TWO_PLACES, ROUND_HALF_UP)
         vat = (taxable * rate / Decimal("100")).quantize(TWO_PLACES, ROUND_HALF_UP)
-        determined.append(DeterminedLine(
-            product_code=line.product_code,
-            treatment=treatment,
-            rate=rate,
-            taxable_amount=taxable,
-            vat_amount=vat,
-            line_total=taxable + vat,
-        ))
+        determined.append(
+            DeterminedLine(
+                product_code=line.product_code,
+                treatment=treatment,
+                rate=rate,
+                taxable_amount=taxable,
+                vat_amount=vat,
+                line_total=taxable + vat,
+            )
+        )
         total_taxable += taxable
         total_vat += vat
         if treatment == "truncated":
@@ -165,8 +171,9 @@ class TdsDetermination:
     exempt: bool = False
 
 
-def determine_tds(category: str, base_amount: Decimal,
-                  exempt_certificate: bool = False) -> TdsDetermination:
+def determine_tds(
+    category: str, base_amount: Decimal, exempt_certificate: bool = False
+) -> TdsDetermination:
     """M52 calls this synchronously before posting a vendor bill (pair 8).
 
     An exempt-certificate holder (ATS) suffers no deduction; the certificate
@@ -176,10 +183,18 @@ def determine_tds(category: str, base_amount: Decimal,
     if category not in TDS_DEFAULT_RATES:
         raise DeterminationError(
             f"unknown TDS category {category!r} — the schedule must name it "
-            "(never guess a rate on statutory money)")
+            "(never guess a rate on statutory money)"
+        )
     rate = TDS_DEFAULT_RATES[category]
-    amount = ZERO if exempt_certificate else (
-        base_amount * rate / Decimal("100")).quantize(TWO_PLACES, ROUND_HALF_UP)
+    amount = (
+        ZERO
+        if exempt_certificate
+        else (base_amount * rate / Decimal("100")).quantize(TWO_PLACES, ROUND_HALF_UP)
+    )
     return TdsDetermination(
-        category=category, base_amount=base_amount, rate=rate,
-        tds_amount=amount, exempt=exempt_certificate)
+        category=category,
+        base_amount=base_amount,
+        rate=rate,
+        tds_amount=amount,
+        exempt=exempt_certificate,
+    )

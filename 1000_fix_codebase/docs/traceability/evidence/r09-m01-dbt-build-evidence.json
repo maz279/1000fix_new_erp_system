@@ -1,0 +1,97 @@
+{
+  "milestone": "R09-M01",
+  "task": "R09-M01-T02",
+  "schedule": "0 2 * * * (daily 02:00 BST via Airflow / K3s cron)",
+  "execution_timestamp": "2026-10-22T14:45:25.841355+00:00",
+  "status": "FAIL",
+  "reason": "source_freshness_failed",
+  "warehouse_mode": "clickhouse",
+  "sync": {
+    "status": "FAIL",
+    "replica_reachable": false,
+    "extract_error": "relation \"res_branch\" does not exist\nLINE 4:                     FROM res_branch\n                                 ^\n",
+    "total_source_rows": 0,
+    "total_clickhouse_rows": 0,
+    "reason": "reconciliation is vacuous: read replica unreachable or extract failed (relation \"res_branch\" does not exist\nLINE 4:                     FROM res_branch\n                                 ^\n); no synthetic rows are generated"
+  },
+  "freshness": {
+    "status": "FAIL",
+    "evaluated_at": "2026-10-22T14:45:25.707417+00:00",
+    "replica_dsn": "postgresql://fix_readonly:readonly_dev_pass@127.0.0.1:5434/fix_dev",
+    "sources": [
+      {
+        "source": "oltp_replica",
+        "table": "fix_service_order",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"fix_service_order\" does not exist\nLINE 1: SELECT max(write_date) FROM fix_service_order\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "account_move",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"account_move\" does not exist\nLINE 1: SELECT max(write_date) FROM account_move\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "fix_warranty_claim",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"fix_warranty_claim\" does not exist\nLINE 1: SELECT max(write_date) FROM fix_warranty_claim\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "mail_message",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"mail_message\" does not exist\nLINE 1: SELECT max(write_date) FROM mail_message\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "fix_nps",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"fix_nps\" does not exist\nLINE 1: SELECT max(write_date) FROM fix_nps\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "res_partner",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"res_partner\" does not exist\nLINE 1: SELECT max(write_date) FROM res_partner\n                                    ^\n"
+      },
+      {
+        "source": "oltp_replica",
+        "table": "res_branch",
+        "warn_threshold_hours": 24,
+        "error_threshold_hours": 48,
+        "status": "ERROR",
+        "max_loaded_at": null,
+        "age_hours": null,
+        "error": "write_date not readable: UndefinedTable: relation \"res_branch\" does not exist\nLINE 1: SELECT max(write_date) FROM res_branch\n                                    ^\n"
+      }
+    ]
+  },
+  "build": null,
+  "tests": null,
+  "lb06_read_only_downstream_verified": false
+}

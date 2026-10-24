@@ -29,7 +29,7 @@ def transform_def(definition: str) -> str:
     d = definition.strip()
     for kw in ("unique", "check"):
         if d.startswith(kw):
-            inner = d[len(kw):].strip()
+            inner = d[len(kw) :].strip()
             return f"{kw.upper()} {inner}"
     return d.upper()
 
@@ -42,13 +42,19 @@ def rewrite_file(path: Path) -> bool:
         print(f"[FAIL] {path}: syntax error {e}")
         return False
     lines = src.splitlines(keepends=True)
-    edits: list[tuple[int, int, list[str]]] = []  # (start_line, end_line, new_lines) 1-based inclusive
+    edits: list[
+        tuple[int, int, list[str]]
+    ] = []  # (start_line, end_line, new_lines) 1-based inclusive
     for node in ast.walk(tree):
         if not isinstance(node, ast.ClassDef):
             continue
         for stmt in node.body:
-            if not (isinstance(stmt, ast.Assign)
-                    and any(isinstance(t, ast.Name) and t.id == "_sql_constraints" for t in stmt.targets)):
+            if not (
+                isinstance(stmt, ast.Assign)
+                and any(
+                    isinstance(t, ast.Name) and t.id == "_sql_constraints" for t in stmt.targets
+                )
+            ):
                 continue
             if not isinstance(stmt.value, ast.List):
                 continue
@@ -66,20 +72,27 @@ def rewrite_file(path: Path) -> bool:
                 name = el.elts[0].value
                 definition = el.elts[1].value
                 message = el.elts[2].value
-                if not (isinstance(name, str) and isinstance(definition, str) and isinstance(message, str)):
+                if not (
+                    isinstance(name, str)
+                    and isinstance(definition, str)
+                    and isinstance(message, str)
+                ):
                     ok = False
                     break
                 new_lines.append(
                     f"{indent}_{name} = models.Constraint("
-                    f"{transform_def(definition)!r}, {message!r})\n")
+                    f"{transform_def(definition)!r}, {message!r})\n"
+                )
             if not ok:
-                print(f"[SKIP] {path.name}: non-literal tuple in _sql_constraints - migrate by hand")
+                print(
+                    f"[SKIP] {path.name}: non-literal tuple in _sql_constraints - migrate by hand"
+                )
                 continue
             edits.append((stmt.lineno, stmt.end_lineno or stmt.lineno, new_lines))
     if not edits:
         return True
     for start, end, new in sorted(edits, reverse=True):
-        lines[start - 1:end] = new
+        lines[start - 1 : end] = new
     path.write_text("".join(lines), encoding="utf-8")
     return True
 
@@ -99,8 +112,12 @@ def main() -> int:
                 changed += 1
                 print(f"[ ok ] {py.relative_to(REPO)}")
     # any left?
-    left = [p for p in ADDONS.rglob("*.py")
-            if "models" in p.parts and "_sql_constraints" in p.read_text(encoding="utf-8", errors="replace")]
+    left = [
+        p
+        for p in ADDONS.rglob("*.py")
+        if "models" in p.parts
+        and "_sql_constraints" in p.read_text(encoding="utf-8", errors="replace")
+    ]
     if left:
         print(f"migrate-sql-constraints: {len(left)} file(s) still carry _sql_constraints:")
         for p in left:

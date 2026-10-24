@@ -2,3 +2,154 @@
 msgid ""
 msgstr ""
 "Language: bn_BD"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__accessory
+msgid "Accessory"
+msgstr "অ্যাক্সেসরিজ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__battery
+msgid "Battery"
+msgstr "ব্যাটারি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__certified
+msgid "Certificate Issued"
+msgstr "সনদ ইস্যুকৃত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__esg_co2_saved_kg
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_esg_metric__metric_type__co2_saved
+msgid "CO2 Saved (kg)"
+msgstr "সাশ্রয়কৃত CO2 (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__collected
+msgid "Collected"
+msgstr "সংগৃহীত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__wipe_certificate_id
+msgid "Data Wipe Certificate"
+msgstr "ডেটা মুছে ফেলার সনদ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_esg_metric__metric_type__devices_refurbished
+msgid "Devices Refurbished"
+msgstr "রিফার্বিশকৃত ডিভাইস"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__disposal_certificate_ref
+msgid "Disposal Certificate Ref"
+msgstr "নিষ্পত্তি সনদ রেফারেন্স"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__disposed
+msgid "Disposed"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_esg_metric__metric_type__ewaste_collected
+msgid "E-Waste Collected (kg)"
+msgstr "সংগৃহীত ই-বর্জ্য (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_esg_metric__metric_type__energy_saved
+msgid "Energy Saved (kWh)"
+msgstr "সাশ্রয়কৃত জ্বালানি (kWh)"
+
+#. module: cd_ewaste
+#: model:ir.actions.act_window,name:cd_ewaste.action_fix_esg_metric
+#: model:ir.ui.menu,name:cd_ewaste.menu_fix_esg_metric
+msgid "Esg Metric"
+msgstr "ESG মেট্রিক"
+
+#. module: cd_ewaste
+#: model:ir.actions.act_window,name:cd_ewaste.action_fix_ewaste_collection
+#: model:ir.ui.menu,name:cd_ewaste.menu_fix_ewaste_collection
+msgid "Ewaste Collection"
+msgstr "ই-বর্জ্য সংগ্রহ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__triage_grade__hazardous
+msgid "Hazardous"
+msgstr "বিপজ্জনক"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__laptop
+msgid "Laptop"
+msgstr "ল্যাপটপ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__phone
+msgid "Mobile Phone"
+msgstr "মোবাইল ফোন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_metric__operating_unit_id
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__triage_grade__recycle
+msgid "Recycle Only"
+msgstr "কেবল রিসাইকেলযোগ্য"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__recycled
+msgid "Recycled"
+msgstr "রিসাইকেলকৃত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__triage_grade__refurbish
+msgid "Refurbishable"
+msgstr "রিফার্বিশযোগ্য"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__triage_grade__reuse
+msgid "Reusable"
+msgstr "পুনঃব্যবহারযোগ্য"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__destruction
+msgid "Secure Destruction"
+msgstr "নিরাপদ ধ্বংস"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__material_type__tablet
+msgid "Tablet"
+msgstr "ট্যাবলেট"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__triage_grade
+msgid "Triage Grade"
+msgstr "ট্রায়াজ গ্রেড"
+
+#. module: cd_ewaste
+#: model:ir.model.fields.selection,name:cd_ewaste.selection__fix_ewaste_collection__state__triaged
+msgid "Triaged"
+msgstr "ট্রায়াজকৃত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__weight_kg
+msgid "Weight (kg)"
+msgstr "ওজন (কেজি)"

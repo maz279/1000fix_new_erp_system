@@ -39,6 +39,7 @@ conformance suite tooling/design-system/conformance.py (CFM-01…CFM-05).
     "installable": True,
     "application": False,
     "x_module_id": "DSY-01",
+    "x_cd_id": "CD-M30-05",
     "x_wave": "W1",
     "x_owner": "Experience",
     "x_category": "K_Platform_and_Technology",

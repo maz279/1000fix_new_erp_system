@@ -6,13 +6,14 @@
 # invoices). T04: the W4 revenue-recognition slice (non-marketplace half);
 # T06: commission CALCULATION (earning is an M12 event — pair 12; the
 # computation lives in services/settlement-engine).
+from datetime import date, timedelta
+from decimal import ROUND_HALF_UP, Decimal
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from datetime import date, timedelta
-from decimal import Decimal, ROUND_HALF_UP
-
 from libs.py.fix_events import publish  # FF-28
+
 from . import rev_rec_engine
 
 
@@ -25,33 +26,58 @@ class FixSubscription(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "next_invoice_date, id desc"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
     name = fields.Char(required=True)
-    customer_id = fields.Many2one("res.partner", string="Customer", required=True,
-                                  index=True, ondelete="restrict")
-    contract_id = fields.Many2one("fix.contract", string="Contract",
-                                  index=True, ondelete="set null")
+    customer_id = fields.Many2one(
+        "res.partner", string="Customer", required=True, index=True, ondelete="restrict"
+    )
+    contract_id = fields.Many2one(
+        "fix.contract", string="Contract", index=True, ondelete="set null"
+    )
     plan = fields.Selection(
         [("basic", "Basic"), ("standard", "Standard"), ("premium", "Premium")],
-        required=True, default="standard")
+        required=True,
+        default="standard",
+    )
     billing_cycle = fields.Selection(
         [("monthly", "Monthly"), ("quarterly", "Quarterly"), ("annual", "Annual")],
-        required=True, default="monthly")
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    recurring_amount = fields.Monetary(string="Recurring Amount",
-                                       currency_field="currency_id", required=True)
+        required=True,
+        default="monthly",
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    recurring_amount = fields.Monetary(
+        string="Recurring Amount", currency_field="currency_id", required=True
+    )
     state = fields.Selection(
-        [("trial", "Trial"), ("active", "Active"), ("past_due", "Past Due"),
-         ("hold", "Service Hold"), ("paused", "Paused"),
-         ("cancelled", "Cancelled"), ("churned", "Churned")],
-        default="active", required=True, tracking=True)
+        [
+            ("trial", "Trial"),
+            ("active", "Active"),
+            ("past_due", "Past Due"),
+            ("hold", "Service Hold"),
+            ("paused", "Paused"),
+            ("cancelled", "Cancelled"),
+            ("churned", "Churned"),
+        ],
+        default="active",
+        required=True,
+        tracking=True,
+    )
     dunning_step = fields.Selection(
-        [("none", "None"), ("reminder", "Reminder (L1)"),
-         ("final", "Final Notice (L2)"), ("escalate", "Service Suspended (L3)")],
-        default="none", required=True, tracking=True)
+        [
+            ("none", "None"),
+            ("reminder", "Reminder (L1)"),
+            ("final", "Final Notice (L2)"),
+            ("escalate", "Service Suspended (L3)"),
+        ],
+        default="none",
+        required=True,
+        tracking=True,
+    )
     grace_period_days = fields.Integer(default=15, help="Days before hold escalation")
     days_overdue = fields.Integer(default=0)
     start_date = fields.Date(default=fields.Date.today, required=True)
@@ -59,7 +85,8 @@ class FixSubscription(models.Model):
     consolidated = fields.Boolean(
         default=True,
         help="T02: roll this subscription's period charges into the customer's "
-             "ONE consolidated invoice (with jobs and other subscriptions)")
+        "ONE consolidated invoice (with jobs and other subscriptions)",
+    )
 
     @api.constrains("recurring_amount")
     def _check_amount(self):
@@ -80,21 +107,31 @@ class FixSubscription(models.Model):
                 continue
             # In the consolidated flow the charge is recorded against the
             # customer's period invoice group; the standalone fallback opens
-            # a draft AR invoice for this subscription alone.
+            # a draft AR invoice for this subscription alone — in the
+            # SUBSCRIPTION's company, not whichever company the caller's
+            # environment happens to have active (multi-company billing).
             if not sub.consolidated:
-                Invoice.create({
+                Invoice.create(
+                    {
+                        "company_id": sub.company_id.id,
+                        "customer_id": sub.customer_id.id,
+                        "operating_unit_id": sub.operating_unit_id.id,
+                        "source_model": "fix.subscription",
+                        "source_id": sub.id,
+                    }
+                )
+            publish(
+                self.env,
+                "subscription.charged",
+                "fix.subscription",
+                sub.id,
+                {
                     "customer_id": sub.customer_id.id,
-                    "operating_unit_id": sub.operating_unit_id.id,
-                    "source_model": "fix.subscription",
-                    "source_id": sub.id,
-                })
-            publish(self.env, "subscription.charged", "fix.subscription", sub.id, {
-                "customer_id": sub.customer_id.id,
-                "amount": sub.recurring_amount,
-                "period_days": sub._cycle_days(),
-            })
-            sub.next_invoice_date = sub.next_invoice_date + timedelta(
-                days=sub._cycle_days())
+                    "amount": sub.recurring_amount,
+                    "period_days": sub._cycle_days(),
+                },
+            )
+            sub.next_invoice_date = sub.next_invoice_date + timedelta(days=sub._cycle_days())
 
     def action_trigger_dunning(self, as_of=None):
         """Dunning state machine (T03): reminder ladder, grace period check,
@@ -113,24 +150,38 @@ class FixSubscription(models.Model):
                 else:
                     # Beyond grace period -> service hold (no repairs/dispatches allowed)
                     sub.write({"state": "hold", "dunning_step": "escalate"})
-                publish(self.env, "subscription.dunning_escalated", "fix.subscription", sub.id, {
-                    "customer_id": sub.customer_id.id,
-                    "dunning_step": sub.dunning_step,
-                    "days_overdue": overdue,
-                    "state": sub.state,
-                })
+                publish(
+                    self.env,
+                    "subscription.dunning_escalated",
+                    "fix.subscription",
+                    sub.id,
+                    {
+                        "customer_id": sub.customer_id.id,
+                        "dunning_step": sub.dunning_step,
+                        "days_overdue": overdue,
+                        "state": sub.state,
+                    },
+                )
 
     def action_reinstate(self):
         """Reinstate subscription after payment receipt."""
         for sub in self:
-            sub.write({
-                "state": "active",
-                "dunning_step": "none",
-                "days_overdue": 0,
-            })
-            publish(self.env, "subscription.reinstated", "fix.subscription", sub.id, {
-                "customer_id": sub.customer_id.id,
-            })
+            sub.write(
+                {
+                    "state": "active",
+                    "dunning_step": "none",
+                    "days_overdue": 0,
+                }
+            )
+            publish(
+                self.env,
+                "subscription.reinstated",
+                "fix.subscription",
+                sub.id,
+                {
+                    "customer_id": sub.customer_id.id,
+                },
+            )
 
     def action_cancel(self):
         for sub in self:
@@ -157,25 +208,41 @@ class FixSubscription(models.Model):
                 cancellation_fee_pct=fee_pct,
             )
             sub.state = "cancelled"
-            publish(self.env, "subscription.refund_requested", "fix.subscription", sub.id, {
-                "customer_id": sub.customer_id.id,
-                "net_refund": float(res.net_refund_payable),
-                "earned_revenue": float(res.earned_revenue),
-                "unearned_refund": float(res.unearned_refund),
-                "requires_manager_approval": res.requires_manager_approval,
-            })
+            publish(
+                self.env,
+                "subscription.refund_requested",
+                "fix.subscription",
+                sub.id,
+                {
+                    "customer_id": sub.customer_id.id,
+                    "net_refund": float(res.net_refund_payable),
+                    "earned_revenue": float(res.earned_revenue),
+                    "unearned_refund": float(res.unearned_refund),
+                    "requires_manager_approval": res.requires_manager_approval,
+                },
+            )
             results.append(res)
         return results
 
     @api.model
-    def generate_consolidated_b2b_invoice(self, customer_id: int, period_start: date,
-                                          period_end: date, device_lines: list[dict] | None = None):
+    def generate_consolidated_b2b_invoice(
+        self,
+        customer_id: int,
+        period_start: date,
+        period_end: date,
+        device_lines: list[dict] | None = None,
+    ):
         """T02 / R05-M02-T01: Consolidated B2B Invoicing demonstration & engine.
         ONE master invoice per period for an enterprise customer across 400+ devices
         and multiple branch sites (with itemized asset-level lines and Mushak 6.3)."""
         customer = self.env["res.partner"].browse(customer_id)
-        operating_unit = self.env["operating.unit"].search([], limit=1)
+        # The master invoice is issued by the ACTIVE company, and its
+        # operating unit must belong to that same company (a cross-company
+        # OU would post the Mushak row against the wrong legal entity).
         company = self.env.company
+        operating_unit = self.env["operating.unit"].search(
+            [("company_id", "=", company.id)], limit=1
+        )
 
         # 400 devices demonstration support
         device_lines = device_lines or []
@@ -186,23 +253,29 @@ class FixSubscription(models.Model):
 
         for line in device_lines:
             taxable = Decimal(str(line.get("amount", 250.00))).quantize(
-                Decimal("0.01"), ROUND_HALF_UP)
+                Decimal("0.01"), ROUND_HALF_UP
+            )
             vat = (taxable * vat_rate).quantize(Decimal("0.01"), ROUND_HALF_UP)
             total_taxable += taxable
             total_vat += vat
-            lines_data.append({
-                "description": line.get("description", "Device Maintenance & Support"),
-                "device_id": line.get("device_id"),
-                "serial_number": line.get("serial_number", ""),
-                "branch_name": line.get("branch_name", "Head Office"),
-                "taxable_amount": float(taxable),
-                "vat_amount": float(vat),
-                "line_total": float(taxable + vat),
-            })
+            lines_data.append(
+                {
+                    "description": line.get("description", "Device Maintenance & Support"),
+                    "device_id": line.get("device_id"),
+                    "serial_number": line.get("serial_number", ""),
+                    "branch_name": line.get("branch_name", "Head Office"),
+                    "taxable_amount": float(taxable),
+                    "vat_amount": float(vat),
+                    "line_total": float(taxable + vat),
+                }
+            )
 
         invoice_vals = {
+            "company_id": company.id,
             "customer_id": customer.id,
-            "operating_unit_id": operating_unit.id if operating_unit else 1,
+            # False when the company has no operating unit: the required
+            # field then fails loudly at create, never lands on a magic id
+            "operating_unit_id": operating_unit.id,
             "source_model": "fix.subscription.consolidated",
             "source_id": customer.id,
             "invoice_date": period_end,
@@ -217,17 +290,23 @@ class FixSubscription(models.Model):
         mushak_no = f"{year}-C{customer.id:04d}-{len(device_lines):04d}"
         invoice_vals["mushak_ref"] = mushak_no
 
-        publish(self.env, "invoice.consolidated_b2b_created", "fix.ar.invoice", customer.id, {
-            "customer_id": customer.id,
-            "customer_name": customer.name or "Corporate Client",
-            "period_start": str(period_start),
-            "period_end": str(period_end),
-            "total_payable": float(total_taxable + total_vat),
-            "taxable_amount": float(total_taxable),
-            "vat_amount": float(total_vat),
-            "device_count": len(device_lines),
-            "mushak_no": mushak_no,
-        })
+        publish(
+            self.env,
+            "invoice.consolidated_b2b_created",
+            "fix.ar.invoice",
+            customer.id,
+            {
+                "customer_id": customer.id,
+                "customer_name": customer.name or "Corporate Client",
+                "period_start": str(period_start),
+                "period_end": str(period_end),
+                "total_payable": float(total_taxable + total_vat),
+                "taxable_amount": float(total_taxable),
+                "vat_amount": float(total_vat),
+                "device_count": len(device_lines),
+                "mushak_no": mushak_no,
+            },
+        )
 
         return {
             "invoice": invoice_vals,
@@ -254,24 +333,33 @@ class FixRevenueSchedule(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "recognize_date, id"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
     source_model = fields.Char(string="Source Model", required=True, index=True)
     source_id = fields.Integer(string="Source ID", required=True, index=True)
     description = fields.Char(required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    total_amount = fields.Monetary(string="Deferred Amount", currency_field="currency_id",
-                                   required=True)
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    total_amount = fields.Monetary(
+        string="Deferred Amount", currency_field="currency_id", required=True
+    )
     start_date = fields.Date(required=True)
     end_date = fields.Date(required=True)
-    recognized_amount = fields.Monetary(string="Recognized", currency_field="currency_id",
-                                        default=0.0, copy=False)
+    recognized_amount = fields.Monetary(
+        string="Recognized", currency_field="currency_id", default=0.0, copy=False
+    )
     state = fields.Selection(
         [("active", "Active"), ("complete", "Complete"), ("cancelled", "Cancelled")],
-        default="active", required=True, tracking=True)
-    _source_schedule_unique = models.Constraint('UNIQUE (source_model, source_id)', 'One recognition schedule per source document')
+        default="active",
+        required=True,
+        tracking=True,
+    )
+    _source_schedule_unique = models.Constraint(
+        "UNIQUE (source_model, source_id)", "One recognition schedule per source document"
+    )
 
     @api.constrains("start_date", "end_date", "total_amount")
     def _check_schedule(self):
@@ -282,17 +370,36 @@ class FixRevenueSchedule(models.Model):
                 raise UserError("The deferred amount must be positive")
 
     @api.model
-    def create_from_deferral(self, source_model: str, source_id: int,
-                             description: str, total: float,
-                             start: date, end: date) -> "FixRevenueSchedule":
+    def create_from_deferral(
+        self,
+        source_model: str,
+        source_id: int,
+        description: str,
+        total: float,
+        start: date,
+        end: date,
+        operating_unit_id: int | None = None,
+    ) -> "FixRevenueSchedule":
         """Straight-line over the term: each period recognizes
         total * period_days / term_days. The monthly split runs from
-        AUT-025's Airflow workflow; this is the schedule it draws down."""
-        return self.create({
-            "source_model": source_model, "source_id": source_id,
-            "description": description, "total_amount": total,
-            "start_date": start, "end_date": end,
-        })
+        AUT-025's Airflow workflow; this is the schedule it draws down.
+
+        The schedule lands in the SOURCE document's company and operating
+        unit (both required here; every deferral source - subscription,
+        contract, protection plan - carries them) unless a unit is given."""
+        source = self.env[source_model].browse(source_id)
+        return self.create(
+            {
+                "company_id": source.company_id.id,
+                "operating_unit_id": operating_unit_id or source.operating_unit_id.id,
+                "source_model": source_model,
+                "source_id": source_id,
+                "description": description,
+                "total_amount": total,
+                "start_date": start,
+                "end_date": end,
+            }
+        )
 
     def action_recognize_period(self, as_of: date | None = None):
         """Recognize up to `as_of` (default today), straight-line, and
@@ -312,12 +419,17 @@ class FixRevenueSchedule(models.Model):
             schedule.recognized_amount = target
             if target >= schedule.total_amount - 0.01:
                 schedule.state = "complete"
-            publish(self.env, "revenue.recognized", "fix.revenue.schedule",
-                    schedule.id, {
-                        "amount": delta,
-                        "cumulative": schedule.recognized_amount,
-                        "source_model": schedule.source_model,
-                        "source_id": schedule.source_id,
-                        "gl_debit_account": "210200",  # Unearned Deferred Revenue
-                        "gl_credit_account": "410100",  # Subscription Service Revenue
-                    })
+            publish(
+                self.env,
+                "revenue.recognized",
+                "fix.revenue.schedule",
+                schedule.id,
+                {
+                    "amount": delta,
+                    "cumulative": schedule.recognized_amount,
+                    "source_model": schedule.source_model,
+                    "source_id": schedule.source_id,
+                    "gl_debit_account": "210200",  # Unearned Deferred Revenue
+                    "gl_credit_account": "410100",  # Subscription Service Revenue
+                },
+            )

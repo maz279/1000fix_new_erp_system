@@ -5,6 +5,7 @@ Adds missing chatter inheritance and operating_unit_id fields to every
 model flagged by the registry check. Only touches modules whose models
 are missing these fields; existing fields are never duplicated.
 """
+
 from __future__ import annotations
 
 import re
@@ -19,20 +20,20 @@ OU_FIELD = 'operating_unit_id = fields.Many2one("operating.unit", string="Operat
 def patch_file(path: Path) -> bool:
     text = path.read_text(encoding="utf-8")
     orig = text
+
     # Find each class definition; add chatter/OU right after _description or _inherit lines
     def patch_class(match: re.Match) -> str:
         block = match.group(0)
-        header = match.group(1)  # "class X(models.Model):\n    ..."
         body = block
 
         # Detect existing chatter
-        has_chatter = bool(re.search(r'mail\.thread', block))
+        has_chatter = bool(re.search(r"mail\.thread", block))
         # Detect existing operating_unit_id
-        has_ou = bool(re.search(r'operating_unit_id\s*=\s*fields\.', block))
+        has_ou = bool(re.search(r"operating_unit_id\s*=\s*fields\.", block))
 
         # Insert after the _inherit/_name/_description/_order block
         # Find where field definitions start (first "xxx = fields." line)
-        field_match = re.search(r'\n(\s{4}\w+\s*=\s*fields\.)', block)
+        field_match = re.search(r"\n(\s{4}\w+\s*=\s*fields\.)", block)
         if not field_match:
             return block
 
@@ -45,14 +46,16 @@ def patch_file(path: Path) -> bool:
         if not additions:
             return block
 
-        insert_text = ("\n    " + "\n    ".join(additions) + "\n")
+        insert_text = "\n    " + "\n    ".join(additions) + "\n"
         body = block[:insert_at] + insert_text.lstrip("\n") + "\n    " + block[insert_at:]
         return body
 
     # Match class definitions with their body (up to next class or EOF)
     result = re.sub(
         r'(class\s+\w+\(models\.Model\):\n(?:    """[\s\S]*?"""\n)?(?:    _\w+\s*=\s*[^\n]+\n)+)',
-        patch_class, text)
+        patch_class,
+        text,
+    )
 
     if result != orig:
         path.write_text(result, encoding="utf-8")

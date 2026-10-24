@@ -1,0 +1,94 @@
+{
+  "milestone": "R11-M01",
+  "title": "Cutover and go-live",
+  "verified_at": "2026-10-22T14:33:52.771523+00:00",
+  "overall_status": "FAIL",
+  "tasks_passed": 0,
+  "tasks_incomplete": 3,
+  "tasks_failed": 2,
+  "tasks_summary": {
+    "R11-M01-T01": {
+      "task_id": "R11-M01-T01",
+      "title": "Finalise cutover runbook RB-53",
+      "status": "INCOMPLETE",
+      "checks": [
+        {
+          "check": "RB-53 runbook sections",
+          "status": "PASS",
+          "detail": "8 sections present"
+        },
+        {
+          "check": "dry-walkthrough",
+          "status": "INCOMPLETE",
+          "detail": "walkthrough record present - a human walkthrough, UNMEASURED by this run"
+        }
+      ]
+    },
+    "R11-M01-T02": {
+      "task_id": "R11-M01-T02",
+      "title": "Final full-volume rehearsal & pre-signature",
+      "status": "INCOMPLETE",
+      "run_id": "WAVE1_REHEARSAL_20261016",
+      "checks": [
+        {
+          "check": "final full-volume rehearsal",
+          "status": "INCOMPLETE",
+          "detail": "r11-m01-final-volume-rehearsal.json currently states INCOMPLETE"
+        },
+        {
+          "check": "reconciliation pre-signature",
+          "status": "INCOMPLETE",
+          "detail": "r11-m01-reconciliation-presignature.json currently states INCOMPLETE"
+        }
+      ]
+    },
+    "R11-M01-T03": {
+      "task_id": "R11-M01-T03",
+      "title": "Execute cutover weekend & smoke gates",
+      "status": "INCOMPLETE",
+      "live_traffic_status": "UNMEASURED",
+      "checks": [
+        {
+          "check": "cutover weekend execution",
+          "status": "INCOMPLETE",
+          "detail": "r11-m01-cutover-execution-evidence.json currently states INCOMPLETE"
+        }
+      ]
+    },
+    "R11-M01-T04": {
+      "task_id": "R11-M01-T04",
+      "title": "Stand up hypercare operations SV-004",
+      "status": "FAIL",
+      "checks": [
+        {
+          "check": "document SV-004-hypercare-operating-manual.md",
+          "status": "FAIL",
+          "detail": "missing"
+        },
+        {
+          "check": "r11-m01-hypercare-day1-stability-report.json",
+          "status": "FAIL",
+          "detail": "r11-m01-hypercare-day1-stability-report.json missing"
+        }
+      ]
+    },
+    "R11-M01-T05": {
+      "task_id": "R11-M01-T05",
+      "title": "Verify month-1 operational proofs",
+      "status": "FAIL",
+      "checks": [
+        {
+          "check": "document r11-m01-month1-close-report.md",
+          "status": "FAIL",
+          "detail": "missing"
+        },
+        {
+          "check": "r11-m01-month1-operational-proofs.json",
+          "status": "FAIL",
+          "detail": "r11-m01-month1-operational-proofs.json missing"
+        }
+      ]
+    }
+  },
+  "all_tasks_completed": false
+}

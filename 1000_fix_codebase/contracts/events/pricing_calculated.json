@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "pricing.calculated",
+  "description": "Published by cd_dynamic_pricing through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "pricing.calculated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_dynamic_pricing"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "rule_name",
+        "base_price",
+        "final_price"
+      ],
+      "properties": {
+        "rule_name": {
+          "type": "string"
+        },
+        "base_price": {
+          "type": "number"
+        },
+        "final_price": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_dynamic_pricing",
+  "x-publishers": [
+    "addons/domain/c_commercial/cd_dynamic_pricing/models/fix_dynamic_pricing.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

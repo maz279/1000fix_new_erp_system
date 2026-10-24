@@ -1,12 +1,12 @@
 """Dispatch scoring algorithm implementing the 6-dimensional candidate evaluation (CD-M02-02)."""
+
 import math
-from typing import List, Tuple
+
 from .models import (
-    FieldJobRequest,
-    TechnicianCandidate,
     CandidateScoreBreakdown,
     DispatchScoreResponse,
-    ScoringWeights,
+    FieldJobRequest,
+    TechnicianCandidate,
 )
 
 
@@ -17,10 +17,10 @@ class DispatchScorer:
 
     @classmethod
     def evaluate_candidates(cls, request: FieldJobRequest) -> DispatchScoreResponse:
-        ranked: List[CandidateScoreBreakdown] = []
+        ranked: list[CandidateScoreBreakdown] = []
 
         for tech in request.candidates:
-            # 1. Eligibility guard: capacity and active availability
+            # 1. Eligibility guard: capacity, active availability, and M55 roster integration
             if not tech.available:
                 breakdown = cls._create_ineligible_breakdown(
                     tech, "Technician currently marked unavailable / off-duty"
@@ -28,16 +28,44 @@ class DispatchScorer:
                 ranked.append(breakdown)
                 continue
 
-            if tech.current_workload_count >= tech.max_daily_capacity:
+            if not tech.has_roster_slot:
                 breakdown = cls._create_ineligible_breakdown(
-                    tech, f"Max daily capacity exceeded ({tech.current_workload_count}/{tech.max_daily_capacity})"
+                    tech, "Technician has no active roster slot for shift (M55 roster integration)"
                 )
                 ranked.append(breakdown)
                 continue
 
+            if tech.on_leave:
+                breakdown = cls._create_ineligible_breakdown(
+                    tech, "Technician is on approved leave (M55 roster integration)"
+                )
+                ranked.append(breakdown)
+                continue
+
+            if tech.current_workload_count >= tech.max_daily_capacity:
+                breakdown = cls._create_ineligible_breakdown(
+                    tech,
+                    f"Max daily capacity exceeded ({tech.current_workload_count}/{tech.max_daily_capacity})",
+                )
+                ranked.append(breakdown)
+                continue
+
+            # FR-LMS-039 (STUB-M02-M22-001 CLOSED): verify required certifications
+            if request.required_certifications:
+                missing_certs = [
+                    c for c in request.required_certifications if c not in tech.certifications
+                ]
+                if missing_certs:
+                    breakdown = cls._create_ineligible_breakdown(
+                        tech,
+                        f"FR-LMS-039: Technician holds no ACTIVE certification for required scope ({', '.join(missing_certs)}) (M22 certification integration)",
+                    )
+                    ranked.append(breakdown)
+                    continue
+
             # 2. Compute 6 dimensional scores (0.0 to 100.0)
             skill_score = cls._score_skills(request.required_skills, tech.skills)
-            cert_score = cls._score_certification(tech)
+            cert_score = cls._score_certification(tech, request.required_certifications)
             van_stock_score = cls._score_van_stock(request.required_parts_skus, tech.van_stock_skus)
             zone_score = cls._score_zone(request.zone_code, tech.home_zone_code)
             sla_risk_score = cls._score_sla_risk(request.sla_hours_remaining, request.priority)
@@ -93,7 +121,9 @@ class DispatchScorer:
         )
 
     @classmethod
-    def _create_ineligible_breakdown(cls, tech: TechnicianCandidate, reason: str) -> CandidateScoreBreakdown:
+    def _create_ineligible_breakdown(
+        cls, tech: TechnicianCandidate, reason: str
+    ) -> CandidateScoreBreakdown:
         return CandidateScoreBreakdown(
             technician_id=tech.id,
             technician_name=tech.name,
@@ -111,27 +141,33 @@ class DispatchScorer:
         )
 
     @staticmethod
-    def _score_skills(required: List[str], technician_skills: List[str]) -> float:
+    def _score_skills(required: list[str], technician_skills: list[str]) -> float:
         if not required:
             return 100.0
-        req_set = set(s.lower() for s in required)
-        tech_set = set(s.lower() for s in technician_skills)
+        req_set = {s.lower() for s in required}
+        tech_set = {s.lower() for s in technician_skills}
         matched = len(req_set.intersection(tech_set))
         return (matched / len(req_set)) * 100.0
 
     @classmethod
-    def _score_certification(cls, tech: TechnicianCandidate) -> float:
-        """Evaluates technician certifications honoring STUB-M02-M22-001.
-        Returns 100.0 (eligible) in Wave 2 until Wave 5 R06-M02 cutover."""
-        # STUB-M02-M22-001: Returns eligible in Wave 2
-        return 100.0
+    def _score_certification(
+        cls, tech: TechnicianCandidate, required_certs: list[str] | None = None
+    ) -> float:
+        """Evaluates technician certifications honoring STUB-M02-M22-001 (CLOSED in R06-M04).
+        Computes active certification matching per FR-LMS-039."""
+        if not required_certs:
+            return 100.0 if tech.certifications else 80.0
+        req_set = {c.lower() for c in required_certs}
+        tech_set = {c.lower() for c in tech.certifications}
+        matched = len(req_set.intersection(tech_set))
+        return (matched / len(req_set)) * 100.0
 
     @staticmethod
-    def _score_van_stock(required_parts: List[str], van_parts: List[str]) -> float:
+    def _score_van_stock(required_parts: list[str], van_parts: list[str]) -> float:
         if not required_parts:
             return 100.0
-        req_set = set(p.upper() for p in required_parts)
-        van_set = set(p.upper() for p in van_parts)
+        req_set = {p.upper() for p in required_parts}
+        van_set = {p.upper() for p in van_parts}
         matched = len(req_set.intersection(van_set))
         return (matched / len(req_set)) * 100.0
 
@@ -167,7 +203,7 @@ class DispatchScorer:
     @classmethod
     def _score_route_proximity(
         cls, cust_lat: float, cust_lon: float, tech_lat: float | None, tech_lon: float | None
-    ) -> Tuple[float, float, float]:
+    ) -> tuple[float, float, float]:
         """Calculates distance (km), estimated travel time (min), and route score."""
         if tech_lat is None or tech_lon is None:
             # Fallback when technician coordinates are unavailable
@@ -191,8 +227,7 @@ class DispatchScorer:
         phi1, phi2 = math.radians(lat1), math.radians(lat2)
         dphi = math.radians(lat2 - lat1)
         dlam = math.radians(lon2 - lon1)
-        a = (
-            math.sin(dphi / 2.0) ** 2
-            + math.cos(phi1) * math.cos(phi2) * (math.sin(dlam / 2.0) ** 2)
+        a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * (
+            math.sin(dlam / 2.0) ** 2
         )
         return 2.0 * r * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))

@@ -1,5 +1,4 @@
 # Security & Negative Access Tests for cd_workshop (M31).
-import pytest
 from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
@@ -20,7 +19,7 @@ class TestWorkshopSecurity:
         csv_text = (MODULE / "security" / "ir.model.access.csv").read_text(encoding="utf-8")
         lines = [line.strip().split(",") for line in csv_text.strip().splitlines() if line.strip()]
         header = lines[0]
-        rows = {row[0]: dict(zip(header, row)) for row in lines[1:]}
+        rows = {row[0]: dict(zip(header, row, strict=False)) for row in lines[1:]}
 
         # Technician / Bench operator cannot delete jobs or workshops
         assert rows["access_fix_workshop_job_user"]["perm_unlink"] == "0"

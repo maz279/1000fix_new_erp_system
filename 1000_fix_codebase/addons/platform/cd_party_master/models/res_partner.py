@@ -12,20 +12,29 @@ class ResPartner(models.Model):
     name_bn = fields.Char(
         string="Name (Bengali)",
         help="DE-17/TR-07: authoritative in the bn locale; empty falls back to "
-             "the Latin name — never machine-translated")
+        "the Latin name — never machine-translated",
+    )
     preferred_language = fields.Selection(
         [("bn", "বাংলা (Bengali)"), ("en", "English")],
-        string="Preferred Language", default="bn", required=True,
-        help="MD-013: the notification language — Bengali is the default (PS-03)")
+        string="Preferred Language",
+        default="bn",
+        required=True,
+        help="MD-013: the notification language — Bengali is the default (PS-03)",
+    )
     role_ids = fields.One2many("fix.party.role", "partner_id", string="Party Roles")
     consent_ids = fields.One2many("fix.consent", "partner_id", string="Consent Records")
     hierarchy_parent_ids = fields.One2many(
-        "fix.party.hierarchy", "child_id", string="Related Parties (as child)")
+        "fix.party.hierarchy", "child_id", string="Related Parties (as child)"
+    )
     hierarchy_child_ids = fields.One2many(
-        "fix.party.hierarchy", "parent_id", string="Related Parties (as parent)")
+        "fix.party.hierarchy", "parent_id", string="Related Parties (as parent)"
+    )
     legacy_reference = fields.Char(
-        string="Legacy Reference", index=True, copy=False,
-        help="MIG-03: permanent source system reference (FR-SRM-088)")
+        string="Legacy Reference",
+        index=True,
+        copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)",
+    )
 
     def _get_notification_language(self) -> str:
         """The dispatcher's language lookup: preferred_language, defaulting bn."""

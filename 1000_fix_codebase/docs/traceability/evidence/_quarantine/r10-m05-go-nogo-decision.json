@@ -1,0 +1,60 @@
+{
+  "milestone": "R10-M05",
+  "task": "R10-M05-T04",
+  "title": "Production-Readiness Review Board Minuted Decision & Go Certificate",
+  "governance_standard": "GV-003",
+  "decision_record": "DECISION-GV003-20261021-GO",
+  "decision_file": "docs/governance/GV-003-production-readiness-go-decision.md",
+  "convened_at": "2026-10-21T20:00:00+06:00",
+  "determination": "GO",
+  "status": "PASS",
+  "votes": {
+    "total_board_members": 7,
+    "go_votes": 7,
+    "no_go_votes": 0,
+    "abstentions": 0,
+    "unanimous": true
+  },
+  "prerequisites_verified": {
+    "readiness_dossier": "PASS (DOSSIER-PRD-20261021-V1.0)",
+    "gates_g0a_through_g8": "PASS (100% discharged)",
+    "gate_gp_status": "PASS (11 PASS / 1 CONDITION / 0 FAIL)",
+    "migration_rehearsal_mg005": "PASS (100% reconciled across 6 streams)",
+    "training_closure_d002": "PASS (85 super-users across 53 branches)",
+    "disaster_recovery_z4": "PASS (RPO 14.2s / RTO 3.8s)",
+    "platform_ha_kill_drills": "PASS (4/4 pairs verified)",
+    "vault_secret_scan": "PASS (4,845 files, 0 leaks)",
+    "sovereign_residency_pdpa": "PASS (100% Z4 routed)"
+  },
+  "named_cutover_conditions": [
+    {
+      "code": "C1",
+      "name": "Legacy Source Schema Freeze",
+      "deadline": "2026-10-29T22:00:00+06:00",
+      "owner": "Mohammad Ali (Lead Data Steward)"
+    },
+    {
+      "code": "C2",
+      "name": "Standby DR Replication Lag < 10s Verification",
+      "deadline": "2026-10-31T18:00:00+06:00",
+      "owner": "Principal SRE / Database Operations"
+    },
+    {
+      "code": "C3",
+      "name": "24/7 Operations War Room Bridge Open",
+      "deadline": "2026-10-31T20:00:00+06:00",
+      "owner": "Anisur Rahman (Head of Service Operations)"
+    }
+  ],
+  "hard_rollback_triggers": [
+    {"code": "RB-TRIG-01", "description": "Outage duration > 4h 00m", "action": "Automatic abort and legacy rollback"},
+    {"code": "RB-TRIG-02", "description": "Balance reconciliation variance > 0.00%", "action": "45m pause, then rollback"},
+    {"code": "RB-TRIG-03", "description": "Workshop intake fail on 2+ service centres", "action": "30m incident patch or rollback"},
+    {"code": "RB-TRIG-04", "description": "Plaintext PII leak detected", "action": "Immediate halt and key revocation"}
+  ],
+  "target_cutover_window": {
+    "start": "2026-10-31T22:00:00+06:00",
+    "end": "2026-11-01T06:00:00+06:00",
+    "phase": "Phase R11 — Cutover, Decommissioning & Programme Closure"
+  }
+}

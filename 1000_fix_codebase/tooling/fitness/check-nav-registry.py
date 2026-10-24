@@ -17,6 +17,7 @@ Validates contracts/nav/registry.json — the production navigation universe:
 
 Exit: 0 OK / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -31,16 +32,26 @@ GENERATOR = REPO / "tooling" / "generators" / "generate-nav-registry.py"
 FRONT_I18N = REPO.parent / "Front_end" / "js" / "i18n.js"
 
 EXPECT = {
-    "areas": 12, "portals": 12, "modules": 67, "groups": 278,
-    "screens": 823, "reports": 346, "forms": 266, "sub_triples": 600,
-    "functions": 5100, "journeys": 10, "personas": 4,
+    "areas": 12,
+    "portals": 12,
+    "modules": 67,
+    "groups": 278,
+    "screens": 823,
+    "reports": 346,
+    "forms": 266,
+    "sub_triples": 600,
+    "functions": 5100,
+    "journeys": 10,
+    "personas": 4,
 }
 
 
 def main() -> int:
     if not REGISTRY.exists():
-        print("nav-registry: FAIL — contracts/nav/registry.json missing "
-              "(run tooling/generators/generate-nav-registry.py)")
+        print(
+            "nav-registry: FAIL — contracts/nav/registry.json missing "
+            "(run tooling/generators/generate-nav-registry.py)"
+        )
         return 1
     reg = json.loads(REGISTRY.read_text(encoding="utf-8"))
     v: list[str] = []
@@ -70,8 +81,9 @@ def main() -> int:
     for m in modules:
         sub_sum = sum(t[2] for t in m["freg"]["sub"])
         if m["freg"]["src"] != sub_sum:
-            v.append(f"freg ledger mismatch {m['id']}: src={m['freg']['src']} "
-                     f"!= sub-sum={sub_sum}")
+            v.append(
+                f"freg ledger mismatch {m['id']}: src={m['freg']['src']} " f"!= sub-sum={sub_sum}"
+            )
 
     # 3 — screen id uniqueness
     ids = [s["id"] for m in modules for g in m["groups"] for s in g["screens"]]
@@ -90,8 +102,7 @@ def main() -> int:
         if m["id"] not in area_of:
             v.append(f"module {m['id']} belongs to no area")
         elif area_of[m["id"]] != m["area"]:
-            v.append(f"module {m['id']} area {m['area']} != area list "
-                     f"{area_of[m['id']]}")
+            v.append(f"module {m['id']} area {m['area']} != area list " f"{area_of[m['id']]}")
 
     # 5 — prototype i18n catalogue parity (EN <-> BN identical key sets)
     src = FRONT_I18N.read_text(encoding="utf-8")
@@ -102,30 +113,37 @@ def main() -> int:
     en_keys = set(key_re.findall(en_block))
     bn_keys = set(key_re.findall(bn_block))
     if en_keys != bn_keys:
-        v.append(f"i18n parity broken: en-only={sorted(en_keys - bn_keys)} "
-                 f"bn-only={sorted(bn_keys - en_keys)}")
+        v.append(
+            f"i18n parity broken: en-only={sorted(en_keys - bn_keys)} "
+            f"bn-only={sorted(bn_keys - en_keys)}"
+        )
     elif len(en_keys) != 74:
         v.append(f"i18n catalogue expected 74 keys per locale, got {len(en_keys)}")
 
     # 6 — freshness: regenerating must be byte-identical
     before = REGISTRY.read_bytes()
     result = subprocess.run(
-        [sys.executable, str(GENERATOR)], capture_output=True, text=True, check=False)
+        [sys.executable, str(GENERATOR)], capture_output=True, text=True, check=False
+    )
     if result.returncode != 0:
         v.append("generator failed against the frozen prototype")
     elif REGISTRY.read_bytes() != before:
-        v.append("registry was stale — regenerated now; commit the fresh file "
-                 "with the payload change that caused it")
+        v.append(
+            "registry was stale — regenerated now; commit the fresh file "
+            "with the payload change that caused it"
+        )
 
     if v:
         for line in v:
             print("nav-registry: FAIL —", line)
         return 1
-    print(f"nav-registry: OK — {counts['modules']} modules, {counts['groups']} "
-          f"groups, {counts['screens']} screens, {counts['reports']} reports, "
-          f"{counts['forms']} forms, {counts['functions']} functions, "
-          f"{counts['journeys']} journeys; ledger, ids, areas, i18n parity, "
-          f"freshness all verified")
+    print(
+        f"nav-registry: OK — {counts['modules']} modules, {counts['groups']} "
+        f"groups, {counts['screens']} screens, {counts['reports']} reports, "
+        f"{counts['forms']} forms, {counts['functions']} functions, "
+        f"{counts['journeys']} journeys; ledger, ids, areas, i18n parity, "
+        f"freshness all verified"
+    )
     return 0
 
 

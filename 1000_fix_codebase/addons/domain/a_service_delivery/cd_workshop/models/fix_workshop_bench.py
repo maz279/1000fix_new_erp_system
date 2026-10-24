@@ -1,8 +1,8 @@
 # fix.workshop.bench — Repair Bench Master (CD-M31-02, RR-03 Milestone R03-M02).
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
-
 import logging
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +13,7 @@ class FixWorkshopBench(models.Model):
     Benches are classified into L1 (modular), L2 (board/component), and L3 (chip-level/cleanroom),
     equipped with calibrated tools and assigned to qualified technicians.
     """
+
     _name = "fix.workshop.bench"
     _description = "Workshop Repair Bench"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -102,7 +103,13 @@ class FixWorkshopBench(models.Model):
         "fix.workshop.job",
         "bench_id",
         string="Active Bench Jobs",
-        domain=[("state", "in", ["intake", "diagnostic", "waiting_parts", "in_repair", "burn_in", "qc_pending"])],
+        domain=[
+            (
+                "state",
+                "in",
+                ["intake", "diagnostic", "waiting_parts", "in_repair", "burn_in", "qc_pending"],
+            )
+        ],
     )
     current_job_count = fields.Integer(
         string="Current Active Jobs",
@@ -147,9 +154,13 @@ class FixWorkshopBench(models.Model):
         """Assign a workshop job to this bench, validating capacity and routing level."""
         self.ensure_one()
         if self.state in ("maintenance", "offline"):
-            raise UserError(f"Cannot assign job {job.name} to bench {self.code}: Bench is currently {self.state}.")
+            raise UserError(
+                f"Cannot assign job {job.name} to bench {self.code}: Bench is currently {self.state}."
+            )
         if self.current_job_count >= self.max_concurrent_jobs:
-            raise UserError(f"Bench {self.code} has reached its maximum concurrent job capacity ({self.max_concurrent_jobs}).")
+            raise UserError(
+                f"Bench {self.code} has reached its maximum concurrent job capacity ({self.max_concurrent_jobs})."
+            )
 
         # Routing validation: bench must support the job's repair level
         level_order = {"l1": 1, "l2": 2, "l3": 3}
@@ -158,10 +169,14 @@ class FixWorkshopBench(models.Model):
                 f"Job {job.name} requires {job.repair_level.upper()} capability, but bench {self.code} is only {self.repair_level.upper()}."
             )
 
-        job.write({
-            "bench_id": self.id,
-            "technician_id": self.technician_id.id if self.technician_id else job.technician_id.id,
-        })
+        job.write(
+            {
+                "bench_id": self.id,
+                "technician_id": self.technician_id.id
+                if self.technician_id
+                else job.technician_id.id,
+            }
+        )
         self._compute_job_count()
         self._emit_bench_assigned(job)
         return True
@@ -177,14 +192,21 @@ class FixWorkshopBench(models.Model):
     def _emit_bench_assigned(self, job):
         """Emit workshop.bench.assigned event via outbox."""
         from libs.py.fix_events import publish
-        publish(self.env, "workshop.bench.assigned", "fix.workshop.bench", self.id, {
-            "bench_id": self.id,
-            "bench_code": self.code,
-            "workshop_id": self.workshop_id.id,
-            "workshop_code": self.workshop_id.code,
-            "job_id": job.id,
-            "job_name": job.name,
-            "repair_level": job.repair_level,
-            "technician_id": self.technician_id.id if self.technician_id else False,
-            "technician_name": self.technician_id.name if self.technician_id else "Unassigned",
-        })
+
+        publish(
+            self.env,
+            "workshop.bench.assigned",
+            "fix.workshop.bench",
+            self.id,
+            {
+                "bench_id": self.id,
+                "bench_code": self.code,
+                "workshop_id": self.workshop_id.id,
+                "workshop_code": self.workshop_id.code,
+                "job_id": job.id,
+                "job_name": job.name,
+                "repair_level": job.repair_level,
+                "technician_id": self.technician_id.id if self.technician_id else False,
+                "technician_name": self.technician_id.name if self.technician_id else "Unassigned",
+            },
+        )

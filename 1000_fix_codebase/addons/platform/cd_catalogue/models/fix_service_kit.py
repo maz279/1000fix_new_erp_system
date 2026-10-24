@@ -12,40 +12,58 @@ class FixServiceKit(models.Model):
     + 1.5 hours labour + diagnostic checklist. When M01 creates a service
     order from this kit, the components are expanded and consumed.
     """
+
     _name = "fix.service.kit"
     _description = "Service Kit"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "name"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
     name = fields.Char(required=True, tracking=True)
     name_bn = fields.Char(string="Name (Bengali)", help="DE-17 Bengali-first")
     description = fields.Text()
     catalogue_item_id = fields.Many2one(
-        "fix.catalogue.item", string="Catalogue Item", required=True,
-        ondelete="cascade", index=True,
-        help="The parent catalogue item — must be type 'bundle' or 'service'")
+        "fix.catalogue.item",
+        string="Catalogue Item",
+        required=True,
+        ondelete="cascade",
+        index=True,
+        help="The parent catalogue item — must be type 'bundle' or 'service'",
+    )
     component_ids = fields.One2many(
-        "fix.service.kit.component", "kit_id", string="Components",
-        help="The parts, labour items and time allocations that make up this kit")
+        "fix.service.kit.component",
+        "kit_id",
+        string="Components",
+        help="The parts, labour items and time allocations that make up this kit",
+    )
 
     # AS-10: Monetary with explicit currency_id — NEVER Float
     estimated_cost = fields.Monetary(
-        string="Estimated Cost", currency_field="currency_id",
-        compute="_compute_estimated", store=True,
-        help="Sum of component standard costs")
+        string="Estimated Cost",
+        currency_field="currency_id",
+        compute="_compute_estimated",
+        store=True,
+        help="Sum of component standard costs",
+    )
     currency_id = fields.Many2one(
-        "res.currency", string="Currency", required=True,
+        "res.currency",
+        string="Currency",
+        required=True,
         default=lambda self: self.env.ref("base.BDT"),
-        help="AS-10: explicit currency for every Monetary field")
+        help="AS-10: explicit currency for every Monetary field",
+    )
 
     # Time
     estimated_time = fields.Float(
-        string="Estimated Time (hours)", compute="_compute_estimated", store=True,
-        help="Sum of component times — consumed by M02 for dispatch scheduling")
+        string="Estimated Time (hours)",
+        compute="_compute_estimated",
+        store=True,
+        help="Sum of component times — consumed by M02 for dispatch scheduling",
+    )
     active = fields.Boolean(default=True, tracking=True)
 
     @api.depends("component_ids.standard_cost", "component_ids.time_allocation")
@@ -58,33 +76,51 @@ class FixServiceKit(models.Model):
     def _check_has_components(self):
         for kit in self:
             if not kit.component_ids:
-                raise ValidationError(
-                    f"Service kit '{kit.name}' must have at least one component.")
+                raise ValidationError(f"Service kit '{kit.name}' must have at least one component.")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        kits = super().create(vals_list)
+        # @api.constrains only fires for fields present in the vals: a kit
+        # created without a component_ids key would bypass the invariant.
+        kits._check_has_components()
+        return kits
 
 
 class FixServiceKitComponent(models.Model):
     """A single component (part, labour, or time allocation) within a kit."""
+
     _name = "fix.service.kit.component"
     _description = "Service Kit Component"
 
     kit_id = fields.Many2one("fix.service.kit", required=True, ondelete="cascade")
     component_type = fields.Selection(
-        [("part", "Spare Part"), ("labour", "Labour"),
-         ("diagnostic", "Diagnostic"), ("consumable", "Consumable")],
-        required=True, default="part")
+        [
+            ("part", "Spare Part"),
+            ("labour", "Labour"),
+            ("diagnostic", "Diagnostic"),
+            ("consumable", "Consumable"),
+        ],
+        required=True,
+        default="part",
+    )
     product_id = fields.Many2one(
-        "product.product", string="Product",
-        help="The specific product variant for this component")
-    quantity = fields.Float(default=1.0, required=True,
-                            digits="Product Unit of Measure")
+        "product.product", string="Product", help="The specific product variant for this component"
+    )
+    quantity = fields.Float(default=1.0, required=True, digits="Product Unit of Measure")
     # AS-10: Monetary
     standard_cost = fields.Monetary(
-        string="Standard Cost", currency_field="currency_id", default=0.0,
-        help="The per-unit cost used for kit cost estimation")
+        string="Standard Cost",
+        currency_field="currency_id",
+        default=0.0,
+        help="The per-unit cost used for kit cost estimation",
+    )
     currency_id = fields.Many2one(
-        "res.currency", required=True,
-        default=lambda self: self.env.ref("base.BDT"))
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
     time_allocation = fields.Float(
-        string="Time Allocation (hours)", default=0.0,
-        help="How many technician-hours this component consumes (labour only)")
+        string="Time Allocation (hours)",
+        default=0.0,
+        help="How many technician-hours this component consumes (labour only)",
+    )
     notes = fields.Char()

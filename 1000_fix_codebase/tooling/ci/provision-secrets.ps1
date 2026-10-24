@@ -1,7 +1,15 @@
 # =============================================================================
-# provision-secrets.ps1 — Provision CI secrets and variables for GitHub Actions
+# provision-secrets.ps1 - Provision CI secrets and variables for GitHub Actions
 # Implements R01-M03-T02 from R01_Foundation_and_Governance_Closure.md
-# Reads secrets from environment or secret store template — NEVER plaintext in code
+#
+# R01 audit correction (2026-10-21):
+#   - NO literal fallback values. A secret not present in the environment is
+#     reported MISSING and never provisioned ("never literals" means exactly
+#     that - a hardcoded placeholder password is a literal).
+#   - Evidence is written ONLY after successful `gh secret set` / `gh variable
+#     set` calls, and records names + status only - never values.
+#   - Unauthenticated runs exit non-zero instead of leaving "PROVISIONED"
+#     evidence that never touched GitHub.
 # =============================================================================
 [CmdletBinding()]
 param(
@@ -34,19 +42,15 @@ $requiredVars = @(
     "CI_ENVIRONMENT"
 )
 
-# Resolve values from active environment or secure local store (.env.example template)
-$secretValues = @{}
+# Resolve secret values from the environment ONLY. Missing = MISSING, never a placeholder.
+$secretStatus = @{}
 foreach ($s in $requiredSecrets) {
     $val = [Environment]::GetEnvironmentVariable($s)
-    if ([string]::IsNullOrEmpty($val)) {
-        # Secure fallback placeholder for sandbox/CI runners
-        if ($s -eq "PACT_BROKER_URL") { $val = "http://localhost:9292" }
-        elseif ($s -eq "FIX_A11Y_PASSWORD") { $val = "admin_ci_secure_2026" }
-        else { $val = "ci_secret_placeholder" }
-    }
-    $secretValues[$s] = $val
+    $secretStatus[$s] = if ([string]::IsNullOrEmpty($val)) { "MISSING (set env var $s)" } else { "RESOLVED" }
 }
 
+# Variables are non-secret configuration; documented defaults are acceptable,
+# but they are recorded as values openly (they are not secrets).
 $varValues = @{}
 foreach ($v in $requiredVars) {
     $val = [Environment]::GetEnvironmentVariable($v)
@@ -54,79 +58,119 @@ foreach ($v in $requiredVars) {
         if ($v -eq "FIX_A11Y_USER") { $val = "admin" }
         elseif ($v -eq "FIX_A11Y_BASE_URL") { $val = "http://127.0.0.1:8069" }
         elseif ($v -eq "CI_ENVIRONMENT") { $val = "ci-runner" }
-        else { $val = "ci_val" }
     }
     $varValues[$v] = $val
 }
 
-# Write audit record to evidence (MANDATORY: NEVER write secret values, only names and presence)
-$provisionRecord = @{
-    repository = $Repo
-    provisioned_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
-    standard = "DE-10 / P02-M09-T02 / R01-M03-T02"
-    secrets_registered = ($requiredSecrets | ForEach-Object { @{ name = $_; status = "PROVISIONED"; type = "secret" } })
-    vars_registered = ($requiredVars | ForEach-Object { @{ name = $_; value = $varValues[$_]; type = "variable" } })
+function Test-GhAuthed {
+    $ghCli = Get-Command gh -ErrorAction SilentlyContinue
+    if (-not $ghCli) { return $false }
+    try {
+        $null = & gh auth status 2>$null
+        return ($LASTEXITCODE -eq 0)
+    } catch { return $false }
 }
 
-$evidenceFile = Join-Path $evidenceDir "ci-secrets-provisioned.json"
-$provisionRecord | ConvertTo-Json -Depth 5 | Set-Content -Path $evidenceFile -Encoding UTF8
-Write-Host "[ProvisionSecrets] CI secrets/vars registered in evidence: $evidenceFile" -ForegroundColor Green
+function Write-Evidence {
+    param([string]$Status, [hashtable]$SecretResults, [hashtable]$VarResults)
+    $provisionRecord = @{
+        repository = $Repo
+        provisioned_at = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        standard = "DE-10 / P02-M09-T02 / R01-M03-T02"
+        status = $Status
+        note = "names and statuses only - secret values are never recorded in evidence"
+        secrets = ($SecretResults.GetEnumerator() | Sort-Object Name | ForEach-Object {
+            @{ name = $_.Key; status = $_.Value; type = "secret" }
+        })
+        vars = ($VarResults.GetEnumerator() | Sort-Object Name | ForEach-Object {
+            @{ name = $_.Key; value = $_.Value; type = "variable" }
+        })
+    }
+    $evidenceFile = Join-Path $evidenceDir "ci-secrets-provisioned.json"
+    $provisionRecord | ConvertTo-Json -Depth 5 | Set-Content -Path $evidenceFile -Encoding UTF8
+    Write-Host "[ProvisionSecrets] Evidence written: $evidenceFile (status: $Status)" -ForegroundColor Green
+}
 
 if ($VerifyOnly) {
-    Write-Host "[ProvisionSecrets] Verification mode: Secrets & vars matrix verified." -ForegroundColor Cyan
-    Write-Host "  Required Secrets: $($requiredSecrets -join ', ')" -ForegroundColor Gray
-    Write-Host "  Required Variables: $($requiredVars -join ', ')" -ForegroundColor Gray
+    # Verify what is ACTUALLY set on the remote - names only, via gh secret list.
+    if (-not (Test-GhAuthed)) {
+        Write-Host "[ProvisionSecrets] FAIL: --VerifyOnly requires an authenticated gh CLI (gh auth login)." -ForegroundColor Red
+        exit 1
+    }
+    $remoteSecrets = (& gh secret list -R $Repo --json name 2>$null | ConvertFrom-Json) | ForEach-Object { $_.name }
+    $remoteVars = (& gh variable list -R $Repo --json name 2>$null | ConvertFrom-Json) | ForEach-Object { $_.name }
+    $verifyResults = @{}
+    foreach ($s in $requiredSecrets) {
+        $verifyResults[$s] = if ($remoteSecrets -contains $s) { "VERIFIED_ON_REMOTE" } else { "ABSENT_ON_REMOTE" }
+    }
+    $varResults = @{}
+    foreach ($v in $requiredVars) {
+        $varResults[$v] = $varValues[$v]
+        $verifyResults["VAR:$v"] = if ($remoteVars -contains $v) { "VERIFIED_ON_REMOTE" } else { "ABSENT_ON_REMOTE" }
+    }
+    Write-Evidence -Status "VERIFIED" -SecretResults $verifyResults -VarResults $varResults
+    $absent = @($verifyResults.Values | Where-Object { $_ -eq "ABSENT_ON_REMOTE" }).Count
+    if ($absent -gt 0) {
+        Write-Host "[ProvisionSecrets] $absent required item(s) absent on remote." -ForegroundColor Yellow
+        exit 1
+    }
     exit 0
 }
 
-# If gh CLI is available and authenticated, apply to repository
-$ghCli = Get-Command gh -ErrorAction SilentlyContinue
-if (-not $ghCli) {
-    Write-Host "[ProvisionSecrets] Warning: gh CLI not found on PATH. Secret definitions recorded in evidence." -ForegroundColor Yellow
-    exit 0
+# Provisioning requires gh + auth + every secret resolved in the environment.
+$missing = @($requiredSecrets | Where-Object { $secretStatus[$_] -like "MISSING*" })
+if ($missing.Count -gt 0) {
+    Write-Host "[ProvisionSecrets] FAIL: secrets not present in environment: $($missing -join ', ')" -ForegroundColor Red
+    Write-Host "  Provide them via environment variables; literals are never acceptable (DE-10)." -ForegroundColor Yellow
+    exit 1
 }
 
-$isAuthed = $false
-try {
-    $null = & gh auth status 2>$null
-    if ($LASTEXITCODE -eq 0) { $isAuthed = $true }
-} catch {
-    $isAuthed = $false
+if (-not (Test-GhAuthed)) {
+    Write-Host "[ProvisionSecrets] FAIL: gh CLI not available/authenticated. No evidence written - nothing was provisioned." -ForegroundColor Red
+    Write-Host "  Authenticate with 'gh auth login' and re-run." -ForegroundColor Yellow
+    exit 1
 }
-
-if (-not $isAuthed) {
-    Write-Host "[ProvisionSecrets] Notice: gh CLI not authenticated. Secrets recorded in evidence for CI pipeline." -ForegroundColor Yellow
-    exit 0
-}
-
 
 if ($DryRun) {
-    Write-Host "[ProvisionSecrets] Dry run: skipping remote GitHub API calls." -ForegroundColor Cyan
+    Write-Host "[ProvisionSecrets] Dry run: all inputs resolved and gh authenticated; remote calls skipped." -ForegroundColor Cyan
     exit 0
 }
 
 Write-Host "[ProvisionSecrets] Setting secrets and variables on $Repo via gh CLI..." -ForegroundColor Cyan
 
+$anyFailure = $false
+$provisionResults = @{}
 foreach ($name in $requiredSecrets) {
     Write-Host "  Setting secret $name..." -NoNewline
-    $val = $secretValues[$name]
-    $val | & gh secret set $name -R $Repo
+    $envVal = [Environment]::GetEnvironmentVariable($name)
+    $envVal | & gh secret set $name -R $Repo
     if ($LASTEXITCODE -eq 0) {
+        $provisionResults[$name] = "PROVISIONED"
         Write-Host " [OK]" -ForegroundColor Green
     } else {
-        Write-Host " [FAILED]" -ForegroundColor Yellow
+        $provisionResults[$name] = "FAILED"
+        $anyFailure = $true
+        Write-Host " [FAILED]" -ForegroundColor Red
     }
 }
 
+$varResults = @{}
 foreach ($name in $requiredVars) {
     Write-Host "  Setting variable $name..." -NoNewline
-    $val = $varValues[$name]
-    & gh variable set $name -b "$val" -R $Repo
+    & gh variable set $name -b "$($varValues[$name])" -R $Repo
     if ($LASTEXITCODE -eq 0) {
+        $varResults[$name] = $varValues[$name]
         Write-Host " [OK]" -ForegroundColor Green
     } else {
-        Write-Host " [FAILED]" -ForegroundColor Yellow
+        $varResults[$name] = "FAILED"
+        $anyFailure = $true
+        Write-Host " [FAILED]" -ForegroundColor Red
     }
 }
 
+# Evidence written only now - after the calls actually happened.
+Write-Evidence -Status $(if ($anyFailure) { "PARTIAL_FAILURE" } else { "PROVISIONED" }) -SecretResults $provisionResults -VarResults $varResults
+
+if ($anyFailure) { exit 1 }
 Write-Host "[ProvisionSecrets] Secrets provisioning complete." -ForegroundColor Green
+exit 0

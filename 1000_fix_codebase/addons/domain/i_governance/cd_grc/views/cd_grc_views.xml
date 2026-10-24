@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_grc views (P09). -->
+<!-- cd_grc views (P09 / M60 GRC statutory & ISO compliance). -->
 <odoo>
+    <!-- Risk Register -->
     <record id="view_fix_risk_register_list" model="ir.ui.view">
         <field name="name">fix.risk.register.list</field>
         <field name="model">fix.risk.register</field>
@@ -8,9 +9,55 @@
             <list>
                 <field name="name"/>
                 <field name="category"/>
+                <field name="likelihood"/>
+                <field name="impact"/>
                 <field name="risk_score"/>
+                <field name="owner_id"/>
                 <field name="state"/>
             </list>
+        </field>
+    </record>
+    <record id="view_fix_risk_register_form" model="ir.ui.view">
+        <field name="name">fix.risk.register.form</field>
+        <field name="model">fix.risk.register</field>
+        <field name="arch" type="xml">
+            <form string="Risk Register">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="open,mitigating,accepted,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Risk Assessment">
+                            <field name="category"/>
+                            <field name="likelihood"/>
+                            <field name="impact"/>
+                            <field name="risk_score"/>
+                            <field name="owner_id"/>
+                            <field name="review_date"/>
+                        </group>
+                        <group string="Scope &amp; Multi-Company">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mitigation &amp; Treatment">
+                            <field name="mitigation"/>
+                        </page>
+                        <page string="Enforcing Controls">
+                            <field name="control_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
     <record id="action_fix_risk_register" model="ir.actions.act_window">
@@ -18,24 +65,287 @@
         <field name="res_model">fix.risk.register</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- Controls -->
     <record id="view_fix_control_list" model="ir.ui.view">
         <field name="name">fix.control.list</field>
         <field name="model">fix.control</field>
         <field name="arch" type="xml">
             <list>
+                <field name="control_code"/>
                 <field name="name"/>
                 <field name="control_type"/>
                 <field name="frequency"/>
+                <field name="test_result"/>
                 <field name="state"/>
             </list>
         </field>
     </record>
+    <record id="view_fix_control_form" model="ir.ui.view">
+        <field name="name">fix.control.form</field>
+        <field name="model">fix.control</field>
+        <field name="arch" type="xml">
+            <form string="Internal Control">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="active,inactive"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Control Attributes">
+                            <field name="control_code"/>
+                            <field name="control_type"/>
+                            <field name="frequency"/>
+                            <field name="risk_id"/>
+                            <field name="evidence_doc_id"/>
+                        </group>
+                        <group string="Testing &amp; Governance">
+                            <field name="last_tested"/>
+                            <field name="test_result"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mapped Compliance Obligations">
+                            <field name="obligation_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
     <record id="action_fix_control" model="ir.actions.act_window">
-        <field name="name">Control</field>
+        <field name="name">Internal Controls</field>
         <field name="res_model">fix.control</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Compliance Frameworks -->
+    <record id="view_fix_compliance_framework_list" model="ir.ui.view">
+        <field name="name">fix.compliance.framework.list</field>
+        <field name="model">fix.compliance.framework</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="code"/>
+                <field name="standard_edition"/>
+                <field name="clause_count"/>
+                <field name="compliance_score" widget="progressbar"/>
+                <field name="last_audit_date"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_compliance_framework_form" model="ir.ui.view">
+        <field name="name">fix.compliance.framework.form</field>
+        <field name="model">fix.compliance.framework</field>
+        <field name="arch" type="xml">
+            <form string="Compliance Framework Matrix">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,archived"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Standard Meta">
+                            <field name="code"/>
+                            <field name="standard_edition"/>
+                            <field name="certifying_body"/>
+                            <field name="active"/>
+                        </group>
+                        <group string="Audit Schedule &amp; Scores">
+                            <field name="clause_count"/>
+                            <field name="compliance_score" widget="progressbar"/>
+                            <field name="last_audit_date"/>
+                            <field name="next_audit_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mapped Obligations &amp; Clauses">
+                            <field name="obligation_ids">
+                                <list>
+                                    <field name="clause_reference"/>
+                                    <field name="name"/>
+                                    <field name="mandatory"/>
+                                    <field name="compliance_status"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Audit Findings">
+                            <field name="finding_ids">
+                                <list>
+                                    <field name="finding_code"/>
+                                    <field name="name"/>
+                                    <field name="finding_type"/>
+                                    <field name="capa_status"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_compliance_framework" model="ir.actions.act_window">
+        <field name="name">Compliance Frameworks (ISO/PDPA/BLA)</field>
+        <field name="res_model">fix.compliance.framework</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Obligations -->
+    <record id="view_fix_compliance_obligation_list" model="ir.ui.view">
+        <field name="name">fix.compliance.obligation.list</field>
+        <field name="model">fix.compliance.obligation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="clause_reference"/>
+                <field name="name"/>
+                <field name="framework_id"/>
+                <field name="mandatory"/>
+                <field name="compliance_status"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_compliance_obligation_form" model="ir.ui.view">
+        <field name="name">fix.compliance.obligation.form</field>
+        <field name="model">fix.compliance.obligation</field>
+        <field name="arch" type="xml">
+            <form string="Compliance Obligation">
+                <header>
+                    <field name="compliance_status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Clause Reference">
+                            <field name="framework_id"/>
+                            <field name="clause_reference"/>
+                            <field name="mandatory"/>
+                            <field name="evidence_doc_id"/>
+                        </group>
+                        <group string="Governance Scope">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Assessment Notes">
+                            <field name="notes"/>
+                        </page>
+                        <page string="Enforcing Controls">
+                            <field name="control_ids"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_compliance_obligation" model="ir.actions.act_window">
+        <field name="name">Compliance Obligations</field>
+        <field name="res_model">fix.compliance.obligation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Audit Findings & CAPA -->
+    <record id="view_fix_audit_finding_list" model="ir.ui.view">
+        <field name="name">fix.audit.finding.list</field>
+        <field name="model">fix.audit.finding</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="finding_code"/>
+                <field name="name"/>
+                <field name="framework_id"/>
+                <field name="finding_type"/>
+                <field name="auditor_id"/>
+                <field name="target_closure_date"/>
+                <field name="capa_status"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_audit_finding_form" model="ir.ui.view">
+        <field name="name">fix.audit.finding.form</field>
+        <field name="model">fix.audit.finding</field>
+        <field name="arch" type="xml">
+            <form string="Audit Finding &amp; CAPA">
+                <header>
+                    <button name="action_submit_capa" string="Submit CAPA" type="object" invisible="capa_status != 'open'" class="btn-primary"/>
+                    <button name="action_verify_closure" string="Verify &amp; Close CAPA" type="object" invisible="capa_status != 'capa_submitted'" class="btn-success"/>
+                    <field name="capa_status" widget="statusbar" statusbar_visible="open,capa_submitted,verified,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Audit Details">
+                            <field name="finding_code"/>
+                            <field name="framework_id"/>
+                            <field name="obligation_id"/>
+                            <field name="finding_type"/>
+                            <field name="auditor_id"/>
+                            <field name="audit_date"/>
+                            <field name="target_closure_date"/>
+                        </group>
+                        <group string="Evidence &amp; Organisation">
+                            <field name="closure_evidence_doc_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Objective Evidence &amp; Finding">
+                            <field name="description"/>
+                        </page>
+                        <page string="Root Cause Analysis">
+                            <field name="root_cause_analysis"/>
+                        </page>
+                        <page string="Corrective Action Plan (CAPA)">
+                            <field name="remediation_plan"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_audit_finding" model="ir.actions.act_window">
+        <field name="name">Audit Findings &amp; CAPA</field>
+        <field name="res_model">fix.audit.finding</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_fix_compliance_framework" name="Compliance Frameworks (ISO/PDPA/BLA)" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_compliance_framework" sequence="190"/>
+    <menuitem id="menu_fix_compliance_obligation" name="Compliance Obligations" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_compliance_obligation" sequence="195"/>
     <menuitem id="menu_fix_risk_register" name="Risk Register" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_risk_register" sequence="200"/>
-    <menuitem id="menu_fix_control" name="Control" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_control" sequence="210"/>
+    <menuitem id="menu_fix_control" name="Internal Controls" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_control" sequence="210"/>
+    <menuitem id="menu_fix_audit_finding" name="Audit Findings &amp; CAPA" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_audit_finding" sequence="220"/>
 </odoo>

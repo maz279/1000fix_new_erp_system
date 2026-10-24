@@ -1,0 +1,2224 @@
+ M .agents/skills/enterprise_codebase_auditor/scripts/audit_scanner.py
+ M .agents/skills/enterprise_frontend_ux_designer/SKILL.md
+ M .agents/skills/enterprise_tech_writer/SKILL.md
+ M .agents/teamwork/explorer_data_1/DISPATCH.md
+ M .agents/teamwork/explorer_waves_1/DISPATCH.md
+ M .agents/teamwork/victory_auditor_1/verify_ir002.py
+ M .agents/teamwork/worker_report_1/DISPATCH.md
+ M .gitignore
+ M 1000_fix_codebase/.env.example
+ D 1000_fix_codebase/.github/PULL_REQUEST_TEMPLATE.md
+ D 1000_fix_codebase/.github/settings.yml
+ D 1000_fix_codebase/.github/workflows/ci.yml
+ M 1000_fix_codebase/.gitignore
+ M 1000_fix_codebase/.pre-commit-config.yaml
+ D 1000_fix_codebase/CODEOWNERS
+ M 1000_fix_codebase/Makefile
+ M 1000_fix_codebase/README.md
+ M 1000_fix_codebase/addons/conftest.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/i18n/cd_device_registry.pot
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/fix_device_history.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/fix_device_ownership.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/fix_device_part_compatibility.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/models/fix_warranty.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/tests/test_device_registry.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/views/fix_device_views.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/controllers/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/controllers/evidence_api.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/controllers/offline_sync_api.py
+ D 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/data/fix_field_service_data.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/fix_field_decline_log.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/fix_field_route.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/fix_offline_idempotency_ledger.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/security/fix_field_service_security.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/test_field_service_core.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/test_offline_sync.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/views/fix_field_service_views.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/i18n/cd_front_desk.pot
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/models/fix_cash_shift.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/models/fix_token_queue.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/models/fix_walkin_intake.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/tests/test_front_desk.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/i18n/cd_msp_contract.pot
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/tests/test_msp.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/views/fix_msp_views.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/controllers/technician_api.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/i18n/cd_service_order.pot
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_device_history_ext.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_estimate.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_qc_checklist.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_service_order.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_service_order_fault.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_sla_policy.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/models/fix_work_order.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/report/report_jobcard.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/tests/test_business_gates.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/tests/test_service_order.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/views/fix_estimate_views.xml
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/controllers/brand_api.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/i18n/cd_warranty_claims.pot
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_aut018_timing_proof.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_brand_api.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_warranty_approval_rate.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_warranty_claims.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/__manifest__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/fix_workshop.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_bench.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_evidence.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_job.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_part_line.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/tests/__init__.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/tests/test_workshop_core.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/tests/test_workshop_security.py
+ M 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/views/fix_workshop_views.xml
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/i18n/cd_campaign.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/models/fix_campaign.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/tests/test_campaign.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/views/fix_campaign_views.xml
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/__init__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/controllers/contact_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/i18n/cd_contact_centre.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/models/__init__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/models/assistant_engine.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/tests/test_assistant_nlu.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/tests/test_contact_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/tests/test_contact_centre.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/tests/test_fcr_measurement.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/controllers/corporate_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/i18n/cd_corporate_portal.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/tests/test_corporate_portal.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/views/fix_corporate_portal_views.xml
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/i18n/cd_crm_ext.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/models/crm_lead_ext.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/tests/test_crm_ext.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/controllers/customer_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/tests/test_customer_portal.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/i18n/cd_cx_feedback.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/models/fix_cx_feedback.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/tests/test_cx_feedback.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/i18n/cd_loyalty.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/__init__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_account.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_campaign.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_ledger.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_program.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_stub.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_tier.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_voucher.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/tests/test_loyalty.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/views/fix_loyalty_views.xml
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/__init__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/controllers/partner_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/i18n/cd_partner.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/models/fix_partner.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/tests/test_partner.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/tests/test_partner_api.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/__init__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/__manifest__.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/i18n/cd_storefront.pot
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/models/fix_storefront.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/tests/test_storefront.py
+ M 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/views/cd_storefront_views.xml
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/__manifest__.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/i18n/cd_contract_core.pot
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/models/fix_contract.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/tests/test_contract.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/__manifest__.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/i18n/cd_dynamic_pricing.pot
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/models/fix_dynamic_pricing.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/tests/test_dynamic_pricing.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/views/cd_dynamic_pricing_views.xml
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/__manifest__.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/i18n/cd_quotation.pot
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/models/fix_quotation.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/tests/test_quotation.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/i18n/cd_rate_card.pot
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/models/fix_rate_card.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/tests/test_rate_card.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/__manifest__.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/i18n/cd_subscription.pot
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/models/__init__.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/models/fix_subscription.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/models/rev_rec_engine.py
+ M 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/tests/test_subscription.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/__manifest__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/i18n/cd_data_case.pot
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/models/fix_data_case.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/tests/test_data_case.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_data_case/views/cd_data_case_views.xml
+ M 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/__manifest__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/i18n/cd_ewaste.pot
+ M 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/tests/test_ewaste.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/__init__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/__manifest__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/controllers/seller_api.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/i18n/cd_marketplace.pot
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/models/fix_marketplace.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_marketplace.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_seller_api.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/views/cd_marketplace_views.xml
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/__manifest__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/i18n/cd_rental_asset.pot
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/models/fix_rental_asset.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/tests/test_rental_asset.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/views/cd_rental_asset_views.xml
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/__manifest__.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/i18n/cd_tradein.pot
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/models/fix_tradein.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/tests/test_tradein.py
+ M 1000_fix_codebase/addons/domain/d_circular/cd_tradein/views/cd_tradein_views.xml
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/i18n/cd_consignment.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/models/fix_consignment.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/tests/test_consignment.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/i18n/cd_demand_plan.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/models/fix_demand_plan.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/tests/test_demand_plan.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/i18n/cd_import_order.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/models/fix_import_order.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/tests/test_import_order.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/__init__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_reorder_rule.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_spare_part.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_stock_consumption.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_stock_location.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_valuation_suspense.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/tests/__init__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/tests/test_inventory_core.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/tests/test_reorder_engine.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/i18n/cd_requisition.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/models/fix_requisition.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/tests/test_requisition.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/controllers/vendor_api.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/i18n/cd_vendor_portal.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/tests/test_vendor_api.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/tests/test_vendor_portal.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/__manifest__.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/i18n/cd_wms_structure.pot
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/models/fix_wms_structure.py
+ M 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/tests/test_wms_structure.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/__manifest__.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/i18n/cd_equipment_register.pot
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/tests/test_equipment.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/__manifest__.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/i18n/cd_facility.pot
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/models/fix_facility.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/tests/test_facility.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/views/cd_facility_views.xml
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/i18n/cd_vehicle_ext.pot
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle.py
+ M 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/tests/test_vehicle.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/i18n/cd_ap_ext.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/models/__init__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/models/fix_ap_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/models/fix_withholding_certificate_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/tests/test_ap_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/i18n/cd_billing_engine.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/models/fix_billing_engine.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/tests/test_billing_engine.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/i18n/cd_cash_position.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/models/fix_cash_position.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/tests/test_cash_position.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/i18n/cd_fixed_asset_ext.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/models/fix_fixed_asset.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/tests/test_fixed_asset.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fpa/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fpa/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fpa/i18n/cd_fpa.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fpa/models/fix_fpa.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_fpa/tests/test_fpa.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/i18n/cd_gl_ext.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/models/__init__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/models/coa_logic.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/models/fix_chart_loader.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/models/fix_fiscal_year_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/models/fix_gl_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/tests/test_coa_logic.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/tests/test_gl_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/__init__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/controllers/settlement_api.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/i18n/cd_settlement_ext.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/models/__init__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/models/fix_settlement_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/tests/test_settlement_api.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/tests/test_settlement_ext.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/views/cd_settlement_ext_views.xml
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/__manifest__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/i18n/cd_tax_engine_bd.pot
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/__init__.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_engine.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_returns.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/return_logic.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/tax_logic.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/report/report_mushak63.xml
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/tests/test_return_logic.py
+ M 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/tests/test_tax_logic.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/i18n/cd_attendance.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/models/fix_attendance.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/tests/test_attendance.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_attendance/views/fix_attendance_views.xml
+ M 1000_fix_codebase/addons/domain/h_people/cd_competency/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_competency/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_competency/i18n/cd_competency.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_competency/models/fix_competency.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_competency/tests/test_competency.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/i18n/cd_hr_core.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/models/fix_hr_core.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/tests/test_hr_core.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hr_core/views/fix_hr_core_views.xml
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/i18n/cd_hse.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/models/fix_hse.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/tests/test_hse.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_hse/views/cd_hse_views.xml
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/i18n/cd_payroll_bd.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/tests/test_payroll.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/views/fix_payroll_views.xml
+ M 1000_fix_codebase/addons/domain/h_people/cd_performance/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_performance/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_performance/i18n/cd_performance.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_performance/models/fix_performance.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_performance/tests/test_performance.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/__manifest__.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/i18n/cd_talent.pot
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/models/fix_talent.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/tests/test_talent.py
+ M 1000_fix_codebase/addons/domain/h_people/cd_talent/views/cd_talent_views.xml
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/__manifest__.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/i18n/cd_grc.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/models/fix_grc.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/tests/test_grc.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_grc/views/cd_grc_views.xml
+ M 1000_fix_codebase/addons/domain/i_governance/cd_itsm/__manifest__.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_itsm/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_itsm/i18n/cd_itsm.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_itsm/models/fix_itsm.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_itsm/tests/test_itsm.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/__manifest__.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/i18n/cd_knowledge.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/models/fix_knowledge.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/tests/test_knowledge.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/views/cd_knowledge_views.xml
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/__manifest__.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/i18n/cd_ppm.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/models/fix_ppm.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/security/ir.model.access.csv
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/tests/test_ppm.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_ppm/views/cd_ppm_views.xml
+ M 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/__manifest__.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/i18n/cd_qms_process.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/models/fix_qms.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/tests/test_qms.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/i18n/cd_workflow_engine.pot
+ M 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/models/fix_workflow_engine.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/tests/test_aut_engines.py
+ M 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/tests/test_workflow_engine.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/__init__.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/__manifest__.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/controllers/analytics_api.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/i18n/cd_metric_registry.pot
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/models/fix_metric_registry.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/tests/test_analytics_api.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/tests/test_metric_registry.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/__manifest__.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/i18n/cd_stream_registry.pot
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/models/fix_stream_registry.py
+ M 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/tests/test_stream_registry.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_catalogue/i18n/cd_catalogue.pot
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_brand.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_catalogue_item.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_device_model.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_refurb_grade.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_rental_sku.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/fix_service_kit.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/models/product_template_ext.py
+ M 1000_fix_codebase/addons/platform/cd_catalogue/tests/test_catalogue.py
+ M 1000_fix_codebase/addons/platform/cd_design_tokens/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_design_tokens/tests/test_design_tokens.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_document_core/i18n/cd_document_core.pot
+ M 1000_fix_codebase/addons/platform/cd_document_core/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/models/fix_document.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/models/fix_document_template.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/models/fix_retention_class.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/models/ir_attachment_ext.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/tests/test_document_core.py
+ M 1000_fix_codebase/addons/platform/cd_document_core/views/fix_document_views.xml
+ M 1000_fix_codebase/addons/platform/cd_employee_core/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_employee_core/i18n/cd_employee_core.pot
+ M 1000_fix_codebase/addons/platform/cd_employee_core/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_employee_core/models/fix_branch_ext.py
+ M 1000_fix_codebase/addons/platform/cd_employee_core/models/hr_employee_ext.py
+ M 1000_fix_codebase/addons/platform/cd_employee_core/tests/test_employee_core.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_entity_config/i18n/cd_entity_config.pot
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_bd_address.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_branch.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_country_pack.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_entity.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_feature_flag.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_geofence.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_notification_config.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_working_calendar.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/models/fix_zone.py
+ M 1000_fix_codebase/addons/platform/cd_entity_config/security/cd_entity_config_security.xml
+ M 1000_fix_codebase/addons/platform/cd_entity_config/tests/test_entity_config.py
+ M 1000_fix_codebase/addons/platform/cd_esignature/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_esignature/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_esignature/i18n/cd_esignature.pot
+ M 1000_fix_codebase/addons/platform/cd_esignature/models/fix_esignature.py
+ M 1000_fix_codebase/addons/platform/cd_esignature/tests/test_esignature.py
+ M 1000_fix_codebase/addons/platform/cd_event_outbox/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_event_outbox/i18n/cd_event_outbox.pot
+ M 1000_fix_codebase/addons/platform/cd_event_outbox/models/fix_event_outbox.py
+ M 1000_fix_codebase/addons/platform/cd_event_outbox/tests/test_event_outbox.py
+ M 1000_fix_codebase/addons/platform/cd_event_outbox/views/fix_event_outbox_views.xml
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/i18n/cd_mdm_core.pot
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/models/fix_mdm_change_request.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/models/fix_mdm_golden_rule.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/models/fix_mdm_match_rule.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/models/fix_mdm_stewardship.py
+ M 1000_fix_codebase/addons/platform/cd_mdm_core/tests/test_mdm_core.py
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/controllers/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/controllers/p03_registry.py
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/controllers/p03_service_order_api.py
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/controllers/p03_tellme.py
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/static/src/p03_conformance.scss
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/static/src/p03_modules_meta.js
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/static/src/p03_workspace.js
+ M 1000_fix_codebase/addons/platform/cd_p03_portal/tests/test_p03_portal.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_party_master/i18n/cd_party_master.pot
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/fix_consent.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/fix_dedup_rule.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/fix_identity_document.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/fix_party_hierarchy.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/fix_party_role.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/models/res_partner.py
+ M 1000_fix_codebase/addons/platform/cd_party_master/tests/test_party_master.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/__manifest__.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/i18n/bn_BD.po
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/i18n/cd_rbac_ext.pot
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/__init__.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/fix_feature_flag_ext.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/fix_field_rule.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/fix_isolation_tier.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/fix_role.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/fix_sod_control.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/models/residency_mixin.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/tests/test_permissions_negative.py
+ M 1000_fix_codebase/addons/platform/cd_rbac_ext/tests/test_rbac_ext.py
+ M 1000_fix_codebase/apps/mobile/auditor/lib/main.dart
+ M 1000_fix_codebase/apps/mobile/customer/lib/main.dart
+ M 1000_fix_codebase/apps/mobile/technician/lib/main.dart
+ M 1000_fix_codebase/apps/web/analytics/app/page.tsx
+ M 1000_fix_codebase/apps/web/corporate/app/estate/page.tsx
+ M 1000_fix_codebase/apps/web/corporate/app/invoices/page.tsx
+ M 1000_fix_codebase/apps/web/corporate/app/page.tsx
+ M 1000_fix_codebase/apps/web/corporate/app/service-requests/page.tsx
+ M 1000_fix_codebase/apps/web/corporate/lib/imports.ts
+ M 1000_fix_codebase/apps/web/customer/app/estimates/page.tsx
+ M 1000_fix_codebase/apps/web/customer/app/technician/page.tsx
+ M 1000_fix_codebase/apps/web/customer/app/tracking/page.tsx
+ M 1000_fix_codebase/apps/web/customer/components/language.tsx
+ M 1000_fix_codebase/apps/web/customer/lib/api.ts
+ M 1000_fix_codebase/apps/web/customer/package.json
+ M 1000_fix_codebase/apps/web/partner/app/layout.tsx
+ M 1000_fix_codebase/apps/web/seller/app/layout.tsx
+ M 1000_fix_codebase/contracts/check.py
+ M 1000_fix_codebase/contracts/events/field_order_accepted.json
+ M 1000_fix_codebase/contracts/events/field_order_declined.json
+ M 1000_fix_codebase/contracts/events/field_order_dispatched.json
+ M 1000_fix_codebase/contracts/events/geofence_breach_detected.json
+ M 1000_fix_codebase/contracts/events/technician_location_ping.json
+ M 1000_fix_codebase/contracts/events/van_reconciled.json
+ M 1000_fix_codebase/contracts/openapi/w4-portals.json
+ M 1000_fix_codebase/contracts/pacts/w3_payment_connectors_pact.json
+ M 1000_fix_codebase/dags/brand_warranty_submission_dag.py
+ M 1000_fix_codebase/db/seeds/seed.py
+ M 1000_fix_codebase/docs/decisions/D-025-odoo-baseline-upgrade.md
+ M 1000_fix_codebase/docs/decisions/D-029-postgresql-major.md
+ M 1000_fix_codebase/docs/decisions/README.md
+ M 1000_fix_codebase/docs/guides/offline-sync-protocol.md
+ M 1000_fix_codebase/docs/guides/onboarding-sla.md
+ M 1000_fix_codebase/docs/guides/reference/bengali-conjunct-reference.png
+ M 1000_fix_codebase/docs/p01-m02/GV-003-decision-log-entries.md
+ M 1000_fix_codebase/docs/p01-m03/registers/fit-gap-register.csv
+ M 1000_fix_codebase/docs/p01-m03/registers/rtm-seed.csv
+ M 1000_fix_codebase/docs/p01-m03/registers/wave-allocation.csv
+ M 1000_fix_codebase/docs/p01-m04/registers/graph.txt
+ M 1000_fix_codebase/docs/p01-m04/registers/reciprocity-worklist.csv
+ M 1000_fix_codebase/docs/traceability/P01-M10-gate-record.md
+ M 1000_fix_codebase/docs/traceability/R01-M01-closure-record.md
+ M 1000_fix_codebase/docs/traceability/R01-M03-ci-execution-record.md
+ M 1000_fix_codebase/docs/traceability/R01-M04-measurement-harness-record.md
+ M 1000_fix_codebase/docs/traceability/R01-exit-report.md
+ M 1000_fix_codebase/docs/traceability/coverage-baseline-register.md
+ M 1000_fix_codebase/docs/traceability/evidence/branch-protection-rules.json
+ D 1000_fix_codebase/docs/traceability/evidence/ci-nightly-run-20261016T070749Z.json
+ D 1000_fix_codebase/docs/traceability/evidence/ci-nightly-run-20261016T071126Z.json
+ D 1000_fix_codebase/docs/traceability/evidence/ci-nightly-run-20261016T115444Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T070050Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T070322Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T073333Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T115031Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T121741Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T124232Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T124935Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T133046Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T135732Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T135748Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T144542Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T151803Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T154124Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261016T154153Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261017T133648Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-commit-run-20261017T133713Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T070401Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T073409Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T115121Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T121837Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T124327Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T125028Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T133141Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T135846Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T144642Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T151912Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261016T154250Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T025207Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T025509Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T032425Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T040739Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T043533Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T051250Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T051549Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T061433Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T064723Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T074033Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T095435Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T110624Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T112858Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T113021Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261017T133829Z.json
+ M 1000_fix_codebase/docs/traceability/evidence/ci-secrets-provisioned.json
+ M 1000_fix_codebase/docs/traceability/evidence/doctor-py-runtime-up.json
+ M 1000_fix_codebase/docs/traceability/evidence/doctor-results-runtime-up.json
+ D 1000_fix_codebase/docs/traceability/evidence/gate-g2-evidence-latest.json
+ D 1000_fix_codebase/docs/traceability/evidence/gate-g2-signed-report.json
+ M 1000_fix_codebase/docs/traceability/evidence/machine-inventory-DESKTOP-CVE1HTI-2026-09-30.json
+ M 1000_fix_codebase/docs/traceability/evidence/machine-inventory-DESKTOP-CVE1HTI-2026-10-01.json
+ M 1000_fix_codebase/docs/traceability/evidence/verify-results-DESKTOP-CVE1HTI-2026-09-30.json
+ M 1000_fix_codebase/docs/traceability/evidence/verify-results-DESKTOP-CVE1HTI-2026-10-01.json
+ M 1000_fix_codebase/docs/traceability/g2-01-technician-app-rollout-report.md
+ M 1000_fix_codebase/docs/traceability/g2-02-offline-zero-loss-report.md
+ M 1000_fix_codebase/docs/traceability/g2-03-route-optimization-report.md
+ M 1000_fix_codebase/docs/traceability/g2-05-online-booking-report.md
+ M 1000_fix_codebase/docs/traceability/g2-06-paper-forms-withdrawal-order.md
+ M 1000_fix_codebase/docs/traceability/gv-005-stub-register.md
+ M 1000_fix_codebase/docs/traceability/inventory-reconciliation-signoff.md
+ M 1000_fix_codebase/docs/traceability/master-data-approval-register.md
+ M 1000_fix_codebase/docs/traceability/pipeline-budget-measurement-report.md
+ M 1000_fix_codebase/i18n/check.py
+ M 1000_fix_codebase/infra/compose/docker-compose.asset-ml.yml
+ M 1000_fix_codebase/infra/compose/docker-compose.intelligence.yml
+ M 1000_fix_codebase/infra/compose/docker-compose.migration-staging.yml
+ M 1000_fix_codebase/infra/compose/docker-compose.msp.yml
+ M 1000_fix_codebase/infra/compose/docker-compose.yml
+ M 1000_fix_codebase/infra/compose/keycloak/realm-1000fix-dev.json
+ M 1000_fix_codebase/libs/py/fix_env_guard/__init__.py
+ M 1000_fix_codebase/libs/py/fix_events/__init__.py
+ M 1000_fix_codebase/libs/py/fix_residency/__init__.py
+ M 1000_fix_codebase/libs/py/fix_telemetry/__init__.py
+ M 1000_fix_codebase/libs/py/fix_telemetry/tracer.py
+ M 1000_fix_codebase/libs/py/payroll_engine/__init__.py
+ M 1000_fix_codebase/libs/ts/i18n/src/landing.generated.json
+ M 1000_fix_codebase/migrations/REHEARSAL.md
+ M 1000_fix_codebase/migrations/extracts/branches_extract.json
+ M 1000_fix_codebase/migrations/extracts/control-totals.json
+ M 1000_fix_codebase/migrations/extracts/customers_extract.json
+ M 1000_fix_codebase/migrations/extracts/devices_extract.json
+ M 1000_fix_codebase/migrations/extracts/employees_extract.json
+ M 1000_fix_codebase/migrations/extracts/inventory_parts_extract.json
+ M 1000_fix_codebase/migrations/extracts/inventory_physical_count_extract.json
+ M 1000_fix_codebase/migrations/extracts/loaded-counts.json
+ M 1000_fix_codebase/migrations/extracts/master-data-loaded.json
+ M 1000_fix_codebase/migrations/extracts/workshop_wip_extract.json
+ M 1000_fix_codebase/migrations/extracts_generator.py
+ M 1000_fix_codebase/migrations/load_branches.py
+ M 1000_fix_codebase/migrations/load_customers.py
+ M 1000_fix_codebase/migrations/load_devices.py
+ M 1000_fix_codebase/migrations/load_employees.py
+ M 1000_fix_codebase/migrations/load_inventory.py
+ M 1000_fix_codebase/migrations/load_master_data.py
+ M 1000_fix_codebase/migrations/load_workshop_wip.py
+ M 1000_fix_codebase/migrations/pipeline.py
+ M 1000_fix_codebase/migrations/rollback.py
+ M 1000_fix_codebase/migrations/sql/timescaledb_telemetry_hypertable.sql
+ M 1000_fix_codebase/migrations/tests/test_migration_inventory.py
+ M 1000_fix_codebase/migrations/tests/test_migration_wave1.py
+ M 1000_fix_codebase/migrations/tests/test_migration_workshop.py
+ M 1000_fix_codebase/pyproject.toml
+ M 1000_fix_codebase/services/bi-warehouse/kpi-register.json
+ M 1000_fix_codebase/services/conversational-ai/benchmark_ollama_latency.py
+ M 1000_fix_codebase/services/conversational-ai/evidence/gpu-vs-cpu-latency-report.json
+ M 1000_fix_codebase/services/dispatch-scoring/dispatch_scoring/geospatial_client.py
+ M 1000_fix_codebase/services/dispatch-scoring/dispatch_scoring/main.py
+ M 1000_fix_codebase/services/dispatch-scoring/dispatch_scoring/models.py
+ M 1000_fix_codebase/services/dispatch-scoring/dispatch_scoring/route_optimizer.py
+ M 1000_fix_codebase/services/dispatch-scoring/dispatch_scoring/scorer.py
+ M 1000_fix_codebase/services/dispatch-scoring/tests/test_dispatch_scoring.py
+ M 1000_fix_codebase/services/document-generation/src/document_generation.py
+ M 1000_fix_codebase/services/document-generation/tests/test_document_generation.py
+ M 1000_fix_codebase/services/dsr-orchestrator/src/dsr_orchestrator.py
+ M 1000_fix_codebase/services/dsr-orchestrator/tests/test_dsr_orchestrator.py
+ M 1000_fix_codebase/services/evat-adapter/src/__init__.py
+ M 1000_fix_codebase/services/evat-adapter/src/evat_client.py
+ M 1000_fix_codebase/services/evat-adapter/tests/test_evat_adapter.py
+ M 1000_fix_codebase/services/local-residency-stub/app.py
+ M 1000_fix_codebase/services/ml-gateway/Dockerfile
+ M 1000_fix_codebase/services/ml-gateway/src/ml_gateway.py
+ M 1000_fix_codebase/services/ml-gateway/tests/test_ml_gateway.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/channels.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/delivery.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/dispatcher.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/kpis.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/main.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/policy.py
+ M 1000_fix_codebase/services/notification-dispatcher/src/router.py
+ M 1000_fix_codebase/services/notification-dispatcher/tests/test_dispatcher.py
+ M 1000_fix_codebase/services/ocr/src/ocr_harness.py
+ M 1000_fix_codebase/services/ocr/tests/test_ocr_harness.py
+ M 1000_fix_codebase/services/payment-connectors/src/__init__.py
+ M 1000_fix_codebase/services/payment-connectors/src/payment_connectors.py
+ M 1000_fix_codebase/services/payment-connectors/src/sandbox_certifier.py
+ M 1000_fix_codebase/services/payment-connectors/tests/test_payment_connectors.py
+ M 1000_fix_codebase/services/payroll-engine/src/payroll_engine.py
+ M 1000_fix_codebase/services/payroll-engine/tests/test_payroll_engine.py
+ M 1000_fix_codebase/services/portal-contracts/tests/test_portal_contracts.py
+ M 1000_fix_codebase/services/pricing-engine/src/pricing_engine.py
+ M 1000_fix_codebase/services/pricing-engine/tests/test_pricing_engine.py
+ M 1000_fix_codebase/services/reconciliation/src/__init__.py
+ M 1000_fix_codebase/services/reconciliation/src/bank_feed_parser.py
+ M 1000_fix_codebase/services/reconciliation/src/reconciliation.py
+ M 1000_fix_codebase/services/reconciliation/tests/test_reconciliation.py
+ M 1000_fix_codebase/services/rmm-collector/Dockerfile
+ M 1000_fix_codebase/services/rmm-collector/src/rmm_collector.py
+ M 1000_fix_codebase/services/rmm-collector/tests/test_rmm_collector.py
+ M 1000_fix_codebase/services/settlement-engine/src/settlement_engine.py
+ M 1000_fix_codebase/services/settlement-engine/tests/test_settlement_engine.py
+ M 1000_fix_codebase/services/sla-engine/src/__init__.py
+ M 1000_fix_codebase/services/sla-engine/src/sla_engine.py
+ M 1000_fix_codebase/services/sla-engine/tests/test_sla_engine.py
+ M 1000_fix_codebase/services/stt/src/stt.py
+ M 1000_fix_codebase/services/stt/tests/test_stt.py
+ M 1000_fix_codebase/services/telemetry-collector/Dockerfile
+ M 1000_fix_codebase/services/telemetry-collector/tests/test_telemetry_collector.py
+ M 1000_fix_codebase/services/workflow/__init__.py
+ M 1000_fix_codebase/services/workflow/brand_submission_engine.py
+ M 1000_fix_codebase/services/workflow/tests/test_brand_dags.py
+ M 1000_fix_codebase/tests/test_otel_trace_roundtrip.py
+ M 1000_fix_codebase/tooling/a11y/check-expansion-static.py
+ M 1000_fix_codebase/tooling/architecture-baseline/evidence/dependency-graph-2026-10-01.json
+ M 1000_fix_codebase/tooling/cd-register.yaml
+ M 1000_fix_codebase/tooling/ci/apply-branch-protection.ps1
+ M 1000_fix_codebase/tooling/ci/provision-secrets.ps1
+ M 1000_fix_codebase/tooling/ci/run-pipeline.py
+ M 1000_fix_codebase/tooling/design-system/conformance.py
+ M 1000_fix_codebase/tooling/e2e/journeys/helpers.ts
+ M 1000_fix_codebase/tooling/e2e/visual-drive.mjs
+ M 1000_fix_codebase/tooling/fitness/audit-repo-formats.py
+ M 1000_fix_codebase/tooling/fitness/audit-view-integrity.py
+ M 1000_fix_codebase/tooling/fitness/check-dart-apps.py
+ M 1000_fix_codebase/tooling/fitness/check-dart-offline.py
+ M 1000_fix_codebase/tooling/fitness/check-data-parity.py
+ M 1000_fix_codebase/tooling/fitness/check-demo-literals.py
+ M 1000_fix_codebase/tooling/fitness/check-nav-registry.py
+ M 1000_fix_codebase/tooling/fitness/check-no-fixtures.py
+ M 1000_fix_codebase/tooling/fitness/check-openapi.py
+ M 1000_fix_codebase/tooling/fitness/check-portal-batch.py
+ M 1000_fix_codebase/tooling/fitness/check_api_budget.py
+ M 1000_fix_codebase/tooling/fitness/check_assets.py
+ M 1000_fix_codebase/tooling/fitness/check_code_lists.py
+ M 1000_fix_codebase/tooling/fitness/check_cross_table.py
+ M 1000_fix_codebase/tooling/fitness/check_demo_data.py
+ M 1000_fix_codebase/tooling/fitness/check_event_schemas.py
+ M 1000_fix_codebase/tooling/fitness/check_ff09_residency.py
+ M 1000_fix_codebase/tooling/fitness/check_ff17_layers.py
+ M 1000_fix_codebase/tooling/fitness/check_i18n_keys.py
+ M 1000_fix_codebase/tooling/fitness/check_model_registry.py
+ M 1000_fix_codebase/tooling/fitness/check_naming.py
+ M 1000_fix_codebase/tooling/fitness/check_perf_peak.py
+ M 1000_fix_codebase/tooling/fitness/check_portal_contract.py
+ M 1000_fix_codebase/tooling/fitness/check_tests_present.py
+ M 1000_fix_codebase/tooling/fitness/check_translations.py
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T104350Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T115907Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T212806Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T220041Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T220144Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T220334Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T221217Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T221427Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222207Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222308Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222327Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222357Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222359Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222401Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T222927Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T223246Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T223322Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T224435Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T224546Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T224614Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T224902Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T225146Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T231933Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T232640Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261001T232936Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T014125Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T014127Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T014330Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T021335Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T021555Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T061249Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T061945Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T062238Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T132727Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T133120Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T140438Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T140612Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T152812Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T152831Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261002T153048Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T040742Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T073859Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T122204Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T131108Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T135043Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T151453Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T151515Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T151557Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261003T152139Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T053008Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T053551Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T064749Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T073913Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T081447Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T091024Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T093326Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T095441Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T095506Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T095542Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T100615Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T102416Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T104027Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T112328Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T112614Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T113123Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261004T115953Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T064216Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T064326Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T064513Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T074126Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T075120Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261005T084235Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T022534Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T025325Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T030519Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T032959Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T035933Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T040902Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T055033Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T063431Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T063514Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T064022Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T082830Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T084846Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T090805Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T102633Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T103845Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T113341Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261006T115422Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261007T032612Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261007T104312Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261008T142348Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261008T145413Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261008T151056Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261009T052840Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261013T171435Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261013T172733Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261013T182448Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261013T184734Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T123853Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T134539Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T152252Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T161740Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T162904Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T163035Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261015T164122Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T061414Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T061450Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T061700Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T061730Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T070351Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T071258Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T073400Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T115112Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T121809Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T124259Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T125000Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T133113Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T135814Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T144607Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T151839Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261016T154218Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T025138Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T025228Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T025416Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T025440Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T031724Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T031856Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T032355Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T040131Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T040648Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T042539Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T042918Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T043459Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T044901Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T050249Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T051214Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T051317Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T051446Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T051512Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T054454Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T060914Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T061036Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T061355Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T063450Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T064337Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T064644Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T073628Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T073959Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T095034Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T095403Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T110003Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T110145Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T110551Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T112345Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T112754Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T112820Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T112945Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T121142Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T121607Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T123617Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T132655Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T133419Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T133604Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T133741Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T140900Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T141101Z.json
+ M 1000_fix_codebase/tooling/fitness/evidence/module-install-matrix-latest.json
+ M 1000_fix_codebase/tooling/fitness/evidence/permission-negative-suite-latest.json
+ M 1000_fix_codebase/tooling/fitness/evidence/security-scan-latest.json
+ M 1000_fix_codebase/tooling/fitness/evidence/sla-demo-evidence-latest.json
+ M 1000_fix_codebase/tooling/fitness/evidence/stock-layer-verification-latest.json
+ M 1000_fix_codebase/tooling/fitness/evidence/walkin-intake-timing-latest.json
+ M 1000_fix_codebase/tooling/fitness/registry.yaml
+ M 1000_fix_codebase/tooling/fitness/run.py
+ M 1000_fix_codebase/tooling/fitness/test_m12_m53_dependency_break.py
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g0a-2026-10-01.json
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g0a-2026-10-15.json
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g0a-latest.json
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g0b-latest.json
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g2-latest.json
+ M 1000_fix_codebase/tooling/gate/evidence/gate-g9-latest.json
+ M 1000_fix_codebase/tooling/gate/verify-gate-g0a.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g0b.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g1.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g1a.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g2.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g4.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g5.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g6.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g7.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g8.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-g9.ps1
+ M 1000_fix_codebase/tooling/gate/verify-gate-gp.ps1
+ M 1000_fix_codebase/tooling/gate/verify_gate_g3.py
+ M 1000_fix_codebase/tooling/gate/verify_gate_g4.py
+ M 1000_fix_codebase/tooling/generators/generate-codeowners.ps1
+ M 1000_fix_codebase/tooling/generators/generate-design-tokens.py
+ M 1000_fix_codebase/tooling/generators/generate-landing-artefact.py
+ M 1000_fix_codebase/tooling/generators/generate-nav-registry.py
+ M 1000_fix_codebase/tooling/generators/generate-p03-menus.py
+ M 1000_fix_codebase/tooling/generators/scaffold-cd-module.py
+ M 1000_fix_codebase/tooling/requirements-baseline/evidence/requirements-baseline-2026-10-01.json
+ M 1000_fix_codebase/tooling/scripts/affected-selection.py
+ M 1000_fix_codebase/tooling/scripts/apply-bn-counterparts.py
+ M 1000_fix_codebase/tooling/scripts/as0203-codemod.py
+ M 1000_fix_codebase/tooling/scripts/check-bundle-budget.py
+ M 1000_fix_codebase/tooling/scripts/check-cd-id.py
+ M 1000_fix_codebase/tooling/scripts/check-comodel-deps.py
+ M 1000_fix_codebase/tooling/scripts/check-licence-gate.py
+ M 1000_fix_codebase/tooling/scripts/demonstrate-sla-engine.py
+ M 1000_fix_codebase/tooling/scripts/demonstrate-walkin-intake.py
+ M 1000_fix_codebase/tooling/scripts/doctor.ps1
+ M 1000_fix_codebase/tooling/scripts/doctor.py
+ M 1000_fix_codebase/tooling/scripts/extract-translations.py
+ M 1000_fix_codebase/tooling/scripts/extract-ui-copy.py
+ M 1000_fix_codebase/tooling/scripts/generate-coverage-register.py
+ M 1000_fix_codebase/tooling/scripts/generate-odoo-conf.py
+ M 1000_fix_codebase/tooling/scripts/generate-p06-po.py
+ M 1000_fix_codebase/tooling/scripts/generate-p07-po.py
+ M 1000_fix_codebase/tooling/scripts/generate-p09-modules.py
+ M 1000_fix_codebase/tooling/scripts/generate-p10-support.py
+ M 1000_fix_codebase/tooling/scripts/generate-platform-po.py
+ M 1000_fix_codebase/tooling/scripts/generate-prototype-copy-pack.py
+ M 1000_fix_codebase/tooling/scripts/livefire-all-endpoints.py
+ M 1000_fix_codebase/tooling/scripts/livefire-p03.py
+ M 1000_fix_codebase/tooling/scripts/livefire-pp5.py
+ M 1000_fix_codebase/tooling/scripts/load-master-data.py
+ M 1000_fix_codebase/tooling/scripts/measure-coverage.py
+ M 1000_fix_codebase/tooling/scripts/mig-totals.py
+ M 1000_fix_codebase/tooling/scripts/migrate-sql-constraints.py
+ M 1000_fix_codebase/tooling/scripts/render-bengali-reference.ps1
+ M 1000_fix_codebase/tooling/scripts/resolve-digests.ps1
+ M 1000_fix_codebase/tooling/scripts/run-security-scan.py
+ M 1000_fix_codebase/tooling/scripts/seed-p02-technician-data.py
+ M 1000_fix_codebase/tooling/scripts/sync-p03-meta-titles.py
+ M 1000_fix_codebase/tooling/scripts/tasks.ps1
+ M 1000_fix_codebase/tooling/scripts/test-smoke.py
+ M 1000_fix_codebase/tooling/scripts/verify-legacy-profiles.py
+ M 1000_fix_codebase/tooling/scripts/verify-module-install-matrix.py
+ M 1000_fix_codebase/tooling/scripts/verify-permission-negative-suite.py
+ M 1000_fix_codebase/tooling/scripts/verify-stock-layer.py
+ M 1000_fix_codebase/tooling/tests/test_l12_offline_suite.py
+ M 1000_fix_codebase/tooling/version-currency/evidence/verification-record-2026-10-01.json
+ M 1000_fix_codebase/tooling/versions.lock
+ M 1000_fix_codebase/tooling/workstation/evidence/doctor-results.json
+ M 1000_fix_codebase/tooling/workstation/evidence/workstation-baseline.json
+ M 1000_fix_codebase/tooling/workstation/verify-workstation.ps1
+ M 1000_fix_codebase/uv.lock
+ M 1000fix_ERP_Module/FOLDER_STRUCTURE.md
+ M marketing/ERP_Guide_Book_Library/README.md
+ M marketing/ERP_Guide_Book_Library/_generator/audit.py
+ M marketing/ERP_Guide_Book_Library/_generator/audit_business.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizbook.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcatbook.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/__init__.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/cat_a.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/common.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m01.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m02.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m03.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m04.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m05.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m06.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizcontent/m31.py
+ M marketing/ERP_Guide_Book_Library/_generator/bizexhibits.py
+ M marketing/ERP_Guide_Book_Library/_generator/build_business.py
+ M marketing/ERP_Guide_Book_Library/_generator/build_library.py
+ M marketing/ERP_Guide_Book_Library/_generator/catalogue.py
+ M marketing/ERP_Guide_Book_Library/_generator/docxkit.py
+ M marketing/ERP_Guide_Book_Library/_generator/exhibits.py
+ M marketing/ERP_Guide_Book_Library/_generator/exhibits_group.py
+ M marketing/ERP_Guide_Book_Library/_generator/findings.py
+ M marketing/ERP_Guide_Book_Library/_generator/groupbook.py
+ M marketing/ERP_Guide_Book_Library/_generator/guidebook.py
+ M marketing/ERP_Guide_Book_Library/_generator/last_audit.json
+ M marketing/ERP_Guide_Book_Library/_generator/manifest.json
+ M marketing/ERP_Guide_Book_Library/_generator/masterbook.py
+ M marketing/ERP_Guide_Book_Library/_generator/mdparse.py
+ M marketing/ERP_Guide_Book_Library/_generator/narrative.py
+ M marketing/ERP_Guide_Book_Library/_generator/render.py
+ M marketing/ERP_Guide_Book_Library/_generator/spec.py
+ M marketing/ERP_Guide_Book_Library/_generator/theme.py
+ M marketing/_catalog.json
+ M marketing/_catalog_rich.json
+ M marketing/user-guide/index.html
+ M marketing/user-guide/print.html
+ M old-primary-doc/1000FiX_ERP_System_Comprehensive_BRD.md
+ M old-primary-doc/1000FiX_ERP_System_Comprehensive_URD.md
+ M primary-doc/1000FiX_ERP_System_Comprehensive_BRD.md
+ M primary-doc/1000FiX_ERP_System_Comprehensive_RFP.md
+ M primary-doc/1000FiX_ERP_System_Comprehensive_URD.md
+ M project-guide-doc/00_Programme_Governance_and_Control/GV-003_Decision_Log_and_Change_Control_Procedure.md
+ M project-guide-doc/02_Architecture_and_Design/AR-013_Technology_Radar_and_Build_vs_Buy_Register.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-001_Integration_Architecture_Specification.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_API_Specification_OpenAPI_Contracts.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/README.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/_shared/components.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/_shared/errors.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/_shared/security.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/commercial/openapi.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-002_artefacts/service-delivery/openapi.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-003_Domain_Event_Catalogue_and_Schema_Registry.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-003_artefacts/reconciliation/portal-consumed-unpublished.csv
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-003_artefacts/service-delivery/asyncapi.yaml
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-004_Interface_Control_Documents.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-005_API_Governance_Versioning_and_Deprecation_Standard.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-006_Webhook_Callback_and_Partner_Push_Specification.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-007_Payment_and_Financial_Gateway_Integration_Design.md
+ M project-guide-doc/04_Integration_and_API_Engineering/IN-008_Integration_Test_Sandbox_and_Certification_Specification.md
+ M project-guide-doc/05_Security_Privacy_and_Compliance/SC-001_Security_Architecture_Document.md
+ M project-guide-doc/05_Security_Privacy_and_Compliance/SC-003_Data_Protection_Impact_Assessment_PDPA_2026.md
+ M project-guide-doc/05_Security_Privacy_and_Compliance/SC-008_Regulatory_Compliance_Obligations_Register.md
+ M project-guide-doc/06_Experience_and_Interface_Design/UX-001_Design_System_and_Component_Library_Specification.md
+ M project-guide-doc/06_Experience_and_Interface_Design/UX-008_Usability_Test_Plan_and_Findings_Log.md
+ M project-guide-doc/07_Build_Engineering_and_Development_Standards/BE-005_Custom_Development_CD_Master_Register.md
+ M project-guide-doc/07_Build_Engineering_and_Development_Standards/BE-008_Sprint_Model_Estimation_and_Backlog_Management_Standard.md
+ M project-guide-doc/07_Build_Engineering_and_Development_Standards/BE-009_Technical_Debt_Register_and_Refactoring_Policy.md
+ M project-guide-doc/08_Quality_Engineering_and_Test/QA-007_Security_Test_Plan.md
+ M project-guide-doc/08_Quality_Engineering_and_Test/QA-008_Accessibility_Test_Plan.md
+ M project-guide-doc/09_Data_Migration_and_Cutover/MG-001_Data_Migration_Strategy.md
+ M project-guide-doc/09_Data_Migration_and_Cutover/MG-006_Cutover_Plan_and_Runbook.md
+ M project-guide-doc/09_Data_Migration_and_Cutover/MG-007_Rollback_and_Fallback_Plan.md
+ M project-guide-doc/10_Infrastructure_DevOps_and_Environments/_CATEGORY_OVERVIEW.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-001_Service_Management_Framework_and_Operating_Model.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-002_Platform_SLA_OLA_and_Internal_Service_Catalogue.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-003_Operational_Runbook_Master_Set.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-004_On_Call_Paging_and_Escalation_Design.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-005_Hypercare_and_Transition_to_Support_Plan.md
+ M project-guide-doc/11_Service_Operations_and_Support/SV-006_Problem_and_Major_Incident_Management_Procedure.md
+ M project-guide-doc/11_Service_Operations_and_Support/_CATEGORY_OVERVIEW.md
+ M project-guide-doc/12_Release_Deployment_and_Transition/RL-002_Deployment_Plan_and_Go_Live_Checklist.md
+ M project-guide-doc/12_Release_Deployment_and_Transition/RL-003_Go_Live_Readiness_Assessment_and_Gate_Criteria.md
+ M project-guide-doc/12_Release_Deployment_and_Transition/RL-004_Rollout_and_Branch_Wave_Deployment_Plan.md
+ M project-guide-doc/12_Release_Deployment_and_Transition/RL-006_Legacy_Decommissioning_Plan.md
+ M project-guide-doc/12_Release_Deployment_and_Transition/_CATEGORY_OVERVIEW.md
+ M project-guide-doc/14_Commercial_Vendor_and_Contract/CO-002_Vendor_Evaluation_and_Selection_Report.md
+ M project-guide-doc/14_Commercial_Vendor_and_Contract/CO-003_Statement_of_Work_and_Deliverable_Acceptance_Schedule.md
+ M project-guide-doc/14_Commercial_Vendor_and_Contract/CO-004_Licence_and_Open_Source_Compliance_Register.md
+ M project-guide-doc/14_Commercial_Vendor_and_Contract/_CATEGORY_OVERVIEW.md
+ M project-guide-doc/99_Reference_Registers_and_Glossary/_CATEGORY_OVERVIEW.md
+ M project-guide-doc/FOLDER_STRUCTURE.md
+ M project-guide-doc/README.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-004_Category_01_Requirements_Engineering_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-005_Category_03_Data_and_Information_Architecture_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-007_Category_04_Integration_and_API_Engineering_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-008_Category_05_Security_Privacy_and_Compliance_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-CAT-07_Category_07_Build_Engineering_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-CAT-09_Category_09_Data_Migration_and_Cutover_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-CAT-11_Category_11_Service_Operations_and_Support_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-CAT-12_Category_12_Release_Deployment_and_Transition_Audit.md
+ M project-guide-doc/_AUDIT/PGD-AUDIT-CAT-14_Category_14_Commercial_Vendor_and_Contract_Audit.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-002_Service_Intake_Receipt_and_Device_Handover_Form.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-003_Job_Card_and_Work_Order_Print.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-004_Diagnostic_and_Condition_Report.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-005_Repair_Estimate_and_Quotation.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-006_Revised_Estimate_and_Approval_Record.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-007_Service_Completion_Report.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-008_Quality_Checklist_Record.md
+ M project_content/05_Document_and_Print_Templates/05A_Service_and_Operations/DT-009_Device_Release_and_Collection_Receipt.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-011_Sales_Register_Mushak_6_2.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-012_Purchase_Register_Mushak_6_1.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-013_VDS_Certificate_Mushak_6_6.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-014_VAT_Return_Pack_Mushak_9_1.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-015_Credit_Note_and_Debit_Note.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-016_Payment_Receipt_and_Money_Receipt.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-017_Customer_Statement_of_Account.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-018_Dunning_and_Collection_Letter_Series.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-019_Proforma_Invoice_and_Advance_Request.md
+ M project_content/05_Document_and_Print_Templates/05B_Finance_and_Statutory/DT-020_Consolidated_Corporate_Invoice.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-021_Purchase_Requisition.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-022_Request_for_Quotation.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-023_Purchase_Order.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-024_Goods_Receipt_Note_and_Inspection_Record.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-025_Return_to_Vendor_and_Debit_Advice.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-026_Stock_Transfer_Note_and_Gate_Pass.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-027_Delivery_Challan_and_Logistics_Manifest.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-028_Proof_of_Delivery_and_Custody_Record.md
+ M project_content/05_Document_and_Print_Templates/05C_Supply_Chain_and_Logistics/DT-029_Physical_Count_and_Stock_Adjustment_Sheet.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-030_Contract_and_AMC_Agreement_Template_Set.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-031_SLA_Schedule_and_Service_Credit_Annex.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-033_Warranty_Claim_Evidence_Pack.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-034_Data_Destruction_Certificate.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-035_EWaste_Disposal_and_Material_Recovery_Certificate.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-036_Refurbishment_Grading_and_Certification_Record.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-037_Rental_Agreement_and_Asset_Handover_Record.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-038_TradeIn_Offer_and_Acceptance_Record.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-039_Marketplace_Seller_Payout_Statement.md
+ M project_content/05_Document_and_Print_Templates/05D_Commercial_and_Contract/DT-040_Partner_Commission_Statement.md
+ M project_content/05_Document_and_Print_Templates/05E_People_Quality_and_Labelling/DT-041_Payslip_and_Salary_Certificate.md
+ M project_content/05_Document_and_Print_Templates/05E_People_Quality_and_Labelling/DT-042_HR_Letter_Template_Set.md
+ M project_content/05_Document_and_Print_Templates/05E_People_Quality_and_Labelling/DT-043_NCR_CAPA_and_Internal_Audit_Report_Forms.md
+ M project_content/08_Training_and_Enablement/08A_Framework/TR-003_Course_Design_Standard_and_Storyboard_Template.md
+ M project_content/09_Help_Centre_and_Self_Service/HC-002_Help_Article_Template_and_Style_Rules.md
+ M project_content/09_Help_Centre_and_Self_Service/HC-020_Video_Tutorial_Script_Library.md
+ M project_content/1000FiX_ERP_Content_Master_Index.md
+ M project_content/12_Data_Migration_Content/DM-001_Data_Migration_Strategy_and_Scope_Register.md
+ M project_content/12_Data_Migration_Content/DM-011_Data_Quality_Rules_Cleansing_and_Deduplication_Standard.md
+ M project_content/12_Data_Migration_Content/DM-012_Migration_Load_Template_Pack.md
+ M project_content/12_Data_Migration_Content/DM-013_Reconciliation_and_Validation_Report_Specification.md
+ M project_content/12_Data_Migration_Content/DM-014_Cutover_Data_Checklist_and_Freeze_Communication.md
+ M project_content/13_Test_and_Acceptance_Content/TS-003_SIT_Scenario_Library_Categories_A_to_D.md
+ M project_content/13_Test_and_Acceptance_Content/TS-004_SIT_Scenario_Library_Categories_E_to_G.md
+ M project_content/13_Test_and_Acceptance_Content/TS-006_UAT_Script_Pack_Service_Operations_Roles.md
+ M project_content/13_Test_and_Acceptance_Content/TS-016_Accessibility_Test_Script_Pack.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-001_KPI_Dictionary_and_Metric_Definition_Standard.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-002_Report_Catalogue_by_Role_and_Module.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-003_Dashboard_Specification_Pack_Executive.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-004_Dashboard_Specification_Pack_Operational_Consoles.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-005_Dashboard_Specification_Pack_External_Audiences.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-006_BI_Semantic_Layer_Data_Dictionary.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-007_Chart_Label_and_Visualisation_Standard.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-008_Report_Narrative_and_Commentary_Template_Set.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-009_Statutory_and_Regulatory_Report_Format_Register.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-010_Board_and_Management_Pack_Template.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-011_Branch_League_Table_Definition_and_Scoring_Rules.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-012_Alert_Threshold_and_Anomaly_Rule_Register.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-013_Scheduled_Report_and_Subscription_Catalogue.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-014_Export_Watermark_and_Confidentiality_Marking_Rules.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-015_Benefits_Realisation_and_KPI_Baseline_Register.md
+ M project_content/14_Reporting_Analytics_and_KPI/RP-016_Data_Quality_Scorecard_Definition.md
+ M project_content/16_Change_Management_and_Comms/CM-002_Stakeholder_Map_and_Communication_Plan.md
+ M project_content/16_Change_Management_and_Comms/CM-004_Executive_Briefing_and_Steering_Pack_Template.md
+ M project_content/16_Change_Management_and_Comms/CM-005_Wave_Launch_Communication_Kit.md
+ M project_content/16_Change_Management_and_Comms/CM-006_Go_Live_Announcement_Pack.md
+ M project_content/16_Change_Management_and_Comms/CM-008_Champion_and_Super_User_Network_Kit.md
+ M project_content/16_Change_Management_and_Comms/CM-009_Internal_Newsletter_and_Update_Template.md
+ M project_content/16_Change_Management_and_Comms/CM-010_Town_Hall_and_Roadshow_Content.md
+ M project_content/16_Change_Management_and_Comms/CM-011_Resistance_Objection_and_FAQ_Handling_Pack.md
+ M project_content/16_Change_Management_and_Comms/CM-012_Branch_Readiness_Communication_Checklist.md
+ M project_content/16_Change_Management_and_Comms/CM-013_Customer_Migration_and_Transition_Pack.md
+ M project_content/16_Change_Management_and_Comms/CM-014_Corporate_Client_Transition_Pack.md
+ M project_content/16_Change_Management_and_Comms/CM-015_Vendor_and_Seller_Transition_Pack.md
+ M project_content/16_Change_Management_and_Comms/CM-016_Adoption_Campaign_Content.md
+ M project_content/16_Change_Management_and_Comms/CM-017_Recognition_Incentive_and_Gamification_Copy.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-001_Support_Model_Tiering_and_Routing_Content.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-002_Hypercare_Plan_and_Exit_Criteria.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-003_Service_Desk_Macro_and_Canned_Response_Library.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-004_Incident_Communication_Template_Set.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-005_Status_Page_and_Maintenance_Notice_Copy.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-006_Release_Notes_Standard_and_Wave_Note_Set.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-007_Runbook_Core_ERP_Platform.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-008_Runbook_Integration_and_Event_Platform.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-009_Runbook_Identity_and_Access.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-010_Runbook_Data_Platform_and_Warehouse.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-011_Runbook_Portal_and_Mobile_App_Operations.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-012_Disaster_Recovery_and_Continuity_Playbook.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-013_On_Call_Escalation_and_Handover_Content.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-014_Manual_Fallback_Procedure_Set.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-015_Access_Request_and_Joiner_Mover_Leaver_Content.md
+ M project_content/17_Operations_Support_and_Runbooks/OP-016_Post_Incident_Review_Template_and_Register.md
+ M project_content/18_Ecosystem_Onboarding_Content/EO-012_Co_Marketing_and_Co_Branding_Asset_Guide.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-001_Multimedia_Asset_Standard_and_Delivery_Specification.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-002_Screenshot_Annotation_and_Redaction_Standard.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-003_Diagram_and_Process_Map_Visual_Standard.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-004_Icon_Set_Requirements.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-005_Illustration_and_Empty_State_Artwork_Brief.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-008_Animated_Explainer_Brief_Portal_Onboarding.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-009_Photography_Brief_Branches_Workshop_and_Field.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-010_PDF_and_Print_Template_Design_Specification.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-011_Email_and_HTML_Asset_Specification.md
+ M project_content/19_Multimedia_and_Asset_Specs/MM-012_Digital_Asset_Management_and_Naming_Standard.md
+ M project_content/99_Reference_and_Registers/RF-012_Content_Audit_Report_Archive_Index.md
+ M project_content/README.md
+ M project_content/_AUDIT/AUDIT-006_Category_06_SP_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-012_Category_11_BN_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-015_Category_14_RP_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-016_Category_15_AP_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-017_Category_17_OP_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-018_Category_18_EO_Content_Audit.md
+ M project_content/_AUDIT/AUDIT-021_Category_19_MM_Content_Audit.md
+ M prototype_porting/01-PORTING-PHASES.md
+ M prototype_porting/ARCHITECTURE_STATE.md
+ D roadmap/Revise_roadmap/R01_Foundation_and_Governance_Closure.md
+ D roadmap/Revise_roadmap/R02_Kernel_and_Service_Core_Runtime_Hardening.md
+ D roadmap/Revise_roadmap/R03_Field_Operations_Inventory_Offline_Engine.md
+ D roadmap/Revise_roadmap/R04_Money_Tax_Document_Depth.md
+ D roadmap/Revise_roadmap/R05_Agreements_ContactCentre_PDPA_Readiness.md
+ D roadmap/Revise_roadmap/R06_People_Payroll_Quality_Full_Depth.md
+ D roadmap/Revise_roadmap/R07_Asset_Businesses_EventBus_Migration.md
+ D roadmap/Revise_roadmap/R08_Marketplace_Settlement_Partner_Channel.md
+ D roadmap/Revise_roadmap/R09_Intelligence_Warehouse_IoT_Completion.md
+ D roadmap/Revise_roadmap/R10_MultiEntity_Module_Closure_PreProduction.md
+ D roadmap/Revise_roadmap/R11_Cutover_Decommissioning_Programme_Closure.md
+ M roadmap/_archive/update_roadmap.py
+?? .github/
+?? 1000_fix_codebase/.githooks/pre-commit
+?? 1000_fix_codebase/.github/README.md
+?? 1000_fix_codebase/.pylintrc-odoo
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_device_registry/tests/test_device_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/i18n/cd_field_service.pot
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/test_api_security.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/test_field_service_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_field_service/tests/test_offline_sync_behaviour.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_front_desk/tests/test_front_desk_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_msp_contract/tests/test_msp_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/tests/test_api_security.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/tests/test_service_order_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_service_order/tests/test_technician_api_behaviour.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/data/
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/models/fix_brand_ext.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/conftest.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_brand_api_behaviour.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_warranty_claims/tests/test_warranty_models.py
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/i18n/cd_workshop.pot
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/runbook.md
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/a_service_delivery/cd_workshop/tests/test_workshop_models.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_campaign/tests/test_campaign_live.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_contact_centre/tests/test_contact_live.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_corporate_portal/tests/test_corporate_api.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_crm_ext/tests/test_crm_conversion.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/controllers/otp_delivery.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/tests/test_api_security.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/tests/test_customer_api.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_customer_portal/tests/test_otp_delivery.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_cx_feedback/tests/test_cx_feedback_live.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/data/
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_loyalty/tests/test_loyalty_live.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/security/fix_partner_security.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_partner/tests/test_partner_live.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/controllers/
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/data/
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/runbook.md
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/security/fix_storefront_security.xml
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/tests/test_api_security.py
+?? 1000_fix_codebase/addons/domain/b_customer_engagement/cd_storefront/tests/test_storefront_live.py
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/data/
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/runbook.md
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_contract_core/tests/test_contract_live.py
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/runbook.md
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_dynamic_pricing/tests/test_dynamic_pricing_live.py
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/runbook.md
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_quotation/tests/test_quotation_live.py
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/runbook.md
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_rate_card/tests/test_rate_card_live.py
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/runbook.md
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/c_commercial/cd_subscription/tests/test_subscription_live.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_data_case/runbook.md
+?? 1000_fix_codebase/addons/domain/d_circular/cd_data_case/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_data_case/tests/test_data_case_behaviour.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/runbook.md
+?? 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_ewaste/tests/test_ewaste_behaviour.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/runbook.md
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/security/fix_marketplace_security.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_dispute_sla.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_marketplace_behaviour.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_seller_api_behaviour.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_marketplace/tests/test_tenant_isolation_negative.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/runbook.md
+?? 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_rental_asset/tests/test_rental_asset_behaviour.py
+?? 1000_fix_codebase/addons/domain/d_circular/cd_tradein/runbook.md
+?? 1000_fix_codebase/addons/domain/d_circular/cd_tradein/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/d_circular/cd_tradein/tests/test_tradein_behaviour.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/data/
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_consignment/tests/test_consignment_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_demand_plan/tests/test_demand_plan_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_import_order/tests/test_import_order_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/data/
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/i18n/cd_inventory.pot
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/models/fix_graded_stock.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_inventory/tests/test_inventory_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/data/
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_requisition/tests/test_requisition_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_vendor_portal/tests/test_vendor_api_live.py
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/runbook.md
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/e_supply_chain/cd_wms_structure/tests/test_wms_structure_live.py
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/runbook.md
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_equipment_register/tests/test_equipment_register_behaviour.py
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/runbook.md
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_facility/tests/test_facility_behaviour.py
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/f_asset_facilities/cd_vehicle_ext/tests/test_vehicle_ext_behaviour.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_ap_ext/tests/test_ap_ext_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_billing_engine/tests/test_billing_engine_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_cash_position/tests/test_cash_position_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fixed_asset_ext/tests/test_fixed_asset_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fpa/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fpa/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_fpa/tests/test_fpa_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_gl_ext/tests/test_gl_ext_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/models/fix_payout_reconciliation.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/models/fix_seller_statement.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/security/fix_settlement_ext_security.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/tests/test_settlement_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_settlement_ext/tests/test_settlement_payout_e2e.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/fix_withholding_report.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/models/statutory_format.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/report/report_withholding_certificates.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/runbook.md
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/static/
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/tests/test_tax_engine_orm.py
+?? 1000_fix_codebase/addons/domain/g_finance/cd_tax_engine_bd/tests/test_withholding_reports.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_attendance/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_attendance/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_attendance/tests/test_attendance_approval.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_attendance/tests/test_attendance_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_competency/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_competency/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_competency/tests/test_competency_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_hr_core/data/
+?? 1000_fix_codebase/addons/domain/h_people/cd_hr_core/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_hr_core/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_hr_core/tests/test_hr_core_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_hr_core/tests/test_identity_confirmation_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_hse/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_hse/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_hse/tests/test_hse_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/tests/test_payroll_attendance_verification.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_payroll_bd/tests/test_payroll_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_performance/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_performance/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_performance/tests/test_performance_orm.py
+?? 1000_fix_codebase/addons/domain/h_people/cd_talent/runbook.md
+?? 1000_fix_codebase/addons/domain/h_people/cd_talent/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/h_people/cd_talent/tests/test_talent_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_grc/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_grc/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/i_governance/cd_grc/tests/test_grc_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_itsm/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_itsm/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/i_governance/cd_itsm/tests/test_itsm_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/tests/test_knowledge_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_knowledge/tests/test_knowledge_sync.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_ppm/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_ppm/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/i_governance/cd_ppm/tests/test_ppm_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/i_governance/cd_qms_process/tests/test_qms_orm.py
+?? 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/runbook.md
+?? 1000_fix_codebase/addons/domain/i_governance/cd_workflow_engine/tests/test_workflow_engine_orm.py
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/runbook.md
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/tests/test_analytics_api_behaviour.py
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/tests/test_data_governance_estate.py
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_metric_registry/tests/test_metric_registry_orm.py
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/runbook.md
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/domain/j_data_analytics/cd_stream_registry/tests/test_stream_registry_orm.py
+?? 1000_fix_codebase/addons/platform/cd_catalogue/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_catalogue/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_catalogue/tests/test_catalogue_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_design_tokens/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_document_core/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_document_core/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_document_core/tests/test_document_core_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_employee_core/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_employee_core/tests/test_employee_core_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_entity_config/http_hardening.py
+?? 1000_fix_codebase/addons/platform/cd_entity_config/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_entity_config/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_entity_config/tests/test_entity_config_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_entity_config/tests/test_http_hardening.py
+?? 1000_fix_codebase/addons/platform/cd_entity_config/tests/test_rpc_hardening_xmlrpc_cron.py
+?? 1000_fix_codebase/addons/platform/cd_esignature/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_esignature/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_esignature/tests/test_esignature_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_event_outbox/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_event_outbox/tests/test_event_outbox_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_mdm_core/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_mdm_core/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_mdm_core/tests/test_mdm_core_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_multi_entity/
+?? 1000_fix_codebase/addons/platform/cd_p03_portal/i18n/
+?? 1000_fix_codebase/addons/platform/cd_p03_portal/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_p03_portal/tests/test_p03_service_order_api_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_p03_portal/tests/test_p03_tellme_registry_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_party_master/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_party_master/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_party_master/tests/test_party_master_behaviour.py
+?? 1000_fix_codebase/addons/platform/cd_rbac_ext/runbook.md
+?? 1000_fix_codebase/addons/platform/cd_rbac_ext/security/fix_isolation_rules.xml
+?? 1000_fix_codebase/addons/platform/cd_rbac_ext/tests/test_rbac_ext_behaviour.py
+?? 1000_fix_codebase/addons/tests/
+?? 1000_fix_codebase/apps/web/corporate/app/tender/
+?? 1000_fix_codebase/apps/web/customer/.env.example
+?? 1000_fix_codebase/apps/web/customer/AGENTS.md
+?? 1000_fix_codebase/apps/web/customer/CLAUDE.md
+?? 1000_fix_codebase/apps/web/customer/app/api/
+?? 1000_fix_codebase/apps/web/customer/lib/clock-in.test.mjs
+?? 1000_fix_codebase/apps/web/customer/lib/clock-in.ts
+?? 1000_fix_codebase/apps/web/customer/lib/offline-sync.test.mjs
+?? 1000_fix_codebase/apps/web/customer/lib/offline-sync.ts
+?? 1000_fix_codebase/apps/web/customer/lib/technician-relay.ts
+?? 1000_fix_codebase/apps/web/customer/lib/technician.ts
+?? 1000_fix_codebase/apps/web/partner/app/attribution/
+?? 1000_fix_codebase/apps/web/partner/app/leads/
+?? 1000_fix_codebase/apps/web/seller/app/disputes/
+?? 1000_fix_codebase/apps/web/seller/app/onboarding/
+?? 1000_fix_codebase/apps/web/seller/app/quotes/
+?? 1000_fix_codebase/apps/web/seller/app/statements/
+?? 1000_fix_codebase/contracts/events/asset_capitalized.json
+?? 1000_fix_codebase/contracts/events/asset_disposed.json
+?? 1000_fix_codebase/contracts/events/attendance_approved.json
+?? 1000_fix_codebase/contracts/events/attendance_checked_out.json
+?? 1000_fix_codebase/contracts/events/attendance_locked.json
+?? 1000_fix_codebase/contracts/events/attendance_rejected.json
+?? 1000_fix_codebase/contracts/events/attendance_unlocked.json
+?? 1000_fix_codebase/contracts/events/audit_reported.json
+?? 1000_fix_codebase/contracts/events/automation_register_loaded.json
+?? 1000_fix_codebase/contracts/events/campaign_completed.json
+?? 1000_fix_codebase/contracts/events/campaign_launched.json
+?? 1000_fix_codebase/contracts/events/campaign_loyalty_rewards_disbursed.json
+?? 1000_fix_codebase/contracts/events/campaign_response.json
+?? 1000_fix_codebase/contracts/events/candidate_hired.json
+?? 1000_fix_codebase/contracts/events/capa_verified.json
+?? 1000_fix_codebase/contracts/events/catalogue_item_changed.json
+?? 1000_fix_codebase/contracts/events/catalogue_item_created.json
+?? 1000_fix_codebase/contracts/events/certification_expired.json
+?? 1000_fix_codebase/contracts/events/certification_granted.json
+?? 1000_fix_codebase/contracts/events/coa_loaded.json
+?? 1000_fix_codebase/contracts/events/commission_accrued.json
+?? 1000_fix_codebase/contracts/events/commission_earned.json
+?? 1000_fix_codebase/contracts/events/complaint_ncr_linked.json
+?? 1000_fix_codebase/contracts/events/complaint_ncr_raised.json
+?? 1000_fix_codebase/contracts/events/consignment_delivered.json
+?? 1000_fix_codebase/contracts/events/consignment_lost.json
+?? 1000_fix_codebase/contracts/events/consignment_returned.json
+?? 1000_fix_codebase/contracts/events/consolidated_bill_generated.json
+?? 1000_fix_codebase/contracts/events/contract_activated.json
+?? 1000_fix_codebase/contracts/events/contract_expiring.json
+?? 1000_fix_codebase/contracts/events/contract_price_revised.json
+?? 1000_fix_codebase/contracts/events/contract_renewed.json
+?? 1000_fix_codebase/contracts/events/conversation_handed_off.json
+?? 1000_fix_codebase/contracts/events/conversation_hotline_captured.json
+?? 1000_fix_codebase/contracts/events/conversation_resolved.json
+?? 1000_fix_codebase/contracts/events/credit_note_issued.json
+?? 1000_fix_codebase/contracts/events/cwip_capitalised.json
+?? 1000_fix_codebase/contracts/events/data_case_custody_taken.json
+?? 1000_fix_codebase/contracts/events/data_case_custody_transferred.json
+?? 1000_fix_codebase/contracts/events/data_case_purged.json
+?? 1000_fix_codebase/contracts/events/data_case_recovered.json
+?? 1000_fix_codebase/contracts/events/data_case_z4_accessed.json
+?? 1000_fix_codebase/contracts/events/data_quality_failing.json
+?? 1000_fix_codebase/contracts/events/demand_plan_approved.json
+?? 1000_fix_codebase/contracts/events/depreciation_accrued.json
+?? 1000_fix_codebase/contracts/events/device_registered.json
+?? 1000_fix_codebase/contracts/events/device_transferred.json
+?? 1000_fix_codebase/contracts/events/device_warranty_updated.json
+?? 1000_fix_codebase/contracts/events/discount_approved.json
+?? 1000_fix_codebase/contracts/events/document_attached.json
+?? 1000_fix_codebase/contracts/events/document_mayan_synced.json
+?? 1000_fix_codebase/contracts/events/document_retention_applied.json
+?? 1000_fix_codebase/contracts/events/employee_hired.json
+?? 1000_fix_codebase/contracts/events/employee_joined.json
+?? 1000_fix_codebase/contracts/events/employee_keycloak_deprovisioned.json
+?? 1000_fix_codebase/contracts/events/employee_left.json
+?? 1000_fix_codebase/contracts/events/employee_moved.json
+?? 1000_fix_codebase/contracts/events/employee_role_changed.json
+?? 1000_fix_codebase/contracts/events/employment_contract_activated.json
+?? 1000_fix_codebase/contracts/events/employment_contract_generated.json
+?? 1000_fix_codebase/contracts/events/entitlement_consumed.json
+?? 1000_fix_codebase/contracts/events/envelope_completed.json
+?? 1000_fix_codebase/contracts/events/envelope_sent.json
+?? 1000_fix_codebase/contracts/events/equipment_calibration_overdue.json
+?? 1000_fix_codebase/contracts/events/equipment_calibration_recorded.json
+?? 1000_fix_codebase/contracts/events/estimate_approved.json
+?? 1000_fix_codebase/contracts/events/estimate_rejected.json
+?? 1000_fix_codebase/contracts/events/estimate_sent.json
+?? 1000_fix_codebase/contracts/events/ewaste_certificate_issued.json
+?? 1000_fix_codebase/contracts/events/ewaste_collected.json
+?? 1000_fix_codebase/contracts/events/ewaste_destruction_started.json
+?? 1000_fix_codebase/contracts/events/ewaste_triaged.json
+?? 1000_fix_codebase/contracts/events/facility_work_order_completed.json
+?? 1000_fix_codebase/contracts/events/goods_received.json
+?? 1000_fix_codebase/contracts/events/graded_stock_sold.json
+?? 1000_fix_codebase/contracts/events/grc_capa_closed.json
+?? 1000_fix_codebase/contracts/events/handover_completed.json
+?? 1000_fix_codebase/contracts/events/hse_dife_accident_reported.json
+?? 1000_fix_codebase/contracts/events/hse_incident_reported.json
+?? 1000_fix_codebase/contracts/events/hse_safety_committee_meeting.json
+?? 1000_fix_codebase/contracts/events/identity_deprovision_failed.json
+?? 1000_fix_codebase/contracts/events/identity_deprovisioned.json
+?? 1000_fix_codebase/contracts/events/identity_provision_failed.json
+?? 1000_fix_codebase/contracts/events/identity_provisioned.json
+?? 1000_fix_codebase/contracts/events/incentive_granted.json
+?? 1000_fix_codebase/contracts/events/inventory_suspense_reconciled.json
+?? 1000_fix_codebase/contracts/events/invoice_consolidated_b2b_created.json
+?? 1000_fix_codebase/contracts/events/invoice_created.json
+?? 1000_fix_codebase/contracts/events/invoice_paid.json
+?? 1000_fix_codebase/contracts/events/iot_alert_raised.json
+?? 1000_fix_codebase/contracts/events/itsm_ticket_created.json
+?? 1000_fix_codebase/contracts/events/itsm_ticket_resolved.json
+?? 1000_fix_codebase/contracts/events/journal_posted.json
+?? 1000_fix_codebase/contracts/events/knowledge_published.json
+?? 1000_fix_codebase/contracts/events/lead_converted_to_order.json
+?? 1000_fix_codebase/contracts/events/leave_approved.json
+?? 1000_fix_codebase/contracts/events/loyalty_account_created.json
+?? 1000_fix_codebase/contracts/events/loyalty_campaign_rewards_disbursed.json
+?? 1000_fix_codebase/contracts/events/loyalty_points_accrued.json
+?? 1000_fix_codebase/contracts/events/loyalty_points_redeemed.json
+?? 1000_fix_codebase/contracts/events/loyalty_tier_upgraded.json
+?? 1000_fix_codebase/contracts/events/loyalty_voucher_redeemed.json
+?? 1000_fix_codebase/contracts/events/marketplace_contact_revealed.json
+?? 1000_fix_codebase/contracts/events/marketplace_dispute_escalated.json
+?? 1000_fix_codebase/contracts/events/marketplace_dispute_raised.json
+?? 1000_fix_codebase/contracts/events/marketplace_dispute_resolved.json
+?? 1000_fix_codebase/contracts/events/marketplace_order_completed.json
+?? 1000_fix_codebase/contracts/events/marketplace_order_created.json
+?? 1000_fix_codebase/contracts/events/marketplace_refurb_listed.json
+?? 1000_fix_codebase/contracts/events/master-event-registry.json
+?? 1000_fix_codebase/contracts/events/mdm_change_requested.json
+?? 1000_fix_codebase/contracts/events/mdm_quality_audited.json
+?? 1000_fix_codebase/contracts/events/msp_alert_raised.json
+?? 1000_fix_codebase/contracts/events/msp_alert_ticketed.json
+?? 1000_fix_codebase/contracts/events/msp_remote_session_ended.json
+?? 1000_fix_codebase/contracts/events/msp_remote_session_started.json
+?? 1000_fix_codebase/contracts/events/msp_service_report_published.json
+?? 1000_fix_codebase/contracts/events/mushak_registered.json
+?? 1000_fix_codebase/contracts/events/ncr_capa_opened.json
+?? 1000_fix_codebase/contracts/events/ncr_closed.json
+?? 1000_fix_codebase/contracts/events/order_selected.json
+?? 1000_fix_codebase/contracts/events/partner_onboarded.json
+?? 1000_fix_codebase/contracts/events/party_identity_added.json
+?? 1000_fix_codebase/contracts/events/party_role_added.json
+?? 1000_fix_codebase/contracts/events/party_role_changed.json
+?? 1000_fix_codebase/contracts/events/party_role_removed.json
+?? 1000_fix_codebase/contracts/events/payment_executed.json
+?? 1000_fix_codebase/contracts/events/payment_requested.json
+?? 1000_fix_codebase/contracts/events/payout_approved.json
+?? 1000_fix_codebase/contracts/events/payout_executed.json
+?? 1000_fix_codebase/contracts/events/payroll_approved.json
+?? 1000_fix_codebase/contracts/events/payroll_attendance_locked.json
+?? 1000_fix_codebase/contracts/events/payroll_beftn_settled.json
+?? 1000_fix_codebase/contracts/events/payroll_beftn_submitted.json
+?? 1000_fix_codebase/contracts/events/payroll_posted.json
+?? 1000_fix_codebase/contracts/events/payroll_separation_computed.json
+?? 1000_fix_codebase/contracts/events/period_closed.json
+?? 1000_fix_codebase/contracts/events/planned/
+?? 1000_fix_codebase/contracts/events/platform_reconciliation_divergence.json
+?? 1000_fix_codebase/contracts/events/po_acknowledged.json
+?? 1000_fix_codebase/contracts/events/po_issued.json
+?? 1000_fix_codebase/contracts/events/portal-event-reconciliation-register.json
+?? 1000_fix_codebase/contracts/events/predictive_maintenance_wo_created.json
+?? 1000_fix_codebase/contracts/events/pricing_calculated.json
+?? 1000_fix_codebase/contracts/events/project_completed.json
+?? 1000_fix_codebase/contracts/events/project_created.json
+?? 1000_fix_codebase/contracts/events/project_milestone_completed.json
+?? 1000_fix_codebase/contracts/events/qc_ncr_raised.json
+?? 1000_fix_codebase/contracts/events/quotation_accepted.json
+?? 1000_fix_codebase/contracts/events/quotation_sent.json
+?? 1000_fix_codebase/contracts/events/referral_converted.json
+?? 1000_fix_codebase/contracts/events/rental_activated.json
+?? 1000_fix_codebase/contracts/events/rental_closed.json
+?? 1000_fix_codebase/contracts/events/rental_damage_assessed.json
+?? 1000_fix_codebase/contracts/events/rental_delivered.json
+?? 1000_fix_codebase/contracts/events/rental_reserved.json
+?? 1000_fix_codebase/contracts/events/rental_returned.json
+?? 1000_fix_codebase/contracts/events/revenue_recognized.json
+?? 1000_fix_codebase/contracts/events/scorecard_published.json
+?? 1000_fix_codebase/contracts/events/seller_approved.json
+?? 1000_fix_codebase/contracts/events/seller_cfo_approved.json
+?? 1000_fix_codebase/contracts/events/seller_kyc_rejected.json
+?? 1000_fix_codebase/contracts/events/seller_kyc_submitted.json
+?? 1000_fix_codebase/contracts/events/seller_kyc_verified.json
+?? 1000_fix_codebase/contracts/events/seller_quoted.json
+?? 1000_fix_codebase/contracts/events/seller_scored.json
+?? 1000_fix_codebase/contracts/events/seller_statement_issued.json
+?? 1000_fix_codebase/contracts/events/seller_tier_updated.json
+?? 1000_fix_codebase/contracts/events/service_order_created.json
+?? 1000_fix_codebase/contracts/events/service_order_deferred.json
+?? 1000_fix_codebase/contracts/events/service_order_device_swapped.json
+?? 1000_fix_codebase/contracts/events/service_order_resumed.json
+?? 1000_fix_codebase/contracts/events/shift_closed.json
+?? 1000_fix_codebase/contracts/events/site_assets_linked.json
+?? 1000_fix_codebase/contracts/events/storefront_order_dispatched.json
+?? 1000_fix_codebase/contracts/events/storefront_order_placed.json
+?? 1000_fix_codebase/contracts/events/storefront_payment_confirmed.json
+?? 1000_fix_codebase/contracts/events/storefront_refund_processed.json
+?? 1000_fix_codebase/contracts/events/subscription_cancelled.json
+?? 1000_fix_codebase/contracts/events/subscription_charged.json
+?? 1000_fix_codebase/contracts/events/subscription_dunning_escalated.json
+?? 1000_fix_codebase/contracts/events/subscription_refund_requested.json
+?? 1000_fix_codebase/contracts/events/subscription_reinstated.json
+?? 1000_fix_codebase/contracts/events/supplier_scorecard.json
+?? 1000_fix_codebase/contracts/events/tds_return_filed.json
+?? 1000_fix_codebase/contracts/events/token_issued.json
+?? 1000_fix_codebase/contracts/events/tradein_collected.json
+?? 1000_fix_codebase/contracts/events/tradein_graded.json
+?? 1000_fix_codebase/contracts/events/tradein_offered.json
+?? 1000_fix_codebase/contracts/events/tradein_paid.json
+?? 1000_fix_codebase/contracts/events/tradein_refurbished.json
+?? 1000_fix_codebase/contracts/events/tradein_resale_ready.json
+?? 1000_fix_codebase/contracts/events/tradein_wiped.json
+?? 1000_fix_codebase/contracts/events/training_passed.json
+?? 1000_fix_codebase/contracts/events/vat_return_filed.json
+?? 1000_fix_codebase/contracts/events/vat_return_filed_online.json
+?? 1000_fix_codebase/contracts/events/vat_return_prepared.json
+?? 1000_fix_codebase/contracts/events/vat_subledger_reconciled.json
+?? 1000_fix_codebase/contracts/events/vat_subledger_variance_detected.json
+?? 1000_fix_codebase/contracts/events/vehicle_assigned.json
+?? 1000_fix_codebase/contracts/events/warranty_claim_created.json
+?? 1000_fix_codebase/contracts/events/warranty_claim_decided.json
+?? 1000_fix_codebase/contracts/events/warranty_claim_remitted.json
+?? 1000_fix_codebase/contracts/events/warranty_claim_submitted.json
+?? 1000_fix_codebase/contracts/events/withholding_certificate_issued.json
+?? 1000_fix_codebase/contracts/openapi/asset.json
+?? 1000_fix_codebase/contracts/openapi/circular.json
+?? 1000_fix_codebase/contracts/openapi/commercial.json
+?? 1000_fix_codebase/contracts/openapi/customer-engagement.json
+?? 1000_fix_codebase/contracts/openapi/finance.json
+?? 1000_fix_codebase/contracts/openapi/governance.json
+?? 1000_fix_codebase/contracts/openapi/marketplace.json
+?? 1000_fix_codebase/contracts/openapi/people.json
+?? 1000_fix_codebase/contracts/openapi/platform.json
+?? 1000_fix_codebase/contracts/openapi/service-delivery.json
+?? 1000_fix_codebase/contracts/openapi/supply-chain.json
+?? 1000_fix_codebase/contracts/pacts/w7_trust_advertising_pact.json
+?? 1000_fix_codebase/customer_api.py
+?? 1000_fix_codebase/dags/telemetry_retention_dag.py
+?? 1000_fix_codebase/docs/analytics/
+?? 1000_fix_codebase/docs/compliance/
+?? 1000_fix_codebase/docs/debt/
+?? 1000_fix_codebase/docs/decisions/D-017-g4-tranche-decision-waves-5-9.md
+?? 1000_fix_codebase/docs/decisions/D-036-l6-rmm-agent-pilot.md
+?? 1000_fix_codebase/docs/decisions/D-037-kafka-event-bus-migration.md
+?? 1000_fix_codebase/docs/decisions/D-038-odoo20-upgrade-slot-execution.md
+?? 1000_fix_codebase/docs/decisions/D-039-ml-platform-deployment-and-gpu-sizing.md
+?? 1000_fix_codebase/docs/decisions/D-040-m24-m60-grc-direction-ruling.md
+?? 1000_fix_codebase/docs/decisions/D-041-l6-kyc-seller-onboarding-residency-path.md
+?? 1000_fix_codebase/docs/decisions/D-042-three-release-expand-contract-migration-protocol.md
+?? 1000_fix_codebase/docs/governance/GV-003-production-readiness-go-decision.md
+?? 1000_fix_codebase/docs/governance/SC-003-DPIA-signoff-and-readiness.md
+?? 1000_fix_codebase/docs/governance/content-approval-g6-signoff.md
+?? 1000_fix_codebase/docs/governance/dsr-erasure-saga-drill-record.md
+?? 1000_fix_codebase/docs/governance/fitness-function-promotion-record.md
+?? 1000_fix_codebase/docs/governance/programme-content-lead-appointment.md
+?? 1000_fix_codebase/docs/governance/stub-ledger-audit-r06-m04.md
+?? 1000_fix_codebase/docs/governance/v1.0-scope-completion-statement.md
+?? 1000_fix_codebase/docs/guides/bn-terminology-glossary.md
+?? 1000_fix_codebase/docs/guides/digest-pinning-policy.md
+?? 1000_fix_codebase/docs/guides/odoo-runtime-dependency-security.md
+?? 1000_fix_codebase/docs/operations/
+?? 1000_fix_codebase/docs/operator/
+?? 1000_fix_codebase/docs/p09/
+?? 1000_fix_codebase/docs/r10/
+?? 1000_fix_codebase/docs/runbooks/
+?? 1000_fix_codebase/docs/security/
+?? 1000_fix_codebase/docs/traceability/R01-correction-report.md
+?? 1000_fix_codebase/docs/traceability/R01-reaudit-report-2026-10-22.md
+?? 1000_fix_codebase/docs/traceability/evidence/_baseline-20261022.txt
+?? 1000_fix_codebase/docs/traceability/evidence/_quarantine/
+?? 1000_fix_codebase/docs/traceability/evidence/bengali-rendering-verification.json
+?? 1000_fix_codebase/docs/traceability/evidence/branch-rollout-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/cfm-05-customer-app-conformance.json
+?? 1000_fix_codebase/docs/traceability/evidence/ci-nightly-run-20261021T144612Z.json
+?? 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261021T142458Z.json
+?? 1000_fix_codebase/docs/traceability/evidence/ci-pre-merge-run-20261021T144742Z.json
+?? 1000_fix_codebase/docs/traceability/evidence/consumer-idempotency-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/content-approval-register.json
+?? 1000_fix_codebase/docs/traceability/evidence/doctor-de20-20261021T144558Z.json
+?? 1000_fix_codebase/docs/traceability/evidence/dual-write-parity-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/event-bus-cutover-log.json
+?? 1000_fix_codebase/docs/traceability/evidence/event-schema-registry-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/fork-audit-and-oca-v20-matrix.json
+?? 1000_fix_codebase/docs/traceability/evidence/g5-pe004-performance-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g5-pe007-dr-drill-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g6-pe004-performance-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g6-pe007-dr-drill-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g7-pe004-performance-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g7-pe007-dr-drill-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g8-pe004-performance-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/g8-pe007-full-estate-dr-drill-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/gate-g5-signed-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/gate-g6-signed-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/gate-g7-signed-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/gate-g8-signed-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/kafka-cluster-survival-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/kafka-dlq-replay-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/master-data-baseline-latest.json
+?? 1000_fix_codebase/docs/traceability/evidence/r01-dr-promotion-proof.json
+?? 1000_fix_codebase/docs/traceability/evidence/r01-dr-replication-proof.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m01-dbt-build-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m01-migration-reconciliation.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m01-nfr039-performance-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m02-data-catalogue-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m02-dq-monitoring-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m02-lineage-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m02-nfr086c-residency-scan.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m03-pdm-closed-loop-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m03-retention-restore-drill.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m03-stt-production-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m03-telemetry-load-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m04-debt-burndown-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m04-fitness-promotion-record.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m04-hardening-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m04-runbooks-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m05-l9-pentest-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r09-m05-security-remediation-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m01-consolidation-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m01-dependency-isolation-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m01-localisation-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m01-nil-return-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m01-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-census-conformity-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-disposition-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-m25-rtm.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-m26-rtm.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-m32-rtm.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-m42-rtm.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m02-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m03-event-registry-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m03-openapi-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-clone-masking-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-dr-rehearsal-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-environment-data-rules-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-gp12-drill-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-ha-kill-node-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-handover-signoff.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-secret-scan-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m04-training-reset-cohort-alpha.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-go-nogo-decision.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-mg004-business-signoff.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-migration-rehearsal-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-readiness-dossier-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r10-m05-training-closure-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-cutover-execution-evidence.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-final-volume-rehearsal.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-hypercare-day1-stability-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-month1-operational-proofs.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-reconciliation-presignature.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m01-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m02-archive-register.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m02-decommission-register.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m02-legacy-48-reconciliations.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m02-legacy-reference-verification.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m02-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-internal-audit-opinion.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-iso9001-surveillance-result.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-license-register-annual-review.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-pdpa-compliance-attestation.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-security-closure-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m03-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m04-benefits-realisation-report.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m04-commercial-closure-statement.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m04-programme-financial-close.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m04-service-transition-handover.json
+?? 1000_fix_codebase/docs/traceability/evidence/r11-m04-summary-audit.json
+?? 1000_fix_codebase/docs/traceability/g5-gate-closure-record.md
+?? 1000_fix_codebase/docs/traceability/g5-gate-profile-performance-dr-report.md
+?? 1000_fix_codebase/docs/traceability/g8-pe007-disaster-recovery-drill-report.md
+?? 1000_fix_codebase/docs/traceability/quarantine-invented/
+?? 1000_fix_codebase/docs/traceability/r10-m02-disposition-register.md
+?? 1000_fix_codebase/docs/traceability/r10-m04-operator-handover.md
+?? 1000_fix_codebase/docs/traceability/r10-m05-readiness-dossier.md
+?? 1000_fix_codebase/docs/traceability/r10-m05-steering-pack.md
+?? 1000_fix_codebase/docs/traceability/r11-m01-cutover-execution-log.md
+?? 1000_fix_codebase/docs/traceability/r11-m01-cutover-runbook.md
+?? 1000_fix_codebase/docs/traceability/r11-m01-month1-close-report.md
+?? 1000_fix_codebase/docs/traceability/r11-m02-archive-integrity-proof.md
+?? 1000_fix_codebase/docs/traceability/r11-m02-decommission-records.md
+?? 1000_fix_codebase/docs/traceability/r11-m02-legacy-lookup-proof.md
+?? 1000_fix_codebase/docs/traceability/r11-m02-reconciliation-signoffs.md
+?? 1000_fix_codebase/docs/traceability/r11-m03-internal-audit-opinion.md
+?? 1000_fix_codebase/docs/traceability/r11-m03-iso9001-surveillance-report.md
+?? 1000_fix_codebase/docs/traceability/r11-m03-license-gate-proof.md
+?? 1000_fix_codebase/docs/traceability/r11-m03-pdpa-closure-record.md
+?? 1000_fix_codebase/docs/traceability/r11-m03-security-closure-report.md
+?? 1000_fix_codebase/docs/traceability/r11-m04-benefits-realisation-report.md
+?? 1000_fix_codebase/docs/traceability/r11-m04-commercial-closure-statement.md
+?? 1000_fix_codebase/docs/traceability/r11-m04-programme-financial-close.md
+?? 1000_fix_codebase/docs/traceability/r11-m04-service-transition-handover.md
+?? 1000_fix_codebase/docs/training/
+?? 1000_fix_codebase/infra/compose/docker-compose.dev.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.dr.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.ha.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.perf.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.prod.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.sandbox.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.sit.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.staging.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.superset.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.training.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.uat.yml
+?? 1000_fix_codebase/infra/compose/docker-compose.vault.yml
+?? 1000_fix_codebase/infra/compose/postgres-replication/
+?? 1000_fix_codebase/infra/docker/
+?? 1000_fix_codebase/infra/odoo-conf/
+?? 1000_fix_codebase/libs/py/fix_env_guard/tests/
+?? 1000_fix_codebase/libs/py/fix_events/dual_write.py
+?? 1000_fix_codebase/libs/py/fix_events/kafka_bus.py
+?? 1000_fix_codebase/libs/py/fix_events/migration.py
+?? 1000_fix_codebase/libs/py/fix_events/replay.py
+?? 1000_fix_codebase/libs/py/fix_events/tests/
+?? 1000_fix_codebase/libs/py/fix_residency/tests/
+?? 1000_fix_codebase/libs/py/fix_telemetry/tests/
+?? 1000_fix_codebase/libs/py/payout_rail/
+?? 1000_fix_codebase/libs/py/payroll_engine/beftn.py
+?? 1000_fix_codebase/libs/py/payroll_engine/tests/
+?? 1000_fix_codebase/libs/py/trust_services/
+?? 1000_fix_codebase/migrations/extracts/attendance_opening_extract.json
+?? 1000_fix_codebase/migrations/fixtures/
+?? 1000_fix_codebase/migrations/load_attendance_opening.py
+?? 1000_fix_codebase/migrations/load_reference_data.py
+?? 1000_fix_codebase/migrations/target_db.py
+?? 1000_fix_codebase/migrations/tests/conftest.py
+?? 1000_fix_codebase/migrations/tests/test_mig_totals.py
+?? 1000_fix_codebase/migrations/tests/test_migration_attendance.py
+?? 1000_fix_codebase/migrations/tests/test_migration_devices.py
+?? 1000_fix_codebase/migrations/tests/test_migration_loader_rules.py
+?? 1000_fix_codebase/sbom.cdx.json
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/dim_branch.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/dim_customer.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/dim_date.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/dim_device.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/dim_technician.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/fact_conversations.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/fact_invoices.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/fact_nps.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/core/fact_warranty_claims.sql
+?? 1000_fix_codebase/services/bi-warehouse/dbt/models/sources.yml
+?? 1000_fix_codebase/services/bi-warehouse/dbt/profiles.yml
+?? 1000_fix_codebase/services/bi-warehouse/src/
+?? 1000_fix_codebase/services/bi-warehouse/tests/
+?? 1000_fix_codebase/services/conversational-ai/tests/
+?? 1000_fix_codebase/services/corporate-sso/
+?? 1000_fix_codebase/services/dispatch-scoring/tests/test_dispatch_api_endpoints.py
+?? 1000_fix_codebase/services/dispatch-scoring/tests/test_dispatch_geospatial_routing.py
+?? 1000_fix_codebase/services/dispatch-scoring/tests/test_dispatch_scorer_dimensions.py
+?? 1000_fix_codebase/services/document-generation/tests/test_document_generation_runtime.py
+?? 1000_fix_codebase/services/dsr-orchestrator/tests/test_dsr_saga_lifecycle.py
+?? 1000_fix_codebase/services/evat-adapter/tests/test_evat_submission_paths.py
+?? 1000_fix_codebase/services/identity-lifecycle/
+?? 1000_fix_codebase/services/local-residency-stub/tests/
+?? 1000_fix_codebase/services/ml-gateway/tests/test_ml_gateway_model_ops.py
+?? 1000_fix_codebase/services/notification-dispatcher/tests/conftest.py
+?? 1000_fix_codebase/services/notification-dispatcher/tests/test_channel_adapters.py
+?? 1000_fix_codebase/services/notification-dispatcher/tests/test_dispatch_pipeline.py
+?? 1000_fix_codebase/services/notification-dispatcher/tests/test_ops_http.py
+?? 1000_fix_codebase/services/ocr/tests/test_ocr_harness_cli.py
+?? 1000_fix_codebase/services/payment-connectors/tests/test_gateway_transport.py
+?? 1000_fix_codebase/services/payment-connectors/tests/test_router_confirm_certifier.py
+?? 1000_fix_codebase/services/payroll-engine/tests/test_payroll_engine_service_shell.py
+?? 1000_fix_codebase/services/pricing-engine/tests/test_pricing_paths.py
+?? 1000_fix_codebase/services/reconciliation/tests/test_bank_feed_edge_cases.py
+?? 1000_fix_codebase/services/reconciliation/tests/test_reconciliation_ladder.py
+?? 1000_fix_codebase/services/rmm-collector/tests/test_rmm_odoo_client.py
+?? 1000_fix_codebase/services/settlement-engine/tests/test_seller_statement_gmv.py
+?? 1000_fix_codebase/services/sla-engine/tests/test_sla_clock_edges.py
+?? 1000_fix_codebase/services/stt/tests/test_stt_fallbacks.py
+?? 1000_fix_codebase/services/stt/tests/test_stt_production_drift.py
+?? 1000_fix_codebase/services/workflow/tests/test_brand_registry_lookup.py
+?? 1000_fix_codebase/test_customer_api.py
+?? 1000_fix_codebase/tests/test_audit_repo_formats_po.py
+?? 1000_fix_codebase/tests/test_bengali_payslip_rendering.py
+?? 1000_fix_codebase/tests/test_brand_warranty_dag_xcom.py
+?? 1000_fix_codebase/tests/test_check_translations_per_field.py
+?? 1000_fix_codebase/tests/test_check_translations_wrapped_po.py
+?? 1000_fix_codebase/tests/test_dsr_erasure_saga_drill.py
+?? 1000_fix_codebase/tests/test_extract_translations_odoo_po.py
+?? 1000_fix_codebase/tests/test_g4_03_corporate_transactions.py
+?? 1000_fix_codebase/tests/test_g4_06_pdpa_readiness.py
+?? 1000_fix_codebase/tests/test_g4_07_nightly_journeys.py
+?? 1000_fix_codebase/tests/test_journey_06_msp.py
+?? 1000_fix_codebase/tests/test_journey_07_marketplace.py
+?? 1000_fix_codebase/tests/test_journey_08_rental.py
+?? 1000_fix_codebase/tests/test_journey_09_tradein.py
+?? 1000_fix_codebase/tests/test_journey_10_ewaste.py
+?? 1000_fix_codebase/tests/test_journey_11_data_services.py
+?? 1000_fix_codebase/tests/test_journey_12_procurement.py
+?? 1000_fix_codebase/tests/test_journey_13_payroll.py
+?? 1000_fix_codebase/tests/test_journey_14_qms.py
+?? 1000_fix_codebase/tests/test_l9_pentest_measured_vectors.py
+?? 1000_fix_codebase/tests/test_license_register_audit.py
+?? 1000_fix_codebase/tests/test_m12_m53_break.py
+?? 1000_fix_codebase/tests/test_m16_m42_break.py
+?? 1000_fix_codebase/tests/test_m51_m65_dependency_isolation.py
+?? 1000_fix_codebase/tests/test_pdpa_breach_notification_drill.py
+?? 1000_fix_codebase/tests/test_r05_m04_event_reconciliation.py
+?? 1000_fix_codebase/tests/test_seed_pilot_alias_linking.py
+?? 1000_fix_codebase/tests/test_telemetry_retention_dag.py
+?? 1000_fix_codebase/tests/test_tooling_audit_programme_controls.py
+?? 1000_fix_codebase/tests/test_tooling_clone_with_masking.py
+?? 1000_fix_codebase/tests/test_tooling_demonstrate_sla_engine.py
+?? 1000_fix_codebase/tests/test_tooling_demonstrate_walkin_intake.py
+?? 1000_fix_codebase/tests/test_tooling_disposition_p01m03_findings.py
+?? 1000_fix_codebase/tests/test_tooling_dr_drills.py
+?? 1000_fix_codebase/tests/test_tooling_drill_build_once_promote.py
+?? 1000_fix_codebase/tests/test_tooling_events_consumer_cutover.py
+?? 1000_fix_codebase/tests/test_tooling_events_consumer_idempotency.py
+?? 1000_fix_codebase/tests/test_tooling_events_dual_write_parity.py
+?? 1000_fix_codebase/tests/test_tooling_events_event_registry.py
+?? 1000_fix_codebase/tests/test_tooling_events_kafka_cluster.py
+?? 1000_fix_codebase/tests/test_tooling_events_kafka_dlq_replay.py
+?? 1000_fix_codebase/tests/test_tooling_execute_branch_rollout.py
+?? 1000_fix_codebase/tests/test_tooling_execute_commercial_closure.py
+?? 1000_fix_codebase/tests/test_tooling_execute_cutover_weekend.py
+?? 1000_fix_codebase/tests/test_tooling_execute_financial_closure.py
+?? 1000_fix_codebase/tests/test_tooling_execute_legacy_decommission.py
+?? 1000_fix_codebase/tests/test_tooling_execute_service_transition.py
+?? 1000_fix_codebase/tests/test_tooling_gate_dr_criteria.py
+?? 1000_fix_codebase/tests/test_tooling_generate_dod15_remediation.py
+?? 1000_fix_codebase/tests/test_tooling_generate_r11_m02_reconciliations.py
+?? 1000_fix_codebase/tests/test_tooling_load_master_data.py
+?? 1000_fix_codebase/tests/test_tooling_measure_benefits_realisation.py
+?? 1000_fix_codebase/tests/test_tooling_perf_gate_profiles.py
+?? 1000_fix_codebase/tests/test_tooling_perf_journey_hardening_pass.py
+?? 1000_fix_codebase/tests/test_tooling_perf_nfr039_profile.py
+?? 1000_fix_codebase/tests/test_tooling_perf_telemetry_load_test.py
+?? 1000_fix_codebase/tests/test_tooling_reset_training_cohort.py
+?? 1000_fix_codebase/tests/test_tooling_run_final_cutover_rehearsal.py
+?? 1000_fix_codebase/tests/test_tooling_run_production_migration_rehearsal.py
+?? 1000_fix_codebase/tests/test_tooling_run_r11_m03_security_review.py
+?? 1000_fix_codebase/tests/test_tooling_verify_archive_integrity.py
+?? 1000_fix_codebase/tests/test_tooling_verify_fork_and_oca_matrix.py
+?? 1000_fix_codebase/tests/test_tooling_verify_iso9001_surveillance.py
+?? 1000_fix_codebase/tests/test_tooling_verify_legacy_reference_lookup.py
+?? 1000_fix_codebase/tests/test_tooling_verify_pdm_closed_loop.py
+?? 1000_fix_codebase/tests/test_tooling_verify_pdpa_closure.py
+?? 1000_fix_codebase/tests/test_tooling_verify_permission_negative_suite.py
+?? 1000_fix_codebase/tests/test_tooling_verify_r10_m04_all.py
+?? 1000_fix_codebase/tests/test_tooling_verify_r10_m05_all.py
+?? 1000_fix_codebase/tests/test_tooling_verify_r11_m01_all.py
+?? 1000_fix_codebase/tests/test_tooling_verify_r11_m03_m04_all.py
+?? 1000_fix_codebase/tests/test_tooling_verify_stock_layer.py
+?? 1000_fix_codebase/tests/test_verify_bengali_rendering_profile.py
+?? 1000_fix_codebase/tests/test_verify_r11_m02_derived_status.py
+?? 1000_fix_codebase/tests/test_w7_trust_advertising.py
+?? 1000_fix_codebase/tooling/ci/odoo-security-overrides.txt
+?? 1000_fix_codebase/tooling/ci/run-mypy.py
+?? 1000_fix_codebase/tooling/ci/validate-workflow.py
+?? 1000_fix_codebase/tooling/dr/
+?? 1000_fix_codebase/tooling/e2e/ci-stack-up.sh
+?? 1000_fix_codebase/tooling/e2e/journeys/j06-msp-alert-lifecycle.spec.ts
+?? 1000_fix_codebase/tooling/e2e/journeys/j08-rental-lifecycle.spec.ts
+?? 1000_fix_codebase/tooling/e2e/journeys/j10-ewaste-disposal.spec.ts
+?? 1000_fix_codebase/tooling/e2e/journeys/j13-payroll-cycle.spec.ts
+?? 1000_fix_codebase/tooling/e2e/journeys/j14-qms-capa-lifecycle.spec.ts
+?? 1000_fix_codebase/tooling/e2e/journeys/j15-month-close-to-vat.spec.ts
+?? 1000_fix_codebase/tooling/events/
+?? 1000_fix_codebase/tooling/fitness/check-lb06-analytics-readonly.py
+?? 1000_fix_codebase/tooling/fitness/check_isolation_rules.py
+?? 1000_fix_codebase/tooling/fitness/check_manifest_depends.py
+?? 1000_fix_codebase/tooling/fitness/evidence/branch-rollout-evidence.json
+?? 1000_fix_codebase/tooling/fitness/evidence/external-surfaces-pentest-report.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T152912Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261017T153522Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T044142Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T101925Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T102044Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T110258Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T114920Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T115153Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T122118Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T125725Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T140220Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T141024Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T143024Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261018T143141Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T054845Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T060925Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T080252Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T102722Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T102853Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T113951Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T123325Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261019T125732Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T025620Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T034352Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T034529Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T041005Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T041757Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T080403Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T133633Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T150437Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261020T155617Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T035026Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T045935Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T050341Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T052359Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T082919Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T084536Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T100617Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T120542Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T121520Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T124334Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T130118Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T131628Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T131837Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T141843Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T142352Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T144639Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261021T145318Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T063549Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T071220Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T071645Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T073319Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T074150Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T075331Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T082452Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T100340Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T105024Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/fitness-20261022T113322Z.json
+?? 1000_fix_codebase/tooling/fitness/evidence/pilot-onboarded-cohort.json
+?? 1000_fix_codebase/tooling/fitness/evidence/tenant-isolation-scale-evidence.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-175817.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-180538.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-200102.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-200339.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-201550.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-204356.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-205430.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-210132.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-211850.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-222038.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-222058.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-222117.json
+?? 1000_fix_codebase/tooling/gate/evidence/gate-gp-20261021-223053.json
+?? 1000_fix_codebase/tooling/generators/event_publishers.py
+?? 1000_fix_codebase/tooling/generators/generate-isolation-rules.py
+?? 1000_fix_codebase/tooling/generators/generate_event_schemas.py
+?? 1000_fix_codebase/tooling/generators/generate_openapi_contracts.py
+?? 1000_fix_codebase/tooling/performance/
+?? 1000_fix_codebase/tooling/scripts/audit-r08-tables.py
+?? 1000_fix_codebase/tooling/scripts/audit_environment_data_rules.py
+?? 1000_fix_codebase/tooling/scripts/audit_manifest_census.py
+?? 1000_fix_codebase/tooling/scripts/audit_programme_controls.py
+?? 1000_fix_codebase/tooling/scripts/build-test-db.py
+?? 1000_fix_codebase/tooling/scripts/check-secrets.py
+?? 1000_fix_codebase/tooling/scripts/disposition_p01m03_findings.py
+?? 1000_fix_codebase/tooling/scripts/drill_build_once_promote.py
+?? 1000_fix_codebase/tooling/scripts/execute-branch-rollout.py
+?? 1000_fix_codebase/tooling/scripts/execute_commercial_closure.py
+?? 1000_fix_codebase/tooling/scripts/execute_cutover_weekend.py
+?? 1000_fix_codebase/tooling/scripts/execute_financial_closure.py
+?? 1000_fix_codebase/tooling/scripts/execute_legacy_decommission.py
+?? 1000_fix_codebase/tooling/scripts/execute_service_transition.py
+?? 1000_fix_codebase/tooling/scripts/generate_dod15_remediation.py
+?? 1000_fix_codebase/tooling/scripts/generate_module_runbooks.py
+?? 1000_fix_codebase/tooling/scripts/generate_r11_m02_reconciliations.py
+?? 1000_fix_codebase/tooling/scripts/load_content_assets.py
+?? 1000_fix_codebase/tooling/scripts/loadtest-tenant-isolation.py
+?? 1000_fix_codebase/tooling/scripts/measure_benefits_realisation.py
+?? 1000_fix_codebase/tooling/scripts/onboard-pilot-sellers.py
+?? 1000_fix_codebase/tooling/scripts/pentest-external-surfaces.py
+?? 1000_fix_codebase/tooling/scripts/reset_training_cohort.py
+?? 1000_fix_codebase/tooling/scripts/run_final_cutover_rehearsal.py
+?? 1000_fix_codebase/tooling/scripts/run_l9_estate_pentest.py
+?? 1000_fix_codebase/tooling/scripts/run_license_register_audit.py
+?? 1000_fix_codebase/tooling/scripts/run_production_migration_rehearsal.py
+?? 1000_fix_codebase/tooling/scripts/run_r11_m03_security_review.py
+?? 1000_fix_codebase/tooling/scripts/seed-51-branches.py
+?? 1000_fix_codebase/tooling/scripts/vault_secret_manager.py
+?? 1000_fix_codebase/tooling/scripts/verify-compose-digests.py
+?? 1000_fix_codebase/tooling/scripts/verify-storefront-e2e.py
+?? 1000_fix_codebase/tooling/scripts/verify_archive_integrity.py
+?? 1000_fix_codebase/tooling/scripts/verify_bengali_rendering.py
+?? 1000_fix_codebase/tooling/scripts/verify_debt_register.py
+?? 1000_fix_codebase/tooling/scripts/verify_iso9001_surveillance.py
+?? 1000_fix_codebase/tooling/scripts/verify_legacy_reference_lookup.py
+?? 1000_fix_codebase/tooling/scripts/verify_pdm_closed_loop.py
+?? 1000_fix_codebase/tooling/scripts/verify_pdpa_closure.py
+?? 1000_fix_codebase/tooling/scripts/verify_r10_m01_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r10_m02_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r10_m04_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r10_m05_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r11_m01_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r11_m02_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r11_m03_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_r11_m04_all.py
+?? 1000_fix_codebase/tooling/scripts/verify_runbook_coverage.py
+?? 1000_fix_codebase/tooling/tests/test_generate_isolation_rules.py
+?? 1000_fix_codebase/tooling/tests/test_odoo_security_overrides.py
+?? 1000_fix_codebase/tooling/tests/test_run_mypy.py
+?? 1000_fix_codebase/tooling/upgrade/
+?? dev/
+?? roadmap/Revise_roadmap/Phase_05/
+?? roadmap/Revise_roadmap/Phase_06/
+?? roadmap/Revise_roadmap/Phase_08/
+?? roadmap/Revise_roadmap/Phase_09/
+?? roadmap/Revise_roadmap/Phase_10/
+?? roadmap/Revise_roadmap/Phase_11/
+?? roadmap/Revise_roadmap/Phase_2/
+?? roadmap/Revise_roadmap/Phase_3/
+?? roadmap/Revise_roadmap/Phase_4/
+?? roadmap/Revise_roadmap/Phase_7/
+?? roadmap/Revise_roadmap/phase_1/

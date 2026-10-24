@@ -2,8 +2,6 @@
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
-from libs.py.fix_events import publish
-
 
 class FixLoyaltyProgram(models.Model):
     _name = "fix.loyalty.program"

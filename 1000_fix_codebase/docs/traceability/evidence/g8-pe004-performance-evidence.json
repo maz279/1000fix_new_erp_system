@@ -1,0 +1,80 @@
+{
+  "milestone": "R09-M01",
+  "task": "R09-M01-T03",
+  "standard": "NFR-039",
+  "target_description": "Warehouse analytical query latency <= 10.0s p95 under 1.5x peak query load",
+  "audit_timestamp": "2026-10-22T18:46:05.848296+00:00",
+  "sla_budget_sec": 10.0,
+  "workload": {
+    "baseline_concurrency": 10,
+    "peak_multiplier": 1.5,
+    "requested_concurrency": 15,
+    "requested_queries": 150
+  },
+  "engine": {
+    "base_url": "http://127.0.0.1:8123",
+    "database": "fix_analytics",
+    "fact_service_orders_rows": 500
+  },
+  "workload_measured": {
+    "actual_concurrency": 15,
+    "total_queries_executed": 150,
+    "wall_clock_time_sec": 0.6,
+    "throughput_queries_per_sec": 248.17
+  },
+  "latencies_sec": {
+    "p50": 0.0436,
+    "p90": 0.1338,
+    "p95": 0.1781,
+    "p99": 0.2689,
+    "min": 0.0081,
+    "max": 0.2909
+  },
+  "error_count": 0,
+  "error_rate_pct": 0.0,
+  "error_samples": [],
+  "sla_met": true,
+  "status": "PASS",
+  "query_breakdown": {
+    "Q1_BRANCH_CATEGORY_PERF": {
+      "executions": 30,
+      "errors": 0,
+      "rows_last": 2,
+      "p50_ms": 26.46,
+      "p95_ms": 173.4,
+      "max_ms": 178.27
+    },
+    "Q2_MONTHLY_REVENUE_TREND": {
+      "executions": 30,
+      "errors": 0,
+      "rows_last": 0,
+      "p50_ms": 50.86,
+      "p95_ms": 268.86,
+      "max_ms": 290.92
+    },
+    "Q3_WARRANTY_LOSS_RATIO": {
+      "executions": 30,
+      "errors": 0,
+      "rows_last": 0,
+      "p50_ms": 52.03,
+      "p95_ms": 218.67,
+      "max_ms": 220.39
+    },
+    "Q4_NPS_SENTIMENT_DISTRIBUTION": {
+      "executions": 30,
+      "errors": 0,
+      "rows_last": 0,
+      "p50_ms": 30.55,
+      "p95_ms": 124.12,
+      "max_ms": 133.75
+    },
+    "Q5_TECHNICIAN_EFFICIENCY": {
+      "executions": 30,
+      "errors": 0,
+      "rows_last": 0,
+      "p50_ms": 53.5,
+      "p95_ms": 165.56,
+      "max_ms": 178.07
+    }
+  }
+}

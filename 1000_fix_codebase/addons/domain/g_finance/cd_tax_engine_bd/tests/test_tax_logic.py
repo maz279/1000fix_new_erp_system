@@ -6,19 +6,21 @@ negative/discount-overflow rejection, the Mushak-threshold rule, TDS
 categories incl. exempt certificates and unknown categories.
 The pure logic imports WITHOUT Odoo (L5-pure), so these run anywhere.
 """
+
 from __future__ import annotations
 
 import sys
 import unittest
 from decimal import Decimal
 from pathlib import Path
+
 import pytest
 
 pytestmark = [pytest.mark.tax, pytest.mark.financial]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "models"))
 
-from tax_logic import (  # noqa: E402
+from tax_logic import (
     DeterminationError,
     TaxLine,
     determine_tax,
@@ -37,10 +39,12 @@ class TestDetermineTaxStandard(unittest.TestCase):
         self.assertEqual(result.lines[0].treatment, "standard_15")
 
     def test_standard_15_multi_line_sums(self):
-        result = determine_tax([
-            TaxLine("A", D("2"), D("150.50")),
-            TaxLine("B", D("1"), D("99.99")),
-        ])
+        result = determine_tax(
+            [
+                TaxLine("A", D("2"), D("150.50")),
+                TaxLine("B", D("1"), D("99.99")),
+            ]
+        )
         self.assertEqual(result.total_taxable, D("400.99"))
         self.assertEqual(result.total_vat, D("60.15"))
         self.assertEqual(result.lines[0].vat_amount, D("45.15"))
@@ -80,13 +84,15 @@ class TestDetermineTaxTreatments(unittest.TestCase):
         self.assertEqual(result.total_vat, D("10.00"))
 
     def test_reduced_override_7_5(self):
-        result = determine_tax([TaxLine("R", D("1"), D("200"), treatment="reduced",
-                                        rate_override=D("7.5"))])
+        result = determine_tax(
+            [TaxLine("R", D("1"), D("200"), treatment="reduced", rate_override=D("7.5"))]
+        )
         self.assertEqual(result.total_vat, D("15.00"))
 
     def test_reduced_override_10(self):
-        result = determine_tax([TaxLine("R", D("1"), D("100"), treatment="reduced",
-                                        rate_override=D("10"))])
+        result = determine_tax(
+            [TaxLine("R", D("1"), D("100"), treatment="reduced", rate_override=D("10"))]
+        )
         self.assertEqual(result.total_vat, D("10.00"))
 
     def test_truncated_flags_register(self):
@@ -118,23 +124,27 @@ class TestDetermineTaxValidation(unittest.TestCase):
 
     def test_standard_rate_override_rejected(self):
         with self.assertRaises(DeterminationError):
-            determine_tax([TaxLine("A", D("1"), D("100"), treatment="standard_15",
-                                    rate_override=D("10"))])
+            determine_tax(
+                [TaxLine("A", D("1"), D("100"), treatment="standard_15", rate_override=D("10"))]
+            )
 
     def test_nonzero_exempt_rate_rejected(self):
         with self.assertRaises(DeterminationError):
-            determine_tax([TaxLine("A", D("1"), D("100"), treatment="exempt",
-                                    rate_override=D("5"))])
+            determine_tax(
+                [TaxLine("A", D("1"), D("100"), treatment="exempt", rate_override=D("5"))]
+            )
 
     def test_nonzero_zero_rated_rate_rejected(self):
         with self.assertRaises(DeterminationError):
-            determine_tax([TaxLine("A", D("1"), D("100"), treatment="zero_rated",
-                                    rate_override=D("5"))])
+            determine_tax(
+                [TaxLine("A", D("1"), D("100"), treatment="zero_rated", rate_override=D("5"))]
+            )
 
     def test_unscheduled_reduced_rate_rejected(self):
         with self.assertRaises(DeterminationError):
-            determine_tax([TaxLine("A", D("1"), D("100"), treatment="reduced",
-                                    rate_override=D("12"))])
+            determine_tax(
+                [TaxLine("A", D("1"), D("100"), treatment="reduced", rate_override=D("12"))]
+            )
 
 
 class TestMushakThreshold(unittest.TestCase):
@@ -192,8 +202,10 @@ class TestCallDirectionContract(unittest.TestCase):
     def test_logic_has_no_odoo_imports(self):
         """AR-006: M20/M52 call M51 synchronously — the engine must be a
         pure computation importable by any layer (and by services/)."""
-        import tax_logic
         import inspect
+
+        import tax_logic
+
         source = inspect.getsource(tax_logic)
         self.assertNotIn("from odoo", source)
         self.assertNotIn("import odoo", source)

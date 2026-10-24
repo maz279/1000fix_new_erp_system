@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ewaste.destruction_certified",
+  "description": "Event emitted when data wipe gate passes and physical destruction cert is issued (Journey 10)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "ewaste.destruction_certified"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "certificate_id",
+        "collection_id",
+        "wipe_standard",
+        "certified_at"
+      ],
+      "properties": {
+        "certificate_id": {
+          "type": "string"
+        },
+        "collection_id": {
+          "type": "integer"
+        },
+        "wipe_standard": {
+          "type": "string",
+          "default": "NIST 800-88 Rev 1"
+        },
+        "destruction_weight_kg": {
+          "type": "number"
+        },
+        "certified_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

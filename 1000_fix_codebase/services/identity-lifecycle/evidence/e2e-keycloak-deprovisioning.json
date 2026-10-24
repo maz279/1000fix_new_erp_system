@@ -1,0 +1,48 @@
+{
+  "realm": "1000fix-dev",
+  "keycloak_url": "http://127.0.0.1:8080",
+  "steps": [
+    {
+      "step": "provisioned synthetic user",
+      "state": {
+        "enabled": true,
+        "sessions": 1,
+        "realm_roles": [
+          "default-roles-1000fix-dev",
+          "fix_technician"
+        ]
+      }
+    },
+    {
+      "step": "employee.left consumed and deprovisioned",
+      "outcome": "deprovisioned",
+      "elapsed_seconds": 0.518,
+      "state": {
+        "enabled": false,
+        "sessions": 0,
+        "realm_roles": [],
+        "login_status_after": 400
+      },
+      "confirmation_payload_keys": [
+        "attempts",
+        "client_roles_removed",
+        "deprovisioned_at",
+        "employee_code",
+        "employee_id",
+        "enabled",
+        "keycloak_user_id",
+        "left_event_id",
+        "realm_roles_removed",
+        "sessions_revoked",
+        "username"
+      ],
+      "realm_roles_removed": [
+        "default-roles-1000fix-dev",
+        "fix_technician"
+      ]
+    }
+  ],
+  "verdict": "PASS",
+  "measured_at_utc": "2026-10-22T11:57:42Z",
+  "kpi": "KPI-090 (deprovision <= 1 h) / FR-SEC-027 (joiner automation)"
+}

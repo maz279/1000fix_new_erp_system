@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- KPI-090: apply M29's IdP deprovisioning outcomes (identity.deprovisioned /
+     identity.deprovision_failed) every 5 minutes - well inside the 1 h target. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_drain_identity_lifecycle_events" model="ir.cron">
+            <field name="name">M29: apply IdP deprovisioning outcomes (KPI-090)</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model.drain_identity_lifecycle_events()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

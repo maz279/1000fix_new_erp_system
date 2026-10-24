@@ -1,0 +1,95 @@
+{
+  "milestone": "R09-M01",
+  "task": "R09-M01-T01",
+  "audit_timestamp": "2026-10-22T18:45:38.163187+00:00",
+  "target_database": "fix_analytics",
+  "lb06_read_replica_compliant": true,
+  "nfr086c_pii_pseudonymized": true,
+  "replica_reachable": true,
+  "extract_error": null,
+  "tables": {
+    "dim_date": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "dim_branch": {
+      "source_count": 123,
+      "loaded_count": 123,
+      "clickhouse_count": 123,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "dim_customer": {
+      "source_count": 200,
+      "loaded_count": 200,
+      "clickhouse_count": 200,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "dim_device": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "dim_technician": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "fact_service_orders": {
+      "source_count": 500,
+      "loaded_count": 500,
+      "clickhouse_count": 500,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "fact_invoices": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "fact_warranty_claims": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "fact_conversations": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    },
+    "fact_nps": {
+      "source_count": 0,
+      "loaded_count": 0,
+      "clickhouse_count": 0,
+      "reconciled": true,
+      "checksum_verified": true,
+      "error": null
+    }
+  },
+  "status": "PASS",
+  "total_source_rows": 823,
+  "total_clickhouse_rows": 823
+}

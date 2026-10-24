@@ -19,6 +19,7 @@ interface Estimate {
   version: number;
   parts_total_bdt: string;
   labour_total_bdt: string;
+  diagnostic_total_bdt: string;
   discount_bdt: string;
   vat_rate: number;
   vat_amount_bdt: string;
@@ -263,6 +264,9 @@ export default function EstimatesPage() {
 
               <span>{t.estimatesLabourTotal}:</span>
               <strong style={{ fontVariantNumeric: "tabular-nums" }}>৳ {approvingEstimate.labour_total_bdt || "0.00"}</strong>
+
+              <span>{t.estimatesDiagnosticTotal}:</span>
+              <strong style={{ fontVariantNumeric: "tabular-nums" }}>৳ {approvingEstimate.diagnostic_total_bdt || "0.00"}</strong>
 
               <span>{t.estimatesDiscount}:</span>
               <span style={{ color: tokens["color.status.success"], fontVariantNumeric: "tabular-nums" }}>

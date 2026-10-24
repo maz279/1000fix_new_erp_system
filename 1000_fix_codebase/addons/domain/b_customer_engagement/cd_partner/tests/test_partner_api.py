@@ -1,7 +1,7 @@
 # cd_partner tests — P12 Partner & Referral API (source-level).
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -13,11 +13,10 @@ class TestPartnerScoping(unittest.TestCase):
         self.assertIn("request.env.user.partner_id", API)
 
     def test_referrals_search_filters_profile(self):
-        searches = re.findall(r'\.search\(\s*\[(.*?)\]', API, re.S)
+        searches = re.findall(r"\.search\(\s*\[(.*?)\]", API, re.S)
         self.assertGreaterEqual(len(searches), 2)
         for s in searches:
-            self.assertIn("partner_id", s,
-                          "unscoped partner search: [%s]" % s[:60])
+            self.assertIn("partner_id", s, "unscoped partner search: [%s]" % s[:60])
 
     def test_missing_profile_is_structured(self):
         self.assertIn("no_partner_profile", API)
@@ -41,16 +40,17 @@ class TestReferralFlow(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_partner_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
-        for path in ("/partner/profile", "/partner/referrals",
-                     "/partner/commissions"):
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
+        for path in ("/partner/profile", "/partner/referrals", "/partner/commissions"):
             self.assertIn(path, spec["paths"])
 
     def test_routes_json_auth_user(self):
         routes = re.findall(
-            r'@http\.route\("(/partner/[^"]+)"[^)]*type="json",\s*auth="user"',
-            API)
+            r'@http\.route\("(/partner/[^"]+)"[^)]*type="jsonrpc",\s*auth="user"', API
+        )
         self.assertEqual(len(routes), 3, routes)
 
 

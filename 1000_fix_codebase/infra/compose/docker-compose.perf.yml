@@ -1,0 +1,91 @@
+# =============================================================================
+# 1000fix-erp - perf environment overlay (DoD-14, infra/environments.yaml)
+#
+# Performance testing at 1.5x peak volume (250,000 customers, 100,000 orders).
+# Data rule: production-shaped volumes; residency_classified: never-masked.
+#
+# Ports:
+#   PostgreSQL: 127.0.0.1:5438
+#   Redis:      127.0.0.1:6384
+#   Odoo:       127.0.0.1:8074
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.perf.yml --profile perf up -d
+# =============================================================================
+services:
+  postgres-perf:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["perf"]
+    environment:
+      FIX_ENV: perf
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${PERF_DB_PASSWORD:-fix_perf_secret_insecure}
+      POSTGRES_DB: fix_perf_scaled
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    command: [
+      "postgres",
+      "-c", "shared_buffers=1GB",
+      "-c", "effective_cache_size=3GB",
+      "-c", "maintenance_work_mem=256MB",
+      "-c", "work_mem=32MB",
+      "-c", "max_connections=200"
+    ]
+    ports: ["127.0.0.1:5438:5432"]
+    volumes:
+      - pgdata-perf:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_perf_scaled"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-perf:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["perf"]
+    environment:
+      FIX_ENV: perf
+    command: ["redis-server", "--maxmemory", "1gb", "--maxmemory-policy", "allkeys-lru"]
+    ports: ["127.0.0.1:6384:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-perf:
+    image: 1000fix/odoo:19.0-perf@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["perf"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: perf
+      HOST: postgres-perf
+      PORT: 5432
+      USER: fix
+      PASSWORD: ${PERF_DB_PASSWORD:-fix_perf_secret_insecure}
+    ports: ["127.0.0.1:8074:8069"]
+    volumes:
+      - odoo-data-perf:/var/lib/odoo
+    depends_on:
+      postgres-perf:
+        condition: service_healthy
+      redis-perf:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-perf:
+  odoo-data-perf:

@@ -1,0 +1,31 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M01",
+  "task": "R10-M01-T01",
+  "title": "Multi-Company Consolidation & Inter-Company Rules",
+  "timestamp": "2026-10-22T08:57:27.664047+00:00",
+  "verdict": "PASS",
+  "tests": [
+    {
+      "check": "Models Existence",
+      "passed": true,
+      "details": "Consolidation book, line, elimination, and intercompany models exist and load"
+    },
+    {
+      "check": "Consolidation Totals Computation",
+      "passed": true,
+      "details": "Rev: 1.5M, Exp: 0.9M, Elim: 75k => Net Profit: 525000.0"
+    },
+    {
+      "check": "Transfer Pricing Compliance Fields",
+      "passed": true,
+      "details": "Arm's length markup and NBR transfer pricing compliance flag verified on rule model"
+    },
+    {
+      "check": "Mirror AP Bill Generation",
+      "passed": true,
+      "details": "Generated mirror ref: MIRROR-AP-IC-TXN-2026-0881 with state pending_matching"
+    }
+  ],
+  "status": "PASS"
+}

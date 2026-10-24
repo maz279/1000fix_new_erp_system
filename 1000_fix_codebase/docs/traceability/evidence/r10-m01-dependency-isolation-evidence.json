@@ -1,0 +1,31 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M01",
+  "task": "R10-M01-T02",
+  "title": "BD Country Pack & M51 Negative Dependency Isolation",
+  "timestamp": "2026-10-22T08:57:27.682574+00:00",
+  "verdict": "PASS",
+  "tests": [
+    {
+      "check": "M51 Manifest Decoupling",
+      "passed": true,
+      "details": "M51 depends: ['base', 'mail', 'account', 'cd_entity_config', 'cd_event_outbox', 'cd_gl_ext'] (cd_entity_config present, cd_multi_entity excluded)"
+    },
+    {
+      "check": "M51 Source Import Isolation",
+      "passed": true,
+      "details": "Zero references to cd_multi_entity across M51 source code"
+    },
+    {
+      "check": "M65 Manifest Dependencies",
+      "passed": true,
+      "details": "M65 depends: ['base', 'mail', 'operating_unit', 'cd_entity_config'], module_id: M65"
+    },
+    {
+      "check": "BD Country Pack Data Structure",
+      "passed": true,
+      "details": "Divisions: 8/8, Districts: 64/64, Holidays: 10"
+    }
+  ],
+  "status": "PASS"
+}

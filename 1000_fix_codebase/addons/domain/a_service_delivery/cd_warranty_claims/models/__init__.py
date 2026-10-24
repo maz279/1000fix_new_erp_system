@@ -1,2 +1,2 @@
 # cd_warranty_claims models.
-from . import fix_warranty_claims
+from . import fix_brand_ext, fix_warranty_claims

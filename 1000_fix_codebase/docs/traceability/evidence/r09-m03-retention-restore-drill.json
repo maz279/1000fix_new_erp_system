@@ -1,0 +1,88 @@
+{
+  "milestone": "R09-M03",
+  "task": "R09-M03-T03",
+  "standard": "GPS/Telemetry Retention & Compression Policy / 420M Rows Storage Decision / Restore Drill",
+  "timestamp": "2026-10-22T10:58:27.749936+00:00",
+  "ddl": "migrations/sql/timescaledb_telemetry_hypertable.sql",
+  "storage_model": {
+    "basis": "projection from planning assumptions - not measured",
+    "assumptions": {
+      "annual_volume_rows": 420000000,
+      "bytes_per_row_avg": 128,
+      "index_overhead_ratio": 0.45,
+      "compression_ratio_pct": 87.5,
+      "compressed_index_ratio": 0.2,
+      "active_window_days": 90
+    },
+    "daily_chunk_rows": 1150684,
+    "projected_uncompressed_gb_year": 72.6,
+    "projected_compressed_gb_year": 10.76,
+    "projected_active_table_rows": 103561560,
+    "projected_active_table_compressed_gb": 2.65
+  },
+  "restore_verification": {
+    "target_table": "fix_technician_telemetry_restore_staging",
+    "expected_records": null,
+    "restored_records": null,
+    "checksum_verified": null,
+    "status": "UNMEASURED"
+  },
+  "summary": {
+    "checks_total": 8,
+    "checks_passed": 3,
+    "checks_failed": 2,
+    "checks_unmeasured": 3
+  },
+  "checks": [
+    {
+      "id": "licence_d030",
+      "name": "Apache-2.0 TimescaleDB features only (D-030)",
+      "status": "PASS",
+      "detail": "timescaledb_telemetry_hypertable.sql: no TSL feature called; refuses non-'apache' timescaledb.license"
+    },
+    {
+      "id": "retention_policy",
+      "name": "90-day retention (Apache-2.0 drop_chunks wrapper) declared",
+      "status": "PASS",
+      "detail": "timescaledb_telemetry_hypertable.sql: fix_telemetry_apply_retention() drops chunks older than INTERVAL '90 days'"
+    },
+    {
+      "id": "retention_schedule",
+      "name": "Retention wrapper scheduled by the platform scheduler",
+      "status": "PASS",
+      "detail": "scheduled by dags/telemetry_retention_dag.py"
+    },
+    {
+      "id": "compression_policy",
+      "name": "7-day columnar compression policy",
+      "status": "FAIL",
+      "detail": "the 7-day columnar compression the requirement asks for is TSL-only and D-030 allows Apache-2.0 TimescaleDB features only - not achievable as specified; needs an ADR re-deciding the 420M rows/year storage footprint"
+    },
+    {
+      "id": "archive_before_drop",
+      "name": "Chunks archived to cold storage before the retention drop",
+      "status": "FAIL",
+      "detail": "no archival task runs before the retention drop: chunks past the 90-day window are dropped with no cold-archive copy"
+    },
+    {
+      "id": "compression_ratio",
+      "name": "Achieved compression > 85% (hypertable_compression_stats)",
+      "status": "UNMEASURED",
+      "detail": "requires a running TimescaleDB with fix_technician_telemetry populated; this tool never connects to or restores into a database and compressed chunks"
+    },
+    {
+      "id": "chunk_archive_export",
+      "name": "Chunk exported to the cold archive with a manifest checksum",
+      "status": "UNMEASURED",
+      "detail": "no archived chunk artefact exists to inspect; needs the archival job and cold storage"
+    },
+    {
+      "id": "restore_to_staging",
+      "name": "Archived chunk restored into a staging hypertable (row count + SHA-256 match)",
+      "status": "UNMEASURED",
+      "detail": "requires a running TimescaleDB with fix_technician_telemetry populated; this tool never connects to or restores into a database and an archived chunk to restore"
+    }
+  ],
+  "status": "FAIL",
+  "finding": "FAIL: 3 passed, 2 failed, 3 UNMEASURED of 8 checks."
+}

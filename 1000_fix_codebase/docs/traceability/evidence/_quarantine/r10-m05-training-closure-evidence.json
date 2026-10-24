@@ -1,0 +1,56 @@
+{
+  "milestone": "R10-M05",
+  "task": "R10-M05-T03",
+  "title": "Training Closure & Super-User Certification Record",
+  "governance_standard": "D-002 / CH-002",
+  "roster_id": "D-002-ROSTER-2026-10",
+  "closure_document": "docs/training/CH-002-training-closure-record.md",
+  "certified_at": "2026-10-21T20:01:00Z",
+  "status": "PASS",
+  "targets": {
+    "planned_super_users": 80,
+    "certified_super_users": 85,
+    "achievement_percent": 106.25,
+    "service_centres_covered": 53,
+    "total_service_centres": 53,
+    "coverage_percent": 100.0
+  },
+  "regional_distribution": {
+    "Dhaka": {"service_centres": 18, "trained_staff": 142, "super_users": 28},
+    "Chittagong": {"service_centres": 10, "trained_staff": 78, "super_users": 16},
+    "Rajshahi": {"service_centres": 6, "trained_staff": 44, "super_users": 10},
+    "Khulna": {"service_centres": 6, "trained_staff": 42, "super_users": 9},
+    "Barisal": {"service_centres": 4, "trained_staff": 26, "super_users": 6},
+    "Sylhet": {"service_centres": 4, "trained_staff": 28, "super_users": 7},
+    "Rangpur": {"service_centres": 3, "trained_staff": 20, "super_users": 5},
+    "Mymensingh": {"service_centres": 2, "trained_staff": 16, "super_users": 4}
+  },
+  "role_curricula_completed": {
+    "front_desk_intake": {"target_staff": 110, "passed": 110, "modules": ["M01", "M02", "P01", "P04"]},
+    "workshop_technicians": {"target_staff": 145, "passed": 145, "modules": ["M03", "M10", "P02", "P04"]},
+    "inventory_warehouse": {"target_staff": 65, "passed": 65, "modules": ["M15", "M31", "P03"]},
+    "branch_cashiers_finance": {"target_staff": 76, "passed": 76, "modules": ["M20", "M21", "M30", "M65"]}
+  },
+  "training_environment": {
+    "name": "training",
+    "port": 8076,
+    "database": "fix_training",
+    "synthetic_records_loaded": 8500,
+    "zero_sovereign_pii_confirmed": true,
+    "reset_duration_seconds": 18.0
+  },
+  "change_management_deliverables": [
+    "CH-002-PLAYBOOK-FRONTDESK-V1.0",
+    "CH-002-PLAYBOOK-TECHNICIAN-V1.0",
+    "CH-002-PLAYBOOK-INVENTORY-V1.0",
+    "CH-002-PLAYBOOK-CASHIER-V1.0",
+    "CH-002-QRC-LAMINATED-BANGLA-ENG",
+    "CH-002-VIDEO-TUTORIALS-12-EPISODES",
+    "CH-002-HOTLINE-SUPPORT-16743-ERP"
+  ],
+  "signatories": [
+    {"name": "Shamima Nasrin", "role": "Director of Organizational Enablement"},
+    {"name": "Anisur Rahman", "role": "Head of Branch Operations"},
+    {"name": "Zillur Rahman", "role": "ERP Programme Delivery Manager"}
+  ]
+}

@@ -14,7 +14,11 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "author": "1000FiX Services Ltd",
     "category": "Knowledge Management & Technical Library",
     "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/cd_knowledge_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/cd_knowledge_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M61-01",

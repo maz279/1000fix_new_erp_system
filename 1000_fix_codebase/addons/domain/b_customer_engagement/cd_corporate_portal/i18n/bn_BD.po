@@ -7,12 +7,19 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_corporate_portal
+#: model:ir.ui.menu,name:cd_corporate_portal.menu_corporate_portal_root
 msgid "Corporate Portal"
 msgstr "কর্পোরেট পোর্টাল"
 
+#. module: cd_corporate_portal
+#: model:ir.actions.act_window,name:cd_corporate_portal.action_fix_contract_portal
+#: model:ir.ui.menu,name:cd_corporate_portal.menu_corporate_contracts
 msgid "My Contracts"
 msgstr "আমার চুক্তিসমূহ"
 
+#. module: cd_corporate_portal
+#: model:ir.actions.act_window,name:cd_corporate_portal.action_fix_subscription_portal
+#: model:ir.ui.menu,name:cd_corporate_portal.menu_corporate_subscriptions
 msgid "My Subscriptions"
 msgstr "আমার সাবস্ক্রিপশনসমূহ"

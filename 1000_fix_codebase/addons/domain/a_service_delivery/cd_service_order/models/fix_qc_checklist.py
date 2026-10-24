@@ -9,23 +9,36 @@ class FixQC(models.Model):
 
     M23 linkage is a GV-005 stub with expiry (P04-M03-T07).
     """
+
     _name = "fix.qc.checklist"
     _description = "QC Checklist"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
-    order_id = fields.Many2one("fix.service.order", string="Service Order",
-                               required=True, ondelete="cascade", index=True)
+    order_id = fields.Many2one(
+        "fix.service.order", string="Service Order", required=True, ondelete="cascade", index=True
+    )
     work_order_id = fields.Many2one("fix.work.order", string="Work Order")
 
-    inspector_id = fields.Many2one("hr.employee", string="QC Inspector",
-                                   help="BRU-SRM-18: must be a person other than the repairing technician above BDT 25,000")
+    inspector_id = fields.Many2one(
+        "hr.employee",
+        string="QC Inspector",
+        help="BRU-SRM-18: must be a person other than the repairing technician above BDT 25,000",
+    )
     state = fields.Selection(
-        [("pending", "Pending"), ("in_progress", "In Progress"),
-         ("passed", "Passed"), ("failed", "Failed")],
-        default="pending", required=True, tracking=True)
+        [
+            ("pending", "Pending"),
+            ("in_progress", "In Progress"),
+            ("passed", "Passed"),
+            ("failed", "Failed"),
+        ],
+        default="pending",
+        required=True,
+        tracking=True,
+    )
     checked_at = fields.Datetime(readonly=True)
     notes = fields.Text()
 
@@ -52,11 +65,15 @@ class FixQC(models.Model):
     def _check_independent_inspector(self):
         """BRU-SRM-18: independent QC by a person other than the repairing technician."""
         for rec in self:
-            if (rec.work_order_id and rec.inspector_id
-                    and rec.inspector_id == rec.work_order_id.technician_id):
+            if (
+                rec.work_order_id
+                and rec.inspector_id
+                and rec.inspector_id == rec.work_order_id.technician_id
+            ):
                 raise ValidationError(
                     "QC inspector must be a different person from the repairing technician "
-                    "(BRU-SRM-18: independent QC is mandatory above BDT 25,000).")
+                    "(BRU-SRM-18: independent QC is mandatory above BDT 25,000)."
+                )
 
 
 class FixQCItem(models.Model):

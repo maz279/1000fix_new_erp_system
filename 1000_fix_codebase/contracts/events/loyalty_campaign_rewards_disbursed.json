@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "loyalty.campaign_rewards_disbursed",
+  "description": "Published by cd_loyalty through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "loyalty.campaign_rewards_disbursed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_loyalty"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "hook_id",
+        "campaign_id",
+        "reward_type",
+        "rewarded_count"
+      ],
+      "properties": {
+        "hook_id": {
+          "type": "integer"
+        },
+        "campaign_id": {
+          "type": "integer"
+        },
+        "reward_type": {
+          "type": "string"
+        },
+        "rewarded_count": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_loyalty",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_campaign.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

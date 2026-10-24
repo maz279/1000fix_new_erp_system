@@ -1,0 +1,642 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Portal-Consumed Event Reconciliation Register (B-17 / R05-M04-T05)",
+  "description": "Authoritative register resolving all 69 unpublished portal-consumed events across 3 normative dispositions (D1 Rename, D2 Projection, D3 Register). Evidence: B-17, IN-003 Section 7.",
+  "total_unpublished_baseline": 69,
+  "adjudicated_count": 69,
+  "unadjudicated_count": 0,
+  "summary_by_disposition": {
+    "D1_rename": 25,
+    "D2_projection": 11,
+    "D3_register": 33
+  },
+  "summary_by_portal": {
+    "P04_corporate": 6,
+    "P06_analytics": 5,
+    "P08_brand": 6,
+    "P10_agent_console": 8
+  },
+  "events": [
+    {
+      "event_type": "allocation.changed",
+      "consuming_portals": ["P12"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "partner.allocation_changed",
+      "owning_module": "M40",
+      "remedy": "Correct consumer to use canonical producer event partner.allocation_changed in cd_partner"
+    },
+    {
+      "event_type": "assist.suggestion_available",
+      "consuming_portals": ["P10"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "assist.suggestion_available",
+      "owning_module": "M27",
+      "remedy": "Register schema in cd_contact_centre with suggestion payload, confidence score, and contextual intent"
+    },
+    {
+      "event_type": "audit.assigned",
+      "consuming_portals": ["P11"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "qms.audit_assigned",
+      "owning_module": "M23",
+      "remedy": "Register schema in cd_grc with auditor_id, audit_scope, and checklist_template_id"
+    },
+    {
+      "event_type": "audit.checklist_version_published",
+      "consuming_portals": ["P11"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "qms.checklist_version_published",
+      "owning_module": "M23",
+      "remedy": "Register schema in cd_grc for ISO 9001:2015 audit checklists"
+    },
+    {
+      "event_type": "audit.rescheduled",
+      "consuming_portals": ["P11"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "qms.audit_rescheduled",
+      "owning_module": "M23",
+      "remedy": "Register schema in cd_grc with previous_date, new_date, and reason_code"
+    },
+    {
+      "event_type": "benefit_schedule.changed",
+      "consuming_portals": ["P12"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "partner.benefit_schedule_changed",
+      "owning_module": "M40",
+      "remedy": "Register schema in cd_partner for partner tier benefit revisions"
+    },
+    {
+      "event_type": "campaign.performance_published",
+      "consuming_portals": ["P12"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "campaign.performance_published",
+      "owning_module": "M40",
+      "remedy": "Register schema in cd_campaign for referral / co-marketing ROI metrics"
+    },
+    {
+      "event_type": "capa.closed",
+      "consuming_portals": ["P08"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "qms.capa_closed",
+      "owning_module": "M23",
+      "remedy": "Correct consumer to use canonical producer event qms.capa_closed in cd_grc"
+    },
+    {
+      "event_type": "capa.due_for_verification",
+      "consuming_portals": ["P11"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "qms.capa_due_for_verification",
+      "owning_module": "M23",
+      "remedy": "Register schema in cd_grc for 30-day corrective action effectiveness checks"
+    },
+    {
+      "event_type": "certification.expired",
+      "consuming_portals": ["P07"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["technician.certification_status_changed"],
+      "owning_module": "M22",
+      "remedy": "Named stream projection from technician certification state changes in cd_competency"
+    },
+    {
+      "event_type": "certification.expiring",
+      "consuming_portals": ["P02", "P07", "P08"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["technician.certification_status_changed"],
+      "owning_module": "M22",
+      "remedy": "Time-windowed projection (30d/15d/7d prior to expiration) in cd_competency"
+    },
+    {
+      "event_type": "claim.evidence_incomplete",
+      "consuming_portals": ["P08"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "warranty.claim_evidence_incomplete",
+      "owning_module": "M09",
+      "remedy": "Register schema in cd_warranty_claims for missing photographic / serial validation"
+    },
+    {
+      "event_type": "claim.status_changed",
+      "consuming_portals": ["P01"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["warranty.claim_state_transition"],
+      "owning_module": "M09",
+      "remedy": "Coarse status projection from granular warranty claim lifecycle transitions in cd_warranty_claims"
+    },
+    {
+      "event_type": "commission.calculated",
+      "consuming_portals": ["P12"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "incentive.calculated",
+      "owning_module": "M57",
+      "remedy": "Correct consumer to use canonical producer event incentive.calculated in cd_settlement_ext"
+    },
+    {
+      "event_type": "complaint.reference_issued",
+      "consuming_portals": ["P10"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "complaint.reference_issued",
+      "owning_module": "M27",
+      "remedy": "Register schema in cd_contact_centre with ticket_number, customer_id, and channel_id"
+    },
+    {
+      "event_type": "consignment.assigned",
+      "consuming_portals": ["P09"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "logistics.consignment_assigned",
+      "owning_module": "M03",
+      "remedy": "Correct consumer to use canonical producer event logistics.consignment_assigned in cd_consignment"
+    },
+    {
+      "event_type": "consignment.booked",
+      "consuming_portals": ["P05"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "consignment.booked",
+      "owning_module": "M03",
+      "remedy": "Register schema in cd_consignment for supplier spare-part intake bookings"
+    },
+    {
+      "event_type": "consignment.reassigned",
+      "consuming_portals": ["P09"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "consignment.reassigned",
+      "owning_module": "M03",
+      "remedy": "Register schema in cd_consignment with previous_hub_id and target_hub_id"
+    },
+    {
+      "event_type": "consignment.rescheduled",
+      "consuming_portals": ["P09"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "consignment.rescheduled",
+      "owning_module": "M03",
+      "remedy": "Register schema in cd_consignment with revised_window_start and reason"
+    },
+    {
+      "event_type": "cpaas.degraded",
+      "consuming_portals": ["P10"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "cpaas.telephony_degraded",
+      "owning_module": "M27",
+      "remedy": "Register schema in cd_contact_centre under INT-015 for carrier MOS jitter/drop alerting"
+    },
+    {
+      "event_type": "credit_note.issued",
+      "consuming_portals": ["P04"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "ar.credit_note_issued",
+      "owning_module": "M53",
+      "remedy": "Correct consumer P04 to use canonical convention-B published name ar.credit_note_issued in cd_billing_engine (IN-A-10)"
+    },
+    {
+      "event_type": "dataset.quality_failed",
+      "consuming_portals": ["P06"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "data_quality.failing",
+      "owning_module": "M62",
+      "remedy": "Correct consumer P06 to use canonical producer event data_quality.failing in cd_metric_registry"
+    },
+    {
+      "event_type": "dataset.refreshed",
+      "consuming_portals": ["P06"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "data_warehouse.dataset_refreshed",
+      "owning_module": "M62",
+      "remedy": "Register schema in cd_metric_registry for read-replica dbt ETL materialization completion"
+    },
+    {
+      "event_type": "deal_registration.decided",
+      "consuming_portals": ["P12"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "quotation.decided",
+      "owning_module": "M36",
+      "remedy": "Correct consumer to use canonical producer event quotation.decided in cd_quotation"
+    },
+    {
+      "event_type": "dispatch.job_assigned",
+      "consuming_portals": ["P02"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "dispatch.job_assigned",
+      "owning_module": "M02",
+      "remedy": "Register schema in cd_field_service with order_id, technician_id, and geofence_lat_lng"
+    },
+    {
+      "event_type": "dispatch.job_reassigned",
+      "consuming_portals": ["P02"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "dispatch.job_reassigned",
+      "owning_module": "M02",
+      "remedy": "Register schema in cd_field_service with reassign_reason and new_sla_target"
+    },
+    {
+      "event_type": "dispatch.technician_en_route",
+      "consuming_portals": ["P01"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["technician_location_ping", "field_order_dispatched"],
+      "owning_module": "M02",
+      "remedy": "Named stream projection from technician location GPS ping stream and dispatched state"
+    },
+    {
+      "event_type": "entitlement.threshold_crossed",
+      "consuming_portals": ["P04"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "entitlement.threshold_crossed",
+      "owning_module": "M08",
+      "remedy": "Register schema in cd_contract_core for corporate SLA entitlement 80% / 100% capacity warnings"
+    },
+    {
+      "event_type": "equipment.audit_variance_computed",
+      "consuming_portals": ["P11"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "equipment.audit_completed",
+      "owning_module": "M45",
+      "remedy": "Correct consumer to use canonical producer event equipment.audit_completed in cd_equipment_register"
+    },
+    {
+      "event_type": "estimate.issued",
+      "consuming_portals": ["P01"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "estimate.created",
+      "owning_module": "M36",
+      "remedy": "Correct consumer to use canonical producer event estimate.created in cd_quotation"
+    },
+    {
+      "event_type": "estimate.revised",
+      "consuming_portals": ["P01"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "estimate.created",
+      "owning_module": "M36",
+      "remedy": "Correct consumer to use canonical producer event estimate.created with revision_index > 0"
+    },
+    {
+      "event_type": "ewaste.batch_transferred",
+      "consuming_portals": ["P05"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "ewaste.batched",
+      "owning_module": "M18",
+      "remedy": "Correct consumer to use canonical producer event ewaste.batched in cd_ewaste"
+    },
+    {
+      "event_type": "incentive.updated",
+      "consuming_portals": ["P02"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["commission.calculated"],
+      "owning_module": "M57",
+      "remedy": "Projected from technician monthly bonus / commission calculations in cd_settlement_ext"
+    },
+    {
+      "event_type": "integration.degraded",
+      "consuming_portals": ["P03"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "integration.circuit_breaker_opened",
+      "owning_module": "M28",
+      "remedy": "Register schema in cd_stream_registry for upstream service mesh failover triggers"
+    },
+    {
+      "event_type": "interaction.routed",
+      "consuming_portals": ["P10"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "contact.interaction_routed",
+      "owning_module": "M27",
+      "remedy": "Register schema in cd_contact_centre with agent_skill_group, channel_type, and queue_priority"
+    },
+    {
+      "event_type": "interaction.transferred",
+      "consuming_portals": ["P10"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "contact.interaction_transferred",
+      "owning_module": "M27",
+      "remedy": "Register schema in cd_contact_centre with full context payload and transcript reference"
+    },
+    {
+      "event_type": "invoice.blocked",
+      "consuming_portals": ["P05"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "ap.invoice_blocked",
+      "owning_module": "M20",
+      "remedy": "Correct consumer to use canonical producer event ap.invoice_blocked in cd_ap_ext"
+    },
+    {
+      "event_type": "invoice.issued",
+      "consuming_portals": ["P04"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "ar.invoice_validated",
+      "owning_module": "M20",
+      "remedy": "Correct consumer P04 to use canonical producer event ar.invoice_validated in cd_billing_engine"
+    },
+    {
+      "event_type": "lead.status_changed",
+      "consuming_portals": ["P12"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["crm.lead_stage_transition"],
+      "owning_module": "M07",
+      "remedy": "Coarse stage projection from partner lead pipeline transitions in cd_crm_ext"
+    },
+    {
+      "event_type": "loyalty.points_expiring",
+      "consuming_portals": ["P01"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "loyalty.points_expiring",
+      "owning_module": "M10",
+      "remedy": "Register schema in cd_customer_portal for 30-day point expiry notifications"
+    },
+    {
+      "event_type": "loyalty.tier_changed",
+      "consuming_portals": ["P01"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "partner.tier_changed",
+      "owning_module": "M10",
+      "remedy": "Correct consumer to use canonical producer event partner.tier_changed in cd_customer_portal"
+    },
+    {
+      "event_type": "model.published",
+      "consuming_portals": ["P06"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "ai_model.published",
+      "owning_module": "M26",
+      "remedy": "Register schema in ml-gateway for Ollama/Timefold version promotions"
+    },
+    {
+      "event_type": "mp.bid_unsuccessful",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.bid_unsuccessful",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace for third-party repair provider auction bids"
+    },
+    {
+      "event_type": "mp.dispute_opened",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.dispute_opened",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace for customer-vs-seller warranty disputes"
+    },
+    {
+      "event_type": "mp.dispute_resolved",
+      "consuming_portals": ["P07"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "ar.dispute_resolved",
+      "owning_module": "M12",
+      "remedy": "Correct consumer to use canonical producer event ar.dispute_resolved in cd_billing_engine"
+    },
+    {
+      "event_type": "mp.job_awarded",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.job_awarded",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace with contractor_id, price_bdt, and sla_hours"
+    },
+    {
+      "event_type": "mp.job_broadcast",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.job_broadcast",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace for certified partner network broadcasts"
+    },
+    {
+      "event_type": "mp.scorecard_published",
+      "consuming_portals": ["P07"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "supplier.scorecard_published",
+      "owning_module": "M12",
+      "remedy": "Correct consumer to use canonical producer event supplier.scorecard_published in cd_vendor_portal"
+    },
+    {
+      "event_type": "mp.seller_approved",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.seller_approved",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace for seller verification and onboarding sign-off"
+    },
+    {
+      "event_type": "mp.seller_rejected",
+      "consuming_portals": ["P07"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "mp.seller_rejected",
+      "owning_module": "M12",
+      "remedy": "Register schema in cd_marketplace with rejection_reason and appeal_window_days"
+    },
+    {
+      "event_type": "partner.declined",
+      "consuming_portals": ["P12"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "partner.onboarding_declined",
+      "owning_module": "M40",
+      "remedy": "Correct consumer to use canonical producer event partner.onboarding_declined in cd_partner"
+    },
+    {
+      "event_type": "payment.executed",
+      "consuming_portals": ["P05"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "payment.executed",
+      "owning_module": "M20",
+      "remedy": "Register schema in cd_billing_engine for supplier disbursement executions"
+    },
+    {
+      "event_type": "payment.received",
+      "consuming_portals": ["P01", "P08", "P09", "P10"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "payment.transaction_settled",
+      "owning_module": "M20",
+      "remedy": "Correct consumer to use canonical producer event payment.transaction_settled in cd_settlement_ext"
+    },
+    {
+      "event_type": "payout.executed",
+      "consuming_portals": ["P12"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "payout.instructed",
+      "owning_module": "M53",
+      "remedy": "Correct consumer to use canonical producer event payout.instructed in cd_settlement_ext"
+    },
+    {
+      "event_type": "policy.updated",
+      "consuming_portals": ["P07"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["governance.policy_published"],
+      "owning_module": "M60",
+      "remedy": "Coarse policy change projection in cd_grc"
+    },
+    {
+      "event_type": "project.milestone_reached",
+      "consuming_portals": ["P04"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "project.milestone_accepted",
+      "owning_module": "M67",
+      "remedy": "Correct consumer P04 to use canonical producer event project.milestone_accepted in cd_msp_contract"
+    },
+    {
+      "event_type": "purchase_order.issued",
+      "consuming_portals": ["P05"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "purchase.order_confirmed",
+      "owning_module": "M16",
+      "remedy": "Correct consumer to use canonical producer event purchase.order_confirmed in cd_requisition"
+    },
+    {
+      "event_type": "queue.sla_breached",
+      "consuming_portals": ["P10"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["service_order.sla_warning", "contact.queue_timer_breached"],
+      "owning_module": "M27",
+      "remedy": "Projected real-time SLA breach notification stream in cd_contact_centre"
+    },
+    {
+      "event_type": "recall.execution_updated",
+      "consuming_portals": ["P08"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "warranty.recall_execution_updated",
+      "owning_module": "M09",
+      "remedy": "Register schema in cd_warranty_claims for brand device safety recall tracking"
+    },
+    {
+      "event_type": "refund.processed",
+      "consuming_portals": ["P01"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "refund.processed",
+      "owning_module": "M20",
+      "remedy": "Register schema in cd_settlement_ext with original_invoice_id and mushak_credit_note_ref"
+    },
+    {
+      "event_type": "rfq.issued",
+      "consuming_portals": ["P05"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "purchase.rfq_sent",
+      "owning_module": "M16",
+      "remedy": "Correct consumer to use canonical producer event purchase.rfq_sent in cd_requisition"
+    },
+    {
+      "event_type": "service_order.status_changed",
+      "consuming_portals": ["P01", "P04", "P10"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["service_order.state_transition"],
+      "owning_module": "M01",
+      "remedy": "Named coarse status projection stream in cd_service_order"
+    },
+    {
+      "event_type": "service_order.updated",
+      "consuming_portals": ["P02"],
+      "disposition": "D2",
+      "disposition_type": "projection",
+      "projected_from": ["service_order.field_updated"],
+      "owning_module": "M01",
+      "remedy": "Field update delta projection stream in cd_service_order"
+    },
+    {
+      "event_type": "settlement.completed",
+      "consuming_portals": ["P07"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "settlement.reconciled",
+      "owning_module": "M53",
+      "remedy": "Correct consumer to use canonical producer event settlement.reconciled in cd_settlement_ext"
+    },
+    {
+      "event_type": "settlement.released",
+      "consuming_portals": ["P07"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "settlement.payout_released",
+      "owning_module": "M53",
+      "remedy": "Correct consumer to use canonical producer event settlement.payout_released in cd_settlement_ext"
+    },
+    {
+      "event_type": "sla.at_risk",
+      "consuming_portals": ["P03", "P04", "P06", "P09"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "sla.warning",
+      "owning_module": "M01",
+      "remedy": "Correct consumers across P03/P04/P06/P09 to use canonical published name sla.warning in cd_service_order"
+    },
+    {
+      "event_type": "stock.consignment_reconciled",
+      "consuming_portals": ["P08"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "stock.consignment_consumed",
+      "owning_module": "M15",
+      "remedy": "Correct consumer P08 to use canonical producer event stock.consignment_consumed in cd_wms_structure"
+    },
+    {
+      "event_type": "stock.count_variance_computed",
+      "consuming_portals": ["P11"],
+      "disposition": "D1",
+      "disposition_type": "rename",
+      "published_event": "stock.count_completed",
+      "owning_module": "M15",
+      "remedy": "Correct consumer to use canonical producer event stock.count_completed in cd_wms_structure"
+    },
+    {
+      "event_type": "user.scope_changed",
+      "consuming_portals": ["P06"],
+      "disposition": "D3",
+      "disposition_type": "register",
+      "published_event": "rbac.user_scope_changed",
+      "owning_module": "M29",
+      "remedy": "Register schema in cd_rbac_ext for user analytics row-level-security filtering"
+    }
+  ]
+}

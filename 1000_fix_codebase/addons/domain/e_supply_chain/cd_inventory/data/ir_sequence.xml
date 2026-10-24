@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- The reference sequences the M15 models' create() have always called
+         (next_by_code). Without them graded stock was ALWAYS 'STK/GRD/New' and
+         the other references were second-resolution timestamps (two scans in
+         one second shared a reference). -->
+    <data noupdate="1">
+        <record id="seq_fix_graded_stock" model="ir.sequence">
+            <field name="name">Graded Stock Tag</field>
+            <field name="code">fix.graded.stock</field>
+            <field name="prefix">STK/GRD/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_reorder_rule" model="ir.sequence">
+            <field name="name">Reorder Rule</field>
+            <field name="code">fix.reorder.rule</field>
+            <field name="prefix">RDR/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_consumption" model="ir.sequence">
+            <field name="name">Parts Consumption</field>
+            <field name="code">fix.stock.consumption</field>
+            <field name="prefix">CNS/</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_inventory_valuation_suspense" model="ir.sequence">
+            <field name="name">Valuation Suspense Entry</field>
+            <field name="code">fix.inventory.valuation.suspense</field>
+            <field name="prefix">VAL-SUSP/</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

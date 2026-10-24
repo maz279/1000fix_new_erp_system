@@ -1,0 +1,90 @@
+{
+  "proof": "R01 DR promotion + postgres-prod TLS fail-closed (throwaway compose project)",
+  "timestamp": "2026-10-22T11:31:22.657157+00:00",
+  "compose_project": "r01-dr-promote-proof",
+  "files": [
+    "infra/compose/docker-compose.yml",
+    "infra/compose/docker-compose.prod.yml",
+    "infra/compose/docker-compose.dr.yml"
+  ],
+  "method": "no host ports (override `ports: !reset []`), own named volumes, a throwaway self-signed TLS pair generated outside the repo for the run only, synthetic passwords; torn down with `down -v`",
+  "not_covered": [
+    "odoo-dr itself (image 1000fix/odoo:19.0-dr not built locally) - only its dr-promoted-check gate is proven"
+  ],
+  "checks": [
+    {
+      "id": "tls_fail_closed",
+      "expected": "postgres-prod exits 1 with an empty TLS key",
+      "status": "PASS"
+    },
+    {
+      "id": "replication_streaming_over_tls",
+      "expected": "pg_stat_replication row for postgres_dr_standby with ssl=t",
+      "status": "PASS"
+    },
+    {
+      "id": "row_replicated",
+      "expected": "row inserted on the primary is visible on the standby",
+      "status": "PASS"
+    },
+    {
+      "id": "guard_refuses_before_promotion",
+      "expected": "dr-promoted-check exits 1 while pg_is_in_recovery=t",
+      "status": "PASS"
+    },
+    {
+      "id": "promotion_as_fix_admin",
+      "expected": "pg_promote() as the replicated fix_admin role, then pg_is_in_recovery=f",
+      "status": "PASS"
+    },
+    {
+      "id": "guard_passes_after_promotion",
+      "expected": "dr-promoted-check exits 0 after promotion",
+      "status": "PASS"
+    },
+    {
+      "id": "promoted_node_writable",
+      "expected": "INSERT succeeds on the promoted node as fix_admin",
+      "status": "PASS"
+    },
+    {
+      "id": "teardown",
+      "expected": "proof project removed with its volumes",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "raw_output": [
+    "### TLS fail-closed: empty key file",
+    "exit=1 :: postgres-prod: TLS material /run/secrets/pg_tls_key is missing or empty - set PG_TLS_CERT_FILE / PG_TLS_KEY_FILE (see the header of docker-compose.prod.yml); refusing to start with ssl=on",
+    "### bring up primary + DR standby",
+    " Container r01-dr-promote-proof-postgres-prod-1 Started ",
+    " Container r01-dr-promote-proof-postgres-dr-1 Started ",
+    "health: postgres-dr=healthy postgres-prod=healthy ",
+    "### TLS in use on the replication connection (primary pg_stat_ssl)",
+    "postgres_dr_standby|t|TLSv1.3",
+    "### row written on primary appears on standby",
+    "CREATE TABLE",
+    "row-1792668653",
+    "INSERT 0 1",
+    "1",
+    "### guard BEFORE promotion (expect refusal, exit 1)",
+    " Container r01-dr-promote-proof-dr-promoted-check-run-aedcbfcaf331 Created ",
+    "odoo-dr refused: postgres-dr is still a read-only standby (pg_is_in_recovery=t) - promote it first (RB-52 step 4)",
+    "guard exit=1",
+    "### fence primary, promote standby with the replicated fix_admin role",
+    " Container r01-dr-promote-proof-postgres-prod-1 Stopped ",
+    "t",
+    "f",
+    "### guard AFTER promotion (expect pass, exit 0)",
+    " Container r01-dr-promote-proof-dr-promoted-check-run-7474c85fcda5 Created ",
+    "postgres-dr is promoted (read-write)",
+    "guard exit=0",
+    "### promoted node accepts writes as fix_admin",
+    "after-promotion",
+    "INSERT 0 1",
+    "### teardown",
+    " Network r01-dr-promote-proof_default Removed ",
+    "0"
+  ]
+}

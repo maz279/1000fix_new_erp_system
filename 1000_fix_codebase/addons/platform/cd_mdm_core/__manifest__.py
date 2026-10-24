@@ -20,7 +20,11 @@ The rest of M64 (full workflow, data quality dashboards) stays in W2.
     "author": "1000FiX Services Ltd",
     "category": "Platform/MDM",
     "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_mdm_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/fix_mdm_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M64-01",

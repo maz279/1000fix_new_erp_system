@@ -1,4 +1,4 @@
-# render-bengali-reference.ps1 — P04-M08-T05 (TR-07, doctor check 10).
+﻿# render-bengali-reference.ps1 — P04-M08-T05 (TR-07, doctor check 10).
 #
 # Renders the committed Bengali conjunct-shaping reference image through the
 # same font the token source names (Noto Sans Bengali) using GDI+ text

@@ -1,4 +1,5 @@
 """cd_partner tests - P10-M04 (CD-M40-01)."""
+
 import inspect
 import unittest
 
@@ -45,8 +46,7 @@ class TestReferral(unittest.TestCase):
         self.assertIn("Convert before", src)
 
     def test_conversion_event(self):
-        self.assertIn("referral.converted",
-                      inspect.getsource(FixReferral))
+        self.assertIn("referral.converted", inspect.getsource(FixReferral))
 
     def test_referral_states(self):
         src = inspect.getsource(FixReferral)
@@ -55,6 +55,7 @@ class TestReferral(unittest.TestCase):
 
     def test_monetary_commission(self):
         import odoo.fields as f
+
         self.assertIsInstance(FixReferral.commission_amount, f.Monetary)
 
 

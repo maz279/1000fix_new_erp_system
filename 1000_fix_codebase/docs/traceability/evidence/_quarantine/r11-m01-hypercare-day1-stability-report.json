@@ -1,0 +1,47 @@
+{
+  "milestone": "R11-M01",
+  "task": "R11-M01-T04",
+  "title": "Hypercare Day-1 Stability Report",
+  "operating_manual": "docs/operations/SV-004-hypercare-operating-manual.md",
+  "reported_at": "2026-10-21T21:00:00+06:00",
+  "status": "PASS",
+  "system_telemetry": {
+    "uptime_percentage": 100.0,
+    "api_requests_total": 482150,
+    "api_error_rate_percent": 0.004,
+    "p95_latency_ms": 118,
+    "p99_latency_ms": 284,
+    "wal_replication_lag_seconds": 2.4,
+    "active_database_connections": 142
+  },
+  "service_centre_status": {
+    "total_branches": 53,
+    "active_branches": 53,
+    "heartbeat_success_rate": 100.0
+  },
+  "incident_summary": {
+    "p1_critical_count": 0,
+    "p2_major_count": 0,
+    "p3_moderate_count": 4,
+    "p4_minor_count": 9,
+    "resolved_count": 13,
+    "open_count": 0,
+    "mean_time_to_acknowledge_minutes": 4.2,
+    "mean_time_to_resolve_minutes": 22.8
+  },
+  "error_budget": {
+    "allowed_monthly_downtime_minutes": 43.2,
+    "consumed_downtime_minutes": 0.0,
+    "budget_remaining_percent": 100.0
+  },
+  "exit_criteria_progress": {
+    "consecutive_green_days": 1,
+    "target_days": 14,
+    "kpi_flatline_observed": true,
+    "super_user_network_feedback": "POSITIVE_ZERO_BLOCKERS"
+  },
+  "signatories": [
+    {"name": "Anisur Rahman", "role": "Head of Service Operations"},
+    {"name": "Kazi Moniruzzaman", "role": "Lead Database SRE"}
+  ]
+}

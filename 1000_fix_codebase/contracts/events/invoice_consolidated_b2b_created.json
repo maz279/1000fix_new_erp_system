@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "invoice.consolidated_b2b_created",
+  "description": "Published by cd_subscription through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "invoice.consolidated_b2b_created"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_subscription"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "customer_id",
+        "customer_name",
+        "period_start",
+        "period_end",
+        "total_payable",
+        "taxable_amount",
+        "vat_amount",
+        "device_count",
+        "mushak_no"
+      ],
+      "properties": {
+        "customer_id": {
+          "type": "integer"
+        },
+        "customer_name": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "period_start": {
+          "type": "string"
+        },
+        "period_end": {
+          "type": "string"
+        },
+        "total_payable": {
+          "type": "number"
+        },
+        "taxable_amount": {
+          "type": "number"
+        },
+        "vat_amount": {
+          "type": "number"
+        },
+        "device_count": {
+          "type": "integer"
+        },
+        "mushak_no": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_subscription",
+  "x-publishers": [
+    "addons/domain/c_commercial/cd_subscription/models/fix_subscription.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

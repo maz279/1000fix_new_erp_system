@@ -1,8 +1,12 @@
 # cd_inventory — Multi-location & Van Stock Locations (M15, CD-M15-01).
 from __future__ import annotations
 
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class FixStockLocation(models.Model):
@@ -60,9 +64,24 @@ class FixStockLocation(models.Model):
         store=True,
     )
 
+    parent_id = fields.Many2one("fix.stock.location", string="Parent Location", index=True)
+    state = fields.Selection(
+        [("draft", "Draft"), ("active", "Active"), ("inactive", "Inactive")],
+        string="Status",
+        default="active",
+        tracking=True,
+    )
     active = fields.Boolean(default=True)
     last_audit_date = fields.Date(string="Last Physical Audit Date")
     audit_discrepancy_count = fields.Integer(string="Audit Discrepancies", default=0)
+    legacy_reference = fields.Char(
+        string="Legacy Reference",
+        index=True,
+        readonly=True,
+        copy=False,
+        help="MIG-03: permanent source-system reference written by the inventory "
+        "loader (migrations/load_inventory.py) - never edited, never copied",
+    )
 
     _code_company_unique = models.Constraint(
         "UNIQUE (code, company_id)",
@@ -80,7 +99,9 @@ class FixStockLocation(models.Model):
     def _check_van_technician(self):
         for loc in self:
             if loc.location_type == "van" and not loc.technician_id:
-                raise ValidationError("Mobile van stock locations must designate a custodian technician.")
+                raise ValidationError(
+                    "Mobile van stock locations must designate a custodian technician."
+                )
 
     def action_audit_van_stock(self, audited_skus: list[dict] | None = None) -> dict:
         """Execute mobile van stock physical reconciliation audit."""
@@ -95,7 +116,11 @@ class FixStockLocation(models.Model):
         self.audit_discrepancy_count = discrepancies
 
         # Emit van.reconciled outbox event
-        accuracy_pct = 100.0 if total_audited == 0 else round((total_audited - discrepancies) / total_audited * 100.0, 1)
+        accuracy_pct = (
+            100.0
+            if total_audited == 0
+            else round((total_audited - discrepancies) / total_audited * 100.0, 1)
+        )
         event_payload = {
             "van_id": self.id,
             "van_code": self.code,
@@ -108,9 +133,10 @@ class FixStockLocation(models.Model):
 
         try:
             from libs.py.fix_events import publish
+
             publish(self.env, "van.reconciled", "fix.stock.location", self.id, event_payload)
         except Exception:
-            pass
+            _logger.exception("van.reconciled event publish failed for location %s", self.id)
 
         return {
             "van_id": self.id,

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.warranty.claim numbering (R01 re-audit 2026-10-22). create() always calls
+     next_by_code('fix.warranty.claim'); without this sequence every claim fell back
+     to "CLM/<today>", so the second claim of a day violated UNIQUE (claim_no). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_warranty_claim" model="ir.sequence">
+            <field name="name">Warranty Claim</field>
+            <field name="code">fix.warranty.claim</field>
+            <field name="prefix">CLM/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

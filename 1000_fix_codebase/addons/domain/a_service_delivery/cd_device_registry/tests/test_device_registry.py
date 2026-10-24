@@ -1,63 +1,76 @@
 # Tests for cd_device_registry (P04-M01) — device, warranty, ownership, history.
-import pytest
 
 
 class TestFixDevice:
     def test_model_exists(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
+
         assert FixDevice is not None
 
     def test_serial_unique_constraint(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
+
         assert hasattr(FixDevice, "_serial_unique_when_set")  # Odoo 19 models.Constraint attr
 
     def test_imei1_unique_constraint(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
+
         assert hasattr(FixDevice, "_imei1_unique_when_set")  # Odoo 19 models.Constraint attr
 
     def test_imei_format_constraint(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
-        assert '_check_identity_format' in dir(FixDevice)
+
+        assert "_check_identity_format" in dir(FixDevice)
 
     def test_ownership_transfer_api(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
-        assert 'action_transfer_ownership' in dir(FixDevice)
+
+        assert "action_transfer_ownership" in dir(FixDevice)
 
     def test_warranty_status_computed(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
-        assert '_compute_warranty_status' in dir(FixDevice)
+
+        assert "_compute_warranty_status" in dir(FixDevice)
 
     def test_device_history_api(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
-        assert 'add_history' in dir(FixDevice)
+
+        assert "add_history" in dir(FixDevice)
 
     def test_state_selection_present(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
-        assert 'state' in dir(FixDevice)
+
+        assert "state" in dir(FixDevice)
 
 
 class TestFixWarranty:
     def test_model_exists(self):
         from odoo.addons.cd_device_registry.models.fix_warranty import FixWarranty
+
         assert FixWarranty is not None
 
 
 class TestFixDeviceHistory:
     def test_model_exists(self):
         from odoo.addons.cd_device_registry.models.fix_device_history import FixDeviceHistory
+
         assert FixDeviceHistory is not None
 
 
 class TestFixDeviceW2Extensions:
     def test_lifecycle_and_compatibility_fields(self):
         from odoo.addons.cd_device_registry.models.fix_device import FixDevice
+
         assert "lifecycle_stage" in dir(FixDevice)
         assert "end_of_support_date" in dir(FixDevice)
         assert "estimated_residual_value_bdt" in dir(FixDevice)
         assert "get_compatible_parts" in dir(FixDevice)
 
     def test_device_part_compatibility_model(self):
-        from odoo.addons.cd_device_registry.models.fix_device_part_compatibility import FixDevicePartCompatibility
+        from odoo.addons.cd_device_registry.models.fix_device_part_compatibility import (
+            FixDevicePartCompatibility,
+        )
+
         assert FixDevicePartCompatibility is not None
         assert FixDevicePartCompatibility._name == "fix.device.part.compatibility"
         assert hasattr(FixDevicePartCompatibility, "_unique_model_part")

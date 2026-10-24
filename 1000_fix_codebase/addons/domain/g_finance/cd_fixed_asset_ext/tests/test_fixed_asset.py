@@ -3,8 +3,14 @@ import inspect
 import unittest
 from decimal import Decimal
 
+import pytest
 from odoo.addons.cd_fixed_asset_ext.models.fix_fixed_asset import (
-    FixCwipEntry, FixFixedAsset, straight_line_monthly)
+    FixCwipEntry,
+    FixFixedAsset,
+    straight_line_monthly,
+)
+
+pytestmark = [pytest.mark.financial]  # depreciation is a DoD-03 money path
 
 
 class TestStraightLineDepreciation(unittest.TestCase):
@@ -12,23 +18,19 @@ class TestStraightLineDepreciation(unittest.TestCase):
 
     def test_even_division(self):
         self.assertEqual(
-            straight_line_monthly(Decimal("120000"), Decimal("0"), 60),
-            Decimal("2000.00"))
+            straight_line_monthly(Decimal("120000"), Decimal("0"), 60), Decimal("2000.00")
+        )
 
     def test_salvage_reduces_base(self):
         self.assertEqual(
-            straight_line_monthly(Decimal("120000"), Decimal("20000"), 50),
-            Decimal("2000.00"))
+            straight_line_monthly(Decimal("120000"), Decimal("20000"), 50), Decimal("2000.00")
+        )
 
     def test_rounding_half_up(self):
         # (1000-0)/3 = 333.333... -> 333.33
-        self.assertEqual(
-            straight_line_monthly(Decimal("1000"), Decimal("0"), 3),
-            Decimal("333.33"))
+        self.assertEqual(straight_line_monthly(Decimal("1000"), Decimal("0"), 3), Decimal("333.33"))
         # (1002-0)/3 = 334.0 exactly
-        self.assertEqual(
-            straight_line_monthly(Decimal("1002"), Decimal("0"), 3),
-            Decimal("334.00"))
+        self.assertEqual(straight_line_monthly(Decimal("1002"), Decimal("0"), 3), Decimal("334.00"))
 
     def test_zero_life_raises(self):
         with self.assertRaises(ValueError):
@@ -54,12 +56,12 @@ class TestM49M54Break(unittest.TestCase):
 
     def test_budget_field_is_advisory_char(self):
         import odoo.fields as f
+
         self.assertIsInstance(FixFixedAsset.budget_reference, f.Char)
         self.assertNotIsInstance(FixFixedAsset.budget_reference, f.Many2one)
 
     def test_capitalisation_event(self):
-        self.assertIn("asset.capitalized",
-                      inspect.getsource(FixFixedAsset))
+        self.assertIn("asset.capitalized", inspect.getsource(FixFixedAsset))
 
 
 class TestCwip(unittest.TestCase):

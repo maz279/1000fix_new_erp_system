@@ -1,15 +1,23 @@
 # cd_warranty_claims tests — M09 (P07-M02; G4-01/G4-02).
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models"
-          / "fix_warranty_claims.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_warranty_claims.py").read_text(
+    encoding="utf-8"
+)
 
 
 class TestEvidencePack(unittest.TestCase):
     def test_all_seven_items(self):
-        for key in ("photo_before", "photo_after", "diagnostic", "parts_issued",
-                    "device_serial", "technician_cert", "purchase_proof"):
+        for key in (
+            "photo_before",
+            "photo_after",
+            "diagnostic",
+            "parts_issued",
+            "device_serial",
+            "technician_cert",
+            "purchase_proof",
+        ):
             self.assertIn('"%s"' % key, SOURCE)
 
     def test_submission_blocks_on_incomplete_pack(self):

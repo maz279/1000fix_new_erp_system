@@ -1,0 +1,59 @@
+{
+  "action": "RESET_TRAINING_COHORT",
+  "cohort_id": "cohort-alpha",
+  "timestamp": "2026-10-22T10:59:34.580111+00:00",
+  "environment": "training",
+  "reset_performed": false,
+  "models_reset": [],
+  "fixtures_reseeded": 0,
+  "checks": [
+    {
+      "id": "TRAINING_DATA_RULE",
+      "status": "PASS",
+      "detail": "training: data 'curated scenario, resettable per cohort', residency_classified 'never'",
+      "data_rule": "curated scenario, resettable per cohort",
+      "residency_classified": "never"
+    },
+    {
+      "id": "TRAINING_TARGET",
+      "status": "PASS",
+      "detail": "docker-compose.training.yml: training services verified {'postgres-training': '127.0.0.1:5440', 'odoo-training': '127.0.0.1:8076'}, database 'fix_training_curated'",
+      "targets": {
+        "postgres-training": {
+          "fix_env": "training",
+          "ports": [
+            [
+              "127.0.0.1",
+              5440
+            ]
+          ],
+          "database": "fix_training_curated"
+        },
+        "odoo-training": {
+          "fix_env": "training",
+          "ports": [
+            [
+              "127.0.0.1",
+              8076
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "id": "TRAINING_ENV_UP",
+      "status": "UNMEASURED",
+      "detail": "training stack not reachable: ['postgres-training (127.0.0.1:5440)', 'odoo-training (127.0.0.1:8076)']",
+      "reachable": {
+        "postgres-training": false,
+        "odoo-training": false
+      }
+    },
+    {
+      "id": "COHORT_RESET",
+      "status": "FAIL",
+      "detail": "no reset performed: PE-002 sec 5.8, QA-004 TDM-28/sec 7.1, TS-002 TD-15/sec 4.11 and CH-002 sec 9.2 require a per-cohort reset to the same starting state but no document names the baseline it restores (snapshot, template database or versioned TS-002/curated-scenario pack) and the repository contains none"
+    }
+  ],
+  "status": "FAIL"
+}

@@ -10,6 +10,7 @@ cross-service goes through the client).
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -32,11 +33,14 @@ RAW_FETCH = re.compile(r"(?<![.\w])fetch\s*\(")
 # arithmetic — money arrives as backend-computed values (AS-10). Binary
 # ops / Math.* / rounding on money-named identifiers is the smell.
 # Rate/percentage formatting (rating, *_rate, pct) is not money.
-MONEY_NAME = re.compile(r"\b\w*(?:_bdt|amount|price|total|payable|subtotal|gross|vat|tds|net)\b", re.I)
+MONEY_NAME = re.compile(
+    r"\b\w*(?:_bdt|amount|price|total|payable|subtotal|gross|vat|tds|net)\b", re.I
+)
 MONEY_ARITH = re.compile(
-    r"[\w.\]]+\s*(?:[+*/%-]|\*\*)\s*[\w.\]]+"   # a op b
-    r"|Math\.\w+\s*\(\s*[\w.\]]*"                # Math.fn(x...)
-    r"|\.toFixed\s*\(")                          # rounding
+    r"[\w.\]]+\s*(?:[+*/%-]|\*\*)\s*[\w.\]]+"  # a op b
+    r"|Math\.\w+\s*\(\s*[\w.\]]*"  # Math.fn(x...)
+    r"|\.toFixed\s*\("
+)  # rounding
 # prose inside string literals ("gross/commission/TDS/net") is not math —
 # strip plain quoted strings; template literals keep ${} expressions
 QUOTED_STRING = re.compile(r'"(?:[^"\\\n]|\\.)*"|\'(?:[^\'\\\n]|\\.)*\'')
@@ -52,6 +56,8 @@ def _money_arithmetic_smells(code: str) -> list[str]:
             if MONEY_NAME.search(expr):
                 hits.append(f"line {line_no}: {expr.strip()[:60]}")
     return hits
+
+
 # Strip // and /* */ comments before scanning (comments mentioning "fetch()"
 # are documentation, not code)
 LINE_COMMENT = re.compile(r"//[^\n]*")
@@ -90,18 +96,16 @@ def check_prng_and_fetch() -> list[str]:
         code = strip_comments(text)  # scan code, not comments
         if PRNG_IN_CODE.search(code):
             v.append(f"PRNG in app code (fabrication risk): {f.relative_to(REPO)}")
-        if RAW_FETCH.search(code) and "api-client" not in f.as_posix():
-            # OIDC auth files are exempt: the token exchange goes to the
-            # Keycloak IdP (not the API gateway), from a validated issuer
-            # URL with redirect:"error" — documented in the file itself.
-            if "auth.ts" not in f.name:
-                v.append(f"raw fetch() outside libs/ts/api-client (P-11): {f.relative_to(REPO)}")
+        # OIDC auth files are exempt: the token exchange goes to the
+        # Keycloak IdP (not the API gateway), from a validated issuer
+        # URL with redirect:"error" — documented in the file itself.
+        if RAW_FETCH.search(code) and "api-client" not in f.as_posix() and "auth.ts" not in f.name:
+            v.append(f"raw fetch() outside libs/ts/api-client (P-11): {f.relative_to(REPO)}")
         # libs may format money (bn007 groups digits); apps must not do
         # monetary arithmetic at all (§8) — masks.ts's formatter is exempt
         if "/libs/" not in f.as_posix():
             for hit in _money_arithmetic_smells(code):
-                v.append(f"client-side money arithmetic (PP6 §8): "
-                         f"{f.relative_to(REPO)} {hit}")
+                v.append(f"client-side money arithmetic (PP6 §8): " f"{f.relative_to(REPO)} {hit}")
     return v
 
 
@@ -112,8 +116,10 @@ def main() -> int:
         for v in violations:
             print(f"  {v}")
         return 1
-    print("no-fixtures: OK - runtime space clean (fixtures only under tests/stories/seeds; "
-          "no PRNG in app code; no raw fetch outside api-client)")
+    print(
+        "no-fixtures: OK - runtime space clean (fixtures only under tests/stories/seeds; "
+        "no PRNG in app code; no raw fetch outside api-client)"
+    )
     return 0
 
 

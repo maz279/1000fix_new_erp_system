@@ -2,26 +2,21 @@
 # Validates NFR-092, PE-008, P06-M08-T05/T06, and discharges GP-10.
 from __future__ import annotations
 
-import json
 import unittest
 import uuid
 from typing import Any
 
+from libs.py.fix_events import publish
 from libs.py.fix_telemetry import (
     CORRELATION_HEADER,
     TRACEPARENT_HEADER,
-    Span,
     TraceContext,
     extract_trace_context,
-    get_current_correlation_id,
     get_in_memory_spans,
     inject_trace_context,
     reset_in_memory_spans,
-    set_current_correlation_id,
     start_span,
-    stamp_outbox_metadata,
 )
-from libs.py.fix_events import publish
 
 
 class MockOutboxRecord:
@@ -35,7 +30,14 @@ class MockOutboxModel:
     def __init__(self):
         self.records: list[MockOutboxRecord] = []
 
-    def emit(self, event_type: str, aggregate: str, aggregate_id: int, payload: dict, metadata: dict | None = None):
+    def emit(
+        self,
+        event_type: str,
+        aggregate: str,
+        aggregate_id: int,
+        payload: dict,
+        metadata: dict | None = None,
+    ):
         rec = MockOutboxRecord(str(uuid.uuid4()), event_type, metadata or {})
         self.records.append(rec)
         return rec
@@ -63,7 +65,9 @@ class TestOpenTelemetryTraceRoundtrip(unittest.TestCase):
         test_corr_id = str(uuid.uuid4())
         ctx = TraceContext(correlation_id=test_corr_id)
 
-        with start_span("portal.order.create", attributes={"fix.tenant_id": "T01"}, context=ctx) as span:
+        with start_span(
+            "portal.order.create", attributes={"fix.tenant_id": "T01"}, context=ctx
+        ) as span:
             span.set_attribute("order.amount", 2500.0)
 
         spans = get_in_memory_spans()
@@ -108,10 +112,16 @@ class TestOpenTelemetryTraceRoundtrip(unittest.TestCase):
         with start_span("odoo.service_order.process", context=odoo_ctx) as odoo_span:
             odoo_span.set_attribute("operating_unit_id", 1)
             # Publishes outbox event using fix_events
-            publish(mock_env, "service.order.created", "fix.service.order", 101, {
-                "order_id": 101,
-                "amount": 1500.0,
-            })
+            publish(
+                mock_env,
+                "service.order.created",
+                "fix.service.order",
+                101,
+                {
+                    "order_id": 101,
+                    "amount": 1500.0,
+                },
+            )
 
         self.assertEqual(len(mock_env.outbox.records), 1)
         outbox_event = mock_env.outbox.records[0]
@@ -139,12 +149,15 @@ class TestOpenTelemetryTraceRoundtrip(unittest.TestCase):
         self.assertEqual(len(spans), 4)
 
         span_names = [s["name"] for s in spans]
-        self.assertEqual(span_names, [
-            "gateway.route_dispatch",
-            "odoo.service_order.process",
-            "worker.outbox_drain",
-            "notification.sms.send",
-        ])
+        self.assertEqual(
+            span_names,
+            [
+                "gateway.route_dispatch",
+                "odoo.service_order.process",
+                "worker.outbox_drain",
+                "notification.sms.send",
+            ],
+        )
 
         # All 4 spans must share the EXACT SAME correlation ID
         for s in spans:

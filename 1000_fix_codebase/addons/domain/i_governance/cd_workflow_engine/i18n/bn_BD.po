@@ -7,27 +7,104 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
-msgid "AUT Code"
-msgstr "AUT কোড"
-
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__action
 msgid "Action"
 msgstr "কার্যক্রম"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__airflow
+msgid "Apache Airflow (scheduled / threshold workflow)"
+msgstr "Apache Airflow (নির্ধারিত / সীমাভিত্তিক ওয়ার্কফ্লো)"
+
+#. module: cd_workflow_engine
+#: model:ir.actions.act_window,name:cd_workflow_engine.action_fix_approval_matrix
+#: model:ir.ui.menu,name:cd_workflow_engine.menu_fix_approval_matrix
 msgid "Approval Matrix"
 msgstr "অনুমোদন ম্যাট্রিক্স"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__approver_role
 msgid "Approver Role (R-nn)"
 msgstr "অনুমোদক ভূমিকা (R-nn)"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__code
+msgid "AUT Code"
+msgstr "AUT কোড"
+
+#. module: cd_workflow_engine
+#: model:ir.actions.act_window,name:cd_workflow_engine.action_fix_automation
+#: model:ir.ui.menu,name:cd_workflow_engine.menu_fix_automation
 msgid "Automation Register"
 msgstr "অটোমেশন রেজিস্টার"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__credit_note
+msgid "Credit Note"
+msgstr "ক্রেডিট নোট"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__discount
+msgid "Discount"
+msgstr "ছাড়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__domain_service
+msgid "Domain Service (named L5 engine)"
+msgstr "ডোমেইন সার্ভিস (নামযুক্ত L5 ইঞ্জিন)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__engine_ref
 msgid "Engine Reference"
 msgstr "ইঞ্জিন রেফারেন্স"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__estimate
+msgid "Estimate Approval"
+msgstr "আনুমানিক খরচ অনুমোদন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__expense
+msgid "Expense Claim"
+msgstr "ব্যয় দাবি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__failure_policy__manual_fallback
+msgid "Manual Fallback (the catalogue's named fallback)"
+msgstr "ম্যানুয়াল বিকল্প (ক্যাটালগে নির্দিষ্ট বিকল্প)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__odoo_automated_action
+msgid "Odoo Automated Action (event + server action)"
+msgstr "Odoo স্বয়ংক্রিয় অ্যাকশন (ইভেন্ট + সার্ভার অ্যাকশন)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__requisition
+msgid "Requisition"
+msgstr "ক্রয় অনুরোধ"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__failure_policy__retry
+msgid "Retry then alert"
+msgstr "পুনরায় চেষ্টা, তারপর সতর্কতা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__adjustment
+msgid "Stock Adjustment"
+msgstr "মজুদ সমন্বয়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__threshold
 msgid "Threshold"
 msgstr "সীমা"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__trigger
 msgid "Trigger"
 msgstr "ট্রিগার"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__write_off
+msgid "Write-Off"
+msgstr "অবলোপন"

@@ -10,31 +10,44 @@ class FixRole(models.Model):
     Each role maps 1:1 to a Keycloak realm role and an Odoo res.groups.
     SoD controls reference role PAIRS that must not be held simultaneously.
     """
+
     _name = "fix.role"
     _description = "Business Role"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'Role code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "Role code must be unique")
 
-    code = fields.Char(string="Role Code (R-nn)", required=True, size=10,
-                       help="The reconciled role identifier, e.g. R-01")
+    code = fields.Char(
+        string="Role Code (R-nn)",
+        required=True,
+        size=10,
+        help="The reconciled role identifier, e.g. R-01",
+    )
     name = fields.Char(string="Role Name", required=True)
     name_bn = fields.Char(string="Role Name (Bengali)", help="DE-17")
     description = fields.Text(string="Description")
     # AS-03: company_id on transactional models
-    company_id = fields.Many2one("res.company", string="Company", index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", string="Company", index=True, default=lambda self: self.env.company
+    )
     operating_unit_ids = fields.Many2many(
-        "operating.unit", string="Operating Units",
-        help="AS-03: OUs this role is scoped to; empty = all OUs")
-    tier_ids = fields.Many2many("fix.isolation.tier", string="Data Isolation Tiers",
-                                help="Which isolation tiers this role may access")
-    group_id = fields.Many2one("res.groups", string="Odoo Group",
-                               help="The Odoo group this role maps to")
-    keycloak_role = fields.Char(string="Keycloak Realm Role",
-                                help="The Keycloak realm role name (usually same as code)")
+        "operating.unit",
+        string="Operating Units",
+        help="AS-03: OUs this role is scoped to; empty = all OUs",
+    )
+    tier_ids = fields.Many2many(
+        "fix.isolation.tier",
+        string="Data Isolation Tiers",
+        help="Which isolation tiers this role may access",
+    )
+    group_id = fields.Many2one(
+        "res.groups", string="Odoo Group", help="The Odoo group this role maps to"
+    )
+    keycloak_role = fields.Char(
+        string="Keycloak Realm Role", help="The Keycloak realm role name (usually same as code)"
+    )
     active = fields.Boolean(default=True, tracking=True)
 
     @api.constrains("code")

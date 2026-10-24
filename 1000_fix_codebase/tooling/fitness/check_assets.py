@@ -9,6 +9,7 @@ bundling standards:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import ast
@@ -27,7 +28,11 @@ def check_manifest_assets(manifest_path: Path) -> list[str]:
         parsed = ast.literal_eval(content)
     except Exception:
         # If not purely literal, extract 'assets' via regex
-        m = re.search(r'"assets":\s*(\{[^}]+\})', manifest_path.read_text(encoding="utf-8", errors="ignore"), re.DOTALL)
+        m = re.search(
+            r'"assets":\s*(\{[^}]+\})',
+            manifest_path.read_text(encoding="utf-8", errors="ignore"),
+            re.DOTALL,
+        )
         if not m:
             return []
         return []
@@ -37,7 +42,7 @@ def check_manifest_assets(manifest_path: Path) -> list[str]:
         return []
 
     module_dir = manifest_path.parent
-    for bundle, file_list in assets.items():
+    for file_list in assets.values():
         if not isinstance(file_list, list):
             continue
         for file_ref in file_list:
@@ -54,7 +59,9 @@ def check_manifest_assets(manifest_path: Path) -> list[str]:
                 else:
                     asset_file = module_dir / pattern
                     if not asset_file.exists():
-                        errors.append(f"{module_dir.name}: referenced asset file does not exist: {file_ref}")
+                        errors.append(
+                            f"{module_dir.name}: referenced asset file does not exist: {file_ref}"
+                        )
 
     return errors
 
@@ -76,18 +83,24 @@ def main() -> int:
         try:
             txt = xml_file.read_text(encoding="utf-8")
             if "<templates" in txt and 'xml:space="preserve"' not in txt:
-                violations.append(f"{xml_file.relative_to(REPO_ROOT)}: <templates> must include xml:space=\"preserve\"")
-        except Exception:
+                violations.append(
+                    f'{xml_file.relative_to(REPO_ROOT)}: <templates> must include xml:space="preserve"'
+                )
+        except (OSError, UnicodeDecodeError):
             continue
 
     if violations:
         print(f"assets: FAIL - {len(violations)} OWL asset bundling violation(s):")
         for v in violations[:15]:
             print(f"  {v}")
-        print("  remedy: ensure all files in __manifest__.py 'assets' exist on disk and OWL templates are properly namespaced.")
+        print(
+            "  remedy: ensure all files in __manifest__.py 'assets' exist on disk and OWL templates are properly namespaced."
+        )
         return 1
 
-    print(f"assets: OK - {manifests_checked} manifest(s) and {owl_components_checked} OWL asset template(s) verified for build reproducibility")
+    print(
+        f"assets: OK - {manifests_checked} manifest(s) and {owl_components_checked} OWL asset template(s) verified for build reproducibility"
+    )
     return 0
 
 

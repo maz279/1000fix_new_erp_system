@@ -9,12 +9,11 @@
 # T03 companion: this closes the M63 -> M27 violation — automations that
 # notify do so by PUBLISHING EVENTS the notification dispatcher (W1, live)
 # consumes; M63 never calls M27.
-from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from pathlib import Path
 
 import yaml
-
-from pathlib import Path
+from odoo import api, fields, models
+from odoo.exceptions import ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -33,23 +32,30 @@ class FixAutomation(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _code_unique = models.Constraint('UNIQUE (code)', 'AUT code must be unique')
+    _code_unique = models.Constraint("UNIQUE (code)", "AUT code must be unique")
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     code = fields.Char(string="AUT Code", required=True, size=10, index=True)
     trigger = fields.Char(string="Trigger", required=True)
     action = fields.Text(string="Action", required=True)
-    engine = fields.Selection(ENGINES, required=True,
-                              help="T04: every automation has a named engine")
-    engine_ref = fields.Char(string="Engine Reference",
-                             help="Server-action xml id / Airflow dag_id / service route")
+    engine = fields.Selection(
+        ENGINES, required=True, help="T04: every automation has a named engine"
+    )
+    engine_ref = fields.Char(
+        string="Engine Reference", help="Server-action xml id / Airflow dag_id / service route"
+    )
     active = fields.Boolean(default=True)
     failure_policy = fields.Selection(
-        [("manual_fallback", "Manual Fallback (the catalogue's named fallback)"),
-         ("retry", "Retry then alert")],
-        default="manual_fallback", required=True,
-        help="The catalogue names each automation's fallback; the engine honours it")
+        [
+            ("manual_fallback", "Manual Fallback (the catalogue's named fallback)"),
+            ("retry", "Retry then alert"),
+        ],
+        default="manual_fallback",
+        required=True,
+        help="The catalogue names each automation's fallback; the engine honours it",
+    )
 
     @api.constrains("code")
     def _check_code(self):
@@ -63,25 +69,40 @@ class FixAutomation(models.Model):
         catalogue extract). Idempotent on code."""
         register_path = Path(__file__).parent.parent / "data" / "aut_register.yaml"
         data = yaml.safe_load(register_path.read_text(encoding="utf-8"))
-        existing = {a.code for a in self.search([])}
+        # active_test=False: a DEACTIVATED automation still owns its code; a
+        # reload must not try to re-create it against the UNIQUE(code) key.
+        automations = self.with_context(active_test=False)
+        existing = {a.code for a in automations.search([])}
         loaded = 0
         for row in data["automations"]:
             engine_ref = row.get("engine_ref") or self._default_engine_ref(row["engine"])
             if row["id"] in existing:
-                rec = self.search([("code", "=", row["id"])], limit=1)
-                if rec and (not rec.engine_ref or "created at activation" in str(rec.engine_ref) or "Airflow sync" in str(rec.engine_ref) or "named in the action" in str(rec.engine_ref)):
+                rec = automations.search([("code", "=", row["id"])], limit=1)
+                if rec and (
+                    not rec.engine_ref
+                    or "created at activation" in str(rec.engine_ref)
+                    or "Airflow sync" in str(rec.engine_ref)
+                    or "named in the action" in str(rec.engine_ref)
+                ):
                     rec.write({"engine_ref": engine_ref})
                 continue
-            self.create({
-                "code": row["id"],
-                "trigger": row["trigger"],
-                "action": row["action"],
-                "engine": row["engine"],
-                "engine_ref": engine_ref,
-            })
+            self.create(
+                {
+                    "code": row["id"],
+                    "trigger": row["trigger"],
+                    "action": row["action"],
+                    "engine": row["engine"],
+                    "engine_ref": engine_ref,
+                }
+            )
             loaded += 1
-        publish(self.env, "automation.register.loaded", "fix.automation", 0,
-                {"loaded": loaded, "total": len(data["automations"])})
+        publish(
+            self.env,
+            "automation.register.loaded",
+            "fix.automation",
+            0,
+            {"loaded": loaded, "total": len(data["automations"])},
+        )
         return loaded
 
     @api.model
@@ -103,8 +124,8 @@ class FixAutomation(models.Model):
             self._default_engine_ref("domain_service"),
         ]
         return self.search_read(
-            [("engine_ref", "in", placeholders)],
-            ["code", "engine", "trigger", "engine_ref"])
+            [("engine_ref", "in", placeholders)], ["code", "engine", "trigger", "engine_ref"]
+        )
 
 
 class FixApprovalMatrix(models.Model):
@@ -117,20 +138,35 @@ class FixApprovalMatrix(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _domain_threshold_unique = models.Constraint('UNIQUE (decision_domain, currency_id)', 'One threshold per decision domain and currency')
+    _domain_threshold_unique = models.Constraint(
+        "UNIQUE (decision_domain, currency_id)", "One threshold per decision domain and currency"
+    )
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     decision_domain = fields.Selection(
-        [("estimate", "Estimate Approval"), ("credit_note", "Credit Note"),
-         ("discount", "Discount"), ("adjustment", "Stock Adjustment"),
-         ("write_off", "Write-Off"), ("expense", "Expense Claim"),
-         ("requisition", "Requisition")], required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    threshold = fields.Monetary(string="Threshold", currency_field="currency_id",
-                                required=True,
-                                help="At or below: delegated; above: the named role approves")
-    approver_role = fields.Char(string="Approver Role (R-nn)", required=True,
-                                help="From the reconciled 53-role register")
+        [
+            ("estimate", "Estimate Approval"),
+            ("credit_note", "Credit Note"),
+            ("discount", "Discount"),
+            ("adjustment", "Stock Adjustment"),
+            ("write_off", "Write-Off"),
+            ("expense", "Expense Claim"),
+            ("requisition", "Requisition"),
+        ],
+        required=True,
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    threshold = fields.Monetary(
+        string="Threshold",
+        currency_field="currency_id",
+        required=True,
+        help="At or below: delegated; above: the named role approves",
+    )
+    approver_role = fields.Char(
+        string="Approver Role (R-nn)", required=True, help="From the reconciled 53-role register"
+    )
     notes = fields.Char()

@@ -5,6 +5,7 @@ CLI usage:
     python -m contracts.check openapi
     python -m contracts.check events
 """
+
 from __future__ import annotations
 
 import json
@@ -15,7 +16,9 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OPENAPI_DIR = REPO_ROOT / "contracts" / "openapi"
 EVENTS_DIR = REPO_ROOT / "contracts" / "events"
-OUTBOX_MODEL = REPO_ROOT / "addons" / "platform" / "cd_event_outbox" / "models" / "fix_event_outbox.py"
+OUTBOX_MODEL = (
+    REPO_ROOT / "addons" / "platform" / "cd_event_outbox" / "models" / "fix_event_outbox.py"
+)
 
 REQUIRED_EVENT_FIELDS = {"event_id", "event_type", "timestamp", "producer", "payload"}
 EVENT_TYPE_REGEX = re.compile(r"^[a-z0-9_]+(?:\.[a-z0-9_]+){2,}$")
@@ -63,7 +66,10 @@ def check_openapi() -> int:
     if errors:
         for err in errors:
             print(f"  [FAIL] {err}", file=sys.stderr)
-        print(f"contracts openapi: {len(errors)} violation(s) across {checked} contract(s)", file=sys.stderr)
+        print(
+            f"contracts openapi: {len(errors)} violation(s) across {checked} contract(s)",
+            file=sys.stderr,
+        )
         return 1
 
     print(f"contracts openapi: OK — {checked} contract file(s) valid per OpenAPI standard")
@@ -88,12 +94,21 @@ def check_events() -> int:
             if props:
                 missing = REQUIRED_EVENT_FIELDS - set(props.keys())
                 if missing:
-                    errors.append(f"{path.name}: missing required event envelope fields: {sorted(missing)}")
+                    errors.append(
+                        f"{path.name}: missing required event envelope fields: {sorted(missing)}"
+                    )
 
     # Verify transactional outbox model
     if OUTBOX_MODEL.is_file():
         content = OUTBOX_MODEL.read_text(encoding="utf-8")
-        required_columns = ["event_id", "event_type", "aggregate", "aggregate_id", "payload", "status"]
+        required_columns = [
+            "event_id",
+            "event_type",
+            "aggregate",
+            "aggregate_id",
+            "payload",
+            "status",
+        ]
         for col in required_columns:
             if col not in content:
                 errors.append(f"outbox model {OUTBOX_MODEL.name} missing field {col}")
@@ -167,10 +182,15 @@ def check_pacts() -> int:
     if errors:
         for err in errors:
             print(f"  [FAIL] {err}", file=sys.stderr)
-        print(f"contracts pacts: {len(errors)} violation(s) across {checked} contract(s)", file=sys.stderr)
+        print(
+            f"contracts pacts: {len(errors)} violation(s) across {checked} contract(s)",
+            file=sys.stderr,
+        )
         return 1
 
-    print(f"contracts pacts: OK — {checked} pact contract(s) valid, {total_interactions} interaction(s) verified (PS-01)")
+    print(
+        f"contracts pacts: OK — {checked} pact contract(s) valid, {total_interactions} interaction(s) verified (PS-01)"
+    )
     return 0
 
 
@@ -189,10 +209,12 @@ def main(argv: list[str] | None = None) -> int:
         rc3 = check_pacts()
         return max(rc1, rc2, rc3)
     else:
-        print(f"contracts.check: unknown target '{target}'. Use 'openapi', 'events', 'pacts', or 'all'.", file=sys.stderr)
+        print(
+            f"contracts.check: unknown target '{target}'. Use 'openapi', 'events', 'pacts', or 'all'.",
+            file=sys.stderr,
+        )
         return 2
 
 
 if __name__ == "__main__":
     sys.exit(main())
-

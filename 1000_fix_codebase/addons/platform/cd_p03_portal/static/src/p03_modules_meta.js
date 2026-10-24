@@ -894,7 +894,8 @@ export const P03_MODULES = {
       {
         en: 'General Ledger',
         screens: [
-          { id: 'M19-journals', en: 'Journal Entries (Auto-Posted)', bn: 'জার্নাল এন্ট্রি', t: 'g' },
+          { id: 'M19-journals', en: 'General Ledger & Journal Entries', bn: 'জার্নাল এন্ট্রি', t: 'g' },
+          { id: 'M19-close', en: 'Month-End Period Close & Locks', bn: 'মাসিক ক্লোজ', t: 'g' },
           { id: 'M19-tb', en: 'Trial Balance & Financials', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' }
         ]
       }
@@ -932,36 +933,42 @@ export const P03_MODULES = {
     area: 'A08', code: 'M52', en: 'AP & Employee Expense', title: 'M52 · AP & Employee Expense',
     bn: 'প্রদেয় ও ব্যয়', icon: '💸',
     desc: 'Vendor invoices with 3-way match, TDS/VDS at source, employee expenses & advances, payment runs.',
-    kpis: [{ l: 'Total AR Outstanding' }, { l: 'Overdue > 60d' }],
+    kpis: [{ l: 'Pending Vendor Bills' }],
     groups: [
-      { en: 'Receivables', screens: [{ id: 'M52-ar', en: 'AR Ageing Analysis Register', bn: 'রিসিভেবল এজিং', t: 'g' }] }
+      { en: 'Payables', screens: [{ id: 'M52-bills', en: 'Vendor Bills & Invoices', bn: 'ভেন্ডর বিল তালিকা', t: 'g' }] }
     ],
-    reports: ['AR Aging 30/60/90 Days Pareto'], forms: ['Record Customer Payment Receipt'], cross: ['M36 B2B Accounts', 'M19 Ledger'],
-    freg: { src: 86, sub: [['1', 'Aging Calculation & Provisioning', 10], ['2', 'Automated Dunning Reminders', 8]] }
+    reports: ['Upcoming Payment Commitments'], forms: ['Record Vendor Bill'], cross: ['M41 Purchase Orders', 'M19 Ledger'],
+    freg: { src: 88, sub: [['1', '3-Way Match Verification', 10], ['2', 'TDS / VDS Statutory Deduction', 8]] }
   },
 
   M50: {
     area: 'A08', code: 'M50', en: 'Treasury & Banking', title: 'M50 · Treasury & Banking',
     bn: 'কোষাগার ও ব্যাংক', icon: '🏦',
     desc: 'Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.',
-    kpis: [{ l: 'Pending Vendor Bills' }],
+    kpis: [{ l: 'Reconciliation Health' }],
     groups: [
-      { en: 'Payables', screens: [{ id: 'M50-bills', en: 'Vendor Bills & Invoices', bn: 'ভেন্ডর বিল তালিকা', t: 'g' }] }
+      { en: 'Banking & Treasury', screens: [{ id: 'M50-recon', en: 'Bank & Cash Reconciliation', bn: 'ব্যাংক স্টেটমেন্ট ম্যাচ', t: 'g' }] }
     ],
-    reports: ['Upcoming Payment Commitments'], forms: ['Record Vendor Bill'], cross: ['M41 Purchase Orders', 'M19 Ledger'],
-    freg: { src: 88, sub: [['1', '3-Way Match Verification', 10], ['2', 'TDS / VDS Statutory Deduction', 8]] }
+    reports: ['Unreconciled Bank Transactions'], forms: ['Perform Bank Reconciliation'], cross: ['M19 General Ledger'],
+    freg: { src: 80, sub: [['1', 'Bank Feed Parsing & Auto-Match', 10], ['2', 'bKash / Nagad Settlement Cleared', 8]] }
   },
 
   M51: {
     area: 'A08', code: 'M51', en: 'Tax & Regulatory (BD)', title: 'M51 · Tax & Regulatory (BD)',
     bn: 'কর ও ভ্যাট', icon: '🏛️',
     desc: 'VAT 15%, Mushak 6.1–9.1 registers & returns, TDS/VDS, challans, NID capture, statutory calendar.',
-    kpis: [{ l: 'Reconciliation Health' }],
+    kpis: [{ l: 'Mushak 9.1 Status' }, { l: 'Input Credit Tracked' }],
     groups: [
-      { en: 'Reconciliation', screens: [{ id: 'M51-reconcile', en: 'Bank & Mobile Wallet Statement Match', bn: 'ব্যাংক স্টেটমেন্ট ম্যাচ', t: 'g' }] }
+      {
+        en: 'VAT & Returns',
+        screens: [
+          { id: 'M51-vat91', en: 'VAT Return 9.1 Statutory Filing', bn: 'ভ্যাট রিটার্ন ৯.১', t: 'g' },
+          { id: 'M51-mushak63', en: 'Mushak 6.3 Records', bn: 'মূশক ৬.৩', t: 'g' }
+        ]
+      }
     ],
-    reports: ['Unreconciled Bank Transactions'], forms: ['Perform Bank Reconciliation'], cross: ['M19 General Ledger'],
-    freg: { src: 80, sub: [['1', 'Bank Feed Parsing & Auto-Match', 10], ['2', 'bKash / Nagad Settlement Cleared', 8]] }
+    reports: ['Mushak 9.1 Return Draft', 'VAT Reconciliation'], forms: ['Mushak 6.3 Entry', 'TDS Entry'], cross: ['M20 Invoicing', 'M19 General Ledger'],
+    freg: { src: 78, sub: [['1', 'VAT Output/Input', 12], ['2', 'VAT Return 9.1', 8]] }
   },
 
   M53: {

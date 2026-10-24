@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "supplier.scorecard_updated",
+  "description": "Event emitted when M42 supplier performance rating is recomputed from delivery & quality signals",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "supplier.scorecard_updated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_cx_feedback"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "supplier_id",
+        "composite_score",
+        "rating_tier",
+        "updated_at"
+      ],
+      "properties": {
+        "supplier_id": {
+          "type": "integer"
+        },
+        "composite_score": {
+          "type": "number"
+        },
+        "rating_tier": {
+          "type": "string",
+          "enum": [
+            "platinum",
+            "gold",
+            "silver",
+            "probation"
+          ]
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

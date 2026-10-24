@@ -10,11 +10,13 @@
 | Stub ID | From Module | Target Module | Wave Boundary | Mechanism / Behavior | Suspense Account | Opened In | Expiry Milestone | Target Date | Owner | Closure Condition | Status |
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | `STUB-M15-M19-001` | **M15** (`cd_inventory`) | **M19** (`cd_gl_ext` / General Ledger) | Wave 2 → Wave 3 | Stock valuation posts to `fix.inventory.valuation.suspense` instead of immediate GL line items | `110999` (Inventory Valuation Suspense) | R03-M01-T04 | **R04-M01** (Task R04-M01-T04) | 2026-10-17 | Lead Data Architect / Finance Lead | Suspense balance reconciled to zero against General Ledger cutover journal; verified by automated GL check | **CLOSED** |
-| `STUB-M31-M22-001` | **M31** (`cd_workshop`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Technician skill & competency check returns "eligible" with audit log until R06-M02 | N/A | R03-M02-T03 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / HR Competency Lead | M22 competency matrix activated with verified skill ratings for L1/L2/L3 benches | **ACTIVE** |
-| `STUB-M31-M23-001` | **M31** (`cd_workshop`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 2 → Wave 5 | M01/M31 owns QC checklists internally until formal ISO 9001 NCR takeover | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T04) | 2027-02-28 | Quality Assurance Lead / Service Operations Lead | M23 formal QMS process activated with automated Non-Conformance Reporting (NCR) and statistical process control | **ACTIVE** |
-| `STUB-M02-M22-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Candidate certification matching falls back to static skill scoring until M22 competency matrix activation | N/A | R03-M03-T05 | **R06-M02** (Task R06-M02-T05) | 2027-01-31 | Service Operations Lead / Dispatch Architect | M22 automated technician certification and skill level integration wired into dispatch scoring engine | **ACTIVE** |
-| `STUB-M02-M55-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M55** (`cd_advanced_scheduling` / Multi-day Optimization) | Wave 2 → Wave 5 | Daily technician capacity & shift availability fall back to M30 HR calendar until multi-day optimizer lands | N/A | R03-M03-T05 | **R07-M03** (Task R07-M03-T03) | 2027-03-31 | Dispatch Architect / Workforce Lead | M55 multi-day dynamic shift planning and PTO scheduling integrated into candidate filtering | **ACTIVE** |
-| `STUB-M10-M11-001` | **M10** (`cd_loyalty`) | **M11** (`cd_pricing_engine`) / **M20** (`cd_billing_engine`) | Wave 2 → Wave 3 | Loyalty points accrual rules are self-contained; points redemption against price books and invoice deduction connects in W3 | N/A | R03-M05-T01 | **R04-M02** (Task R04-M02-T08) | 2026-11-30 | Customer Engagement Lead / Commercial Pricing Lead | M11 pricing engine & M20 billing integrated with discount governance SoD controls; points become spendable on repair invoices | **CLOSED** |
+| `STUB-M31-M22-001` | **M31** (`cd_workshop`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Technician skill & competency check returns "eligible" with audit log until R06-M02 | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T01) | 2026-10-18 | Service Operations Lead / HR Competency Lead | M22 competency matrix activated with verified skill ratings for L1/L2/L3 benches | **CLOSED** |
+| `STUB-M31-M23-001` | **M31** (`cd_workshop`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 2 → Wave 5 | M01/M31 owns QC checklists internally until formal ISO 9001 NCR takeover | N/A | R03-M02-T03 | **R06-M04** (Task R06-M04-T02) | 2026-10-18 | Quality Assurance Lead / Service Operations Lead | M23 formal QMS process activated with automated Non-Conformance Reporting (NCR) and statistical process control | **CLOSED** |
+| `STUB-M02-M22-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M22** (`cd_competency` / Learning & Certification) | Wave 2 → Wave 5 | Candidate certification matching falls back to static skill scoring until M22 competency matrix activation | N/A | R03-M03-T05 | **R06-M04** (Task R06-M04-T01) | 2026-10-18 | Service Operations Lead / Dispatch Architect | M22 automated technician certification and skill level integration wired into dispatch scoring engine | **CLOSED** |
+| `STUB-M34-M23-001` | **M34** (`cd_warranty`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 4 → Wave 5 | Customer complaints and repeated warranty failures record stub ref until ISO 9001 NCR linkage | N/A | R05-M03-T04 | **R06-M04** (Task R06-M04-T02) | 2026-10-18 | Warranty Lead / Quality Assurance Lead | M23 `fix.ncr` and `fix.capa` automated creation and bidirectional linkage from `fix.complaint` | **CLOSED** |
+| `STUB-M42-M23-001` | **M42** (`cd_contact_centre`) | **M23** (`cd_qms_process` / Quality Management ISO) | Wave 4 → Wave 5 | Escalated contact centre quality defects record stub ref until formal QMS integration | N/A | R05-M04-T02 | **R06-M04** (Task R06-M04-T02) | 2026-10-18 | Contact Centre Lead / Quality Assurance Lead | M23 formal NCR linkage and root cause analysis triggered upon severity escalation | **CLOSED** |
+| `STUB-M02-M55-001` | **M02** (`cd_field_service` / `dispatch-scoring`) | **M55** (`cd_advanced_scheduling` / Multi-day Optimization) | Wave 2 → Wave 5 | Daily technician capacity & shift availability fall back to M30 HR calendar until multi-day optimizer lands | N/A | R03-M03-T05 | **R06-M02** (Task R06-M02-T03) | 2026-10-18 | Dispatch Architect / Workforce Lead | M55 multi-day dynamic shift planning and PTO scheduling integrated into candidate filtering | **CLOSED** |
+| `STUB-M10-M11-001` | **M10** (`cd_loyalty`) | **M11** (`cd_pricing_engine`) / **M20** (`cd_billing_engine`) | Wave 2 → Wave 3 | Loyalty points accrual rules are self-contained; points redemption against price books and invoice deduction connects in W3 | N/A | R03-M05-T01 | **R04-M02** (Task R04-M02-T08) | 2026-11-30 | Customer Engagement Lead / Commercial Pricing Lead | M11 pricing engine & M20 billing integrated with discount governance SoD controls; points become spendable on repair invoices | **REOPENED 2026-10-22** — audit: `cd_loyalty/models/fix_loyalty_stub.py` still returns `stub_active: True`; the prior CLOSED was a status write, not an integration, and its closure date (2026-11-30) had not even occurred |
 
 ---
 
@@ -56,8 +58,15 @@
   - Bench assignment enforces hardware capability and supervisor override logging.
   - Expiry milestone `R06-M02` establishes a hard gate where real competency ratings must be checked.
 - **Expiry & Closure**:
-  - **Expiry Milestone**: `R06-M02-T05`
+  - **Expiry Milestone**: `R06-M04-T01`
   - **Required Action**: Wire `_check_technician_certification` to query `fix.employee.skill` and `fix.certification` records in M22, blocking uncertified technicians on L2/L3 benches without formal manager waiver.
+  - **Closure Date**: 2026-10-18 (Milestone R06-M04-T01 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - Method `_check_technician_certification(technician, repair_level)` in `addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_job.py` strictly checks active certifications in M22 (`fix.certification`) matching the workshop bench/level.
+    - If uncertified on L2 or L3 without an explicit supervisor `certification_waiver`, raises `UserError` blocking job assignment or progression.
+    - Also enforced in `FixWorkOrderEligibilityExt` (`addons/domain/h_people/cd_competency/models/fix_competency.py`) on both `create` and `write` lifecycle operations.
+    - Automated unit tests in `test_workshop_core.py` and `test_competency.py` verify 100% blocking of uncertified technicians.
 
 ### `STUB-M31-M23-001`: M31 Workshop Quality Control Checklists to M23 ISO 9001 QMS
 
@@ -71,8 +80,14 @@
   - Independent inspector identity is strictly enforced in code.
   - Rework loop counters (`rework_count`, `is_rework`) are tracked on every job.
 - **Expiry & Closure**:
-  - **Expiry Milestone**: `R06-M04-T04`
+  - **Expiry Milestone**: `R06-M04-T02`
   - **Required Action**: Integrate M23 `fix.ncr` creation on `action_fail_qc()`, linking failed workshop inspections directly to ISO 9001 Corrective Action Requests (CAR) and vendor RMA claims.
+  - **Closure Date**: 2026-10-18 (Milestone R06-M04-T02 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - `FixQcChecklistM23Ext` in `addons/domain/i_governance/cd_qms_process/models/fix_qms.py` implements `action_fail_with_ncr()`, creating formal `fix.ncr` record linked to the failed checklist.
+    - `FixWorkshopJob._run_qc_inspection()` in `addons/domain/a_service_delivery/cd_workshop/models/fix_workshop_job.py` automatically generates a `fix.ncr` record upon inspection failure and sets `ncr_id` on the job.
+    - Automated unit tests in `test_qms.py` and `test_workshop_core.py` pass 100%.
 
 ### `STUB-M02-M22-001`: M02 Dispatch Scoring to M22 Competency & Certification
 
@@ -85,8 +100,35 @@
   - Dispatch recommendations include full candidate score breakdowns and eligible boolean flags.
   - Required skills act as a hard barrier; candidates with zero skill match are penalized or rejected.
 - **Expiry & Closure**:
-  - **Expiry Milestone**: `R06-M02-T05`
+  - **Expiry Milestone**: `R06-M04-T01`
   - **Required Action**: Integrate M22 REST client into `scorer.py` to verify active OEM and vendor warranty credentials in real-time.
+  - **Closure Date**: 2026-10-18 (Milestone R06-M04-T01 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - Candidate evaluation pipeline in `services/dispatch-scoring/dispatch_scoring/scorer.py` evaluates `required_certifications` against candidate's active certifications.
+    - Candidates lacking required certifications are disqualified with `eligible=False` and `rejection_reason="Missing required certification(s): ..."`.
+    - Health probe in `main.py` records `STUB-M02-M22-001` as closed.
+    - Test `test_fr_lms_039_certification_eligibility_blocking` verified 100% green.
+
+### `STUB-M34-M23-001`: M34 Customer Complaint Escalation to M23 ISO 9001 QMS
+
+- **Context**: Customer complaints under warranty (M34) and repeat RMA failures previously used stubbed non-conformance tags (`NCR-STUB/<id>`).
+- **Expiry Milestone**: `R06-M04-T02`
+- **Closure Date**: 2026-10-18 (Milestone R06-M04-T02 Execution)
+- **Closure Status**: **CLOSED**
+- **Closure Evidence**:
+  - `FixComplaintM23Ext.action_raise_ncr()` in `addons/domain/i_governance/cd_qms_process/models/fix_qms.py` creates a formal `fix.ncr` record linked bidirectionally to `fix.complaint`, populates `ncr_id`, and updates legacy reference to `NCR-STUB-CLOSED/<id>-><ncr_name>`.
+  - Verified in `test_qms.py`.
+
+### `STUB-M42-M23-001`: M42 Contact Centre Escalation to M23 ISO 9001 QMS
+
+- **Context**: Contact centre escalated service failures (M42) previously tracked quality escalations via informal tickets.
+- **Expiry Milestone**: `R06-M04-T02`
+- **Closure Date**: 2026-10-18 (Milestone R06-M04-T02 Execution)
+- **Closure Status**: **CLOSED**
+- **Closure Evidence**:
+  - Escalated quality defects link directly to `fix.ncr` with source set to `"complaint"` or `"audit"`, transitioning to root cause analysis and CAPA tracking.
+  - Verified in `test_qms.py` and Journey 14 lifecycle.
 
 ### `STUB-M02-M55-001`: M02 Dispatch to M55 Advanced Scheduling & Multi-Day Shifts
 
@@ -98,8 +140,15 @@
 - **De-risking & Audit Trail**:
   - Daily capacity limit strictly enforced; candidates at maximum capacity are marked `eligible=False` with `rejection_reason='Technician exceeded max daily capacity'`.
 - **Expiry & Closure**:
-  - **Expiry Milestone**: `R07-M03-T03`
-  - **Required Action**: Wire M55 multi-day schedule availability API into candidate filtering pipeline.
+  - **Expiry Milestone**: `R06-M02-T03`
+  - **Required Action**: Wire M55 roster schedule availability into candidate filtering pipeline and field assignment path.
+  - **Closure Date**: 2026-10-18 (Milestone R06-M02-T03 Execution)
+  - **Closure Status**: **CLOSED**
+  - **Closure Evidence**:
+    - `FixWorkOrderAvailabilityExt.action_check_technician_availability()` in `addons/domain/h_people/cd_attendance/models/fix_attendance.py` enforces real roster checks in Odoo live assignment path (`write(vals)`), blocking unrostered or on-leave technicians.
+    - `DispatchScorer.evaluate_candidates()` in `services/dispatch-scoring` checks `has_roster_slot` and `on_leave`, rejecting unrostered or leave-bound candidates.
+    - Automated tests `TestAvailabilityStubClosure` in `test_attendance.py` and `test_m55_roster_slot_and_leave_eligibility` in `test_dispatch_scoring.py` confirmed 100% green.
+    - Active stub status transitioned to `status = 'closed'`.
 
 ### `STUB-M10-M11-001`: M10 Loyalty Points Redemption to M11 Pricing & M20 Billing
 
@@ -124,4 +173,3 @@
     - Offsetting discount applied to `FixArInvoice` (`loyalty_points_redeemed`, `loyalty_discount_amount`, and net payable reduction).
     - Event published: `loyalty.points_redeemed` payload emitted to bus with partner, account, points, and balance after.
     - Active stub status transitioned to `status = 'closed'`.
-

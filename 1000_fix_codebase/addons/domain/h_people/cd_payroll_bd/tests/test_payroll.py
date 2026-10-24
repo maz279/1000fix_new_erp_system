@@ -1,12 +1,12 @@
 # cd_payroll_bd tests — P08-M03 (CD-M56-01). DoD-03/DoD-04 companions.
 import inspect
 import unittest
+
 import pytest
 
 pytestmark = [pytest.mark.financial, pytest.mark.tax]
 
-from odoo.addons.cd_payroll_bd.models.fix_payroll import (
-    FixBeftnBatch, FixPayrollPeriod, FixPayslip)
+from odoo.addons.cd_payroll_bd.models.fix_payroll import FixBeftnBatch, FixPayrollPeriod, FixPayslip
 
 
 class TestJourneyThirteenGuards(unittest.TestCase):
@@ -18,17 +18,23 @@ class TestJourneyThirteenGuards(unittest.TestCase):
         self.assertIn("may not calculate on open attendance", src)
 
     def test_state_guards(self):
-        for method, needed in (("action_calculate", "attendance_locked"),
-                               ("action_approve", "calculated"),
-                               ("action_pay", "approved"),
-                               ("action_post", "paid")):
+        for method, needed in (
+            ("action_calculate", "attendance_locked"),
+            ("action_approve", "calculated"),
+            ("action_pay", "approved"),
+            ("action_post", "paid"),
+        ):
             src = inspect.getsource(getattr(FixPayrollPeriod, method))
             self.assertIn(needed, src, method)
 
     def test_events_full_cycle(self):
         src = inspect.getsource(FixPayrollPeriod)
-        for event in ("payroll.attendance_locked", "payroll.approved",
-                      "payroll.beftn_submitted", "payroll.posted"):
+        for event in (
+            "payroll.attendance_locked",
+            "payroll.approved",
+            "payroll.beftn_submitted",
+            "payroll.posted",
+        ):
             self.assertIn(event, src)
 
 
@@ -52,6 +58,38 @@ class TestBeftnBatch(unittest.TestCase):
     def test_batch_created_with_engine_settlement(self):
         src = inspect.getsource(FixPayrollPeriod.action_pay)
         self.assertIn("beftn_settlement_date", src)
+
+    def test_beftn_generation_invokes_engine(self):
+        src = inspect.getsource(FixBeftnBatch.action_generate_beftn_file)
+        self.assertIn("generate_beftn_batch_file", src)
+        self.assertIn("validate_routing_number", src)
+        self.assertIn("BeftnEntry", src)
+        self.assertIn("BeftnBatchHeader", src)
+
+
+class TestMakerCheckerSoD(unittest.TestCase):
+    def test_approval_enforces_maker_checker_sod(self):
+        src = inspect.getsource(FixPayrollPeriod.action_approve)
+        self.assertIn("calculator_id", src)
+        self.assertIn("Maker-Checker SoD violation", src)
+
+    def test_calculator_recorded_on_calculate(self):
+        src = inspect.getsource(FixPayrollPeriod.action_calculate)
+        self.assertIn("rec.calculator_id = self.env.user", src)
+
+
+class TestDoubleEntryGLPosting(unittest.TestCase):
+    def test_post_checks_debit_credit_balance(self):
+        src = inspect.getsource(FixPayrollPeriod.action_post)
+        self.assertIn("total_debit", src)
+        self.assertIn("total_credit", src)
+        self.assertIn("GL Unbalanced", src)
+
+
+class TestSeparationAndRetrenchment(unittest.TestCase):
+    def test_retrenchment_uses_act_2006(self):
+        src = inspect.getsource(FixPayslip.action_compute_retrenchment)
+        self.assertIn("retrenchment_compensation", src)
 
 
 if __name__ == "__main__":

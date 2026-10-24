@@ -1,0 +1,82 @@
+{
+    "schema":  "1000fix-erp/gate-g3/2",
+    "ranAtUtc":  "2026-10-23T09:33:15.1592662Z",
+    "pass":  5,
+    "conditions":  7,
+    "failures":  0,
+    "verdict":  "CONDITION",
+    "criteria":  [
+                     {
+                         "Id":  "G3-a",
+                         "Criterion":  "Tax determination path tests green",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 121 tests; measured tax_logic.py coverage: 100% (100% path claim verified against the measurement, not asserted)"
+                     },
+                     {
+                         "Id":  "G3-b",
+                         "Criterion":  "Reconciliation ladder tests green",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 80 tests incl. the ladder gate scenario; measured reconciliation.py coverage: 92.52%"
+                     },
+                     {
+                         "Id":  "G3-c",
+                         "Criterion":  "Three-way match blocks unmatched invoices",
+                         "Status":  "PASS",
+                         "Evidence":  "unittest exit 0, 21 tests; source carries the G3-06 blocking branch: True (both conditions now gate the verdict)"
+                     },
+                     {
+                         "Id":  "G3-d",
+                         "Criterion":  "Mushak 6.3 statutory template present",
+                         "Status":  "PASS",
+                         "Evidence":  "QWeb template contains BIN fields and Bengali statutory heading: True (template inspection; runtime rendering is a Phase-4 browser check)"
+                     },
+                     {
+                         "Id":  "G3-e",
+                         "Criterion":  "Automation register complete (AUT-001..060, engine named)",
+                         "Status":  "PASS",
+                         "Evidence":  "60 automations parsed; entries missing an engine: none. NOTE: register completeness is not engine existence - ir.actions.server deployment is runtime work (see G3-07)"
+                     },
+                     {
+                         "Id":  "G3-01",
+                         "Criterion":  "100% of invoices generated automatically from closed jobs",
+                         "Status":  "CONDITION",
+                         "Evidence":  "auto-invoicing implemented (NFR-040 timing recorded per invoice); the percentage needs production closed-job volume"
+                     },
+                     {
+                         "Id":  "G3-02",
+                         "Criterion":  "Payment auto-matching \u003e= 90%",
+                         "Status":  "CONDITION",
+                         "Evidence":  "the ladder and its gate scenario are green in tests (G3-b); the production match rate needs bank-feed volume"
+                     },
+                     {
+                         "Id":  "G3-03",
+                         "Criterion":  "Mushak invoices accepted without NBR exception",
+                         "Status":  "CONDITION",
+                         "Evidence":  "statutory template + register exist (G3-d); NBR acceptance is an external judgement - sandbox self-minted tokens are NOT evidence (e-VAT client now fails closed unconfigured)"
+                     },
+                     {
+                         "Id":  "G3-04",
+                         "Criterion":  "Month-end close within 5 days (first full month)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "fix.period.close enforces the checklist and records close_duration_days; the first full month is a calendar event"
+                     },
+                     {
+                         "Id":  "G3-05",
+                         "Criterion":  "Pick \u0026 drop with unbroken chain of custody",
+                         "Status":  "CONDITION",
+                         "Evidence":  "consignment + custody-scan models verify chain monotonicity; the custody evidence needs rider-app scans (P09 runtime)"
+                     },
+                     {
+                         "Id":  "G3-06b",
+                         "Criterion":  "Three-way blocking demonstrated live",
+                         "Status":  "CONDITION",
+                         "Evidence":  "static + test evidence green (G3-c); live demonstration needs a real unmatched vendor invoice"
+                     },
+                     {
+                         "Id":  "G3-07",
+                         "Criterion":  "Journeys 1,2,3,12 automated and running nightly (L6)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "journey specs present: 4 of 4 expected; nightly job defined in ci.yml: True; nightly EXECUTION evidence requires the CI runner (open external) - specs existing is not execution"
+                     }
+                 ]
+}

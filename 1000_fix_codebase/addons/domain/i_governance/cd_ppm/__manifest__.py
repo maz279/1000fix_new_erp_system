@@ -10,7 +10,11 @@ CD-M67-01 (P10) — Project, Program & Portfolio Management.
     "author": "1000FiX Services Ltd",
     "category": "Project, Program & Portfolio Management",
     "depends": ["base", "mail", "cd_entity_config", "cd_hr_core", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/cd_ppm_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/cd_ppm_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M67-01",

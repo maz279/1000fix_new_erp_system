@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tradein.offered",
+  "description": "Published by cd_tradein through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "tradein.offered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_tradein"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "customer",
+        "value"
+      ],
+      "properties": {
+        "customer": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "value": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_tradein",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_tradein/models/fix_tradein.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

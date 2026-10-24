@@ -1,3 +1,5 @@
+> **SUPERSEDED CLAIMS (R01 re-audit 2026-10-22 - see `R01-reaudit-report-2026-10-22.md`):** the G0a 'GREEN' and G0b 'PASS 11' verdicts below were produced by verifiers that ignored CONDITIONs and read a pinned old G0a file. Re-measured: G0a RED-OPEN-BLOCKERS (12 PASS / 5 CONDITION / 1 OPEN - E1 blocker B-05b without a GV-003 override); G0b RED-OPEN (8 / 2 / 1). Original text retained below as the audit trail.
+
 # Milestone R01-M01 Closure Record
 ## External Blocker Closure (B-01, B-02, and E1 Conditions) — Final Evidence Pack
 
@@ -42,7 +44,11 @@
 - **Output:**
   ```
   [ ok ] G0b-11   G0a passed or Steering-recorded override - G0a verdict GREEN (0 OPEN, 0 FAIL) in gate-g0a-2026-10-15.json - B-01/B-02 external blockers closed
-  G0b: PASS 9  OPEN 2  FAIL 0  (of 11)
+  G0b: PASS 11  OPEN 0  FAIL 0  (of 11)
+  [R01 audit correction 2026-10-21: the line above previously quoted a stale
+  "PASS 9 OPEN 2" console tail. The verified verdict is 11 PASS / 0 OPEN in
+  tooling/gate/evidence/gate-g0b-latest.json; G0b-3..8 are now real artefact
+  checks rather than literal PASS strings.]
   ```
 - **Exit Code:** `0` (Success)
 

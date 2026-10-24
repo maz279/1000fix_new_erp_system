@@ -1,0 +1,118 @@
+{
+    "schema":  "1000fix-erp/gate-g4/2",
+    "ranAtUtc":  "2026-10-23T09:34:17.9096479Z",
+    "pass":  11,
+    "conditions":  7,
+    "failures":  0,
+    "verdict":  "CONDITION",
+    "criteria":  [
+                     {
+                         "Id":  "G4-a",
+                         "Criterion":  "Warranty claim automation (AUT-018)",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 64 passed (cd_warranty_claims). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-b",
+                         "Criterion":  "Contact centre system of record + AI handoff",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 71 passed (cd_contact_centre). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-c",
+                         "Criterion":  "Settlement engine calculation paths",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 43 passed (settlement-engine). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-d",
+                         "Criterion":  "Statutory returns return-calc paths",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 36 passed (return_logic). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-e",
+                         "Criterion":  "PDPA compliance infrastructure (G4-06)",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 29 passed (dsr-orchestrator). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-f",
+                         "Criterion":  "Portal contracts + PS-11 server-side validation",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 14 passed (portal-contracts). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-g",
+                         "Criterion":  "Commercial contracts core \u0026 OCA integration (M08)",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 19 passed (cd_contract_core). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-h",
+                         "Criterion":  "18 Brand submission workflows \u0026 blocking completeness (T03)",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 5 passed (brand_dags). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-i",
+                         "Criterion":  "M25/M62 Analytics dimensional models \u0026 95-KPI registry",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 11 passed (bi-warehouse). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-j",
+                         "Criterion":  "B-17 Event reconciliation register (69 unpublished events)",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 7 passed (event_reconciliation). Test-green proves the coded logic; production operation is claimed separately."
+                     },
+                     {
+                         "Id":  "G4-01",
+                         "Criterion":  "Claims auto-created within 24h and submitted within 72h",
+                         "Status":  "CONDITION",
+                         "Evidence":  "pytest exit 0, 3 passed - timing proven over SYNTHETIC jobs with a simulated clock (mock claim model); production timing on real warranty volume is unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G4-02",
+                         "Criterion":  "Claim approval rate \u003e= 90% on first submission",
+                         "Status":  "CONDITION",
+                         "Evidence":  "pytest exit 0, 2 passed - approval rate computed over a mock brand-decision engine with seeded outcomes, not production brand responses; first-submission rate unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G4-03",
+                         "Criterion":  "10+ corporate clients transacting on P04",
+                         "Status":  "CONDITION",
+                         "Evidence":  "pytest exit 0, 4 passed - counterparties are hardcoded fixtures inside the test; production corporate transaction volume is unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G4-04b",
+                         "Criterion":  "Hotline capture demonstrated live",
+                         "Status":  "CONDITION",
+                         "Evidence":  "INT-015 webhook + softphone seam coded and unit-tested; no live telephony capture has occurred - requires a CPaaS contract and a real call (open external)"
+                     },
+                     {
+                         "Id":  "G4-05b",
+                         "Criterion":  "AI assistant resolving \u003e= 40% measured in production",
+                         "Status":  "CONDITION",
+                         "Evidence":  "unit tests exit 0; the published FCR figure comes from a benchmark script that returns literal latencies (simulation, not an Ollama measurement); production resolution rate unmeasured (open external)"
+                     },
+                     {
+                         "Id":  "G4-06b",
+                         "Criterion":  "PDPA readiness suite green",
+                         "Status":  "PASS",
+                         "Evidence":  "pytest exit 0, 5 passed - DSR rights, export/erasure saga rehearsal, breach runbook checks; SC-003 DPIA carries role-name signatures (governance artefact, unchanged); live NDMA drill is external"
+                     },
+                     {
+                         "Id":  "G4-07",
+                         "Criterion":  "Journeys 4, 5 and 15 nightly (L6)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "pytest exit 0, 5 passed; nightly job defined in ci.yml: True; nightly EXECUTION needs the CI runner (open external) - the test asserts a dictionary it builds itself, it is not execution evidence"
+                     },
+                     {
+                         "Id":  "G4-08",
+                         "Criterion":  "v1.0 scope-completion statement \u0026 D-017 Tranche Decision",
+                         "Status":  "CONDITION",
+                         "Evidence":  "both governance documents exist on disk; they are repo-authored assertions, not countersigned evidence - measured evidence in this run still carries CONDITION items, so scope completion is NOT independently confirmed"
+                     }
+                 ]
+}

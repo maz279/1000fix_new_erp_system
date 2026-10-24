@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "service_order.delivered",
+  "description": "Event emitted upon successful handover/delivery of repaired equipment to customer (billable event)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "service_order.delivered"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_service_order"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "order_id",
+        "order_number",
+        "customer_id",
+        "total_charge",
+        "delivered_at"
+      ],
+      "properties": {
+        "order_id": {
+          "type": "integer"
+        },
+        "order_number": {
+          "type": "string"
+        },
+        "customer_id": {
+          "type": "integer"
+        },
+        "total_charge": {
+          "type": "number"
+        },
+        "delivered_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

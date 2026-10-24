@@ -5,14 +5,16 @@ from __future__ import annotations
 import unittest
 from decimal import Decimal
 from pathlib import Path
+
 import pytest
 
 pytestmark = [pytest.mark.financial]
 
 from odoo.addons.cd_gl_ext.models.coa_logic import (
-    ACCOUNT_CODE_REGEX,
     AccountRecord,
     CoaValidationError,
+    account_level,
+    ancestor_codes,
     parse_coa_csv,
     reconcile_trial_balance,
     validate_account_structure,
@@ -217,7 +219,19 @@ class TestCoaLogic(unittest.TestCase):
             has_postings=True,
             last_posting_days_ago=750,  # > 730 days
         )
-        res = validate_coa_rules([rec])
+        root = AccountRecord(
+            account_code="1-00-00-000",
+            entity_code="EN-01",
+            account_name="Total Assets",
+            account_type="asset",
+            account_subtype="current_asset",
+            is_postable=False,
+            is_control_account=False,
+            control_subledger=None,
+            requires_dimension=set(),
+            statutory_group="Assets",
+        )
+        res = validate_coa_rules([root, rec])
         self.assertTrue(res["valid"])
         self.assertEqual(len(res["warnings"]), 1)
         self.assertIn("WRN-COA-007", res["warnings"][0])
@@ -377,12 +391,26 @@ class TestCoaLogic(unittest.TestCase):
     def test_statutory_bangladesh_coa_file(self):
         """Verify the complete MD-035 statutory Chart of Accounts file."""
         candidates = [
-            Path(__file__).resolve().parents[4] / "project_content" / "02_Master_Data_and_Configuration" / "02E_Finance_and_Statutory" / "MD-035_Chart_of_Accounts_Bangladesh.csv",
-            Path(__file__).resolve().parents[5] / "project_content" / "02_Master_Data_and_Configuration" / "02E_Finance_and_Statutory" / "MD-035_Chart_of_Accounts_Bangladesh.csv",
-            Path(__file__).resolve().parents[6] / "project_content" / "02_Master_Data_and_Configuration" / "02E_Finance_and_Statutory" / "MD-035_Chart_of_Accounts_Bangladesh.csv",
+            Path(__file__).resolve().parents[4]
+            / "project_content"
+            / "02_Master_Data_and_Configuration"
+            / "02E_Finance_and_Statutory"
+            / "MD-035_Chart_of_Accounts_Bangladesh.csv",
+            Path(__file__).resolve().parents[5]
+            / "project_content"
+            / "02_Master_Data_and_Configuration"
+            / "02E_Finance_and_Statutory"
+            / "MD-035_Chart_of_Accounts_Bangladesh.csv",
+            Path(__file__).resolve().parents[6]
+            / "project_content"
+            / "02_Master_Data_and_Configuration"
+            / "02E_Finance_and_Statutory"
+            / "MD-035_Chart_of_Accounts_Bangladesh.csv",
         ]
         csv_path = next((p for p in candidates if p.is_file()), candidates[0])
-        self.assertTrue(csv_path.is_file(), f"MD-035 CSV file missing across candidates: {candidates}")
+        self.assertTrue(
+            csv_path.is_file(), f"MD-035 CSV file missing across candidates: {candidates}"
+        )
         content = csv_path.read_text(encoding="utf-8")
         records = parse_coa_csv(content)
         self.assertEqual(len(records), 79)
@@ -398,3 +426,133 @@ class TestCoaLogic(unittest.TestCase):
         self.assertIsNotNone(suspense_acc)
         self.assertIn("Inventory", suspense_acc.account_name)
         self.assertTrue(suspense_acc.is_postable)
+
+
+def _acc(code, account_type=None, postable=None, entity="EN-01", parent=None):
+    """A minimal valid account; type follows the T block unless given."""
+    types = {"1": "asset", "2": "liability", "3": "equity", "4": "income", "5": "expense"}
+    return AccountRecord(
+        account_code=code,
+        entity_code=entity,
+        account_name=f"Account {code}",
+        account_type=account_type or types[code[0]],
+        account_subtype="",
+        is_postable=(not code.endswith("-000")) if postable is None else postable,
+        is_control_account=False,
+        control_subledger=None,
+        requires_dimension=set(),
+        statutory_group="Group",
+        parent_account_code=parent,
+    )
+
+
+class TestCoaHierarchy(unittest.TestCase):
+    """R01-AUDIT: MD-035 §3 T/GG/SS hierarchy + parent-account existence."""
+
+    def test_levels_and_ancestors(self):
+        self.assertEqual(account_level("1-00-00-000"), 1)
+        self.assertEqual(account_level("1-10-00-000"), 2)
+        self.assertEqual(account_level("1-10-20-000"), 3)
+        self.assertEqual(account_level("1-10-20-030"), 4)
+        self.assertEqual(
+            ancestor_codes("1-10-20-030"), ["1-10-20-000", "1-10-00-000", "1-00-00-000"]
+        )
+        self.assertEqual(ancestor_codes("1-10-20-000"), ["1-10-00-000", "1-00-00-000"])
+        self.assertEqual(ancestor_codes("1-10-00-000"), ["1-00-00-000"])
+        self.assertEqual(ancestor_codes("1-00-00-000"), [])
+
+    def test_type_block_must_match_type(self):
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_account_structure(_acc("4-10-10-010", account_type="expense"))
+        self.assertEqual(ctx.exception.rule, "HIER-TYPE")
+        self.assertIn("'4' denotes 'income'", ctx.exception.message)
+
+    def test_subgroup_under_group_zero_is_malformed(self):
+        for code in ("1-00-10-000", "1-00-00-010", "1-00-10-010"):
+            with self.subTest(code=code):
+                with self.assertRaises(CoaValidationError) as ctx:
+                    validate_account_structure(_acc(code))
+                self.assertEqual(ctx.exception.rule, "HIER-LEVEL")
+                self.assertIn("group block 00", ctx.exception.message)
+
+    def test_sequence_under_subgroup_zero_is_malformed(self):
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_account_structure(_acc("1-10-00-010"))
+        self.assertEqual(ctx.exception.rule, "HIER-LEVEL")
+        self.assertIn("subgroup block 00", ctx.exception.message)
+
+    def test_parent_is_nearest_existing_ancestor(self):
+        # 1-10-20-030 has no subgroup row; it rolls up to category 1-10-00-000.
+        chart = [_acc("1-00-00-000"), _acc("1-10-00-000"), _acc("1-10-20-030")]
+        res = validate_coa_rules(chart)
+        self.assertEqual(res["account_count"], 3)
+        self.assertEqual(res["postable_count"], 1)
+
+    def test_lone_group_root_is_valid(self):
+        self.assertEqual(validate_coa_rules([_acc("5-00-00-000")])["account_count"], 1)
+
+    def test_orphan_without_group_root_is_refused(self):
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules([_acc("2-00-00-000"), _acc("1-10-10-010")])
+        self.assertEqual(ctx.exception.rule, "PARENT-MISSING")
+        self.assertEqual(ctx.exception.code, "1-10-10-010")
+        self.assertIn("group 1-00-00-000 is missing", ctx.exception.message)
+
+    def test_parent_must_belong_to_the_same_entity(self):
+        chart = [_acc("1-00-00-000", entity="EN-01"), _acc("1-10-10-010", entity="EN-02")]
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules(chart)
+        self.assertEqual(ctx.exception.rule, "PARENT-MISSING")
+
+    def test_declared_parent_matching_hierarchy(self):
+        chart = [
+            _acc("1-00-00-000"),
+            _acc("1-10-10-000", parent="1-00-00-000"),
+            _acc("1-10-10-010", parent="1-10-10-000"),
+        ]
+        self.assertEqual(validate_coa_rules(chart)["account_count"], 3)
+
+    def test_declared_parent_must_exist(self):
+        chart = [_acc("1-00-00-000"), _acc("1-10-10-010", parent="1-10-10-000")]
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules(chart)
+        self.assertEqual(ctx.exception.rule, "PARENT-MISSING")
+        self.assertIn("1-10-10-000 does not exist", ctx.exception.message)
+
+    def test_declared_parent_cannot_skip_an_existing_level(self):
+        chart = [
+            _acc("1-00-00-000"),
+            _acc("1-10-10-000"),
+            _acc("1-10-10-010", parent="1-00-00-000"),
+        ]
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules(chart)
+        self.assertEqual(ctx.exception.rule, "PARENT-MISMATCH")
+        self.assertIn("expected 1-10-10-000", ctx.exception.message)
+
+    def test_group_root_cannot_declare_a_parent(self):
+        chart = [_acc("1-00-00-000", parent="2-00-00-000"), _acc("2-00-00-000")]
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules(chart)
+        self.assertEqual(ctx.exception.rule, "PARENT-MISMATCH")
+        self.assertIn("none: level-1 group", ctx.exception.message)
+
+    def test_duplicate_code_within_entity_is_refused(self):
+        with self.assertRaises(CoaValidationError) as ctx:
+            validate_coa_rules([_acc("1-00-00-000"), _acc("1-00-00-000")])
+        self.assertEqual(ctx.exception.rule, "DUP-CODE")
+
+    def test_same_code_in_two_entities_is_allowed(self):
+        chart = [_acc("1-00-00-000", entity="EN-01"), _acc("1-00-00-000", entity="EN-02")]
+        self.assertEqual(validate_coa_rules(chart)["account_count"], 2)
+
+    def test_parse_reads_declared_parent_column(self):
+        text = (
+            "account_code,account_name,account_type,is_postable,statutory_group,parent_account_code\n"
+            "1-00-00-000,Assets,asset,FALSE,Assets,\n"
+            "1-10-10-010,Cash,asset,TRUE,Assets,1-00-00-000\n"
+        )
+        root, cash = parse_coa_csv(text)
+        self.assertIsNone(root.parent_account_code)
+        self.assertEqual(cash.parent_account_code, "1-00-00-000")
+        self.assertEqual(validate_coa_rules([root, cash])["postable_count"], 1)

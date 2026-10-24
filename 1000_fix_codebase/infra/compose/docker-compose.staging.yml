@@ -1,0 +1,84 @@
+# =============================================================================
+# 1000fix-erp - staging environment overlay (NFR-086c, GP-12, infra/environments.yaml)
+#
+# Release-candidate rehearsal environment.
+# Data rule: production-clone-masked; masking runs INSIDE the clone job.
+# An unmasked clone cannot exist even briefly on disk (NFR-086c).
+#
+# Ports:
+#   PostgreSQL: 127.0.0.1:5439
+#   Redis:      127.0.0.1:6385
+#   Odoo:       127.0.0.1:8075
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.staging.yml --profile staging up -d
+# =============================================================================
+services:
+  postgres-staging:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["staging"]
+    environment:
+      FIX_ENV: staging
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-fix_staging_secret_insecure}
+      POSTGRES_DB: fix_staging_masked
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5439:5432"]
+    volumes:
+      - pgdata-staging:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_staging_masked"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-staging:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["staging"]
+    environment:
+      FIX_ENV: staging
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6385:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-staging:
+    image: 1000fix/odoo:19.0-staging@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["staging"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: staging
+      HOST: postgres-staging
+      PORT: 5432
+      USER: fix
+      PASSWORD: ${STAGING_DB_PASSWORD:-fix_staging_secret_insecure}
+    ports: ["127.0.0.1:8075:8069"]
+    volumes:
+      - odoo-data-staging:/var/lib/odoo
+    depends_on:
+      postgres-staging:
+        condition: service_healthy
+      redis-staging:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-staging:
+  odoo-data-staging:

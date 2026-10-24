@@ -7,27 +7,63 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_rate_card
+#: model:ir.model.fields.selection,name:cd_rate_card.selection__fix_rate_card__line_type__consumable
+msgid "Consumable"
+msgstr "ব্যবহার্য সামগ্রী"
 
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__contract_no
 msgid "Contract No."
 msgstr "চুক্তি নং"
 
+#. module: cd_rate_card
+#: model:ir.model.fields.selection,name:cd_rate_card.selection__fix_rate_card__line_type__labour
+msgid "Labour"
+msgstr "শ্রম"
+
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__min_tier
 msgid "Minimum Tier"
 msgstr "সর্বনিম্ন স্তর"
 
+#. module: cd_rate_card
+#: model:ir.model.fields.selection,name:cd_rate_card.selection__fix_rate_card__line_type__part
+msgid "Part"
+msgstr "যন্ত্রাংশ"
+
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__product_code
 msgid "Product Code"
 msgstr "পণ্য কোড"
 
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__unit_price
 msgid "Rate (VAT-exclusive)"
 msgstr "হার (ভ্যাট-বাদে)"
 
+#. module: cd_rate_card
+#: model:ir.actions.act_window,name:cd_rate_card.action_fix_rate_card
+#: model:ir.ui.menu,name:cd_rate_card.menu_fix_rate_card
 msgid "Rate Cards"
 msgstr "রেট কার্ডসমূহ"
 
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__name
 msgid "Rate Line Name"
 msgstr "রেট লাইনের নাম"
 
-msgid "Valid From"
-msgstr "হইতে বৈধ"
+#. module: cd_rate_card
+#: model:ir.model.fields.selection,name:cd_rate_card.selection__fix_rate_card__line_type__transport
+msgid "Transport"
+msgstr "পরিবহন"
 
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__valid_from
+msgid "Valid From"
+msgstr "বৈধতা শুরুর তারিখ"
+
+#. module: cd_rate_card
+#: model:ir.model.fields,field_description:cd_rate_card.field_fix_rate_card__valid_to
 msgid "Valid To"
-msgstr "পর্যন্ত বৈধ"
+msgstr "বৈধতার শেষ তারিখ"

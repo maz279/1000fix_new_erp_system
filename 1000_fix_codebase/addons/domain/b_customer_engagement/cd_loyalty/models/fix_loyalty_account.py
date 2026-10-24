@@ -1,7 +1,5 @@
 # fix_loyalty_account — M10 Customer Loyalty Account (CD-M10-01).
-from datetime import date
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -91,7 +89,8 @@ class FixLoyaltyAccount(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     enrollment_date = fields.Date(
@@ -158,10 +157,12 @@ class FixLoyaltyAccount(models.Model):
             if meets_points or meets_spend:
                 if self.tier_id != candidate_tier:
                     old_tier = self.tier_id.name if self.tier_id else "None"
-                    self.write({
-                        "tier_id": candidate_tier.id,
-                        "tier_upgraded_date": fields.Date.today(),
-                    })
+                    self.write(
+                        {
+                            "tier_id": candidate_tier.id,
+                            "tier_upgraded_date": fields.Date.today(),
+                        }
+                    )
                     self.message_post(
                         body=f"Congratulations! Upgraded from {old_tier} to {candidate_tier.name} tier."
                     )

@@ -49,6 +49,16 @@ class FixSparePart(models.Model):
     )
 
     device_brand = fields.Char(string="Device Brand / Manufacturer", index=True)
+    category = fields.Selection(related="part_category", string="Category", store=True)
+    brand = fields.Char(related="device_brand", string="Brand", store=True)
+    uom = fields.Char(string="Unit of Measure", default="PCS")
+    state = fields.Selection(
+        [("active", "Active"), ("discontinued", "Discontinued"), ("obsolete", "Obsolete")],
+        string="Status",
+        default="active",
+        tracking=True,
+    )
+
     compatibility_notes = fields.Text(string="Device Compatibility Matrix")
     compatible_models = fields.Text(string="Compatible Models / Hardware Matrix")
     is_serialized = fields.Boolean(
@@ -64,7 +74,7 @@ class FixSparePart(models.Model):
 
     warranty_months = fields.Integer(string="Warranty Period (Months)", default=6)
     unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0)
-    list_price = fields.Float(string="Retail Replacement Price (BDT)", default=0.0)
+    list_price = fields.Float(string="List Price (BDT)", default=0.0)
 
     qty_available = fields.Float(string="Quantity On Hand", default=0.0, tracking=True)
     qty_reserved = fields.Float(string="Quantity Reserved", default=0.0)
@@ -73,6 +83,14 @@ class FixSparePart(models.Model):
     safety_stock = fields.Float(string="Safety Buffer Stock", default=3.0)
 
     active = fields.Boolean(default=True)
+    legacy_reference = fields.Char(
+        string="Legacy Reference",
+        index=True,
+        readonly=True,
+        copy=False,
+        help="MIG-03: permanent source-system reference written by the inventory "
+        "loader (migrations/load_inventory.py) - never edited, never copied",
+    )
 
     _part_number_company_unique = models.Constraint(
         "UNIQUE (part_number, company_id)",
@@ -86,15 +104,25 @@ class FixSparePart(models.Model):
             if part.min_qty < 0 or part.max_qty < 0:
                 raise ValidationError("Inventory threshold quantities cannot be negative.")
             if part.max_qty < part.min_qty:
-                raise ValidationError("Target maximum stock cannot be less than minimum reorder threshold.")
+                raise ValidationError(
+                    "Target maximum stock cannot be less than minimum reorder threshold."
+                )
 
     def find_by_code(self, scanned_code: str) -> FixSparePart:
-        """Find part record by barcode, QR code, or part number."""
+        """Find part record by barcode, QR code, or part number. A blank scan
+        finds nothing (`= ''` also matches NULL columns in the ORM, so a
+        blank code used to resolve to an arbitrary un-barcoded part)."""
         clean = (scanned_code or "").strip()
-        part = self.search([
-            "|", "|",
-            ("barcode", "=", clean),
-            ("qr_code", "=", clean),
-            ("part_number", "=", clean),
-        ], limit=1)
+        if not clean:
+            return self.browse()
+        part = self.search(
+            [
+                "|",
+                "|",
+                ("barcode", "=", clean),
+                ("qr_code", "=", clean),
+                ("part_number", "=", clean),
+            ],
+            limit=1,
+        )
         return part

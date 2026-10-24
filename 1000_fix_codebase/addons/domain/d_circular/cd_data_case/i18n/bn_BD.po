@@ -3,6 +3,295 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__access_time
+msgid "Access Timestamp"
+msgstr "অ্যাক্সেসের সময়"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__access_type
+msgid "Access Type"
+msgstr "অ্যাক্সেসের ধরন"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__user_id
+msgid "Accessor"
+msgstr "অ্যাক্সেসকারী"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__user_name
+msgid "Accessor Name"
+msgstr "অ্যাক্সেসকারীর নাম"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__sha256_audit_hash
+msgid "Audit Entry SHA-256 Hash"
+msgstr "নিরীক্ষা এন্ট্রির SHA-256 হ্যাশ"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__certified_by
+msgid "Certified By"
+msgstr "প্রত্যয়নকারী"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__technician_id
+msgid "Certifying Technician"
+msgstr "প্রত্যয়নকারী টেকনিশিয়ান"
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Chain of Custody"
+msgstr "কাস্টডি চেইন"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__custody_chain
+msgid "Chain of Custody Log"
+msgstr "কাস্টডি চেইন লগ"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__ip_address
+msgid "Client IP Address"
+msgstr "ক্লায়েন্ট IP ঠিকানা"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__company_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__company_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__cryptographic_erase
+msgid "Cryptographic Erase"
+msgstr "ক্রিপ্টোগ্রাফিক মুছে ফেলা"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__export
+msgid "Customer Handover Export"
+msgstr "গ্রাহক হস্তান্তর এক্সপোর্ট"
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_recovery_case
+#: model:ir.model,name:cd_data_case.model_fix_data_recovery_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__case_id
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_recovery_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Data Recovery Case"
+msgstr "ডেটা পুনরুদ্ধার কেস"
+
+#. module: cd_data_case
 msgid "Data Services & Secure Data Handling"
-msgstr "Data Services & Secure Data Handling (বাংলা)"
+msgstr "ডেটা সার্ভিস ও নিরাপদ ডেটা ব্যবস্থাপনা"
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_wipe_certificate
+#: model:ir.model,name:cd_data_case.model_fix_data_wipe_certificate
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_wipe_certificate
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_wipe_certificate_form
+msgid "Data Wipe Certificate"
+msgstr "ডেটা মুছে ফেলার সনদ"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__device_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__handover
+msgid "Handover"
+msgstr "হস্তান্তর"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__hdd
+msgid "HDD"
+msgstr "HDD"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__custody
+msgid "In Custody"
+msgstr "হেফাজতে"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__preview_read
+msgid "Media File Preview"
+msgstr "মিডিয়া ফাইলের প্রিভিউ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__metadata_read
+msgid "Metadata Read"
+msgstr "মেটাডেটা পাঠ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__nist_800_88
+msgid "NIST SP 800-88 (Clear)"
+msgstr "NIST SP 800-88 (Clear)"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__nist_800_88_purge
+msgid "NIST SP 800-88 (Purge)"
+msgstr "NIST SP 800-88 (Purge)"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__operating_unit_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__sanitization_status__verified
+msgid "Pass - Cryptographically Verified"
+msgstr "উত্তীর্ণ - ক্রিপ্টোগ্রাফিকভাবে যাচাইকৃত"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__pending
+msgid "Pending Routing"
+msgstr "রাউটিংয়ের অপেক্ষায়"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__phone
+msgid "Phone Storage"
+msgstr "ফোনের স্টোরেজ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__physical_destruction
+msgid "Physical Destruction"
+msgstr "ভৌত ধ্বংস"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__purge_certificate_id
+msgid "Purge Certificate"
+msgstr "স্থায়ীভাবে মুছে ফেলার সনদ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__purged
+msgid "Purged"
+msgstr "স্থায়ীভাবে মুছে ফেলা হয়েছে"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__recovered
+msgid "Recovered"
+msgstr "পুনরুদ্ধারকৃত"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__file_download
+msgid "Recovered Data Download"
+msgstr "পুনরুদ্ধারকৃত ডেটা ডাউনলোড"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__file_list_read
+msgid "Recovered File List Read"
+msgstr "পুনরুদ্ধারকৃত ফাইল তালিকা পাঠ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__recovering
+msgid "Recovering"
+msgstr "পুনরুদ্ধার চলছে"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__duration_seconds
+msgid "Sanitization Duration (s)"
+msgstr "স্যানিটাইজেশনের সময়কাল (সেকেন্ড)"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__sanitization_status__failed
+msgid "Sanitization Incomplete"
+msgstr "স্যানিটাইজেশন অসম্পূর্ণ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__sd_card
+msgid "SD Card"
+msgstr "SD কার্ড"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__ssd
+msgid "SSD"
+msgstr "SSD"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__purpose
+msgid "Statutory Justification / Purpose"
+msgstr "আইনগত যৌক্তিকতা / উদ্দেশ্য"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__statutory_record_retained
+msgid "Statutory Processing Record Retained"
+msgstr "সংবিধিবদ্ধ প্রক্রিয়াকরণ রেকর্ড সংরক্ষিত"
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Statutory Purge & Wipe Record"
+msgstr "সংবিধিবদ্ধ পার্জ ও মুছে ফেলার রেকর্ড"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__step_up_verified
+msgid "Step-Up 2FA Verified"
+msgstr "স্টেপ-আপ 2FA যাচাইকৃত"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__serial_number
+msgid "Storage Media Serial Number"
+msgstr "স্টোরেজ মিডিয়ার সিরিয়াল নম্বর"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__audit_count
+msgid "Total Access Reads"
+msgstr "মোট অ্যাক্সেস (পাঠ)"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__sector_count
+msgid "Total Overwritten Sectors"
+msgstr "মোট ওভাররাইটকৃত সেক্টর"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__unrecoverable
+msgid "Unrecoverable"
+msgstr "পুনরুদ্ধার-অযোগ্য"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__usb
+msgid "USB Drive"
+msgstr "USB ড্রাইভ"
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__z4
+msgid "Z4 (Residency-Classified)"
+msgstr "Z4 (রেসিডেন্সি-শ্রেণিভুক্ত)"
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__audit_ids
+msgid "Z4 Access Audits"
+msgstr "Z4 অ্যাক্সেস নিরীক্ষাসমূহ"
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Z4 Per-Read Access Audits (SC-002)"
+msgstr "Z4 প্রতিবার পাঠের অ্যাক্সেস নিরীক্ষা (SC-002)"
+
+#. module: cd_data_case
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_z4_access_audit
+msgid "Z4 Sovereign Access Audits"
+msgstr "Z4 সার্বভৌম অ্যাক্সেস নিরীক্ষা"

@@ -3,45 +3,87 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Test Equipment"
-msgstr "পরীক্ষা যন্ত্রপাতি"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__branch_id
+msgid "Branch"
+msgstr "শাখা"
 
+#. module: cd_equipment_register
+#: model:ir.model,name:cd_equipment_register.model_fix_calibration
 msgid "Calibration"
 msgstr "ক্যালিব্রেশন"
 
-msgid "Equipment Category"
-msgstr "যন্ত্রপাতির বিভাগ"
-
-msgid "Maintenance Equipment"
-msgstr "রক্ষণাবেক্ষণ যন্ত্রপাতি"
-
-msgid "Custodian"
-msgstr "রক্ষক"
-
-msgid "Calibrations"
-msgstr "ক্যালিব্রেশনসমূহ"
-
-msgid "Last Calibration"
-msgstr "সর্বশেষ ক্যালিব্রেশন"
-
-msgid "Next Calibration"
-msgstr "পরবর্তী ক্যালিব্রেশন"
-
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_overdue
 msgid "Calibration Overdue"
 msgstr "ক্যালিব্রেশন মেয়াদোত্তীর্ণ"
 
-msgid "Standard Reference"
-msgstr "স্ট্যান্ডার্ড রেফারেন্স"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_ids
+msgid "Calibrations"
+msgstr "ক্যালিব্রেশনসমূহ"
 
-msgid "Pass"
-msgstr "উত্তীর্ণ"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__custodian_id
+msgid "Custodian"
+msgstr "রক্ষক"
 
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__category
+msgid "Equipment Category"
+msgstr "যন্ত্রপাতির বিভাগ"
+
+#. module: cd_equipment_register
+#: model:ir.ui.menu,name:cd_equipment_register.menu_fix_equipment
+msgid "Equipment Register"
+msgstr "যন্ত্রপাতি রেজিস্টার"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields.selection,name:cd_equipment_register.selection__fix_calibration__result__fail
 msgid "Fail"
 msgstr "অনুত্তীর্ণ"
 
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__last_calibration
+msgid "Last Calibration"
+msgstr "সর্বশেষ ক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__maintenance_equipment_id
+msgid "Maintenance Equipment"
+msgstr "রক্ষণাবেক্ষণ যন্ত্রপাতি"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__next_calibration
+msgid "Next Calibration"
+msgstr "পরবর্তী ক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__operating_unit_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields.selection,name:cd_equipment_register.selection__fix_calibration__result__pass
+msgid "Pass"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__performed_by
 msgid "Performed By"
 msgstr "সম্পাদনকারী"
 
-msgid "Equipment Register"
-msgstr "যন্ত্রপাতি রেজিস্টার"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__standard_ref
+msgid "Standard Reference"
+msgstr "স্ট্যান্ডার্ড রেফারেন্স"
+
+#. module: cd_equipment_register
+#: model:ir.actions.act_window,name:cd_equipment_register.action_fix_equipment
+#: model:ir.model,name:cd_equipment_register.model_fix_equipment
+#: model:ir.ui.menu,name:cd_equipment_register.menu_ws_equipment
+msgid "Test Equipment"
+msgstr "পরীক্ষা যন্ত্রপাতি"

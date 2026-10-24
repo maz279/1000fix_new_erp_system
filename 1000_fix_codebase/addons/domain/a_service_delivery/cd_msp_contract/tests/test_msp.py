@@ -3,7 +3,10 @@ import inspect
 import unittest
 
 from odoo.addons.cd_msp_contract.models.fix_msp import (
-    FixMonitoredAsset, FixMspAlert, FixRemoteSession)
+    FixMonitoredAsset,
+    FixMspAlert,
+    FixRemoteSession,
+)
 
 
 class TestJourneySix(unittest.TestCase):

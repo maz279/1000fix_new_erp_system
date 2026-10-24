@@ -3,48 +3,102 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Fixed Asset"
-msgstr "স্থায়ী সম্পদ"
-
-msgid "CWIP Entry"
-msgstr "সিডব্লিউআইপি এন্ট্রি"
-
-msgid "Capitalisation Seam (M19)"
-msgstr "মূলধনীকরণ সীম (M19)"
-
-msgid "Gross"
-msgstr "স্থূল"
-
-msgid "Salvage Value"
-msgstr "অবশিষ্ট মূল্য"
-
-msgid "Monthly Depreciation"
-msgstr "মাসিক অবচয়"
-
-msgid "Budget Reference (Advisory)"
-msgstr "বাজেট রেফারেন্স (পরামর্শমূলক)"
-
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
 msgid "Accrue Month"
 msgstr "মাস জমা"
 
-msgid "Dispose"
-msgstr "নিষ্পত্তি"
-
-msgid "Disposed"
-msgstr "নিষ্পত্তিকৃত"
-
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__amount
 msgid "Accumulated Cost"
 msgstr "সঞ্চিত ব্যয়"
 
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__budget_reference
+msgid "Budget Reference (Advisory)"
+msgstr "বাজেট রেফারেন্স (পরামর্শমূলক)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__seam_id
+msgid "Capitalisation Seam (M19)"
+msgstr "মূলধনীকরণ সীম (M19)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_cwip_entry__state__capitalised
 msgid "Capitalised"
 msgstr "মূলধনীকৃত"
 
-msgid "Resulting Asset"
-msgstr "ফলাফল সম্পদ"
+#. module: cd_fixed_asset_ext
+#: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_cwip
+#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_cwip
+msgid "CWIP"
+msgstr "সিডব্লিউআইপি"
 
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_cwip_entry
+msgid "CWIP Entry"
+msgstr "সিডব্লিউআইপি এন্ট্রি"
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Dispose"
+msgstr "নিষ্পত্তি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__disposed
+msgid "Disposed"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_fixed_asset
+msgid "Fixed Asset"
+msgstr "স্থায়ী সম্পদ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_fixed_asset
+#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_fixed_assets
 msgid "Fixed Assets"
 msgstr "স্থায়ী সম্পদসমূহ"
 
-msgid "CWIP"
-msgstr "সিডব্লিউআইপি"
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__gross
+msgid "Gross"
+msgstr "স্থূল"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__monthly_depreciation
+msgid "Monthly Depreciation"
+msgstr "মাসিক অবচয়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_cwip_entry__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__asset_id
+msgid "Resulting Asset"
+msgstr "ফলাফল সম্পদ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__salvage
+msgid "Salvage Value"
+msgstr "অবশিষ্ট মূল্য"

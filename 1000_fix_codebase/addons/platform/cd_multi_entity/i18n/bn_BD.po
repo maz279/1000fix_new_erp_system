@@ -1,0 +1,632 @@
+# Bengali (Bangla) translation for cd_multi_entity.
+# Copyright (C) 2026 1000FiX Services Ltd.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: cd_multi_entity 19.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-10-22 00:00+0000\n"
+"PO-Revision-Date: 2026-10-22 00:00+0000\n"
+"Last-Translator: 1000FiX Localization Team\n"
+"Language-Team: Bengali (Bangladesh)\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__account_code
+msgid "Account Code"
+msgstr "হিসাব কোড"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__account_name
+msgid "Account Name"
+msgstr "হিসাবের নাম"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__account_type
+msgid "Account Type"
+msgstr "হিসাবের ধরন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__rule_id
+msgid "Applicable Rule"
+msgstr "প্রযোজ্য নিয়ম"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__asset
+msgid "Asset"
+msgstr "সম্পদ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__auto_mirror
+msgid "Auto-Mirror Generation"
+msgstr "স্বয়ংক্রিয় মিরর এন্ট্রি তৈরি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__is_balanced
+msgid "Balanced"
+msgstr "ভারসাম্যপূর্ণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__name
+msgid "Book Name"
+msgstr "খাতার নাম"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__bin_number
+msgid "Business Identification No (BIN / VAT)"
+msgstr "ব্যবসা শনাক্তকরণ নম্বর (BIN / VAT)"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Close Consolidation"
+msgstr "একত্রীকরণ বন্ধ করুন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__code
+msgid "Code"
+msgstr "কোড"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__company_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__company_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__company_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__consolidated
+msgid "Consolidated"
+msgstr "একত্রিত"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__consolidated_amount
+msgid "Consolidated Amount (BDT)"
+msgstr "একত্রিত পরিমাণ (টাকা)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__line_ids
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Consolidated Lines"
+msgstr "একত্রিত লাইনসমূহ"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Consolidation Book"
+msgstr "একত্রীকরণ খাতা"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Consolidation Book Name"
+msgstr "একত্রীকরণ খাতার নাম"
+
+#. module: cd_multi_entity
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_consolidation_book
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_tree
+msgid "Consolidation Books"
+msgstr "একত্রীকরণ খাতাসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__currency_id
+msgid "Consolidation Currency"
+msgstr "একত্রীকরণের মুদ্রা"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidation_date
+msgid "Consolidation Date"
+msgstr "একত্রীকরণের তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__to_entity_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_entity_id
+msgid "Counterparty Entity"
+msgstr "প্রতিপক্ষ প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__transaction_date
+msgid "Date"
+msgstr "তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__name
+msgid "Declaration Reference"
+msgstr "ঘোষণার রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__name
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__disputed
+msgid "Disputed"
+msgstr "বিরোধপূর্ণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__draft
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__draft
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__verified
+msgid "Eligibility Verified"
+msgstr "যোগ্যতা যাচাইকৃত"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__eligible_for_nil_return
+msgid "Eligible for Nil Return"
+msgstr "শূন্য রিটার্নের যোগ্য"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__amount
+msgid "Elimination Amount"
+msgstr "বাদকরণের পরিমাণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__name
+msgid "Elimination Description"
+msgstr "বাদকরণের বিবরণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__elimination_ids
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Elimination Entries"
+msgstr "বাদকরণ এন্ট্রিসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__elimination_type
+msgid "Elimination Type"
+msgstr "বাদকরণের ধরন"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Eliminations"
+msgstr "বাদকরণসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__eliminated
+msgid "Eliminations Posted"
+msgstr "বাদকরণ পোস্ট করা হয়েছে"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__entity_id
+msgid "Entity"
+msgstr "প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__original_amount
+msgid "Entity Ledger Amount"
+msgstr "প্রতিষ্ঠানের খতিয়ানের পরিমাণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__equity
+msgid "Equity"
+msgstr "মালিকানা স্বত্ব"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__exchange_rate
+msgid "Exchange Rate"
+msgstr "বিনিময় হার"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__expense
+msgid "Expense"
+msgstr "ব্যয়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__fiscal_year
+msgid "Fiscal Year"
+msgstr "অর্থবছর"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Generate Eliminations"
+msgstr "বাদকরণ তৈরি করুন"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Generate Mirror Bill"
+msgstr "মিরর বিল তৈরি করুন"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Generate Nil Packs"
+msgstr "শূন্য রিটার্ন প্যাক তৈরি করুন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__transaction_type__sale_purchase
+msgid "Goods Sale / Purchase"
+msgstr "পণ্য বিক্রয় / ক্রয়"
+
+#. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_consolidation_book
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_consolidation_root
+msgid "Group Consolidation"
+msgstr "গ্রুপ একত্রীকরণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__incorporation_date
+msgid "Incorporation / Registration Date"
+msgstr "নিগমন / নিবন্ধনের তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__transaction_type__loan_interest
+msgid "Inter-Company Loan / Financing"
+msgstr "আন্তঃকোম্পানি ঋণ / অর্থায়ন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__intercompany_loan
+msgid "Inter-Company Loan / Interest"
+msgstr "আন্তঃকোম্পানি ঋণ / সুদ"
+
+#. module: cd_multi_entity
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_intercompany_root
+msgid "Inter-Company Operations"
+msgstr "আন্তঃকোম্পানি অপারেশন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__receivable_payable
+msgid "Inter-Company Receivable & Payable"
+msgstr "আন্তঃকোম্পানি প্রাপ্য ও প্রদেয়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__revenue_expense
+msgid "Inter-Company Revenue & Expense"
+msgstr "আন্তঃকোম্পানি আয় ও ব্যয়"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Inter-Company Rule"
+msgstr "আন্তঃকোম্পানি নিয়ম"
+
+#. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_intercompany_rule
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_intercompany_rule
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_tree
+msgid "Inter-Company Rules"
+msgstr "আন্তঃকোম্পানি নিয়মসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model,name:cd_multi_entity.model_fix_intercompany_transaction
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Inter-Company Transaction"
+msgstr "আন্তঃকোম্পানি লেনদেন"
+
+#. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_intercompany_transaction
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_intercompany_transaction
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_tree
+msgid "Inter-Company Transactions"
+msgstr "আন্তঃকোম্পানি লেনদেনসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__liability
+msgid "Liability"
+msgstr "দায়"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_entity_form_inherit_localisation
+msgid "Localisation & Statutory Tax Calendar"
+msgstr "স্থানীয়করণ ও সংবিধিবদ্ধ কর ক্যালেন্ডার"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__transaction_type__management_fee
+msgid "Management / Advisory Fee"
+msgstr "ব্যবস্থাপনা / পরামর্শ ফি"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Match & Reconcile"
+msgstr "মিলান ও সমন্বয় করুন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__matched
+msgid "Matched & Reconciled"
+msgstr "মিলকৃত ও সমন্বিত"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__matched_date
+msgid "Matched Timestamp"
+msgstr "মিলানোর সময়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__entity_id
+msgid "Member Entity"
+msgstr "সদস্য প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__mirror_invoice_ref
+msgid "Mirror Bill Reference"
+msgstr "মিরর বিল রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_entity__statutory_calendar_rule__mushak_next_working_day
+msgid "Mushak 15th or Next Working Day (BD Weekend Rollover)"
+msgstr "Mushak ১৫ তারিখ বা পরবর্তী কর্মদিবস (বাংলাদেশের সাপ্তাহিক ছুটি বিবেচনায়)"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Mushak 9.1 Nil Payload"
+msgstr "Mushak 9.1 শূন্য রিটার্ন পেলোড"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__mushak_9_1_nil_payload
+msgid "Mushak 9.1 Nil Return Payload (JSON)"
+msgstr "Mushak 9.1 শূন্য রিটার্ন পেলোড (JSON)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__acknowledged
+msgid "NBR Acknowledged"
+msgstr "NBR কর্তৃক প্রাপ্তি স্বীকৃত"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__filing_reference
+msgid "NBR Acknowledgement Slip No"
+msgstr "NBR প্রাপ্তি স্বীকার স্লিপ নং"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__net_consolidated_profit
+msgid "Net Consolidated Profit"
+msgstr "নিট একত্রিত মুনাফা"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__is_newly_registered
+msgid "Newly Registered (<12 Months)"
+msgstr "নতুন নিবন্ধিত (<১২ মাস)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__generated
+msgid "Nil Packs Generated"
+msgstr "শূন্য রিটার্ন প্যাক তৈরি হয়েছে"
+
+#. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_nil_return_generator
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_nil_return
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_tree
+msgid "Nil-Return Declarations"
+msgstr "শূন্য রিটার্ন ঘোষণাসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__operating_unit_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__operating_unit_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_line__original_currency_id
+msgid "Original Currency"
+msgstr "মূল মুদ্রা"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__from_entity_id
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_entity_id
+msgid "Originating Entity"
+msgstr "উৎস প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__parent_entity_id
+msgid "Parent Entity"
+msgstr "মূল (প্যারেন্ট) প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__entity_ids
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Participating Entities"
+msgstr "অংশগ্রহণকারী প্রতিষ্ঠানসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__pending_matching
+msgid "Pending Counterparty Match"
+msgstr "প্রতিপক্ষের সাথে মিলের অপেক্ষায়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__period_month
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__period_month
+msgid "Period Month"
+msgstr "পিরিয়ডের মাস"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__period_year
+msgid "Period Year"
+msgstr "পিরিয়ডের বছর"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_entity_id
+msgid "Purchasing / Receiving Entity"
+msgstr "ক্রেতা / গ্রহীতা প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__revenue
+msgid "Revenue"
+msgstr "আয়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__code
+msgid "Rule Code"
+msgstr "নিয়ম কোড"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__name
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Rule Name"
+msgstr "নিয়মের নাম"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+msgid "Run Consolidation"
+msgstr "একত্রীকরণ চালান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_entity_id
+msgid "Selling / Supplying Entity"
+msgstr "বিক্রেতা / সরবরাহকারী প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__settled
+msgid "Settled"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__transaction_type__shared_service
+msgid "Shared IT / Back-Office Service"
+msgstr "যৌথ IT / ব্যাক-অফিস সার্ভিস"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__management_fee
+msgid "Shared Management Fee"
+msgstr "যৌথ ব্যবস্থাপনা ফি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__reference
+msgid "Source Transaction Reference"
+msgstr "উৎস লেনদেন রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__state
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__state
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__state
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_entity_form_inherit_localisation
+msgid "Statutory Compliance Schedule"
+msgstr "সংবিধিবদ্ধ কমপ্লায়েন্স সময়সূচি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__due_date
+msgid "Statutory Filing Due Date"
+msgstr "সংবিধিবদ্ধ দাখিলের শেষ তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_localisation_root
+msgid "Statutory Localisation"
+msgstr "সংবিধিবদ্ধ স্থানীয়করণ"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Statutory Nil-Return"
+msgstr "সংবিধিবদ্ধ শূন্য রিটার্ন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_entity__statutory_calendar_rule__strict_calendar_day
+msgid "Strict Calendar Day (No Rollover)"
+msgstr "নির্দিষ্ট ক্যালেন্ডার দিবস (পরিবর্তন নেই)"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Submit to NBR"
+msgstr "NBR-এ জমা দিন"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__submitted
+msgid "Submitted to NBR"
+msgstr "NBR-এ জমা দেওয়া হয়েছে"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__statutory_calendar_rule
+msgid "Tax Calendar Rule"
+msgstr "কর ক্যালেন্ডার নিয়ম"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_entity_form_inherit_localisation
+msgid "Tax Identifiers"
+msgstr "কর শনাক্তকারী"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__tin_number
+msgid "Taxpayer Identification No (TIN)"
+msgstr "করদাতা শনাক্তকরণ নম্বর (TIN)"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "TDS Nil Statement Payload"
+msgstr "TDS শূন্য বিবরণী পেলোড"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__tds_nil_payload
+msgid "TDS Nil Statement Payload (JSON)"
+msgstr "TDS শূন্য বিবরণী পেলোড (JSON)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_subsidiary_expense
+msgid "Total Expense (Pre-Elimination)"
+msgstr "মোট ব্যয় (বাদকরণের পূর্বে)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_eliminations
+msgid "Total Inter-Company Eliminations"
+msgstr "মোট আন্তঃকোম্পানি বাদকরণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_subsidiary_revenue
+msgid "Total Revenue (Pre-Elimination)"
+msgstr "মোট আয় (বাদকরণের পূর্বে)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__documentation_ref
+msgid "TP Documentation Ref"
+msgstr "TP ডকুমেন্টেশন রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__amount
+msgid "Transaction Amount"
+msgstr "লেনদেনের পরিমাণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transaction_type
+msgid "Transaction Category"
+msgstr "লেনদেনের শ্রেণি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__transaction_count
+msgid "Transaction Count in Period"
+msgstr "পিরিয়ডে লেনদেনের সংখ্যা"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__reference
+msgid "Transaction Ref"
+msgstr "লেনদেন রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transfer_pricing_compliant
+msgid "Transfer Pricing Compliant (ITA 2023 s.107)"
+msgstr "ট্রান্সফার প্রাইসিং বিধিসম্মত (আয়কর আইন ২০২৩ ধারা ১০৭)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__markup_percent
+msgid "Transfer Pricing Markup (%)"
+msgstr "ট্রান্সফার প্রাইসিং মার্কআপ (%)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__vat_statutory_day
+msgid "VAT Due Day of Month"
+msgstr "মাসে VAT পরিশোধের দিন"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Verify Eligibility"
+msgstr "যোগ্যতা যাচাই করুন"

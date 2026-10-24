@@ -1,12 +1,16 @@
 """Integrations INT-019 through INT-023 with tested graceful fallbacks (CD-M02-06)."""
+
 from __future__ import annotations
 
-import os
-import math
-import urllib.request
 import json
+import logging
+import math
+import os
+import urllib.request
 from dataclasses import dataclass
-from typing import List, Tuple, Dict, Any, Optional
+from typing import ClassVar
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -20,8 +24,8 @@ class GeocodeResult:
 
 @dataclass
 class RoutingResult:
-    start: Tuple[float, float]
-    end: Tuple[float, float]
+    start: tuple[float, float]
+    end: tuple[float, float]
     distance_km: float
     duration_min: float
     source: str  # "osrm_primary" | "haversine_fallback"
@@ -39,7 +43,7 @@ class GeospatialClient:
     """Geospatial client handling INT-019 to INT-023 with automatic fallback mechanisms."""
 
     # Curated offline centroid directory for Bangladesh hubs per INT-019
-    OFFLINE_CENTROIDS: Dict[str, Tuple[float, float]] = {
+    OFFLINE_CENTROIDS: ClassVar[dict[str, tuple[float, float]]] = {
         "BANANI": (23.7937, 90.4066),
         "GULSHAN": (23.7925, 90.4167),
         "DHANMONDI": (23.7465, 90.3760),
@@ -54,9 +58,9 @@ class GeospatialClient:
 
     def __init__(
         self,
-        osrm_url: Optional[str] = None,
-        vroom_url: Optional[str] = None,
-        traccar_url: Optional[str] = None,
+        osrm_url: str | None = None,
+        vroom_url: str | None = None,
+        traccar_url: str | None = None,
     ):
         self.osrm_url = osrm_url or os.environ.get("OSRM_URL", "http://127.0.0.1:5000")
         self.vroom_url = vroom_url or os.environ.get("VROOM_URL", "http://127.0.0.1:3001")
@@ -86,13 +90,15 @@ class GeospatialClient:
         )
 
     # INT-020: Routing & ETA with Haversine fallback
-    def route_eta(self, start_lat: float, start_lon: float, end_lat: float, end_lon: float) -> RoutingResult:
+    def route_eta(
+        self, start_lat: float, start_lon: float, end_lat: float, end_lon: float
+    ) -> RoutingResult:
         """Computes driving distance & duration. Attempts OSRM backend; falls back to Haversine."""
         # Try OSRM primary
         try:
             url = f"{self.osrm_url}/route/v1/driving/{start_lon},{start_lat};{end_lon},{end_lat}?overview=false"
-            req = urllib.request.Request(url, headers={"User-Agent": "1000FiX-ERP/1.0"})
-            with urllib.request.urlopen(req, timeout=1.5) as resp:
+            req = urllib.request.Request(url, headers={"User-Agent": "1000FiX-ERP/1.0"})  # noqa: S310 - config-provided OSRM http(s) URL
+            with urllib.request.urlopen(req, timeout=1.5) as resp:  # noqa: S310 - config-provided OSRM http(s) URL
                 if resp.status == 200:
                     data = json.loads(resp.read().decode())
                     if data.get("code") == "Ok" and data.get("routes"):
@@ -106,8 +112,8 @@ class GeospatialClient:
                             duration_min=round(dur_min, 1),
                             source="osrm_primary",
                         )
-        except Exception:
-            pass  # Fall back gracefully
+        except Exception as exc:  # Fall back gracefully to Haversine
+            logger.debug("OSRM routing unavailable, using Haversine fallback: %s", exc)
 
         # Fallback calculation
         dist_km = self._haversine_km(start_lat, start_lon, end_lat, end_lon)

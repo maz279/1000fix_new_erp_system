@@ -3,108 +3,377 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Employment Contract"
-msgstr "চাকরি চুক্তি"
-
-msgid "Employee"
-msgstr "কর্মী"
-
-msgid "Permanent"
-msgstr "স্থায়ী"
-
-msgid "Probation"
-msgstr "পরীক্ষামূলক"
-
-msgid "Fixed Term"
-msgstr "নির্দিষ্ট মেয়াদি"
-
-msgid "Part Time"
-msgstr "খণ্ডকালীন"
-
-msgid "Joining Date"
-msgstr "যোগদানের তারিখ"
-
-msgid "Basic Salary (Monthly)"
-msgstr "মূল বেতন (মাসিক)"
-
-msgid "Statutory Weekly Hours"
-msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
-
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
-
-msgid "Draft"
-msgstr "খসড়া"
-
-msgid "Active"
-msgstr "সক্রিয়"
-
-msgid "Expired"
-msgstr "মেয়াদোত্তীর্ণ"
-
-msgid "Terminated"
-msgstr "সমাপ্ত"
-
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
 msgid "Activate"
 msgstr "সক্রিয় করুন"
 
-msgid "Terminate"
-msgstr "সমাপ্ত করুন"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__active
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__active
+msgid "Active"
+msgstr "সক্রিয়"
 
-msgid "Leave Type"
-msgstr "ছুটির ধরন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__amendment_ref
+msgid "Amendment Reference"
+msgstr "সংশোধনী রেফারেন্স"
 
-msgid "Leave Request"
-msgstr "ছুটির আবেদন"
-
-msgid "Leave Name (Bengali)"
-msgstr "ছুটির নাম (বাংলা)"
-
-msgid "Approved"
-msgstr "অনুমোদিত"
-
-msgid "Rejected"
-msgstr "প্রত্যাখ্যাত"
-
-msgid "Submitted"
-msgstr "জমা দেওয়া হয়েছে"
-
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_request_form
 msgid "Approve"
 msgstr "অনুমোদন"
 
-msgid "Organisation Position"
-msgstr "প্রাতিষ্ঠানিক পদ"
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Approve Legal Signoff"
+msgstr "আইনি অনুমোদন দিন"
 
-msgid "Reports To"
-msgstr "রিপোর্ট করেন"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
 
-msgid "Holders"
-msgstr "অধিকারী"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__approved
+msgid "Approved by Legal"
+msgstr "আইন বিভাগ কর্তৃক অনুমোদিত"
 
-msgid "Grade"
-msgstr "গ্রেড"
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Basic Configuration"
+msgstr "মৌলিক কনফিগারেশন"
 
-msgid "Employee Code"
-msgstr "কর্মী কোড"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__basic_monthly
+msgid "Basic Salary (Monthly)"
+msgstr "মূল বেতন (মাসিক)"
 
-msgid "Position"
-msgstr "পদ"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__carry_forward_limit
+msgid "Carry Forward Limit (Days)"
+msgstr "পরবর্তী বছরে স্থানান্তরের সীমা (দিন)"
 
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__rejected
+msgid "Changes Required"
+msgstr "পরিবর্তন প্রয়োজন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_employee_form_kpi_090
+msgid "Confirm Keycloak Deprovisioned"
+msgstr "কিক্লোক অ্যাকাউন্ট অপসারণ নিশ্চিত করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__name
+msgid "Contract Ref"
+msgstr "চুক্তি রেফারেন্স"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Contract Reference"
+msgstr "চুক্তি রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__contract_count
 msgid "Contracts"
 msgstr "চুক্তিসমূহ"
 
-msgid "Identity Store Ref"
-msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__deprovisioned
+msgid "Deprovisioned"
+msgstr "অ্যাক্সেস প্রত্যাহারকৃত"
 
-msgid "People & Payroll"
-msgstr "জনবল ও বেতন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovision_confirmed_by
+msgid "Deprovisioning Confirmed By"
+msgstr "অ্যাকাউন্ট অপসারণ নিশ্চিতকারী"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovision_hours
+msgid "Deprovisioning Time (Hours)"
+msgstr "অ্যাকাউন্ট অপসারণের সময় (ঘণ্টা)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__draft
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__employee_id
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__employee_code
+msgid "Employee Code"
+msgstr "কর্মী কোড"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_employment_contract
+msgid "Employment Contract"
+msgstr "চাকরি চুক্তি"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_employment_contract
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_contracts
 msgid "Employment Contracts"
 msgstr "চাকরি চুক্তিসমূহ"
 
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Employment Details"
+msgstr "চাকরির বিবরণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__fixed_term
+msgid "Fixed Term"
+msgstr "নির্দিষ্ট মেয়াদি"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Generate Contract (Form 6)"
+msgstr "চুক্তি তৈরি করুন (ফরম ৬)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__document_id
+msgid "Generated Contract Document"
+msgstr "তৈরিকৃত চুক্তির দলিল"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__grade
+msgid "Grade"
+msgstr "গ্রেড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__employee_ids
+msgid "Holders"
+msgstr "অধিকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__identity_document_note
+msgid "Identity Store Ref"
+msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__is_statutory
+msgid "Is Statutory"
+msgstr "সংবিধিবদ্ধ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__joining_date
+msgid "Joining Date"
+msgstr "যোগদানের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__keycloak_deprovisioned_at
+msgid "Keycloak Deprovisioned At"
+msgstr "Keycloak অ্যাক্সেস প্রত্যাহারের সময়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__labour_act_section
+msgid "Labour Act Section"
+msgstr "শ্রম আইনের ধারা"
+
+#. module: cd_hr_core
 msgid "Leave"
 msgstr "ছুটি"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__name_bn
+msgid "Leave Name (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_request
+msgid "Leave Request"
+msgstr "ছুটির আবেদন"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_leave_request
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_leave
+msgid "Leave Requests"
+msgstr "ছুটির আবেদনসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_type
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__leave_type_id
+msgid "Leave Type"
+msgstr "ছুটির ধরন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_employee_form_kpi_090
+msgid "Leaver Deprovisioning (KPI-090)"
+msgstr "প্রস্থানকারীর অ্যাকাউন্ট অপসারণ (KPI-090)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__left_at
+msgid "Left At (Leaver Event)"
+msgstr "প্রস্থানের সময় (প্রস্থান ইভেন্ট)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__legal_citation
+msgid "Legal Citation"
+msgstr "আইনি উদ্ধৃতি"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Legal Citation (Statutory Floor)"
+msgstr "আইনি উদ্ধৃতি (সংবিধিবদ্ধ ন্যূনতম)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__signed_by_legal_counsel
+msgid "Legal Counsel Signoff"
+msgstr "আইন উপদেষ্টার অনুমোদন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__legal_signoff_state
+msgid "Legal Signoff"
+msgstr "আইনি অনুমোদন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Legal Signoff & Compliance"
+msgstr "আইনি অনুমোদন ও কমপ্লায়েন্স"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "M24 Document & Form 6 Governance"
+msgstr "M24 দলিল ও ফরম ৬ গভর্নেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__template_id
+msgid "M24 Document Template"
+msgstr "M24 দলিল টেমপ্লেট"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "M24 Template Engine"
+msgstr "M24 টেমপ্লেট ইঞ্জিন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_org_position
+msgid "Organisation Position"
+msgstr "প্রাতিষ্ঠানিক পদ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__part_time
+msgid "Part Time"
+msgstr "খণ্ডকালীন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__hr_employee__keycloak_deprovision_status__pending
+msgid "Pending Deprovision"
+msgstr "অ্যাক্সেস প্রত্যাহারের অপেক্ষায়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__legal_signoff_state__pending
+msgid "Pending Signoff"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_ws_people
+msgid "People & Payroll"
+msgstr "জনবল ও বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__permanent
+msgid "Permanent"
+msgstr "স্থায়ী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__position_id
+msgid "Position"
+msgstr "পদ"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_positions
 msgid "Positions"
 msgstr "পদসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__probation
+msgid "Probation"
+msgstr "পরীক্ষামূলক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__parent_id
+msgid "Reports To"
+msgstr "রিপোর্ট করেন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_type_form
+msgid "Statutory Citations (DoD-17)"
+msgstr "সংবিধিবদ্ধ উদ্ধৃতি (DoD-17)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__statutory_density_score
+msgid "Statutory Density (%)"
+msgstr "সংবিধিবদ্ধ শর্তের ঘনত্ব (%)"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_leave_types
+msgid "Statutory Leave Types"
+msgstr "সংবিধিবদ্ধ ছুটির ধরন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Statutory Terms & Compensation"
+msgstr "সংবিধিবদ্ধ শর্তাবলী ও পারিশ্রমিক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__weekly_hours
+msgid "Statutory Weekly Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__submitted
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+#. module: cd_hr_core
+msgid "Terminate"
+msgstr "সমাপ্ত করুন"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Terminate & Deprovision"
+msgstr "সমাপ্ত করুন ও অ্যাক্সেস প্রত্যাহার করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__verified_on
+msgid "Verified On"
+msgstr "যাচাইয়ের তারিখ"

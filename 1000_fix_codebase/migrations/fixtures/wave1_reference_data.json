@@ -1,0 +1,23 @@
+{
+  "description": "Wave-1 rehearsal reference data (ETL-0, migrations/load_reference_data.py). A clean fix_migration install has res.company, operating unit OU1 and the fix.role catalogue but no legal entity, brands or device models; this fixture supplies the rows no legacy extract carries. Operating units are resolved from branches_extract.json (created only when named in `operating_units`); brands and device models are derived from devices_extract.json (a brand needs its code in `brand_codes`). The entity's company is the target's single res.company and its operating unit is `entity.operating_unit_code` - no fallback ids, no invented names or codes. Synthetic, DE-12 safe.",
+  "entity": {
+    "code": "1000FIX",
+    "legal_name": "1000 FiX Services Ltd.",
+    "legal_name_bn": "১০০০ ফিক্স সার্ভিসেস লিমিটেড",
+    "country_code": "BD",
+    "currency": "BDT",
+    "operating_unit_code": "OU1",
+    "statutory_calendar_rule": "mushak_next_working_day",
+    "vat_statutory_day": 15
+  },
+  "brand_codes": {
+    "Apple": "APPL",
+    "Oppo": "OPPO",
+    "Realme": "REAL",
+    "Samsung": "SAMS",
+    "Xiaomi": "XIAO"
+  },
+  "device_type_map": {
+    "mobile": "smartphone"
+  }
+}

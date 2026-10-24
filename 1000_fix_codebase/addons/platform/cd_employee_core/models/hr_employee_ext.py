@@ -10,9 +10,9 @@
 #
 # The leaver path (KPI-090): zero orphaned accounts beyond 24 hours.
 # M29's Keycloak deprovisioning triggers on employee.left within 1 hour.
-from odoo import api, fields, models
-
 import logging
+
+from odoo import api, fields, models
 
 logger = logging.getLogger(__name__)
 
@@ -23,48 +23,76 @@ class HrEmployeeExt(models.Model):
     W1 scope ONLY: the master record and the JML (joiner/mover/leaver)
     event emission. Learning, payroll, performance and talent stay in W5.
     """
+
     _inherit = "hr.employee"
 
     # The employee is a PARTY (M33) with an employee role — not a separate master
     party_role_id = fields.Many2one(
-        "fix.party.role", string="Party Role (Employee)",
+        "fix.party.role",
+        string="Party Role (Employee)",
         domain=[("role_type", "=", "employee")],
         help="The fix.party.role record linking this employee to the party "
-             "kernel. An employee is a party with an employee role.")
+        "kernel. An employee is a party with an employee role.",
+    )
     partner_id = fields.Many2one(
-        "res.partner", string="Linked Party",
-        related="party_role_id.partner_id", store=True, readonly=True,
-        help="The res.partner this employee maps to through the party kernel")
+        "res.partner",
+        string="Linked Party",
+        related="party_role_id.partner_id",
+        store=True,
+        readonly=True,
+        help="The res.partner this employee maps to through the party kernel",
+    )
 
     # W1 slice fields
     employee_code = fields.Char(
-        string="Employee Code", index=True, tracking=True,
-        help="1000FiX employee identifier, e.g. E-00042")
+        string="Employee Code",
+        index=True,
+        tracking=True,
+        help="1000FiX employee identifier, e.g. E-00042",
+    )
     branch_id = fields.Many2one(
-        "fix.branch", string="Assigned Branch",
-        help="The branch this employee reports to")
+        "fix.branch", string="Assigned Branch", help="The branch this employee reports to"
+    )
     primary_role_id = fields.Many2one(
-        "fix.role", string="Primary Business Role (M29)",
-        help="The primary fix.role — drives M29's permission model")
+        "fix.role",
+        string="Primary Business Role (M29)",
+        help="The primary fix.role — drives M29's permission model",
+    )
     additional_role_ids = fields.Many2many(
-        "fix.role", string="Additional Roles",
-        help="Secondary roles; SoD controls check for conflicts")
+        "fix.role",
+        string="Additional Roles",
+        help="Secondary roles; SoD controls check for conflicts",
+    )
     keycloak_user_id = fields.Char(
-        string="Keycloak User ID", readonly=True,
+        string="Keycloak User ID",
+        readonly=True,
         help="The Keycloak user UUID — provisioned on employee.joined, "
-             "deprovisioned on employee.left within 1 hour (KPI-090)")
+        "deprovisioned on employee.left within 1 hour (KPI-090)",
+    )
     legacy_reference = fields.Char(
-        string="Legacy Reference", index=True, copy=False,
-        help="MIG-03: permanent source system reference (FR-SRM-088)")
+        string="Legacy Reference",
+        index=True,
+        copy=False,
+        help="MIG-03: permanent source system reference (FR-SRM-088)",
+    )
 
     # JML state
     employment_status = fields.Selection(
-        [("prospect", "Prospect"), ("joining", "Joining (Pre-Start)"),
-         ("active", "Active"), ("notice_period", "Notice Period"),
-         ("leaving", "Leaving"), ("left", "Left")],
-        default="joining", required=True, tracking=True,
-        compute="_compute_employment_status", store=False,
-        help="Derived from Odoo's hr state + M21-core lifecycle tracking")
+        [
+            ("prospect", "Prospect"),
+            ("joining", "Joining (Pre-Start)"),
+            ("active", "Active"),
+            ("notice_period", "Notice Period"),
+            ("leaving", "Leaving"),
+            ("left", "Left"),
+        ],
+        default="joining",
+        required=True,
+        tracking=True,
+        compute="_compute_employment_status",
+        store=False,
+        help="Derived from Odoo's hr state + M21-core lifecycle tracking",
+    )
     joined_date = fields.Date(string="Joined Date", tracking=True)
     left_date = fields.Date(string="Left Date", tracking=True)
 
@@ -79,28 +107,41 @@ class HrEmployeeExt(models.Model):
         records = super().create(vals_list)
         for rec in records:
             if rec.employment_status in ("active", "joining"):
-                rec._emit_jml("employee.joined", {
-                    "employee_id": rec.id,
-                    "employee_code": rec.employee_code,
-                    "branch_id": rec.branch_id.id if rec.branch_id else None,
-                    "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
-                    "joined_date": str(rec.joined_date) if rec.joined_date else None,
-                })
+                rec._emit_jml(
+                    "employee.joined",
+                    {
+                        "employee_id": rec.id,
+                        "employee_code": rec.employee_code,
+                        "branch_id": rec.branch_id.id if rec.branch_id else None,
+                        "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
+                        "joined_date": str(rec.joined_date) if rec.joined_date else None,
+                        # M29 FR-SEC-027 creates the identity from this event: the
+                        # account's display name and (password-setup) mail address
+                        "name": rec.name,
+                        "work_email": rec.work_email or None,
+                    },
+                )
         return records
 
     def write(self, vals):
+        # The leaver set is decided on the status BEFORE the archive: after
+        # the write every archived record derives to leaving/left.
+        leavers = self.browse()
+        if "active" in vals and not vals["active"]:
+            leavers = self.filtered(lambda rec: rec.employment_status == "active")
         result = super().write(vals)
         # JML event emission on lifecycle changes
-        if "active" in vals:
-            for rec in self:
-                if not vals["active"] and rec.employment_status == "active":
-                    rec._emit_leaver()
+        for rec in leavers:
+            rec._emit_leaver()
         if "primary_role_id" in vals or "additional_role_ids" in vals:
             for rec in self:
-                rec._emit_jml("employee.role_changed", {
-                    "employee_id": rec.id,
-                    "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
-                })
+                rec._emit_jml(
+                    "employee.role_changed",
+                    {
+                        "employee_id": rec.id,
+                        "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
+                    },
+                )
         return result
 
     def action_mark_left(self):
@@ -114,12 +155,15 @@ class HrEmployeeExt(models.Model):
             rec._emit_leaver()
 
     def _emit_leaver(self):
-        self._emit_jml("employee.left", {
-            "employee_id": self.id,
-            "employee_code": self.employee_code,
-            "keycloak_user_id": self.keycloak_user_id,
-            "left_date": str(self.left_date or fields.Date.today()),
-        })
+        self._emit_jml(
+            "employee.left",
+            {
+                "employee_id": self.id,
+                "employee_code": self.employee_code,
+                "keycloak_user_id": self.keycloak_user_id,
+                "left_date": str(self.left_date or fields.Date.today()),
+            },
+        )
 
     def _emit_jml(self, event_type: str, payload: dict):
         """Emit a JML event through the transactional outbox.
@@ -128,10 +172,11 @@ class HrEmployeeExt(models.Model):
         events and provisions/deprovisions Keycloak accordingly.
         """
         from libs.py.fix_events import publish
-        publish(self.env, event_type, "hr.employee", self.id, payload)
-        logger.info("M21-core: emitted %s for employee %s (id=%s)",
-                    event_type, self.name, self.id)
 
+        publish(self.env, event_type, "hr.employee", self.id, payload)
+        logger.info("M21-core: emitted %s for employee %s (id=%s)", event_type, self.name, self.id)
+
+    @api.depends("active", "joined_date", "left_date")
     def _compute_employment_status(self):
         """Derive the employment status from Odoo's hr state."""
         for rec in self:
@@ -157,5 +202,6 @@ class HrEmployeeExt(models.Model):
             raise ValueError(f"Role {role_code} not found in the reconciled register.")
         # SoD check before assignment (P03-M02-T04)
         self.env["fix.sod.control"].check_assignment(
-            self.primary_role_id.id if self.primary_role_id else role.id, role.id)
+            self.primary_role_id.id if self.primary_role_id else role.id, role.id
+        )
         self.write({"additional_role_ids": [(4, role.id)]})

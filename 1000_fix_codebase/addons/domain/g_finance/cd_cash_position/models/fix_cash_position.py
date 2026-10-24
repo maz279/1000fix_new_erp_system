@@ -18,24 +18,38 @@ class FixPaymentExecution(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _request_key_unique = models.Constraint('UNIQUE (source_model, source_id)', 'A payment request is executed exactly once — DI-04 idempotency')
+    _request_key_unique = models.Constraint(
+        "UNIQUE (source_model, source_id)",
+        "A payment request is executed exactly once — DI-04 idempotency",
+    )
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
     source_model = fields.Char(string="Source Model", required=True, index=True)
     source_id = fields.Integer(string="Source ID", required=True, index=True)
     payee = fields.Char(string="Payee", required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
     amount = fields.Monetary(string="Amount", currency_field="currency_id", required=True)
     method = fields.Selection(
-        [("bank_transfer", "Bank Transfer"), ("cheque", "Cheque"),
-         ("cash", "Cash"), ("mobile_fs", "bKash/Nagad Merchant Pay")],
-        default="bank_transfer", required=True)
+        [
+            ("bank_transfer", "Bank Transfer"),
+            ("cheque", "Cheque"),
+            ("cash", "Cash"),
+            ("mobile_fs", "bKash/Nagad Merchant Pay"),
+        ],
+        default="bank_transfer",
+        required=True,
+    )
     state = fields.Selection(
         [("pending", "Pending"), ("executed", "Executed"), ("failed", "Failed")],
-        default="pending", required=True, tracking=True)
+        default="pending",
+        required=True,
+        tracking=True,
+    )
     executed_at = fields.Datetime(readonly=True)
 
     @api.model
@@ -44,30 +58,60 @@ class FixPaymentExecution(models.Model):
         Idempotent on (source_model, source_id) — a replayed request never
         double-pays (DI-04: money is where idempotency defects cost most)."""
         payload = event.get("payload", {})
-        existing = self.search([
-            ("source_model", "=", event.get("aggregate", "")),
-            ("source_id", "=", event.get("aggregate_id", 0))])
+        source_model = event.get("aggregate", "")
+        source_id = event.get("aggregate_id", 0)
+        existing = self.search([("source_model", "=", source_model), ("source_id", "=", source_id)])
         if existing:
             return existing
-        return self.create({
-            "source_model": event.get("aggregate", ""),
-            "source_id": event.get("aggregate_id", 0),
-            "payee": payload.get("payee", "vendor:%s" % payload.get("vendor_id", "?")),
-            "amount": payload.get("amount", 0.0),
-        })
+        # operating_unit_id is REQUIRED on the execution; the request never
+        # carried it, so every consumed request failed on the NOT NULL. Take
+        # it from the event, else from the requesting document.
+        operating_unit_id = payload.get("operating_unit_id")
+        if (
+            not operating_unit_id
+            and source_model in self.env
+            and "operating_unit_id" in self.env[source_model]._fields
+        ):
+            operating_unit_id = (
+                self.env[source_model].browse(source_id).exists().operating_unit_id.id
+            )
+        if not operating_unit_id:
+            raise UserError(
+                "payment.requested %s/%s carries no operating unit" % (source_model, source_id)
+            )
+        if payload.get("payee"):
+            payee = payload["payee"]
+        elif payload.get("employee_id"):  # expense claims pay the employee
+            payee = "employee:%s" % payload["employee_id"]
+        else:
+            payee = "vendor:%s" % payload.get("vendor_id", "?")
+        return self.create(
+            {
+                "source_model": source_model,
+                "source_id": source_id,
+                "operating_unit_id": operating_unit_id,
+                "payee": payee,
+                "amount": payload.get("amount", 0.0),
+            }
+        )
 
-    def action_execute(self):
+    def action_execute(self) -> None:
         for payment in self:
             if payment.state != "pending":
                 raise UserError("Only pending payments execute")
             payment.write({"state": "executed", "executed_at": fields.Datetime.now()})
-            publish(self.env, "payment.executed", "fix.payment.execution",
-                    payment.id, {
-                        "source_model": payment.source_model,
-                        "source_id": payment.source_id,
-                        "amount": payment.amount,
-                        "method": payment.method,
-                    })
+            publish(
+                self.env,
+                "payment.executed",
+                "fix.payment.execution",
+                payment.id,
+                {
+                    "source_model": payment.source_model,
+                    "source_id": payment.source_id,
+                    "amount": payment.amount,
+                    "method": payment.method,
+                },
+            )
 
 
 class FixBankStatementLine(models.Model):
@@ -78,20 +122,27 @@ class FixBankStatementLine(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date desc, id desc"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit",
-                                        index=True,
-                                        help="Empty = company-wide bank account")
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Operating Unit",
+        index=True,
+        help="Empty = company-wide bank account",
+    )
     date = fields.Date(required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
     amount = fields.Monetary(currency_field="currency_id", required=True)
     reference = fields.Char(string="Bank Reference", index=True)
     narration = fields.Char()
     match_state = fields.Selection(
-        [("unmatched", "Unmatched"), ("auto", "Auto-Matched"),
-         ("manual", "Manually Matched")], default="unmatched", required=True)
+        [("unmatched", "Unmatched"), ("auto", "Auto-Matched"), ("manual", "Manually Matched")],
+        default="unmatched",
+        required=True,
+    )
     matched_payment_id = fields.Many2one("fix.payment.execution", string="Matched Payment")
     matched_invoice_ref = fields.Char(string="Matched Invoice")
     statement_sequence = fields.Char(string="Statement Sequence", index=True)
@@ -101,6 +152,7 @@ class FixBankStatementLine(models.Model):
     def import_bank_feed(self, file_content: str, format_type: str = "auto") -> dict:
         """INT-006: Ingest electronic bank statement feed with deduplication and sequence audit."""
         import hashlib
+
         file_hash = hashlib.sha256(file_content.encode("utf-8")).hexdigest()
 
         existing = self.search([("statement_file_hash", "=", file_hash)], limit=1)
@@ -110,33 +162,47 @@ class FixBankStatementLine(models.Model):
         lines_to_create = []
         try:
             from services.reconciliation.src.bank_feed_parser import parse_bank_feed
+
             parsed = parse_bank_feed(file_content, format_type=format_type)
             for item in parsed.lines:
-                lines_to_create.append({
-                    "company_id": self.env.company.id,
-                    "date": item.date,
-                    "amount": float(item.amount),
-                    "reference": item.reference,
-                    "narration": item.narration,
-                    "statement_sequence": parsed.sequence_number,
-                    "statement_file_hash": file_hash,
-                })
+                lines_to_create.append(
+                    {
+                        "company_id": self.env.company.id,
+                        "date": item.date,
+                        "amount": float(item.amount),
+                        "reference": item.reference,
+                        "narration": item.narration,
+                        "statement_sequence": parsed.sequence_number,
+                        "statement_file_hash": file_hash,
+                    }
+                )
         except Exception:
             import csv
             import io
+
+            # discard anything the parser produced before it failed — the
+            # fallback re-reads the whole file (no duplicated lines)
+            lines_to_create = []
             reader = csv.DictReader(io.StringIO(file_content))
             for row in reader:
                 dt_str = row.get("Date") or row.get("date")
-                amt_str = row.get("Amount") or row.get("amount") or row.get("Credit") or row.get("credit", "0")
+                amt_str = (
+                    row.get("Amount")
+                    or row.get("amount")
+                    or row.get("Credit")
+                    or row.get("credit", "0")
+                )
                 if dt_str and amt_str:
-                    lines_to_create.append({
-                        "company_id": self.env.company.id,
-                        "date": dt_str,
-                        "amount": float(amt_str),
-                        "reference": row.get("Reference") or row.get("reference") or "",
-                        "narration": row.get("Description") or row.get("narration") or "",
-                        "statement_file_hash": file_hash,
-                    })
+                    lines_to_create.append(
+                        {
+                            "company_id": self.env.company.id,
+                            "date": dt_str,
+                            "amount": float(amt_str),
+                            "reference": row.get("Reference") or row.get("reference") or "",
+                            "narration": row.get("Description") or row.get("narration") or "",
+                            "statement_file_hash": file_hash,
+                        }
+                    )
 
         if lines_to_create:
             self.create(lines_to_create)
@@ -155,29 +221,47 @@ class FixBankStatementLine(models.Model):
         for line in pending:
             line_ref = (line.reference or "") + " " + (line.narration or "")
             for payment in payments:
-                if payment.id in already_matched_payment_ids:
+                # a payment matches once, and only its own company's bank line
+                if (
+                    payment.id in already_matched_payment_ids
+                    or payment.company_id != line.company_id
+                ):
                     continue
                 # Determine expected reference prefix by model
-                prefix = ("AR" if payment.source_model == "fix.ar.invoice" else
-                          "EXP" if payment.source_model == "fix.expense.claim" else
-                          "AP" if payment.source_model == "fix.vendor.invoice" else None)
+                prefix = (
+                    "AR"
+                    if payment.source_model == "fix.ar.invoice"
+                    else "EXP"
+                    if payment.source_model == "fix.expense.claim"
+                    else "AP"
+                    if payment.source_model == "fix.vendor.invoice"
+                    else None
+                )
                 ref = f"{prefix}/{payment.source_id}" if prefix else None
                 # Rule 1: Reference match in narration/reference
                 ref_matched = ref and ref in line_ref
                 # Rule 2: Exact amount match with same currency
-                amount_matched = abs(line.amount - payment.amount) < 0.01 and payment.currency_id == line.currency_id
+                amount_matched = (
+                    abs(line.amount - payment.amount) < 0.01
+                    and payment.currency_id == line.currency_id
+                )
 
-                if (ref_matched and amount_matched) or (ref_matched and payment.currency_id == line.currency_id) or (amount_matched and payment.payee in line_ref):
-                    line.write({
-                        "match_state": "auto",
-                        "matched_payment_id": payment.id,
-                        "matched_invoice_ref": ref or str(payment.source_id),
-                    })
+                if (
+                    (ref_matched and amount_matched)
+                    or (ref_matched and payment.currency_id == line.currency_id)
+                    or (amount_matched and payment.payee in line_ref)
+                ):
+                    line.write(
+                        {
+                            "match_state": "auto",
+                            "matched_payment_id": payment.id,
+                            "matched_invoice_ref": ref or str(payment.source_id),
+                        }
+                    )
                     already_matched_payment_ids.add(payment.id)
                     matched += 1
                     break
         return matched
-
 
 
 class FixCashPosition(models.Model):
@@ -188,25 +272,42 @@ class FixCashPosition(models.Model):
     _description = "Cash Position Snapshot"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     as_of = fields.Datetime(default=fields.Datetime.now, required=True)
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
     bank_balance = fields.Monetary(string="Bank", currency_field="currency_id")
-    drawer_float_total = fields.Monetary(string="Branch Drawers", currency_field="currency_id",
-                                         compute="_compute_drawers", store=True)
+    drawer_float_total = fields.Monetary(
+        string="Branch Drawers",
+        currency_field="currency_id",
+        compute="_compute_drawers",
+        store=True,
+    )
     pending_payments = fields.Monetary(string="Pending Payments", currency_field="currency_id")
-    total_position = fields.Monetary(string="Total Position", currency_field="currency_id",
-                                     compute="_compute_total", store=True)
+    total_position = fields.Monetary(
+        string="Total Position", currency_field="currency_id", compute="_compute_total", store=True
+    )
 
     @api.depends("bank_balance", "drawer_float_total", "pending_payments")
-    def _compute_total(self):
+    def _compute_total(self) -> None:
         for snap in self:
-            snap.total_position = snap.bank_balance + snap.drawer_float_total - snap.pending_payments
+            snap.total_position = (
+                snap.bank_balance + snap.drawer_float_total - snap.pending_payments
+            )
 
-    def _compute_drawers(self):
-        """Open M04 cash shifts carry their expected closing as float."""
-        shifts = self.env["fix.cash.shift"].search([("state", "in", ("open", "counting"))])
+    # Without any dependency Odoo never computes a stored field, so every
+    # snapshot carried drawer_float_total = 0. The snapshot's own company and
+    # timestamp drive it: computed at creation, re-taken when as_of moves.
+    @api.depends("company_id", "as_of")
+    def _compute_drawers(self) -> None:
+        """Open M04 cash shifts carry their expected closing as float — only
+        the snapshot's OWN company's drawers (the search was company-blind,
+        so one entity's position counted every other entity's cash)."""
         for snap in self:
+            shifts = self.env["fix.cash.shift"].search(
+                [("state", "in", ("open", "counting")), ("company_id", "=", snap.company_id.id)]
+            )
             snap.drawer_float_total = sum(shifts.mapped("expected_closing"))

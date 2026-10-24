@@ -1,31 +1,163 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_facility views (P10). -->
+<!-- cd_facility views (P10 / M47). -->
 <odoo>
     <record id="view_fix_site_list" model="ir.ui.view">
         <field name="name">fix.site.list</field>
         <field name="model">fix.site</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list>
+                <field name="name"/>
+                <field name="site_type"/>
+                <field name="branch_id"/>
+                <field name="floor_area_sqm"/>
+                <field name="monthly_rent"/>
+                <field name="state"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_site_form" model="ir.ui.view">
+        <field name="name">fix.site.form</field>
+        <field name="model">fix.site</field>
+        <field name="arch" type="xml">
+            <form string="Facility / Site Infrastructure">
+                <header>
+                    <button name="action_link_assets" string="Publish Linked Assets" type="object" class="btn-primary"/>
+                    <button name="action_close" string="Close Site" type="object" invisible="state == 'closed'"/>
+                    <button name="action_reopen" string="Reopen Site" type="object" invisible="state == 'active'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="active,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Location &amp; Type">
+                            <field name="site_type"/>
+                            <field name="branch_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Lease &amp; Space">
+                            <field name="floor_area_sqm"/>
+                            <field name="lease_start"/>
+                            <field name="lease_end"/>
+                            <field name="monthly_rent"/>
+                        </group>
+                    </group>
+                    <group string="Address">
+                        <field name="address"/>
+                    </group>
+                    <notebook>
+                        <page string="Linked Equipment (M46)" name="equipment">
+                            <field name="equipment_ids">
+                                <list>
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="category"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Facility Work Orders" name="work_orders">
+                            <field name="work_order_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="work_type"/>
+                                    <field name="scheduled_date"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_site" model="ir.actions.act_window">
-        <field name="name">Site</field>
+        <field name="name">Sites &amp; Facilities</field>
         <field name="res_model">fix.site</field>
         <field name="view_mode">list,form</field>
     </record>
+
     <record id="view_fix_facility_work_order_list" model="ir.ui.view">
         <field name="name">fix.facility.work.order.list</field>
         <field name="model">fix.facility.work.order</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list decoration-success="state == 'completed'" decoration-info="state == 'in_progress'">
+                <field name="name"/>
+                <field name="site_id"/>
+                <field name="equipment_id"/>
+                <field name="work_type"/>
+                <field name="assigned_to"/>
+                <field name="scheduled_date"/>
+                <field name="estimated_cost"/>
+                <field name="actual_cost"/>
+                <field name="state"/>
+                <field name="currency_id" column_invisible="True"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_facility_work_order_form" model="ir.ui.view">
+        <field name="name">fix.facility.work.order.form</field>
+        <field name="model">fix.facility.work.order</field>
+        <field name="arch" type="xml">
+            <form string="Facility Maintenance Work Order">
+                <header>
+                    <button name="action_schedule" string="Schedule" type="object" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_start" string="Start Work" type="object" class="btn-primary" invisible="state != 'scheduled'"/>
+                    <button name="action_complete" string="Complete Work" type="object" class="btn-success" invisible="state != 'in_progress'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('completed', 'cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,scheduled,in_progress,completed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Target Infrastructure">
+                            <field name="site_id"/>
+                            <field name="equipment_id"/>
+                            <field name="work_type"/>
+                            <field name="assigned_to"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Schedule &amp; Cost">
+                            <field name="scheduled_date"/>
+                            <field name="currency_id"/>
+                            <field name="estimated_cost"/>
+                            <field name="actual_cost"/>
+                        </group>
+                    </group>
+                    <group string="Work Description">
+                        <field name="description"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_facility_work_order" model="ir.actions.act_window">
-        <field name="name">Facility Work Order</field>
+        <field name="name">Facility Work Orders</field>
         <field name="res_model">fix.facility.work.order</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_site" name="Site" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_site" sequence="300"/>
-    <menuitem id="menu_fix_facility_work_order" name="Facility Work Order" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_facility_work_order" sequence="310"/>
+    <menuitem id="menu_fix_facility_root" name="Facility Management" parent="cd_entity_config.menu_fix_operations_root" sequence="330"/>
+    <menuitem id="menu_fix_site" name="Sites &amp; Facilities" parent="menu_fix_facility_root" action="action_fix_site" sequence="10"/>
+    <menuitem id="menu_fix_facility_work_order" name="Maintenance Work Orders" parent="menu_fix_facility_root" action="action_fix_facility_work_order" sequence="20"/>
 </odoo>

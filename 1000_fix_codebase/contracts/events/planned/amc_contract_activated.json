@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "amc.contract_activated",
+  "description": "Event emitted when corporate annual maintenance contract is activated (Journey 5)",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "amc.contract_activated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_contract_core"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "contract_id",
+        "contract_number",
+        "client_id",
+        "sla_tier",
+        "activated_at"
+      ],
+      "properties": {
+        "contract_id": {
+          "type": "integer"
+        },
+        "contract_number": {
+          "type": "string"
+        },
+        "client_id": {
+          "type": "integer"
+        },
+        "sla_tier": {
+          "type": "string"
+        },
+        "activated_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

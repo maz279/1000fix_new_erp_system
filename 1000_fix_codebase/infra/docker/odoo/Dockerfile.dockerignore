@@ -1,0 +1,24 @@
+# Build context filter for infra/docker/odoo/Dockerfile ONLY (BuildKit reads
+# <Dockerfile>.dockerignore next to the Dockerfile; other builds are unaffected).
+# ALLOWLIST: everything is excluded, then the image inputs are re-included -
+# node_modules, .venv, infra/odoo-data, apps/, docs/, coverage ... never sent.
+*
+!vendor/odoo
+!vendor/oca
+!addons
+!libs
+!services
+!infra/environments.yaml
+!infra/docker/odoo
+!tooling/ci/odoo-security-overrides.txt
+!tooling/scripts/generate-odoo-conf.py
+!tooling/versions.lock
+# ... minus caches and VCS metadata anywhere inside them
+**/.git
+**/__pycache__
+**/*.pyc
+**/node_modules
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache

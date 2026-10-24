@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_storefront security: customer portal cross-tenant record rules (R08-M04-T01, G7-6).
+     Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <!-- Customer sees only their own carts -->
+    <record id="rule_fix_storefront_cart_customer_self" model="ir.rule">
+        <field name="name">Storefront: own carts only</field>
+        <field name="model_id" ref="model_fix_storefront_cart"/>
+        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Customer sees only their own orders -->
+    <record id="rule_fix_storefront_order_customer_self" model="ir.rule">
+        <field name="name">Storefront: own orders only</field>
+        <field name="model_id" ref="model_fix_storefront_order"/>
+        <field name="domain_force">[('customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Customer sees only returns on their own orders -->
+    <record id="rule_fix_storefront_return_customer_self" model="ir.rule">
+        <field name="name">Storefront: own returns only</field>
+        <field name="model_id" ref="model_fix_storefront_return"/>
+        <field name="domain_force">[('order_id.customer_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

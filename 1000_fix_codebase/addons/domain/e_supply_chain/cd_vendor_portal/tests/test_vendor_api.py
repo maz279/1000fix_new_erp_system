@@ -1,7 +1,7 @@
 # cd_vendor_portal tests — P05 PP5 API surface (source-level battery).
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -49,9 +49,10 @@ class TestLivefireRegressions(unittest.TestCase):
 
     def test_invoice_create_sets_operating_unit(self):
         # fix.vendor.invoice.operating_unit_id is required with no default —
-        # without this the portal could never submit an invoice
-        self.assertIn('"operating_unit_id": ou.id', API)
-        self.assertIn("no_operating_unit", API)
+        # without this the portal could never submit an invoice. The PO's
+        # own (required) unit is used; the live behaviour is asserted in
+        # test_vendor_api_live.py.
+        self.assertIn('"operating_unit_id": po.operating_unit_id.id', API)
 
     def test_invoice_date_none_never_overrides_default(self):
         # an explicit None in create() overrides the model default (today)
@@ -62,15 +63,17 @@ class TestLivefireRegressions(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_vendor_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
         for path in ("/vendor/purchase-orders", "/vendor/invoices"):
             self.assertIn(path, spec["paths"])
 
     def test_routes_json_auth_user(self):
         routes = re.findall(
-            r'@http\.route\("(/vendor/[^"]+)"[^)]*type="json",\s*auth="user"',
-            API)
+            r'@http\.route\("(/vendor/[^"]+)"[^)]*type="jsonrpc",\s*auth="user"', API
+        )
         self.assertEqual(len(routes), 2, routes)
 
     def test_module_depends_on_requisition_and_ap(self):

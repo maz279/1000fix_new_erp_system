@@ -1,44 +1,52 @@
 {
-    "schema":  "1000fix-erp/gate-g0a/1",
-    "ranAtUtc":  "2026-10-16T12:48:54.3403348Z",
-    "pass":  15,
-    "conditions":  3,
-    "openExternal":  0,
+    "schema":  "1000fix-erp/gate-g0a/2",
+    "ranAtUtc":  "2026-10-23T09:28:10.8926994Z",
+    "verdict":  "RED-OPEN-BLOCKERS",
+    "pass":  12,
+    "conditions":  5,
+    "open":  1,
     "failures":  0,
-    "verdict":  "GREEN",
+    "openIds":  [
+                    "B-05b"
+                ],
+    "e1OpenIds":  [
+                      "B-05b"
+                  ],
     "criteria":  [
                      {
                          "Id":  "B-05",
                          "Criterion":  "AR-006 regenerated and accepted: 67n/447e/18mutual/32viol reproduced",
                          "EClass":  "E2",
-                         "Status":  "PASS",
-                         "Evidence":  "dependency-graph-2026-10-01.json - 5 PASS / 1 drift-WARN (reciprocity 53 vs 55)",
+                         "Status":  "CONDITION",
+                         "Evidence":  "dependency-graph-2026-10-01.json: 67n/447e/18 mutual/32 viol; reciprocity total 53; checks 5 PASS / 1 WARN - reproduced, but no AR-006 acceptance record found under docs/ (acceptance is an approval; GV-009)",
                          "Remedies":  [
-                                          "Run tooling/architecture-baseline/extract-dependency-graph.ps1 -Json \u003cpath\u003e"
+                                          "Run tooling/architecture-baseline/extract-dependency-graph.ps1 -Json \u003cpath\u003e",
+                                          "Record AR-006 acceptance (DA/ARB minute) - a human approval"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2150760Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.5950593Z"
                      },
                      {
                          "Id":  "B-04",
                          "Criterion":  "SRS baselined + fit-gap complete (3,389 denominator; register row-per-requirement)",
                          "EClass":  "E2",
-                         "Status":  "PASS",
-                         "Evidence":  "requirements-baseline evidence: 14 PASS / 3 findings; fit-gap-register.csv 3,347 rows",
+                         "Status":  "CONDITION",
+                         "Evidence":  "requirements-baseline-2026-10-01.json: checks 3 INFO / 14 PASS / 3 WARN; denominator population 3389 (3347 rows + 42 SWR); fit-gap-register.csv 3347 data rows vs 3,389 = 42 missing - register is not row-per-requirement for the full denominator",
                          "Remedies":  [
-                                          "Run tooling/requirements-baseline/scan-requirements.ps1"
+                                          "Run tooling/requirements-baseline/scan-requirements.ps1",
+                                          "Add the missing SWR rows to docs/p01-m03/registers/fit-gap-register.csv"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2280142Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.6815289Z"
                      },
                      {
                          "Id":  "B-05b",
                          "Criterion":  "MV-01..MV-05 accepted into Wave 1 and costed (CR raised)",
                          "EClass":  "E1",
-                         "Status":  "CONDITION",
-                         "Evidence":  "CR prepared; Steering approval is the external E1 step",
+                         "Status":  "OPEN",
+                         "Evidence":  "CR prepared; Steering approval is the external E1 step [E1 CONDITION counted as OPEN: no GV-003 override row naming B-05b]",
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2343387Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.7008232Z"
                      },
                      {
                          "Id":  "B-05c",
@@ -49,18 +57,19 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2378364Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.7038070Z"
                      },
                      {
                          "Id":  "B-03",
                          "Criterion":  "BE-005 issued: 331 identifiers, machine-readable, validates",
                          "EClass":  "E5",
-                         "Status":  "PASS",
-                         "Evidence":  "cd-register.yaml: 331 items / 1,850 PW / crosswalk 331",
+                         "Status":  "CONDITION",
+                         "Evidence":  "tooling/cd-register.yaml: count=332 (332 item rows), pw_total=1853; IR-002 expects 331 / 1,850 (delta +1 ids, +3 PW) - no CR found under docs/ rebaselining to 332; a CR is needed",
                          "Remedies":  [
-                                          "Run tooling/cd-register/generate-cd-register.ps1"
+                                          "Run tooling/cd-register/generate-cd-register.ps1",
+                                          "Raise a CR to rebaseline IR-002 if the register count legitimately moved"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2742641Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8443049Z"
                      },
                      {
                          "Id":  "B-07",
@@ -71,7 +80,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2868762Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8503373Z"
                      },
                      {
                          "Id":  "B-08",
@@ -82,7 +91,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2891997Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8524773Z"
                      },
                      {
                          "Id":  "B-09",
@@ -93,7 +102,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2915365Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8540541Z"
                      },
                      {
                          "Id":  "B-19",
@@ -104,7 +113,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2937036Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8551133Z"
                      },
                      {
                          "Id":  "B-21",
@@ -115,7 +124,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2959025Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8561793Z"
                      },
                      {
                          "Id":  "B-22",
@@ -126,7 +135,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.2986282Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8578203Z"
                      },
                      {
                          "Id":  "B-02",
@@ -137,7 +146,7 @@
                          "Remedies":  [
                                           "Day-1 action: sign docs/p01-m02/DEP-31-engagement-scope.md letter 7"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3024680Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8620977Z"
                      },
                      {
                          "Id":  "B-11",
@@ -148,7 +157,7 @@
                          "Remedies":  [
                                           "Settle before contract signature - P01-M08-T02"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3081519Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8674627Z"
                      },
                      {
                          "Id":  "B-12",
@@ -159,7 +168,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3136868Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8711574Z"
                      },
                      {
                          "Id":  "B-06",
@@ -170,7 +179,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3177239Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8738071Z"
                      },
                      {
                          "Id":  "B-01",
@@ -181,7 +190,7 @@
                          "Remedies":  [
                                           "E1 evidence: signed minutes at docs/governance/BM-2026-10-D001-charter-and-governance.md"
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3232584Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8775180Z"
                      },
                      {
                          "Id":  "B-13",
@@ -192,7 +201,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3262604Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8796090Z"
                      },
                      {
                          "Id":  "B-10",
@@ -203,7 +212,7 @@
                          "Remedies":  [
 
                                       ],
-                         "CheckedUtc":  "2026-10-16T12:48:54.3287807Z"
+                         "CheckedUtc":  "2026-10-23T09:28:10.8817221Z"
                      }
                  ]
 }

@@ -1,0 +1,10 @@
+# Scoped pylint config for the pylint-odoo pre-commit hook.
+# The hook exists for Odoo DEFECT classes only (SQL-02 sql-injection, XS-08):
+# generic style checks are owned by ruff (PYS-01) and running them here would
+# duplicate tooling and drown the signal. pylint-odoo v8: sql-injection = E8103.
+[MESSAGES CONTROL]
+disable=all
+enable=sql-injection
+
+[REPORTS]
+score=no

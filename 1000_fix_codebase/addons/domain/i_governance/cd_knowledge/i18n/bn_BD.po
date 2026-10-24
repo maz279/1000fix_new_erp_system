@@ -3,6 +3,200 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__archived
+msgid "Archived"
+msgstr "সংরক্ষণাগারভুক্ত"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "Article Title"
+msgstr "নিবন্ধের শিরোনাম"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__title_bn
+msgid "Article Title (Bengali)"
+msgstr "নিবন্ধের শিরোনাম (বাংলা)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__name
+msgid "Article Title (English)"
+msgstr "নিবন্ধের শিরোনাম (ইংরেজি)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__offline_available
+msgid "Available for Offline Sync"
+msgstr "অফলাইন সিঙ্কের জন্য উপলব্ধ"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "Bengali Documentation (বাংলা)"
+msgstr "বাংলা ডকুমেন্টেশন"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "Categorisation & Hardware"
+msgstr "শ্রেণিবিন্যাস ও হার্ডওয়্যার"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__schematic
+msgid "Circuit Schematic & Boardview"
+msgstr "সার্কিট স্কিম্যাটিক ও বোর্ডভিউ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__content_bn
+msgid "Content (Bengali)"
+msgstr "বিষয়বস্তু (বাংলা)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__content
+msgid "Content (English)"
+msgstr "বিষয়বস্তু (ইংরেজি)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__content_hash
+msgid "Content SHA-256 Hash"
+msgstr "বিষয়বস্তুর SHA-256 হ্যাশ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__device_guide
+msgid "Device Disassembly Guide"
+msgstr "ডিভাইস খোলার নির্দেশিকা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "e.g. Dell Latitude 7420 No-Power Power-Rail Diagnostic"
+msgstr "যেমন Dell Latitude 7420 পাওয়ার নেই — পাওয়ার-রেল ডায়াগনস্টিক"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "English Documentation"
+msgstr "ইংরেজি ডকুমেন্টেশন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__fault_symptom
+msgid "Fault Symptom (e.g. No Power, Display Artifact, Bootloop)"
+msgstr "ত্রুটির উপসর্গ (যেমন পাওয়ার নেই, ডিসপ্লেতে বিকৃতি, বুটলুপ)"
+
+#. module: cd_knowledge
+#: model:ir.model,name:cd_knowledge.model_fix_knowledge_article
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "Knowledge Article & Technical Manual"
+msgstr "জ্ঞান নিবন্ধ ও কারিগরি ম্যানুয়াল"
+
+#. module: cd_knowledge
 msgid "Knowledge Management & Technical Library"
-msgstr "Knowledge Management & Technical Library (বাংলা)"
+msgstr "জ্ঞান ব্যবস্থাপনা ও কারিগরি লাইব্রেরি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__rework_level__l1
+msgid "L1: Modular Replacement"
+msgstr "L1: মডিউলার প্রতিস্থাপন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__rework_level__l2
+msgid "L2: Subassembly Rework"
+msgstr "L2: সাবঅ্যাসেম্বলি রিওয়ার্ক"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__rework_level__l3
+msgid "L3: Component-Level SMD / BGA Repair"
+msgstr "L3: উপাদান-স্তরের SMD / BGA মেরামত"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__rework_level__l4
+msgid "L4: Cleanroom Trace / Micro-Soldering"
+msgstr "L4: ক্লিনরুম ট্রেস / মাইক্রো-সোল্ডারিং"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__version
+msgid "Manual Version"
+msgstr "ম্যানুয়াল সংস্করণ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "P02 Offline Sync & Meta"
+msgstr "P02 অফলাইন সিঙ্ক ও মেটা"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "Publish / Increment Version"
+msgstr "প্রকাশ / সংস্করণ বৃদ্ধি করুন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__published
+msgid "Published"
+msgstr "প্রকাশিত"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__policy
+msgid "Quality & Warranty Policy"
+msgstr "গুণমান ও ওয়ারেন্টি নীতি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__article_code
+msgid "Reference Code (e.g. KB-HW-001)"
+msgstr "রেফারেন্স কোড (যেমন KB-HW-001)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__repair_procedure
+msgid "Repair Procedure (SOP)"
+msgstr "মেরামত পদ্ধতি (SOP)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__tags
+msgid "Search Tags"
+msgstr "সার্চ ট্যাগ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__device_brand
+msgid "Target Brand (e.g. Dell, HP, Samsung, Walton)"
+msgstr "লক্ষ্য ব্র্যান্ড (যেমন Dell, HP, Samsung, Walton)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__device_model
+msgid "Target Model / Chassis"
+msgstr "লক্ষ্য মডেল / চেসিস"
+
+#. module: cd_knowledge
+#: model:ir.actions.act_window,name:cd_knowledge.action_fix_knowledge_article
+#: model:ir.ui.menu,name:cd_knowledge.menu_fix_knowledge_article
+msgid "Technical Knowledge Library"
+msgstr "কারিগরি জ্ঞান লাইব্রেরি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__rework_level
+msgid "Technical Repair Level"
+msgstr "কারিগরি মেরামত স্তর"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__safety_bulletin
+msgid "Technical Safety Bulletin"
+msgstr "কারিগরি নিরাপত্তা বুলেটিন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__training
+msgid "Technical Training Material"
+msgstr "কারিগরি প্রশিক্ষণ উপকরণ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__troubleshooting
+msgid "Troubleshooting Guide"
+msgstr "সমস্যা সমাধান নির্দেশিকা"
+
+#. module: cd_knowledge
+#: model_terms:ir.ui.view,arch_db:cd_knowledge.view_fix_knowledge_article_form
+msgid "বাংলা শিরোনাম..."
+msgstr "বাংলা শিরোনাম..."

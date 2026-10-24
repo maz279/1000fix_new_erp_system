@@ -11,6 +11,7 @@ sides before writing. Run from the repo root:
 
     python tooling/scripts/sync-p03-meta-titles.py
 """
+
 from __future__ import annotations
 
 import json
@@ -20,8 +21,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 REGISTRY = REPO / "contracts" / "nav" / "registry.json"
-META = (REPO / "addons" / "platform" / "cd_p03_portal" /
-        "static" / "src" / "p03_modules_meta.js")
+META = REPO / "addons" / "platform" / "cd_p03_portal" / "static" / "src" / "p03_modules_meta.js"
 
 
 def esc(s: str) -> str:
@@ -54,15 +54,12 @@ def main() -> int:
 
         new = blk
         new = re.sub(r"en: '[^']*'", f"en: '{esc(want_en)}'", new, count=1)
-        new = re.sub(r"title: '[^']*'",
-                     f"title: '{esc(want_title)}'", new, count=1)
+        new = re.sub(r"title: '[^']*'", f"title: '{esc(want_title)}'", new, count=1)
         new = re.sub(r"bn: '[^']*'", f"bn: '{esc(want_bn)}'", new, count=1)
         if want_desc:
-            new = re.sub(r"desc: '[^']*'",
-                         f"desc: '{esc(want_desc)}'", new, count=1)
+            new = re.sub(r"desc: '[^']*'", f"desc: '{esc(want_desc)}'", new, count=1)
         if want_icon:
-            new = re.sub(r"icon: '[^']*'",
-                         f"icon: '{esc(want_icon)}'", new, count=1)
+            new = re.sub(r"icon: '[^']*'", f"icon: '{esc(want_icon)}'", new, count=1)
         if new != blk:
             changed += 1
             src = src[:start] + new + src[end:]
@@ -79,8 +76,10 @@ def main() -> int:
         en = re.search(r"en: '([^']*)'", blk).group(1)
         if en != m["en"]:
             drift.append(mid)
-    print(f"sync-p03-meta-titles: {changed} modules corrected, "
-          f"post-verify drift: {len(drift)} {drift[:5]}")
+    print(
+        f"sync-p03-meta-titles: {changed} modules corrected, "
+        f"post-verify drift: {len(drift)} {drift[:5]}"
+    )
     return 0 if not drift else 1
 
 

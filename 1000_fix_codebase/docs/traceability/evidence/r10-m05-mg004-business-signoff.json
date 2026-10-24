@@ -1,0 +1,47 @@
+{
+  "governance_standard": "MG-004",
+  "run_id": "WAVE1_REHEARSAL_20261016",
+  "prepared_at": "2026-10-22T09:02:26.644666+00:00",
+  "verdict": "UNMEASURED",
+  "reason": "requires the named business owner's signature on this measured reconciliation (and a steward disposition of every quarantined record: {'customers': 1, 'devices': 1, 'attendance_opening': 20}); no signed record exists",
+  "signatory": null,
+  "measured_reconciliation_verdict": "PASS",
+  "measured_reconciliation": {
+    "attendance_opening": {
+      "control": 20,
+      "loaded": 20,
+      "accepted": 0,
+      "quarantined": 20
+    },
+    "branches": {
+      "control": 6,
+      "loaded": 6,
+      "accepted": 6,
+      "quarantined": 0
+    },
+    "customers": {
+      "control": 50,
+      "loaded": 50,
+      "accepted": 49,
+      "quarantined": 1
+    },
+    "devices": {
+      "control": 50,
+      "loaded": 50,
+      "accepted": 49,
+      "quarantined": 1
+    },
+    "employees": {
+      "control": 20,
+      "loaded": 20,
+      "accepted": 20,
+      "quarantined": 0
+    }
+  },
+  "quarantined_records": {
+    "customers": 1,
+    "devices": 1,
+    "attendance_opening": 20
+  },
+  "decommission_authorization": null
+}

@@ -7,54 +7,150 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_product__claim_limit
 msgid "Aggregate Claim Limit"
 msgstr "সমষ্টিগত দাবি সীমা"
 
+#. module: cd_warranty_claims
+#: model_terms:ir.ui.view,arch_db:cd_warranty_claims.view_fix_warranty_claim_form
 msgid "Amounts"
 msgstr "পরিমাণসমূহ"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__brand_id
 msgid "Brand"
 msgstr "ব্র্যান্ড"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_brand__api_user_ids
+msgid "Brand Partner Users"
+msgstr "ব্র্যান্ড পার্টনার ব্যবহারকারী"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_product__catalogue_item_id
 msgid "Catalogue Item"
 msgstr "ক্যাটালগ আইটেম"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_evidence__claim_id
+#: model_terms:ir.ui.view,arch_db:cd_warranty_claims.view_fix_warranty_claim_form
 msgid "Claim"
 msgstr "দাবি"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__claim_amount
 msgid "Claim Amount"
 msgstr "দাবির পরিমাণ"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__claim_no
 msgid "Claim No."
 msgstr "দাবি নং"
 
+#. module: cd_warranty_claims
+#: model:ir.ui.menu,name:cd_warranty_claims.menu_fix_warranty_claim
 msgid "Claims"
 msgstr "দাবিসমূহ"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__auto_creation_latency_hours
+msgid "Creation Latency (h)"
+msgstr "তৈরির বিলম্ব (ঘণ্টা)"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_product__excess_amount
 msgid "Customer Excess"
 msgstr "গ্রাহক অতিরিক্ত"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_evidence__document_id
 msgid "Document"
 msgstr "দলিল"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__evidence_ids
+#: model_terms:ir.ui.view,arch_db:cd_warranty_claims.view_fix_warranty_claim_form
 msgid "Evidence Pack"
 msgstr "প্রমাণ প্যাক"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__in_review
+msgid "In Review"
+msgstr "পর্যালোচনাধীন"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__is_submission_overdue
+msgid "Overdue"
+msgstr "অতিমেয়াদি"
+
+#. module: cd_warranty_claims
+#: model_terms:ir.ui.view,arch_db:cd_warranty_claims.view_fix_warranty_claim_tree
 msgid "Pack OK"
 msgstr "প্যাক সম্পূর্ণ"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_product__product_type__protection
+msgid "Protection Plan"
+msgstr "সুরক্ষা প্ল্যান"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__warranty_product_id
 msgid "Protection Product"
 msgstr "সুরক্ষা পণ্য"
 
+#. module: cd_warranty_claims
+#: model:ir.ui.menu,name:cd_warranty_claims.menu_fix_warranty_product
 msgid "Protection Products"
 msgstr "সুরক্ষা পণ্যসমূহ"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__ready
+msgid "Ready"
+msgstr "প্রস্তুত"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__remittance_amount
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__remitted
 msgid "Remitted"
 msgstr "পরিশোধিত"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_warranty_claims
+#: model:ir.model.fields,field_description:cd_warranty_claims.field_fix_warranty_claim__submission_latency_hours
+msgid "Submission Latency (h)"
+msgstr "জমাদানের বিলম্ব (ঘণ্টা)"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_claim__state__submitted
+msgid "Submitted"
+msgstr "জমা দেওয়া হয়েছে"
+
+#. module: cd_warranty_claims
+#: model:ir.ui.menu,name:cd_warranty_claims.menu_ws_warranty
 msgid "Warranty"
 msgstr "ওয়ারেন্টি"
+
+#. module: cd_warranty_claims
+#: model:ir.model.fields.selection,name:cd_warranty_claims.selection__fix_warranty_product__product_type__extension
+msgid "Warranty Extension"
+msgstr "ওয়ারেন্টি বর্ধিতকরণ"

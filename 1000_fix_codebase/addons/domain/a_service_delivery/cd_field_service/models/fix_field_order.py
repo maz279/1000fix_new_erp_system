@@ -1,14 +1,16 @@
 # fix.field.order — Field Service Order & Execution Unit (CD-M02-01)
 import json
 import math
-from datetime import datetime, timezone
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import UserError
+
+from libs.py.fix_events import publish  # FF-28
 
 
 class FixFieldOrder(models.Model):
     """Field service order executing on-site customer repairs and diagnostics."""
+
     _name = "fix.field.order"
     _description = "Field Service Order"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -163,7 +165,9 @@ class FixFieldOrder(models.Model):
         for vals in vals_list:
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.field.order")
-                vals["name"] = seq or f"FO/{fields.Date.today().year}/{self.search_count([]) + 1:05d}"
+                vals["name"] = (
+                    seq or f"FO/{fields.Date.today().year}/{self.search_count([]) + 1:05d}"
+                )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
         return super().create(vals_list)
@@ -182,37 +186,48 @@ class FixFieldOrder(models.Model):
                 rec.technician_id = technician_id
             if not rec.technician_id:
                 raise UserError("A technician must be assigned to dispatch the field order.")
-            
+
             # Check technician van stock location
-            van = self.env["fix.stock.location"].search([
-                ("technician_id", "=", rec.technician_id.id),
-                ("is_van_stock", "=", True),
-            ], limit=1)
+            van = self.env["fix.stock.location"].search(
+                [
+                    ("technician_id", "=", rec.technician_id.id),
+                    ("is_van_stock", "=", True),
+                ],
+                limit=1,
+            )
             if van:
                 rec.van_location_id = van.id
 
             rec.state = "dispatched"
-            rec._emit_field_event("field.order.dispatched", {
-                "field_order_id": rec.id,
-                "order_ref": rec.name,
-                "service_order_ref": rec.order_id.name if rec.order_id else "",
-                "technician_id": rec.technician_id.id,
-                "technician_name": rec.technician_id.name,
-                "zone_id": rec.zone_id.id if rec.zone_id else False,
-                "scheduled_start": rec.scheduled_start.isoformat() if rec.scheduled_start else None,
-            })
+            rec._emit_field_event(
+                "field.order.dispatched",
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "service_order_ref": rec.order_id.name if rec.order_id else "",
+                    "technician_id": rec.technician_id.id,
+                    "technician_name": rec.technician_id.name,
+                    "zone_id": rec.zone_id.id if rec.zone_id else False,
+                    "scheduled_start": rec.scheduled_start.isoformat()
+                    if rec.scheduled_start
+                    else None,
+                },
+            )
 
     def action_accept(self):
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Only dispatched orders can be accepted.")
             rec.state = "accepted"
-            rec._emit_field_event("field.order.accepted", {
-                "field_order_id": rec.id,
-                "order_ref": rec.name,
-                "technician_id": rec.technician_id.id if rec.technician_id else False,
-                "accepted_at": fields.Datetime.now().isoformat(),
-            })
+            rec._emit_field_event(
+                "field.order.accepted",
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "technician_id": rec.technician_id.id if rec.technician_id else False,
+                    "accepted_at": fields.Datetime.now().isoformat(),
+                },
+            )
 
     def action_decline(self, reason="other", notes=""):
         DeclineLog = self.env["fix.field.decline.log"]
@@ -220,28 +235,38 @@ class FixFieldOrder(models.Model):
             if rec.state != "dispatched":
                 raise UserError("Only dispatched orders can be declined.")
             prev_tech = rec.technician_id
-            rec.write({
-                "state": "declined",
-                "decline_reason": reason,
-                "decline_notes": notes,
-                "technician_id": False,
-            })
-            DeclineLog.create({
-                "field_order_id": rec.id,
-                "technician_id": prev_tech.id if prev_tech else False,
-                "company_id": rec.company_id.id,
-                "operating_unit_id": rec.operating_unit_id.id,
-                "reason": reason,
-                "notes": notes,
-            })
-            rec._emit_field_event("field.order.declined", {
-                "field_order_id": rec.id,
-                "order_ref": rec.name,
-                "declined_technician_id": prev_tech.id if prev_tech else False,
-                "reason": reason,
-                "notes": notes,
-                "declined_at": fields.Datetime.now().isoformat(),
-            })
+            if not prev_tech:
+                # the decline log names the declining technician (NOT NULL)
+                raise UserError("Only an order dispatched to a technician can be declined.")
+            rec.write(
+                {
+                    "state": "declined",
+                    "decline_reason": reason,
+                    "decline_notes": notes,
+                    "technician_id": False,
+                }
+            )
+            DeclineLog.create(
+                {
+                    "field_order_id": rec.id,
+                    "technician_id": prev_tech.id,
+                    "company_id": rec.company_id.id,
+                    "operating_unit_id": rec.operating_unit_id.id,
+                    "reason": reason,
+                    "notes": notes,
+                }
+            )
+            rec._emit_field_event(
+                "field.order.declined",
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "declined_technician_id": prev_tech.id,
+                    "reason": reason,
+                    "notes": notes,
+                    "declined_at": fields.Datetime.now().isoformat(),
+                },
+            )
 
     def action_start_travel(self):
         for rec in self:
@@ -256,15 +281,18 @@ class FixFieldOrder(models.Model):
             if current_lat is not None and current_lon is not None and rec.geofence_id:
                 in_fence = rec._check_geofence_arrival(current_lat, current_lon)
                 if not in_fence:
-                    rec._emit_field_event("geofence.breach.detected", {
-                        "field_order_id": rec.id,
-                        "order_ref": rec.name,
-                        "technician_id": rec.technician_id.id if rec.technician_id else False,
-                        "current_lat": current_lat,
-                        "current_lon": current_lon,
-                        "geofence_id": rec.geofence_id.id,
-                        "detail": "Arrival recorded outside designated geofence perimeter.",
-                    })
+                    rec._emit_field_event(
+                        "geofence.breach.detected",
+                        {
+                            "field_order_id": rec.id,
+                            "order_ref": rec.name,
+                            "technician_id": rec.technician_id.id if rec.technician_id else False,
+                            "current_lat": current_lat,
+                            "current_lon": current_lon,
+                            "geofence_id": rec.geofence_id.id,
+                            "detail": "Arrival recorded outside designated geofence perimeter.",
+                        },
+                    )
             rec.state = "arrived"
 
     def action_start_work(self):
@@ -325,17 +353,15 @@ class FixFieldOrder(models.Model):
         phi1, phi2 = math.radians(lat1), math.radians(lat2)
         dphi = math.radians(lat2 - lat1)
         dlam = math.radians(lon2 - lon1)
-        a = (math.sin(dphi / 2.0) ** 2 +
-             math.cos(phi1) * math.cos(phi2) * (math.sin(dlam / 2.0) ** 2))
+        a = math.sin(dphi / 2.0) ** 2 + math.cos(phi1) * math.cos(phi2) * (
+            math.sin(dlam / 2.0) ** 2
+        )
         return 2.0 * r * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
 
     def _emit_field_event(self, event_type: str, payload: dict):
-        """Emit domain event through cd_event_outbox per AS-08."""
-        Outbox = self.env.get("fix.event.outbox")
-        if Outbox:
-            Outbox.create_event(
-                event_type=event_type,
-                aggregate_type="fix.field.order",
-                aggregate_id=str(self.id),
-                payload=payload,
-            )
+        """Emit domain event through the transactional outbox per AS-08 (FF-28).
+
+        The previous body tested ``self.env.get("fix.event.outbox")`` - an EMPTY
+        recordset, which is falsy - and would then have called a non-existent
+        ``create_event``: no field-order event was ever emitted."""
+        publish(self.env, event_type, "fix.field.order", self.id, payload)

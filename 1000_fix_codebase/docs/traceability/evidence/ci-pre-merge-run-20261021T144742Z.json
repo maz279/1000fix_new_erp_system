@@ -1,0 +1,154 @@
+{
+  "profile": "pre-merge",
+  "runner": "local-harness",
+  "runner_note": "Executed by tooling/ci/run-pipeline.py on a developer workstation \u2014 NOT a GitHub Actions runner. R01-M03-T03 requires an Actions run URL for the 'real runner' criterion; this record does not satisfy it.",
+  "timestamp": "2026-10-21T14:47:42.702763+00:00",
+  "total_duration_seconds": 82.75,
+  "budget_limit_seconds": 1200.0,
+  "budget_met": true,
+  "success": false,
+  "stages": [
+    {
+      "name": "stage-02-lint-type",
+      "description": "Python linting and formatting check",
+      "status": "PASS",
+      "duration_seconds": 0.14,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "All checks passed!\n"
+    },
+    {
+      "name": "stage-03-model-registry",
+      "description": "Model registry, field standards and fitness gates",
+      "status": "PASS",
+      "duration_seconds": 19.63,
+      "exit_code": 0,
+      "measurements": {
+        "checks_total": 29,
+        "checks_passed": 28,
+        "checks_failed": 0,
+        "checks_skipped": 1,
+        "evidence_file": "tooling/fitness/evidence/fitness-20261021T144639Z.json"
+      },
+      "output_summary": "150 ms)\n[PASS] FF-37 (200 ms)\n[PASS] FF-28 (114 ms)\n[PASS] FF-13 (49 ms)\n[PASS] FF-14 (1030 ms)\n[PASS] FF-27 (5166 ms)\n[PASS] FF-38 (158 ms)\n[PASS] FF-39 (5247 ms)\n[PASS] FF-40 (60 ms)\n[PASS] FF-41 (49 ms)\n[PASS] FF-42 (58 ms)\n[PASS] FF-43 (74 ms)\n[PASS] FF-44 (3607 ms)\n[PASS] FF-45 (57 ms)\n[PASS] FF-33 (117 ms)\n[PASS] FF-16 (59 ms)\n[SKIP] FF-26: disabled-by-design - built, disabled; promotes at G3 (FG-04)\n\nfitness: 0 failure(s); results -> tooling\\fitness\\evidence\\fitness-20261021T144639Z.json\n"
+    },
+    {
+      "name": "stage-03b-permission-negative-suite",
+      "description": "53 roles x 6 tiers x 61 SoD negative permission verification (DoD-07)",
+      "status": "PASS",
+      "duration_seconds": 4.23,
+      "exit_code": 0,
+      "measurements": {
+        "roles_verified": 53,
+        "tiers_verified": 6,
+        "sod_controls_verified": 61,
+        "negative_tests_run": 74,
+        "negative_tests_passed": 74,
+        "overall_verdict": "PASS"
+      },
+      "output_summary": "ross-Tenant Negative Isolation Suite...\n  PASS: R08-M04 Cross-Tenant Isolation Verified:\n    - 0 cross-tenant reads across orders, quotes, disputes, statements, and commissions\n    - Anti-IDOR controller enforcement active across Seller, Partner, and Storefront surfaces\n\n[Evidence] Saved evidence to: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\tooling\\fitness\\evidence\\permission-negative-suite-latest.json\n\nSummary: 6/6 checks passed in 4.15s -> PASS\n"
+    },
+    {
+      "name": "stage-04-unit",
+      "description": "Estate unit tests and baseline coverage measurement",
+      "status": "PASS",
+      "duration_seconds": 37.09,
+      "exit_code": 0,
+      "measurements": {
+        "baseline_coverage_estate": "55.06%",
+        "statutory_coverage": "76.99%",
+        "pure_logic_coverage": "92.52%",
+        "target_coverage": "80%"
+      },
+      "output_summary": "eability\\evidence\\coverage-baseline-report.json\n     Estate Coverage:       55.06% (Target: 80.0%, Gap: 24.94%)\n     Statutory Fin/Tax:     76.99% (Pure logic measured: 92.52% \u2014 min of measured per-file percentages)\n     HTML Report:           file:///C:/software_project/software_project_14/1000 fix/1000fix_new_erp_system/1000_fix_codebase/htmlcov/index.html\n     XML Cobertura:         file:///C:/software_project/software_project_14/1000 fix/1000fix_new_erp_system/1000_fix_codebase/coverage.xml\n"
+    },
+    {
+      "name": "stage-06-contract",
+      "description": "OpenAPI 3.1 contract and consumer-driven pact validation (PS-01)",
+      "status": "PASS",
+      "duration_seconds": 0.07,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "contracts openapi: OK \u2014 14 contract file(s) valid per OpenAPI standard\ncontracts events: OK \u2014 48 schema(s) and outbox model verified (AR-009 / AS-08)\ncontracts pacts: OK \u2014 2 pact contract(s) valid, 12 interaction(s) verified (PS-01)\n"
+    },
+    {
+      "name": "stage-07-event",
+      "description": "Event schema compatibility and outbox parity",
+      "status": "PASS",
+      "duration_seconds": 0.06,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "contracts events: OK \u2014 48 schema(s) and outbox model verified (AR-009 / AS-08)\n"
+    },
+    {
+      "name": "stage-08-security",
+      "description": "Secret leakage and digest immutability audit",
+      "status": "PASS",
+      "duration_seconds": 0.01,
+      "exit_code": 0,
+      "measurements": {
+        "images_audited": 66,
+        "digest_pinned_or_pending": 66,
+        "digest_pinned_ratio": "100%"
+      },
+      "output_summary": "66 image references audited across 17 compose files; 0 without digest pin or explicit pending marker."
+    },
+    {
+      "name": "stage-09-architecture",
+      "description": "Architecture constraints and doctor environment verification",
+      "status": "FAIL",
+      "duration_seconds": 12.72,
+      "exit_code": 1,
+      "measurements": {},
+      "output_summary": "erence committed and valid; pixel comparison runs with the QWeb report render (Odoo runtime)\n[ ok ] 11  Mail capture (DE-07) - Mailpit reachable (127.0.0.1:8025)\n[ ok ] 12  Data safety (DE-12/FF-09) - pattern scan activates with kernel tables (residency stub is synthetic-only); never bring production data\n[skip] 13  Debugger - debugpy attach activates with Phase-3 dev container\n[skip] 14  Hot reload - hot reload volume-mount activates with dev container\n\ndoctor: PASS 10  SKIP 2  FAIL 2  (of 14)\n"
+    },
+    {
+      "name": "stage-10-localisation",
+      "description": "Localisation completeness and translation parity (DoD-08)",
+      "status": "PASS",
+      "duration_seconds": 0.06,
+      "exit_code": 0,
+      "measurements": {
+        "completeness_pct": 100.0,
+        "translated_keys": 0,
+        "total_keys": 0,
+        "portals": 0
+      },
+      "output_summary": "i18n.check: MEASURED completeness = 100.0% (0/0 keys across 0 portal(s)) \u2014 Target: 100.0%\ni18n.check: OK \u2014 localisation completeness meets threshold\n"
+    },
+    {
+      "name": "stage-11-bundle",
+      "description": "Next.js client route gzip bundle budget check",
+      "status": "PASS",
+      "duration_seconds": 0.08,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "bundle-budget: OK \u2014 251.6 KB gz across 21 files (budget: 400 KB)\n"
+    },
+    {
+      "name": "stage-12-accessibility",
+      "description": "Automated a11y WCAG 2.2 AA audit across live portals",
+      "status": "PASS",
+      "duration_seconds": 8.58,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": ".0.0.1:3001/estate\", waiting until \"networkidle\"\u001b[22m\n\n[PASS] Seller Portal - Home\n       Stats: 0 headings, 1 inputs, 5 buttons, 0 images. 0 a11y violations.\n[PASS] Vendor Portal - Home\n       Stats: 0 headings, 1 inputs, 3 buttons, 0 images. 0 a11y violations.\n\n================================================================================\n a11y AUDIT SUMMARY: 5/7 pages passed with 0 violations (Total issues: 0)\n================================================================================\n"
+    },
+    {
+      "name": "stage-15-infrastructure",
+      "description": "Infrastructure configuration drift check",
+      "status": "PASS",
+      "duration_seconds": 0.07,
+      "exit_code": 0,
+      "measurements": {},
+      "output_summary": "generate-odoo-conf: OK - regenerates identically (REPO-15)\n"
+    }
+  ],
+  "remedies_evaluated": [
+    "BG-01: Affected-component test selection based on dependency graph",
+    "BG-02: Model-registry fitness checks executed before long-running unit suites",
+    "BG-03: Next.js gzip bundle check executed statically without full server boots",
+    "BG-04: Non-blocking parallel axe-core accessibility audit across routes",
+    "BG-05: Clean doctor DE-20 scheduled nightly rather than blocking every commit"
+  ]
+}

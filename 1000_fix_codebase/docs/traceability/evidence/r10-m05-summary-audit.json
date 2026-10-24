@@ -1,0 +1,88 @@
+{
+  "milestone": "R10-M05",
+  "title": "Production-readiness review",
+  "verified_at": "2026-10-22T14:34:46.135905+00:00",
+  "overall_status": "FAIL",
+  "tasks_passed": 0,
+  "tasks_incomplete": 0,
+  "tasks_failed": 4,
+  "tasks_summary": {
+    "R10-M05-T01": {
+      "task_id": "R10-M05-T01",
+      "title": "Compile the readiness dossier",
+      "status": "FAIL",
+      "checks": [
+        {
+          "check": "document docs/traceability/r10-m05-readiness-dossier.md",
+          "status": "FAIL",
+          "detail": "missing"
+        },
+        {
+          "check": "document docs/traceability/r10-m05-steering-pack.md",
+          "status": "PASS",
+          "detail": "present"
+        },
+        {
+          "check": "dossier evidence",
+          "status": "FAIL",
+          "detail": "docs/traceability/evidence/r10-m05-readiness-dossier-evidence.json missing"
+        }
+      ]
+    },
+    "R10-M05-T02": {
+      "task_id": "R10-M05-T02",
+      "title": "Production migration rehearsal (MG-005, GP-11)",
+      "status": "FAIL",
+      "run_id": "WAVE1_REHEARSAL_20261016",
+      "mg005": "NOT RUN",
+      "checks": [
+        {
+          "check": "MG-005 production-volume rehearsal",
+          "status": "FAIL",
+          "detail": "rehearsal evidence states INCOMPLETE, GP-11 discharged=False -> MG-005 NOT RUN"
+        },
+        {
+          "check": "MG-004 business sign-off",
+          "status": "INCOMPLETE",
+          "detail": "sign-off evidence states UNMEASURED"
+        },
+        {
+          "check": "no invented rehearsal artefacts in the extract set",
+          "status": "PASS",
+          "detail": "none present"
+        }
+      ]
+    },
+    "R10-M05-T03": {
+      "task_id": "R10-M05-T03",
+      "title": "Training closure (D-002, CH-002)",
+      "status": "FAIL",
+      "roster_id": null,
+      "checks": [
+        {
+          "check": "CH-002 closure record",
+          "status": "FAIL",
+          "detail": "missing"
+        },
+        {
+          "check": "training evidence",
+          "status": "FAIL",
+          "detail": "docs/traceability/evidence/r10-m05-training-closure-evidence.json missing"
+        }
+      ]
+    },
+    "R10-M05-T04": {
+      "task_id": "R10-M05-T04",
+      "title": "Production-readiness review board (GV-003 Go decision)",
+      "status": "FAIL",
+      "checks": [
+        {
+          "check": "GV-003 decision record",
+          "status": "FAIL",
+          "detail": "docs/traceability/evidence/r10-m05-go-nogo-decision.json missing"
+        }
+      ]
+    }
+  },
+  "all_tasks_completed": false
+}

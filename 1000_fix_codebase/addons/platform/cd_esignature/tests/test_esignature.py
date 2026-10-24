@@ -1,10 +1,17 @@
 # cd_esignature tests — M24 completion (P06-M08-T02).
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_esignature.py").read_text(encoding="utf-8")
-DOCUMENT = (Path(__file__).resolve().parents[3] / "platform" / "cd_document_core"
-            / "models" / "fix_document.py").read_text(encoding="utf-8")
+SOURCE = (Path(__file__).resolve().parents[1] / "models" / "fix_esignature.py").read_text(
+    encoding="utf-8"
+)
+DOCUMENT = (
+    Path(__file__).resolve().parents[3]
+    / "platform"
+    / "cd_document_core"
+    / "models"
+    / "fix_document.py"
+).read_text(encoding="utf-8")
 
 
 class TestEnvelope(unittest.TestCase):

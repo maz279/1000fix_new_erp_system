@@ -1,8 +1,684 @@
-# Bengali translations for cd_settlement_ext (P10).
+# Bengali translations for cd_settlement_ext (P10 / R08-M02).
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_commission_ledger__state__accrued
+msgid "Accrued / Posted to GL"
+msgstr "জমাকৃত / GL-এ পোস্ট করা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__age_days
+msgid "Age in Days"
+msgstr "বয়স (দিন)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__is_aged
+msgid "Aged > 30 Days"
+msgstr "৩০ দিনের বেশি পুরনো"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__aged_unmatched_amount
+msgid "Aged Discrepancy Amount"
+msgstr "পুরনো অসঙ্গতির পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__amount_matched
+msgid "Amount Matched"
+msgstr "মিলকৃত পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Approve (SoD Sign-off)"
+msgstr "অনুমোদন করুন (SoD সাইন-অফ)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__state__approved
+msgid "Approved (SoD Verified) / অনুমোদিত"
+msgstr "অনুমোদিত (SoD যাচাইকৃত)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__approved_by_id
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__approved_date
+msgid "Approved Date"
+msgstr "অনুমোদনের তারিখ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Audit Notes"
+msgstr "নিরীক্ষা নোট"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation__state__balanced
+msgid "Balanced / সমন্বিত"
+msgstr "সমন্বিত"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Batch Aggregation & GL Controls"
+msgstr "ব্যাচ একত্রীকরণ ও GL নিয়ন্ত্রণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__beftn_file
+msgid "BEFTN Batch File Content"
+msgstr "BEFTN ব্যাচ ফাইলের বিষয়বস্তু"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__beftn_filename
+msgid "BEFTN Filename"
+msgstr "BEFTN ফাইলের নাম"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_type__beftn
+msgid "BEFTN Standard Batch File (128-byte)"
+msgstr "BEFTN মানক ব্যাচ ফাইল (১২৮-বাইট)"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Bilingual Seller Statements"
+msgstr "দ্বিভাষিক বিক্রেতা নিষ্পত্তিপত্র"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Break Details"
+msgstr "অসঙ্গতির বিবরণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation__state__break_detected
+msgid "Break Detected / অসঙ্গতি"
+msgstr "অসঙ্গতি শনাক্ত"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__line_ids
+msgid "Break Lines"
+msgstr "অসঙ্গতি লাইনসমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__break_notes
+msgid "Break Notes / অসঙ্গতি বিবরণ"
+msgstr "অসঙ্গতির বিবরণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__commission_amount
+msgid "Commission Earned (Revenue)"
+msgstr "অর্জিত কমিশন (আয়)"
+
+#. module: cd_settlement_ext
+#: model:ir.actions.act_window,name:cd_settlement_ext.action_fix_commission_ledger
+#: model:ir.ui.menu,name:cd_settlement_ext.menu_fix_commission_ledger
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_list
+msgid "Commission Ledger"
+msgstr "কমিশন খতিয়ান"
+
+#. module: cd_settlement_ext
+#: model:ir.model,name:cd_settlement_ext.model_fix_commission_ledger
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_form
+msgid "Commission Ledger Entry"
+msgstr "কমিশন খতিয়ান এন্ট্রি"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__commission_rate
+msgid "Commission Rate"
+msgstr "কমিশনের হার"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__commission_ids
+msgid "Commissions"
+msgstr "কমিশনসমূহ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Commissions Included"
+msgstr "অন্তর্ভুক্ত কমিশন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_status__confirmed
+msgid "Confirmed"
+msgstr "নিশ্চিতকৃত"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Count & Amount Separate Verification (FF-94)"
+msgstr "সংখ্যা ও পরিমাণের পৃথক যাচাই (FF-94)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__count_matched
+msgid "Count Matched"
+msgstr "মিলকৃত সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_form
+msgid "Counterparty & Operations"
+msgstr "প্রতিপক্ষ ও অপারেশন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_type__api
+msgid "Direct API (Mobile Money / Bank Gateway)"
+msgstr "সরাসরি API (মোবাইল মানি / ব্যাংক গেটওয়ে)"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Disburse via API Rail"
+msgstr "API রেলের মাধ্যমে বিতরণ করুন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_commission_ledger__state__paid
+msgid "Disbursed / Paid"
+msgstr "বিতরণকৃত / পরিশোধিত"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__rail_type
+msgid "Disbursement Rail"
+msgstr "বিতরণের পেমেন্ট রেল"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation_line__status__discrepancy
+msgid "Discrepancy"
+msgstr "অসঙ্গতি"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Discrepancy & Aging Summary (BR-01..BR-05)"
+msgstr "অসঙ্গতি ও এজিং সারসংক্ষেপ (BR-01..BR-05)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__discrepancy
+msgid "Discrepancy Amount"
+msgstr "অসঙ্গতির পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__state__draft
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_seller_statement__state__draft
+msgid "Draft / খসড়া"
+msgstr "খসড়া"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "e.g. 2026-10"
+msgstr "যেমন 2026-10"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_commission_ledger__state__earned
+msgid "Earned"
+msgstr "অর্জিত"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Execute Reconciliation Run"
+msgstr "সমন্বয় রান সম্পাদন করুন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__state__executed
+msgid "Executed / সমাপ্ত"
+msgstr "সম্পাদিত"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_status__executing
+msgid "Executing"
+msgstr "সম্পাদন চলছে"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__state__executing
+msgid "Executing / চলমান"
+msgstr "সম্পাদন চলছে"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_status__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_form
+msgid "Financial Breakdown (FF-91 / MS-01)"
+msgstr "আর্থিক বিভাজন (FF-91 / MS-01)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__gl_move_id
+msgid "General Ledger Move"
+msgstr "সাধারণ খতিয়ান এন্ট্রি"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Generate BEFTN Batch (Fallback)"
+msgstr "BEFTN ব্যাচ তৈরি করুন (বিকল্প)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__gl_move_id
+msgid "GL Disbursement Entry"
+msgstr "GL বিতরণ এন্ট্রি"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__gross_amount
+msgid "Gross Marketplace GMV"
+msgstr "মোট বিক্রয় মূল্য"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__gross_gmv
+msgid "Gross Marketplace Sales / মোট বিক্রয় মূল্য"
+msgstr "মোট বিক্রয় মূল্য"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__idempotency_key
+msgid "Idempotency Key (7-Day TTL)"
+msgstr "ইডেম্পোটেন্সি কী (৭ দিনের TTL)"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "INT-007 Payout Rail Status"
+msgstr "INT-007 পরিশোধ রেলের অবস্থা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation__state__investigating
+msgid "Investigating / তদন্তাধীন"
+msgstr "তদন্তাধীন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__date_issued
+msgid "Issue Date / ইস্যু তারিখ"
+msgstr "ইস্যুর তারিখ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_form
+msgid "Issue Statement / প্রদান করুন"
+msgstr "নিষ্পত্তিপত্র প্রদান করুন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_seller_statement__state__issued
+msgid "Issued / প্রদানকৃত"
+msgstr "প্রদানকৃত"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_form
+msgid "Mark Settled / নিষ্পত্তি করুন"
+msgstr "নিষ্পত্তি করুন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation_line__status__matched
+msgid "Matched"
+msgstr "মিলকৃত"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__merchant_invoice_number
+msgid "Merchant Invoice Ref"
+msgstr "মার্চেন্ট চালান রেফারেন্স"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__net_payable
+msgid "Net Disbursed Amount / প্রদেয় নিট অর্থ"
+msgstr "প্রদেয় নিট অর্থ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__net_payable
+msgid "Net Payable to Seller"
+msgstr "বিক্রেতাকে প্রদেয় নিট অর্থ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_status__draft
+msgid "Not Submitted"
+msgstr "জমা দেওয়া হয়নি"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__operating_unit_id
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__operating_unit_id
+msgid "Operating Unit / অপারেটিং ইউনিট"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__payment_id
+msgid "Payment ID"
+msgstr "পেমেন্ট আইডি"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__rail
+msgid "Payment Rail"
+msgstr "পেমেন্ট রেল"
+
+#. module: cd_settlement_ext
+#: model:ir.actions.act_window,name:cd_settlement_ext.action_fix_payout_reconciliation
+#: model:ir.ui.menu,name:cd_settlement_ext.menu_fix_payout_reconciliation
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Payout Reconciliation"
+msgstr "পরিশোধ সমন্বয়"
+
+#. module: cd_settlement_ext
+#: model:ir.model,name:cd_settlement_ext.model_fix_payout_reconciliation
+msgid "Payout Reconciliation / পরিশোধ সমন্বয়"
+msgstr "পরিশোধ সমন্বয়"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_list
+msgid "Payout Reconciliations"
+msgstr "পরিশোধ সমন্বয়সমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__payout_run_id
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Payout Run"
+msgstr "পরিশোধ চক্র"
+
+#. module: cd_settlement_ext
+#: model:ir.model,name:cd_settlement_ext.model_fix_payout_run
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__payout_run_id
+msgid "Payout Run / পরিশোধ চক্র"
+msgstr "পরিশোধ চক্র"
+
+#. module: cd_settlement_ext
+#: model:ir.actions.act_window,name:cd_settlement_ext.action_fix_payout_run
+#: model:ir.ui.menu,name:cd_settlement_ext.menu_fix_payout_run
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_list
+msgid "Payout Runs"
+msgstr "পরিশোধ চক্রসমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__commission_amount
+msgid "Platform Commission / প্ল্যাটফর্ম কমিশন"
+msgstr "প্ল্যাটফর্ম কমিশন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__platform_fee
+msgid "Platform Processing Fee / প্ল্যাটফর্ম ফি"
+msgstr "প্ল্যাটফর্ম প্রসেসিং ফি"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_form
+msgid "Post Accrual to GL (FF-91)"
+msgstr "GL-এ জমা পোস্ট করুন (FF-91)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__prepared_by_id
+msgid "Prepared By"
+msgstr "প্রস্তুতকারী"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Query Status (Read-back)"
+msgstr "অবস্থা জানুন (রিড-ব্যাক)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__rail_name
+msgid "Rail / Gateway Name"
+msgstr "রেল / গেটওয়ের নাম"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__rail_batch_id
+msgid "Rail Batch Reference"
+msgstr "রেল ব্যাচ রেফারেন্স"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__rail_amount
+msgid "Rail Cleared Amount"
+msgstr "রেলে ক্লিয়ারকৃত পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__rail_status
+msgid "Rail Confirmation Status"
+msgstr "রেল নিশ্চিতকরণের অবস্থা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__rail_amount
+msgid "Rail Settled Amount"
+msgstr "রেলে নিষ্পত্তিকৃত পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__rail_count
+msgid "Rail Settled Count"
+msgstr "রেলে নিষ্পত্তিকৃত সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__rail_transaction_id
+msgid "Rail Transaction ID"
+msgstr "রেল লেনদেন আইডি"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_form
+msgid "Recipient / প্রাপক"
+msgstr "প্রাপক"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__reconciliation_id
+msgid "Reconciliation"
+msgstr "হিসাব সমন্বয়"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__reconciliation_date
+msgid "Reconciliation Date"
+msgstr "সমন্বয়ের তারিখ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_commission_ledger_form
+msgid "Reconciliation Keys (IN-007 §5.1 / LP-02)"
+msgstr "সমন্বয় কী (IN-007 §5.1 / LP-02)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__name
+msgid "Reconciliation Ref"
+msgstr "সমন্বয় রেফারেন্স"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__reconciliation_ids
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Reconciliation Runs"
+msgstr "সমন্বয় রানসমূহ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Reconciliation Scope"
+msgstr "সমন্বয়ের পরিসর"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__record_date
+msgid "Record Date"
+msgstr "রেকর্ডের তারিখ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation__state__resolved
+msgid "Resolved / সমাধানকৃত"
+msgstr "সমাধানকৃত"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Segregation of Duties (SoD Gate)"
+msgstr "দায়িত্ব পৃথকীকরণ (SoD গেট)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__seller_partner_id
+msgid "Seller"
+msgstr "বিক্রেতা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__seller_partner_id
+msgid "Seller (Party)"
+msgstr "বিক্রেতা (পার্টি)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__seller_partner_id
+msgid "Seller / বিক্রেতা"
+msgstr "বিক্রেতা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__seller_count
+msgid "Seller Count"
+msgstr "বিক্রেতার সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_form
+msgid "Seller Settlement Statement"
+msgstr "বিক্রেতা নিষ্পত্তিপত্র"
+
+#. module: cd_settlement_ext
+#: model:ir.model,name:cd_settlement_ext.model_fix_seller_statement
+msgid "Seller Settlement Statement / বিক্রেতা নিষ্পত্তিপত্র"
+msgstr "বিক্রেতা নিষ্পত্তিপত্র"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_list
+msgid "Seller Settlement Statements"
+msgstr "বিক্রেতা নিষ্পত্তিপত্রসমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.actions.act_window,name:cd_settlement_ext.action_fix_seller_statement
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__statement_ids
+msgid "Seller Statements"
+msgstr "বিক্রেতা নিষ্পত্তিপত্রসমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.ui.menu,name:cd_settlement_ext.menu_fix_seller_statement
+msgid "Seller Statements (Bilingual)"
+msgstr "বিক্রেতা নিষ্পত্তিপত্র (দ্বিভাষিক)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_seller_statement__state__settled
+msgid "Settled / নিষ্পত্তিকৃত"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_settlement_ext
+#: model:ir.ui.menu,name:cd_settlement_ext.menu_fix_settlement_root
+msgid "Settlement & Payout"
+msgstr "নিষ্পত্তি ও পরিশোধ"
+
+#. module: cd_settlement_ext
 msgid "Settlement & Payout (W7)"
-msgstr "Settlement & Payout (W7) (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "নিষ্পত্তি ও পরিশোধ (ডব্লিউ৭)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__period
+msgid "Settlement Period"
+msgstr "নিষ্পত্তির মেয়াদ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__period
+msgid "Settlement Period / নিষ্পত্তির মেয়াদ"
+msgstr "নিষ্পত্তির মেয়াদ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__sod_verified
+msgid "SoD Verified"
+msgstr "SoD যাচাইকৃত"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__source_ref
+msgid "Source Reference"
+msgstr "উৎস রেফারেন্স"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Stated human justification for breaks or resolution..."
+msgstr "অসঙ্গতি বা সমাধানের জন্য মানুষের দেওয়া যৌক্তিকতা লিখুন..."
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_seller_statement_form
+msgid "Statement Figures / বিবরণী অর্থ"
+msgstr "বিবরণীর অঙ্কসমূহ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__name
+msgid "Statement ID / বিবরণী নং"
+msgstr "বিবরণী নং"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_run_form
+msgid "Statutory & Disbursed Totals"
+msgstr "সংবিধিবদ্ধ ও বিতরণকৃত মোট"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__statutory_note
+msgid "Statutory Certification / সংবিধিবদ্ধ প্রত্যয়ন"
+msgstr "সংবিধিবদ্ধ প্রত্যয়ন"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation_line__system_amount
+msgid "System Net Payable"
+msgstr "সিস্টেমে নিট প্রদেয়"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__system_count
+msgid "System Recipient Count"
+msgstr "সিস্টেমে প্রাপকের সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__system_amount
+msgid "System Total Payable"
+msgstr "সিস্টেমে মোট প্রদেয়"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_commission_ledger__tds_amount
+msgid "TDS Withheld (ITA 2023 §52)"
+msgstr "উৎসে কর কর্তন (আয়কর আইন ২০২৩ ধারা ৫২)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__tds_withheld
+msgid "TDS Withheld (ITA 2023 §52) / উৎসে কর কর্তন (ধারা ৫২)"
+msgstr "উৎসে কর কর্তন (আয়কর আইন ২০২৩ ধারা ৫২)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__total_gross
+msgid "Total Gross GMV"
+msgstr "মোট গ্রস GMV"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__total_payable
+msgid "Total Net Payable"
+msgstr "মোট নিট প্রদেয়"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_run__total_tds
+msgid "Total Statutory TDS Withheld"
+msgstr "মোট সংবিধিবদ্ধ TDS কর্তন"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Transaction Amount"
+msgstr "লেনদেনের পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model_terms:ir.ui.view,arch_db:cd_settlement_ext.view_fix_payout_reconciliation_form
+msgid "Transaction Count"
+msgstr "লেনদেনের সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_run__rail_status__unknown
+msgid "Unknown (Timed Out)"
+msgstr "অজানা (সময় শেষ)"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields.selection,name:cd_settlement_ext.selection__fix_payout_reconciliation_line__status__unmatched
+msgid "Unmatched"
+msgstr "অমিল"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__aged_unmatched_count
+msgid "Unmatched Aged > 30 Days"
+msgstr "৩০ দিনের বেশি পুরনো অমিল"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__unmatched_amount
+msgid "Unmatched Discrepancy Amount"
+msgstr "অমিল অসঙ্গতির পরিমাণ"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_payout_reconciliation__unmatched_count
+msgid "Unmatched Records Count"
+msgstr "অমিল রেকর্ডের সংখ্যা"
+
+#. module: cd_settlement_ext
+#: model:ir.model.fields,field_description:cd_settlement_ext.field_fix_seller_statement__withholding_cert_ref
+msgid "Withholding Certificate Ref / প্রত্যয়নপত্র নং"
+msgstr "উৎসে কর কর্তন প্রত্যয়নপত্র নং"

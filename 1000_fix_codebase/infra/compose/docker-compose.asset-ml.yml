@@ -1,5 +1,5 @@
-# compose additions for the Wave-6 asset-business + ML platform (P09).
-# Kafka (event-bus migration), MLflow (model registry), Ollama (LLM).
+# compose additions for the Wave-6 asset-business + ML platform (P09 / R07-M01).
+# Kafka 3-Node HA Cluster (event-bus migration), MLflow (model registry), Ollama (LLM).
 # Digests resolved at first pull by tooling/scripts/resolve-digests.ps1.
 # The asset-ml profile is OPT-IN: `docker compose --profile asset-ml up`.
 services:
@@ -9,12 +9,100 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # HOST listener (R07 rework): the PLAINTEXT listener advertises kafka-1:9092,
+      # a name only resolvable inside the compose network - a host client bootstrapping
+      # 127.0.0.1:9092 got unreachable broker metadata back. The extra HOST listener
+      # advertises 127.0.0.1:<distinct host port> so host-side tools (fix_events
+      # KafkaBackend, verify_kafka_cluster drill) can talk to the cluster. Inter-broker
+      # and controller traffic stays on PLAINTEXT/CONTROLLER.
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,HOST://127.0.0.1:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
-      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
     ports:
-      - "127.0.0.1:9092:9092"
+      - "127.0.0.1:9092:29092"
+    volumes:
+      - kafka-1-data:/var/lib/kafka/data
+    healthcheck:
+      # Real broker probe (R01 DR audit): an ApiVersions round trip to this
+      # broker; exits non-zero when it is down or not serving (the old
+      # `|| exit 0` could never report a dead broker). JVM start ~3 s.
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9092 > /dev/null"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  kafka-2:
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    profiles: ["asset-ml"]
+    environment:
+      KAFKA_NODE_ID: 2
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,HOST://127.0.0.1:9094
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+    ports:
+      - "127.0.0.1:9094:29092"
+    volumes:
+      - kafka-2-data:/var/lib/kafka/data
+    healthcheck:
+      # Real broker probe (R01 DR audit): an ApiVersions round trip to this
+      # broker; exits non-zero when it is down or not serving (the old
+      # `|| exit 0` could never report a dead broker). JVM start ~3 s.
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9092 > /dev/null"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  kafka-3:
+    image: apache/kafka@sha256:77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837
+    profiles: ["asset-ml"]
+    environment:
+      KAFKA_NODE_ID: 3
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093,HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-3:9092,HOST://127.0.0.1:9095
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka-1:9093,2@kafka-2:9093,3@kafka-3:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 3
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 2
+      KAFKA_DEFAULT_REPLICATION_FACTOR: 3
+      KAFKA_MIN_INSYNC_REPLICAS: 2
+    ports:
+      - "127.0.0.1:9095:29092"
+    volumes:
+      - kafka-3-data:/var/lib/kafka/data
+    healthcheck:
+      # Real broker probe (R01 DR audit): an ApiVersions round trip to this
+      # broker; exits non-zero when it is down or not serving (the old
+      # `|| exit 0` could never report a dead broker). JVM start ~3 s.
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server 127.0.0.1:9092 > /dev/null"]
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 60s
     restart: unless-stopped
 
   mlflow:
@@ -22,7 +110,9 @@ services:
     profiles: ["asset-ml"]
     command: mlflow server --host 0.0.0.0 --port 5000
     ports:
-      - "127.0.0.1:5000:5000"
+      # host 5050: the field profile's OSRM backend owns 5000 (collision audit
+      # 2026-10-23; field + asset-ml can now run concurrently)
+      - "127.0.0.1:5050:5000"
     restart: unless-stopped
 
   ollama:
@@ -35,4 +125,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  kafka-1-data:
+  kafka-2-data:
+  kafka-3-data:
   ollama-models:

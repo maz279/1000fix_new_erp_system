@@ -8,57 +8,127 @@ monospaced diagram panels, captioned exhibits, KPI strips, pull quotes and
 section openers. Every visual decision lives here or in theme.py; nothing
 downstream sets a colour or a size directly.
 """
+
 import re
 import os
 
-from docx.shared import Pt, Mm, Inches
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK
+from docx.shared import Pt, Mm
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.table import WD_TABLE_ALIGNMENT
 
 import theme as T
 import docxkit as K
 import mdparse as MD
 
-ALIGN = {"left": WD_ALIGN_PARAGRAPH.LEFT,
-         "center": WD_ALIGN_PARAGRAPH.CENTER,
-         "right": WD_ALIGN_PARAGRAPH.RIGHT}
+ALIGN = {
+    "left": WD_ALIGN_PARAGRAPH.LEFT,
+    "center": WD_ALIGN_PARAGRAPH.CENTER,
+    "right": WD_ALIGN_PARAGRAPH.RIGHT,
+}
 
 # columns whose content is an identifier — keep them narrow and mono
-ID_HEADERS = ("id", "fr id", "kpi id", "cd id", "int id", "#", "ref", "code",
-              "no.", "aut id", "bru id", "ac", "q")
-NARROW_HEADERS = ("pri", "priority", "layer", "class", "wave", "effort",
-                  "coverage", "access", "%", "count", "volume", "type",
-                  "method", "direction", "frequency", "lifetime")
+ID_HEADERS = (
+    "id",
+    "fr id",
+    "kpi id",
+    "cd id",
+    "int id",
+    "#",
+    "ref",
+    "code",
+    "no.",
+    "aut id",
+    "bru id",
+    "ac",
+    "q",
+)
+NARROW_HEADERS = (
+    "pri",
+    "priority",
+    "layer",
+    "class",
+    "wave",
+    "effort",
+    "coverage",
+    "access",
+    "%",
+    "count",
+    "volume",
+    "type",
+    "method",
+    "direction",
+    "frequency",
+    "lifetime",
+)
 
 
 # --------------------------------------------------------------- inline runs
-def emit_inline(p, text, size=T.SIZE_BODY, colour=T.INK, base_bold=False,
-                mono_colour=T.BLUE, link_colour=T.STEEL):
+def emit_inline(
+    p,
+    text,
+    size=T.SIZE_BODY,
+    colour=T.INK,
+    base_bold=False,
+    mono_colour=T.BLUE,
+    link_colour=T.STEEL,
+):
     """Write markdown inline formatting into an existing paragraph."""
     for chunk, f in MD.inline_runs(text):
         if f.get("code"):
-            K.run(p, chunk, size=size - 0.5, font=T.FONT_MONO,
-                  colour=mono_colour, bold=base_bold or f.get("b", False))
+            K.run(
+                p,
+                chunk,
+                size=size - 0.5,
+                font=T.FONT_MONO,
+                colour=mono_colour,
+                bold=base_bold or f.get("b", False),
+            )
         elif f.get("link"):
             target = f["link"]
             if target.startswith(("http://", "https://", "mailto:")):
                 K.external_link(p, target, chunk, size=size, colour=link_colour)
             else:
-                K.run(p, chunk, size=size, colour=colour,
-                      bold=base_bold or f.get("b", False),
-                      italic=f.get("i", False))
+                K.run(
+                    p,
+                    chunk,
+                    size=size,
+                    colour=colour,
+                    bold=base_bold or f.get("b", False),
+                    italic=f.get("i", False),
+                )
         else:
-            K.run(p, chunk, size=size,
-                  bold=base_bold or f.get("b", False),
-                  italic=f.get("i", False), colour=colour)
+            K.run(
+                p,
+                chunk,
+                size=size,
+                bold=base_bold or f.get("b", False),
+                italic=f.get("i", False),
+                colour=colour,
+            )
     return p
 
 
-def body(doc, text, size=T.SIZE_BODY, colour=T.INK, before=0, after=5,
-         align=WD_ALIGN_PARAGRAPH.JUSTIFY, indent=0, keep_next=False):
+def body(
+    doc,
+    text,
+    size=T.SIZE_BODY,
+    colour=T.INK,
+    before=0,
+    after=5,
+    align=WD_ALIGN_PARAGRAPH.JUSTIFY,
+    indent=0,
+    keep_next=False,
+):
     p = doc.add_paragraph()
-    K.pfmt(p, before=before, after=after, line=1.16, align=align,
-           left_indent=indent, keep_next=keep_next)
+    K.pfmt(
+        p,
+        before=before,
+        after=after,
+        line=1.16,
+        align=align,
+        left_indent=indent,
+        keep_next=keep_next,
+    )
     emit_inline(p, text, size=size, colour=colour)
     return p
 
@@ -156,8 +226,9 @@ def h_sub(doc, title, accent=None, number=None):
     p = doc.add_paragraph(style="Heading 2")
     K.pfmt(p, before=10, after=3, keep_next=True, line=1.04)
     if number:
-        K.run(p, str(number) + "  ", size=T.SIZE_H3, bold=True,
-              colour=accent or T.STEEL)
+        K.run(
+            p, str(number) + "  ", size=T.SIZE_H3, bold=True, colour=accent or T.STEEL
+        )
     emit_inline(p, title, size=T.SIZE_H3, colour=T.NAVY, base_bold=True)
     return p
 
@@ -178,22 +249,26 @@ def eyebrow(doc, text, colour=T.GREY, before=8, after=2):
 
 # ------------------------------------------------------------------- callouts
 CALLOUT_KINDS = {
-    "note":     (T.BG_TINT,   T.STEEL,  "NOTE"),
-    "insight":  (T.BG_PAPER,  T.NAVY,   "IN PRACTICE"),
-    "warning":  (T.GOLD_PALE, T.GOLD,   "TAKE CARE"),
-    "risk":     (T.RED_PALE,  T.RED,    "OPEN RISK"),
-    "audit":    (T.OCHRE_PALE, T.OCHRE, "AUDIT FINDING"),
-    "rule":     (T.PLUM_PALE, T.PLUM,   "RULE"),
-    "good":     (T.GREEN_PALE, T.GREEN, "CONFIRMED"),
-    "quote":    (T.WHITE,     T.NAVY,   None),
+    "note": (T.BG_TINT, T.STEEL, "NOTE"),
+    "insight": (T.BG_PAPER, T.NAVY, "IN PRACTICE"),
+    "warning": (T.GOLD_PALE, T.GOLD, "TAKE CARE"),
+    "risk": (T.RED_PALE, T.RED, "OPEN RISK"),
+    "audit": (T.OCHRE_PALE, T.OCHRE, "AUDIT FINDING"),
+    "rule": (T.PLUM_PALE, T.PLUM, "RULE"),
+    "good": (T.GREEN_PALE, T.GREEN, "CONFIRMED"),
+    "quote": (T.WHITE, T.NAVY, None),
 }
 
 
 def classify_quote(blocks):
     """Choose a callout treatment from the language of the block quote."""
     txt = " ".join(MD.plain(b.get("text", "")) for b in blocks if b["t"] == "p")
-    txt += " ".join(MD.plain(" ".join(r)) for b in blocks if b["t"] == "table"
-                    for r in [b["header"]])
+    txt += " ".join(
+        MD.plain(" ".join(r))
+        for b in blocks
+        if b["t"] == "table"
+        for r in [b["header"]]
+    )
     low = txt.lower()
     if "⚠" in txt or "unresolved" in low or "not buildable" in low:
         return "warning"
@@ -208,8 +283,9 @@ def classify_quote(blocks):
     return "note"
 
 
-def callout(doc, blocks_or_text, kind="note", accent=None, title=None,
-            render_children=None):
+def callout(
+    doc, blocks_or_text, kind="note", accent=None, title=None, render_children=None
+):
     """Single-cell shaded panel with a coloured left spine — the house text box."""
     fill, spine, default_label = CALLOUT_KINDS.get(kind, CALLOUT_KINDS["note"])
     spine = accent or spine
@@ -221,8 +297,9 @@ def callout(doc, blocks_or_text, kind="note", accent=None, title=None,
     K.table_cell_margins(t, top=90, left=150, bottom=95, right=140)
     c = t.cell(0, 0)
     K.shade(c, fill)
-    K.cell_borders(c, left=(24, spine), top=(4, fill), bottom=(4, fill),
-                   right=(4, fill))
+    K.cell_borders(
+        c, left=(24, spine), top=(4, fill), bottom=(4, fill), right=(4, fill)
+    )
     # clear the auto paragraph
     c.paragraphs[0]._p.getparent().remove(c.paragraphs[0]._p)
 
@@ -255,8 +332,13 @@ def pull_quote(doc, text, accent, attribution=None):
     K.table_cell_margins(t, top=110, left=170, bottom=110, right=170)
     c = t.cell(0, 0)
     K.shade(c, T.BG_PAPER)
-    K.cell_borders(c, left=(28, accent), top=(4, T.BG_PAPER),
-                   bottom=(4, T.BG_PAPER), right=(4, T.BG_PAPER))
+    K.cell_borders(
+        c,
+        left=(28, accent),
+        top=(4, T.BG_PAPER),
+        bottom=(4, T.BG_PAPER),
+        right=(4, T.BG_PAPER),
+    )
     c.paragraphs[0]._p.getparent().remove(c.paragraphs[0]._p)
     p = c.add_paragraph()
     K.pfmt(p, before=0, after=0, line=1.20)
@@ -277,8 +359,13 @@ def code_panel(doc, lines, title=None, accent=T.NAVY, max_width_chars=104):
     K.table_cell_margins(t, top=90, left=140, bottom=90, right=110)
     c = t.cell(0, 0)
     K.shade(c, T.BG_PAPER)
-    K.cell_borders(c, left=(20, accent), top=(4, T.RULE_SOFT),
-                   bottom=(4, T.RULE_SOFT), right=(4, T.RULE_SOFT))
+    K.cell_borders(
+        c,
+        left=(20, accent),
+        top=(4, T.RULE_SOFT),
+        bottom=(4, T.RULE_SOFT),
+        right=(4, T.RULE_SOFT),
+    )
     c.paragraphs[0]._p.getparent().remove(c.paragraphs[0]._p)
     if title:
         pt = c.add_paragraph()
@@ -290,8 +377,13 @@ def code_panel(doc, lines, title=None, accent=T.NAVY, max_width_chars=104):
         p = c.add_paragraph()
         K.pfmt(p, before=0, after=0, line=1.0, keep_lines=True)
         p.paragraph_format.line_spacing = 1.0
-        K.run(p, line if line.strip() else " ", size=size, font=T.FONT_MONO,
-              colour=T.INK_SOFT)
+        K.run(
+            p,
+            line if line.strip() else " ",
+            size=size,
+            font=T.FONT_MONO,
+            colour=T.INK_SOFT,
+        )
     spacer(doc, 6)
     return t
 
@@ -323,8 +415,10 @@ def _font(size_pt, bold=False):
     if key not in _FONT_CACHE:
         try:
             from PIL import ImageFont
+
             _FONT_CACHE[key] = ImageFont.truetype(
-                _FONT_FILES[bold], int(round(size_pt * 4)))   # 4x for precision
+                _FONT_FILES[bold], int(round(size_pt * 4))
+            )  # 4x for precision
         except Exception:
             _FONT_CACHE[key] = None
     return _FONT_CACHE[key]
@@ -342,7 +436,7 @@ def text_mm(s, size_pt=T.SIZE_BODY, bold=False):
     if f is None:
         w = len(s) * size_pt * 0.172
     else:
-        w = f.getlength(s) / 4.0 * 25.4 / 72.0     # 4x px -> pt -> mm
+        w = f.getlength(s) / 4.0 * 25.4 / 72.0  # 4x px -> pt -> mm
     _WIDTH_CACHE[key] = w
     return w
 
@@ -375,8 +469,8 @@ def _weights(header, rows, align, total_mm=None, size=T.SIZE_TABLE):
     n = len(header)
     total_mm = total_mm or T.CONTENT_W_MM
     kinds = [_col_kind(h) for h in header]
-    cpm = 0.172 * size          # mean advance, used for the *desired* width
-    pad = 3.2                   # left + right cell padding in mm
+    cpm = 0.172 * size  # mean advance, used for the *desired* width
+    pad = 3.2  # left + right cell padding in mm
 
     desired, floors = [], []
     for i in range(n):
@@ -396,8 +490,9 @@ def _weights(header, rows, align, total_mm=None, size=T.SIZE_TABLE):
         # the real face — bold and 0.4 pt smaller in the header row.
         hdr_w = _widest_word_mm([header[i]], size - 0.4, bold=True)
         cell_w = _widest_word_mm(cells[:80], size, bold=(i == 0))
-        floors.append(min(max(hdr_w, min(cell_w, 34.0)) + pad + 0.8,
-                          total_mm / n * 1.9, 46.0))
+        floors.append(
+            min(max(hdr_w, min(cell_w, 34.0)) + pad + 0.8, total_mm / n * 1.9, 46.0)
+        )
 
     # scale desired to the available width
     s = sum(desired) or 1.0
@@ -427,9 +522,20 @@ PRI_RE = re.compile(r"\bP([0-3])\b")
 CLS_RE = re.compile(r"^\W*\*{0,2}([HASC])\*{0,2}\W*$")
 
 
-def table(doc, header, rows, align=None, accent=T.NAVY, zebra=True,
-          first_col_bold=True, size=None, caption=None, max_rows=None,
-          note=None, compact=False):
+def table(
+    doc,
+    header,
+    rows,
+    align=None,
+    accent=T.NAVY,
+    zebra=True,
+    first_col_bold=True,
+    size=None,
+    caption=None,
+    max_rows=None,
+    note=None,
+    compact=False,
+):
     """The house table.
 
     Navy header that repeats on every page, hairline interior rules, zebra
@@ -456,10 +562,10 @@ def table(doc, header, rows, align=None, accent=T.NAVY, zebra=True,
     t.alignment = WD_TABLE_ALIGNMENT.LEFT
     K.table_layout_fixed(t)
     K.table_width_pct(t, 100)
-    K.table_borders(t, sz=0, colour=T.WHITE, inside_sz=4,
-                    inside_colour=T.RULE_SOFT)
-    K.table_cell_margins(t, top=46 if compact else 58, left=76,
-                         bottom=46 if compact else 58, right=76)
+    K.table_borders(t, sz=0, colour=T.WHITE, inside_sz=4, inside_colour=T.RULE_SOFT)
+    K.table_cell_margins(
+        t, top=46 if compact else 58, left=76, bottom=46 if compact else 58, right=76
+    )
 
     usable = T.CONTENT_W_MM
     for i, c in enumerate(t.columns):
@@ -474,11 +580,21 @@ def table(doc, header, rows, align=None, accent=T.NAVY, zebra=True,
         cell.width = Mm(usable * weights[i])
         K.shade(cell, accent)
         K.cell_valign(cell, "center")
-        K.cell_borders(cell, bottom=(8, accent), top=(8, accent),
-                       left=(2, accent), right=(2, accent))
+        K.cell_borders(
+            cell,
+            bottom=(8, accent),
+            top=(8, accent),
+            left=(2, accent),
+            right=(2, accent),
+        )
         p = cell.paragraphs[0]
-        K.pfmt(p, before=0, after=0, line=1.06,
-               align=ALIGN.get(align[i], WD_ALIGN_PARAGRAPH.LEFT))
+        K.pfmt(
+            p,
+            before=0,
+            after=0,
+            line=1.06,
+            align=ALIGN.get(align[i], WD_ALIGN_PARAGRAPH.LEFT),
+        )
         K.run(p, MD.plain(h), size=size - 0.4, bold=True, colour=T.WHITE)
 
     for ri, r in enumerate(rows):
@@ -512,15 +628,26 @@ def table(doc, header, rows, align=None, accent=T.NAVY, zebra=True,
                 bold = True
 
             K.shade(cell, fill)
-            K.cell_borders(cell,
-                           bottom=(3, T.RULE_SOFT),
-                           left=(2, fill), right=(2, fill))
+            K.cell_borders(
+                cell, bottom=(3, T.RULE_SOFT), left=(2, fill), right=(2, fill)
+            )
             p = cell.paragraphs[0]
-            K.pfmt(p, before=0, after=0, line=1.10,
-                   align=ALIGN.get(align[i], WD_ALIGN_PARAGRAPH.LEFT))
+            K.pfmt(
+                p,
+                before=0,
+                after=0,
+                line=1.10,
+                align=ALIGN.get(align[i], WD_ALIGN_PARAGRAPH.LEFT),
+            )
             if kinds[i] == "id" and plain:
-                K.run(p, plain, size=size - 0.6, bold=True,
-                      font=T.FONT_MONO, colour=accent)
+                K.run(
+                    p,
+                    plain,
+                    size=size - 0.6,
+                    bold=True,
+                    font=T.FONT_MONO,
+                    colour=accent,
+                )
             else:
                 emit_inline(p, txt, size=size, colour=fg, base_bold=bold)
 
@@ -530,9 +657,14 @@ def table(doc, header, rows, align=None, accent=T.NAVY, zebra=True,
         K.shade(cell, T.BG_TINT)
         p = cell.paragraphs[0]
         K.pfmt(p, before=0, after=0)
-        K.run(p, "… and %d further row%s — see the source specification"
-              % (truncated, "" if truncated == 1 else "s"),
-              size=size - 0.6, italic=True, colour=T.GREY)
+        K.run(
+            p,
+            "… and %d further row%s — see the source specification"
+            % (truncated, "" if truncated == 1 else "s"),
+            size=size - 0.6,
+            italic=True,
+            colour=T.GREY,
+        )
         for i in range(1, ncol):
             K.shade(row.cells[i], T.BG_TINT)
 
@@ -551,22 +683,36 @@ def table_caption(doc, text, prefix="Table"):
     p = doc.add_paragraph(style="Caption")
     K.pfmt(p, before=3, after=8)
     K.run(p, prefix + " ", size=T.SIZE_CAPTION, bold=True, colour=T.GREY)
-    K.add_field(p, " SEQ %s \\* ARABIC " % prefix, "1", size=T.SIZE_CAPTION,
-                bold=True, colour=T.GREY)
+    K.add_field(
+        p,
+        " SEQ %s \\* ARABIC " % prefix,
+        "1",
+        size=T.SIZE_CAPTION,
+        bold=True,
+        colour=T.GREY,
+    )
     K.run(p, "  ·  ", size=T.SIZE_CAPTION, colour=T.RULE)
     K.run(p, text, size=T.SIZE_CAPTION, colour=T.GREY)
     return p
 
 
 # ------------------------------------------------------------------- exhibits
-def exhibit(doc, image_path, caption, accent=T.NAVY, width_mm=None,
-            source=None, keep_with_caption=True):
+def exhibit(
+    doc,
+    image_path,
+    caption,
+    accent=T.NAVY,
+    width_mm=None,
+    source=None,
+    keep_with_caption=True,
+):
     """Insert a generated exhibit with a numbered, field-based caption."""
     if not image_path or not os.path.isfile(image_path):
         return None
     p = doc.add_paragraph()
-    K.pfmt(p, before=7, after=2, align=WD_ALIGN_PARAGRAPH.LEFT,
-           keep_next=keep_with_caption)
+    K.pfmt(
+        p, before=7, after=2, align=WD_ALIGN_PARAGRAPH.LEFT, keep_next=keep_with_caption
+    )
     r = p.add_run()
     r.add_picture(image_path, width=Mm(width_mm or T.CONTENT_W_MM))
 
@@ -574,13 +720,18 @@ def exhibit(doc, image_path, caption, accent=T.NAVY, width_mm=None,
     K.pfmt(cp, before=1, after=9)
     K.para_borders(cp, top=(6, accent, 3))
     K.run(cp, "  Exhibit ", size=T.SIZE_CAPTION, bold=True, colour=accent)
-    K.add_field(cp, " SEQ Exhibit \\* ARABIC ", "1", size=T.SIZE_CAPTION,
-                bold=True, colour=accent)
+    K.add_field(
+        cp,
+        " SEQ Exhibit \\* ARABIC ",
+        "1",
+        size=T.SIZE_CAPTION,
+        bold=True,
+        colour=accent,
+    )
     K.run(cp, "  ·  ", size=T.SIZE_CAPTION, colour=T.RULE)
     K.run(cp, caption, size=T.SIZE_CAPTION, colour=T.GREY)
     if source:
-        K.run(cp, "   " + source, size=T.SIZE_MICRO, italic=True,
-              colour=T.GREY_LIGHT)
+        K.run(cp, "   " + source, size=T.SIZE_MICRO, italic=True, colour=T.GREY_LIGHT)
     return p
 
 
@@ -602,8 +753,13 @@ def kpi_strip(doc, items, accent=T.NAVY, cols=None):
         c = t.cell(0, i)
         c.width = Mm(T.CONTENT_W_MM / cols)
         K.shade(c, T.BG_TINT)
-        K.cell_borders(c, left=(20, accent), top=(6, T.WHITE),
-                       bottom=(6, T.WHITE), right=(6, T.WHITE))
+        K.cell_borders(
+            c,
+            left=(20, accent),
+            top=(6, T.WHITE),
+            bottom=(6, T.WHITE),
+            right=(6, T.WHITE),
+        )
         c.paragraphs[0]._p.getparent().remove(c.paragraphs[0]._p)
         p1 = c.add_paragraph()
         K.pfmt(p1, before=0, after=0, line=1.0)
@@ -616,8 +772,15 @@ def kpi_strip(doc, items, accent=T.NAVY, cols=None):
 
 
 # ------------------------------------------------------------ definition list
-def definition_rows(doc, pairs, accent=T.NAVY, label_mm=52, zebra=True,
-                    label_colour=None, keep_together=False):
+def definition_rows(
+    doc,
+    pairs,
+    accent=T.NAVY,
+    label_mm=52,
+    zebra=True,
+    label_colour=None,
+    keep_together=False,
+):
     """Two-column key/value block used for identity and control panels.
 
     `keep_together` binds every row to the next so Word moves the whole block
@@ -646,8 +809,7 @@ def definition_rows(doc, pairs, accent=T.NAVY, label_mm=52, zebra=True,
         hold = keep_together and i < len(pairs) - 1
         p0 = c0.paragraphs[0]
         K.pfmt(p0, before=0, after=0, line=1.10, keep_next=hold)
-        K.run(p0, k, size=T.SIZE_BODY, bold=True,
-              colour=label_colour or T.INK_SOFT)
+        K.run(p0, k, size=T.SIZE_BODY, bold=True, colour=label_colour or T.INK_SOFT)
         p1 = c1.paragraphs[0]
         K.pfmt(p1, before=0, after=0, line=1.10, keep_next=hold)
         emit_inline(p1, str(v), size=T.SIZE_BODY, colour=T.INK)
@@ -656,12 +818,12 @@ def definition_rows(doc, pairs, accent=T.NAVY, label_mm=52, zebra=True,
 
 
 # ------------------------------------------------------------------- bullets
-def bullets(doc, items, accent=T.NAVY, size=T.SIZE_BODY, glyph="▪",
-            indent=12, after=3):
+def bullets(doc, items, accent=T.NAVY, size=T.SIZE_BODY, glyph="▪", indent=12, after=3):
     for it in items:
         p = doc.add_paragraph()
-        K.pfmt(p, before=0, after=after, line=1.14, left_indent=indent + 10,
-               first_line=-10)
+        K.pfmt(
+            p, before=0, after=after, line=1.14, left_indent=indent + 10, first_line=-10
+        )
         K.run(p, glyph + "  ", size=size - 1.5, colour=accent, bold=True)
         emit_inline(p, it, size=size, colour=T.INK)
     return doc
@@ -670,17 +832,26 @@ def bullets(doc, items, accent=T.NAVY, size=T.SIZE_BODY, glyph="▪",
 def numbered(doc, items, accent=T.NAVY, size=T.SIZE_BODY, indent=12, after=3):
     for i, it in enumerate(items, start=1):
         p = doc.add_paragraph()
-        K.pfmt(p, before=0, after=after, line=1.14, left_indent=indent + 14,
-               first_line=-14)
+        K.pfmt(
+            p, before=0, after=after, line=1.14, left_indent=indent + 14, first_line=-14
+        )
         K.run(p, "%d  " % i, size=size, colour=accent, bold=True)
         emit_inline(p, it, size=size, colour=T.INK)
     return doc
 
 
 # ------------------------------------------------------ generic block driver
-def render_blocks(doc, blocks, accent=T.NAVY, table_max_rows=None,
-                  heading_offset=0, skip_first_hr=True, code_title=None,
-                  quote_as_callout=True, compact_tables=False):
+def render_blocks(
+    doc,
+    blocks,
+    accent=T.NAVY,
+    table_max_rows=None,
+    heading_offset=0,
+    skip_first_hr=True,
+    code_title=None,
+    quote_as_callout=True,
+    compact_tables=False,
+):
     """Render an arbitrary run of parsed blocks with house styling."""
     seen_content = False
     for b in blocks:
@@ -699,15 +870,26 @@ def render_blocks(doc, blocks, accent=T.NAVY, table_max_rows=None,
         elif t == "p":
             body(doc, b["text"])
         elif t == "table":
-            table(doc, b["header"], b["rows"], align=b.get("align"),
-                  accent=accent, max_rows=table_max_rows,
-                  compact=compact_tables)
+            table(
+                doc,
+                b["header"],
+                b["rows"],
+                align=b.get("align"),
+                accent=accent,
+                max_rows=table_max_rows,
+                compact=compact_tables,
+            )
         elif t == "quote":
             if quote_as_callout:
                 kind = classify_quote(b["children"])
-                callout(doc, None, kind=kind,
-                        render_children=lambda cell, _bl=b["children"]:
-                        _render_into_cell(cell, _bl, accent))
+                callout(
+                    doc,
+                    None,
+                    kind=kind,
+                    render_children=lambda cell, _bl=b["children"]: _render_into_cell(
+                        cell, _bl, accent
+                    ),
+                )
             else:
                 for c in b["children"]:
                     render_blocks(doc, [c], accent=accent)
@@ -732,11 +914,14 @@ def _render_into_cell(cell, blocks, accent):
         elif t == "list":
             for i, it in enumerate(b["items"], start=1):
                 p = cell.add_paragraph()
-                K.pfmt(p, before=0, after=3, line=1.14,
-                       left_indent=14, first_line=-14)
-                K.run(p, ("%d  " % i) if b["ordered"] else "▪  ",
-                      size=T.SIZE_BODY - (0 if b["ordered"] else 1.5),
-                      bold=True, colour=accent)
+                K.pfmt(p, before=0, after=3, line=1.14, left_indent=14, first_line=-14)
+                K.run(
+                    p,
+                    ("%d  " % i) if b["ordered"] else "▪  ",
+                    size=T.SIZE_BODY - (0 if b["ordered"] else 1.5),
+                    bold=True,
+                    colour=accent,
+                )
                 emit_inline(p, it["text"], size=T.SIZE_BODY, colour=T.INK_SOFT)
         elif t == "table":
             _mini_table(cell, b, accent)
@@ -744,13 +929,11 @@ def _render_into_cell(cell, blocks, accent):
             for line in b["lines"]:
                 p = cell.add_paragraph()
                 K.pfmt(p, before=0, after=0, line=1.0)
-                K.run(p, line or " ", size=7.4, font=T.FONT_MONO,
-                      colour=T.INK_SOFT)
+                K.run(p, line or " ", size=7.4, font=T.FONT_MONO, colour=T.INK_SOFT)
         elif t == "h":
             p = cell.add_paragraph()
             K.pfmt(p, before=4, after=2, keep_next=True)
-            emit_inline(p, b["text"], size=T.SIZE_BODY, colour=T.NAVY,
-                        base_bold=True)
+            emit_inline(p, b["text"], size=T.SIZE_BODY, colour=T.NAVY, base_bold=True)
 
 
 def _mini_table(cell, b, accent):
@@ -759,11 +942,11 @@ def _mini_table(cell, b, accent):
     t = cell.add_table(rows=1, cols=ncol)
     K.table_layout_fixed(t)
     K.table_width_pct(t, 100)
-    K.table_borders(t, sz=0, colour=T.WHITE, inside_sz=3,
-                    inside_colour=T.RULE_SOFT)
+    K.table_borders(t, sz=0, colour=T.WHITE, inside_sz=3, inside_colour=T.RULE_SOFT)
     K.table_cell_margins(t, top=36, left=60, bottom=36, right=60)
-    weights, kinds = _weights(b["header"], b["rows"], b.get("align"),
-                              T.CONTENT_W_MM - 22, 8.3)
+    weights, kinds = _weights(
+        b["header"], b["rows"], b.get("align"), T.CONTENT_W_MM - 22, 8.3
+    )
     avail = T.CONTENT_W_MM - 22
     for i, h in enumerate(b["header"]):
         c = t.rows[0].cells[i]
@@ -780,6 +963,11 @@ def _mini_table(cell, b, accent):
             K.shade(c, T.WHITE if ri % 2 == 0 else T.BG_PAPER_2)
             p = c.paragraphs[0]
             K.pfmt(p, before=0, after=0, line=1.08)
-            emit_inline(p, r[i] if i < len(r) else "", size=8.3,
-                        colour=T.INK, base_bold=(i == 0))
+            emit_inline(
+                p,
+                r[i] if i < len(r) else "",
+                size=8.3,
+                colour=T.INK,
+                base_bold=(i == 0),
+            )
     cell.add_paragraph()

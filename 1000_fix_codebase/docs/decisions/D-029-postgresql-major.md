@@ -55,3 +55,14 @@ decision**; a `CR-P01M02-01` against the TSS is raised by the traceability recor
 - OCA v20 repositories declaring PG18-only requirements before Wave 6 →
   re-open at that gate with the ecosystem evidence in hand.
 - PG17 EOL policy change → immediate escalation.
+
+---
+
+## 6. Wave 6 Review & Re-Confirmation (P09-M02 / R07-M02-T01)
+
+**Review Date:** 2026-10-18 (Wave 6, Month 26, Gate G6)  
+**Assessed Reality:**
+1. **PostgreSQL 17 EOL:** 8 November 2029 (Month ~37).
+2. **Build window arithmetic:** At Month 26, 10 months remain in the 36-month build, plus 11 additional months of buffer prior to PG17 EOL.
+3. **PostgreSQL 18 status:** While released upstream (25 Sep 2025, EOL Nov 2030), no OCA v19 or v20 module requires PG18. Remaining on PG17 eliminates database engine churn while clearing the statutory delivery window.
+4. **Outcome:** PostgreSQL 17 baseline re-confirmed across all environments (docker-compose `postgres:17-alpine`).

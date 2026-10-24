@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import contextvars
-import json
 import logging
 import re
 import secrets
 import time
 import uuid
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,9 +19,7 @@ TRACESTATE_HEADER = "tracestate"
 
 # Regex for W3C traceparent: version-trace_id-parent_id-trace_flags
 # e.g., 00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01
-TRACEPARENT_REGEX = re.compile(
-    r"^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$"
-)
+TRACEPARENT_REGEX = re.compile(r"^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$")
 
 # Context variables for distributed context propagation
 _current_trace_context: contextvars.ContextVar[TraceContext | None] = contextvars.ContextVar(
@@ -107,21 +105,26 @@ class Span:
         return self
 
     def add_event(self, name: str, attributes: dict[str, Any] | None = None) -> Span:
-        self.events.append({
-            "name": name,
-            "timestamp_ns": time.time_ns(),
-            "attributes": attributes or {},
-        })
+        self.events.append(
+            {
+                "name": name,
+                "timestamp_ns": time.time_ns(),
+                "attributes": attributes or {},
+            }
+        )
         return self
 
     def record_exception(self, exc: BaseException, escaped: bool = True) -> Span:
         self.status = "ERROR"
         self.status_message = str(exc)
-        self.add_event("exception", {
-            "exception.type": exc.__class__.__name__,
-            "exception.message": str(exc),
-            "exception.escaped": escaped,
-        })
+        self.add_event(
+            "exception",
+            {
+                "exception.type": exc.__class__.__name__,
+                "exception.message": str(exc),
+                "exception.escaped": escaped,
+            },
+        )
         self.set_attribute("error", True)
         return self
 
@@ -200,19 +203,19 @@ def extract_trace_context(headers: dict[str, str]) -> TraceContext:
     """Extract W3C traceparent and x-fix-correlation-id from incoming request headers."""
     # Normalize headers to lowercase
     norm_headers = {k.lower(): str(v) for k, v in headers.items()}
-    
+
     correlation_id = norm_headers.get(CORRELATION_HEADER.lower())
     traceparent = norm_headers.get(TRACEPARENT_HEADER.lower())
-    
+
     trace_id = None
     parent_span_id = None
     trace_flags = "01"
-    
+
     if traceparent:
         m = TRACEPARENT_REGEX.match(traceparent.strip())
         if m:
             _version, trace_id, parent_span_id, trace_flags = m.groups()
-            
+
     ctx = TraceContext(
         correlation_id=correlation_id or str(uuid.uuid4()),
         trace_id=trace_id or generate_trace_id(),
@@ -232,7 +235,7 @@ def inject_trace_context(
     ctx = context or get_current_trace_context()
     current_span = get_current_span()
     current_span_id = current_span.span_id if current_span else ctx.parent_span_id
-    
+
     out[CORRELATION_HEADER] = ctx.correlation_id
     out[TRACEPARENT_HEADER] = ctx.format_traceparent(current_span_id=current_span_id)
     return out
@@ -247,23 +250,23 @@ def start_span(
     ctx = context or get_current_trace_context()
     active_span = get_current_span()
     parent_span_id = active_span.span_id if active_span else ctx.parent_span_id
-    
+
     span = Span(name=name, context=ctx, parent_span_id=parent_span_id, attributes=attributes)
     return span
 
 
 def trace_step(step_name: str, attributes: dict[str, Any] | None = None):
     """Decorator to automatically wrap a function execution in an OpenTelemetry span."""
+
     def decorator(func: Callable):
         def wrapper(*args, **kwargs):
-            with start_span(step_name, attributes=attributes) as span:
-                try:
-                    result = func(*args, **kwargs)
-                    return result
-                except Exception as e:
-                    span.record_exception(e)
-                    raise
+            # Span.__exit__ records an escaping exception exactly once; recording
+            # it here as well duplicated the "exception" event on every failure.
+            with start_span(step_name, attributes=attributes):
+                return func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
@@ -275,7 +278,7 @@ def stamp_outbox_metadata(
     meta = dict(metadata or {})
     ctx = context or get_current_trace_context()
     current_span = get_current_span()
-    
+
     meta["correlation_id"] = meta.get("correlation_id") or ctx.correlation_id
     meta["trace_id"] = ctx.trace_id
     meta["span_id"] = current_span.span_id if current_span else ctx.parent_span_id

@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_tax_engine_bd — the two statutory withholding certificates printed from
+  fix.withholding.certificate (P07-M04 T04).
+
+  * Mushak 6.6 — certificate of VAT deducted at source, VAT & SD Rules 2016
+    rule 40(1). Content per DT-013 §2/§4: deductor and supplier name, address
+    and BIN; certificate number and date; the supplier's challan; description
+    and value of the supply; VDS rate and amount deducted (figures AND words);
+    the treasury deposit particulars, as prominent as the amount (L-13-b);
+    the declaration and the authorised officer's signature.
+  * Income-tax withholding certificate — Income Tax Act 2023 s.52: deductee
+    name, address and e-TIN; gross payment, rate, tax deducted (figures and
+    words); treasury challan, deposit date and bank; the s.52 declaration.
+
+  Bilingual labels (Bengali / English); amounts are BN-007 strings formatted
+  by the report parser (models/fix_withholding_report.py) — the template
+  places values, it computes nothing (AS-09). The parser refuses a draft,
+  wrong-type or undeposited certificate (DT-013 FM-13-b). The Bengali font
+  path is the .fix-statutory-bn class (static/src/css/statutory_bn.css,
+  web.report_assets_common), TR-07.
+-->
+<odoo>
+
+    <record id="action_report_fix_mushak66" model="ir.actions.report">
+        <field name="name">মূসক ৬.৬ / Mushak 6.6</field>
+        <field name="model">fix.withholding.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_tax_engine_bd.report_mushak66</field>
+        <field name="report_file">cd_tax_engine_bd.report_mushak66</field>
+        <field name="print_report_name">'Mushak-6.6 %s' % (object.certificate_no or '')</field>
+        <field name="paperformat_id" ref="paperformat_fix_mushak"/>
+        <field name="binding_model_id" ref="model_fix_withholding_certificate"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_fix_withholding_certificate" model="ir.actions.report">
+        <field name="name">উৎসে কর কর্তন সনদ / Tax Withholding Certificate (ITA 2023 s.52)</field>
+        <field name="model">fix.withholding.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_tax_engine_bd.report_withholding_certificate</field>
+        <field name="report_file">cd_tax_engine_bd.report_withholding_certificate</field>
+        <field name="print_report_name">'TDS-Certificate %s' % (object.certificate_no or '')</field>
+        <field name="paperformat_id" ref="paperformat_fix_mushak"/>
+        <field name="binding_model_id" ref="model_fix_withholding_certificate"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_mushak66">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="sp" t-value="supply[doc.id]"/>
+                <!-- div.article: rendered through web.minimal_layout (charset + report
+                     assets incl. statutory_bn.css) - see report_mushak63.xml -->
+                <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id"
+                     t-att-data-oe-lang="doc.env.context.get('lang')">
+                <div class="page fix-statutory-bn mushak66">
+                    <div class="form-header">
+                        <div class="form-no">মূসক-৬.৬ / Mushak-6.6</div>
+                        <div class="form-rule">[বিধি ৪০ এর উপ-বিধি (১) দ্রষ্টব্য / See rule 40(1), VAT &amp; SD Rules 2016]</div>
+                        <h1>উৎসে কর কর্তন সনদপত্র</h1>
+                        <h2>Certificate of VAT Deduction at Source</h2>
+                        <div class="ref-line">
+                            <span>সনদপত্র নং / Certificate No.:</span>
+                            <span class="mono certificate-no" t-esc="doc.certificate_no"/>
+                            <span>জারির তারিখ / Date of issue:</span>
+                            <span class="issue-date" t-esc="doc.issued_at.strftime('%d/%m/%Y')"/>
+                        </div>
+                    </div>
+
+                    <table class="parties">
+                        <tr>
+                            <th>উৎসে কর কর্তনকারী সত্তা / Withholding entity</th>
+                            <th>সরবরাহকারী / Supplier</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="deductor-name" t-esc="doc.company_id.name"/>
+                                <div>বিআইএন / BIN: <span class="mono deductor-bin" t-esc="doc.company_id.vat or ''"/></div>
+                                <div>ঠিকানা / Address: <span t-esc="doc.company_id.partner_id.contact_address or ''"/></div>
+                            </td>
+                            <td>
+                                <div class="supplier-name" t-esc="doc.supplier_name"/>
+                                <div>বিআইএন / BIN: <span class="mono supplier-bin" t-esc="doc.supplier_bin"/></div>
+                                <div>ঠিকানা / Address: <span t-esc="doc.supplier_address or ''"/></div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="supply">
+                        <thead>
+                            <tr>
+                                <th>সরবরাহকারীর চালানপত্র নং ও তারিখ / Supplier challan no. &amp; date</th>
+                                <th>সরবরাহের বিবরণ / Description of supply</th>
+                                <th>সরবরাহের মূল্য / Value of supply</th>
+                                <th>কর্তনের হার / VDS rate</th>
+                                <th>কর্তিত ভ্যাটের পরিমাণ / VAT deducted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <span class="mono supplier-challan" t-esc="sp['ref']"/>
+                                    <span t-if="sp['date']" t-esc="sp['date'].strftime('%d/%m/%Y')"/>
+                                </td>
+                                <td class="supply-description" t-esc="sp['description']"/>
+                                <td class="numeric supply-value" t-esc="fmt_bdt(doc.base_amount)"/>
+                                <td class="numeric vds-rate" t-esc="fmt_rate(doc.rate_percent)"/>
+                                <td class="numeric vds-amount" t-esc="fmt_bdt(doc.withheld_amount)"/>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="amount-words">কথায় / In words: <span t-esc="in_words(doc.withheld_amount)"/></p>
+
+                    <table class="deposit">
+                        <tr>
+                            <th>ট্রেজারি চালান নং / Treasury challan no.</th>
+                            <td class="mono treasury-challan" t-esc="doc.challan_no"/>
+                        </tr>
+                        <tr>
+                            <th>জমার তারিখ / Deposit date</th>
+                            <td class="deposit-date" t-esc="doc.challan_date and doc.challan_date.strftime('%d/%m/%Y') or ''"/>
+                        </tr>
+                        <tr>
+                            <th>ব্যাংক ও শাখা / Bank &amp; branch</th>
+                            <td class="deposit-bank" t-esc="doc.bank_branch or ''"/>
+                        </tr>
+                    </table>
+
+                    <p class="declaration">
+                        এই মর্মে প্রত্যয়ন করা যাইতেছে যে, উপরে বর্ণিত সরবরাহের বিপরীতে উৎসে কর্তনকৃত মূল্য সংযোজন কর সরকারি কোষাগারে জমা প্রদান করা হইয়াছে।
+                        <br/>
+                        Certified that the VAT deducted at source against the supply above has been deposited to the Government treasury.
+                    </p>
+                    <div class="signature-row">
+                        ক্ষমতাপ্রাপ্ত কর্মকর্তার স্বাক্ষর ও সিল / Signature &amp; seal of the authorised officer: .......................
+                    </div>
+                    <div class="form-footer">Mushak 6.6 · <span class="mono" t-esc="doc.certificate_no"/></div>
+                </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_withholding_certificate">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-set="sp" t-value="supply[doc.id]"/>
+                <!-- div.article: rendered through web.minimal_layout (charset + report
+                     assets incl. statutory_bn.css) - see report_mushak63.xml -->
+                <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id"
+                     t-att-data-oe-lang="doc.env.context.get('lang')">
+                <div class="page fix-statutory-bn withholding-certificate">
+                    <div class="form-header">
+                        <h1>উৎসে কর কর্তনের সনদপত্র</h1>
+                        <h2>Certificate of Tax Deducted at Source</h2>
+                        <div class="form-rule">আয়কর আইন ২০২৩, ধারা ৫২ / Income Tax Act 2023, Section 52</div>
+                        <div class="ref-line">
+                            <span>সনদপত্র নং / Certificate No.:</span>
+                            <span class="mono certificate-no" t-esc="doc.certificate_no"/>
+                            <span>তারিখ / Date:</span>
+                            <span class="issue-date" t-esc="doc.issued_at.strftime('%d/%m/%Y')"/>
+                            <t t-if="doc.quarter">
+                                <span>ত্রৈমাসিক / Quarter:</span>
+                                <span class="mono" t-esc="doc.quarter"/>
+                            </t>
+                        </div>
+                    </div>
+
+                    <table class="parties">
+                        <tr>
+                            <th>কর কর্তনকারী / Deductor</th>
+                            <th>যাহার নিকট হইতে কর্তন করা হইয়াছে / Deductee</th>
+                        </tr>
+                        <tr>
+                            <td>
+                                <div class="deductor-name" t-esc="doc.company_id.name"/>
+                                <div>ঠিকানা / Address: <span t-esc="doc.company_id.partner_id.contact_address or ''"/></div>
+                            </td>
+                            <td>
+                                <div class="deductee-name" t-esc="doc.supplier_name"/>
+                                <div>ই-টিআইএন / e-TIN: <span class="mono deductee-tin" t-esc="doc.supplier_tin or 'প্রদান করা হয়নি / not provided'"/></div>
+                                <div>ঠিকানা / Address: <span t-esc="doc.supplier_address or ''"/></div>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <table class="payment">
+                        <thead>
+                            <tr>
+                                <th>পরিশোধের সূত্র / Payment reference</th>
+                                <th>পরিশোধিত মোট অর্থ / Gross amount paid</th>
+                                <th>কর্তনের হার / Rate</th>
+                                <th>কর্তিত করের পরিমাণ / Tax deducted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td class="mono payment-ref" t-esc="sp['ref']"/>
+                                <td class="numeric gross-amount" t-esc="fmt_bdt(doc.base_amount)"/>
+                                <td class="numeric tds-rate" t-esc="fmt_rate(doc.rate_percent)"/>
+                                <td class="numeric tds-amount" t-esc="fmt_bdt(doc.withheld_amount)"/>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p class="amount-words">কথায় / In words: <span t-esc="in_words(doc.withheld_amount)"/></p>
+
+                    <table class="deposit">
+                        <tr>
+                            <th>ট্রেজারি চালান নং / Treasury challan no.</th>
+                            <td class="mono treasury-challan" t-esc="doc.challan_no"/>
+                        </tr>
+                        <tr>
+                            <th>জমার তারিখ / Deposit date</th>
+                            <td class="deposit-date" t-esc="doc.challan_date and doc.challan_date.strftime('%d/%m/%Y') or ''"/>
+                        </tr>
+                        <tr>
+                            <th>ব্যাংক ও শাখা / Bank &amp; branch</th>
+                            <td class="deposit-bank" t-esc="doc.bank_branch or ''"/>
+                        </tr>
+                    </table>
+
+                    <p class="declaration">
+                        প্রত্যয়ন করা যাচ্ছে যে, আয়কর আইন ২০২৩ এর ধারা ৫২ মোতাবেক উৎসে কর কর্তন করা হয়েছে এবং তা সরকারি কোষাগারে জমা প্রদান করা হয়েছে।
+                        <br/>
+                        Certified that tax has been deducted at source under Section 52 of the Income Tax Act 2023 and deposited to the Government treasury.
+                    </p>
+                    <div class="signature-row">
+                        ক্ষমতাপ্রাপ্ত কর্মকর্তার স্বাক্ষর ও সিল / Signature &amp; seal of the authorised officer: .......................
+                    </div>
+                    <div class="form-footer">ITA 2023 s.52 · <span class="mono" t-esc="doc.certificate_no"/></div>
+                </div>
+                </div>
+            </t>
+        </t>
+    </template>
+
+</odoo>

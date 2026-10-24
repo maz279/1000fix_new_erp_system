@@ -1,0 +1,229 @@
+{
+  "milestone": "R09-M03",
+  "task": "R09-M03-T02",
+  "standard": "Closed-Loop Predictive Maintenance / M02 Dispatch / M48 IoT Integration",
+  "timestamp": "2026-10-22T09:00:37.930123+00:00",
+  "verdict": "FAIL",
+  "status": "FAIL",
+  "closed_loop_verified": false,
+  "stage_counts": {
+    "PASS": 1,
+    "FAIL": 2,
+    "UNMEASURED": 3
+  },
+  "stages": [
+    {
+      "stage": "1_sensor_degradation_telemetry",
+      "status": "UNMEASURED",
+      "summary": "Telemetry ingestion runs through fix.iot.telemetry / fix.iot.device.action_telemetry_received inside the Odoo runtime; this verifier creates no records on the running Odoo and there is no in-process ingestion path."
+    },
+    {
+      "stage": "2_ml_failure_prediction",
+      "status": "FAIL",
+      "summary": "services/ml-gateway exposes no predictive-maintenance / failure-prediction inference entry point; no failure prediction can be produced.",
+      "ml_gateway_public_callables": [
+        "DispatchFeatures",
+        "DispatchScore",
+        "ForecastPoint",
+        "detect_drift",
+        "forecast_demand",
+        "get_model_info",
+        "get_model_lineage",
+        "rank_technicians",
+        "rollback_model",
+        "score_dispatch",
+        "trigger_retraining"
+      ]
+    },
+    {
+      "stage": "3_preventive_wo_creation",
+      "status": "FAIL",
+      "summary": "no consumer of predictive_maintenance.wo_created in addons/ or services/ - the action only sets work_order_created=True and publishes the event; no preventive work order record is created",
+      "publisher_wiring": "fix.predictive.maintenance.action_create_preventive_wo publishes predictive_maintenance.wo_created",
+      "consumers": []
+    },
+    {
+      "stage": "4_m02_dispatch_scoring_ranking",
+      "status": "PASS",
+      "summary": "rank_technicians ranked 3 candidates; certification gate and dominance order hold; top = TECH-DH-014",
+      "selected_technician": "TECH-DH-014",
+      "dispatch_score": 7.545,
+      "score_factors": {
+        "certification": 3.0,
+        "first_time_fix": 2.375,
+        "sla_hit": 1.47,
+        "workload": -0.3,
+        "urgency": 1.0
+      },
+      "rankings": [
+        {
+          "tech": "TECH-DH-014",
+          "score": 7.545
+        },
+        {
+          "tech": "TECH-DH-022",
+          "score": 6.535
+        },
+        {
+          "tech": "TECH-DH-039",
+          "score": -95.275
+        }
+      ],
+      "candidates_ranked": 3
+    },
+    {
+      "stage": "5_field_execution_resolution",
+      "status": "UNMEASURED",
+      "summary": "Field execution needs a technician completing the preventive work order on a live runtime (technician app / fix.service.order); no in-process path exists."
+    },
+    {
+      "stage": "6_post_maintenance_telemetry_restoration",
+      "status": "UNMEASURED",
+      "summary": "Post-repair health restoration needs fresh telemetry from the live IoT pipeline for the repaired equipment; not observable locally."
+    }
+  ],
+  "stages_completed": [
+    "4_m02_dispatch_scoring_ranking"
+  ],
+  "technician_dispatch": {
+    "selected_technician": "TECH-DH-014",
+    "dispatch_score": 7.545,
+    "score_factors": {
+      "certification": 3.0,
+      "first_time_fix": 2.375,
+      "sla_hit": 1.47,
+      "workload": -0.3,
+      "urgency": 1.0
+    },
+    "rankings": [
+      {
+        "tech": "TECH-DH-014",
+        "score": 7.545
+      },
+      {
+        "tech": "TECH-DH-022",
+        "score": 6.535
+      },
+      {
+        "tech": "TECH-DH-039",
+        "score": -95.275
+      }
+    ],
+    "candidates_ranked": 3
+  },
+  "dispatch_fixture_inputs": {
+    "context": {
+      "device_type": "industrial_bga",
+      "brand": "Hakko_Den-On",
+      "branch": "OU-DHK-01",
+      "priority": "urgent"
+    },
+    "candidates": [
+      {
+        "technician_id": "TECH-DH-014",
+        "certification_active": true,
+        "historical_ftf": 0.95,
+        "historical_sla": 0.98,
+        "workload_today": 1
+      },
+      {
+        "technician_id": "TECH-DH-022",
+        "certification_active": true,
+        "historical_ftf": 0.84,
+        "historical_sla": 0.89,
+        "workload_today": 3
+      },
+      {
+        "technician_id": "TECH-DH-039",
+        "certification_active": false,
+        "historical_ftf": 0.92,
+        "historical_sla": 0.95,
+        "workload_today": 0
+      }
+    ]
+  },
+  "audit_log": [
+    {
+      "timestamp": "2026-10-22T09:00:36.872315+00:00",
+      "stage": "1_sensor_degradation_telemetry",
+      "details": {
+        "summary": "[UNMEASURED] Telemetry ingestion runs through fix.iot.telemetry / fix.iot.device.action_telemetry_received inside the Odoo runtime; this verifier creates no records on the running Odoo and there is no in-process ingestion path."
+      }
+    },
+    {
+      "timestamp": "2026-10-22T09:00:36.872655+00:00",
+      "stage": "2_ml_failure_prediction",
+      "details": {
+        "summary": "[FAIL] services/ml-gateway exposes no predictive-maintenance / failure-prediction inference entry point; no failure prediction can be produced.",
+        "ml_gateway_public_callables": [
+          "DispatchFeatures",
+          "DispatchScore",
+          "ForecastPoint",
+          "detect_drift",
+          "forecast_demand",
+          "get_model_info",
+          "get_model_lineage",
+          "rank_technicians",
+          "rollback_model",
+          "score_dispatch",
+          "trigger_retraining"
+        ]
+      }
+    },
+    {
+      "timestamp": "2026-10-22T09:00:37.930123+00:00",
+      "stage": "3_preventive_wo_creation",
+      "details": {
+        "summary": "[FAIL] no consumer of predictive_maintenance.wo_created in addons/ or services/ - the action only sets work_order_created=True and publishes the event; no preventive work order record is created",
+        "publisher_wiring": "fix.predictive.maintenance.action_create_preventive_wo publishes predictive_maintenance.wo_created",
+        "consumers": []
+      }
+    },
+    {
+      "timestamp": "2026-10-22T09:00:37.930123+00:00",
+      "stage": "4_m02_dispatch_scoring_ranking",
+      "details": {
+        "summary": "[PASS] rank_technicians ranked 3 candidates; certification gate and dominance order hold; top = TECH-DH-014",
+        "selected_technician": "TECH-DH-014",
+        "dispatch_score": 7.545,
+        "score_factors": {
+          "certification": 3.0,
+          "first_time_fix": 2.375,
+          "sla_hit": 1.47,
+          "workload": -0.3,
+          "urgency": 1.0
+        },
+        "rankings": [
+          {
+            "tech": "TECH-DH-014",
+            "score": 7.545
+          },
+          {
+            "tech": "TECH-DH-022",
+            "score": 6.535
+          },
+          {
+            "tech": "TECH-DH-039",
+            "score": -95.275
+          }
+        ],
+        "candidates_ranked": 3
+      }
+    },
+    {
+      "timestamp": "2026-10-22T09:00:37.930123+00:00",
+      "stage": "5_field_execution_resolution",
+      "details": {
+        "summary": "[UNMEASURED] Field execution needs a technician completing the preventive work order on a live runtime (technician app / fix.service.order); no in-process path exists."
+      }
+    },
+    {
+      "timestamp": "2026-10-22T09:00:37.930123+00:00",
+      "stage": "6_post_maintenance_telemetry_restoration",
+      "details": {
+        "summary": "[UNMEASURED] Post-repair health restoration needs fresh telemetry from the live IoT pipeline for the repaired equipment; not observable locally."
+      }
+    }
+  ],
+  "finding": "1 stage(s) PASS, 2 FAIL, 3 UNMEASURED of 6. 1_sensor_degradation_telemetry: Telemetry ingestion runs through fix.iot.telemetry / fix.iot.device.action_telemetry_received inside the Odoo runtime; this verifier creates no records on the running Odoo and there is no in-process ingestion path. | 2_ml_failure_prediction: services/ml-gateway exposes no predictive-maintenance / failure-prediction inference entry point; no failure prediction can be produced. | 3_preventive_wo_creation: no consumer of predictive_maintenance.wo_created in addons/ or services/ - the action only sets work_order_created=True and publishes the event; no preventive work order record is created | 5_field_execution_resolution: Field execution needs a technician completing the preventive work order on a live runtime (technician app / fix.service.order); no in-process path exists. | 6_post_maintenance_telemetry_restoration: Post-repair health restoration needs fresh telemetry from the live IoT pipeline for the repaired equipment; not observable locally."
+}

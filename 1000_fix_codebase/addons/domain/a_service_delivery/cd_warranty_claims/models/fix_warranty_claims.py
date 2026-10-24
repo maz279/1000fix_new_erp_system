@@ -4,10 +4,11 @@
 # (AUT-018) and submitted within 72. The evidence pack's completeness check
 # BLOCKS submission (T05) — an incomplete claim is a rejected claim and a
 # re-work cycle.
+import uuid
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
-
-from datetime import timedelta
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -32,26 +33,36 @@ class FixWarrantyProduct(models.Model):
     _description = "Warranty / Protection Product"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     name = fields.Char(required=True)
     product_type = fields.Selection(
         [("extension", "Warranty Extension"), ("protection", "Protection Plan")],
-        required=True, default="extension")
-    catalogue_item_id = fields.Many2one("product.template", string="Catalogue Item",
-                                        help="Sold through M37's catalogue")
+        required=True,
+        default="extension",
+    )
+    catalogue_item_id = fields.Many2one(
+        "product.template", string="Catalogue Item", help="Sold through M37's catalogue"
+    )
     duration_months = fields.Integer(required=True, default=12)
     waiting_days = fields.Integer(
-        default=0,
-        help="BRU/WTY-12: claims arising within the waiting period are rejected")
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
+        default=0, help="BRU/WTY-12: claims arising within the waiting period are rejected"
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
     claim_limit = fields.Monetary(
-        string="Aggregate Claim Limit", currency_field="currency_id",
-        help="WTY-14: settled claims decrement this; beyond the limit claims are refused")
+        string="Aggregate Claim Limit",
+        currency_field="currency_id",
+        help="WTY-14: settled claims decrement this; beyond the limit claims are refused",
+    )
     excess_amount = fields.Monetary(
-        string="Customer Excess", currency_field="currency_id", default=0.0,
-        help="WTY-13: collected before fulfilment unless waived with approval")
+        string="Customer Excess",
+        currency_field="currency_id",
+        default=0.0,
+        help="WTY-13: collected before fulfilment unless waived with approval",
+    )
     active = fields.Boolean(default=True)
 
     @api.constrains("duration_months", "waiting_days", "claim_limit")
@@ -75,62 +86,85 @@ class FixWarrantyClaim(models.Model):
     _order = "created_at desc, id desc"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _claim_no_unique = models.Constraint('UNIQUE (claim_no)', 'Claim number must be unique')
+    _claim_no_unique = models.Constraint("UNIQUE (claim_no)", "Claim number must be unique")
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
-    claim_no = fields.Char(string="Claim No.", required=True, readonly=True,
-                           index=True, copy=False)
+    claim_no = fields.Char(string="Claim No.", required=True, readonly=True, index=True, copy=False)
     service_order_id = fields.Many2one(
-        "fix.service.order", string="Service Order", required=True,
-        ondelete="restrict", index=True,
-        help="The completed warranty job this claim recovers")
-    brand_id = fields.Many2one("fix.brand", string="Brand", required=True,
-                               index=True)
-    device_id = fields.Many2one(related="service_order_id.device_id",
-                                store=True, index=True)
-    warranty_product_id = fields.Many2one("fix.warranty.product",
-                                          string="Protection Product")
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    claim_amount = fields.Monetary(string="Claim Amount", currency_field="currency_id",
-                                   required=True)
+        "fix.service.order",
+        string="Service Order",
+        required=True,
+        ondelete="restrict",
+        index=True,
+        help="The completed warranty job this claim recovers",
+    )
+    brand_id = fields.Many2one("fix.brand", string="Brand", required=True, index=True)
+    device_id = fields.Many2one(related="service_order_id.device_id", store=True, index=True)
+    warranty_product_id = fields.Many2one("fix.warranty.product", string="Protection Product")
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    claim_amount = fields.Monetary(
+        string="Claim Amount", currency_field="currency_id", required=True
+    )
     # Evidence pack (T04/T05)
-    evidence_ids = fields.One2many("fix.warranty.evidence", "claim_id",
-                                   string="Evidence Pack")
+    evidence_ids = fields.One2many("fix.warranty.evidence", "claim_id", string="Evidence Pack")
     evidence_complete = fields.Boolean(compute="_compute_evidence", store=True)
     missing_evidence = fields.Char(compute="_compute_evidence", store=True)
     # Lifecycle
     state = fields.Selection(
-        [("draft", "Draft"), ("ready", "Ready"), ("submitted", "Submitted"),
-         ("in_review", "In Review"), ("approved", "Approved"),
-         ("rejected", "Rejected"), ("remitted", "Remitted")],
-        default="draft", required=True, tracking=True)
+        [
+            ("draft", "Draft"),
+            ("ready", "Ready"),
+            ("submitted", "Submitted"),
+            ("in_review", "In Review"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+            ("remitted", "Remitted"),
+        ],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
     created_at = fields.Datetime(default=fields.Datetime.now, readonly=True)
     job_completed_at = fields.Datetime(readonly=True, help="AUT-018: When warranty job completed")
     submitted_at = fields.Datetime(readonly=True)
     decided_at = fields.Datetime(readonly=True)
     rejection_reason = fields.Char()
     submission_deadline = fields.Datetime(
-        readonly=True,
-        help="WTY-06: brand windows vary; default 72h from creation (G4-01)")
+        readonly=True, help="WTY-06: brand windows vary; default 72h from creation (G4-01)"
+    )
     auto_creation_latency_hours = fields.Float(
-        string="Creation Latency (h)", compute="_compute_timing_latencies", store=True,
-        help="Hours elapsed between job completion and claim auto-creation (target <= 24h)")
+        string="Creation Latency (h)",
+        compute="_compute_timing_latencies",
+        store=True,
+        help="Hours elapsed between job completion and claim auto-creation (target <= 24h)",
+    )
     submission_latency_hours = fields.Float(
-        string="Submission Latency (h)", compute="_compute_timing_latencies", store=True,
-        help="Hours elapsed between claim creation and brand submission (target <= 72h)")
+        string="Submission Latency (h)",
+        compute="_compute_timing_latencies",
+        store=True,
+        help="Hours elapsed between claim creation and brand submission (target <= 72h)",
+    )
     is_submission_overdue = fields.Boolean(
-        string="Overdue", compute="_compute_overdue", store=True,
-        help="True if claim is pending submission past 72h deadline")
+        string="Overdue",
+        compute="_compute_overdue",
+        store=True,
+        help="True if claim is pending submission past 72h deadline",
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if not vals.get("claim_no"):
-                vals["claim_no"] = self.env["ir.sequence"].next_by_code(
-                    "fix.warranty.claim") or ("CLM/%s" % fields.Date.today())
+                # data/ir_sequence.xml; the fallback stays unique (it used to be
+                # "CLM/<today>": the second claim of a day hit UNIQUE (claim_no))
+                vals["claim_no"] = self.env["ir.sequence"].next_by_code("fix.warranty.claim") or (
+                    "CLM/%s/%s" % (fields.Date.today(), uuid.uuid4().hex[:8].upper())
+                )
             # WTY-06: submission window default 72h from creation (G4-01)
             now = fields.Datetime.now()
             vals.setdefault("created_at", now)
@@ -144,7 +178,9 @@ class FixWarrantyClaim(models.Model):
         for claim in self:
             if claim.job_completed_at and claim.created_at:
                 delta = claim.created_at - claim.job_completed_at
-                claim.auto_creation_latency_hours = max(0.0, round(delta.total_seconds() / 3600.0, 2))
+                claim.auto_creation_latency_hours = max(
+                    0.0, round(delta.total_seconds() / 3600.0, 2)
+                )
             else:
                 claim.auto_creation_latency_hours = 0.0
 
@@ -168,10 +204,8 @@ class FixWarrantyClaim(models.Model):
         """T05: the BLOCKING completeness check — a claim cannot be
         submitted with an incomplete pack."""
         for claim in self:
-            present = {e.requirement_key for e in claim.evidence_ids
-                       if e.document_id}
-            missing = [label for key, label in EVIDENCE_REQUIREMENTS
-                       if key not in present]
+            present = {e.requirement_key for e in claim.evidence_ids if e.document_id}
+            missing = [label for key, label in EVIDENCE_REQUIREMENTS if key not in present]
             claim.evidence_complete = not missing
             claim.missing_evidence = ", ".join(missing) if missing else False
 
@@ -179,25 +213,31 @@ class FixWarrantyClaim(models.Model):
         """T05 / R03-M02: Assembles evidence pack drawing from workshop repair records."""
         Evidence = self.env["fix.warranty.evidence"]
         for claim in self:
+            # service_order_id is required (ondelete restrict): every claim has an
+            # order, and fix.document is always installed (cd_document_core is a
+            # manifest dependency) - the former guards for both were dead code.
             order = claim.service_order_id
-            if not order:
-                continue
             existing_keys = {e.requirement_key for e in claim.evidence_ids}
             # Attach available documents from service order or create stubs if workshop artifacts exist
-            for key, label in EVIDENCE_REQUIREMENTS:
+            for key, _label in EVIDENCE_REQUIREMENTS:
                 if key not in existing_keys:
                     # In production, resolves from order.document_ids or workshop inspection
-                    doc = self.env["fix.document"].search([
-                        ("res_model", "=", "fix.service.order"),
-                        ("res_id", "=", order.id),
-                        ("name", "ilike", key),
-                    ], limit=1) if "fix.document" in self.env else None
+                    doc = self.env["fix.document"].search(
+                        [
+                            ("res_model", "=", "fix.service.order"),
+                            ("res_id", "=", order.id),
+                            ("name", "ilike", key),
+                        ],
+                        limit=1,
+                    )
                     if doc:
-                        Evidence.create({
-                            "claim_id": claim.id,
-                            "requirement_key": key,
-                            "document_id": doc.id,
-                        })
+                        Evidence.create(
+                            {
+                                "claim_id": claim.id,
+                                "requirement_key": key,
+                                "document_id": doc.id,
+                            }
+                        )
             claim._compute_evidence()
             if claim.evidence_complete and claim.state == "draft":
                 claim.state = "ready"
@@ -220,21 +260,33 @@ class FixWarrantyClaim(models.Model):
         if not order.exists() or order.order_category != "warranty":
             return None
         completed_time = payload.get("completed_at") or fields.Datetime.now()
-        claim = self.create({
-            "service_order_id": order_id,
-            "brand_id": order.device_id.brand_id.id,
-            "claim_amount": order.estimate_ids and
-                order.estimate_ids[0].grand_total or 0.0,
-            "job_completed_at": completed_time,
-        })
+        claim = self.create(
+            {
+                # required on the claim; an order's own OU is optional, its
+                # branch's is not (the auto-create failed NOT NULL without it)
+                "operating_unit_id": (
+                    order.operating_unit_id or order.branch_id.operating_unit_id
+                ).id,
+                "service_order_id": order_id,
+                "brand_id": order.device_id.brand_id.id,
+                "claim_amount": (order.estimate_ids and order.estimate_ids[0].grand_total) or 0.0,
+                "job_completed_at": completed_time,
+            }
+        )
         # Assemble workshop evidence pack automatically on creation
         claim.action_assemble_workshop_evidence_pack()
-        publish(self.env, "warranty_claim.created", "fix.warranty.claim", claim.id, {
-            "claim_no": claim.claim_no,
-            "order_id": order_id,
-            "brand_id": claim.brand_id.id,
-            "deadline": str(claim.submission_deadline),
-        })
+        publish(
+            self.env,
+            "warranty_claim.created",
+            "fix.warranty.claim",
+            claim.id,
+            {
+                "claim_no": claim.claim_no,
+                "order_id": order_id,
+                "brand_id": claim.brand_id.id,
+                "deadline": str(claim.submission_deadline),
+            },
+        )
         return claim
 
     # --- Submission with the blocking gate ------------------------------
@@ -248,40 +300,69 @@ class FixWarrantyClaim(models.Model):
                 raise UserError(
                     "Claim %s cannot be submitted — missing evidence: %s "
                     "(an incomplete claim is a rejected claim)"
-                    % (claim.claim_no, claim.missing_evidence))
+                    % (claim.claim_no, claim.missing_evidence)
+                )
             if claim.state not in ("draft", "ready"):
                 raise UserError("Only a draft/ready claim submits")
             now = fields.Datetime.now()
             if claim.submission_deadline and now > claim.submission_deadline:
-                claim.message_post(body="Warning: Claim submitted past 72h deadline (escalated for brand acceptance)")
-            claim.write({"state": "submitted",
-                         "submitted_at": now})
-            publish(self.env, "warranty_claim.submitted", "fix.warranty.claim",
-                    claim.id, {
-                        "claim_no": claim.claim_no,
-                        "brand_id": claim.brand_id.id,
-                        "amount": claim.claim_amount,
-                        "submitted_at": str(now),
-                    })
+                claim.message_post(
+                    body="Warning: Claim submitted past 72h deadline (escalated for brand acceptance)"
+                )
+            claim.write({"state": "submitted", "submitted_at": now})
+            publish(
+                self.env,
+                "warranty_claim.submitted",
+                "fix.warranty.claim",
+                claim.id,
+                {
+                    "claim_no": claim.claim_no,
+                    "brand_id": claim.brand_id.id,
+                    "amount": claim.claim_amount,
+                    "submitted_at": str(now),
+                },
+            )
+
+    def action_mark_in_review(self):
+        """The brand acknowledged a submitted claim and is reviewing it."""
+        for claim in self:
+            if claim.state != "submitted":
+                raise UserError("Only a submitted claim goes into review")
+            claim.state = "in_review"
 
     def action_decide(self, approved: bool, reason: str = ""):
         """The brand's decision lands here (via webhook or manual keying).
+        Only a claim the brand has received (submitted / in review) can be
+        decided: a draft was never sent and a decided or remitted claim is
+        final (a late webhook must not reopen a remitted claim).
         SoD-11 companion: deciding and write-off approval are different
         people — enforced by the callers checking the roles."""
         for claim in self:
-            claim.write({
-                "state": "approved" if approved else "rejected",
-                "decided_at": fields.Datetime.now(),
-                "rejection_reason": False if approved else reason,
-            })
-            publish(self.env, "warranty_claim.decided", "fix.warranty.claim",
-                    claim.id, {"claim_no": claim.claim_no,
-                               "approved": approved})
+            if claim.state not in ("submitted", "in_review"):
+                raise UserError(
+                    "Claim %s is %s — only a submitted or in-review claim can be decided"
+                    % (claim.claim_no, claim.state)
+                )
+            claim.write(
+                {
+                    "state": "approved" if approved else "rejected",
+                    "decided_at": fields.Datetime.now(),
+                    "rejection_reason": False if approved else reason,
+                }
+            )
+            publish(
+                self.env,
+                "warranty_claim.decided",
+                "fix.warranty.claim",
+                claim.id,
+                {"claim_no": claim.claim_no, "approved": approved},
+            )
 
     # --- T08: remittance reconciliation --------------------------------
 
-    remittance_amount = fields.Monetary(string="Remitted", currency_field="currency_id",
-                                        readonly=True, copy=False)
+    remittance_amount = fields.Monetary(
+        string="Remitted", currency_field="currency_id", readonly=True, copy=False
+    )
 
     def action_record_remittance(self, amount: float, bank_ref: str):
         """WTY reconciliation: match the brand's remittance to the claim.
@@ -291,12 +372,19 @@ class FixWarrantyClaim(models.Model):
                 raise UserError("Only an approved claim takes a remittance")
             claim.write({"remittance_amount": amount, "state": "remitted"})
             mismatch = abs(amount - claim.claim_amount) > 0.01
-            publish(self.env, "warranty_claim.remitted", "fix.warranty.claim",
-                    claim.id, {
-                        "claim_no": claim.claim_no, "bank_ref": bank_ref,
-                        "expected": claim.claim_amount, "received": amount,
-                        "mismatch": mismatch,
-                    })
+            publish(
+                self.env,
+                "warranty_claim.remitted",
+                "fix.warranty.claim",
+                claim.id,
+                {
+                    "claim_no": claim.claim_no,
+                    "bank_ref": bank_ref,
+                    "expected": claim.claim_amount,
+                    "received": amount,
+                    "mismatch": mismatch,
+                },
+            )
 
 
 class FixWarrantyEvidence(models.Model):
@@ -306,10 +394,6 @@ class FixWarrantyEvidence(models.Model):
     _description = "Claim Evidence Item"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
-    claim_id = fields.Many2one("fix.warranty.claim", required=True,
-                               ondelete="cascade")
-    requirement_key = fields.Selection(
-        [(k, label) for k, label in EVIDENCE_REQUIREMENTS],
-        required=True)
-    document_id = fields.Many2one("fix.document", string="Document",
-                                  ondelete="restrict")
+    claim_id = fields.Many2one("fix.warranty.claim", required=True, ondelete="cascade")
+    requirement_key = fields.Selection(list(EVIDENCE_REQUIREMENTS), required=True)
+    document_id = fields.Many2one("fix.document", string="Document", ondelete="restrict")

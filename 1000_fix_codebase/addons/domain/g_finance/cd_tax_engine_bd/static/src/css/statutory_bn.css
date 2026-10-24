@@ -1,0 +1,38 @@
+.fix-statutory-bn {
+    /*
+     * cd_tax_engine_bd: the Bengali font path of the statutory forms (TR-07).
+     * The family is the design token typography.font.bengali.family
+     * (--fix-typography-font-bengali-family in cd_design_tokens tokens.css,
+     * also in this report bundle). Odoo prints PDFs with wkhtmltopdf, whose
+     * WebKit has no CSS custom properties: the first declaration names the
+     * token family literally (with the token fallbacks and the Nirmala UI
+     * family of the Windows reference render); engines that resolve var()
+     * use the second.
+     */
+    font-family: "Noto Sans Bengali", "Nirmala UI", "SolaimanLipi", "Kalpurush", sans-serif;
+    font-family: var(--fix-typography-font-bengali-family), var(--fix-typography-font-bengali-fallback), "Nirmala UI", sans-serif;
+}
+
+.fix-statutory-bn .mono {
+    font-family: "DejaVu Sans Mono", monospace; /* BN-007: identifiers stay ASCII */
+}
+
+.fix-statutory-bn table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.fix-statutory-bn th,
+.fix-statutory-bn td {
+    border: 1px solid #000;
+    padding: 2px 4px;
+    vertical-align: top;
+}
+
+.fix-statutory-bn .numeric {
+    text-align: right;
+}
+
+.fix-statutory-bn .deposit {
+    font-weight: bold; /* DT-013 L-13-b: as prominent as the deducted amount */
+}

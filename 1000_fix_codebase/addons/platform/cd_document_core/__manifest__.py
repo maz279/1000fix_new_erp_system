@@ -20,7 +20,11 @@ integration stay in W3/W5 — this is the kernel only.
     "author": "1000FiX Services Ltd",
     "category": "Platform/Documents",
     "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_document_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/fix_document_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M24-01",

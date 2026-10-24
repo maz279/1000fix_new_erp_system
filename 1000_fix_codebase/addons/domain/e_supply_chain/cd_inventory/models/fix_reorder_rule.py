@@ -1,9 +1,13 @@
 # cd_inventory — Replenishment Engine & Reorder Rules with M43 Seam (CD-M15-02).
 from __future__ import annotations
 
+import logging
 from datetime import datetime
+
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 
 class FixReorderRule(models.Model):
@@ -138,7 +142,9 @@ class FixReorderRule(models.Model):
             if rec.min_qty < 0:
                 raise ValidationError("Minimum quantity cannot be negative.")
             if rec.max_qty <= rec.min_qty:
-                raise ValidationError("Maximum stock level must strictly exceed minimum reorder point.")
+                raise ValidationError(
+                    "Maximum stock level must strictly exceed minimum reorder point."
+                )
 
     @api.depends("spare_part_id", "location_id")
     def _compute_current_stock(self):
@@ -187,10 +193,12 @@ class FixReorderRule(models.Model):
         order_qty = max(1.0, self.max_qty - self.current_stock)
         now_utc = fields.Datetime.now()
 
-        self.write({
-            "state": "alert",
-            "last_alert_date": now_utc,
-        })
+        self.write(
+            {
+                "state": "alert",
+                "last_alert_date": now_utc,
+            }
+        )
 
         # Emit M15 outbox event: reorder.triggered
         event_payload = {
@@ -212,9 +220,10 @@ class FixReorderRule(models.Model):
 
         try:
             from libs.py.fix_events import publish
+
             publish(self.env, "reorder.triggered", "fix.reorder.rule", self.id, event_payload)
         except Exception:
-            pass
+            _logger.exception("reorder.triggered event publish failed for rule %s", self.id)
 
         return {
             "status": "alert_triggered",

@@ -11,6 +11,7 @@ that module is flagged as a WARNING (DL-04 review item, not auto-removed).
 
 Exit: 0 pass / 1 layer violation (blocking) / warnings printed but exit 0.
 """
+
 from __future__ import annotations
 
 import re
@@ -76,10 +77,16 @@ def main() -> int:
                 if count_outside == 0:
                     # check if any data file references it
                     data_files = list(mf.parent.rglob("*.xml"))
-                    referenced = any(dep in f.read_text(encoding="utf-8", errors="ignore")
-                                     for f in data_files)
+                    referenced = any(
+                        dep in f.read_text(encoding="utf-8", errors="ignore") for f in data_files
+                    )
                     if not referenced:
-                        warnings.append((module_dir, f"depends on {dep} but no XML references it (DL-04: every depends entry is used)"))
+                        warnings.append(
+                            (
+                                module_dir,
+                                f"depends on {dep} but no XML references it (DL-04: every depends entry is used)",
+                            )
+                        )
 
     if violations:
         print(f"FF-17: FAIL - {len(violations)} layer violation(s) (platform -> domain):")

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import inspect
-import pytest
 
 
 class TestFixStockLocation:
@@ -10,14 +9,17 @@ class TestFixStockLocation:
 
     def test_model_exists(self):
         from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
+
         assert FixStockLocation is not None
 
     def test_unique_code_constraint(self):
         from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
+
         assert hasattr(FixStockLocation, "_code_company_unique")
 
     def test_van_location_fields(self):
         from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
+
         fields = dir(FixStockLocation)
         assert "is_van_location" in fields
         assert "technician_id" in fields
@@ -26,12 +28,14 @@ class TestFixStockLocation:
 
     def test_audit_van_stock_publishes_event(self):
         from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
+
         source = inspect.getsource(FixStockLocation.action_audit_van_stock)
         assert "van.reconciled" in source
         assert "last_audit_date" in source
 
     def test_bengali_field_present(self):
         from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
+
         assert "name_bn" in dir(FixStockLocation)
 
 
@@ -40,14 +44,17 @@ class TestFixSparePart:
 
     def test_model_exists(self):
         from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
+
         assert FixSparePart is not None
 
     def test_unique_part_number_constraint(self):
         from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
+
         assert hasattr(FixSparePart, "_part_code_unique")
 
     def test_barcode_and_qr_fields(self):
         from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
+
         fields = dir(FixSparePart)
         assert "barcode" in fields
         assert "qr_code" in fields
@@ -57,10 +64,12 @@ class TestFixSparePart:
 
     def test_find_by_code_method(self):
         from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
+
         assert hasattr(FixSparePart, "find_by_code")
 
     def test_bengali_field_present(self):
         from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
+
         assert "name_bn" in dir(FixSparePart)
 
 
@@ -69,10 +78,12 @@ class TestFixStockConsumption:
 
     def test_model_exists(self):
         from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
+
         assert FixStockConsumption is not None
 
     def test_scan_and_consume_method(self):
         from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
+
         source = inspect.getsource(FixStockConsumption.action_scan_and_consume)
         assert "stock.consumed" in source
         assert "fix.inventory.valuation.suspense" in source
@@ -81,6 +92,7 @@ class TestFixStockConsumption:
 
     def test_return_part_method(self):
         from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
+
         source = inspect.getsource(FixStockConsumption.action_return_part)
         assert "stock.returned" in source
         assert "fix.inventory.valuation.suspense" in source
@@ -91,17 +103,26 @@ class TestFixValuationSuspense:
     """Tests for fix.inventory.valuation.suspense (GV-005 Suspense Stub)."""
 
     def test_model_exists(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import FixInventoryValuationSuspense
+        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
+            FixInventoryValuationSuspense,
+        )
+
         assert FixInventoryValuationSuspense is not None
 
     def test_suspense_account_default(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import FixInventoryValuationSuspense
+        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
+            FixInventoryValuationSuspense,
+        )
+
         source = inspect.getsource(FixInventoryValuationSuspense)
         assert "110999" in source
         assert "STUB-M15-M19-001" in source
 
     def test_action_reconcile_to_gl(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import FixInventoryValuationSuspense
+        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
+            FixInventoryValuationSuspense,
+        )
+
         source = inspect.getsource(FixInventoryValuationSuspense.action_reconcile_to_gl)
         assert "gl_voucher_ref" in source
         assert "reconciled" in source

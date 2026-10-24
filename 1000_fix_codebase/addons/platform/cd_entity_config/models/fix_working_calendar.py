@@ -6,52 +6,64 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 _WEEKDAYS = [
-    ("mon", "Monday"), ("tue", "Tuesday"), ("wed", "Wednesday"),
-    ("thu", "Thursday"), ("fri", "Friday"), ("sat", "Saturday"), ("sun", "Sunday"),
+    ("mon", "Monday"),
+    ("tue", "Tuesday"),
+    ("wed", "Wednesday"),
+    ("thu", "Thursday"),
+    ("fri", "Friday"),
+    ("sat", "Saturday"),
+    ("sun", "Sunday"),
 ]
 
 
 class FixWorkingCalendar(models.Model):
     """Working calendar for a branch (or a template shared by branches)."""
+
     _name = "fix.working.calendar"
     _description = "Working Calendar"
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     name = fields.Char(string="Calendar Name", required=True, tracking=True)
     template_id = fields.Many2one(
-        "fix.working.calendar", string="Template",
+        "fix.working.calendar",
+        string="Template",
         help="Inherits day/holiday lines from a template calendar; local "
-             "overrides may be added on top (a branch closed on Friday "
-             "inherits everything else from the national template).")
+        "overrides may be added on top (a branch closed on Friday "
+        "inherits everything else from the national template).",
+    )
     branch_id = fields.Many2one(
-        "fix.branch", string="Branch",
+        "fix.branch",
+        string="Branch",
         help="Empty on template calendars; SLA availability resolves through "
-             "the branch -> calendar link (fix.branch.calendar_id).")
+        "the branch -> calendar link (fix.branch.calendar_id).",
+    )
     timezone = fields.Selection(
-        [("Asia/Dhaka", "Asia/Dhaka (UTC+6)")], string="Timezone",
-        default="Asia/Dhaka", required=True,
-        help="QH-04 companion: Asia/Dhaka is the only operational zone")
+        [("Asia/Dhaka", "Asia/Dhaka (UTC+6)")],
+        string="Timezone",
+        default="Asia/Dhaka",
+        required=True,
+        help="QH-04 companion: Asia/Dhaka is the only operational zone",
+    )
     active = fields.Boolean(default=True, tracking=True)
-    line_ids = fields.One2many("fix.working.calendar.line", "calendar_id",
-                               string="Working Hours")
-    holiday_ids = fields.One2many("fix.working.calendar.holiday", "calendar_id",
-                                  string="Holidays")
+    line_ids = fields.One2many("fix.working.calendar.line", "calendar_id", string="Working Hours")
+    holiday_ids = fields.One2many("fix.working.calendar.holiday", "calendar_id", string="Holidays")
 
 
 class FixWorkingCalendarLine(models.Model):
     """One weekday's working window on a calendar."""
+
     _name = "fix.working.calendar.line"
     _description = "Working Calendar Line"
 
-    calendar_id = fields.Many2one("fix.working.calendar", required=True,
-                                  ondelete="cascade")
+    calendar_id = fields.Many2one("fix.working.calendar", required=True, ondelete="cascade")
     weekday = fields.Selection(_WEEKDAYS, string="Weekday", required=True)
-    hour_from = fields.Float(string="From (hour)", required=True,
-                             help="0.0-24.0 local Dhaka time")
+    hour_from = fields.Float(string="From (hour)", required=True, help="0.0-24.0 local Dhaka time")
     hour_to = fields.Float(string="To (hour)", required=True)
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _calendar_weekday_unique = models.Constraint('UNIQUE (calendar_id, weekday)', 'Each weekday appears once per calendar')
+    _calendar_weekday_unique = models.Constraint(
+        "UNIQUE (calendar_id, weekday)", "Each weekday appears once per calendar"
+    )
 
     @api.constrains("hour_from", "hour_to")
     def _check_window(self):
@@ -62,11 +74,11 @@ class FixWorkingCalendarLine(models.Model):
 
 class FixWorkingCalendarHoliday(models.Model):
     """A holiday closure — fixed-date or moon-dependent (loaded, never coded)."""
+
     _name = "fix.working.calendar.holiday"
     _description = "Calendar Holiday"
 
-    calendar_id = fields.Many2one("fix.working.calendar", required=True,
-                                  ondelete="cascade")
+    calendar_id = fields.Many2one("fix.working.calendar", required=True, ondelete="cascade")
     name = fields.Char(string="Holiday", required=True)
     name_bn = fields.Char(string="Holiday (Bengali)", help="DE-17")
     date_from = fields.Date(string="From", required=True)

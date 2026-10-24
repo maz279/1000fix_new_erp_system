@@ -31,8 +31,11 @@ Key Features:
         "cd_event_outbox",
         "cd_employee_core",
         "cd_inventory",
+        "cd_equipment_register",
+        "cd_qms_process",
     ],
     "data": [
+        "security/fix_isolation_rules.xml",
         "security/fix_workshop_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",

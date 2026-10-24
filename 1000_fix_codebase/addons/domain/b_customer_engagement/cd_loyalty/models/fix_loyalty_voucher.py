@@ -1,5 +1,6 @@
 # fix_loyalty_voucher — M10 Customer Privilege Vouchers (CD-M10-01).
 import secrets
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -78,7 +79,8 @@ class FixLoyaltyVoucher(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     points_cost = fields.Integer(
@@ -132,7 +134,9 @@ class FixLoyaltyVoucher(models.Model):
             if rec.discount_type == "percentage" and rec.discount_value > 100.0:
                 raise ValidationError("Percentage discount cannot exceed 100%.")
             if rec.valid_until < rec.valid_from:
-                raise ValidationError("Voucher validity window is inverted: Valid Until is before Valid From.")
+                raise ValidationError(
+                    "Voucher validity window is inverted: Valid Until is before Valid From."
+                )
 
     def action_activate(self):
         for rec in self:
@@ -147,14 +151,21 @@ class FixLoyaltyVoucher(models.Model):
             raise UserError(f"Voucher {self.name} cannot be redeemed: status is '{self.state}'.")
         today = fields.Date.today()
         if today < self.valid_from or today > self.valid_until:
-            self.state = "expired"
-            raise UserError(f"Voucher {self.name} is outside its validity window ({self.valid_from} to {self.valid_until}).")
+            # only a voucher PAST its window is expired; a not-yet-valid one stays
+            # usable (it used to be marked expired by an early redemption attempt)
+            if today > self.valid_until:
+                self.state = "expired"
+            raise UserError(
+                f"Voucher {self.name} is outside its validity window ({self.valid_from} to {self.valid_until})."
+            )
 
-        self.write({
-            "state": "redeemed",
-            "service_order_id": service_order.id,
-            "redeemed_at": fields.Datetime.now(),
-        })
+        self.write(
+            {
+                "state": "redeemed",
+                "service_order_id": service_order.id,
+                "redeemed_at": fields.Datetime.now(),
+            }
+        )
 
         publish(
             self.env,

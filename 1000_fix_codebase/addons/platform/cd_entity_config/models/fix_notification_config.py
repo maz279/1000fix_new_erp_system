@@ -17,45 +17,76 @@ QUIET_HOUR_WINDOWS = [
 
 class FixNotificationConfig(models.Model):
     """Channel routing + suppression configuration the dispatcher honours."""
+
     _name = "fix.notification.config"
     _description = "Notification Configuration"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _consent_class_channel_unique = models.Constraint('UNIQUE (consent_class, channel)', 'One configuration row per consent class and channel')
+    _consent_class_channel_unique = models.Constraint(
+        "UNIQUE (consent_class, channel)", "One configuration row per consent class and channel"
+    )
 
     name = fields.Char(string="Configuration", compute="_compute_name", store=True)
     consent_class = fields.Selection(
-        [("security", "Security (OTP)"), ("transactional", "Transactional"),
-         ("service", "Service-Related"), ("marketing", "Marketing")],
-        string="Consent Class", required=True,
-        help="NT-002: the class routes the SMS lane (BD-01 masking vs non-masking)")
+        [
+            ("security", "Security (OTP)"),
+            ("transactional", "Transactional"),
+            ("service", "Service-Related"),
+            ("marketing", "Marketing"),
+        ],
+        string="Consent Class",
+        required=True,
+        help="NT-002: the class routes the SMS lane (BD-01 masking vs non-masking)",
+    )
     channel = fields.Selection(
-        [("sms", "SMS (INT-010)"), ("whatsapp", "WhatsApp (INT-012)"),
-         ("email", "Email (INT-013)"), ("push", "Push (Novu)"),
-         ("in_app", "In-App (NT-018)")],
-        string="Channel", required=True)
+        [
+            ("sms", "SMS (INT-010)"),
+            ("whatsapp", "WhatsApp (INT-012)"),
+            ("email", "Email (INT-013)"),
+            ("push", "Push (Novu)"),
+            ("in_app", "In-App (NT-018)"),
+        ],
+        string="Channel",
+        required=True,
+    )
     send_window = fields.Selection(
-        QUIET_HOUR_WINDOWS, string="Send Window", required=True,
-        default="24/7", tracking=True,
-        help="QH-04: windows are Asia/Dhaka; there is no per-customer timezone")
+        QUIET_HOUR_WINDOWS,
+        string="Send Window",
+        required=True,
+        default="24/7",
+        tracking=True,
+        help="QH-04: windows are Asia/Dhaka; there is no per-customer timezone",
+    )
     frequency_cap = fields.Integer(
-        string="Frequency Cap (7-day rolling)", default=0,
-        help="0 = uncapped (NT-003 §2.2: transactional and security are uncapped)")
+        string="Frequency Cap (7-day rolling)",
+        default=0,
+        help="0 = uncapped (NT-003 §2.2: transactional and security are uncapped)",
+    )
     combined_cap_non_transactional = fields.Integer(
-        string="Combined Cap (non-transactional)", default=4,
-        help="NT-003: all non-transactional classes combined, rolling 7 days")
+        string="Combined Cap (non-transactional)",
+        default=4,
+        help="NT-003: all non-transactional classes combined, rolling 7 days",
+    )
     sms_route = fields.Selection(
-        [("masking", "Masking (alphanumeric sender — 1000FiX)"),
-         ("non-masking", "Non-masking (numeric sender)")],
-        string="SMS Route", default="masking",
-        help="BD-02: a marketing message never uses the masking route")
+        [
+            ("masking", "Masking (alphanumeric sender — 1000FiX)"),
+            ("non-masking", "Non-masking (numeric sender)"),
+        ],
+        string="SMS Route",
+        default="masking",
+        help="BD-02: a marketing message never uses the masking route",
+    )
     stale_discard_hours = fields.Integer(
-        string="Stale Discard (hours)", default=24,
-        help="QH-03: a held message this old when the window opens is discarded")
-    company_id = fields.Many2one("res.company", string="Company", required=True,
-                                 default=lambda self: self.env.company)
+        string="Stale Discard (hours)",
+        default=24,
+        help="QH-03: a held message this old when the window opens is discarded",
+    )
+    company_id = fields.Many2one(
+        "res.company", string="Company", required=True, default=lambda self: self.env.company
+    )
 
+    @api.depends("consent_class", "channel")
     def _compute_name(self):
         for config in self:
             config.name = f"{config.consent_class} / {config.channel}"

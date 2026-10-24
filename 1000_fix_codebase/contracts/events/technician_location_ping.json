@@ -1,14 +1,20 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "technician.location.ping",
-  "description": "Event emitted when an unthrottled technician location ping is recorded per NFR-056 (M02, CD-M02-03)",
+  "description": "Event emitted when an unthrottled technician location ping is recorded per NFR-056 (M02, CD-M02-03) Published by cd_field_service through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
-  "required": ["event_id", "event_type", "timestamp", "producer", "payload"],
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
   "properties": {
     "event_id": {
       "type": "string",
       "format": "uuid",
-      "description": "Unique event identifier for idempotency"
+      "description": "Unique event identifier for idempotency (UUIDv4)"
     },
     "event_type": {
       "type": "string",
@@ -16,7 +22,8 @@
     },
     "timestamp": {
       "type": "string",
-      "format": "date-time"
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
     },
     "producer": {
       "type": "string",
@@ -24,20 +31,41 @@
     },
     "payload": {
       "type": "object",
-      "required": ["technician_id", "latitude", "longitude", "ping_time"],
+      "required": [
+        "technician_id",
+        "latitude",
+        "longitude",
+        "speed_kmh",
+        "battery_pct",
+        "timestamp"
+      ],
       "properties": {
-        "technician_id": { "type": "integer" },
-        "latitude": { "type": "number" },
-        "longitude": { "type": "number" },
-        "accuracy_meters": { "type": "number" },
-        "speed_mps": { "type": "number" },
-        "bearing_deg": { "type": "number" },
-        "battery_level": { "type": "number" },
-        "is_charging": { "type": "boolean" },
-        "connectivity_state": { "type": "string", "enum": ["online", "degraded", "offline_buffered"] },
-        "is_throttled": { "type": "boolean" },
-        "ping_time": { "type": "string", "format": "date-time" }
-      }
+        "technician_id": {
+          "description": "Type not statically derivable from `technician_id` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+        },
+        "latitude": {
+          "description": "Type not statically derivable from `lat` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+        },
+        "longitude": {
+          "description": "Type not statically derivable from `lon` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+        },
+        "speed_kmh": {
+          "type": "number"
+        },
+        "battery_pct": {
+          "type": "integer"
+        },
+        "timestamp": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "x-owner-module": "cd_field_service",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)",
+  "x-curated-description": "Event emitted when an unthrottled technician location ping is recorded per NFR-056 (M02, CD-M02-03)"
 }

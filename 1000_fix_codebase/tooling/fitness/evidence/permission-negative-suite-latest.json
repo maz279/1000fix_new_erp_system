@@ -1,9 +1,14 @@
 {
-  "timestamp": "20261017T133742Z",
+  "timestamp": "20261022T091317Z",
   "milestone": "R02-M02",
-  "description": "Permission negative tests: 53 roles \u00d7 6 isolation tiers",
+  "description": "Permission negative tests: 53 roles \u00d7 6 isolation tiers \u00d7 61 SoD controls",
   "governance_rule": "DoD-07",
   "gate_criterion": "G1a-5",
+  "database": {
+    "container": "compose-postgres-1",
+    "db": "fix_dev",
+    "access": "read-only SELECT"
+  },
   "results": {
     "roles": {
       "status": "PASS",
@@ -15,14 +20,7 @@
       "status": "PASS",
       "expected_count": 6,
       "actual_count": 6,
-      "tiers": [
-        "T0",
-        "T1",
-        "T2",
-        "T3",
-        "T4",
-        "T5"
-      ]
+      "missing": []
     },
     "sod_controls": {
       "status": "PASS",
@@ -31,17 +29,38 @@
       "missing": []
     },
     "test_suite": {
-      "status": "PASS",
-      "tests_run": 64,
-      "tests_passed": 64,
-      "duration_seconds": 2.36
+      "target": "addons/platform/cd_rbac_ext/tests/test_permissions_negative.py",
+      "exit_code": 0,
+      "tests_run": 74,
+      "tests_passed": 74,
+      "tests_failed": 0,
+      "tests_errored": 0,
+      "tests_skipped": 0,
+      "duration_seconds": 4.08,
+      "status": "PASS"
     },
     "t5_invariants": {
       "status": "PASS",
       "requires_step_up": true,
       "requires_audit": true
+    },
+    "tenant_isolation": {
+      "target": "addons/domain/d_circular/cd_marketplace/tests/test_tenant_isolation_negative.py",
+      "exit_code": 0,
+      "tests_run": 5,
+      "tests_passed": 5,
+      "tests_failed": 0,
+      "tests_errored": 0,
+      "tests_skipped": 0,
+      "duration_seconds": 3.53,
+      "status": "PASS",
+      "milestone": "R08-M04"
     }
   },
-  "duration_seconds": 2.54,
+  "checks_total": 6,
+  "checks_passed": 6,
+  "checks_failed": 0,
+  "checks_unmeasured": 0,
+  "duration_seconds": 9.06,
   "overall_verdict": "PASS"
 }

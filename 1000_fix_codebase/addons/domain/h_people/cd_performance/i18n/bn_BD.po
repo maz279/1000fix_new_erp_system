@@ -3,75 +3,132 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Technician Scorecard"
-msgstr "কারিগর স্কোরকার্ড"
-
-msgid "Incentive Run"
-msgstr "প্রণোদনা রান"
-
-msgid "Incentive Line"
-msgstr "প্রণোদনা লাইন"
-
-msgid "Compensation Band"
-msgstr "ক্ষতিপূরণ ব্যান্ড"
-
-msgid "First-Time Fix (0-1)"
-msgstr "প্রথমবার মেরামত (০-১)"
-
-msgid "SLA Hit Rate (0-1)"
-msgstr "এসএলএ হিট হার (০-১)"
-
-msgid "CSAT (normalised 0-1)"
-msgstr "সিএসএটি (স্বাভাবিকীকৃত ০-১)"
-
-msgid "Rework Rate (0-1)"
-msgstr "পুনঃকাজের হার (০-১)"
-
-msgid "Composite Score"
-msgstr "সমন্বিত স্কোর"
-
-msgid "Band Base"
-msgstr "ব্যান্ড ভিত্তি"
-
-msgid "Incentive Lines"
-msgstr "প্রণোদনা লাইনসমূহ"
-
-msgid "Total"
-msgstr "মোট"
-
-msgid "Computed"
-msgstr "গণনাকৃত"
-
-msgid "Applied to Payroll"
-msgstr "পেরোলে প্রয়োগকৃত"
-
-msgid "Compute"
-msgstr "গণনা করুন"
-
-msgid "Apply to Payroll"
-msgstr "পেরোলে প্রয়োগ"
-
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__amount
 msgid "Amount"
 msgstr "পরিমাণ"
 
-msgid "Range Min"
-msgstr "সর্বনিম্ন পরিসর"
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_incentive_run__state__applied
+msgid "Applied to Payroll"
+msgstr "পেরোলে প্রয়োগকৃত"
 
-msgid "Range Mid"
-msgstr "মধ্য পরিসর"
+#. module: cd_performance
+#: model_terms:ir.ui.view,arch_db:cd_performance.view_fix_incentive_run_form
+msgid "Apply to Payroll"
+msgstr "পেরোলে প্রয়োগ"
 
-msgid "Range Max"
-msgstr "সর্বোচ্চ পরিসর"
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__band_base
+msgid "Band Base"
+msgstr "ব্যান্ড ভিত্তি"
 
-msgid "Scorecards"
-msgstr "স্কোরকার্ডসমূহ"
-
-msgid "Incentives"
-msgstr "প্রণোদনা"
-
+#. module: cd_performance
+#: model:ir.ui.menu,name:cd_performance.menu_fix_compensation
 msgid "Compensation"
 msgstr "ক্ষতিপূরণ"
 
+#. module: cd_performance
+#: model:ir.model,name:cd_performance.model_fix_compensation_band
+msgid "Compensation Band"
+msgstr "ক্ষতিপূরণ ব্যান্ড"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__score
+msgid "Composite Score"
+msgstr "সমন্বিত স্কোর"
+
+#. module: cd_performance
+#: model_terms:ir.ui.view,arch_db:cd_performance.view_fix_incentive_run_form
+msgid "Compute"
+msgstr "গণনা করুন"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_incentive_run__state__computed
+msgid "Computed"
+msgstr "গণনাকৃত"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__csat
+msgid "CSAT (normalised 0-1)"
+msgstr "সিএসএটি (স্বাভাবিকীকৃত ০-১)"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_incentive_run__state__draft
 msgid "Draft"
 msgstr "খসড়া"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__first_time_fix
+msgid "First-Time Fix (0-1)"
+msgstr "প্রথমবার মেরামত (০-১)"
+
+#. module: cd_performance
+#: model:ir.model,name:cd_performance.model_fix_incentive_line
+msgid "Incentive Line"
+msgstr "প্রণোদনা লাইন"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__line_ids
+msgid "Incentive Lines"
+msgstr "প্রণোদনা লাইনসমূহ"
+
+#. module: cd_performance
+#: model:ir.model,name:cd_performance.model_fix_incentive_run
+msgid "Incentive Run"
+msgstr "প্রণোদনা রান"
+
+#. module: cd_performance
+#: model:ir.ui.menu,name:cd_performance.menu_fix_incentive
+msgid "Incentives"
+msgstr "প্রণোদনাসমূহ"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__operating_unit_id
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__operating_unit_id
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__range_max
+msgid "Range Max"
+msgstr "সর্বোচ্চ পরিসর"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__range_mid
+msgid "Range Mid"
+msgstr "মধ্য পরিসর"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__range_min
+msgid "Range Min"
+msgstr "সর্বনিম্ন পরিসর"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__rework_rate
+msgid "Rework Rate (0-1)"
+msgstr "পুনঃকাজের হার (০-১)"
+
+#. module: cd_performance
+#: model:ir.ui.menu,name:cd_performance.menu_fix_scorecard
+msgid "Scorecards"
+msgstr "স্কোরকার্ডসমূহ"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__sla_hit
+msgid "SLA Hit Rate (0-1)"
+msgstr "এসএলএ হিট হার (০-১)"
+
+#. module: cd_performance
+#: model:ir.model,name:cd_performance.model_fix_performance_scorecard
+msgid "Technician Scorecard"
+msgstr "টেকনিশিয়ান স্কোরকার্ড"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__total
+msgid "Total"
+msgstr "মোট"

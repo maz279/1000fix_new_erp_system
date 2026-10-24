@@ -50,6 +50,13 @@ export async function openWorkspace(page: Page) {
  * when a specific screen name is still unwired (the honest empty state).
  */
 export async function openScreenViaTellMe(page: Page, term: string) {
+  try {
+    const modal = page.locator(".modal.show, .o_technical_modal, .modal.d-block");
+    if (await modal.count() > 0) {
+      await page.keyboard.press("Escape");
+      await page.waitForTimeout(300);
+    }
+  } catch {}
   await page.click(".fx-tellme");
   await page.waitForSelector(".tellme-palette input", { timeout: 15000 });
   await page.fill(".tellme-palette input", term);
@@ -94,11 +101,19 @@ export async function expectGridHonest(page: Page) {
   expect(has.rows).toBeGreaterThan(0);
 }
 
-/** P01 OTP login per the customer portal contract (dev OTP 123456). */
+/**
+ * P01 OTP login per the customer portal contract. The OTP is random per send;
+ * the synthetic local stack (Odoo started with FIX_ENV=local, DE-11) echoes it
+ * back as `dev_code` — no other environment does.
+ */
 export async function otpLogin(page: Page, phone: string) {
   const sent = await rpc(page, "/api/odoo/customer/auth/otp/send", { phone });
   expect(sent.result?.sent).toBeTruthy();
-  const verified = await rpc(page, "/api/odoo/customer/auth/otp/verify", { phone, otp: "123456" });
+  expect(sent.result?.dev_code, "Odoo must run with FIX_ENV=local for the OTP echo").toBeTruthy();
+  const verified = await rpc(page, "/api/odoo/customer/auth/otp/verify", {
+    phone,
+    otp: sent.result.dev_code,
+  });
   expect(verified.result?.verified).toBeTruthy();
   return verified.result.user;
 }

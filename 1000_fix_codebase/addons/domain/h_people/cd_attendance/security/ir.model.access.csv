@@ -3,3 +3,4 @@ access_fix_attendance_record,fix.attendance.record,model_fix_attendance_record,b
 access_fix_shift_template,fix.shift.template,model_fix_shift_template,base.group_user,1,1,1,0
 access_fix_roster_slot,fix.roster.slot,model_fix_roster_slot,base.group_user,1,1,1,0
 access_fix_attendance_lock,fix.attendance.lock,model_fix_attendance_lock,base.group_user,1,1,1,0
+access_fix_biometric_device,fix.biometric.device,model_fix_biometric_device,base.group_user,1,1,1,0

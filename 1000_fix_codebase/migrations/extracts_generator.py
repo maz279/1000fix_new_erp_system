@@ -3,28 +3,48 @@
 
 Conforms to docs/p04/migration-etl-specs.md (ETL-1..ETL-4) and
 docs/p04/migration-mig-standards.md (MIG-01..MIG-08).
-Emits extracts and control-totals.json with sha256 checksums.
+Emits extracts and control-totals.json with sha256 checksums (MIG-02: control
+totals are produced HERE, at extract time - loaders never write them).
+
+Scope is the Wave-1 pilot: Dhaka HQ + 5 pilot service centres. The 53-centre
+register (R08-M05, tooling/scripts/seed-51-branches.py) is the rollout / MG-005
+production-volume scope, not this rehearsal's extract: customers, devices and
+employees here reference the pilot codes HQ / PC-01..PC-05.
+
+Files are written LF-only with a trailing newline (XS-01 / end-of-file-fixer
+leave them byte-identical) and checksums are taken over LF-normalised bytes, so
+a checkout or hook never invalidates the manifest silently. The pipeline
+re-verifies every checksum before loading and fails closed on drift.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 EXTRACTS_DIR = Path(__file__).resolve().parent / "extracts"
 
 
+# Static source extracts that are not generated here but are part of the run's
+# manifest (control total = record count at extract time).
+STATIC_EXTRACTS = {"attendance_opening": "attendance_opening_extract.json"}
+
+
 def compute_sha256(file_path: Path) -> str:
-    h = hashlib.sha256()
-    with open(file_path, "rb") as f:
-        while chunk := f.read(65536):
-            h.update(chunk)
-    return h.hexdigest()
+    """sha256 over LF-normalised bytes (CRLF checkouts hash identically)."""
+    return hashlib.sha256(file_path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+
+
+def write_extract(path: Path, records: list[dict]) -> None:
+    path.write_text(
+        json.dumps(records, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def generate_branches() -> list[dict]:
-    # Exactly 6 branches: 5 pilot service centres + Dhaka HQ (ETL-3)
+    # Exactly 6 branches: Dhaka HQ + 5 pilot service centres (ETL-3, Wave-1 scope)
     return [
         {
             "code": "HQ",
@@ -87,18 +107,43 @@ def generate_customers() -> list[dict]:
     # 50 customers with progressive matching and classified NID fields (ETL-1)
     # Includes 1 exact duplicate phone test case for hard dedup rejection
     first_names = [
-        ("Rahim", "রহিম"), ("Karim", "করিম"), ("Fatima", "ফাতিমা"), ("Ayesha", "আয়েশা"),
-        ("Tanvir", "তানভীর"), ("Nusrat", "নুসরাত"), ("Kamal", "কামাল"), ("Salma", "সালমা"),
-        ("Hasan", "হাসান"), ("Rina", "রিনা"), ("Mahmud", "মাহমুদ"), ("Shirin", "শিরীন"),
-        ("Habib", "হাবিব"), ("Farhana", "ফারহানা"), ("Zahid", "জাহিদ"), ("Tasnim", "তাসনিম"),
-        ("Ashik", "আশিক"), ("Sadia", "সাদিয়া"), ("Faisal", "ফয়সাল"), ("Nazma", "নাজমা"),
-        ("Tariq", "তারিক"), ("Sabina", "সাবিনা"), ("Jamil", "জামিল"), ("Rubina", "রুবিনা"),
-        ("Enamul", "এনামুল")
+        ("Rahim", "রহিম"),
+        ("Karim", "করিম"),
+        ("Fatima", "ফাতিমা"),
+        ("Ayesha", "আয়েশা"),
+        ("Tanvir", "তানভীর"),
+        ("Nusrat", "নুসরাত"),
+        ("Kamal", "কামাল"),
+        ("Salma", "সালমা"),
+        ("Hasan", "হাসান"),
+        ("Rina", "রিনা"),
+        ("Mahmud", "মাহমুদ"),
+        ("Shirin", "শিরীন"),
+        ("Habib", "হাবিব"),
+        ("Farhana", "ফারহানা"),
+        ("Zahid", "জাহিদ"),
+        ("Tasnim", "তাসনিম"),
+        ("Ashik", "আশিক"),
+        ("Sadia", "সাদিয়া"),
+        ("Faisal", "ফয়সাল"),
+        ("Nazma", "নাজমা"),
+        ("Tariq", "তারিক"),
+        ("Sabina", "সাবিনা"),
+        ("Jamil", "জামিল"),
+        ("Rubina", "রুবিনা"),
+        ("Enamul", "এনামুল"),
     ]
     last_names = [
-        ("Ahmed", "আহমেদ"), ("Chowdhury", "চৌধুরী"), ("Hossain", "হোসেন"), ("Khan", "খান"),
-        ("Rahman", "রহমান"), ("Islam", "ইসলাম"), ("Uddin", "উদ্দিন"), ("Sultana", "সুলতানা"),
-        ("Begum", "বেগম"), ("Haque", "হক")
+        ("Ahmed", "আহমেদ"),
+        ("Chowdhury", "চৌধুরী"),
+        ("Hossain", "হোসেন"),
+        ("Khan", "খান"),
+        ("Rahman", "রহমান"),
+        ("Islam", "ইসলাম"),
+        ("Uddin", "উদ্দিন"),
+        ("Sultana", "সুলতানা"),
+        ("Begum", "বেগম"),
+        ("Haque", "হক"),
     ]
     branches = ["HQ", "PC-01", "PC-02", "PC-03", "PC-04", "PC-05"]
 
@@ -115,7 +160,7 @@ def generate_customers() -> list[dict]:
         roles = ["customer"]
         if i % 5 == 0:
             roles.append("seller")
-        is_company = (i % 10 == 0)
+        is_company = i % 10 == 0
 
         # Test case: customer 50 has duplicate phone of customer 49 to test dedup rejection
         if i == 50:
@@ -123,18 +168,20 @@ def generate_customers() -> list[dict]:
             name_en = "Rahim Duplicate Phone"
             name_bn = "রহিম ডুপ্লিকেট ফোন"
 
-        customers.append({
-            "source_id": f"WP-{1000 + i}",
-            "name": name_en,
-            "name_bn": name_bn,
-            "phone": phone,
-            "email": email,
-            "is_company": is_company,
-            "nid": nid,
-            "roles": roles,
-            "branch_code": branch,
-            "legacy_reference": f"CUST:WP_STORE:{1000 + i}",
-        })
+        customers.append(
+            {
+                "source_id": f"WP-{1000 + i}",
+                "name": name_en,
+                "name_bn": name_bn,
+                "phone": phone,
+                "email": email,
+                "is_company": is_company,
+                "nid": nid,
+                "roles": roles,
+                "branch_code": branch,
+                "legacy_reference": f"CUST:WP_STORE:{1000 + i}",
+            }
+        )
     return customers
 
 
@@ -159,26 +206,29 @@ def generate_devices() -> list[dict]:
         imei_2 = f"358902{i:09d}"
         branch = branches[(i - 1) % len(branches)]
 
-        # Duplicate serial edge case for device 50
+        # Duplicate serial edge case for device 50: an exact repeat of device 1's
+        # serial (a mis-keyed asset-sheet row), so ETL-2 quarantines it for MDM review
         if i == 50:
-            serial = "SN-APP-2026001"  # duplicate of device 1
+            serial = devices[0]["serial_number"]  # SN-OPP-2026001, device 1
 
-        devices.append({
-            "source_id": f"DEV-AST-{2000 + i}",
-            "serial_number": serial,
-            "imei_1": imei_1,
-            "imei_2": imei_2,
-            "device_model_id": model_id,
-            "device_model_name": model_name,
-            "brand_name": brand,
-            "device_type": dev_type,
-            "customer_legacy_ref": f"CUST:WP_STORE:{cust_id}",
-            "branch_code": branch,
-            "purchase_date": "2025-06-15",
-            "warranty_start": "2025-06-15",
-            "warranty_end": "2026-06-15",
-            "legacy_reference": f"DEV:ASSET_SHEET:{serial}",
-        })
+        devices.append(
+            {
+                "source_id": f"DEV-AST-{2000 + i}",
+                "serial_number": serial,
+                "imei_1": imei_1,
+                "imei_2": imei_2,
+                "device_model_id": model_id,
+                "device_model_name": model_name,
+                "brand_name": brand,
+                "device_type": dev_type,
+                "customer_legacy_ref": f"CUST:WP_STORE:{cust_id}",
+                "branch_code": branch,
+                "purchase_date": "2025-06-15",
+                "warranty_start": "2025-06-15",
+                "warranty_end": "2026-06-15",
+                "legacy_reference": f"DEV:ASSET_SHEET:{serial}",
+            }
+        )
     return devices
 
 
@@ -187,16 +237,26 @@ def generate_employees() -> list[dict]:
     roles = ["R-01", "R-14", "R-23", "R-08", "R-15", "R-19", "R-04", "R-27"]
     branches = ["HQ", "PC-01", "PC-02", "PC-03", "PC-04", "PC-05"]
     emp_names = [
-        ("Shahidul Alam", "শহিদুল আলম"), ("Tahmina Begum", "তাহমিনা বেগম"),
-        ("Monirul Islam", "মনিরুল ইসলাম"), ("Sharmin Akter", "শারমিন আক্তার"),
-        ("Ariful Haque", "আরিফুল হক"), ("Khadija Khatun", "খাদিজা খাতুন"),
-        ("Mustafizur Rahman", "মুস্তাফিজুর রহমান"), ("Shamima Nasrin", "শামীমা নাসরিন"),
-        ("Golam Kibria", "গোলাম কিবরিয়া"), ("Ruksana Parveen", "রুকসানা পারভীন"),
-        ("Imran Hossain", "ইমরান হোসেন"), ("Sabrina Yesmin", "সাবরিনা ইয়াসমিন"),
-        ("Nazrul Islam", "নজরুল ইসলাম"), ("Farida Yasmin", "ফরিদা ইয়াসমিন"),
-        ("Al Amin Sheikh", "আল আমিন শেখ"), ("Suraiya Akter", "সুরাইয়া আক্তার"),
-        ("Mahbubur Rashid", "মাহবুবুর রশীদ"), ("Hasina Momtaz", "হাসিনা মমতাজ"),
-        ("Delwar Hossain", "দেলোয়ার হোসেন"), ("Bilkis Banu", "বিলকিস বানু")
+        ("Shahidul Alam", "শহিদুল আলম"),
+        ("Tahmina Begum", "তাহমিনা বেগম"),
+        ("Monirul Islam", "মনিরুল ইসলাম"),
+        ("Sharmin Akter", "শারমিন আক্তার"),
+        ("Ariful Haque", "আরিফুল হক"),
+        ("Khadija Khatun", "খাদিজা খাতুন"),
+        ("Mustafizur Rahman", "মুস্তাফিজুর রহমান"),
+        ("Shamima Nasrin", "শামীমা নাসরিন"),
+        ("Golam Kibria", "গোলাম কিবরিয়া"),
+        ("Ruksana Parveen", "রুকসানা পারভীন"),
+        ("Imran Hossain", "ইমরান হোসেন"),
+        ("Sabrina Yesmin", "সাবরিনা ইয়াসমিন"),
+        ("Nazrul Islam", "নজরুল ইসলাম"),
+        ("Farida Yasmin", "ফরিদা ইয়াসমিন"),
+        ("Al Amin Sheikh", "আল আমিন শেখ"),
+        ("Suraiya Akter", "সুরাইয়া আক্তার"),
+        ("Mahbubur Rashid", "মাহবুবুর রশীদ"),
+        ("Hasina Momtaz", "হাসিনা মমতাজ"),
+        ("Delwar Hossain", "দেলোয়ার হোসেন"),
+        ("Bilkis Banu", "বিলকিস বানু"),
     ]
 
     employees = []
@@ -209,18 +269,20 @@ def generate_employees() -> list[dict]:
         email = f"employee.{i:03d}@1000fix.com"
         phone = f"880181{i:06d}"
 
-        employees.append({
-            "employee_code": code,
-            "name": name_en,
-            "name_bn": name_bn,
-            "email": email,
-            "phone": phone,
-            "branch_code": branch,
-            "primary_role": role,
-            "nid": nid,
-            "hire_date": "2024-01-15",
-            "legacy_reference": f"EMP:PAYROLL_2026:{code}",
-        })
+        employees.append(
+            {
+                "employee_code": code,
+                "name": name_en,
+                "name_bn": name_bn,
+                "email": email,
+                "phone": phone,
+                "branch_code": branch,
+                "primary_role": role,
+                "nid": nid,
+                "hire_date": "2024-01-15",
+                "legacy_reference": f"EMP:PAYROLL_2026:{code}",
+            }
+        )
     return employees
 
 
@@ -237,43 +299,49 @@ def main() -> None:
     d_path = EXTRACTS_DIR / "devices_extract.json"
     e_path = EXTRACTS_DIR / "employees_extract.json"
 
-    b_path.write_text(json.dumps(branches, indent=2, ensure_ascii=False), encoding="utf-8")
-    c_path.write_text(json.dumps(customers, indent=2, ensure_ascii=False), encoding="utf-8")
-    d_path.write_text(json.dumps(devices, indent=2, ensure_ascii=False), encoding="utf-8")
-    e_path.write_text(json.dumps(employees, indent=2, ensure_ascii=False), encoding="utf-8")
+    write_extract(b_path, branches)
+    write_extract(c_path, customers)
+    write_extract(d_path, devices)
+    write_extract(e_path, employees)
 
+    control_totals = {
+        "branches": len(branches),
+        "customers": len(customers),
+        "devices": len(devices),
+        "employees": len(employees),
+    }
     checksums = {
         "branches": compute_sha256(b_path),
         "customers": compute_sha256(c_path),
         "devices": compute_sha256(d_path),
         "employees": compute_sha256(e_path),
     }
+    extract_files = {
+        "branches": b_path.name,
+        "customers": c_path.name,
+        "devices": d_path.name,
+        "employees": e_path.name,
+    }
+    for entity, filename in STATIC_EXTRACTS.items():
+        path = EXTRACTS_DIR / filename
+        control_totals[entity] = len(json.loads(path.read_text(encoding="utf-8")))
+        checksums[entity] = compute_sha256(path)
+        extract_files[entity] = filename
 
     manifest = {
         "run": "WAVE1_REHEARSAL_20261016",
-        "extracted_at": datetime.now(timezone.utc).isoformat(),
-        "control_totals": {
-            "branches": len(branches),
-            "customers": len(customers),
-            "devices": len(devices),
-            "employees": len(employees),
-        },
+        "extracted_at": datetime.now(UTC).isoformat(),
+        "control_totals": control_totals,
         "checksums": checksums,
-        "value_totals": {
-            "branches": 0,
-            "customers": 0,
-            "devices": 0,
-            "employees": 0,
-        },
+        "extract_files": extract_files,
+        "value_totals": dict.fromkeys(control_totals, 0),
     }
 
     ctrl_path = EXTRACTS_DIR / "control-totals.json"
-    ctrl_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    ctrl_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(f"Generated extracts in {EXTRACTS_DIR}:")
-    print(f"  branches: {len(branches)} (sha256: {checksums['branches'][:12]}...)")
-    print(f"  customers: {len(customers)} (sha256: {checksums['customers'][:12]}...)")
-    print(f"  devices: {len(devices)} (sha256: {checksums['devices'][:12]}...)")
-    print(f"  employees: {len(employees)} (sha256: {checksums['employees'][:12]}...)")
+    for entity, total in control_totals.items():
+        print(f"  {entity}: {total} (sha256: {checksums[entity][:12]}...)")
     print(f"Control totals written to: {ctrl_path}")
 
 

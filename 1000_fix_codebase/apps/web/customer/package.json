@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "next dev --turbopack --port 3000 --hostname 127.0.0.1",
     "build": "next build --webpack",
-    "start": "next start --port 3000 --hostname 127.0.0.1"
+    "start": "next start --port 3000 --hostname 127.0.0.1",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test lib/*.test.mjs"
   },
   "dependencies": {
     "next": "16.3.8",

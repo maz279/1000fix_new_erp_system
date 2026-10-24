@@ -1,8 +1,163 @@
-# Bengali translations for cd_dynamic_pricing (P10).
+# Bengali translations for cd_dynamic_pricing (P10 / M11).
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__adjustment_pct
+msgid "Adjustment %"
+msgstr "সমন্বয় %"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_dynamic_price_rule_form
+msgid "Adjustment & Bounds"
+msgstr "সমন্বয় ও সীমা"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__rule_id
+msgid "Applied Rule"
+msgstr "প্রয়োগকৃত নিয়ম"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_price_explanation_form
+msgid "Audit & Model"
+msgstr "অডিট ও মডেল"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_price_explanation_form
+msgid "Audit Trail"
+msgstr "অডিট ট্রেইল"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__base_price
+msgid "Base Price"
+msgstr "ভিত্তি মূল্য"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__channel__both
+msgid "Both"
+msgstr "উভয়"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_dynamic_price_rule_form
+msgid "Configuration"
+msgstr "কনফিগারেশন"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__rule_type__demand_surge
+msgid "Demand Surge"
+msgstr "চাহিদা বৃদ্ধি (সার্জ)"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model,name:cd_dynamic_pricing.model_fix_dynamic_price_rule
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_dynamic_price_rule_form
+msgid "Dynamic Price Rule"
+msgstr "ডাইনামিক প্রাইস রুল"
+
+#. module: cd_dynamic_pricing
+#: model:ir.actions.act_window,name:cd_dynamic_pricing.action_fix_dynamic_price_rule
+#: model:ir.ui.menu,name:cd_dynamic_pricing.menu_fix_dynamic_price_rule
+msgid "Dynamic Price Rules"
+msgstr "ডাইনামিক প্রাইস রুলসমূহ"
+
+#. module: cd_dynamic_pricing
+#: model:ir.ui.menu,name:cd_dynamic_pricing.menu_fix_dynamic_pricing_root
+msgid "Dynamic Pricing"
+msgstr "ডাইনামিক প্রাইসিং"
+
+#. module: cd_dynamic_pricing
 msgid "Dynamic Pricing (W7)"
-msgstr "Dynamic Pricing (W7) (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "ডাইনামিক মূল্য নির্ধারণ (W7)"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__final_price
+msgid "Final Price"
+msgstr "চূড়ান্ত মূল্য"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__rule_type__inventory_clearance
+msgid "Inventory Clearance"
+msgstr "মজুদ ক্লিয়ারেন্স"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__rule_type__loyalty_tier
+msgid "Loyalty Tier Pricing"
+msgstr "লয়ালটি স্তর ভিত্তিক মূল্য"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__channel__marketplace
+msgid "Marketplace"
+msgstr "মার্কেটপ্লেস"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__max_adjustment
+msgid "Max Adjustment %"
+msgstr "সর্বোচ্চ সমন্বয় %"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__min_adjustment
+msgid "Min Adjustment %"
+msgstr "সর্বনিম্ন সমন্বয় %"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__model_driven
+msgid "ML Model Driven"
+msgstr "ML মডেল-চালিত"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__rule_type__off_peak
+msgid "Off-Peak Discount"
+msgstr "অফ-পিক ছাড়"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_price_explanation_form
+msgid "Price Audit Explanation"
+msgstr "মূল্য অডিট ব্যাখ্যা"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model,name:cd_dynamic_pricing.model_fix_price_explanation
+msgid "Price Explanation"
+msgstr "মূল্য ব্যাখ্যাকরণ"
+
+#. module: cd_dynamic_pricing
+#: model:ir.actions.act_window,name:cd_dynamic_pricing.action_fix_price_explanation
+msgid "Price Explanations"
+msgstr "মূল্য ব্যাখ্যাকরণসমূহ"
+
+#. module: cd_dynamic_pricing
+#: model:ir.ui.menu,name:cd_dynamic_pricing.menu_fix_price_explanation
+msgid "Price Explanations & Audit"
+msgstr "মূল্য ব্যাখ্যা ও অডিট ট্রেইল"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__rate_card_id
+msgid "Rate Card Base"
+msgstr "রেট কার্ড ভিত্তি"
+
+#. module: cd_dynamic_pricing
+#: model_terms:ir.ui.view,arch_db:cd_dynamic_pricing.view_fix_price_explanation_form
+msgid "Rule & Calculation"
+msgstr "নিয়ম ও গণনা"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_price_explanation__rules_applied
+msgid "Rules Applied"
+msgstr "প্রয়োগকৃত নিয়মসমূহ"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields.selection,name:cd_dynamic_pricing.selection__fix_dynamic_price_rule__channel__storefront
+msgid "Storefront"
+msgstr "স্টোরফ্রন্ট"
+
+#. module: cd_dynamic_pricing
+#: model:ir.model.fields,field_description:cd_dynamic_pricing.field_fix_dynamic_price_rule__surge_multiplier
+msgid "Surge Multiplier"
+msgstr "সার্জ গুণক"

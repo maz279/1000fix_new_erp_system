@@ -1,0 +1,84 @@
+# =============================================================================
+# 1000fix-erp - sandbox environment overlay (infra/environments.yaml)
+#
+# External partner certification environment.
+# Data rule: synthetic-only-externally-reachable; residency_classified: never.
+#
+# Ports:
+#   PostgreSQL: 127.0.0.1:5441
+#   Redis:      127.0.0.1:6387
+#   Odoo:       127.0.0.1:8077
+#   Kong:       127.0.0.1:8000, 127.0.0.1:8443
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.sandbox.yml --profile sandbox up -d
+# =============================================================================
+services:
+  postgres-sandbox:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["sandbox"]
+    environment:
+      FIX_ENV: sandbox
+      POSTGRES_USER: fix
+      POSTGRES_PASSWORD: ${SANDBOX_DB_PASSWORD:-fix_sandbox_secret_insecure}
+      POSTGRES_DB: fix_sandbox_synthetic
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+    ports: ["127.0.0.1:5441:5432"]
+    volumes:
+      - pgdata-sandbox:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix -d fix_sandbox_synthetic"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis-sandbox:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["sandbox"]
+    environment:
+      FIX_ENV: sandbox
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6387:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  odoo-sandbox:
+    image: 1000fix/odoo:19.0-sandbox@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    profiles: ["sandbox"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: sandbox
+      HOST: postgres-sandbox
+      PORT: 5432
+      USER: fix
+      PASSWORD: ${SANDBOX_DB_PASSWORD:-fix_sandbox_secret_insecure}
+    ports: ["127.0.0.1:8077:8069"]
+    volumes:
+      - odoo-data-sandbox:/var/lib/odoo
+    depends_on:
+      postgres-sandbox:
+        condition: service_healthy
+      redis-sandbox:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-sandbox:
+  odoo-data-sandbox:

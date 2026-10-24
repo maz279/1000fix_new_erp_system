@@ -1,0 +1,34 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M01",
+  "title": "Milestone R10-M01 \u2014 M65 Multi-Entity, Multi-Country & Localisation Audit",
+  "audited_at": "2026-10-22T08:57:27.690993+00:00",
+  "overall_verdict": "PASS",
+  "tasks_summary": {
+    "R10-M01-T01": {
+      "title": "Multi-Company Consolidation & Inter-Company Rules",
+      "verdict": "PASS",
+      "evidence_file": "r10-m01-consolidation-evidence.json"
+    },
+    "R10-M01-T02": {
+      "title": "BD Country Pack & M51 Negative Dependency Isolation",
+      "verdict": "PASS",
+      "evidence_file": "r10-m01-dependency-isolation-evidence.json"
+    },
+    "R10-M01-T03": {
+      "title": "Localisation Completeness & Statutory Calendars",
+      "verdict": "PASS",
+      "evidence_file": "r10-m01-localisation-evidence.json"
+    },
+    "R10-M01-T04": {
+      "title": "Nil-Return Automation for Newly Registered Entities",
+      "verdict": "PASS",
+      "evidence_file": "r10-m01-nil-return-evidence.json"
+    }
+  },
+  "regulatory_compliance": {
+    "VAT_SD_Act_2012": "Mushak 9.1 Nil Return & 15th-or-next-working-day weekend rollover certified",
+    "Income_Tax_Act_2023": "ITA 2023 s.107 transfer pricing arm's length markup and quarterly TDS returns certified",
+    "Appendix_E_Decoupling": "M51 (cd_tax_engine_bd) completely decoupled from M65; interacts strictly via M30 cd_country_pack interface"
+  }
+}

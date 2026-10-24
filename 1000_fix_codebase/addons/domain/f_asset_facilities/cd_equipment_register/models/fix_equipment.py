@@ -11,28 +11,34 @@ class FixEquipment(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
     code = fields.Char(required=True)
     name = fields.Char(required=True)
-    category = fields.Char(string="Equipment Category",
-                           help="e.g. multimeter, thermal camera, OTP programmer")
+    category = fields.Char(
+        string="Equipment Category", help="e.g. multimeter, thermal camera, OTP programmer"
+    )
     maintenance_equipment_id = fields.Many2one(
-        "maintenance.equipment", string="Maintenance Equipment",
-        help="The Odoo maintenance link stays authoritative for work orders")
+        "maintenance.equipment",
+        string="Maintenance Equipment",
+        help="The Odoo maintenance link stays authoritative for work orders",
+    )
     custodian_id = fields.Many2one("hr.employee", string="Custodian")
     branch_id = fields.Many2one("fix.branch", string="Branch")
-    calibration_ids = fields.One2many("fix.calibration", "equipment_id",
-                                      string="Calibrations")
-    last_calibration = fields.Date(compute="_compute_calibration",
-                                   string="Last Calibration")
-    next_calibration = fields.Date(compute="_compute_calibration",
-                                   string="Next Calibration")
-    calibration_overdue = fields.Boolean(compute="_compute_calibration",
-                                         string="Calibration Overdue")
+    calibration_ids = fields.One2many("fix.calibration", "equipment_id", string="Calibrations")
+    last_calibration = fields.Date(compute="_compute_calibration", string="Last Calibration")
+    next_calibration = fields.Date(compute="_compute_calibration", string="Next Calibration")
+    calibration_overdue = fields.Boolean(
+        compute="_compute_calibration", string="Calibration Overdue"
+    )
 
-    @api.depends("calibration_ids.calibrated_on", "calibration_ids.next_due")
+    # `result` is a dependency too: only PASSING calibrations certify the
+    # instrument, so re-classifying one as failed must withdraw its dates.
+    @api.depends(
+        "calibration_ids.calibrated_on", "calibration_ids.next_due", "calibration_ids.result"
+    )
     def _compute_calibration(self):
         today = fields.Date.today()
         for rec in self:
@@ -50,29 +56,31 @@ class FixEquipment(models.Model):
             if rec.calibration_overdue:
                 raise UserError(
                     "Calibration overdue on %s (due %s) — the instrument is "
-                    "not usable until recalibrated"
-                    % (rec.name, rec.next_calibration))
-            return True
+                    "not usable until recalibrated" % (rec.name, rec.next_calibration)
+                )
+        # Every instrument in the recordset is checked before declaring it usable.
+        return True
 
 
 class FixCalibration(models.Model):
     """The M31-deferred capability, delivered (P08-M08-T02)."""
+
     _name = "fix.calibration"
     _description = "Calibration"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "calibrated_on desc"
 
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
-    equipment_id = fields.Many2one("fix.equipment", required=True,
-                                   ondelete="cascade", index=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    equipment_id = fields.Many2one("fix.equipment", required=True, ondelete="cascade", index=True)
     calibrated_on = fields.Date(required=True, default=fields.Date.today)
     standard_ref = fields.Char(
         string="Standard Reference",
         help="The traceable standard (ISO 9001 7.1.5: measurement traceability)",
-        required=True)
-    result = fields.Selection([("pass", "Pass"), ("fail", "Fail")],
-                              required=True, default="pass")
+        required=True,
+    )
+    result = fields.Selection([("pass", "Pass"), ("fail", "Fail")], required=True, default="pass")
     next_due = fields.Date(required=True)
     performed_by = fields.Char(string="Performed By")
 
@@ -80,15 +88,25 @@ class FixCalibration(models.Model):
     def create(self, vals_list):
         recs = super().create(vals_list)
         for rec in recs:
-            publish(self.env, "equipment.calibration.recorded",
-                    "fix.calibration", rec.id,
-                    {"equipment": rec.equipment_id.code,
-                     "result": rec.result,
-                     "next_due": str(rec.next_due)})
+            publish(
+                self.env,
+                "equipment.calibration.recorded",
+                "fix.calibration",
+                rec.id,
+                {
+                    "equipment": rec.equipment_id.code,
+                    "result": rec.result,
+                    "next_due": str(rec.next_due),
+                },
+            )
             if rec.next_due < fields.Date.today():
-                publish(self.env, "equipment.calibration.overdue",
-                        "fix.calibration", rec.id,
-                        {"equipment": rec.equipment_id.code})
+                publish(
+                    self.env,
+                    "equipment.calibration.overdue",
+                    "fix.calibration",
+                    rec.id,
+                    {"equipment": rec.equipment_id.code},
+                )
         return recs
 
     @api.constrains("calibrated_on", "next_due")

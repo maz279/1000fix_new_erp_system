@@ -2,8 +2,8 @@
 #
 # Proves AUT-018 live: claims auto-created within 24h of a completed warranty job
 # and submitted within 72h (G4-01) — "run the clock, don't assert it".
-from datetime import datetime, timedelta
 import unittest
+from datetime import datetime, timedelta
 
 
 class VirtualClock:
@@ -39,8 +39,14 @@ class MockWarrantyClaim:
         ("purchase_proof", "Purchase Proof"),
     ]
 
-    def __init__(self, claim_no: str, order_id: int, brand_id: int,
-                 job_completed_at: datetime, clock: VirtualClock):
+    def __init__(
+        self,
+        claim_no: str,
+        order_id: int,
+        brand_id: int,
+        job_completed_at: datetime,
+        clock: VirtualClock,
+    ):
         self.claim_no = claim_no
         self.service_order_id = order_id
         self.brand_id = brand_id
@@ -83,8 +89,9 @@ class MockWarrantyClaim:
             self.state = "ready"
 
     def _compute_evidence(self):
-        missing = [label for key, label in self.EVIDENCE_REQUIREMENTS
-                   if key not in self.evidence_keys]
+        missing = [
+            label for key, label in self.EVIDENCE_REQUIREMENTS if key not in self.evidence_keys
+        ]
         self.evidence_complete = not missing
         self.missing_evidence = ", ".join(missing) if missing else ""
 
@@ -139,8 +146,7 @@ class TestAut018TimingProof(unittest.TestCase):
             # VERIFY 1: Created strictly within 24h
             c_latency = claim.auto_creation_latency_hours
             self.assertLessEqual(
-                c_latency, 24.0,
-                f"Job {i} violated 24h auto-creation SLA: {c_latency}h"
+                c_latency, 24.0, f"Job {i} violated 24h auto-creation SLA: {c_latency}h"
             )
             creation_latencies.append(c_latency)
 
@@ -161,8 +167,7 @@ class TestAut018TimingProof(unittest.TestCase):
             # VERIFY 2: Submitted strictly within 72h of creation
             s_latency = claim.submission_latency_hours
             self.assertLessEqual(
-                s_latency, 72.0,
-                f"Claim {claim.claim_no} violated 72h submission SLA: {s_latency}h"
+                s_latency, 72.0, f"Claim {claim.claim_no} violated 72h submission SLA: {s_latency}h"
             )
             submission_latencies.append(s_latency)
             claims.append(claim)
@@ -212,7 +217,13 @@ class TestAut018TimingProof(unittest.TestCase):
         claim = MockWarrantyClaim("CLM-TEST-INCOMPLETE", 9998, 1, job_completed_at, self.clock)
 
         # Missing photo_after and technician_cert
-        partial_keys = {"photo_before", "diagnostic", "parts_issued", "device_serial", "purchase_proof"}
+        partial_keys = {
+            "photo_before",
+            "diagnostic",
+            "parts_issued",
+            "device_serial",
+            "purchase_proof",
+        }
         claim.assemble_workshop_evidence_pack(partial_keys)
         self.assertFalse(claim.evidence_complete)
         self.assertIn("After Photograph", claim.missing_evidence)

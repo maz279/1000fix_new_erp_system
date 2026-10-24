@@ -1,3 +1,5 @@
+> **SUPERSEDED CLAIMS (R01 re-audit 2026-10-22 - see `R01-reaudit-report-2026-10-22.md`):** the stage results below were recorded by the local harness with several hard-coded measurements (corrected 2026-10-21) and the pre-commit/lint stages were green only because the lint rule families had been disabled. Budgets (durations) remain indicative; pass/fail verdicts are superseded. Original text retained below as the audit trail.
+
 # Pipeline Budget Measurement Report — Milestone R01-M03 (PE-004 / §0.8.4)
 
 - **Date:** 2026-10-16

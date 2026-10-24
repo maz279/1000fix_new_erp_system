@@ -1,4 +1,5 @@
 """cd_fpa tests - P09-M07 (CD-M54-01)."""
+
 import inspect
 import unittest
 
@@ -13,8 +14,8 @@ class TestBudget(unittest.TestCase):
 
     def test_budget_no_m49_relation(self):
         import odoo.fields as f
-        self.assertNotIsInstance(
-            getattr(FixBudget, "actual_amount", None), f.Many2one)
+
+        self.assertNotIsInstance(getattr(FixBudget, "actual_amount", None), f.Many2one)
 
 
 class TestCostAllocation(unittest.TestCase):

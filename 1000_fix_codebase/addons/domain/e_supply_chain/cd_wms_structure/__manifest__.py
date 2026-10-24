@@ -17,7 +17,11 @@ completion; this slice gives consignments and procurement destinations.
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Warehouse",
     "depends": ["base", "mail", "cd_entity_config", "cd_requisition"],
-    "data": ["security/ir.model.access.csv", "views/fix_wms_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/fix_wms_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M41-01",

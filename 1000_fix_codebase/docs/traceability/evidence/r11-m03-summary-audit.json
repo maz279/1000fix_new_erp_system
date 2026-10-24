@@ -1,0 +1,53 @@
+{
+  "$schema": "1000fix-erp/milestone-summary/1",
+  "milestone": "R11-M03",
+  "name": "Security, compliance and audit closure",
+  "completed_at_utc": "2026-10-22T14:34:45.583158+00:00",
+  "total_tasks": 5,
+  "passed_tasks": 0,
+  "incomplete_tasks": 3,
+  "failed_tasks": 2,
+  "verdict": "FAIL",
+  "tasks": [
+    {
+      "task": "R11-M03-T01: Final Security Review",
+      "script": "run_r11_m03_security_review.py",
+      "exit_code": 1,
+      "elapsed_seconds": 45.0,
+      "status": "FAIL",
+      "output_tail": "\n[OK] Security evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m03-security-closure-report.json\n[OK] Security audit report written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m03-security-closure-report.md\n\nVerdict: FAIL (pentest 16 PASS / 3 FAIL / 5 UNMEASURED)\nelapsed 44.9s"
+    },
+    {
+      "task": "R11-M03-T02: PDPA & CII Supply-Chain Closure",
+      "script": "verify_pdpa_closure.py",
+      "exit_code": 2,
+      "elapsed_seconds": 0.75,
+      "status": "INCOMPLETE",
+      "output_tail": "  [UNMEASURED] dp_forum_attestation: a minuted Data Protection Forum resolution signed by DPO/CDO/CISO is a human act; no signed minute is observable here\n\n[OK] PDPA evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m03-pdpa-compliance-attestation.json\n[OK] PDPA closure record written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m03-pdpa-closure-record.md\n\nVerdict: INCOMPLETE"
+    },
+    {
+      "task": "R11-M03-T03: ISO 9001:2015 Surveillance Audit",
+      "script": "verify_iso9001_surveillance.py",
+      "exit_code": 2,
+      "elapsed_seconds": 0.07,
+      "status": "INCOMPLETE",
+      "output_tail": "  [UNMEASURED] CAPA_CLOSURE_RATE: production M23 records (fix.internal.audit / fix.ncr / fix.capa) are not available on a workstation (DE-12); the local database holds synthetic seed rows only. Requires an export from the production QMS for the surveillance period\n  [UNMEASURED] SURVEILLANCE_CERTIFICATE: certificate maintenance is decided by the external certification body; requires its ISO 9001:2015 surveillance audit report\n\nVerdict: INCOMPLETE\n[OK] ISO 9001 evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m03-iso9001-surveillance-result.json\n[OK] ISO 9001 audit report written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m03-iso9001-surveillance-report.md"
+    },
+    {
+      "task": "R11-M03-T04: Annual D-030 Licence Audit",
+      "script": "run_license_register_audit.py",
+      "exit_code": 2,
+      "elapsed_seconds": 5.35,
+      "status": "INCOMPLETE",
+      "output_tail": "      licence-gate: OK - 177 dependencies classified, 0 unapproved restricted components\n\n[OK] Licence evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m03-license-register-annual-review.json\n[OK] Licence gate proof written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m03-license-gate-proof.md\n\nVERDICT: INCOMPLETE"
+    },
+    {
+      "task": "R11-M03-T05: Internal Audit of Controls",
+      "script": "audit_programme_controls.py",
+      "exit_code": 1,
+      "elapsed_seconds": 1.48,
+      "status": "FAIL",
+      "output_tail": "      [UNMEASURED] bypass_log_register: no AR-012 \u00a710 pipeline bypass log artefact exists in the repository to audit\n\n[OPINION] QUALIFIED_OPINION_EXCEPTIONS_FOUND (IAO-2026-R11-01) -> FAIL\n\n[OK] Internal audit evidence JSON written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\evidence\\r11-m03-internal-audit-opinion.json\n[OK] Internal audit opinion written: C:\\software_project\\software_project_14\\1000 fix\\1000fix_new_erp_system\\1000_fix_codebase\\docs\\traceability\\r11-m03-internal-audit-opinion.md"
+    }
+  ]
+}

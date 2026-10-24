@@ -252,8 +252,8 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- Menu structure under Customer Engagement -->
-    <menuitem id="menu_fix_loyalty_root" name="Privilege &amp; Loyalty" parent="cd_party_master.menu_cd_root" sequence="40"/>
+    <!-- Menu structure under Operations Root -->
+    <menuitem id="menu_fix_loyalty_root" name="Privilege &amp; Loyalty" parent="cd_entity_config.menu_fix_operations_root" sequence="40"/>
     <menuitem id="menu_fix_loyalty_accounts" name="Customer Accounts" parent="menu_fix_loyalty_root" action="action_fix_loyalty_account" sequence="10"/>
     <menuitem id="menu_fix_loyalty_vouchers" name="Vouchers" parent="menu_fix_loyalty_root" action="action_fix_loyalty_voucher" sequence="20"/>
     <menuitem id="menu_fix_loyalty_ledger" name="Points Audit Ledger" parent="menu_fix_loyalty_root" action="action_fix_loyalty_ledger" sequence="30"/>

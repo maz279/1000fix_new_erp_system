@@ -785,7 +785,7 @@
   },
   {
     "source_id": "DEV-AST-2050",
-    "serial_number": "SN-APP-2026001",
+    "serial_number": "SN-OPP-2026001",
     "imei_1": "358901000000050",
     "imei_2": "358902000000050",
     "device_model_id": 10,
@@ -797,6 +797,6 @@
     "purchase_date": "2025-06-15",
     "warranty_start": "2025-06-15",
     "warranty_end": "2026-06-15",
-    "legacy_reference": "DEV:ASSET_SHEET:SN-APP-2026001"
+    "legacy_reference": "DEV:ASSET_SHEET:SN-OPP-2026001"
   }
 ]

@@ -5,18 +5,25 @@ import hashlib
 import logging
 from decimal import Decimal
 from pathlib import Path
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
 from . import coa_logic
 
 _logger = logging.getLogger(__name__)
 
 
+def _split_dimensions(value: str | bool) -> set[str]:
+    """'branch;cost_centre' -> {'branch', 'cost_centre'} (blank items dropped)."""
+    return {d.strip() for d in (value or "").split(";") if d.strip()}
+
+
 class FixChartAccount(models.Model):
     """Statutory Bangladesh Chart of Accounts Account Model (MD-035 / CD-M19-01).
-    
+
     Represents an account in the standardized 4-block format T-GG-SS-NNN,
     tracking control subledger bindings and dimensional tagging rules.
     """
@@ -27,8 +34,7 @@ class FixChartAccount(models.Model):
     _order = "account_code, company_id"
 
     _unique_company_code = models.Constraint(
-        "UNIQUE (company_id, account_code)",
-        "Account code must be unique per company"
+        "UNIQUE (company_id, account_code)", "Account code must be unique per company"
     )
 
     company_id = fields.Many2one(
@@ -120,34 +126,37 @@ class FixChartAccount(models.Model):
         ondelete="set null",
     )
 
-    @api.constrains("account_code", "is_postable", "statutory_group")
+    # Every field the per-account rules read re-triggers them: a write of
+    # account_type / control flags / dimensions must not bypass validation.
+    @api.constrains(
+        "account_code",
+        "account_type",
+        "is_postable",
+        "is_control_account",
+        "control_subledger",
+        "requires_dimension",
+        "statutory_group",
+    )
     def _check_coa_rules(self):
         for acc in self:
             rec = coa_logic.AccountRecord(
                 account_code=acc.account_code,
-                entity_code=acc.company_id.code if hasattr(acc.company_id, "code") else "EN-01",
+                entity_code="EN-01",
                 account_name=acc.name,
                 account_type=acc.account_type,
                 account_subtype=acc.account_subtype or "",
                 is_postable=acc.is_postable,
                 is_control_account=acc.is_control_account,
-                control_subledger=acc.control_subledger,
-                requires_dimension=set(acc.requires_dimension.split(";")) if acc.requires_dimension else set(),
+                control_subledger=acc.control_subledger or None,
+                requires_dimension=_split_dimensions(acc.requires_dimension),
                 statutory_group=acc.statutory_group or "",
                 active=acc.active,
             )
             try:
                 coa_logic.validate_account_structure(rec)
-                if acc.is_postable:
-                    parts = acc.account_code.split("-")
-                    if len(parts) == 4 and parts[3] == "000":
-                        raise coa_logic.CoaValidationError(
-                            acc.account_code,
-                            "Non-leaf summary account cannot be postable (COA-01)",
-                            "ERR-COA-001"
-                        )
+                coa_logic.validate_leaf_postable(rec)
             except coa_logic.CoaValidationError as e:
-                raise ValidationError(str(e))
+                raise ValidationError(str(e)) from e
 
     def action_archive(self):
         """Archive account enforcing COA-04: zero-balance guard."""
@@ -207,14 +216,24 @@ class FixChartLoader(models.Model):
 
         sha256 = hashlib.sha256(csv_text.encode("utf-8")).hexdigest()
         records = coa_logic.parse_coa_csv(csv_text)
-        result = coa_logic.validate_coa_rules(records)
+        try:
+            result = coa_logic.validate_coa_rules(records)
+        except coa_logic.CoaValidationError as e:
+            # nothing is written: a chart that breaks MD-035 loads not at all
+            raise UserError(str(e)) from e
 
-        acc_model = self.env["fix.chart.account"]
+        # active_test=False: an account archived under COA-04 still owns its
+        # code (codes are never reused, MD-035 §3) — a reload must update it,
+        # not collide with it on the (company, code) unique key.
+        acc_model = self.env["fix.chart.account"].with_context(active_test=False)
         for rec in records:
-            existing = acc_model.search([
-                ("company_id", "=", self.company_id.id),
-                ("account_code", "=", rec.account_code),
-            ], limit=1)
+            existing = acc_model.search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("account_code", "=", rec.account_code),
+                ],
+                limit=1,
+            )
 
             vals = {
                 "company_id": self.company_id.id,
@@ -235,21 +254,29 @@ class FixChartLoader(models.Model):
             else:
                 acc_model.create(vals)
 
-        self.write({
-            "state": "loaded",
-            "loaded_at": fields.Datetime.now(),
-            "account_count": result["account_count"],
-            "postable_count": result["postable_count"],
-            "control_count": result["control_count"],
-            "checksum": sha256,
-        })
+        self.write(
+            {
+                "state": "loaded",
+                "loaded_at": fields.Datetime.now(),
+                "account_count": result["account_count"],
+                "postable_count": result["postable_count"],
+                "control_count": result["control_count"],
+                "checksum": sha256,
+            }
+        )
 
-        publish(self.env, "coa.loaded", "fix.chart.loader", self.id, {
-            "company_id": self.company_id.id,
-            "account_count": result["account_count"],
-            "postable_count": result["postable_count"],
-            "sha256": sha256,
-        })
+        publish(
+            self.env,
+            "coa.loaded",
+            "fix.chart.loader",
+            self.id,
+            {
+                "company_id": self.company_id.id,
+                "account_count": result["account_count"],
+                "postable_count": result["postable_count"],
+                "sha256": sha256,
+            },
+        )
         return {
             "status": "loaded",
             "account_count": result["account_count"],
@@ -260,17 +287,19 @@ class FixChartLoader(models.Model):
     def action_reconcile_chart(self) -> dict:
         """Execute trial balance reconciliation check across loaded accounts."""
         self.ensure_one()
-        accounts = self.env["fix.chart.account"].search([
-            ("company_id", "=", self.company_id.id),
-        ])
+        accounts = self.env["fix.chart.account"].search(
+            [
+                ("company_id", "=", self.company_id.id),
+            ]
+        )
         if not accounts:
             raise UserError("No accounts loaded for company")
 
         acc_records = []
         balances = {}
         for a in accounts:
-            val = getattr(a, "balance", 0.0)
-            bal_dec = coa_logic.Decimal(str(val)) if isinstance(val, (int, float, Decimal)) else coa_logic.Decimal("0.00")
+            # Monetary is a float column: str() keeps the 2dp value exact
+            bal_dec = Decimal(str(a.balance or 0.0))
             rec = coa_logic.AccountRecord(
                 account_code=a.account_code,
                 entity_code="EN-01",
@@ -279,8 +308,8 @@ class FixChartLoader(models.Model):
                 account_subtype=a.account_subtype or "",
                 is_postable=a.is_postable,
                 is_control_account=a.is_control_account,
-                control_subledger=a.control_subledger,
-                requires_dimension=set(a.requires_dimension.split(";")) if a.requires_dimension else set(),
+                control_subledger=a.control_subledger or None,
+                requires_dimension=_split_dimensions(a.requires_dimension),
                 statutory_group=a.statutory_group,
                 active=a.active,
                 balance=bal_dec,
@@ -289,5 +318,8 @@ class FixChartLoader(models.Model):
             balances[a.account_code] = bal_dec
 
         recon_res = coa_logic.reconcile_trial_balance(balances, acc_records)
-        self.write({"state": "reconciled"})
+        # MD-035 §6: balances must reconcile EXACTLY — an unbalanced trial
+        # balance never earns the 'reconciled' state (it stays 'loaded').
+        if recon_res["reconciled"]:
+            self.write({"state": "reconciled"})
         return recon_res

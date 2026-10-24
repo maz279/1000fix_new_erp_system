@@ -98,7 +98,7 @@
                 <field name="imei_1"/>
                 <field name="owner_id"/>
                 <filter name="filter_in_warranty" string="In Warranty"
-                        domain="[('warranty_status', '=', 'active')]"/>
+                        domain="[('warranty_status', 'in', ('in_warranty', 'extended'))]"/>
                 <filter name="filter_registered" string="Registered"
                         domain="[('state', '=', 'registered')]"/>
                 <group>

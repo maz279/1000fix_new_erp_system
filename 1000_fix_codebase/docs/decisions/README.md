@@ -18,6 +18,8 @@ revisit. The `GV-003` decision-log cross-references are maintained in
 | `D-029` | PostgreSQL major version: baseline 17 | ACCEPTED | ARB → `CA` (as above) | 2026-10-01 | [`D-029-postgresql-major.md`](D-029-postgresql-major.md) |
 | `D-030` | Restricted-licence register (annual review; complete enumeration) | ACCEPTED | ARB → `CA`; `SL` co-signs the gate design | 2026-10-01 | [`D-030-restricted-licence-register.md`](D-030-restricted-licence-register.md) |
 | `D-031` | Redis licence currency: pin 7.2.x or Valkey | **PROPOSED** (ARB) | ARB → `CA` proposes | 2026-10-01 | [`D-031-redis-licence-currency.md`](D-031-redis-licence-currency.md) |
+| `D-037` | Kafka event bus migration & Redis Streams retirement | **ACCEPTED** | ARB, Integration Lead, Platform Lead | 2026-10-18 | [`D-037-kafka-event-bus-migration.md`](D-037-kafka-event-bus-migration.md) |
+| `D-038` | Odoo major-version upgrade slot execution & controlled deferral | **ACCEPTED** (Option A2) | ARB, Chief Architect (`CA`), Steering | 2026-10-18 | [`D-038-odoo20-upgrade-slot-execution.md`](D-038-odoo20-upgrade-slot-execution.md) |
 
 ## Rules this library enforces
 

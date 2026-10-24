@@ -13,11 +13,12 @@ Audits:
 4. M53 (cd_settlement_ext) production AST has zero imports or dependencies on
    cd_marketplace.
 """
+
 from __future__ import annotations
 
 import ast
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MARKETPLACE_DIR = REPO_ROOT / "addons" / "domain" / "d_circular" / "cd_marketplace"
@@ -81,11 +82,29 @@ class TestM12M53DependencyBreak(unittest.TestCase):
 
     def test_m12_publishes_commission_earned_event(self):
         """M12 communicates commission earnings strictly via event publishing."""
+        # Structural, not textual (R01 re-audit: the docstring-phrase match
+        # broke on whitespace while the contract was intact): the method
+        # exists and itself calls publish(env, "commission.earned", ...).
         mkt_file = MARKETPLACE_DIR / "models" / "fix_marketplace.py"
-        text = mkt_file.read_text(encoding="utf-8")
-        self.assertIn('"commission.earned"', text)
-        self.assertIn("def action_earn_commission", text)
-        self.assertIn("THE M12<->M53 BREAK", text)
+        tree = ast.parse(mkt_file.read_text(encoding="utf-8"))
+        method = next(
+            (
+                n
+                for n in ast.walk(tree)
+                if isinstance(n, ast.FunctionDef) and n.name == "action_earn_commission"
+            ),
+            None,
+        )
+        self.assertIsNotNone(method, "action_earn_commission is missing")
+        published = [
+            call.args[1].value
+            for call in ast.walk(method)
+            if isinstance(call, ast.Call)
+            and getattr(call.func, "id", getattr(call.func, "attr", None)) == "publish"
+            and len(call.args) > 1
+            and isinstance(call.args[1], ast.Constant)
+        ]
+        self.assertIn("commission.earned", published)
 
     def test_m53_zero_m12_imports(self):
         """M53 production code must not import from cd_marketplace."""

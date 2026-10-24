@@ -1,6 +1,6 @@
 # fix_loyalty_campaign — M10 Campaign Integration Hooks (CD-M10-01).
 from dateutil.relativedelta import relativedelta
-from odoo import api, fields, models
+from odoo import fields, models
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
@@ -83,43 +83,52 @@ class FixLoyaltyCampaignHook(models.Model):
 
         rewarded_count = 0
         for partner in partner_ids:
-            account = self.env["fix.loyalty.account"].search([
-                ("partner_id", "=", partner.id),
-                ("program_id", "=", self.program_id.id),
-                ("state", "=", "active"),
-            ], limit=1)
+            account = self.env["fix.loyalty.account"].search(
+                [
+                    ("partner_id", "=", partner.id),
+                    ("program_id", "=", self.program_id.id),
+                    ("state", "=", "active"),
+                ],
+                limit=1,
+            )
 
             if not account:
                 # Auto-enroll in program if not already enrolled
-                account = self.env["fix.loyalty.account"].create({
-                    "partner_id": partner.id,
-                    "program_id": self.program_id.id,
-                    "company_id": self.company_id.id,
-                })
+                account = self.env["fix.loyalty.account"].create(
+                    {
+                        "partner_id": partner.id,
+                        "program_id": self.program_id.id,
+                        "company_id": self.company_id.id,
+                    }
+                )
 
             if self.reward_type == "bonus_points" and self.bonus_points > 0:
-                ledger = self.env["fix.loyalty.ledger"].create({
-                    "account_id": account.id,
-                    "transaction_type": "campaign_bonus",
-                    "points": self.bonus_points,
-                    "notes": f"Campaign bonus: {self.campaign_id.name}",
-                    "company_id": self.company_id.id,
-                })
+                ledger = self.env["fix.loyalty.ledger"].create(
+                    {
+                        "account_id": account.id,
+                        "transaction_type": "campaign_bonus",
+                        "points": self.bonus_points,
+                        "notes": f"Campaign bonus: {self.campaign_id.name}",
+                        "company_id": self.company_id.id,
+                    }
+                )
                 ledger.action_post()
                 rewarded_count += 1
             elif self.reward_type == "voucher":
                 today = fields.Date.today()
-                voucher = self.env["fix.loyalty.voucher"].create({
-                    "account_id": account.id,
-                    "partner_id": partner.id,
-                    "campaign_id": self.campaign_id.id,
-                    "discount_type": self.voucher_discount_type,
-                    "discount_value": self.voucher_discount_value,
-                    "valid_from": today,
-                    "valid_until": today + relativedelta(days=self.voucher_validity_days),
-                    "state": "active",
-                    "company_id": self.company_id.id,
-                })
+                self.env["fix.loyalty.voucher"].create(
+                    {
+                        "account_id": account.id,
+                        "partner_id": partner.id,
+                        "campaign_id": self.campaign_id.id,
+                        "discount_type": self.voucher_discount_type,
+                        "discount_value": self.voucher_discount_value,
+                        "valid_from": today,
+                        "valid_until": today + relativedelta(days=self.voucher_validity_days),
+                        "state": "active",
+                        "company_id": self.company_id.id,
+                    }
+                )
                 rewarded_count += 1
 
         publish(

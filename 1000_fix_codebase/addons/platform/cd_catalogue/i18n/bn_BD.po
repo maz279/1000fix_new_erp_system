@@ -7,117 +7,345 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__authorised
 msgid "1000FiX Authorised"
 msgstr "1000FiX অনুমোদিত"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__accessory
+msgid "Accessory"
+msgstr "অ্যাক্সেসরিজ"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__appliance_ac
+msgid "Air Conditioner"
+msgstr "এয়ার কন্ডিশনার"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__authorisation_expiry
 msgid "Authorisation Expiry"
 msgstr "অনুমোদনের মেয়াদ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__brand_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_device_model__brand_id
 msgid "Brand"
 msgstr "ব্র্যান্ড"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__code
 msgid "Brand Code"
 msgstr "ব্র্যান্ড কোড"
 
+#. module: cd_catalogue
+#: model:ir.actions.act_window,name:cd_catalogue.action_fix_brand
+#: model:ir.ui.menu,name:cd_catalogue.menu_fix_brand
+#: model_terms:ir.ui.view,arch_db:cd_catalogue.view_fix_brand_tree
 msgid "Brands"
 msgstr "ব্র্যান্ডসমূহ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__bundle
+msgid "Bundle / Kit"
+msgstr "বান্ডেল / কিট"
+
+#. module: cd_catalogue
+#: model:ir.ui.menu,name:cd_catalogue.menu_fix_catalogue_root
 msgid "Catalogue"
 msgstr "ক্যাটালগ"
 
+#. module: cd_catalogue
+#: model:ir.model,name:cd_catalogue.model_fix_catalogue_item
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__catalogue_item_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__catalogue_item_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_product_template__catalogue_item_id
+#: model_terms:ir.ui.view,arch_db:cd_catalogue.view_fix_catalogue_form
 msgid "Catalogue Item"
 msgstr "ক্যাটালগ আইটেম"
 
+#. module: cd_catalogue
+#: model:ir.actions.act_window,name:cd_catalogue.action_fix_catalogue
+#: model_terms:ir.ui.view,arch_db:cd_catalogue.view_fix_catalogue_tree
 msgid "Catalogue Items"
 msgstr "ক্যাটালগ আইটেমসমূহ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__device_model_ids
 msgid "Compatible Device Models"
 msgstr "সামঞ্জস্যপূর্ণ ডিভাইস মডেল"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__component_ids
+#: model_terms:ir.ui.view,arch_db:cd_catalogue.view_fix_service_kit_form
 msgid "Components"
 msgstr "উপাদানসমূহ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_service_kit_component__component_type__consumable
+msgid "Consumable"
+msgstr "ব্যবহার্য সামগ্রী"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__currency_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__currency_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__currency_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit_component__currency_id
 msgid "Currency"
 msgstr "মুদ্রা"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__daily_rate
 msgid "Daily Rate"
 msgstr "দৈনিক ভাড়া"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__description
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__description
+#: model_terms:ir.ui.view,arch_db:cd_catalogue.view_fix_service_kit_form
 msgid "Description"
 msgstr "বিবরণ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__description_bn
 msgid "Description (Bengali)"
 msgstr "বিবরণ (বাংলা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__desktop
+msgid "Desktop"
+msgstr "ডেস্কটপ"
+
+#. module: cd_catalogue
+#: model:ir.actions.act_window,name:cd_catalogue.action_fix_device_model
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__device_model_ids
+#: model:ir.ui.menu,name:cd_catalogue.menu_fix_device_model
 msgid "Device Models"
 msgstr "ডিভাইস মডেলসমূহ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_service_kit_component__component_type__diagnostic
+msgid "Diagnostic"
+msgstr "ডায়াগনস্টিক"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__estimated_cost
 msgid "Estimated Cost"
 msgstr "আনুমানিক ব্যয়"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__estimated_time
 msgid "Estimated Time (hours)"
 msgstr "আনুমানিক সময় (ঘণ্টা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__code
+msgid "Grade"
+msgstr "গ্রেড"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_refurb_grade__code__a
+msgid "Grade A — Like New"
+msgstr "গ্রেড A — নতুনের মতো"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_refurb_grade__code__b
+msgid "Grade B — Minor Cosmetic"
+msgstr "গ্রেড B — সামান্য বাহ্যিক ত্রুটি"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_refurb_grade__code__c
+msgid "Grade C — Visible Wear"
+msgstr "গ্রেড C — দৃশ্যমান ক্ষয়"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_refurb_grade__code__d
+msgid "Grade D — Functional Only"
+msgstr "গ্রেড D — কেবল কার্যকরী"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_refurb_grade__code__e
+msgid "Grade E — For Parts"
+msgstr "গ্রেড E — যন্ত্রাংশের জন্য"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__inspection
+msgid "Inspection / Diagnostic"
+msgstr "পরিদর্শন / ডায়াগনস্টিক"
+
+#. module: cd_catalogue
+#: model:ir.ui.menu,name:cd_catalogue.menu_fix_catalogue
 msgid "Items"
 msgstr "আইটেমসমূহ"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_service_kit_component__component_type__labour
+msgid "Labour"
+msgstr "শ্রম"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__labour
+msgid "Labour Only"
+msgstr "কেবল শ্রম"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__laptop
+msgid "Laptop"
+msgstr "ল্যাপটপ"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__max_rental_days
 msgid "Maximum Rental Duration (days)"
 msgstr "সর্বোচ্চ ভাড়ার মেয়াদ (দিন)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__appliance_microwave
+msgid "Microwave"
+msgstr "মাইক্রোওয়েভ"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_device_model__model_code
 msgid "Model Code"
 msgstr "মডেল কোড"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__monthly_rate
 msgid "Monthly Rate"
 msgstr "মাসিক ভাড়া"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__name
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_device_model__name
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__name
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__name
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__name
 msgid "Name"
 msgstr "নাম"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__name_bn
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__name_bn
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_device_model__name_bn
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__name_bn
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_device_model__warranty_months_new
 msgid "New Warranty (months)"
 msgstr "নতুন ওয়ারেন্টি (মাস)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__operating_unit_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__operating_unit_id
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__price_multiplier
 msgid "Price Multiplier (e.g. 0.8 = 80% of new price)"
 msgstr "মূল্য গুণক (যেমন 0.8 = নতুন মূল্যের ৮০%)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit_component__product_id
 msgid "Product"
 msgstr "পণ্য"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__category_id
 msgid "Product Category"
 msgstr "পণ্য শ্রেণি"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_product_template__name_bn
 msgid "Product Name (Bengali)"
 msgstr "পণ্যের নাম (বাংলা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__product_tmpl_id
 msgid "Product Template"
 msgstr "পণ্য টেমপ্লেট"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__appliance_fridge
+msgid "Refrigerator"
+msgstr "রেফ্রিজারেটর"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_refurb_grade__warranty_days
 msgid "Refurb Warranty (days)"
 msgstr "রিফার্ব ওয়ারেন্টি (দিন)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__security_deposit
 msgid "Security Deposit"
 msgstr "নিরাপত্তা জামানত"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__service
+msgid "Service"
+msgstr "সার্ভিস"
+
+#. module: cd_catalogue
+#: model:ir.actions.act_window,name:cd_catalogue.action_fix_service_kit
+#: model:ir.ui.menu,name:cd_catalogue.menu_fix_service_kit
 msgid "Service Kits"
 msgstr "সার্ভিস কিট"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__smartphone
+msgid "Smartphone"
+msgstr "স্মার্টফোন"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_catalogue_item__item_type__part
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_service_kit_component__component_type__part
+msgid "Spare Part"
+msgstr "খুচরা যন্ত্রাংশ"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit_component__standard_cost
 msgid "Standard Cost"
 msgstr "প্রচলিত ব্যয়"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_catalogue_item__standard_labour_time
 msgid "Standard Labour Time (hours)"
 msgstr "প্রচলিত শ্রম সময় (ঘণ্টা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_brand__support_url
 msgid "Support Portal URL"
 msgstr "সাপোর্ট পোর্টাল URL"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__tablet
+msgid "Tablet"
+msgstr "ট্যাবলেট"
+
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__tv
+msgid "Television"
+msgstr "টেলিভিশন"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_service_kit_component__time_allocation
 msgid "Time Allocation (hours)"
 msgstr "সময় বণ্টন (ঘণ্টা)"
 
+#. module: cd_catalogue
+#: model:ir.model.fields.selection,name:cd_catalogue.selection__fix_device_model__device_type__appliance_washer
+msgid "Washing Machine"
+msgstr "ওয়াশিং মেশিন"
+
+#. module: cd_catalogue
+#: model:ir.model.fields,field_description:cd_catalogue.field_fix_rental_sku__weekly_rate
 msgid "Weekly Rate"
 msgstr "সাপ্তাহিক ভাড়া"

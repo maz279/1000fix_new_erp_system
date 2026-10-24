@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <!-- Statutory Bangladesh Leave Types with Citations Verified Current (DoD-17) -->
+        <record id="leave_type_casual" model="fix.leave.type">
+            <field name="code">casual</field>
+            <field name="name">Casual Leave</field>
+            <field name="name_bn">নৈমিত্তিক ছুটি</field>
+            <field name="entitlement_days">10</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 115</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006 (Act No. XLII of 2006), Section 115: Casual leave with full wages for 10 days in a calendar year.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_sick" model="fix.leave.type">
+            <field name="code">sick</field>
+            <field name="name">Sick Leave</field>
+            <field name="name_bn">পীড়া ছুটি</field>
+            <field name="entitlement_days">14</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 116 / 148</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 116: Sick leave with full wages for 14 days in a calendar year upon registered medical practitioner certification.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_annual" model="fix.leave.type">
+            <field name="code">annual</field>
+            <field name="name">Annual / Earned Leave</field>
+            <field name="name_bn">বার্ষিক / অর্জিত ছুটি</field>
+            <field name="entitlement_days">20</field>
+            <field name="encashable" eval="True"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">40</field>
+            <field name="labour_act_section">Section 117</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 117: Annual leave with wages at the rate of one day for every 18 days of work performed; cumulative up to 40 days per s. 117(7); encashable upon separation per s. 118.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_festival" model="fix.leave.type">
+            <field name="code">festival</field>
+            <field name="name">Festival Holidays</field>
+            <field name="name_bn">উৎসব ছুটি</field>
+            <field name="entitlement_days">11</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 118 / 146</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 118: Every worker shall be allowed in a calendar year 11 days of paid festival holidays; compensatory holiday with double wages if required to work.</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_maternity" model="fix.leave.type">
+            <field name="code">maternity</field>
+            <field name="name">Maternity Benefit</field>
+            <field name="name_bn">প্রসূতি কল্যাণ সুবিধা</field>
+            <field name="entitlement_days">112</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="True"/>
+            <field name="is_statutory" eval="True"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Section 46-48</field>
+            <field name="legal_citation">Bangladesh Labour Act 2006, Section 46 &amp; 47: 16 weeks (112 days) maternity leave with full average daily wage (8 weeks pre-natal, 8 weeks post-natal).</field>
+            <field name="amendment_ref">Labour (Amendment) Act 2013, 2018, 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+
+        <record id="leave_type_paternity" model="fix.leave.type">
+            <field name="code">paternity</field>
+            <field name="name">Paternity Leave</field>
+            <field name="name_bn">পিতৃত্বকালীন ছুটি</field>
+            <field name="entitlement_days">10</field>
+            <field name="encashable" eval="False"/>
+            <field name="maternity" eval="False"/>
+            <field name="is_statutory" eval="False"/>
+            <field name="carry_forward_limit">0</field>
+            <field name="labour_act_section">Policy Floor</field>
+            <field name="legal_citation">1000FiX Corporate HR Policy Floor: 10 days paid paternity leave for male employees upon childbirth.</field>
+            <field name="amendment_ref">1000FiX HR Policy Handbook 2026</field>
+            <field name="verified_on">2026-10-18</field>
+            <field name="company_id" ref="base.main_company"/>
+        </record>
+    </data>
+</odoo>

@@ -1,0 +1,272 @@
+{
+  "test": "R07-M02-T02: Fork Audit & OCA v20 Availability Matrix Assessment",
+  "timestamp_utc": "2026-10-22T09:05:48Z",
+  "verdict": "INCOMPLETE",
+  "checks": [
+    {
+      "check": "forks_yaml_parsed",
+      "status": "PASS",
+      "detail": "0 fork entries declared"
+    },
+    {
+      "check": "fork_entries_complete",
+      "status": "PASS",
+      "detail": "every entry carries all mandatory fields"
+    },
+    {
+      "check": "vendor_worktree_clean",
+      "status": "PASS",
+      "detail": "0 modification(s) under vendor/, all FORKS.yaml-authorised"
+    },
+    {
+      "check": "vendor_pins_match_tree",
+      "status": "PASS",
+      "detail": "19 vendored OCA repositories, each pinned in versions.lock"
+    },
+    {
+      "check": "vendored_series_consistent",
+      "status": "PASS",
+      "detail": "all vendored OCA modules and the Odoo pin are on series 19.0"
+    },
+    {
+      "check": "oca_v20_availability",
+      "status": "UNMEASURED",
+      "detail": "19 repositories: upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network; D-025 section 5 trigger (>= 12 migrated) cannot be evaluated"
+    }
+  ],
+  "fork_audit": {
+    "forks_file": "FORKS.yaml",
+    "authorised_fork_entries": 0,
+    "forks_entries": [],
+    "vendor_modifications_observed": 0,
+    "unauthorised_modifications": [],
+    "odoo_series": "19.0",
+    "vendor_odoo_branch_pin": "19.0",
+    "vendor_clean": true,
+    "as_05_ff_03_status": "PASS"
+  },
+  "oca_matrix": {
+    "total_repositories_evaluated": 19,
+    "baseline_series": "19.0",
+    "vendored_on_v20_count": 0,
+    "status_breakdown": {
+      "UNMEASURED": 19
+    },
+    "threshold_required": 12,
+    "migrated_count": null,
+    "threshold_met": null,
+    "d025_revisit_trigger_active": null,
+    "strategic_recommendation": "UNDETERMINED - upstream v20 availability not measured",
+    "repositories": [
+      {
+        "repo": "account-financial-reporting",
+        "vendored": true,
+        "pin": "d72161365bf068799b74b1f1c87d1ac3c136e349",
+        "modules_vendored": 4,
+        "vendored_series": {
+          "19.0": 4
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "account-financial-tools",
+        "vendored": true,
+        "pin": "29b6e2e2ee43889d7682268060079be2d24163ad",
+        "modules_vendored": 22,
+        "vendored_series": {
+          "19.0": 22
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "contract",
+        "vendored": true,
+        "pin": "be9bd021d40e25006bdcf0154ebb4b63995c5f77",
+        "modules_vendored": 12,
+        "vendored_series": {
+          "19.0": 12
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "dms",
+        "vendored": true,
+        "pin": "355327531f59a4152904cf1a01f8396eb101a5b2",
+        "modules_vendored": 1,
+        "vendored_series": {
+          "19.0": 1
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "field-service",
+        "vendored": true,
+        "pin": "d39a550fc5bc3b58190bcc8e68d01955b4dc9262",
+        "modules_vendored": 34,
+        "vendored_series": {
+          "19.0": 34
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "helpdesk",
+        "vendored": true,
+        "pin": "4cb98d1becd5a8ed28ef139989350ac8684c42a8",
+        "modules_vendored": 15,
+        "vendored_series": {
+          "19.0": 15
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "hr",
+        "vendored": true,
+        "pin": "9126a56cf2593c06ab5705843f932720dbcdbc7e",
+        "modules_vendored": 11,
+        "vendored_series": {
+          "19.0": 11
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "management-system",
+        "vendored": true,
+        "pin": "67a90df9ff9575705bf6bb86ec7ad7b58a8677c4",
+        "modules_vendored": 26,
+        "vendored_series": {
+          "19.0": 26
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "mis-builder",
+        "vendored": true,
+        "pin": "47930f528d7aced99ddbfe2195e8a651fbc04339",
+        "modules_vendored": 3,
+        "vendored_series": {
+          "19.0": 3
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "operating-unit",
+        "vendored": true,
+        "pin": "1d0db6e9ad1750e4b9f577bd41c03a61aeec64da",
+        "modules_vendored": 9,
+        "vendored_series": {
+          "19.0": 9
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "partner-contact",
+        "vendored": true,
+        "pin": "ed992d832bdf59bbc897683c20554fc7e4f5eaf2",
+        "modules_vendored": 66,
+        "vendored_series": {
+          "19.0": 66
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "payroll",
+        "vendored": true,
+        "pin": "0eda4d1e6688e8f6487d6af8cc5a7fae09668671",
+        "modules_vendored": 1,
+        "vendored_series": {
+          "19.0": 1
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "purchase-workflow",
+        "vendored": true,
+        "pin": "fb04e22ddeeac44d15eb76a6555780cbfc99f7c9",
+        "modules_vendored": 48,
+        "vendored_series": {
+          "19.0": 48
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "reporting-engine",
+        "vendored": true,
+        "pin": "d502dad69c7ecc6097930a9f5a73caec4fcc0eb0",
+        "modules_vendored": 21,
+        "vendored_series": {
+          "19.0": 21
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "server-tools",
+        "vendored": true,
+        "pin": "03e68bcbab5ecddb1284458821f02333467fb1ca",
+        "modules_vendored": 30,
+        "vendored_series": {
+          "19.0": 30
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "stock-logistics-barcode",
+        "vendored": true,
+        "pin": "d7a91eed6c009b5a1b6a44273c8c0aae099acad8",
+        "modules_vendored": 3,
+        "vendored_series": {
+          "19.0": 3
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "stock-logistics-warehouse",
+        "vendored": true,
+        "pin": "ca1025b909ef9b0e0279db09487fee58426349ec",
+        "modules_vendored": 19,
+        "vendored_series": {
+          "19.0": 19
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "stock-logistics-workflow",
+        "vendored": true,
+        "pin": "17d8ac49892ccf274e2176549d0e3ac39216bd29",
+        "modules_vendored": 45,
+        "vendored_series": {
+          "19.0": 45
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      },
+      {
+        "repo": "web",
+        "vendored": true,
+        "pin": "bd62dfa70e607be21a337eaf87b419eafef67bbc",
+        "modules_vendored": 36,
+        "vendored_series": {
+          "19.0": 36
+        },
+        "v20_status": "UNMEASURED",
+        "v20_reason": "upstream 20.0 branch availability is held on github.com/OCA; this verifier is local and read-only and does not query the network"
+      }
+    ]
+  }
+}

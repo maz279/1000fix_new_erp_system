@@ -5,10 +5,10 @@
 # =============================================================================
 SHELL := /bin/bash
 .DEFAULT_GOAL := help
-COMPOSE := docker compose -f infra/compose/docker-compose.yml
+COMPOSE := docker compose -f infra/compose/docker-compose.yml --env-file .env  # DE-10: .env is at the repo root, not next to the compose file
 PROFILE ?= core
 ODOO_BIN := vendor/odoo/odoo-bin
-ODOO_CONF := infra/odoo-conf/local.conf
+ODOO_CONF := infra/odoo-conf/local.resolved.conf  # the .env-resolved copy: local.conf keeps ${PGHOST}-style placeholders odoo-bin cannot read (P07)
 PY := python3
 
 .PHONY: help bootstrap up down reset odoo-conf db-create odoo-init odoo-install-wave1 run seed test-smoke doctor upgrade vendor import-vendor verify-repo

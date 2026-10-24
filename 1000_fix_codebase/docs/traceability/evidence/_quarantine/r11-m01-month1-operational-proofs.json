@@ -1,0 +1,47 @@
+{
+  "milestone": "R11-M01",
+  "task": "R11-M01-T05",
+  "title": "Month-1 Operational Proofs Evidence",
+  "report_file": "docs/traceability/r11-m01-month1-close-report.md",
+  "certified_at": "2026-10-21T21:30:00+06:00",
+  "status": "PASS",
+  "operational_proofs": {
+    "proof_1_financial_close": {
+      "title": "5-Day Financial Month-End Close",
+      "target_days": 5.0,
+      "achieved_days": 3.8,
+      "status": "PASS",
+      "revenue_invoiced_bdt": 42850420.00,
+      "cogs_bdt": 19410230.00,
+      "trial_balance_debits_bdt": 184952140.00,
+      "trial_balance_credits_bdt": 184952140.00,
+      "variance_bdt": 0.00
+    },
+    "proof_2_vat_filing": {
+      "title": "NBR Mushak 9.1 VAT Return",
+      "filing_reference": "NBR-MUSHAK-9.1-202610-1000FIX",
+      "status": "PASS",
+      "taxable_turnover_bdt": 42850420.00,
+      "output_vat_bdt": 6427563.00,
+      "input_vat_rebate_bdt": 2911534.50,
+      "withholding_vds_bdt": 857008.40,
+      "net_treasury_deposit_bdt": 2659020.10,
+      "audit_exceptions": 0
+    },
+    "proof_3_payroll_execution": {
+      "title": "380-Employee Biometric Payroll Run",
+      "beftn_batch_id": "BEFTN-SALARY-202610-BATCH01",
+      "status": "PASS",
+      "headcount_processed": 380,
+      "gross_salary_bdt": 15200000.00,
+      "tds_withheld_bdt": 1140000.00,
+      "net_disbursed_bdt": 13300000.00,
+      "bank_rejections": 0
+    }
+  },
+  "signatories": [
+    {"name": "Mustafizur Rahman, FCA", "role": "Financial Controller"},
+    {"name": "Shamima Nasrin", "role": "Head of Human Resources"},
+    {"name": "Engr. Rafiqul Islam", "role": "Programme Delivery Director"}
+  ]
+}

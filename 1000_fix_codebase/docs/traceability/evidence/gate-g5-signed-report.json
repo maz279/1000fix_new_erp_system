@@ -1,0 +1,75 @@
+﻿{
+    "schema":  "1000fix-erp/gate-g5/1",
+    "gate":  "G5",
+    "milestone":  "MS-07",
+    "ranAtUtc":  "2026-10-23T09:35:35.2012567Z",
+    "summary":  {
+                    "pass":  7,
+                    "condition":  3,
+                    "fail":  0,
+                    "total":  10,
+                    "verdict":  "CONDITION"
+                },
+    "criteria":  [
+                     {
+                         "id":  "G5-1",
+                         "title":  "T-6 entry: fitness clean",
+                         "status":  "PASS",
+                         "evidence":  "fitness runner executed in this gate run: exit 0, 0 blocking failure(s) parsed from its summary line"
+                     },
+                     {
+                         "id":  "G5-2",
+                         "title":  "Payroll end-to-end (Journey 13)",
+                         "status":  "PASS",
+                         "evidence":  "payroll-engine tests exit 0, 61 passed; payslip views present=True; BEFTN settlement date in fix_payroll.py=True; a production BEFTN submission to the bank is a runtime act this gate does not claim"
+                     },
+                     {
+                         "id":  "G5-3",
+                         "title":  "Stub closure (GV-005)",
+                         "status":  "PASS",
+                         "evidence":  "cd_qms_process tests exit 0, 18 passed; 1 residual STUB-M02/M31/M34/M42 markers outside comments (criterion: \u003c= 3; counted by scanning addons/ sources)"
+                     },
+                     {
+                         "id":  "G5-4",
+                         "title":  "Certification enforced at dispatch (FR-LMS-039)",
+                         "status":  "PASS",
+                         "evidence":  "cd_competency tests exit 0, 19 passed; dispatch_eligibility() present=True; \u0027assignment blocked\u0027 error present=True"
+                     },
+                     {
+                         "id":  "G5-5",
+                         "title":  "Journeys 6, 13, 14 automated",
+                         "status":  "PASS",
+                         "evidence":  "journey suites executed (grep-only previously): exit 0, 16 passed - J6 alert\u003eticket\u003eremote session\u003eSLA report, J13 lock\u003ecalc\u003eapprove\u003eBEFTN\u003epayslip\u003epost, J14 complaint\u003eNCR\u003eCAPA\u003everify\u003eclose; nightly orchestration EXECUTION is CI-side and not measured here"
+                     },
+                     {
+                         "id":  "G5-6",
+                         "title":  "ISO 9001:2015 audit readiness (CON-11)",
+                         "status":  "PASS",
+                         "evidence":  "cd_qms_process suite executed (grep-only previously): exit 0, 18 passed - covers the CON-11 systems-traced question, critical NCR closing only through verified CAPA and P11 offline capture; the external ISO surveillance audit (Phase 11) is an external judgement this gate does not claim"
+                     },
+                     {
+                         "id":  "G5-7",
+                         "title":  "MSP SLA reporting against contract terms",
+                         "status":  "PASS",
+                         "evidence":  "cd_msp_contract suite executed (grep-only previously): exit 0, 11 passed - monthly report window, quiet-month full SLA attainment and bilingual regeneration are tested on M08\u0027s contract engine; production SLA attainment needs live MSP volume"
+                     },
+                     {
+                         "id":  "G5-8",
+                         "title":  "D-025 upgrade slot position",
+                         "status":  "CONDITION",
+                         "evidence":  "repo-authored decision record present (docs/decisions/D-025-odoo-baseline-upgrade.md); artefact present, not measured - the upgrade slot position is a recorded decision, and its execution is measured at G6-5"
+                     },
+                     {
+                         "id":  "G5-9",
+                         "title":  "Gate profile (PE-004 \u0026 PE-007)",
+                         "status":  "CONDITION",
+                         "evidence":  "PE-004 1.5x-peak performance verdict=INCOMPLETE [docs/traceability/evidence/g5-pe004-performance-evidence.json]; PE-007 DR drill verdict=INCOMPLETE, RPO=UNMEASURED, RTO=UNMEASURED, data loss records=UNMEASURED, 3 PASS / 0 FAIL / 4 UNMEASURED of 7 checks [docs/traceability/evidence/g5-pe007-dr-drill-evidence.json]"
+                     },
+                     {
+                         "id":  "G5-10",
+                         "title":  "All modules shipped + installed",
+                         "status":  "CONDITION",
+                         "evidence":  "71 manifests; FF-23: tests-present: OK - 71 modules, all have tests/; installation on fix_dev: UNMEASURED (not probed by this gate)"
+                     }
+                 ]
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R10-M02",
+  "task": "R10-M02-T04",
+  "title": "M42 Supplier Relationship & Performance Traceability Matrix",
+  "timestamp": "2026-10-22T09:13:18.690464+00:00",
+  "module_id": "M42",
+  "cr_id": "CR-R10M02-04",
+  "requirements_seeded": 34,
+  "requirements_in_cr_register": 34,
+  "requirements_count": 34,
+  "requirements_range": "FR-SRM2-001 ... FR-SRM2-034",
+  "untraced_requirements": [],
+  "broken_path_references": {},
+  "seeded_not_in_cr_register": [],
+  "delivery_units": [
+    {
+      "unit": "Pair 10 scorecard engine",
+      "path": "addons/domain/b_customer_engagement/cd_cx_feedback",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "P05 supplier portal",
+      "path": "addons/domain/e_supply_chain/cd_vendor_portal",
+      "requires": null,
+      "present": true
+    },
+    {
+      "unit": "Pair 10 cycle-break verification",
+      "path": "tests/test_m16_m42_break.py",
+      "requires": null,
+      "present": true
+    }
+  ],
+  "failures": [],
+  "pair_10_break_verified": true,
+  "pair_10_break_test": {
+    "status": "PASS",
+    "exit_code": 0,
+    "output_tail": ""
+  },
+  "verdict": "PASS",
+  "status": "PASS"
+}

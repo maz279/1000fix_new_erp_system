@@ -4,3 +4,4 @@ access_fix_spare_part_user,fix.spare.part.user,model_fix_spare_part,base.group_u
 access_fix_stock_consumption_user,fix.stock.consumption.user,model_fix_stock_consumption,base.group_user,1,1,1,0
 access_fix_reorder_rule_user,fix.reorder.rule.user,model_fix_reorder_rule,base.group_user,1,1,1,0
 access_fix_inventory_valuation_suspense_user,fix.inventory.valuation.suspense.user,model_fix_inventory_valuation_suspense,base.group_user,1,1,1,0
+access_fix_graded_stock_user,fix.graded.stock.user,model_fix_graded_stock,base.group_user,1,1,1,0

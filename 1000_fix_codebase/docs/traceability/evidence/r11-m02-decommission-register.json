@@ -1,0 +1,1491 @@
+{
+  "milestone": "R11-M02",
+  "task": "R11-M02-T03",
+  "title": "Master Legacy Decommission Register (RL-006 DCM-01..DCM-57)",
+  "execution_timestamp": "2026-10-22T10:21:50Z",
+  "mode": "MEASURE_ONLY (no legacy system is touched by this tool)",
+  "governing_standards": [
+    "RL-006",
+    "DA-006",
+    "NIST SP 800-88r2",
+    "IEEE 2883:2022",
+    "PDPA Law 63 of 2026"
+  ],
+  "measurement_policy": "GV-009: every state is derived from checks measured in this run; what cannot be observed from this workstation is UNMEASURED with its reason",
+  "declared_dispositions": {
+    "K": 4,
+    "N": 11,
+    "P": 1,
+    "R": 32
+  },
+  "disposition_summary": {
+    "retirable_sources_decommissioned_d7": 0,
+    "deliberately_retained_sources_k": 0,
+    "purge_disposition_sources_p": 0,
+    "non_system_sources_transitioned_n": 0,
+    "total_estate_accounted_for": 48,
+    "sources_state_unmeasured": 48,
+    "sources_blocked": 0,
+    "restated_gv001_closure_criteria_met": false
+  },
+  "financial_summary": {
+    "declared_annual_run_cost_of_retirable_sources_bdt": 1265000,
+    "total_annual_run_cost_released_bdt": 0,
+    "formatted_annual_saving": "BDT 0.00M / year released (of BDT 1.26M declared)"
+  },
+  "compliance_summary": {
+    "pii_sources_requiring_dpo_countersign": 27,
+    "dpo_countersigned_pii_sources": 0,
+    "negative_connection_tests_passed": 0,
+    "negative_connection_tests_unmeasured": 32,
+    "shadow_system_scan_findings": null,
+    "shadow_system_scan_status": "UNMEASURED",
+    "codebase_legacy_endpoint_references": 0
+  },
+  "estate_checks": {
+    "register_complete": {
+      "status": "PASS",
+      "detail": "48 distinct sources, each with a valid disposition"
+    },
+    "register_agrees_with_t01": {
+      "status": "FAIL",
+      "detail": "12 source(s) disagree with the T01 register: SRC-22: 'Jessore MK Road (Telematics Tracking Provider)' vs T01 'Jessore MK Road Point'; SRC-38: 'Warehouse Physical Count Practices (Knowledge)' vs T01 'Branch Spare Parts Stock Count'; SRC-39: 'National Standard Hardware SKU Directory' vs T01 'Supplier Part Number Crosswalk'; SRC-40: 'DoE E-Waste Compliance Knowledge' vs T01 'Damaged / Scrapped Parts Log'; SRC-41: 'Corporate Client Account Knowledge' vs T01 'Corporate Client Contact List'; SRC-42: 'SMS Gateway Provider API Credentials & Secrets' vs T01 'Retail SMS Gateway Delivery Log'; SRC-43: 'Legacy Application Database Credentials & Root Keys' vs T01 'Warranty Card Registration Store'; SRC-44: 'BTRC & Consumer Rights Regulatory Feed' vs T01 'Customer Inbound Feedback Log'; SRC-45: 'Global Brand RMA Standards & Warranty Directory' vs T01 'Brand RMA Authorisation Forms'; SRC-46: 'Lab Machine Calibration Profiles & Firmware Hashes' vs T01 'Workshop Machine Calibration Logs'; SRC-47: 'NBR National Depreciation & Asset Tax Table' vs T01 'Branch Fixed Assets Register'; SRC-48: 'Legacy Scheduled Cron Tasks & Service Keys' vs T01 'Environmental Disposal Certificates'"
+    },
+    "codebase_legacy_endpoint_references": {
+      "status": "PASS",
+      "detail": "no reference to ['123.0.26.238', 'station.1000fix.com'] in 1312 files"
+    },
+    "shadow_system_scan": {
+      "status": "UNMEASURED",
+      "detail": "the estate shadow-system scan runs against branch endpoints and the network, which this workstation cannot reach (DE-11)"
+    }
+  },
+  "verdict": "FAIL",
+  "overall_status": "FAIL",
+  "sources": [
+    {
+      "source_id": "SRC-01",
+      "name": "station.1000fix.com",
+      "designated_custodian": "CTO (Shafiul Alam)",
+      "functional_class": "DB",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Legacy web tracking portal",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "IEEE 2883 Cryptographic Erase + Host Terminate",
+      "declared_annual_run_cost_bdt": 180000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-01: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-02",
+      "name": "123.0.26.238/orderTracking",
+      "designated_custodian": "CTO (Shafiul Alam)",
+      "functional_class": "DB",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Legacy SQL order tracking",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "IEEE 2883 Purge + VM Destroy",
+      "declared_annual_run_cost_bdt": 140000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-01: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-03",
+      "name": "Tejgaon Central Hub Orders",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-04",
+      "name": "Dhanmondi Service Center",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-05",
+      "name": "Mirpur-10 Service Center",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-06",
+      "name": "Uttara Sector-3 Center",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-07",
+      "name": "Motijheel Commercial Branch",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-08",
+      "name": "Banani Luxury Care Point",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-09",
+      "name": "Chittagong Agrabad Center",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W2",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 30000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-10",
+      "name": "Chittagong GEC Circle Center",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W4",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-11",
+      "name": "Sylhet Zindabazar Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 20000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-12",
+      "name": "Rajshahi Alokar More Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 20000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-13",
+      "name": "Khulna KDA Avenue Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 20000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-14",
+      "name": "Barisal Sadar Road Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-15",
+      "name": "Rangpur Station Road Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-16",
+      "name": "Bogra Satmatha Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-17",
+      "name": "Comilla Kandirpar Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-18",
+      "name": "Mymensingh Town Hall Branch",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-19",
+      "name": "Gazipur Chowrasta Point",
+      "designated_custodian": "Branch Ops Lead (Tariqul Islam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W4",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 20000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-20",
+      "name": "Narayanganj Chasara Point (bKash/Nagad Integration)",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "PORTAL",
+      "disposition": "K",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Payment counterparty gateway",
+      "retention_class": "RC-01 (General Ledger, 7 yr)",
+      "planned_sanitisation_technique": "Retained as live M59 payment rail integration",
+      "declared_annual_run_cost_bdt": 50000,
+      "target_state": "RETAINED",
+      "state": "UNMEASURED",
+      "checks": {
+        "retention_review": {
+          "status": "UNMEASURED",
+          "detail": "the annual retention review is a contractual / human act; no review record is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-21",
+      "name": "Savar Bus Stand Center (City Bank BEFTN Portal)",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "PORTAL",
+      "disposition": "K",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Bank electronic clearing",
+      "retention_class": "RC-01 (General Ledger, 7 yr)",
+      "planned_sanitisation_technique": "Retained as live M60 BEFTN clearing integration",
+      "declared_annual_run_cost_bdt": 60000,
+      "target_state": "RETAINED",
+      "state": "UNMEASURED",
+      "checks": {
+        "retention_review": {
+          "status": "UNMEASURED",
+          "detail": "the annual retention review is a contractual / human act; no review record is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-22",
+      "name": "Jessore MK Road (Telematics Tracking Provider)",
+      "designated_custodian": "Logistics Lead (Zillur Rahman)",
+      "functional_class": "PORTAL",
+      "disposition": "K",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Fleet GPS tracking portal",
+      "retention_class": "RC-12 (Fleet Logs, 3 yr)",
+      "planned_sanitisation_technique": "Retained as live M64 IoT vehicle tracking integration",
+      "declared_annual_run_cost_bdt": 45000,
+      "target_state": "RETAINED",
+      "state": "UNMEASURED",
+      "checks": {
+        "retention_review": {
+          "status": "UNMEASURED",
+          "detail": "the annual retention review is a contractual / human act; no review record is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-23",
+      "name": "Kushtia NS Road Point (Historical Recruitment DB)",
+      "designated_custodian": "HR Director (Nasreen Sultana)",
+      "functional_class": "PORTAL",
+      "disposition": "P",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "Historical recruitment portals",
+      "retention_class": "DC-08 (Purge immediately per PDPA)",
+      "planned_sanitisation_technique": "IEEE 2883 Purge & Verified Media Destruction",
+      "declared_annual_run_cost_bdt": 30000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "purge_verification": {
+          "status": "UNMEASURED",
+          "detail": "purge / media-destruction verification happens on the legacy estate and its certificate is not observable by this tool"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-24",
+      "name": "Dinajpur Ganeshtola Point",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W4",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-25",
+      "name": "Feni Trunk Road Point",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W3",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-26",
+      "name": "Cox's Bazar Main Road Point",
+      "designated_custodian": "Regional Ops Head (Nasir Uddin)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W6",
+      "rfp_practice": "Branch service spreadsheets",
+      "retention_class": "RC-04 (Service Orders, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Share Deprovision",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-02: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-27",
+      "name": "Tally ERP 9 Company File A",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "DB",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W2",
+      "rfp_practice": "Standalone accounting software",
+      "retention_class": "RC-01 (General Ledger, 7 yr)",
+      "planned_sanitisation_technique": "IEEE 2883 Clear + Vault Archival",
+      "declared_annual_run_cost_bdt": 120000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-03: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-28",
+      "name": "Tally ERP 9 Company File B",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "DB",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W2",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-01 (General Ledger, 7 yr)",
+      "planned_sanitisation_technique": "IEEE 2883 Clear + Vault Archival",
+      "declared_annual_run_cost_bdt": 120000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-03: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-29",
+      "name": "Branch Cash Book Spreadsheets",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W5",
+      "rfp_practice": "Manual invoice & cash logs",
+      "retention_class": "RC-01 (General Ledger, 7 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 40000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-03: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-30",
+      "name": "Corporate Invoicing Register",
+      "designated_custodian": "Corporate Billing Mgr (Arifur Rahman)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W5",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-02 (Tax/Invoices, 7 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 35000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-03: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-31",
+      "name": "Staff Master Register (Physical Contract Originals)",
+      "designated_custodian": "Legal Counsel (M. Faruq)",
+      "functional_class": "PAPER",
+      "disposition": "K",
+      "holds_pii": true,
+      "retire_wave": "n/a",
+      "rfp_practice": "Physical staff contracts",
+      "retention_class": "DC-01 (Statutory Employment, 10 yr)",
+      "planned_sanitisation_technique": "Retained in climate-controlled fireproof vault",
+      "declared_annual_run_cost_bdt": 15000,
+      "target_state": "RETAINED",
+      "state": "UNMEASURED",
+      "checks": {
+        "retention_review": {
+          "status": "UNMEASURED",
+          "detail": "the annual retention review is a contractual / human act; no review record is observable by this tool"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-32",
+      "name": "Monthly Payroll Sheets 2025-26",
+      "designated_custodian": "HR Director (Nasreen Sultana)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "Manual payroll calculation",
+      "retention_class": "RC-03 (Payroll & TDS, 7 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 30000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-04: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-33",
+      "name": "Technician Commission Logs",
+      "designated_custodian": "HR Director (Nasreen Sultana)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W5",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-03 (Payroll & TDS, 7 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 25000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-04: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-34",
+      "name": "Statutory Tax Deduction Sheets",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": true,
+      "retire_wave": "W7",
+      "rfp_practice": "no contractual accountability",
+      "retention_class": "RC-02 (Tax/NBR 7 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 20000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-04: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        },
+        "dpo_countersign": {
+          "status": "UNMEASURED",
+          "detail": "a DPO countersign is a human act; no countersign is observable by this tool"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-35",
+      "name": "WordPress Portal Database",
+      "designated_custodian": "Marketing Head (Shumona Akter)",
+      "functional_class": "DB",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W5",
+      "rfp_practice": "Legacy WordPress website",
+      "retention_class": "DC-14 (Web Assets, 3 yr)",
+      "planned_sanitisation_technique": "IEEE 2883 Purge + Server Decommission",
+      "declared_annual_run_cost_bdt": 75000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-05: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-36",
+      "name": "Media Uploads Repository",
+      "designated_custodian": "Marketing Head (Shumona Akter)",
+      "functional_class": "MAIL",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W6",
+      "rfp_practice": "Legacy media store",
+      "retention_class": "DC-14 (Web Assets, 3 yr)",
+      "planned_sanitisation_technique": "S3 Bucket Destroy + Cryptographic Key Erase",
+      "declared_annual_run_cost_bdt": 45000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-05: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-37",
+      "name": "Central Warehouse SKU Catalog",
+      "designated_custodian": "Warehouse Lead (Mahbub Alam)",
+      "functional_class": "SS",
+      "disposition": "R",
+      "holds_pii": false,
+      "retire_wave": "W6",
+      "rfp_practice": "Manual parts catalog",
+      "retention_class": "RC-08 (Inventory Lots, 5 yr)",
+      "planned_sanitisation_technique": "NIST 800-88 Clear + Deprovision",
+      "declared_annual_run_cost_bdt": 30000,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "mig08_reconciliation_signoff": {
+          "status": "UNMEASURED",
+          "detail": "T01 MG-004 sign-off: 'UNMEASURED' - the MG-004 business sign-off is a human act by the required signatory; no signed sign-off is observable by this tool"
+        },
+        "archive_restorable": {
+          "status": "UNMEASURED",
+          "detail": "T04 archive ARCH-CL-06: 'INCOMPLETE' (not measured)"
+        },
+        "negative_connection_test": {
+          "status": "UNMEASURED",
+          "detail": "a negative connection test must reach the legacy host, which this workstation may not do (DE-11: the local environment never reaches non-local endpoints)"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-38",
+      "name": "Warehouse Physical Count Practices (Knowledge)",
+      "designated_custodian": "Warehouse Lead (Mahbub Alam)",
+      "functional_class": "PEOPLE",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Warehouse practices",
+      "retention_class": "n/a (Human Knowledge Captured in SOP)",
+      "planned_sanitisation_technique": "Captured into standard operating procedures and trained",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-39",
+      "name": "National Standard Hardware SKU Directory",
+      "designated_custodian": "Procurement Lead (Selim Reza)",
+      "functional_class": "PUB",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Hardware standard directory",
+      "retention_class": "n/a (External Reference Feed)",
+      "planned_sanitisation_technique": "Converted to ongoing API reference feed",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-40",
+      "name": "DoE E-Waste Compliance Knowledge",
+      "designated_custodian": "E-Waste Officer (Tareq Hasan)",
+      "functional_class": "PEOPLE",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "E-waste regulatory practices",
+      "retention_class": "n/a (Human Knowledge Captured in SOP)",
+      "planned_sanitisation_technique": "Regulatory compliance knowledge codified in M50",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-41",
+      "name": "Corporate Client Account Knowledge",
+      "designated_custodian": "Commercial Head (Fahim Chowdhury)",
+      "functional_class": "PEOPLE",
+      "disposition": "N",
+      "holds_pii": true,
+      "retire_wave": "n/a",
+      "rfp_practice": "Commercial client knowledge",
+      "retention_class": "n/a (Human Knowledge Captured in M33)",
+      "planned_sanitisation_technique": "Commercial relationship knowledge onboarded to CRM",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-42",
+      "name": "SMS Gateway Provider API Credentials & Secrets",
+      "designated_custodian": "Security Lead (Farhan Ahmed)",
+      "functional_class": "CFG",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "SMS gateway credentials",
+      "retention_class": "n/a (Credential Store)",
+      "planned_sanitisation_technique": "Legacy API keys revoked; HashiCorp Vault rotated",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-43",
+      "name": "Legacy Application Database Credentials & Root Keys",
+      "designated_custodian": "Security Lead (Farhan Ahmed)",
+      "functional_class": "CFG",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Legacy database keys",
+      "retention_class": "n/a (Credential Store)",
+      "planned_sanitisation_technique": "Database passwords wiped; admin access revoked",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-44",
+      "name": "BTRC & Consumer Rights Regulatory Feed",
+      "designated_custodian": "QA Head (Zubair Hossain)",
+      "functional_class": "PUB",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "BTRC & Consumer Rights Feed",
+      "retention_class": "n/a (Ongoing Regulatory Feed)",
+      "planned_sanitisation_technique": "Converted to ongoing regulatory reference feed",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-45",
+      "name": "Global Brand RMA Standards & Warranty Directory",
+      "designated_custodian": "Brand Relations Lead (Kamrul Islam)",
+      "functional_class": "PUB",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Brand warranty standards directory",
+      "retention_class": "n/a (External Reference Feed)",
+      "planned_sanitisation_technique": "Converted to manufacturer API reference feed",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-46",
+      "name": "Lab Machine Calibration Profiles & Firmware Hashes",
+      "designated_custodian": "Security Lead (Farhan Ahmed)",
+      "functional_class": "CFG",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Machine calibration profiles",
+      "retention_class": "n/a (Credential & Profile Store)",
+      "planned_sanitisation_technique": "Legacy calibration keys rotated; stored in Vault PKI",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-47",
+      "name": "NBR National Depreciation & Asset Tax Table",
+      "designated_custodian": "CFO (Mustafizur Rahman)",
+      "functional_class": "PUB",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "NBR tax schedule feed",
+      "retention_class": "n/a (National Published Table)",
+      "planned_sanitisation_technique": "Incorporated into M51 automated tax engine rules",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "source_id": "SRC-48",
+      "name": "Legacy Scheduled Cron Tasks & Service Keys",
+      "designated_custodian": "Security Lead (Farhan Ahmed)",
+      "functional_class": "CFG",
+      "disposition": "N",
+      "holds_pii": false,
+      "retire_wave": "n/a",
+      "rfp_practice": "Legacy crontab & service scripts",
+      "retention_class": "n/a (Credential Store)",
+      "planned_sanitisation_technique": "All legacy crontabs cleared, SSH keys wiped, accounts locked",
+      "declared_annual_run_cost_bdt": 0,
+      "target_state": "D7",
+      "state": "UNMEASURED",
+      "checks": {
+        "transition_evidence": {
+          "status": "UNMEASURED",
+          "detail": "capture into an SOP, conversion to a reference feed or credential rotation in Vault is not observable from this workstation"
+        }
+      },
+      "status": "INCOMPLETE"
+    }
+  ]
+}

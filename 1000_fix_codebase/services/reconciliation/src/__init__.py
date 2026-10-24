@@ -1,4 +1,5 @@
 """services.reconciliation package."""
+
 from .bank_feed_parser import (
     ParsedStatement,
     parse_bank_feed,
@@ -24,11 +25,11 @@ __all__ = [
     "WINDOW_DAYS_LOOSE",
     "Match",
     "OpenItem",
+    "ParsedStatement",
     "ReconResult",
     "StatementLine",
-    "reconcile",
-    "ParsedStatement",
     "parse_bank_feed",
     "parse_csv",
     "parse_mt940",
+    "reconcile",
 ]

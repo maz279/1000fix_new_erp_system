@@ -40,9 +40,23 @@
     <template id="report_jobcard">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="doc">
-                <div class="page">
-                    <div class="header">
-                        <h1>১০০০FiX — সার্ভিস জব কার্ড</h1>
+                <!-- div.article: Odoo renders each article through web.minimal_layout
+                     (<meta charset="utf-8"> + report assets). Without it the body goes to
+                     wkhtmltopdf bare and is decoded as Latin-1 - every Bengali label
+                     printed as mojibake (R01 re-audit 2026-10-22). -->
+                <div class="article" t-att-data-oe-model="doc._name" t-att-data-oe-id="doc.id"
+                     t-att-data-oe-lang="doc.env.context.get('lang')">
+                <!-- TR-07: the design-token Bengali family; the literal family first for
+                     wkhtmltopdf (no CSS variables), the token var() for engines with them -->
+                <div class="page fix-statutory-bn"
+                     style="font-family: 'Noto Sans Bengali', 'Nirmala UI', 'SolaimanLipi', sans-serif; font-family: var(--fix-typography-font-bengali-family), var(--fix-typography-font-bengali-fallback), 'Nirmala UI', sans-serif;">
+                    <!-- The card's title block is INLINE (not Odoo's running div.header):
+                         a header is rendered into the 6 mm top margin, which clipped the
+                         h1 + reference line; inline it keeps the page's Bengali font and
+                         can never be clipped (R01 re-audit 2026-10-22). -->
+                    <div class="jobcard-header">
+                        <!-- the brand name is never localised (glossary): Latin digits -->
+                        <h1>1000FiX — সার্ভিস জব কার্ড</h1>
                         <div class="ref-line">
                             <span>অর্ডার রেফারেন্স:</span>
                             <span class="mono" t-esc="doc.name"/>
@@ -64,7 +78,8 @@
                             <th>ডিভাইস</th>
                             <td>
                                 <span t-esc="doc.device_id.display_name or ''"/>
-                                <span class="mono" t-esc="doc.device_serial or ''"/>
+                                <!-- the device name already carries "S/N ..." for registered devices -->
+                                <span class="mono" t-if="doc.device_serial and doc.device_serial not in (doc.device_id.display_name or '')" t-esc="doc.device_serial"/>
                             </td>
                         </tr>
                         <tr>
@@ -73,11 +88,13 @@
                         </tr>
                         <tr t-if="doc.technician_id">
                             <th>নিয়োজিত টেকনিশিয়ান</th>
-                            <td t-field="doc.technician_id.name"/>
+                            <!-- Odoo 19 QWeb rejects t-field on <td> ("widgets do not
+                                 work correctly on 'td' elements"): the field sits in a span -->
+                            <td><span t-field="doc.technician_id.name"/></td>
                         </tr>
                         <tr>
                             <th>ত্রুটির বিবরণ</th>
-                            <td t-field="doc.fault_description"/>
+                            <td><span t-field="doc.fault_description"/></td>
                         </tr>
                         <tr t-if="doc.legacy_reference">
                             <th>লিগ্যাসি রেফারেন্স</th>
@@ -93,6 +110,7 @@
                     <div class="footer">
                         হটলাইন ১৬৭৪৩ · 1000fix.com
                     </div>
+                </div>
                 </div>
             </t>
         </t>

@@ -1,7 +1,7 @@
 """Route optimization engine implementing TSP/VRP with baseline travel-time comparison (G2-03)."""
+
 import math
-from dataclasses import dataclass, field
-from typing import List, Tuple, Dict, Any
+from dataclasses import dataclass
 
 
 @dataclass
@@ -20,8 +20,8 @@ class RouteOptimizationResult:
     technician_id: int
     date: str
     depot_name: str
-    baseline_stops_sequence: List[str]
-    optimized_stops_sequence: List[str]
+    baseline_stops_sequence: list[str]
+    optimized_stops_sequence: list[str]
     baseline_distance_km: float
     optimized_distance_km: float
     baseline_travel_time_min: float
@@ -42,12 +42,12 @@ class RouteOptimizer:
         technician_id: int,
         date: str,
         depot: RouteStop,
-        stops: List[RouteStop],
+        stops: list[RouteStop],
     ) -> RouteOptimizationResult:
         if len(stops) < 2:
             raise ValueError("At least 2 customer stops are required for route optimization.")
 
-        all_points = [depot] + stops
+        all_points = [depot, *stops]
         n = len(all_points)
 
         # 1. Compute distance matrix (km)
@@ -56,24 +56,38 @@ class RouteOptimizer:
             for j in range(n):
                 if i != j:
                     dist_matrix[i][j] = cls._haversine_km(
-                        all_points[i].lat, all_points[i].lon,
-                        all_points[j].lat, all_points[j].lon,
+                        all_points[i].lat,
+                        all_points[i].lon,
+                        all_points[j].lat,
+                        all_points[j].lon,
                     )
 
         # 2. Baseline naive trip: sequential FIFO booking order (0 -> 1 -> 2 -> ... -> N -> 0)
-        baseline_order = list(range(n)) + [0]
-        baseline_dist = sum(dist_matrix[baseline_order[k]][baseline_order[k + 1]] for k in range(len(baseline_order) - 1))
-        baseline_time_min = (baseline_dist / cls.AVERAGE_SPEED_KMH) * 60.0 * cls.DHAKA_CONGESTION_FACTOR
+        baseline_order = [*range(n), 0]
+        baseline_dist = sum(
+            dist_matrix[baseline_order[k]][baseline_order[k + 1]]
+            for k in range(len(baseline_order) - 1)
+        )
+        baseline_time_min = (
+            (baseline_dist / cls.AVERAGE_SPEED_KMH) * 60.0 * cls.DHAKA_CONGESTION_FACTOR
+        )
 
         # 3. Optimized route via Nearest Neighbor heuristic + 2-opt refinement (VROOM simulation)
         optimized_indices = cls._solve_tsp_2opt(dist_matrix)
-        optimized_order = [0] + optimized_indices + [0]
-        optimized_dist = sum(dist_matrix[optimized_order[k]][optimized_order[k + 1]] for k in range(len(optimized_order) - 1))
-        optimized_time_min = (optimized_dist / cls.AVERAGE_SPEED_KMH) * 60.0 * cls.DHAKA_CONGESTION_FACTOR
+        optimized_order = [0, *optimized_indices, 0]
+        optimized_dist = sum(
+            dist_matrix[optimized_order[k]][optimized_order[k + 1]]
+            for k in range(len(optimized_order) - 1)
+        )
+        optimized_time_min = (
+            (optimized_dist / cls.AVERAGE_SPEED_KMH) * 60.0 * cls.DHAKA_CONGESTION_FACTOR
+        )
 
         # 4. Travel-time savings calculation
         if baseline_time_min > 0:
-            savings_pct = round(((baseline_time_min - optimized_time_min) / baseline_time_min) * 100.0, 2)
+            savings_pct = round(
+                ((baseline_time_min - optimized_time_min) / baseline_time_min) * 100.0, 2
+            )
         else:
             savings_pct = 0.0
 
@@ -92,7 +106,7 @@ class RouteOptimizer:
         )
 
     @classmethod
-    def _solve_tsp_2opt(cls, matrix: List[List[float]]) -> List[int]:
+    def _solve_tsp_2opt(cls, matrix: list[list[float]]) -> list[int]:
         """Nearest Neighbor initial tour followed by 2-opt edge swapping."""
         n = len(matrix)
         unvisited = set(range(1, n))
@@ -134,8 +148,5 @@ class RouteOptimizer:
         p1, p2 = math.radians(lat1), math.radians(lat2)
         dp = math.radians(lat2 - lat1)
         dl = math.radians(lon2 - lon1)
-        a = (
-            math.sin(dp / 2.0) ** 2
-            + math.cos(p1) * math.cos(p2) * (math.sin(dl / 2.0) ** 2)
-        )
+        a = math.sin(dp / 2.0) ** 2 + math.cos(p1) * math.cos(p2) * (math.sin(dl / 2.0) ** 2)
         return 2.0 * r * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))

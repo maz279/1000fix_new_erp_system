@@ -3,7 +3,9 @@ import inspect
 import unittest
 
 from odoo.addons.cd_competency.models.fix_competency import (
-    FixCertification, FixWorkOrderEligibilityExt)
+    FixCertification,
+    FixWorkOrderEligibilityExt,
+)
 
 
 class TestCertificationRegister(unittest.TestCase):
@@ -14,8 +16,8 @@ class TestCertificationRegister(unittest.TestCase):
         self.assertIn("active", src)
 
     def test_expiring_window_30_days(self):
-        from odoo.addons.cd_competency.models.fix_competency import (
-            EXPIRING_WINDOW_DAYS)
+        from odoo.addons.cd_competency.models.fix_competency import EXPIRING_WINDOW_DAYS
+
         self.assertEqual(EXPIRING_WINDOW_DAYS, 30)
 
     def test_events_granted_and_expired(self):
@@ -35,8 +37,7 @@ class TestDispatchEligibility(unittest.TestCase):
     def test_blocking_on_assignment_path(self):
         src = inspect.getsource(FixWorkOrderEligibilityExt.write)
         self.assertIn("action_check_certification", src)
-        block = inspect.getsource(
-            FixWorkOrderEligibilityExt.action_check_certification)
+        block = inspect.getsource(FixWorkOrderEligibilityExt.action_check_certification)
         self.assertIn("assignment blocked", block)
 
     def test_device_scope_match(self):

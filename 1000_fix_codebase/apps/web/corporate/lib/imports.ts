@@ -8,3 +8,7 @@
 export { tokens } from "../../../../libs/ts/ui/src/tokens/tokens.generated";
 export { uiCopy } from "../../../../libs/ts/api-client/src/ui-copy";
 export { ApiClient, ApiError } from "../../../../libs/ts/api-client/src/index";
+export {
+  Pill, Stat, SectionHead, DataTable, Loading, LoadError,
+} from "../../../../libs/ts/ui/src/components";
+export type { Column } from "../../../../libs/ts/ui/src/components";

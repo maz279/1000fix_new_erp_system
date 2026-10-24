@@ -1,0 +1,213 @@
+{
+  "consumer": {
+    "name": "1000fix-marketplace-core"
+  },
+  "provider": {
+    "name": "wave7-trust-advertising-services"
+  },
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    },
+    "milestone": "R08-M03",
+    "gate": "G7",
+    "rule": "PS-01"
+  },
+  "interactions": [
+    {
+      "description": "INT-035 verify valid trade license",
+      "providerStates": [
+        {
+          "name": "trade license exists and is active in municipal registry"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/trade-license/verify",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer SANDBOX_INT035_KEY"
+        },
+        "body": {
+          "license_number": "TRAD/DNCC/2026/049182",
+          "entity_name": "Apex Electronics Ltd",
+          "city_corporation": "DNCC",
+          "tin_number": "489201948192"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "is_valid": true,
+          "status": "valid",
+          "issued_to": "Apex Electronics Ltd",
+          "expiry_date": "2027-06-30",
+          "permitted_categories": ["IT_EQUIPMENT", "MOBILE_DEVICES", "HOME_APPLIANCES"],
+          "tin_matched": true
+        }
+      }
+    },
+    {
+      "description": "INT-035 verify expired trade license",
+      "providerStates": [
+        {
+          "name": "trade license has lapsed renewal period"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/trade-license/verify",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer SANDBOX_INT035_KEY"
+        },
+        "body": {
+          "license_number": "TRAD/EXP/2023/00192",
+          "entity_name": "Lapsed Merchant Co",
+          "city_corporation": "DSCC"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "is_valid": false,
+          "status": "expired",
+          "issued_to": "Lapsed Merchant Co",
+          "remarks": "Trade license expired on 2024-06-30. Renewal required before onboarding."
+        }
+      }
+    },
+    {
+      "description": "INT-037 create sponsored ad campaign",
+      "providerStates": [
+        {
+          "name": "seller account has available ad credit"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/ads/campaigns",
+        "headers": {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer SANDBOX_INT037_KEY"
+        },
+        "body": {
+          "seller_id": 42,
+          "title": "Specialist Laptop Motherboard Repair 20% Off",
+          "placement": "home_hero_banner",
+          "target_categories": ["IT_EQUIPMENT", "LAPTOPS"],
+          "budget_bdt": 5000.0,
+          "cpc_rate_bdt": 8.0,
+          "cpm_rate_bdt": 60.0
+        }
+      },
+      "response": {
+        "status": 201,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "campaign_id": "CMP-LTP-001",
+          "state": "active",
+          "budget_bdt": 5000.0,
+          "remaining_budget": 5000.0
+        }
+      }
+    },
+    {
+      "description": "INT-037 serve active targeted ads",
+      "providerStates": [
+        {
+          "name": "active campaigns exist for target category"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/v1/ads/serve?placement=home_hero_banner&category=IT_EQUIPMENT",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "ads": [
+            {
+              "campaign_id": "CMP-LTP-001",
+              "title": "Specialist Laptop Motherboard Repair 20% Off",
+              "placement": "home_hero_banner"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "description": "INT-037 record ad impression",
+      "providerStates": [
+        {
+          "name": "campaign CMP-LTP-001 is active"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/ads/campaigns/CMP-LTP-001/impression",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "viewer_session": "sess_89a2b"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "recorded",
+          "campaign_id": "CMP-LTP-001",
+          "state": "active"
+        }
+      }
+    },
+    {
+      "description": "INT-037 record ad click and attribute conversion",
+      "providerStates": [
+        {
+          "name": "campaign CMP-LTP-001 is active"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/v1/ads/campaigns/CMP-LTP-001/click",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "clicker_session": "sess_89a2b"
+        }
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "status": "recorded",
+          "campaign_id": "CMP-LTP-001",
+          "clicks": 1,
+          "state": "active"
+        }
+      }
+    }
+  ]
+}

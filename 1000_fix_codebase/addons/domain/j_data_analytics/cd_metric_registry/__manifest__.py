@@ -7,9 +7,20 @@
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
-    "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox",
-                 "cd_service_order", "cd_warranty_claims"],  # PP5: P06 KPI read_groups
-    "data": ["security/ir.model.access.csv", "views/cd_metric_registry_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "hr",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_warranty_claims",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/cd_metric_registry_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M62-01",

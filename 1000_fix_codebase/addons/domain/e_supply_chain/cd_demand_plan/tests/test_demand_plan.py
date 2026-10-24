@@ -1,4 +1,5 @@
 """cd_demand_plan tests - P09-M07 (CD-M43-01)."""
+
 import inspect
 import unittest
 
@@ -16,8 +17,7 @@ class TestDemandPlan(unittest.TestCase):
         self.assertIn("Nothing to replenish", src)
 
     def test_event_published(self):
-        self.assertIn("demand_plan.approved",
-                      inspect.getsource(FixDemandPlan))
+        self.assertIn("demand_plan.approved", inspect.getsource(FixDemandPlan))
 
 
 if __name__ == "__main__":

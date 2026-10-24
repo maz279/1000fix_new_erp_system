@@ -1,0 +1,188 @@
+{
+  "task_id": "R11-M03-T04",
+  "milestone": "R11-M03",
+  "evaluated_at_utc": "2026-10-22T14:34:44.083198+00:00",
+  "standards": [
+    "D-030 Binding Decision",
+    "OpenChain ISO/IEC 5230",
+    "CycloneDX 1.5",
+    "TSS \u00a718.5"
+  ],
+  "sbom_summary": {
+    "file": "sbom.cdx.json",
+    "format": "CycloneDX 1.5 JSON",
+    "total_dependencies": 177,
+    "by_type": {
+      "library": 137,
+      "container": 40
+    },
+    "licence_classified": 153,
+    "licence_unclassified": 24,
+    "unclassified_components": [
+      "ast-serialize@0.13.1 (uv.lock)",
+      "boolean-py@5.0 (uv.lock)",
+      "cachecontrol@0.14.4 (uv.lock)",
+      "cyclonedx-python-lib@11.12.0 (uv.lock)",
+      "defusedxml@0.7.1 (uv.lock)",
+      "librt@0.16.0 (uv.lock)",
+      "license-expression@30.4.4 (uv.lock)",
+      "markdown-it-py@4.2.0 (uv.lock)",
+      "mdurl@0.1.2 (uv.lock)",
+      "msgpack@1.2.3 (uv.lock)",
+      "mypy@2.4.0 (uv.lock)",
+      "mypy-extensions@1.1.0 (uv.lock)",
+      "packageurl-python@0.17.6 (uv.lock)",
+      "pathspec@1.1.1 (uv.lock)",
+      "pip-api@0.0.35 (uv.lock)",
+      "pip-audit@2.10.1 (uv.lock)",
+      "pip-requirements-parser@32.0.1 (uv.lock)",
+      "py-serializable@2.1.0 (uv.lock)",
+      "rich@15.0.0 (uv.lock)",
+      "sortedcontainers@2.4.0 (uv.lock)",
+      "tomli@2.5.0 (uv.lock)",
+      "tomli-w@1.2.0 (uv.lock)",
+      "axllent/mailpit@v1.22 (infra/compose/docker-compose.yml:mailpit)",
+      "mongo@7.0.14 (infra/compose/docker-compose.yml:novu-mongo)"
+    ]
+  },
+  "register_audit": {
+    "review_cadence": "annual (D-030)",
+    "last_annual_review_date": "2026-10-22",
+    "register_schema": "1000fix-erp/licence-register/1",
+    "register_components": 13,
+    "deployments_scanned": 68,
+    "conditions_audited": 7,
+    "conditions_compliant": 6,
+    "conditions_non_compliant": 0,
+    "conditions_not_deployed": 1,
+    "conditions_unmeasured": 0,
+    "condition_details": [
+      {
+        "component": "grafana",
+        "licence": "AGPL-3.0-and-later",
+        "register_status": "approved-with-condition",
+        "condition": "internal operational monitoring only; never a multi-tenant offering",
+        "deployments": [
+          "infra/compose/docker-compose.yml:grafana"
+        ],
+        "compliance": "COMPLIANT",
+        "evidence": "every published port binds loopback only"
+      },
+      {
+        "component": "loki",
+        "licence": "AGPL-3.0-and-later",
+        "register_status": "approved-with-condition",
+        "condition": "behind the trust boundary; no third-party log service",
+        "deployments": [
+          "infra/compose/docker-compose.yml:loki"
+        ],
+        "compliance": "COMPLIANT",
+        "evidence": "every published port binds loopback only"
+      },
+      {
+        "component": "tempo",
+        "licence": "AGPL-3.0-and-later",
+        "register_status": "approved-with-condition",
+        "condition": "same class as Loki",
+        "deployments": [
+          "infra/compose/docker-compose.yml:tempo"
+        ],
+        "compliance": "COMPLIANT",
+        "evidence": "every published port binds loopback only"
+      },
+      {
+        "component": "rustdesk",
+        "licence": "AGPL-3.0-and-later",
+        "register_status": "approved-with-condition",
+        "condition": "self-hosted M05 remote support only; MeshCentral preferred where choice is neutral",
+        "deployments": [],
+        "compliance": "NOT_DEPLOYED",
+        "evidence": "no infra/ manifest deploys it and no first-party source loads it"
+      },
+      {
+        "component": "timescaledb",
+        "licence": "Apache-2.0/TSL dual",
+        "register_status": "approved-with-condition",
+        "condition": "Apache-2.0-licensed features ONLY; TSL features must never be enabled (gate-tested)",
+        "deployments": [
+          "migrations/sql/timescaledb_telemetry_hypertable.sql (extension)"
+        ],
+        "compliance": "COMPLIANT",
+        "evidence": "no Timescale-enabled Postgres is deployed in infra/; the extension SQL refuses any server whose timescaledb.license is not 'apache' (migrations/sql/timescaledb_telemetry_hypertable.sql); no first-party SQL/Python calls a TSL-only feature"
+      },
+      {
+        "component": "hashicorp/vault",
+        "licence": "BUSL-1.1",
+        "register_status": "not-approved",
+        "condition": "use OpenBao (MPL-2.0) instead - the Wave 1 pick recorded in D-030",
+        "deployments": [],
+        "compliance": "COMPLIANT",
+        "evidence": "no infra/ manifest deploys it"
+      },
+      {
+        "component": "redis",
+        "licence": "BSD-3-Clause (<=7.2 only)",
+        "register_status": "approved-with-condition",
+        "condition": "pinned 7.2.x pending D-031; NO 7.4+/8.x image (RSALv2/SSPL/AGPLv3 tri-licence)",
+        "deployments": [
+          "infra/compose/docker-compose.dev.yml:redis-dev",
+          "infra/compose/docker-compose.dr.yml:redis-dr",
+          "infra/compose/docker-compose.perf.yml:redis-perf",
+          "infra/compose/docker-compose.prod.yml:redis-prod",
+          "infra/compose/docker-compose.sandbox.yml:redis-sandbox",
+          "infra/compose/docker-compose.sit.yml:redis-sit",
+          "infra/compose/docker-compose.staging.yml:redis-staging",
+          "infra/compose/docker-compose.training.yml:redis-training",
+          "infra/compose/docker-compose.uat.yml:redis-uat",
+          "infra/compose/docker-compose.yml:redis"
+        ],
+        "compliance": "COMPLIANT",
+        "evidence": "every image tag is 7.2.x"
+      }
+    ],
+    "status": "APPROVED"
+  },
+  "replaced_components": [
+    {
+      "component": "ceph",
+      "register_status": "approved",
+      "deployments": [
+        "infra/compose/docker-compose.yml:object-store"
+      ],
+      "retained": true
+    },
+    {
+      "component": "apache/superset",
+      "register_status": "approved",
+      "deployments": [
+        "infra/compose/docker-compose.superset.yml:superset"
+      ],
+      "retained": true
+    },
+    {
+      "component": "apache/airflow",
+      "register_status": "approved",
+      "deployments": [
+        "infra/compose/docker-compose.yml:airflow"
+      ],
+      "retained": true
+    },
+    {
+      "component": "apache/kafka",
+      "register_status": "approved",
+      "deployments": [
+        "infra/compose/docker-compose.asset-ml.yml:kafka-1",
+        "infra/compose/docker-compose.asset-ml.yml:kafka-2",
+        "infra/compose/docker-compose.asset-ml.yml:kafka-3"
+      ],
+      "retained": true
+    }
+  ],
+  "licence_gate": {
+    "command": "python tooling/scripts/check-licence-gate.py sbom.cdx.json",
+    "exit_code": 0,
+    "output": "licence-gate: OK   grafana [AGPL-3.0-and-later] approved - condition: internal operational monitoring only; never a multi-tenant offering\nlicence-gate: OK   loki [AGPL-3.0-and-later] approved - condition: behind the trust boundary; no third-party log service\nlicence-gate: OK   tempo [AGPL-3.0-and-later] approved - condition: same class as Loki\nlicence-gate: OK   timescaledb [Apache-2.0/TSL dual] approved - condition: Apache-2.0-licensed features ONLY; TSL features must never be enabled (gate-tested)\nlicence-gate: OK - 177 dependencies classified, 0 unapproved restricted components",
+    "is_green": true
+  },
+  "verdict": "INCOMPLETE"
+}

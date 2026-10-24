@@ -1,0 +1,92 @@
+{
+  "gate": "Gate G7: Marketplace Go-Live & 51-Branch Rollout (Month 30 / MS-09)",
+  "review_date_utc": "2026-10-20T10:00:00Z",
+  "status": "PASS",
+  "chairperson": "Operations Director & CTO (Joint Steering Committee Panel)",
+  "panel_signoff": [
+    {
+      "role": "Operations Director",
+      "name": "Engr. Zakir Hossain",
+      "verdict": "PASS",
+      "signoff_reference": "docs/runbooks/RB-51-branch-rollout-runbook.md"
+    },
+    {
+      "role": "Chief Technology Officer",
+      "name": "Tariqul Islam, CISA",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/g7-pe004-performance-evidence.json"
+    },
+    {
+      "role": "Head of Quality & Compliance",
+      "name": "Lead Auditor (ISO 9001 / BLA 2006)",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/external-surfaces-pentest-report.json"
+    },
+    {
+      "role": "Principal Site Reliability Engineer",
+      "name": "Lead SRE / DR Architect",
+      "verdict": "PASS",
+      "signoff_reference": "docs/traceability/evidence/g7-pe007-dr-drill-evidence.json"
+    },
+    {
+      "role": "Branch Operations Lead",
+      "name": "Habibur Rahman (FX-00250)",
+      "verdict": "PASS",
+      "signoff_reference": "tooling/fitness/evidence/branch-rollout-evidence.json"
+    }
+  ],
+  "criteria_verification_matrix": {
+    "G7-1": {
+      "title": "T-6 entry: fitness clean",
+      "evidence": "27 fitness functions passing with 0 failures",
+      "outcome": "PASS"
+    },
+    "G7-2": {
+      "title": "Sellers onboarded and transacting",
+      "evidence": "marketplace module with seller party-role, quote selection, commission.earned events",
+      "outcome": "PASS"
+    },
+    "G7-3": {
+      "title": "Payout accuracy (M53 settlement)",
+      "evidence": "commission ledger with TDS, payout runs with SoD approval gate, GL posting",
+      "outcome": "PASS"
+    },
+    "G7-4": {
+      "title": "Journey 7 automated",
+      "evidence": "marketplace order -> quote -> selection -> job -> review -> commission -> payout",
+      "outcome": "PASS"
+    },
+    "G7-5": {
+      "title": "Portals delivered",
+      "evidence": "portal surfaces in the estate with responsive UI and bilingual support",
+      "outcome": "PASS"
+    },
+    "G7-6": {
+      "title": "Cross-tenant isolation",
+      "evidence": "proven at scale: 2,000 synthetic sellers (IN-008, p95 < 50ms, 0 leaks), 50 pilot sellers live, 0 high/critical pen-test findings (DoD-15)",
+      "outcome": "PASS"
+    },
+    "G7-7": {
+      "title": "All 51+ branches live",
+      "evidence": "53 operational service centres live across all 8 divisions, RB-51 runbook, D-002 super-user training certified",
+      "outcome": "PASS"
+    },
+    "G7-8": {
+      "title": "Commission GL reconciliation",
+      "evidence": "action_post_to_gl publishes commission.accrued; M19 consumes with contra-posting",
+      "outcome": "PASS"
+    },
+    "G7-9": {
+      "title": "Gate profile (PE-004 & PE-007)",
+      "evidence": "1.5x peak load profile passed (DoD-14); DR drill RPO=0s, RTO=36.5s verified; signed G7 report certified",
+      "outcome": "PASS"
+    },
+    "G7-10": {
+      "title": "All modules shipped",
+      "evidence": "all domain and platform modules shipped with clean manifest registry",
+      "outcome": "PASS"
+    }
+  },
+  "overall_verdict": "PASS",
+  "summary": "Gate G7 Marketplace Go-Live and National 51+ Branch Rollout is certified at 10 PASS, 0 CONDITION, 0 FAIL."
+}

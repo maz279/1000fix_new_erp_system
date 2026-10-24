@@ -1,4 +1,5 @@
 """document-generation tests — P06-M03-T07 (TR-07, BN-007)."""
+
 from __future__ import annotations
 
 import sys
@@ -7,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from document_generation import (  # noqa: E402
+from document_generation import (
     DOCUMENT_TEMPLATES,
     RenderJob,
     format_amount,
@@ -23,7 +24,6 @@ class TestTemplates(unittest.TestCase):
         self.assertTrue(DOCUMENT_TEMPLATES["mushak_6_6"]["statutory"])
         self.assertIn("withholding_certificate", DOCUMENT_TEMPLATES)
         self.assertTrue(DOCUMENT_TEMPLATES["withholding_certificate"]["statutory"])
-
 
     def test_statutory_templates_carry_reference_images(self):
         for name, tpl in DOCUMENT_TEMPLATES.items():

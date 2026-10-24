@@ -1,0 +1,73 @@
+{
+  "realm": "1000fix-dev",
+  "keycloak_url": "http://127.0.0.1:8080",
+  "steps": [
+    {
+      "step": "realm user profile declares employee_code",
+      "attribute": {
+        "name": "employee_code",
+        "displayName": "Employee code",
+        "validations": {
+          "length": {
+            "min": 1,
+            "max": 32
+          },
+          "pattern": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+            "error-message": "employee code: letters, digits, '.', '_', '-'"
+          }
+        },
+        "permissions": {
+          "view": [
+            "admin"
+          ],
+          "edit": [
+            "admin"
+          ]
+        },
+        "multivalued": false
+      }
+    },
+    {
+      "step": "employee.joined -> identity provisioned",
+      "state": {
+        "elapsed_seconds": 0.557,
+        "username": "e2e-be03ad",
+        "enabled": true,
+        "employee_code_attribute": [
+          "E2E-BE03AD"
+        ],
+        "required_actions": [
+          "UPDATE_PASSWORD"
+        ],
+        "credentials": 0,
+        "realm_roles": [
+          "default-roles-1000fix-dev",
+          "fix_technician"
+        ],
+        "found_by_attribute_search": true
+      }
+    },
+    {
+      "step": "second employee.joined reuses the account",
+      "accounts": 1
+    },
+    {
+      "step": "employee.left (by stored id) -> deprovisioned",
+      "state": {
+        "elapsed_seconds": 0.196,
+        "enabled": false,
+        "sessions": 0,
+        "realm_roles": []
+      }
+    }
+  ],
+  "events_emitted": [
+    "identity.deprovisioned",
+    "identity.provisioned",
+    "identity.provisioned"
+  ],
+  "verdict": "PASS",
+  "measured_at_utc": "2026-10-22T11:57:43Z",
+  "kpi": "KPI-090 (deprovision <= 1 h) / FR-SEC-027 (joiner automation)"
+}

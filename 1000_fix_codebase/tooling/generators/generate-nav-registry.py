@@ -24,6 +24,7 @@ than silently producing a short registry. Deterministic and idempotent.
 
 Exit: 0 written / 1 payload shape unexpected.
 """
+
 from __future__ import annotations
 
 import json
@@ -36,9 +37,17 @@ FRONT = REPO.parent / "Front_end"
 OUT = REPO / "contracts" / "nav" / "registry.json"
 
 EXPECT = {
-    "areas": 12, "portals": 12, "modules": 67, "groups": 278,
-    "screens": 823, "reports": 346, "forms": 266, "sub_triples": 600,
-    "functions": 5100, "journeys": 10, "personas": 4,
+    "areas": 12,
+    "portals": 12,
+    "modules": 67,
+    "groups": 278,
+    "screens": 823,
+    "reports": 346,
+    "forms": 266,
+    "sub_triples": 600,
+    "functions": 5100,
+    "journeys": 10,
+    "personas": 4,
 }
 
 
@@ -49,13 +58,18 @@ def read(name: str) -> str:
 def parse_areas(nav1: str) -> list[dict]:
     areas = []
     for m in re.finditer(
-            r"\{ id:'(A\d+)', key:'([a-z]+)',\s*en:'([^']*)',\s*bn:'([^']*)',"
-            r"\s*mods:\[([^\]]*)\]", nav1):
-        areas.append({
-            "id": m.group(1), "key": m.group(2),
-            "en": m.group(3), "bn": m.group(4),
-            "modules": re.findall(r"'(M\d\d)'", m.group(5)),
-        })
+        r"\{ id:'(A\d+)', key:'([a-z]+)',\s*en:'([^']*)',\s*bn:'([^']*)'," r"\s*mods:\[([^\]]*)\]",
+        nav1,
+    ):
+        areas.append(
+            {
+                "id": m.group(1),
+                "key": m.group(2),
+                "en": m.group(3),
+                "bn": m.group(4),
+                "modules": re.findall(r"'(M\d\d)'", m.group(5)),
+            }
+        )
     return areas
 
 
@@ -67,20 +81,20 @@ def split_modules(all3: str) -> dict[str, str]:
     # whichever comes first — never past it into the assignment-style files.
     for m in re.finditer(r"\n(M\d{2}): \{", all3):
         start = m.end() - 1
-        window = all3[m.end():]
+        window = all3[m.end() :]
         nxt = re.search(r"\n(M\d{2}): \{", window)
         close = re.search(r"\n\};", window)
         if close and (not nxt or close.start() < nxt.start()):
             end = m.end() + close.start()
         else:
             end = m.end() + (nxt.start() if nxt else len(window))
-        bodies[m.group(1)] = all3[start + 1:end]
+        bodies[m.group(1)] = all3[start + 1 : end]
     # Style 2 — `window.FX_MODULES.Mxx = { ... };` assignments (nav_data2/3).
     for m in re.finditer(r"FX_MODULES\.(M\d{2}) = \{", all3):
         start = m.end() - 1
-        nxt = re.search(r"FX_MODULES\.M\d{2} = \{", all3[m.end():])
+        nxt = re.search(r"FX_MODULES\.M\d{2} = \{", all3[m.end() :])
         end = m.end() + (nxt.start() if nxt else len(all3) - m.end())
-        body = all3[start + 1:end]
+        body = all3[start + 1 : end]
         body = body.rsplit("};", 1)[0]
         bodies[m.group(1)] = body
     return bodies
@@ -89,7 +103,9 @@ def split_modules(all3: str) -> dict[str, str]:
 def parse_module(mid: str, body: str) -> dict:
     head = re.search(
         r"area:'(A\d+)', en:'((?:[^'\\]|\\.)*)', bn:'((?:[^'\\]|\\.)*)'"
-        r"(?:, icon:'([^']*)')?(?:, rail:'([a-z]*)')?", body)
+        r"(?:, icon:'([^']*)')?(?:, rail:'([a-z]*)')?",
+        body,
+    )
     mod = {
         "id": mid,
         "area": head.group(1),
@@ -99,23 +115,30 @@ def parse_module(mid: str, body: str) -> dict:
         "rail": head.group(5) or "",
     }
     d = re.search(r"desc:'((?:[^'\\]|\\.)*)'", body)
-    mod["desc"] = (d.group(1).replace("\\'", "'") if d else "")
+    mod["desc"] = d.group(1).replace("\\'", "'") if d else ""
     # groups -> screens
     groups = []
     for gm in re.finditer(r"\{en:'((?:[^'\\]|\\.)*)',\s*screens:\[(.*?)\]\}", body, re.S):
         screens = []
         for sm in re.finditer(
-                r"\{id:'([^']+)',\s*en:'((?:[^'\\]|\\.)*)',\s*bn:'((?:[^'\\]|\\.)*)',"
-                r"\s*t:'([a-z])'\}", gm.group(2)):
-            screens.append({"id": sm.group(1), "en": sm.group(2).replace("\\'", "'"),
-                            "bn": sm.group(3).replace("\\'", "'"), "t": sm.group(4)})
+            r"\{id:'([^']+)',\s*en:'((?:[^'\\]|\\.)*)',\s*bn:'((?:[^'\\]|\\.)*)',"
+            r"\s*t:'([a-z])'\}",
+            gm.group(2),
+        ):
+            screens.append(
+                {
+                    "id": sm.group(1),
+                    "en": sm.group(2).replace("\\'", "'"),
+                    "bn": sm.group(3).replace("\\'", "'"),
+                    "t": sm.group(4),
+                }
+            )
         groups.append({"en": gm.group(1).replace("\\'", "'"), "screens": screens})
     mod["groups"] = groups
     # reports / forms / cross — plain-string arrays
     for field in ("reports", "forms", "cross"):
         am = re.search(field + r":\s*\[(.*?)\]", body, re.S)
-        mod[field] = (re.findall(r"'((?:[^'\\]|\\.)*)'", am.group(1))
-                      if am else [])
+        mod[field] = re.findall(r"'((?:[^'\\]|\\.)*)'", am.group(1)) if am else []
         mod[field] = [v.replace("\\'", "'") for v in mod[field]]
     # freg — src + sub triples
     freg = {"src": 0, "sub": []}
@@ -123,8 +146,7 @@ def parse_module(mid: str, body: str) -> dict:
     if fm:
         freg["src"] = int(fm.group(1))
         for tm in re.finditer(r"\['([^']*)','((?:[^'\\]|\\.)*)',(\d+)\]", fm.group(2)):
-            freg["sub"].append([tm.group(1), tm.group(2).replace("\\'", "'"),
-                                int(tm.group(3))])
+            freg["sub"].append([tm.group(1), tm.group(2).replace("\\'", "'"), int(tm.group(3))])
     mod["freg"] = freg
     # kpis — LABELS ONLY; fabricated values/deltas/sparks are dropped here
     kpis = []
@@ -139,30 +161,45 @@ def parse_structural(demo: str) -> dict:
     pm = re.search(r"D\.PORTALS\s*=\s*\[(.*?)\n\];", demo, re.S)
     portals = []
     for row in re.finditer(
-            r"\[\s*'(P\d\d)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,"
-            r"\s*'([^']*)'\s*,\s*\[(.*?)\]\s*\]", pm.group(1), re.S):
+        r"\[\s*'(P\d\d)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,\s*'([^']*)'\s*,"
+        r"\s*'([^']*)'\s*,\s*\[(.*?)\]\s*\]",
+        pm.group(1),
+        re.S,
+    ):
         caps = re.findall(r"'((?:[^'\\]|\\.)*)'", row.group(6))
-        portals.append({
-            "id": row.group(1), "name": row.group(2), "users": row.group(3),
-            "volume": row.group(4), "tech": row.group(5),
-            "capabilities": [c.replace("\\'", "'") for c in caps],
-        })
+        portals.append(
+            {
+                "id": row.group(1),
+                "name": row.group(2),
+                "users": row.group(3),
+                "volume": row.group(4),
+                "tech": row.group(5),
+                "capabilities": [c.replace("\\'", "'") for c in caps],
+            }
+        )
     out["portals"] = portals
     jm = re.search(r"D\.JOURNEYS\s*=\s*\[(.*?)\n\];", demo, re.S)
     # Steps are triples [actor, description, '#/route'] — actor + route kept
     # (the route is the step->screen link); the description is copy, kept too.
     journeys = []
-    for row in re.finditer(r"\{[^{}]*?id:'([^']+)'[^{}]*?en:'([^']*)'"
-                           r"(?:[^{}]*?bn:'([^']*)')?[^{}]*?steps:\[(.*?)\]\]\s*\}",
-                           jm.group(1), re.S):
+    for row in re.finditer(
+        r"\{[^{}]*?id:'([^']+)'[^{}]*?en:'([^']*)'"
+        r"(?:[^{}]*?bn:'([^']*)')?[^{}]*?steps:\[(.*?)\]\]\s*\}",
+        jm.group(1),
+        re.S,
+    ):
         steps = []
-        for sm in re.finditer(
-                r"\['([^']*)','((?:[^'\\]|\\.)*)','([^']*)'\]", row.group(4)):
-            steps.append({"actor": sm.group(1),
-                          "desc": sm.group(2).replace("\\'", "'"),
-                          "route": sm.group(3)})
-        journeys.append({"id": row.group(1), "en": row.group(2),
-                         "bn": row.group(3) or "", "steps": steps})
+        for sm in re.finditer(r"\['([^']*)','((?:[^'\\]|\\.)*)','([^']*)'\]", row.group(4)):
+            steps.append(
+                {
+                    "actor": sm.group(1),
+                    "desc": sm.group(2).replace("\\'", "'"),
+                    "route": sm.group(3),
+                }
+            )
+        journeys.append(
+            {"id": row.group(1), "en": row.group(2), "bn": row.group(3) or "", "steps": steps}
+        )
     out["journeys"] = journeys
     per = re.search(r"D\.PERSONAS\s*=\s*\[(.*?)\n\];", demo, re.S)
     personas = []
@@ -208,15 +245,15 @@ def main() -> int:
 
     registry = {
         "$schema": "generated by tooling/generators/generate-nav-registry.py "
-                   "(PP0-M03-T01). Source: the frozen Front_end prototype. "
-                   "Do not edit by hand.",
+        "(PP0-M03-T01). Source: the frozen Front_end prototype. "
+        "Do not edit by hand.",
         "$note": "Faithful freeze: portal 'tech' strings are prototype-era "
-                 "(e.g. 'Next.js 15 + RN', 'Metabase + Grafana') and are "
-                 "SUPERSEDED for production by D-026 (Next.js 16.3, no RN), "
-                 "D-027 (Flutter) and the L4 baseline (Superset+Grafana) — "
-                 "see docs/navigation/registry-to-production-mapping.md. "
-                 "Journey names are EN-only in the frozen payload; production "
-                 "Bengali journey names land with the PP5 marketing shell.",
+        "(e.g. 'Next.js 15 + RN', 'Metabase + Grafana') and are "
+        "SUPERSEDED for production by D-026 (Next.js 16.3, no RN), "
+        "D-027 (Flutter) and the L4 baseline (Superset+Grafana) — "
+        "see docs/navigation/registry-to-production-mapping.md. "
+        "Journey names are EN-only in the frozen payload; production "
+        "Bengali journey names land with the PP5 marketing shell.",
         "areas": areas,
         "modules": modules,
         "portals": structural["portals"],
@@ -225,11 +262,14 @@ def main() -> int:
         "counts": counts,
     }
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps(registry, indent=1, ensure_ascii=False) + "\n",
-                   encoding="utf-8", newline="\n")
-    print(f"generate-nav-registry: {len(modules)} modules, {counts['screens']} "
-          f"screens, {counts['reports']} reports, {counts['forms']} forms, "
-          f"{counts['functions']} functions -> {OUT.relative_to(REPO)}")
+    OUT.write_text(
+        json.dumps(registry, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n"
+    )
+    print(
+        f"generate-nav-registry: {len(modules)} modules, {counts['screens']} "
+        f"screens, {counts['reports']} reports, {counts['forms']} forms, "
+        f"{counts['functions']} functions -> {OUT.relative_to(REPO)}"
+    )
     return 0
 
 

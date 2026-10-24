@@ -1,22 +1,32 @@
 {
   "run": "WAVE1_REHEARSAL_20261016",
-  "extracted_at": "2026-10-16T14:20:50.425492+00:00",
+  "extracted_at": "2026-10-22T08:23:31.880592+00:00",
   "control_totals": {
     "branches": 6,
     "customers": 50,
     "devices": 50,
-    "employees": 20
+    "employees": 20,
+    "attendance_opening": 20
   },
   "checksums": {
-    "branches": "0854c5d3cc4e147761580db2f517b804273b5c3cc797d6102762fc1d9ae48d99",
-    "customers": "303276823fc30ca90a31a24cae2ab8b4dfd4e4c2cf1daba5abfaa8aa0ebf3ce4",
-    "devices": "e470c90444e017c2af6b4ce6182cfdb7ef6dd5b75aca26b27a1bd5b513d1eeb4",
-    "employees": "dfa5fdfcfeb514414f7d10e4e938c19ab3ee8db247c40be710e08c5a77f43879"
+    "branches": "1cf111c75d017d62c89bb29803cec751784c5120877260888cd727a700a43796",
+    "customers": "2a6785f237f6a06aa4ed7a660f961c89972b205b7198c44e3c3d86c04dfdc283",
+    "devices": "5a1ed2ea809c43a6d411fcc95bce1cc1bd34a01f4ef352465cb16c59ab70d8f2",
+    "employees": "c07165dfb9829d31a505dd11cd30cd2eee2686fa58de69e9350497419697f508",
+    "attendance_opening": "36a9a7b8f9b8661b0e45188a997f50e15a87c085e3d3f7630ad561ea57f71393"
+  },
+  "extract_files": {
+    "branches": "branches_extract.json",
+    "customers": "customers_extract.json",
+    "devices": "devices_extract.json",
+    "employees": "employees_extract.json",
+    "attendance_opening": "attendance_opening_extract.json"
   },
   "value_totals": {
     "branches": 0,
     "customers": 0,
     "devices": 0,
-    "employees": 0
+    "employees": 0,
+    "attendance_opening": 0
   }
 }

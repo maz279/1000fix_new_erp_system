@@ -1,2 +1,2 @@
-# cd_storefront (P10).
-from . import models
+# cd_storefront (P10 / M38).
+from . import controllers, models

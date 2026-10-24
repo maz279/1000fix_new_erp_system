@@ -7,120 +7,491 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__action
+msgid "Action"
+msgstr "কার্যক্রম"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__active
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__active
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_status__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_role__operating_unit_ids
 msgid "Active Branches"
 msgstr "সক্রিয় শাখাসমূহ"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__source__agent
+msgid "Agent Captured"
+msgstr "এজেন্ট কর্তৃক সংগৃহীত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__biometric
+msgid "Biometric Template"
+msgstr "বায়োমেট্রিক টেমপ্লেট"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__brn
+msgid "Birth Registration No."
+msgstr "জন্ম নিবন্ধন নং"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_dedup_rule__action__block
+msgid "Block Creation (hard fail)"
+msgstr "তৈরি আটকে দিন (হার্ড ফেইল)"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__brand_partner
+msgid "Brand Partner"
+msgstr "ব্র্যান্ড পার্টনার"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_hierarchy__relation_type__care_of
+msgid "Care-Of Address"
+msgstr "প্রযত্নে ঠিকানা"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__channel
+msgid "Channel"
+msgstr "চ্যানেল"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__checksum_valid
 msgid "Checksum Valid"
 msgstr "চেকসাম বৈধ"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__child_id
 msgid "Child Party"
 msgstr "অধীন পার্টি"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__company_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__company_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__company_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__company_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_role__company_id
 msgid "Company"
 msgstr "কোম্পানি"
 
+#. module: cd_party_master
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_partner_form_fix_party
 msgid "Consent"
 msgstr "সম্মতি"
 
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_consent
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__consent_ids
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_consent
 msgid "Consent Records"
 msgstr "সম্মতির রেকর্ড"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__contractor
+msgid "Contractor"
+msgstr "ঠিকাদার"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_hierarchy__relation_type__corporate
+msgid "Corporate Group"
+msgstr "কর্পোরেট গ্রুপ"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__customer
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_party_master
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_party_governance
+msgid "Data Governance"
+msgstr "ডেটা গভর্নেন্স"
+
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_dedup_rule
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_dedup_rule
 msgid "Dedup Rules"
 msgstr "ডিডুপ নিয়ম"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__document_number
 msgid "Document Number"
 msgstr "দলিল নম্বর"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__channel__email
+msgid "Email"
+msgstr "ইমেইল"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__employee
+msgid "Employee (via M21)"
+msgstr "কর্মী (M21-এর মাধ্যমে)"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__res_partner__preferred_language__en
+msgid "English"
+msgstr "ইংরেজি"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_dedup_rule__scope__exact
+msgid "Exact Match"
+msgstr "হুবহু মিল"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__expiry_date
 msgid "Expiry Date"
 msgstr "মেয়াদোত্তীর্ণের তারিখ"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_dedup_rule__action__flag
+msgid "Flag for Steward Review (M64)"
+msgstr "স্টুয়ার্ড পর্যালোচনার জন্য চিহ্নিত করুন (M64)"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_dedup_rule__scope__fuzzy
+msgid "Fuzzy (Levenshtein <= threshold)"
+msgstr "আংশিক মিল (Levenshtein <= সীমা)"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__threshold
 msgid "Fuzzy Threshold"
 msgstr "ফাজি থ্রেশহোল্ড"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__government
+msgid "Government Body"
+msgstr "সরকারি সংস্থা"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__state__granted
+msgid "Granted"
+msgstr "প্রদত্ত"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__date_granted
 msgid "Granted At"
 msgstr "প্রদানের সময়"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_hierarchy__relation_type__guarantor
+msgid "Guarantor"
+msgstr "জামিনদার"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_hierarchy__relation_type__household
+msgid "Household Member"
+msgstr "পরিবারের সদস্য"
+
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_identity_document
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_identity_document
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_fix_identity_document_tree
 msgid "Identity Documents"
 msgstr "পরিচয়পত্রসমূহ"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__issuing_country
 msgid "Issuing Country"
 msgstr "ইস্যুকারী দেশ"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__source__legacy
+msgid "Legacy Import"
+msgstr "লিগ্যাসি আমদানি"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__legacy_reference
+msgid "Legacy Reference"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__carrier
+msgid "Logistics Carrier"
+msgstr "লজিস্টিকস বাহক"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__channel__marketing
+msgid "Marketing (all channels)"
+msgstr "মার্কেটিং (সকল চ্যানেল)"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__seller
+msgid "Marketplace Seller"
+msgstr "মার্কেটপ্লেস বিক্রেতা"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__match_fields
 msgid "Match Fields"
 msgstr "মিলের ফিল্ড"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__model_id
 msgid "Model"
 msgstr "মডেল"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__nid_10
+msgid "NID (10-digit)"
+msgstr "NID (১০ অঙ্ক)"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__nid_17
+msgid "NID (17-digit)"
+msgstr "NID (১৭ অঙ্ক)"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__operating_unit_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_role__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__source__otp
+msgid "OTP-Verified"
+msgstr "OTP-যাচাইকৃত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__source__form
+msgid "Paper Form"
+msgstr "কাগজের ফরম"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__parent_id
 msgid "Parent Party"
 msgstr "ঊর্ধ্বতন পার্টি"
 
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_parties
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_parties
 msgid "Parties"
 msgstr "পার্টিসমূহ"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__partner_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__partner_id
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_role__partner_id
 msgid "Party"
 msgstr "পার্টি"
 
+#. module: cd_party_master
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_partner_form_fix_party
 msgid "Party Kernel (M33)"
 msgstr "পার্টি কার্নেল (M33)"
 
+#. module: cd_party_master
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_party_root
 msgid "Party Master"
 msgstr "পার্টি মাস্টার"
 
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_party_hierarchy
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_party_hierarchy
+msgid "Party Relations"
+msgstr "পার্টি সম্পর্কসমূহ"
+
+#. module: cd_party_master
+#: model:ir.model,name:cd_party_master.model_fix_party_role
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_fix_party_role_form
 msgid "Party Role"
 msgstr "পার্টি ভূমিকা"
 
+#. module: cd_party_master
+#: model:ir.actions.act_window,name:cd_party_master.action_fix_party_role
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__role_ids
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_fix_party_role_tree
 msgid "Party Roles"
 msgstr "পার্টি ভূমিকাসমূহ"
 
-msgid "Primary Document"
-msgstr "প্রধান দলিল"
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__passport
+msgid "Passport"
+msgstr "পাসপোর্ট"
 
-msgid "Proof Reference"
-msgstr "প্রমাণের রেফারেন্স"
-
-msgid "Related Parties (as child)"
-msgstr "সম্পর্কিত পার্টি (অধীন হিসেবে)"
-
-msgid "Related Parties (as parent)"
-msgstr "সম্পর্কিত পার্টি (ঊর্ধ্বতন হিসেবে)"
-
-msgid "Role Since"
-msgstr "ভূমিকা থেকে"
-
-msgid "Roles"
-msgstr "ভূমিকাসমূহ"
-
-msgid "Rule Name"
-msgstr "নিয়মের নাম"
-
-msgid "Signed form ID / OTP session / legacy batch"
-msgstr "স্বাক্ষরিত ফর্ম আইডি / OTP সেশন / লিগ্যাসি ব্যাচ"
-
-msgid "Since"
-msgstr "হইতে"
-
-msgid "Until"
-msgstr "পর্যন্ত"
-
-msgid "Verified By"
-msgstr "যাচাইকারী"
-
-msgid "Withdrawn At"
-msgstr "প্রত্যাহারের সময়"
-
+#. module: cd_party_master
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_fix_dedup_rule_form
 msgid "phone,name_normalized"
 msgstr "phone,name_normalized"
 
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__preferred_language
+msgid "Preferred Language"
+msgstr "পছন্দের ভাষা"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__is_primary
+msgid "Primary Document"
+msgstr "প্রধান দলিল"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__proof
+msgid "Proof Reference"
+msgstr "প্রমাণের রেফারেন্স"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_status__prospect
+msgid "Prospect"
+msgstr "সম্ভাব্য"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__channel__push
+msgid "Push"
+msgstr "পুশ"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__hierarchy_parent_ids
+msgid "Related Parties (as child)"
+msgstr "সম্পর্কিত পার্টি (অধীন হিসেবে)"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_res_partner__hierarchy_child_ids
+msgid "Related Parties (as parent)"
+msgstr "সম্পর্কিত পার্টি (ঊর্ধ্বতন হিসেবে)"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__relation_type
+msgid "Relation"
+msgstr "সম্পর্ক"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_role__since
+msgid "Role Since"
+msgstr "ভূমিকা থেকে"
+
+#. module: cd_party_master
+#: model:ir.ui.menu,name:cd_party_master.menu_fix_party_role
+msgid "Roles"
+msgstr "ভূমিকাসমূহ"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__name
+msgid "Rule Name"
+msgstr "নিয়মের নাম"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_dedup_rule__scope
+msgid "Scope"
+msgstr "পরিসর"
+
+#. module: cd_party_master
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_fix_consent_form
+msgid "Signed form ID / OTP session / legacy batch"
+msgstr "স্বাক্ষরিত ফর্ম আইডি / OTP সেশন / লিগ্যাসি ব্যাচ"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__date_from
+msgid "Since"
+msgstr "থেকে"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__channel__sms
+msgid "SMS"
+msgstr "SMS"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__source
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_status__suspended
+msgid "Suspended"
+msgstr "স্থগিত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_status__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__tin
+msgid "TIN"
+msgstr "TIN"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__document_type__trade_license
+msgid "Trade Licence"
+msgstr "ট্রেড লাইসেন্স"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_party_hierarchy__date_to
+msgid "Until"
+msgstr "পর্যন্ত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__verification_status__unverified
+msgid "Unverified"
+msgstr "অযাচাইকৃত"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_party_role__role_type__vendor
+msgid "Vendor / Supplier"
+msgstr "ভেন্ডর / সরবরাহকারী"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__verification_status__failed
+msgid "Verification Failed"
+msgstr "যাচাই ব্যর্থ"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__verification_status__pending
+msgid "Verification Pending"
+msgstr "যাচাই অপেক্ষমাণ"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_identity_document__verification_status__verified
+msgid "Verified"
+msgstr "যাচাইকৃত"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_identity_document__verified_by
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__source__web
+msgid "Web Portal"
+msgstr "ওয়েব পোর্টাল"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__channel__whatsapp
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__fix_consent__state__withdrawn
+msgid "Withdrawn"
+msgstr "প্রত্যাহৃত"
+
+#. module: cd_party_master
+#: model:ir.model.fields,field_description:cd_party_master.field_fix_consent__date_withdrawn
+msgid "Withdrawn At"
+msgstr "প্রত্যাহারের সময়"
+
+#. module: cd_party_master
+#: model_terms:ir.ui.view,arch_db:cd_party_master.view_partner_form_fix_party
 msgid "নাম (বাংলা)"
 msgstr "নাম (বাংলা)"
 
-msgid "Party Relations"
-msgstr "পার্টি সম্পর্কসমূহ"
+#. module: cd_party_master
+#: model:ir.model.fields.selection,name:cd_party_master.selection__res_partner__preferred_language__bn
+msgid "বাংলা (Bengali)"
+msgstr "বাংলা"

@@ -1,0 +1,120 @@
+{
+  "timestamp": "2026-10-21T17:33:00Z",
+  "milestone": "R10-M03",
+  "task": "R10-M03-T01",
+  "title": "OpenAPI 3.1 Bounded Context Contracts Backfill & CI Stage 6 Conformance",
+  "status": "PASS",
+  "standard": "OpenAPI 3.1.0 (IN-002 / RFC 9457)",
+  "total_specs": 14,
+  "bounded_contexts_count": 11,
+  "bounded_contexts": [
+    {
+      "context": "service-delivery",
+      "file": "contracts/openapi/service-delivery.json",
+      "modules": ["M01", "M02", "M03", "M04", "M05", "M06", "M31"],
+      "paths": 8,
+      "operations": 11,
+      "status": "VALID"
+    },
+    {
+      "context": "customer-engagement",
+      "file": "contracts/openapi/customer-engagement.json",
+      "modules": ["M07", "M10", "M27", "M32", "M33", "M34", "M35"],
+      "paths": 7,
+      "operations": 10,
+      "status": "VALID"
+    },
+    {
+      "context": "commercial",
+      "file": "contracts/openapi/commercial.json",
+      "modules": ["M08", "M09", "M11", "M36", "M37", "M39", "M40"],
+      "paths": 7,
+      "operations": 9,
+      "status": "VALID"
+    },
+    {
+      "context": "marketplace",
+      "file": "contracts/openapi/marketplace.json",
+      "modules": ["M12", "M38"],
+      "paths": 4,
+      "operations": 6,
+      "status": "VALID"
+    },
+    {
+      "context": "circular",
+      "file": "contracts/openapi/circular.json",
+      "modules": ["M13", "M14", "M18", "M37"],
+      "paths": 5,
+      "operations": 9,
+      "status": "VALID"
+    },
+    {
+      "context": "supply-chain",
+      "file": "contracts/openapi/supply-chain.json",
+      "modules": ["M15", "M16", "M41", "M42", "M43", "M44"],
+      "paths": 6,
+      "operations": 7,
+      "status": "VALID"
+    },
+    {
+      "context": "asset",
+      "file": "contracts/openapi/asset.json",
+      "modules": ["M17", "M45", "M46", "M47", "M48"],
+      "paths": 5,
+      "operations": 6,
+      "status": "VALID"
+    },
+    {
+      "context": "finance",
+      "file": "contracts/openapi/finance.json",
+      "modules": ["M19", "M20", "M49", "M50", "M51", "M52", "M53", "M54"],
+      "paths": 8,
+      "operations": 9,
+      "status": "VALID"
+    },
+    {
+      "context": "people",
+      "file": "contracts/openapi/people.json",
+      "modules": ["M21", "M22", "M55", "M56", "M57", "M58", "M59"],
+      "paths": 7,
+      "operations": 8,
+      "status": "VALID"
+    },
+    {
+      "context": "governance",
+      "file": "contracts/openapi/governance.json",
+      "modules": ["M23", "M24", "M60", "M61", "M66", "M67"],
+      "paths": 6,
+      "operations": 9,
+      "status": "VALID"
+    },
+    {
+      "context": "platform",
+      "file": "contracts/openapi/platform.json",
+      "modules": ["M25", "M26", "M28", "M29", "M30", "M62", "M63", "M64", "M65"],
+      "paths": 9,
+      "operations": 9,
+      "status": "VALID"
+    }
+  ],
+  "portal_specs": [
+    {
+      "name": "consent-pdpa",
+      "file": "contracts/openapi/consent-pdpa.json",
+      "status": "VALID"
+    },
+    {
+      "name": "p01-customer",
+      "file": "contracts/openapi/p01-customer.json",
+      "status": "VALID"
+    },
+    {
+      "name": "w4-portals",
+      "file": "contracts/openapi/w4-portals.json",
+      "status": "VALID"
+    }
+  ],
+  "estate_modules_covered": "67/67 (100.0%)",
+  "check_openapi_script": "tooling/fitness/check-openapi.py (PASS)",
+  "contracts_check_module": "python -m contracts.check openapi (PASS)"
+}

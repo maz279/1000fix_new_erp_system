@@ -1,0 +1,1282 @@
+{
+  "milestone": "R11-M02",
+  "task": "R11-M02-T02",
+  "title": "Legacy Reference Survival & Real-Time Lookup Verification (FR-SRM-088 / MIG-03)",
+  "timestamp": "2026-10-22T10:21:49Z",
+  "governing_standards": [
+    "TSS §19.2",
+    "MIG-03",
+    "FR-SRM-088"
+  ],
+  "measurement_policy": "GV-009: every lookup below was executed and timed in this run; what cannot be observed from this workstation is UNMEASURED with its reason",
+  "target_database": "127.0.0.1:5433/fix_migration",
+  "scope": "rehearsal database (synthetic Wave-1 load); production is UNMEASURED",
+  "total_sample_lookups_tested": 124,
+  "total_successful_resolutions": 124,
+  "resolution_success_rate": "100.0%",
+  "performance_metrics": {
+    "target_sla_latency_ms": 50.0,
+    "average_lookup_latency_ms": 0.958,
+    "p95_lookup_latency_ms": 1.291,
+    "max_lookup_latency_ms": 2.033,
+    "sla_conformance": "PASS"
+  },
+  "verified_domains": [
+    "fix.device",
+    "res.partner",
+    "hr.employee",
+    "fix.branch"
+  ],
+  "unverified_domains": [
+    "fix.service.order"
+  ],
+  "production_lookup_after_retirement": {
+    "status": "UNMEASURED",
+    "detail": "lookup after legacy retirement on the production database, at production volume, cannot be observed from this workstation (DE-11 local-only endpoints; DE-12 no production data on a workstation)"
+  },
+  "domains": [
+    {
+      "domain_model": "fix.service.order",
+      "target_table": "fix_service_order",
+      "origin_extract": null,
+      "target_rows_with_legacy_reference": 0,
+      "lookups_tested": 0,
+      "lookups_resolved": 0,
+      "checks": {
+        "legacy_reference_indexed": {
+          "status": "PASS",
+          "detail": "fix_service_order: index on legacy_reference present"
+        },
+        "coverage": {
+          "status": "UNMEASURED",
+          "detail": "no committed extract carries legacy references for this domain, so no migrated record can be looked up"
+        }
+      },
+      "status": "INCOMPLETE"
+    },
+    {
+      "domain_model": "fix.device",
+      "target_table": "fix_device",
+      "origin_extract": "devices_extract.json",
+      "target_rows_with_legacy_reference": 49,
+      "lookups_tested": 49,
+      "lookups_resolved": 49,
+      "average_lookup_latency_ms": 0.902,
+      "p95_lookup_latency_ms": 1.18,
+      "max_lookup_latency_ms": 1.439,
+      "checks": {
+        "legacy_reference_indexed": {
+          "status": "PASS",
+          "detail": "fix_device: index on legacy_reference present"
+        },
+        "coverage": {
+          "status": "PASS",
+          "detail": "49 of 49 accepted legacy references resolve to exactly one row"
+        },
+        "latency_sla": {
+          "status": "PASS",
+          "detail": "max 1.439 ms over 49 lookups (target < 50.0 ms)"
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "domain_model": "res.partner",
+      "target_table": "res_partner",
+      "origin_extract": "customers_extract.json",
+      "target_rows_with_legacy_reference": 69,
+      "lookups_tested": 49,
+      "lookups_resolved": 49,
+      "average_lookup_latency_ms": 1.017,
+      "p95_lookup_latency_ms": 1.473,
+      "max_lookup_latency_ms": 2.033,
+      "checks": {
+        "legacy_reference_indexed": {
+          "status": "PASS",
+          "detail": "res_partner: index on legacy_reference present"
+        },
+        "coverage": {
+          "status": "PASS",
+          "detail": "49 of 49 accepted legacy references resolve to exactly one row"
+        },
+        "latency_sla": {
+          "status": "PASS",
+          "detail": "max 2.033 ms over 49 lookups (target < 50.0 ms)"
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "target_table": "hr_employee",
+      "origin_extract": "employees_extract.json",
+      "target_rows_with_legacy_reference": 20,
+      "lookups_tested": 20,
+      "lookups_resolved": 20,
+      "average_lookup_latency_ms": 0.969,
+      "p95_lookup_latency_ms": 1.269,
+      "max_lookup_latency_ms": 1.496,
+      "checks": {
+        "legacy_reference_indexed": {
+          "status": "PASS",
+          "detail": "hr_employee: index on legacy_reference present"
+        },
+        "coverage": {
+          "status": "PASS",
+          "detail": "20 of 20 accepted legacy references resolve to exactly one row"
+        },
+        "latency_sla": {
+          "status": "PASS",
+          "detail": "max 1.496 ms over 20 lookups (target < 50.0 ms)"
+        }
+      },
+      "status": "PASS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "target_table": "fix_branch",
+      "origin_extract": "branches_extract.json",
+      "target_rows_with_legacy_reference": 6,
+      "lookups_tested": 6,
+      "lookups_resolved": 6,
+      "average_lookup_latency_ms": 0.887,
+      "p95_lookup_latency_ms": 1.04,
+      "max_lookup_latency_ms": 1.04,
+      "checks": {
+        "legacy_reference_indexed": {
+          "status": "PASS",
+          "detail": "fix_branch: index on legacy_reference present"
+        },
+        "coverage": {
+          "status": "PASS",
+          "detail": "6 of 6 accepted legacy references resolve to exactly one row"
+        },
+        "latency_sla": {
+          "status": "PASS",
+          "detail": "max 1.04 ms over 6 lookups (target < 50.0 ms)"
+        }
+      },
+      "status": "PASS"
+    }
+  ],
+  "verdict": "INCOMPLETE",
+  "overall_status": "INCOMPLETE",
+  "sample_verifications": [
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026003",
+      "target_record_ids": [
+        52
+      ],
+      "lookup_duration_ms": 1.15,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026008",
+      "target_record_ids": [
+        57
+      ],
+      "lookup_duration_ms": 0.837,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026013",
+      "target_record_ids": [
+        62
+      ],
+      "lookup_duration_ms": 0.79,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026018",
+      "target_record_ids": [
+        67
+      ],
+      "lookup_duration_ms": 0.84,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026023",
+      "target_record_ids": [
+        72
+      ],
+      "lookup_duration_ms": 0.923,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026028",
+      "target_record_ids": [
+        77
+      ],
+      "lookup_duration_ms": 0.915,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026033",
+      "target_record_ids": [
+        82
+      ],
+      "lookup_duration_ms": 0.767,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026038",
+      "target_record_ids": [
+        87
+      ],
+      "lookup_duration_ms": 0.71,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026043",
+      "target_record_ids": [
+        92
+      ],
+      "lookup_duration_ms": 0.788,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-APP-2026048",
+      "target_record_ids": [
+        97
+      ],
+      "lookup_duration_ms": 0.793,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026001",
+      "target_record_ids": [
+        50
+      ],
+      "lookup_duration_ms": 0.835,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026006",
+      "target_record_ids": [
+        55
+      ],
+      "lookup_duration_ms": 0.773,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026011",
+      "target_record_ids": [
+        60
+      ],
+      "lookup_duration_ms": 0.673,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026016",
+      "target_record_ids": [
+        65
+      ],
+      "lookup_duration_ms": 1.027,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026021",
+      "target_record_ids": [
+        70
+      ],
+      "lookup_duration_ms": 1.18,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026026",
+      "target_record_ids": [
+        75
+      ],
+      "lookup_duration_ms": 0.956,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026031",
+      "target_record_ids": [
+        80
+      ],
+      "lookup_duration_ms": 0.828,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026036",
+      "target_record_ids": [
+        85
+      ],
+      "lookup_duration_ms": 0.74,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026041",
+      "target_record_ids": [
+        90
+      ],
+      "lookup_duration_ms": 1.125,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-OPP-2026046",
+      "target_record_ids": [
+        95
+      ],
+      "lookup_duration_ms": 0.917,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026002",
+      "target_record_ids": [
+        51
+      ],
+      "lookup_duration_ms": 0.936,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026007",
+      "target_record_ids": [
+        56
+      ],
+      "lookup_duration_ms": 1.006,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026012",
+      "target_record_ids": [
+        61
+      ],
+      "lookup_duration_ms": 1.15,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026017",
+      "target_record_ids": [
+        66
+      ],
+      "lookup_duration_ms": 0.999,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026022",
+      "target_record_ids": [
+        71
+      ],
+      "lookup_duration_ms": 0.871,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026027",
+      "target_record_ids": [
+        76
+      ],
+      "lookup_duration_ms": 1.07,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026032",
+      "target_record_ids": [
+        81
+      ],
+      "lookup_duration_ms": 1.181,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026037",
+      "target_record_ids": [
+        86
+      ],
+      "lookup_duration_ms": 0.856,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026042",
+      "target_record_ids": [
+        91
+      ],
+      "lookup_duration_ms": 0.898,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-REA-2026047",
+      "target_record_ids": [
+        96
+      ],
+      "lookup_duration_ms": 0.777,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026005",
+      "target_record_ids": [
+        54
+      ],
+      "lookup_duration_ms": 0.793,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026010",
+      "target_record_ids": [
+        59
+      ],
+      "lookup_duration_ms": 0.76,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026015",
+      "target_record_ids": [
+        64
+      ],
+      "lookup_duration_ms": 0.876,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026020",
+      "target_record_ids": [
+        69
+      ],
+      "lookup_duration_ms": 0.858,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026025",
+      "target_record_ids": [
+        74
+      ],
+      "lookup_duration_ms": 0.807,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026030",
+      "target_record_ids": [
+        79
+      ],
+      "lookup_duration_ms": 0.778,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026035",
+      "target_record_ids": [
+        84
+      ],
+      "lookup_duration_ms": 0.7,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026040",
+      "target_record_ids": [
+        89
+      ],
+      "lookup_duration_ms": 0.792,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-SAM-2026045",
+      "target_record_ids": [
+        94
+      ],
+      "lookup_duration_ms": 1.092,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026004",
+      "target_record_ids": [
+        53
+      ],
+      "lookup_duration_ms": 1.004,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026009",
+      "target_record_ids": [
+        58
+      ],
+      "lookup_duration_ms": 0.862,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026014",
+      "target_record_ids": [
+        63
+      ],
+      "lookup_duration_ms": 0.888,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026019",
+      "target_record_ids": [
+        68
+      ],
+      "lookup_duration_ms": 0.809,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026024",
+      "target_record_ids": [
+        73
+      ],
+      "lookup_duration_ms": 0.988,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026029",
+      "target_record_ids": [
+        78
+      ],
+      "lookup_duration_ms": 1.439,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026034",
+      "target_record_ids": [
+        83
+      ],
+      "lookup_duration_ms": 0.914,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026039",
+      "target_record_ids": [
+        88
+      ],
+      "lookup_duration_ms": 0.791,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026044",
+      "target_record_ids": [
+        93
+      ],
+      "lookup_duration_ms": 0.823,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.device",
+      "legacy_reference_queried": "DEV:ASSET_SHEET:SN-XIA-2026049",
+      "target_record_ids": [
+        98
+      ],
+      "lookup_duration_ms": 0.932,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1001",
+      "target_record_ids": [
+        75
+      ],
+      "lookup_duration_ms": 1.093,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1002",
+      "target_record_ids": [
+        76
+      ],
+      "lookup_duration_ms": 1.153,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1003",
+      "target_record_ids": [
+        77
+      ],
+      "lookup_duration_ms": 1.005,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1004",
+      "target_record_ids": [
+        78
+      ],
+      "lookup_duration_ms": 0.955,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1005",
+      "target_record_ids": [
+        79
+      ],
+      "lookup_duration_ms": 0.802,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1006",
+      "target_record_ids": [
+        80
+      ],
+      "lookup_duration_ms": 1.049,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1007",
+      "target_record_ids": [
+        81
+      ],
+      "lookup_duration_ms": 0.983,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1008",
+      "target_record_ids": [
+        82
+      ],
+      "lookup_duration_ms": 0.939,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1009",
+      "target_record_ids": [
+        83
+      ],
+      "lookup_duration_ms": 0.959,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1010",
+      "target_record_ids": [
+        84
+      ],
+      "lookup_duration_ms": 0.952,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1011",
+      "target_record_ids": [
+        85
+      ],
+      "lookup_duration_ms": 0.76,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1012",
+      "target_record_ids": [
+        86
+      ],
+      "lookup_duration_ms": 0.876,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1013",
+      "target_record_ids": [
+        87
+      ],
+      "lookup_duration_ms": 0.92,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1014",
+      "target_record_ids": [
+        88
+      ],
+      "lookup_duration_ms": 0.926,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1015",
+      "target_record_ids": [
+        89
+      ],
+      "lookup_duration_ms": 0.973,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1016",
+      "target_record_ids": [
+        90
+      ],
+      "lookup_duration_ms": 0.759,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1017",
+      "target_record_ids": [
+        91
+      ],
+      "lookup_duration_ms": 0.733,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1018",
+      "target_record_ids": [
+        92
+      ],
+      "lookup_duration_ms": 0.867,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1019",
+      "target_record_ids": [
+        93
+      ],
+      "lookup_duration_ms": 0.922,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1020",
+      "target_record_ids": [
+        94
+      ],
+      "lookup_duration_ms": 0.743,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1021",
+      "target_record_ids": [
+        95
+      ],
+      "lookup_duration_ms": 1.07,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1022",
+      "target_record_ids": [
+        96
+      ],
+      "lookup_duration_ms": 0.92,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1023",
+      "target_record_ids": [
+        97
+      ],
+      "lookup_duration_ms": 0.882,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1024",
+      "target_record_ids": [
+        98
+      ],
+      "lookup_duration_ms": 1.022,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1025",
+      "target_record_ids": [
+        99
+      ],
+      "lookup_duration_ms": 1.455,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1026",
+      "target_record_ids": [
+        100
+      ],
+      "lookup_duration_ms": 1.473,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1027",
+      "target_record_ids": [
+        101
+      ],
+      "lookup_duration_ms": 1.03,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1028",
+      "target_record_ids": [
+        102
+      ],
+      "lookup_duration_ms": 0.84,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1029",
+      "target_record_ids": [
+        103
+      ],
+      "lookup_duration_ms": 0.858,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1030",
+      "target_record_ids": [
+        104
+      ],
+      "lookup_duration_ms": 0.926,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1031",
+      "target_record_ids": [
+        105
+      ],
+      "lookup_duration_ms": 0.852,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1032",
+      "target_record_ids": [
+        106
+      ],
+      "lookup_duration_ms": 1.084,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1033",
+      "target_record_ids": [
+        107
+      ],
+      "lookup_duration_ms": 0.799,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1034",
+      "target_record_ids": [
+        108
+      ],
+      "lookup_duration_ms": 0.941,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1035",
+      "target_record_ids": [
+        109
+      ],
+      "lookup_duration_ms": 0.83,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1036",
+      "target_record_ids": [
+        110
+      ],
+      "lookup_duration_ms": 0.902,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1037",
+      "target_record_ids": [
+        111
+      ],
+      "lookup_duration_ms": 0.877,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1038",
+      "target_record_ids": [
+        112
+      ],
+      "lookup_duration_ms": 1.18,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1039",
+      "target_record_ids": [
+        113
+      ],
+      "lookup_duration_ms": 1.691,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1040",
+      "target_record_ids": [
+        114
+      ],
+      "lookup_duration_ms": 1.253,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1041",
+      "target_record_ids": [
+        115
+      ],
+      "lookup_duration_ms": 1.291,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1042",
+      "target_record_ids": [
+        116
+      ],
+      "lookup_duration_ms": 1.179,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1043",
+      "target_record_ids": [
+        117
+      ],
+      "lookup_duration_ms": 1.089,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1044",
+      "target_record_ids": [
+        118
+      ],
+      "lookup_duration_ms": 0.958,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1045",
+      "target_record_ids": [
+        119
+      ],
+      "lookup_duration_ms": 1.19,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1046",
+      "target_record_ids": [
+        120
+      ],
+      "lookup_duration_ms": 2.033,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1047",
+      "target_record_ids": [
+        121
+      ],
+      "lookup_duration_ms": 0.928,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1048",
+      "target_record_ids": [
+        122
+      ],
+      "lookup_duration_ms": 1.073,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "res.partner",
+      "legacy_reference_queried": "CUST:WP_STORE:1049",
+      "target_record_ids": [
+        123
+      ],
+      "lookup_duration_ms": 0.824,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0001",
+      "target_record_ids": [
+        22
+      ],
+      "lookup_duration_ms": 1.269,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0002",
+      "target_record_ids": [
+        23
+      ],
+      "lookup_duration_ms": 1.496,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0003",
+      "target_record_ids": [
+        24
+      ],
+      "lookup_duration_ms": 1.102,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0004",
+      "target_record_ids": [
+        25
+      ],
+      "lookup_duration_ms": 0.935,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0005",
+      "target_record_ids": [
+        26
+      ],
+      "lookup_duration_ms": 0.97,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0006",
+      "target_record_ids": [
+        27
+      ],
+      "lookup_duration_ms": 0.814,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0007",
+      "target_record_ids": [
+        28
+      ],
+      "lookup_duration_ms": 0.92,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0008",
+      "target_record_ids": [
+        29
+      ],
+      "lookup_duration_ms": 0.852,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0009",
+      "target_record_ids": [
+        30
+      ],
+      "lookup_duration_ms": 0.754,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0010",
+      "target_record_ids": [
+        31
+      ],
+      "lookup_duration_ms": 0.941,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0011",
+      "target_record_ids": [
+        32
+      ],
+      "lookup_duration_ms": 0.943,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0012",
+      "target_record_ids": [
+        33
+      ],
+      "lookup_duration_ms": 0.795,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0013",
+      "target_record_ids": [
+        34
+      ],
+      "lookup_duration_ms": 0.884,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0014",
+      "target_record_ids": [
+        35
+      ],
+      "lookup_duration_ms": 0.864,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0015",
+      "target_record_ids": [
+        36
+      ],
+      "lookup_duration_ms": 0.856,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0016",
+      "target_record_ids": [
+        37
+      ],
+      "lookup_duration_ms": 0.75,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0017",
+      "target_record_ids": [
+        38
+      ],
+      "lookup_duration_ms": 0.955,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0018",
+      "target_record_ids": [
+        39
+      ],
+      "lookup_duration_ms": 0.998,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0019",
+      "target_record_ids": [
+        40
+      ],
+      "lookup_duration_ms": 1.23,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "hr.employee",
+      "legacy_reference_queried": "EMP:PAYROLL_2026:E-0020",
+      "target_record_ids": [
+        41
+      ],
+      "lookup_duration_ms": 1.049,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:HQ",
+      "target_record_ids": [
+        7
+      ],
+      "lookup_duration_ms": 0.912,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:PC01",
+      "target_record_ids": [
+        8
+      ],
+      "lookup_duration_ms": 1.04,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:PC02",
+      "target_record_ids": [
+        9
+      ],
+      "lookup_duration_ms": 0.882,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:PC03",
+      "target_record_ids": [
+        10
+      ],
+      "lookup_duration_ms": 0.893,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:PC04",
+      "target_record_ids": [
+        11
+      ],
+      "lookup_duration_ms": 0.847,
+      "status": "LOOKUP_SUCCESS"
+    },
+    {
+      "domain_model": "fix.branch",
+      "legacy_reference_queried": "BR:PILOT_2026:PC05",
+      "target_record_ids": [
+        12
+      ],
+      "lookup_duration_ms": 0.749,
+      "status": "LOOKUP_SUCCESS"
+    }
+  ]
+}

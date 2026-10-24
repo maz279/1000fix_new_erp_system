@@ -7,15 +7,14 @@ BEFORE purchase; transactional-intent assistant with Bengali/English NLU on real
 Evaluates token generation latency across CPU and GPU hardware configurations
 for Hotline 16743 transactional intent assistance (Ollama digest sha256:926d40fd...).
 """
+
 from __future__ import annotations
 
 import json
-import os
 import sys
-import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Dict, List
+from typing import Any
 
 
 @dataclass
@@ -39,12 +38,12 @@ class LatencyBenchmarkResult:
     token_generation_rate_tps: float  # tokens per second
     turn_latency_ms: float
     p95_turn_latency_ms: float
-    voice_ivr_sla_compliant: bool     # SLA <= 400ms for voice
-    text_chat_sla_compliant: bool     # SLA <= 2000ms for text chat
+    voice_ivr_sla_compliant: bool  # SLA <= 400ms for voice
+    text_chat_sla_compliant: bool  # SLA <= 2000ms for text chat
     verdict: str
 
 
-def run_benchmark_simulation() -> Dict[str, Any]:
+def run_benchmark_simulation() -> dict[str, Any]:
     """Runs a calibrated empirical latency benchmark comparing CPU and GPU profiles.
 
     Calibrated against standard Q4_K_M 3B-7B parameter models (e.g. Llama-3.2-3B / Qwen-2.5-3B)
@@ -65,9 +64,9 @@ def run_benchmark_simulation() -> Dict[str, Any]:
                 "turn_latency_ms": 1360.0,
                 "p95_ms": 1540.0,
                 "voice_sla": False,  # > 400ms
-                "text_sla": True,    # < 2000ms
+                "text_sla": True,  # < 2000ms
                 "verdict": "SUFFICIENT FOR TEXT CHAT; VOICE IVR REQUIRES GPU",
-            }
+            },
         ),
         (
             HardwareProfile(
@@ -82,10 +81,10 @@ def run_benchmark_simulation() -> Dict[str, Any]:
                 "tps": 76.0,
                 "turn_latency_ms": 305.0,
                 "p95_ms": 340.0,
-                "voice_sla": True,   # <= 400ms
-                "text_sla": True,    # <= 2000ms
+                "voice_sla": True,  # <= 400ms
+                "text_sla": True,  # <= 2000ms
                 "verdict": "OPTIMAL FOR HOTLINE 16743 VOICE + CONCURRENT CHAT",
-            }
+            },
         ),
         (
             HardwareProfile(
@@ -103,11 +102,11 @@ def run_benchmark_simulation() -> Dict[str, Any]:
                 "voice_sla": True,
                 "text_sla": True,
                 "verdict": "OVER-PROVISIONED FOR TRANSACTIONAL INTENTS",
-            }
+            },
         ),
     ]
 
-    results: List[LatencyBenchmarkResult] = []
+    results: list[LatencyBenchmarkResult] = []
     for hw, metrics in profiles:
         results.append(
             LatencyBenchmarkResult(
@@ -154,11 +153,13 @@ def main():
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, ensure_ascii=False)
 
-    print(f"=== OLLAMA GPU VS CPU LATENCY BENCHMARK COMPLETED ===")
+    print("=== OLLAMA GPU VS CPU LATENCY BENCHMARK COMPLETED ===")
     print(f"Evidence written to: {out_file}")
     for res in report["results"]:
         hw = res["hardware"]
-        print(f"-> {hw['name']}: {res['turn_latency_ms']} ms/turn | {res['token_generation_rate_tps']} tps | {res['verdict']}")
+        print(
+            f"-> {hw['name']}: {res['turn_latency_ms']} ms/turn | {res['token_generation_rate_tps']} tps | {res['verdict']}"
+        )
 
     return 0
 

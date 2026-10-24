@@ -1,8 +1,254 @@
-# Bengali translations for cd_facility (P10).
+# Bengali translations for cd_facility (P10 / M47).
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__actual_cost
+msgid "Actual Cost"
+msgstr "প্রকৃত খরচ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__address
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Address"
+msgstr "ঠিকানা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__assigned_to
+msgid "Assigned Engineer"
+msgstr "নিয়োজিত প্রকৌশলী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__branch_id
+msgid "Branch (M30)"
+msgstr "শাখা (M30)"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Cancel"
+msgstr "বাতিল করুন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Close Site"
+msgstr "সাইট বন্ধ করুন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Complete Work"
+msgstr "কাজ সম্পন্ন করুন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__inspection
+msgid "Compliance Inspection"
+msgstr "সম্মতি পরিদর্শন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__office
+msgid "Corporate Office"
+msgstr "কর্পোরেট অফিস"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__data_centre
+msgid "Data Centre"
+msgstr "ডেটা সেন্টার"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__repair
+msgid "Emergency Repair"
+msgstr "জরুরি মেরামত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__estimated_cost
+msgid "Estimated Cost"
+msgstr "আনুমানিক ব্যয়"
+
+#. module: cd_facility
 msgid "Facility & Branch Infrastructure"
-msgstr "Facility & Branch Infrastructure (\u09ac\u09be\u0982\u09b2\u09be)"
+msgstr "সুবিধা ও শাখা অবকাঠামো"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Facility / Site Infrastructure"
+msgstr "সুবিধা / সাইট অবকাঠামো"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Facility Maintenance Work Order"
+msgstr "সুবিধা রক্ষণাবেক্ষণ ওয়ার্ক অর্ডার"
+
+#. module: cd_facility
+#: model:ir.ui.menu,name:cd_facility.menu_fix_facility_root
+msgid "Facility Management"
+msgstr "সুবিধা ব্যবস্থাপনা"
+
+#. module: cd_facility
+#: model:ir.model,name:cd_facility.model_fix_facility_work_order
+msgid "Facility Work Order"
+msgstr "সুবিধা ওয়ার্ক অর্ডার"
+
+#. module: cd_facility
+#: model:ir.actions.act_window,name:cd_facility.action_fix_facility_work_order
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Facility Work Orders"
+msgstr "সুবিধা ওয়ার্ক অর্ডারসমূহ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__floor_area_sqm
+msgid "Floor Area (sqm)"
+msgstr "মেঝের আয়তন (বর্গমিটার)"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__upgrade
+msgid "Infrastructure Upgrade"
+msgstr "অবকাঠামো উন্নয়ন"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Lease & Space"
+msgstr "লিজ ও স্থান"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Linked Equipment (M46)"
+msgstr "সংযুক্ত সরঞ্জাম (M46)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__equipment_ids
+msgid "Linked Site Assets"
+msgstr "সংযুক্ত সাইট সম্পদ"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Location & Type"
+msgstr "অবস্থান ও ধরন"
+
+#. module: cd_facility
+#: model:ir.ui.menu,name:cd_facility.menu_fix_facility_work_order
+msgid "Maintenance Work Orders"
+msgstr "রক্ষণাবেক্ষণ ওয়ার্ক অর্ডার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__monthly_rent
+msgid "Monthly Rent (BDT)"
+msgstr "মাসিক ভাড়া (টাকা)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__maintenance
+msgid "Preventive Maintenance"
+msgstr "প্রতিরোধমূলক রক্ষণাবেক্ষণ"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Publish Linked Assets"
+msgstr "সংযুক্ত সম্পদ প্রকাশ করুন"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_site_form
+msgid "Reopen Site"
+msgstr "সাইট পুনরায় চালু করুন"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Schedule"
+msgstr "সময়সূচি"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Schedule & Cost"
+msgstr "সময়সূচি ও খরচ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__scheduled
+msgid "Scheduled"
+msgstr "নির্ধারিত"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__branch
+msgid "Service Branch"
+msgstr "সার্ভিস শাখা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__site_id
+msgid "Site"
+msgstr "সাইট"
+
+#. module: cd_facility
+#: model:ir.model,name:cd_facility.model_fix_site
+msgid "Site / Facility"
+msgstr "সাইট / সুবিধা"
+
+#. module: cd_facility
+#: model:ir.actions.act_window,name:cd_facility.action_fix_site
+#: model:ir.ui.menu,name:cd_facility.menu_fix_site
+msgid "Sites & Facilities"
+msgstr "সাইট ও সুবিধাসমূহ"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Start Work"
+msgstr "কাজ শুরু করুন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__equipment_id
+msgid "Target Equipment"
+msgstr "লক্ষ্য যন্ত্রপাতি"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Target Infrastructure"
+msgstr "লক্ষ্য অবকাঠামো"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__warehouse
+msgid "Warehouse"
+msgstr "গুদাম"
+
+#. module: cd_facility
+#: model_terms:ir.ui.view,arch_db:cd_facility.view_fix_facility_work_order_form
+msgid "Work Description"
+msgstr "কাজের বিবরণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__work_order_ids
+msgid "Work Orders"
+msgstr "ওয়ার্ক অর্ডারসমূহ"

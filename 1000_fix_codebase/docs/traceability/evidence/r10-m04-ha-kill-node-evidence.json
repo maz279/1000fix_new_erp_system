@@ -1,0 +1,109 @@
+{
+  "suite": "R10-M04-T06: High Availability Kill-One-Node Survival Drills",
+  "standard": "PE-001 / TSS \u00a721.3 Total-Outage HA Invariant",
+  "timestamp": "2026-10-22T11:31:35.534653+00:00",
+  "total_drills": 4,
+  "drills": [
+    {
+      "component": "PostgreSQL 17 Primary / Standby Pair",
+      "drill": "KILL_PRIMARY_POSTGRES",
+      "nodes": [
+        "postgres-ha-primary",
+        "postgres-ha-standby"
+      ],
+      "node_killed": null,
+      "config_check": {
+        "id": "postgresql_ha_config",
+        "name": "PostgreSQL 17 Primary / Standby Pair: HA pair wiring declared",
+        "status": "PASS",
+        "detail": "postgres-ha-primary + postgres-ha-standby declared with healthchecks, restart policy and HA wiring"
+      },
+      "kill_drill": {
+        "id": "postgresql_kill_drill",
+        "name": "PostgreSQL 17 Primary / Standby Pair: KILL_PRIMARY_POSTGRES",
+        "status": "UNMEASURED",
+        "detail": "requires the `ha` compose profile running and a controlled node kill with traffic accounting; this tool never stops a container"
+      },
+      "status": "INCOMPLETE",
+      "details": "config PASS: postgres-ha-primary + postgres-ha-standby declared with healthchecks, restart policy and HA wiring | kill drill UNMEASURED"
+    },
+    {
+      "component": "Keycloak 26 Clustered Pair",
+      "drill": "KILL_KEYCLOAK_NODE_1",
+      "nodes": [
+        "keycloak-ha-01",
+        "keycloak-ha-02"
+      ],
+      "node_killed": null,
+      "config_check": {
+        "id": "keycloak_ha_config",
+        "name": "Keycloak 26 Clustered Pair: HA pair wiring declared",
+        "status": "PASS",
+        "detail": "keycloak-ha-01 + keycloak-ha-02 declared with healthchecks, restart policy and HA wiring"
+      },
+      "kill_drill": {
+        "id": "keycloak_kill_drill",
+        "name": "Keycloak 26 Clustered Pair: KILL_KEYCLOAK_NODE_1",
+        "status": "UNMEASURED",
+        "detail": "requires the `ha` compose profile running and a controlled node kill with traffic accounting; this tool never stops a container"
+      },
+      "status": "INCOMPLETE",
+      "details": "config PASS: keycloak-ha-01 + keycloak-ha-02 declared with healthchecks, restart policy and HA wiring | kill drill UNMEASURED"
+    },
+    {
+      "component": "Kong API Gateway Clustered Pair",
+      "drill": "KILL_KONG_GATEWAY_NODE_1",
+      "nodes": [
+        "kong-ha-01",
+        "kong-ha-02"
+      ],
+      "node_killed": null,
+      "config_check": {
+        "id": "kong_ha_config",
+        "name": "Kong API Gateway Clustered Pair: HA pair wiring declared",
+        "status": "PASS",
+        "detail": "kong-ha-01 + kong-ha-02 declared with healthchecks, restart policy and HA wiring"
+      },
+      "kill_drill": {
+        "id": "kong_kill_drill",
+        "name": "Kong API Gateway Clustered Pair: KILL_KONG_GATEWAY_NODE_1",
+        "status": "UNMEASURED",
+        "detail": "requires the `ha` compose profile running and a controlled node kill with traffic accounting; this tool never stops a container"
+      },
+      "status": "INCOMPLETE",
+      "details": "config PASS: kong-ha-01 + kong-ha-02 declared with healthchecks, restart policy and HA wiring | kill drill UNMEASURED"
+    },
+    {
+      "component": "Nginx Edge Ingress Dual-Node Pair",
+      "drill": "KILL_NGINX_INGRESS_NODE_1",
+      "nodes": [
+        "nginx-ha-01",
+        "nginx-ha-02"
+      ],
+      "node_killed": null,
+      "config_check": {
+        "id": "nginx_ha_config",
+        "name": "Nginx Edge Ingress Dual-Node Pair: HA pair wiring declared",
+        "status": "FAIL",
+        "detail": "nginx-ha-01 mounts no routing config under /etc/nginx (serves the image default page); nginx-ha-02 mounts no routing config under /etc/nginx (serves the image default page)"
+      },
+      "kill_drill": {
+        "id": "nginx_kill_drill",
+        "name": "Nginx Edge Ingress Dual-Node Pair: KILL_NGINX_INGRESS_NODE_1",
+        "status": "UNMEASURED",
+        "detail": "requires the `ha` compose profile running and a controlled node kill with traffic accounting; this tool never stops a container"
+      },
+      "status": "FAIL",
+      "details": "config FAIL: nginx-ha-01 mounts no routing config under /etc/nginx (serves the image default page); nginx-ha-02 mounts no routing config under /etc/nginx (serves the image default page) | kill drill UNMEASURED"
+    }
+  ],
+  "summary": {
+    "checks_total": 8,
+    "checks_passed": 3,
+    "checks_failed": 1,
+    "checks_unmeasured": 4
+  },
+  "all_passed": false,
+  "total_outage_tolerated": null,
+  "status": "FAIL"
+}

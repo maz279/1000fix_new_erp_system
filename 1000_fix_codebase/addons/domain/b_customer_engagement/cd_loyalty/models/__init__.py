@@ -1,7 +1,9 @@
-from . import fix_loyalty_program
-from . import fix_loyalty_tier
-from . import fix_loyalty_account
-from . import fix_loyalty_ledger
-from . import fix_loyalty_voucher
-from . import fix_loyalty_campaign
-from . import fix_loyalty_stub
+from . import (
+    fix_loyalty_account,
+    fix_loyalty_campaign,
+    fix_loyalty_ledger,
+    fix_loyalty_program,
+    fix_loyalty_stub,
+    fix_loyalty_tier,
+    fix_loyalty_voucher,
+)

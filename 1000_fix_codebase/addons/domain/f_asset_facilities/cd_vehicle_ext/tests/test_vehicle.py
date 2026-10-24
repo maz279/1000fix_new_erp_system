@@ -2,8 +2,7 @@
 import inspect
 import unittest
 
-from odoo.addons.cd_vehicle_ext.models.fix_vehicle import (
-    FixVehicleAssignment, FleetVehicleCdExt)
+from odoo.addons.cd_vehicle_ext.models.fix_vehicle import FixVehicleAssignment, FleetVehicleCdExt
 
 
 class TestVehicleAssignment(unittest.TestCase):
@@ -24,8 +23,7 @@ class TestVehicleAssignment(unittest.TestCase):
         self.assertIn("insurance_expiry", src)
 
     def test_assignment_event(self):
-        self.assertIn("vehicle.assigned",
-                      inspect.getsource(FixVehicleAssignment))
+        self.assertIn("vehicle.assigned", inspect.getsource(FixVehicleAssignment))
 
 
 if __name__ == "__main__":

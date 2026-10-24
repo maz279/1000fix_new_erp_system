@@ -4,6 +4,7 @@ from odoo import api, fields, models
 
 class FixFieldDeclineLog(models.Model):
     """Audit log recording technician dispatch declines with reason taxonomy for SLA analysis."""
+
     _name = "fix.field.decline.log"
     _description = "Field Dispatch Decline Log"
     _inherit = ["mail.thread", "mail.activity.mixin"]
@@ -73,7 +74,9 @@ class FixFieldDeclineLog(models.Model):
         for vals in vals_list:
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.field.decline.log")
-                vals["name"] = seq or f"DEC/{fields.Date.today().year}/{self.search_count([]) + 1:04d}"
+                vals["name"] = (
+                    seq or f"DEC/{fields.Date.today().year}/{self.search_count([]) + 1:04d}"
+                )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
         return super().create(vals_list)

@@ -1,0 +1,77 @@
+{
+  "test": "R07-M01-T05: Kafka DLQ Routing and Time-Travel Event Replay (EP-06)",
+  "timestamp_utc": "2026-10-22T17:07:49Z",
+  "results": {
+    "measurement_scope": "in-process: libs/py/fix_events InMemoryBus + EventReplayEngine on an in-memory log; no live broker",
+    "live_window": {
+      "run_id": "8178a4f6",
+      "healthy": 60,
+      "processed_with_dlq": 61,
+      "dlq_records": 1,
+      "redrive_consumed": 62,
+      "reconsume_after_redrive": 0,
+      "measurement_scope": "live: 3-broker Kafka (run-scoped topic + DLQ)"
+    },
+    "time_travel_replay": {
+      "topic": "fix.events.vat",
+      "anchor_timestamp": 1792688862.787319,
+      "pre_anchor_events": 25,
+      "total_emitted_after_anchor": 500,
+      "total_replayed": 500,
+      "in_process_duration_ms": 0.194,
+      "partition_starting_offsets": {
+        "0": 7,
+        "1": 11,
+        "2": 7
+      }
+    },
+    "dead_letter_queue": {
+      "dlq_topic": "fix.events.vat.dlq",
+      "dlq_record_count": 1,
+      "dlq_reason": "Schema validation rejected malformed VAT payload",
+      "original_topic": "fix.events.vat",
+      "original_offset": "132",
+      "remediation_status": "RECOVERED",
+      "reprocessed_count": 1,
+      "second_redrive_reprocessed_count": 0
+    },
+    "infra_probe": {
+      "kafka_brokers_reachable": 3,
+      "kafka_brokers_declared": 3,
+      "details": [
+        "127.0.0.1:9092 accepted a TCP connection",
+        "127.0.0.1:9094 accepted a TCP connection",
+        "127.0.0.1:9095 accepted a TCP connection"
+      ]
+    },
+    "checks": [
+      {
+        "check": "replay_from_anchor_exact_window",
+        "status": "PASS",
+        "detail": "replayed 500 of 500 post-anchor events; 0 pre-anchor events leaked; 500 distinct m51_ids"
+      },
+      {
+        "check": "replay_preserves_per_aggregate_order",
+        "status": "PASS",
+        "detail": "20/20 aggregates replayed in emission order"
+      },
+      {
+        "check": "poison_pill_routed_to_dlq_with_headers",
+        "status": "PASS",
+        "detail": "1 record(s) dead-lettered (expected 1); missing headers []; original_topic='fix.events.vat'; consumer processed 526/526; partitions not at end: {}"
+      },
+      {
+        "check": "dlq_redrive_ingested_and_idempotent",
+        "status": "PASS",
+        "detail": "re-drive reprocessed 1; re-published records 1 (event_id kept: True); failing group ingested 1 after recovery; DLQ size 1; second re-drive reprocessed 0"
+      },
+      {
+        "check": "live_cluster_replay_and_dlq",
+        "status": "PASS",
+        "detail": "LIVE run 8178a4f6: 60 healthy + 1 poison produced (acks=all); group 'dwdlq8178a4f6-g' processed 61 with the poison dead-lettered (DLQ read back: 1 record(s), dlq_reason header present: True); re-drive re-published the poison with its ORIGINAL event_id; fresh group consumed 62 records; same-group re-consume returned 0 (committed offsets make the redrive idempotent)"
+      }
+    ],
+    "verdict": "PASS"
+  },
+  "verdict": "PASS"
+}

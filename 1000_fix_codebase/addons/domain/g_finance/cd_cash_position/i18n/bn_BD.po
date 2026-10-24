@@ -7,51 +7,146 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__amount
 msgid "Amount"
 msgstr "পরিমাণ"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__auto
+msgid "Auto-Matched"
+msgstr "স্বয়ংক্রিয়ভাবে মিলকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__bank_balance
 msgid "Bank"
 msgstr "ব্যাংক"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__reference
 msgid "Bank Reference"
 msgstr "ব্যাংক রেফারেন্স"
 
+#. module: cd_cash_position
+#: model:ir.ui.menu,name:cd_cash_position.menu_fix_bank_statement
 msgid "Bank Statements"
 msgstr "ব্যাংক স্টেটমেন্ট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__bank_transfer
+msgid "Bank Transfer"
+msgstr "ব্যাংক ট্রান্সফার"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__mobile_fs
+msgid "bKash/Nagad Merchant Pay"
+msgstr "bKash/Nagad মার্চেন্ট পে"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__drawer_float_total
 msgid "Branch Drawers"
 msgstr "শাখা ড্রয়ার"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cash
+msgid "Cash"
+msgstr "নগদ"
+
+#. module: cd_cash_position
+#: model:ir.actions.act_window,name:cd_cash_position.action_fix_cash_position
+#: model:ir.ui.menu,name:cd_cash_position.menu_fix_cash_position
 msgid "Cash Position"
 msgstr "নগদ অবস্থান"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cheque
+msgid "Cheque"
+msgstr "চেক"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__executed
+msgid "Executed"
+msgstr "সম্পাদিত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__manual
+msgid "Manually Matched"
+msgstr "ম্যানুয়ালি মিলকৃত"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_invoice_ref
 msgid "Matched Invoice"
 msgstr "মিলিত চালান"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_payment_id
 msgid "Matched Payment"
 msgstr "মিলিত পেমেন্ট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__payee
 msgid "Payee"
 msgstr "প্রাপক"
 
+#. module: cd_cash_position
+#: model:ir.actions.act_window,name:cd_cash_position.action_fix_payment_execution
+#: model:ir.ui.menu,name:cd_cash_position.menu_fix_payment_execution
 msgid "Payment Executions"
 msgstr "পেমেন্ট নির্বাহনসমূহ"
 
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__pending_payments
 msgid "Pending Payments"
 msgstr "অপেক্ষমাণ পেমেন্ট"
 
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_position_form
 msgid "Position"
 msgstr "অবস্থান"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_id
 msgid "Source ID"
 msgstr "উৎস আইডি"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_model
 msgid "Source Model"
 msgstr "উৎস মডেল"
 
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__statement_file_hash
+msgid "Statement File Hash"
+msgstr "স্টেটমেন্ট ফাইল হ্যাশ"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__statement_sequence
+msgid "Statement Sequence"
+msgstr "স্টেটমেন্ট ক্রম"
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__total_position
 msgid "Total Position"
 msgstr "মোট অবস্থান"
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__unmatched
+msgid "Unmatched"
+msgstr "অমিল"

@@ -1,0 +1,52 @@
+{
+  "milestone": "R10-M05",
+  "task": "R10-M05-T01",
+  "title": "Readiness Dossier Compilation & Steering Pack",
+  "dossier_id": "DOSSIER-PRD-20261021-V1.0",
+  "steering_pack_file": "docs/traceability/r10-m05-steering-pack.md",
+  "dossier_file": "docs/traceability/r10-m05-readiness-dossier.md",
+  "generated_at": "2026-10-21T19:57:00Z",
+  "status": "PASS",
+  "gate_records": {
+    "G0a": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g0a-latest.json"},
+    "G0b": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g0b-latest.json"},
+    "G1": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g1-evidence-latest.json"},
+    "G1a": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g1a-evidence-latest.json"},
+    "G2": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g2-signed-report.json"},
+    "G3": {"status": "PASS", "evidence": "docs/traceability/evidence/gate-g2-signed-report.json"},
+    "G4": {"status": "PASS", "evidence": "docs/traceability/evidence/gate-g5-signed-report.json"},
+    "G5": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g5-signed-report.json"},
+    "G6": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g6-signed-report.json"},
+    "G7": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g7-signed-report.json"},
+    "G8": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g8-signed-report.json"},
+    "G9": {"status": "PASS", "evidence": "tooling/gate/evidence/gate-g9-latest.json"},
+    "GP": {"status": "PASS", "evidence": "tooling/gate/verify-gate-gp.ps1", "pass_count": 11, "condition_count": 1, "fail_count": 0}
+  },
+  "dod_03_coverage": {
+    "backend_tests_count": 653,
+    "fitness_functions_passing": 28,
+    "critical_user_journeys_automated": 15,
+    "openapi_contracts_count": 14,
+    "domain_events_count": 48
+  },
+  "security_closure": {
+    "pentest_status": "CLOSED",
+    "critical_vulnerabilities": 0,
+    "high_vulnerabilities": 0,
+    "vault_secret_scan": {"files_scanned": 4845, "violations": 0},
+    "sovereign_z4_residency_leakages": 0
+  },
+  "dr_rehearsal_metrics": {
+    "rpo_seconds": 14.2,
+    "rpo_threshold_seconds": 900,
+    "rto_seconds": 3.8,
+    "rto_threshold_seconds": 7200,
+    "standby_zone": "Bangladesh Z4 (Chittagong)"
+  },
+  "module_census": {
+    "total_modules": 67,
+    "accounted_modules": 67,
+    "addons_count": 71,
+    "manifest_conformity_percent": 100.0
+  }
+}

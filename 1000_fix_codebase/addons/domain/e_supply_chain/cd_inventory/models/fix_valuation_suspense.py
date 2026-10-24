@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -118,6 +119,14 @@ class FixInventoryValuationSuspense(models.Model):
 
     gl_cutover_ref = fields.Char(string="GL Cutover Voucher Ref")
     reconciled_at = fields.Datetime(string="Reconciled Timestamp")
+    legacy_reference = fields.Char(
+        string="Legacy Reference",
+        index=True,
+        readonly=True,
+        copy=False,
+        help="MIG-03: permanent source-system reference written by the inventory "
+        "loader (migrations/load_inventory.py) - never edited, never copied",
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -134,9 +143,11 @@ class FixInventoryValuationSuspense(models.Model):
         self.ensure_one()
         if not gl_voucher_ref:
             raise UserError("GL Voucher reference is mandatory for reconciliation.")
-        self.write({
-            "status": "reconciled",
-            "gl_cutover_ref": gl_voucher_ref,
-            "reconciled_at": fields.Datetime.now(),
-        })
+        self.write(
+            {
+                "status": "reconciled",
+                "gl_cutover_ref": gl_voucher_ref,
+                "reconciled_at": fields.Datetime.now(),
+            }
+        )
         return {"status": "reconciled", "entry": self.name, "gl_voucher": gl_voucher_ref}

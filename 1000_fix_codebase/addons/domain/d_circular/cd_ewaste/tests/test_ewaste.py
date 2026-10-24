@@ -1,9 +1,9 @@
 """cd_ewaste tests - P11-M05 (CD-M18-01)."""
+
 import inspect
 import unittest
 
-from odoo.addons.cd_ewaste.models.fix_ewaste import (
-    FixEsgMetric, FixEwasteCollection)
+from odoo.addons.cd_ewaste.models.fix_ewaste import FixEsgMetric, FixEwasteCollection
 
 
 class TestJourneyTen(unittest.TestCase):
@@ -12,9 +12,9 @@ class TestJourneyTen(unittest.TestCase):
 
     def test_state_lifecycle(self):
         from odoo.addons.cd_ewaste.models.fix_ewaste import EWASTE_STATES
+
         states = [s[0] for s in EWASTE_STATES]
-        for s in ("collected", "triaged", "destruction", "recycled",
-                  "disposed", "certified"):
+        for s in ("collected", "triaged", "destruction", "recycled", "disposed", "certified"):
             self.assertIn(s, states)
 
     def test_triage_composes_m14_grading(self):

@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_marketplace security: P07 Marketplace Seller group + cross-tenant record rules (R08-M04-T01, G7-6).
+     Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <record id="group_fix_marketplace_seller" model="res.groups">
+        <field name="name">P07 Marketplace Seller</field>
+        <field name="privilege_id" ref="cd_rbac_ext.privilege_fix_portal"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_portal'))]"/>
+        <field name="comment">P07 access: marketplace sellers see their own profile, quotes, awarded orders, disputes, and scores (EA-05 cross-tenant isolation).</field>
+    </record>
+
+    <!-- Cross-tenant isolation rules (R08-M04-T01 / G7-6) -->
+    <!-- Seller sees only their own seller profile -->
+    <record id="rule_fix_marketplace_seller_self" model="ir.rule">
+        <field name="name">P07 Seller: own seller profile only</field>
+        <field name="model_id" ref="model_fix_marketplace_seller"/>
+        <field name="domain_force">[('partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Seller sees only their own quotes -->
+    <record id="rule_fix_seller_quote_self" model="ir.rule">
+        <field name="name">P07 Seller: own quotes only</field>
+        <field name="model_id" ref="model_fix_seller_quote"/>
+        <field name="domain_force">[('seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Seller sees open marketplace orders (to quote), or orders where they are the awarded seller -->
+    <record id="rule_fix_marketplace_order_seller" model="ir.rule">
+        <field name="name">P07 Seller: open or awarded orders only</field>
+        <field name="model_id" ref="model_fix_marketplace_order"/>
+        <field name="domain_force">['|', ('state', '=', 'open'), ('revealed_seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Seller sees only their own performance scorecards -->
+    <record id="rule_fix_seller_score_self" model="ir.rule">
+        <field name="name">P07 Seller: own performance scorecards only</field>
+        <field name="model_id" ref="model_fix_seller_score"/>
+        <field name="domain_force">[('seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <!-- Seller sees only their own disputes -->
+    <record id="rule_fix_marketplace_dispute_self" model="ir.rule">
+        <field name="name">P07 Seller: own disputes only</field>
+        <field name="model_id" ref="model_fix_marketplace_dispute"/>
+        <field name="domain_force">[('seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+</odoo>

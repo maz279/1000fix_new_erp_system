@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_project,fix.project,model_fix_project,base.group_user,1,1,1,0
 access_fix_project_milestone,fix.project.milestone,model_fix_project_milestone,base.group_user,1,1,1,0
+access_fix_project_task,fix.project.task,model_fix_project_task,base.group_user,1,1,1,0

@@ -10,41 +10,58 @@
 # first). No database is needed - model classes are built at import.
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
+
+# Odoo's server clock is UTC by contract: odoo/__init__.py sets TZ=UTC and
+# calls time.tzset(). Windows has no time.tzset, and the C runtime has already
+# cached the local zone by the time pytest imports odoo - so on the Windows
+# workstation (D-WS-001) fields.Datetime.now() returned LOCAL time labelled as
+# UTC and date-window tests flipped to "tomorrow" in the evening (R01 re-audit
+# 2026-10-22). Re-read TZ in the UCRT, exactly what tzset does on Linux.
+os.environ["TZ"] = "UTC"
+if sys.platform == "win32":
+    import ctypes
+
+    ctypes.CDLL("ucrtbase")._tzset()
 
 CODE_ROOT = Path(__file__).resolve().parents[1]
 for p in (str(CODE_ROOT), str(CODE_ROOT / "vendor" / "odoo")):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-import odoo  # noqa: E402
-from odoo.modules.module import initialize_sys_path, load_openerp_module  # noqa: E402
-
 # Reuse the canonical addons_path builder (REPO-15: single source). The
 # generator file has a hyphenated name, so it is loaded by path.
 import importlib.util  # noqa: E402
 
+import odoo  # noqa: E402
+from odoo.modules.module import initialize_sys_path, load_openerp_module  # noqa: E402
+
 _spec = importlib.util.spec_from_file_location(
-    "generate_odoo_conf", CODE_ROOT / "tooling" / "scripts" / "generate-odoo-conf.py")
+    "generate_odoo_conf", CODE_ROOT / "tooling" / "scripts" / "generate-odoo-conf.py"
+)
 _gen = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_gen)
 build_addons_path = _gen.build_addons_path
 
 odoo.tools.config["addons_path"] = [
-    str((CODE_ROOT / part).resolve()) for part in build_addons_path().split(",")]
+    str((CODE_ROOT / part).resolve()) for part in build_addons_path().split(",")
+]
 initialize_sys_path()
 
 
 def _load_order():
     """First-party module names in manifest-dependency order."""
     import re
+
     deps: dict[str, set[str]] = {}
     for mf in CODE_ROOT.glob("addons/**/__manifest__.py"):
         text = mf.read_text(encoding="utf-8", errors="replace")
         found = re.search(r"[\"']depends[\"']\s*:\s*\[(.*?)\]", text, re.S)
-        deps[mf.parent.name] = set(
-            re.findall(r"[\"']([A-Za-z0-9_.]+)[\"']", found.group(1))) if found else set()
+        deps[mf.parent.name] = (
+            set(re.findall(r"[\"']([A-Za-z0-9_.]+)[\"']", found.group(1))) if found else set()
+        )
     order: list[str] = []
     seen: set[str] = set()
 
@@ -78,11 +95,97 @@ for _mf in CODE_ROOT.glob("addons/**/__manifest__.py"):
 
 for _name in list(sys.modules):
     if _name.startswith("odoo.addons.cd_"):
-        _mod_part = _name[len("odoo.addons."):].split(".", 1)[0]
-        _sub = _name[len(f"odoo.addons.{_mod_part}"):]
-        _alias = _name[len("odoo.addons."):]
+        _mod_part = _name[len("odoo.addons.") :].split(".", 1)[0]
+        _sub = _name[len(f"odoo.addons.{_mod_part}") :]
+        _alias = _name[len("odoo.addons.") :]
         sys.modules.setdefault(_alias, sys.modules[_name])
         if _mod_part in _mod_prefixes:
             _rel_alias = f"{_mod_prefixes[_mod_part]}{_sub}"
             sys.modules.setdefault(_rel_alias, sys.modules[_name])
 print(f"conftest: {_loaded} first-party odoo modules loaded for test collection")
+
+
+# ---------------------------------------------------------------------------
+# Live ORM fixture (R01 re-audit 2026-10-22, DoD-03 coverage)
+#
+# The suites above import model classes but never execute ORM methods, so
+# model bodies were uncoverable. `odoo_env` gives a test a real
+# odoo.api.Environment on a dedicated, cleanly-installed test database
+# (default `fix_test`; build it with tooling/scripts/build-test-db.py) inside
+# a transaction that is ROLLED BACK after the test - tests never persist data
+# and never touch fix_dev.
+#
+# Connection: infra/odoo-conf/local.resolved.conf (generated, REPO-15) supplies
+# db_host/db_port/db_user/db_password; FIX_TEST_DB / PGHOST / PGPORT / PGUSER /
+# PGPASSWORD override (CI). An unreachable database SKIPS with the reason - the
+# coverage gate then fails loudly, so a skip can never pass the 100% gate.
+# ---------------------------------------------------------------------------
+import configparser  # noqa: E402
+import os  # noqa: E402
+
+import pytest  # noqa: E402
+
+TEST_DB = os.environ.get("FIX_TEST_DB", "fix_test")
+
+
+def _db_settings() -> dict[str, str]:
+    conf = configparser.ConfigParser(interpolation=None)
+    conf.read(CODE_ROOT / "infra" / "odoo-conf" / "local.resolved.conf", encoding="utf-8")
+    opts = conf["options"] if conf.has_section("options") else {}
+    return {
+        "db_host": os.environ.get("PGHOST", opts.get("db_host", "127.0.0.1")),
+        "db_port": os.environ.get("PGPORT", opts.get("db_port", "5432")),
+        "db_user": os.environ.get("PGUSER", opts.get("db_user", "fix")),
+        "db_password": os.environ.get("PGPASSWORD", opts.get("db_password", "")),
+    }
+
+
+@pytest.fixture(scope="session")
+def odoo_registry():
+    """The Odoo registry of the test database, loaded once per session."""
+    from odoo.modules.registry import Registry
+
+    for key, value in _db_settings().items():
+        odoo.tools.config[key] = int(value) if key == "db_port" else value
+    try:
+        registry = Registry(TEST_DB)
+    except Exception as exc:  # unreachable / uninitialised database
+        pytest.skip(f"odoo_env: test database {TEST_DB!r} unavailable ({exc})")
+    return registry
+
+
+@pytest.fixture
+def odoo_env(odoo_registry):
+    """A superuser Environment whose transaction is rolled back afterwards.
+
+    `cr.commit()` is neutralised for the duration (a test must never persist
+    data); code under test that commits keeps working inside the rollback.
+    """
+    from odoo import SUPERUSER_ID, api
+
+    cr = odoo_registry.cursor()
+    cr.commit = lambda: None  # type: ignore[method-assign]
+    env = api.Environment(cr, SUPERUSER_ID, {"lang": "en_US", "tz": "Asia/Dhaka"})
+    try:
+        yield env
+    finally:
+        _discard_env(env)
+
+
+def _discard_env(env) -> None:
+    """Roll back and close a test transaction, whatever the test left pending.
+
+    Pending writes are discarded, never flushed: a test that left an invalid
+    pending write made the flushing invalidate_all() raise and skip the
+    rollback, leaking an open transaction whose row locks stalled every other
+    live-ORM run on fix_test (R01 re-audit 2026-10-22). The rollback and the
+    close happen whatever fails.
+    """
+    cr = env.cr
+    try:
+        env.invalidate_all(flush=False)
+    finally:
+        try:
+            cr.rollback()
+        finally:
+            cr.close()

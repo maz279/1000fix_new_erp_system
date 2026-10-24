@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_consolidation_book,fix.consolidation.book,model_fix_consolidation_book,base.group_user,1,1,1,0
+access_fix_consolidation_line,fix.consolidation.line,model_fix_consolidation_line,base.group_user,1,1,1,0
+access_fix_elimination_entry,fix.elimination.entry,model_fix_elimination_entry,base.group_user,1,1,1,0
+access_fix_intercompany_rule,fix.intercompany.rule,model_fix_intercompany_rule,base.group_user,1,1,1,0
+access_fix_intercompany_transaction,fix.intercompany.transaction,model_fix_intercompany_transaction,base.group_user,1,1,1,0
+access_fix_nil_return_generator,fix.nil.return.generator,model_fix_nil_return_generator,base.group_user,1,1,1,0

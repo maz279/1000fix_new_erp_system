@@ -7,15 +7,53 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__bin_ids
 msgid "Bins"
 msgstr "বিনসমূহ"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__branch_id
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__dispatch
+msgid "Dispatch"
+msgstr "ডিসপ্যাচ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__storage
+msgid "Main Storage"
+msgstr "প্রধান সংরক্ষণাগার"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__inspection
+msgid "Quality Inspection"
+msgstr "গুণমান পরিদর্শন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__quarantine
+msgid "Quarantine / Blocked"
+msgstr "কোয়ারেন্টাইন / আটকানো"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__receiving
+msgid "Receiving"
+msgstr "গ্রহণ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__returns
+msgid "Returns"
+msgstr "ফেরতসমূহ"
+
+#. module: cd_wms_structure
+#: model:ir.actions.act_window,name:cd_wms_structure.action_fix_warehouse
+#: model:ir.ui.menu,name:cd_wms_structure.menu_fix_warehouse
 msgid "Warehouses"
 msgstr "গুদামসমূহ"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__zone_ids
 msgid "Zones"
 msgstr "অঞ্চলসমূহ"

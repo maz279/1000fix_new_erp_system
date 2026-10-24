@@ -13,12 +13,12 @@ Component guide books are independent of one another, so they are generated
 in parallel; the category volumes and the master index are generated after,
 because they aggregate across the whole set.
 """
+
 import argparse
 import io
 import json
 import os
 import pathlib
-import re
 import shutil
 import sys
 import time
@@ -36,8 +36,8 @@ from groupbook import CategoryBook
 from masterbook import MasterIndex
 
 SCRATCH = os.path.dirname(os.path.abspath(__file__))
-LIB_BASE = os.path.dirname(SCRATCH)          # .../marketing/ERP_Guide_Book_Library
-MARKETING_BASE = os.path.dirname(LIB_BASE)   # .../marketing
+LIB_BASE = os.path.dirname(SCRATCH)  # .../marketing/ERP_Guide_Book_Library
+MARKETING_BASE = os.path.dirname(LIB_BASE)  # .../marketing
 DEFAULT_OUT = LIB_BASE
 
 
@@ -47,11 +47,13 @@ def _confined(path, base):
     rb = os.path.realpath(base)
     try:
         inside = os.path.commonpath([rp, rb]) == rb
-    except ValueError:                       # different drives / mixed forms
+    except ValueError:  # different drives / mixed forms
         inside = False
     if not inside:
         raise SystemExit("refusing path outside %s: %s" % (rb, path))
     return rp
+
+
 EXDIR = os.path.join(SCRATCH, "_exhibits")
 os.makedirs(EXDIR, exist_ok=True)
 
@@ -88,12 +90,14 @@ repeat the classification error the v2.0 architecture exists to correct.
 """.strip("\n").split("\n")
 
 
-REGISTER = OrderedDict([
-    ("Modules specified", (67, "02-02 §2")),
-    ("Portals specified", (12, "04-00 §2")),
-    ("Functional requirements", (2930, "02-02 §3, measured 2026-08-13")),
-    ("Build effort (person-weeks)", (1513, "02-02 §3, measured 2026-08-13")),
-])
+REGISTER = OrderedDict(
+    [
+        ("Modules specified", (67, "02-02 §2")),
+        ("Portals specified", (12, "04-00 §2")),
+        ("Functional requirements", (2930, "02-02 §3, measured 2026-08-13")),
+        ("Build effort (person-weeks)", (1513, "02-02 §3, measured 2026-08-13")),
+    ]
+)
 
 
 def register_comparison(specs):
@@ -101,20 +105,28 @@ def register_comparison(specs):
         "Modules specified": len([s for s in specs if not s.is_portal]),
         "Portals specified": len([s for s in specs if s.is_portal]),
         "Functional requirements": sum(s.req_count for s in specs),
-        "Build effort (person-weeks)":
-            int(round(sum(s.effort_pw or 0 for s in specs))),
+        "Build effort (person-weeks)": int(round(sum(s.effort_pw or 0 for s in specs))),
     }
     rows = []
     for k, (reg, src) in REGISTER.items():
         m = measured[k]
         d = m - reg
-        note = ("Agrees with the register."
-                if d == 0 else
-                "The measured figure is %+d (%+.1f%%) against the register. "
-                "Under RG-06 the measured figure stands and the register is "
-                "what needs correcting." % (d, 100.0 * d / reg if reg else 0))
-        rows.append([k, "%s  (%s)" % ("{:,}".format(reg), src),
-                     "{:,}".format(m), "%+d" % d, note])
+        note = (
+            "Agrees with the register."
+            if d == 0
+            else "The measured figure is %+d (%+.1f%%) against the register. "
+            "Under RG-06 the measured figure stands and the register is "
+            "what needs correcting." % (d, 100.0 * d / reg if reg else 0)
+        )
+        rows.append(
+            [
+                k,
+                "%s  (%s)" % ("{:,}".format(reg), src),
+                "{:,}".format(m),
+                "%+d" % d,
+                note,
+            ]
+        )
     return rows
 
 
@@ -185,22 +197,40 @@ def _one(uid):
     specs = _W["specs"]
     s = next(x for x in specs if x.uid == uid)
     root = _W["root"]
-    outdir = (os.path.join(root, "02_Portals_and_Applications") if s.is_portal
-              else os.path.join(root, "01_Modules",
-                                C.OUT_CATEGORY_FOLDER[s.category]))
+    outdir = (
+        os.path.join(root, "02_Portals_and_Applications")
+        if s.is_portal
+        else os.path.join(root, "01_Modules", C.OUT_CATEGORY_FOLDER[s.category])
+    )
     t = time.time()
     try:
-        gb = GuideBook(s, _W["index"], C.peers_for(specs, s), EXDIR, outdir,
-                       findings=_W["findings"].for_uid(uid))
+        gb = GuideBook(
+            s,
+            _W["index"],
+            C.peers_for(specs, s),
+            EXDIR,
+            outdir,
+            findings=_W["findings"].for_uid(uid),
+        )
         path = gb.build()
-        return {"ok": True, "uid": uid, "path": path,
-                "kb": round(os.path.getsize(path) / 1024.0, 1),
-                "secs": round(time.time() - t, 1),
-                "reqs": s.req_count, "category": s.category,
-                "kind": "portal" if s.is_portal else "module",
-                "name": s.name,
-                "exhibits": len([v for v in gb.exhibits.values()
-                                 if isinstance(v, str) and v.endswith(".png")])}
+        return {
+            "ok": True,
+            "uid": uid,
+            "path": path,
+            "kb": round(os.path.getsize(path) / 1024.0, 1),
+            "secs": round(time.time() - t, 1),
+            "reqs": s.req_count,
+            "category": s.category,
+            "kind": "portal" if s.is_portal else "module",
+            "name": s.name,
+            "exhibits": len(
+                [
+                    v
+                    for v in gb.exhibits.values()
+                    if isinstance(v, str) and v.endswith(".png")
+                ]
+            ),
+        }
     except Exception:
         return {"ok": False, "uid": uid, "trace": traceback.format_exc()}
 
@@ -215,23 +245,29 @@ def _one_cat(letter):
         overview = None
     else:
         outdir = os.path.join(root, "01_Modules", C.OUT_CATEGORY_FOLDER[letter])
-        overview = os.path.join(C.SRC_MODULES, C.CATEGORY_FOLDER[letter],
-                                "_CATEGORY_OVERVIEW.md")
+        overview = os.path.join(
+            C.SRC_MODULES, C.CATEGORY_FOLDER[letter], "_CATEGORY_OVERVIEW.md"
+        )
     t = time.time()
     try:
-        cb = CategoryBook(letter, group, _W["index"], overview, outdir, EXDIR,
-                          findings=_W["findings"])
+        cb = CategoryBook(
+            letter, group, _W["index"], overview, outdir, EXDIR, findings=_W["findings"]
+        )
         path = cb.build()
-        return {"ok": True, "uid": "CAT-%s" % letter, "path": path,
-                "kb": round(os.path.getsize(path) / 1024.0, 1),
-                "secs": round(time.time() - t, 1),
-                "reqs": sum(s.req_count for s in group), "category": letter,
-                "kind": "suite" if letter == "P" else "category",
-                "name": T.cat_name(letter),
-                "exhibits": len([v for v in cb.exhibits.values() if v])}
+        return {
+            "ok": True,
+            "uid": "CAT-%s" % letter,
+            "path": path,
+            "kb": round(os.path.getsize(path) / 1024.0, 1),
+            "secs": round(time.time() - t, 1),
+            "reqs": sum(s.req_count for s in group),
+            "category": letter,
+            "kind": "suite" if letter == "P" else "category",
+            "name": T.cat_name(letter),
+            "exhibits": len([v for v in cb.exhibits.values() if v]),
+        }
     except Exception:
-        return {"ok": False, "uid": "CAT-%s" % letter,
-                "trace": traceback.format_exc()}
+        return {"ok": False, "uid": "CAT-%s" % letter, "trace": traceback.format_exc()}
 
 
 def main():
@@ -254,11 +290,18 @@ def main():
     index = C.build_index(specs)
     groups = C.category_groups(specs)
     fnd = Findings(specs)
-    print("  %d specifications  (%d modules, %d portals)"
-          % (len(specs), len([s for s in specs if not s.is_portal]),
-             len([s for s in specs if s.is_portal])))
-    print("  %d integrity findings across %d components"
-          % (sum(fnd.summary().values()), len(fnd.per)))
+    print(
+        "  %d specifications  (%d modules, %d portals)"
+        % (
+            len(specs),
+            len([s for s in specs if not s.is_portal]),
+            len([s for s in specs if s.is_portal]),
+        )
+    )
+    print(
+        "  %d integrity findings across %d components"
+        % (sum(fnd.summary().values()), len(fnd.per))
+    )
     print("  building with %d parallel workers\n" % args.jobs)
 
     if args.clean and os.path.isdir(root):
@@ -270,8 +313,11 @@ def main():
 
     manifest, failures = [], []
     uids = [s.uid for s in specs if not only or s.uid in only]
-    cats = [c for c in list(C.CATEGORY_FOLDER.keys()) + ["P"]
-            if not only or ("CAT-%s" % c) in only]
+    cats = [
+        c
+        for c in list(C.CATEGORY_FOLDER.keys()) + ["P"]
+        if not only or ("CAT-%s" % c) in only
+    ]
 
     pool = Pool(processes=args.jobs, initializer=_init, initargs=(root,))
     try:
@@ -281,9 +327,17 @@ def main():
                 done += 1
                 if r["ok"]:
                     manifest.append(r)
-                    print("  [%3d/%3d] %-5s %7.1f KB %5.1fs  %s"
-                          % (done, len(uids), r["uid"], r["kb"], r["secs"],
-                             os.path.basename(r["path"])))
+                    print(
+                        "  [%3d/%3d] %-5s %7.1f KB %5.1fs  %s"
+                        % (
+                            done,
+                            len(uids),
+                            r["uid"],
+                            r["kb"],
+                            r["secs"],
+                            os.path.basename(r["path"]),
+                        )
+                    )
                 else:
                     failures.append((r["uid"], r["trace"]))
                     print("  [%3d/%3d] %-5s FAILED" % (done, len(uids), r["uid"]))
@@ -292,9 +346,10 @@ def main():
             for r in pool.imap_unordered(_one_cat, cats):
                 if r["ok"]:
                     manifest.append(r)
-                    print("  [cat]     %-7s %7.1f KB %5.1fs  %s"
-                          % (r["uid"], r["kb"], r["secs"],
-                             os.path.basename(r["path"])))
+                    print(
+                        "  [cat]     %-7s %7.1f KB %5.1fs  %s"
+                        % (r["uid"], r["kb"], r["secs"], os.path.basename(r["path"]))
+                    )
                 else:
                     failures.append((r["uid"], r["trace"]))
                     print("  [cat]     %-7s FAILED" % r["uid"])
@@ -305,21 +360,35 @@ def main():
     if not args.skip_master:
         t = time.time()
         try:
-            mi = MasterIndex(specs, index, groups,
-                             os.path.join(root, "00_Start_Here"), EXDIR,
-                             FOLDER_STRUCTURE, register_comparison(specs),
-                             findings=fnd)
+            mi = MasterIndex(
+                specs,
+                index,
+                groups,
+                os.path.join(root, "00_Start_Here"),
+                EXDIR,
+                FOLDER_STRUCTURE,
+                register_comparison(specs),
+                findings=fnd,
+            )
             path = mi.build()
-            manifest.append({"ok": True, "uid": "GB-000", "path": path,
-                             "kb": round(os.path.getsize(path) / 1024.0, 1),
-                             "secs": round(time.time() - t, 1),
-                             "reqs": sum(s.req_count for s in specs),
-                             "category": "-", "kind": "index",
-                             "name": "Library Master Index",
-                             "exhibits": len([v for v in mi.exhibits.values() if v])})
-            print("  [index]   GB-000  %7.1f KB %5.1fs  %s"
-                  % (manifest[-1]["kb"], manifest[-1]["secs"],
-                     os.path.basename(path)))
+            manifest.append(
+                {
+                    "ok": True,
+                    "uid": "GB-000",
+                    "path": path,
+                    "kb": round(os.path.getsize(path) / 1024.0, 1),
+                    "secs": round(time.time() - t, 1),
+                    "reqs": sum(s.req_count for s in specs),
+                    "category": "-",
+                    "kind": "index",
+                    "name": "Library Master Index",
+                    "exhibits": len([v for v in mi.exhibits.values() if v]),
+                }
+            )
+            print(
+                "  [index]   GB-000  %7.1f KB %5.1fs  %s"
+                % (manifest[-1]["kb"], manifest[-1]["secs"], os.path.basename(path))
+            )
         except Exception:
             failures.append(("GB-000", traceback.format_exc()))
             print("  [index]   GB-000  FAILED")
@@ -328,15 +397,26 @@ def main():
     manifest_path = os.path.realpath(os.path.join(SCRATCH, "_manifest.json"))
     if not manifest_path.startswith(os.path.realpath(SCRATCH) + os.sep):
         raise SystemExit("manifest path escapes the generator scratch dir")
-    pathlib.Path(manifest_path).write_text(json.dumps(
-        {"generated": T.ISSUE_DATE, "root": root,
-         "documents": [{k: v for k, v in m.items() if k != "trace"}
-                       for m in manifest]}, indent=1), encoding="utf-8")
+    pathlib.Path(manifest_path).write_text(
+        json.dumps(
+            {
+                "generated": T.ISSUE_DATE,
+                "root": root,
+                "documents": [
+                    {k: v for k, v in m.items() if k != "trace"} for m in manifest
+                ],
+            },
+            indent=1,
+        ),
+        encoding="utf-8",
+    )
 
     tot_kb = sum(m["kb"] for m in manifest)
     kinds = Counter(m["kind"] for m in manifest)
-    print("\n%d documents  ·  %.1f MB  ·  %.1f min" %
-          (len(manifest), tot_kb / 1024.0, (time.time() - t0) / 60.0))
+    print(
+        "\n%d documents  ·  %.1f MB  ·  %.1f min"
+        % (len(manifest), tot_kb / 1024.0, (time.time() - t0) / 60.0)
+    )
     print("  " + "  ".join("%s=%d" % (k, v) for k, v in sorted(kinds.items())))
     if failures:
         print("\n%d FAILURES" % len(failures))

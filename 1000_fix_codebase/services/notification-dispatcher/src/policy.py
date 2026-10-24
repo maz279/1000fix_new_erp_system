@@ -18,6 +18,7 @@ The dispatcher never invents a window, a cap or a route. If a value is missing
 from the registry the decision ABORTS (an unevaluable suppression rule is
 treated as "do not send", never as "send anyway").
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -34,12 +35,12 @@ class ConsentRule:
     """NT-003 §2.1/§2.2 — one consent class, its window, cap and SMS route."""
 
     consent_class: str
-    window_start: time | None      # None = 24/7 (QH-01: security/transactional)
+    window_start: time | None  # None = 24/7 (QH-01: security/transactional)
     window_end: time | None
-    per_class_cap: int | None      # None = uncapped
-    combined_cap: int | None       # cap across all non-transactional classes
+    per_class_cap: int | None  # None = uncapped
+    combined_cap: int | None  # cap across all non-transactional classes
     rolling_days: int
-    sms_route: str                 # "masking" | "non-masking" (BD-01/BD-02)
+    sms_route: str  # "masking" | "non-masking" (BD-01/BD-02)
     dnd_reachable: bool
 
     def in_window(self, at: datetime) -> bool:
@@ -84,16 +85,17 @@ class RecipientState:
 
     def frequency_allows(self, rule: ConsentRule, now: datetime) -> bool:
         """NT-003 §2.2 — per-class and combined rolling caps."""
-        if rule.per_class_cap is not None:
-            if self._recent(now, rule.rolling_days, rule.consent_class) >= rule.per_class_cap:
-                return False
+        if (
+            rule.per_class_cap is not None
+            and self._recent(now, rule.rolling_days, rule.consent_class) >= rule.per_class_cap
+        ):
+            return False
         if rule.combined_cap is not None:
             # The combined cap counts every non-transactional class together.
             non_txn = sum(
                 1
                 for cls, ts in self.sent
-                if ts >= now - timedelta(days=rule.rolling_days)
-                and cls in ("service", "marketing")
+                if ts >= now - timedelta(days=rule.rolling_days) and cls in ("service", "marketing")
             )
             if non_txn >= rule.combined_cap:
                 return False
@@ -162,9 +164,8 @@ def evaluate(
     # 5. Preference / opt-out (NT-002)
     if not recipient.channel_allowed(channel):
         return Suppress("suppress", f"opted-out:{channel}")
-    if rule.consent_class == "marketing":
-        if recipient.opted_out_marketing:
-            return Suppress("suppress", "marketing-opt-out")
+    if rule.consent_class == "marketing" and recipient.opted_out_marketing:
+        return Suppress("suppress", "marketing-opt-out")
 
     # DND (BTRC) — promotional traffic never reaches DND numbers.
     if recipient.dnd_registered and not rule.dnd_reachable:

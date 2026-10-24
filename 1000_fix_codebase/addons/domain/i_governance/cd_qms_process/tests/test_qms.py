@@ -3,8 +3,12 @@ import inspect
 import unittest
 
 from odoo.addons.cd_qms_process.models.fix_qms import (
-    FixCapa, FixComplaintM23Ext, FixInternalAudit, FixNcr,
-    FixQcChecklistM23Ext)
+    FixCapa,
+    FixComplaintM23Ext,
+    FixInternalAudit,
+    FixNcr,
+    FixQcChecklistM23Ext,
+)
 
 
 class TestNcrCapa(unittest.TestCase):
@@ -26,8 +30,7 @@ class TestStubClosures(unittest.TestCase):
     """P08-M06-T04/T05 — the registered stubs close HERE."""
 
     def test_m31_to_m23_qc_takeover(self):
-        self.assertIn("fix.ncr", inspect.getsource(
-            FixQcChecklistM23Ext.action_fail_with_ncr))
+        self.assertIn("fix.ncr", inspect.getsource(FixQcChecklistM23Ext.action_fail_with_ncr))
 
     def test_m34_to_m23_complaint_linkage_real(self):
         src = inspect.getsource(FixComplaintM23Ext.action_raise_ncr)
@@ -36,6 +39,7 @@ class TestStubClosures(unittest.TestCase):
 
     def test_stub_fields_now_relations(self):
         import odoo.fields as f
+
         self.assertIsInstance(FixComplaintM23Ext.ncr_id, f.Many2one)
 
 

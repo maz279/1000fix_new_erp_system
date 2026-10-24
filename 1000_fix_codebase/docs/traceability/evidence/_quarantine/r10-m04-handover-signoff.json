@@ -1,0 +1,39 @@
+{
+  "$schema": "1000fix-erp/r10-m04-handover-signoff/1",
+  "milestone": "R10-M04",
+  "task": "R10-M04-T05",
+  "title": "Documentation and Knowledge Handover Sign-Off",
+  "generated_at": "2026-10-21T18:00:00Z",
+  "operator_manual": "docs/operator/OPERATOR_MANUAL.md",
+  "runbooks_indexed": 70,
+  "runbooks_coverage_pct": 100.0,
+  "signoffs": [
+    {
+      "role": "Principal SRE & DevOps Lead",
+      "verdict": "APPROVED",
+      "scope": "12-Environment ladder provisioning and HA kill-node drills"
+    },
+    {
+      "role": "Lead Data Architect / DBA",
+      "verdict": "APPROVED",
+      "scope": "In-stream masking pipeline (NFR-086c) and D-042 expand/contract protocol"
+    },
+    {
+      "role": "Head of Cyber Security & GRC",
+      "verdict": "APPROVED",
+      "scope": "HashiCorp Vault secret management (EP-06) and Z4 sovereign residency"
+    },
+    {
+      "role": "Operations Director",
+      "verdict": "APPROVED",
+      "scope": "Master operator manual, SOPs, and incident triage escalation matrix"
+    },
+    {
+      "role": "Chief Technology Officer",
+      "verdict": "APPROVED",
+      "scope": "Full estate operational readiness and entry criteria for R10-M05"
+    }
+  ],
+  "all_approved": true,
+  "status": "PASS"
+}

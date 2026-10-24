@@ -7,66 +7,285 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__bucket__d1_30
+msgid "1-30"
+msgstr "১-৩০ দিন"
 
-msgid "AR Invoices"
-msgstr "প্রাপ্য চালানসমূহ"
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__bucket__d31_60
+msgid "31-60"
+msgstr "৩১-৬০ দিন"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__bucket__d61_90
+msgid "61-90"
+msgstr "৬১-৯০ দিন"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__bucket__d90_plus
+msgid "90+"
+msgstr "৯০+ দিন"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_dunning__bucket
+msgid "Ageing Bucket"
+msgstr "বকেয়ার বয়স-শ্রেণি"
+
+#. module: cd_billing_engine
+#: model_terms:ir.ui.view,arch_db:cd_billing_engine.view_fix_ar_invoice_form
 msgid "Amounts"
 msgstr "পরিমাণসমূহ"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_billing_engine
+#: model:ir.actions.act_window,name:cd_billing_engine.action_fix_ar_invoice
+#: model:ir.ui.menu,name:cd_billing_engine.menu_fix_ar_invoice
+msgid "AR Invoices"
+msgstr "প্রাপ্য চালানসমূহ"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__bill_ref
+msgid "Bill Reference"
+msgstr "বিল রেফারেন্স"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__branch_id
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_consolidated_bill__state__cancelled
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_invoice__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_billing_engine
+#: model:ir.ui.menu,name:cd_billing_engine.menu_fix_dunning
 msgid "Collections"
 msgstr "আদায়"
 
-msgid "Credit Amount"
-msgstr "ক্রেডিট পরিমাণ"
-
-msgid "Credit Notes"
-msgstr "ক্রেডিট নোটসমূহ"
-
+#. module: cd_billing_engine
+#: model:ir.actions.act_window,name:cd_billing_engine.action_fix_ar_consolidated_bill
+#: model:ir.ui.menu,name:cd_billing_engine.menu_fix_ar_consolidated_bill
 msgid "Consolidated Bills"
 msgstr "একত্রিত বিলসমূহ"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__customer_id
+msgid "Corporate Customer"
+msgstr "কর্পোরেট গ্রাহক"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_note__amount
+msgid "Credit Amount"
+msgstr "ক্রেডিট পরিমাণ"
+
+#. module: cd_billing_engine
+#: model:ir.actions.act_window,name:cd_billing_engine.action_fix_credit_note
+#: model:ir.ui.menu,name:cd_billing_engine.menu_fix_credit_note
+msgid "Credit Notes"
+msgstr "ক্রেডিট নোটসমূহ"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_invoice__state__credited
+msgid "Credited"
+msgstr "ক্রেডিটকৃত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__bucket__current
+msgid "Current"
+msgstr "চলতি"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_consolidated_bill__state__draft
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_invoice__state__draft
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__step__escalate
+msgid "Escalated to Collections (L3)"
+msgstr "আদায় বিভাগে এসকালেটেড (L3)"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__step__final
+msgid "Final Notice (L2)"
+msgstr "চূড়ান্ত নোটিশ (L2)"
+
+#. module: cd_billing_engine
+#: model_terms:ir.ui.view,arch_db:cd_billing_engine.view_fix_ar_invoice_tree
 msgid "Gen (s)"
 msgstr "জেনারেশন (সে.)"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_consolidated_bill__state__generated
+msgid "Generated"
+msgstr "তৈরিকৃত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__goodwill
+msgid "Goodwill"
+msgstr "গুডউইল"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__invoice_ids
+msgid "Included Invoices"
+msgstr "অন্তর্ভুক্ত চালানসমূহ"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice_line__invoice_id
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_dunning__invoice_id
+#: model_terms:ir.ui.view,arch_db:cd_billing_engine.view_fix_ar_invoice_form
 msgid "Invoice"
 msgstr "চালান"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_invoice__state__issued
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__state__issued
+msgid "Issued"
+msgstr "ইস্যুকৃত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice_line__line_total
 msgid "Line Total"
 msgstr "লাইন মোট"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__line_ids
 msgid "Lines"
 msgstr "লাইনসমূহ"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__loyalty_discount_amount
+msgid "Loyalty Discount"
+msgstr "লয়ালটি ছাড়"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__loyalty_points_redeemed
+msgid "Loyalty Points Redeemed"
+msgstr "রিডিমকৃত লয়ালটি পয়েন্ট"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__mushak_id
 msgid "Mushak 6.3"
 msgstr "মুশক ৬.৩"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_note__invoice_id
 msgid "Original Invoice"
 msgstr "মূল চালান"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_dunning__overdue_amount
 msgid "Overdue"
 msgstr "অতিমেয়াদি"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_consolidated_bill__state__paid
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_invoice__state__paid
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__state__pending_approval
+msgid "Pending Approval"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__period_end
+msgid "Period End"
+msgstr "পিরিয়ডের শেষ"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__period_start
+msgid "Period Start"
+msgstr "পিরিয়ডের শুরু"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__pricing_error
+msgid "Pricing Error"
+msgstr "মূল্য নির্ধারণে ভুল"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice_line__product_id
 msgid "Product"
 msgstr "পণ্য"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_dunning__step__reminder
+msgid "Reminder (NT-006 L1)"
+msgstr "অনুস্মারক (NT-006 L1)"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__return
+msgid "Return"
+msgstr "ফেরত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_ar_consolidated_bill__state__sent
+msgid "Sent"
+msgstr "প্রেরিত"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__service_failure
+msgid "Service Failure"
+msgstr "সার্ভিস ব্যর্থতা"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__source_id
 msgid "Source ID"
 msgstr "উৎস আইডি"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__source_model
 msgid "Source Model"
 msgstr "উৎস মডেল"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__taxable_amount
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice_line__taxable_amount
 msgid "Taxable Value"
 msgstr "করযোগ্য মূল্য"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__total_payable
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__total_payable
 msgid "Total Payable"
 msgstr "মোট প্রদেয়"
 
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__total_taxable
+msgid "Total Taxable"
+msgstr "মোট করযোগ্য"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_consolidated_bill__total_vat
+msgid "Total VAT"
+msgstr "মোট VAT"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__vat_amount
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice_line__vat_amount
 msgid "VAT"
 msgstr "ভ্যাট"
+
+#. module: cd_billing_engine
+#: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__warranty
+msgid "Warranty Re-work"
+msgstr "ওয়ারেন্টি পুনঃকাজ"

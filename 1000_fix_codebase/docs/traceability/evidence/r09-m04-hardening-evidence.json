@@ -1,0 +1,332 @@
+{
+  "milestone": "R09-M04",
+  "task": "R09-M04-T01",
+  "standard": "DoD-14 / PE-004 / NFR-081 / NFR-092 (1.5x Peak Steady-State Hardening)",
+  "timestamp": "2026-10-22T09:10:01.638960+00:00",
+  "journeys_declared": 15,
+  "journeys_measured": 0,
+  "baseline_probe_target": "http://127.0.0.1:8069/jsonrpc common.version (read-only)",
+  "odoo_reachable": true,
+  "baseline_probe": {
+    "samples": 5,
+    "successes": 5,
+    "errors": 0,
+    "error_rate_pct": 0.0,
+    "error_samples": [],
+    "latency_ms": {
+      "p50": 11.29,
+      "p95": 43.96,
+      "max": 43.96,
+      "mean": 19.42
+    }
+  },
+  "journeys": [
+    {
+      "journey_id": "J01",
+      "name": "Customer Books On-Site Repair",
+      "domain": "a_service_ops",
+      "type": "transactional",
+      "modules": [
+        "cd_service_order",
+        "cd_field_service",
+        "cd_p03_portal"
+      ],
+      "target_rps_1_5x": 350.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_service_order, cd_field_service, cd_p03_portal); measuring p95 <= 200.0 ms at 350.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J02",
+      "name": "Walk-In Counter Intake & Bench Repair Diagnostics",
+      "domain": "a_service_ops",
+      "type": "transactional",
+      "modules": [
+        "cd_front_desk",
+        "cd_workshop",
+        "cd_service_order"
+      ],
+      "target_rps_1_5x": 420.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_front_desk, cd_workshop, cd_service_order); measuring p95 <= 200.0 ms at 420.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J03",
+      "name": "Pick & Drop Round-Trip Logistics & Van Tracking",
+      "domain": "a_service_ops",
+      "type": "transactional",
+      "modules": [
+        "cd_service_order",
+        "cd_facility",
+        "cd_vehicle_ext"
+      ],
+      "target_rps_1_5x": 280.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_service_order, cd_facility, cd_vehicle_ext); measuring p95 <= 200.0 ms at 280.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J04",
+      "name": "Brand Warranty Claim Submission & Ledger Reimbursement",
+      "domain": "c_commercial",
+      "type": "transactional",
+      "modules": [
+        "cd_warranty_claims",
+        "cd_billing_engine",
+        "cd_partner"
+      ],
+      "target_rps_1_5x": 310.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_warranty_claims, cd_billing_engine, cd_partner); measuring p95 <= 200.0 ms at 310.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J05",
+      "name": "Corporate AMC Preventive Maintenance Dispatch",
+      "domain": "c_commercial",
+      "type": "transactional",
+      "modules": [
+        "cd_contract_core",
+        "cd_ppm",
+        "cd_corporate_portal"
+      ],
+      "target_rps_1_5x": 250.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_contract_core, cd_ppm, cd_corporate_portal); measuring p95 <= 200.0 ms at 250.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J06",
+      "name": "MSP Telemetry Ingestion & Auto Parts Replenishment",
+      "domain": "e_supply_chain",
+      "type": "transactional",
+      "modules": [
+        "cd_stream_registry",
+        "cd_inventory",
+        "cd_msp_contract"
+      ],
+      "target_rps_1_5x": 833.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_stream_registry, cd_inventory, cd_msp_contract); measuring p95 <= 200.0 ms at 833.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J07",
+      "name": "Device Trade-In Appraisal & Refurbishment Grading",
+      "domain": "d_circular",
+      "type": "transactional",
+      "modules": [
+        "cd_tradein",
+        "cd_workshop",
+        "cd_dynamic_pricing"
+      ],
+      "target_rps_1_5x": 220.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_tradein, cd_workshop, cd_dynamic_pricing); measuring p95 <= 200.0 ms at 220.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J08",
+      "name": "Marketplace Seller Order Fulfillment & 48h Settlement",
+      "domain": "c_commercial",
+      "type": "transactional",
+      "modules": [
+        "cd_marketplace",
+        "cd_settlement_ext",
+        "cd_storefront"
+      ],
+      "target_rps_1_5x": 480.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_marketplace, cd_settlement_ext, cd_storefront); measuring p95 <= 200.0 ms at 480.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J09",
+      "name": "Cleanroom Data Recovery Intake & Forensics Chain of Custody",
+      "domain": "k_digital_channel",
+      "type": "transactional",
+      "modules": [
+        "cd_data_case",
+        "cd_service_order",
+        "cd_qms_process"
+      ],
+      "target_rps_1_5x": 150.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_data_case, cd_service_order, cd_qms_process); measuring p95 <= 200.0 ms at 150.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J10",
+      "name": "E-Waste Circular Decommissioning & Wipe Certificate",
+      "domain": "d_circular",
+      "type": "transactional",
+      "modules": [
+        "cd_ewaste",
+        "cd_document_core",
+        "cd_esignature"
+      ],
+      "target_rps_1_5x": 180.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_ewaste, cd_document_core, cd_esignature); measuring p95 <= 200.0 ms at 180.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J11",
+      "name": "Analytical Warehouse Sync & BI KPI Aggregations",
+      "domain": "j_data_analytics",
+      "type": "reporting",
+      "modules": [
+        "cd_metric_registry",
+        "bi-warehouse"
+      ],
+      "target_rps_1_5x": 200.0,
+      "p95_budget_ms": 500.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this reporting journey (modules cd_metric_registry, bi-warehouse); measuring p95 <= 500.0 ms at 200.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J12",
+      "name": "Three-Way Match Procurement, GRN & AP Settlement",
+      "domain": "g_finance",
+      "type": "transactional",
+      "modules": [
+        "cd_requisition",
+        "cd_import_order",
+        "cd_ap_ext"
+      ],
+      "target_rps_1_5x": 240.0,
+      "p95_budget_ms": 200.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this transactional journey (modules cd_requisition, cd_import_order, cd_ap_ext); measuring p95 <= 200.0 ms at 240.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J13",
+      "name": "Monthly Payroll Processing & BEFTN Bank Disbursement",
+      "domain": "h_people",
+      "type": "batch",
+      "modules": [
+        "cd_payroll_bd",
+        "cd_attendance",
+        "cd_cash_position"
+      ],
+      "target_rps_1_5x": 160.0,
+      "p95_budget_ms": 500.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this batch journey (modules cd_payroll_bd, cd_attendance, cd_cash_position); measuring p95 <= 500.0 ms at 160.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J14",
+      "name": "ISO 9001 QMS Audit Inspection & CAPA Remediation Cycle",
+      "domain": "i_governance",
+      "type": "batch",
+      "modules": [
+        "cd_qms_process",
+        "cd_grc",
+        "cd_hse"
+      ],
+      "target_rps_1_5x": 120.0,
+      "p95_budget_ms": 500.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this batch journey (modules cd_qms_process, cd_grc, cd_hse); measuring p95 <= 500.0 ms at 120.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "journey_id": "J15",
+      "name": "Month-Close Financial Reconciliation & Mushak 6.3 VAT Return",
+      "domain": "g_finance",
+      "type": "batch",
+      "modules": [
+        "cd_gl_ext",
+        "cd_tax_engine_bd",
+        "cd_fpa"
+      ],
+      "target_rps_1_5x": 140.0,
+      "p95_budget_ms": 500.0,
+      "status": "UNMEASURED",
+      "reason": "no driver exists for this batch journey (modules cd_gl_ext, cd_tax_engine_bd, cd_fpa); measuring p95 <= 500.0 ms at 140.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    }
+  ],
+  "checks": [
+    {
+      "check": "odoo_baseline_probe_error_free",
+      "status": "PASS",
+      "detail": "5/5 read-only common.version calls succeeded (unloaded p95 43.96 ms); errors none"
+    },
+    {
+      "check": "J01::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_service_order, cd_field_service, cd_p03_portal); measuring p95 <= 200.0 ms at 350.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J02::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_front_desk, cd_workshop, cd_service_order); measuring p95 <= 200.0 ms at 420.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J03::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_service_order, cd_facility, cd_vehicle_ext); measuring p95 <= 200.0 ms at 280.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J04::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_warranty_claims, cd_billing_engine, cd_partner); measuring p95 <= 200.0 ms at 310.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J05::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_contract_core, cd_ppm, cd_corporate_portal); measuring p95 <= 200.0 ms at 250.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J06::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_stream_registry, cd_inventory, cd_msp_contract); measuring p95 <= 200.0 ms at 833.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J07::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_tradein, cd_workshop, cd_dynamic_pricing); measuring p95 <= 200.0 ms at 220.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J08::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_marketplace, cd_settlement_ext, cd_storefront); measuring p95 <= 200.0 ms at 480.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J09::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_data_case, cd_service_order, cd_qms_process); measuring p95 <= 200.0 ms at 150.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J10::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_ewaste, cd_document_core, cd_esignature); measuring p95 <= 200.0 ms at 180.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J11::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this reporting journey (modules cd_metric_registry, bi-warehouse); measuring p95 <= 500.0 ms at 200.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J12::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this transactional journey (modules cd_requisition, cd_import_order, cd_ap_ext); measuring p95 <= 200.0 ms at 240.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J13::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this batch journey (modules cd_payroll_bd, cd_attendance, cd_cash_position); measuring p95 <= 500.0 ms at 160.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J14::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this batch journey (modules cd_qms_process, cd_grc, cd_hse); measuring p95 <= 500.0 ms at 120.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    },
+    {
+      "check": "J15::p95_at_1_5x_peak",
+      "status": "UNMEASURED",
+      "detail": "no driver exists for this batch journey (modules cd_gl_ext, cd_tax_engine_bd, cd_fpa); measuring p95 <= 500.0 ms at 140.0 req/s needs a perf environment with synthetic data and a load harness, and this tool sends no load"
+    }
+  ],
+  "status": "INCOMPLETE"
+}

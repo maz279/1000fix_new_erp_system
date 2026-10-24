@@ -1,8 +1,8 @@
 {
   "schema": "1000fix-erp/doctor-results/1",
-  "passed": 12,
+  "passed": 10,
   "skipped": 2,
-  "failed": 0,
+  "failed": 2,
   "results": [
     {
       "id": 1,
@@ -10,7 +10,7 @@
       "status": "PASS",
       "detail": "py3.12.10 / git version 2.56.0.windows.1 OK",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:56.246568+00:00"
+      "timestamp": "2026-10-21T14:30:28.945474+00:00"
     },
     {
       "id": 2,
@@ -18,23 +18,23 @@
       "status": "PASS",
       "detail": "vendor clean, submodule integrity verified",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.014901+00:00"
+      "timestamp": "2026-10-21T14:30:29.541685+00:00"
     },
     {
       "id": 3,
       "name": "Compose health (DE-03)",
       "status": "PASS",
-      "detail": "7 service(s) monitored, 7 active",
+      "detail": "7 services, all healthy",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.433733+00:00"
+      "timestamp": "2026-10-21T14:30:29.877501+00:00"
     },
     {
       "id": 4,
       "name": "Database",
       "status": "PASS",
-      "detail": "fix_dev schema and UTF-8 collation validated",
+      "detail": "fix_dev reachable, UTF8",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.433733+00:00"
+      "timestamp": "2026-10-21T14:30:30.200101+00:00"
     },
     {
       "id": 5,
@@ -42,7 +42,7 @@
       "status": "PASS",
       "detail": "local.conf regenerates identically",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.524940+00:00"
+      "timestamp": "2026-10-21T14:30:30.267003+00:00"
     },
     {
       "id": 6,
@@ -50,39 +50,39 @@
       "status": "PASS",
       "detail": "HTTP 200 /web/login",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.590491+00:00"
+      "timestamp": "2026-10-21T14:30:30.308133+00:00"
     },
     {
       "id": 7,
       "name": "Module install (OD-02)",
-      "status": "PASS",
-      "detail": "66 first-party module(s) verified",
-      "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.688338+00:00"
+      "status": "FAIL",
+      "detail": "only 68/71 cd_* modules installed",
+      "remedy": "odoo-init + install wave; upgrade on code changes",
+      "timestamp": "2026-10-21T14:30:30.737964+00:00"
     },
     {
       "id": 8,
       "name": "Smoke test",
       "status": "PASS",
-      "detail": "15/15 checks verified on active service",
+      "detail": "test-smoke: 15/15 checks passed",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.688338+00:00"
+      "timestamp": "2026-10-21T14:30:38.717389+00:00"
     },
     {
       "id": 9,
       "name": "Quality gates",
-      "status": "PASS",
-      "detail": "Ruff, Mypy, and ESLint configs verified",
-      "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.688338+00:00"
+      "status": "FAIL",
+      "detail": "[INFO] Initializing environment for https://github.com/OCA/pylint-odoo.\nAn unexpected error has occurred: CalledProcessError: command: ('C:\\\\Program Files\\\\Git\\\\ucrt64\\\\bin\\\\git.EXE', 'checkout', 'v8.0.28')\nreturn code: 1\nstdout: (none)\nstderr:\n    error: pathspec 'v8.0.28' did not match any file(s) known to git\nCheck the log at C:\\Users\\DELL\\.cache\\pre-commit\\pre-commit.log",
+      "remedy": "fix findings; XS-20 governs --no-verify",
+      "timestamp": "2026-10-21T14:30:41.421384+00:00"
     },
     {
       "id": 10,
       "name": "Bengali rendering",
       "status": "PASS",
-      "detail": "reference committed and valid",
+      "detail": "reference committed and valid; pixel comparison runs with the QWeb report render (Odoo runtime)",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.688338+00:00"
+      "timestamp": "2026-10-21T14:30:41.421384+00:00"
     },
     {
       "id": 11,
@@ -90,15 +90,15 @@
       "status": "PASS",
       "detail": "Mailpit reachable (127.0.0.1:8025)",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.713897+00:00"
+      "timestamp": "2026-10-21T14:30:41.427464+00:00"
     },
     {
       "id": 12,
       "name": "Data safety (DE-12/FF-09)",
       "status": "PASS",
-      "detail": "Synthetic-only test seed policy enforced (E3)",
+      "detail": "pattern scan activates with kernel tables (residency stub is synthetic-only); never bring production data",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.713897+00:00"
+      "timestamp": "2026-10-21T14:30:41.783281+00:00"
     },
     {
       "id": 13,
@@ -106,7 +106,7 @@
       "status": "SKIP",
       "detail": "debugpy attach activates with Phase-3 dev container",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.713897+00:00"
+      "timestamp": "2026-10-21T14:30:41.783281+00:00"
     },
     {
       "id": 14,
@@ -114,7 +114,7 @@
       "status": "SKIP",
       "detail": "hot reload volume-mount activates with dev container",
       "remedy": "",
-      "timestamp": "2026-10-16T11:45:57.713897+00:00"
+      "timestamp": "2026-10-21T14:30:41.783281+00:00"
     }
   ]
 }

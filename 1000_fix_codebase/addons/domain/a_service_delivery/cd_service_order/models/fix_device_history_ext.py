@@ -9,5 +9,6 @@ from odoo import fields, models
 class FixDeviceHistoryOrderExt(models.Model):
     _inherit = "fix.device.history"
 
-    service_order_id = fields.Many2one("fix.service.order", string="Service Order",
-                                       ondelete="set null")
+    service_order_id = fields.Many2one(
+        "fix.service.order", string="Service Order", ondelete="set null"
+    )

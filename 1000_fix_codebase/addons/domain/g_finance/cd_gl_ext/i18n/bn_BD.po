@@ -7,69 +7,455 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__period_close_id
+msgid "1000FiX Period Close"
+msgstr "1000FiX পিরিয়ড সমাপ্তি"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__account_code
+msgid "Account Code"
+msgstr "হিসাব কোড"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__name
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_account_form
+msgid "Account Name"
+msgstr "হিসাবের নাম"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__account_subtype
+msgid "Account Subtype"
+msgstr "হিসাবের উপধরন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__account_type
+msgid "Account Type"
+msgstr "হিসাবের ধরন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__payable
+msgid "Accounts Payable"
+msgstr "প্রদেয় হিসাব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__receivable
+msgid "Accounts Receivable"
+msgstr "প্রাপ্য হিসাব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__asset
+msgid "Asset"
+msgstr "সম্পদ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__asset_category
 msgid "Asset Category"
 msgstr "সম্পদের শ্রেণি"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__balance_sheet
+msgid "Balance Sheet (Financial Position)"
+msgstr "স্থিতিপত্র (আর্থিক অবস্থা)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__branch_id
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__sla_status__breached
+msgid "Breached Target"
+msgstr "লঙ্ঘিত লক্ষ্য"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__name
 msgid "Capitalisation Reference"
 msgstr "মূলধনীকরণ রেফারেন্স"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__amount
 msgid "Capitalised Amount"
 msgstr "মূলধনীকৃত পরিমাণ"
 
+#. module: cd_gl_ext
+#: model:ir.actions.act_window,name:cd_gl_ext.action_fix_chart_account
+#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_chart_account
+msgid "Chart of Accounts"
+msgstr "হিসাবের তালিকা"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Check Ready to Close"
+msgstr "সমাপ্তির প্রস্তুতি যাচাই করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_account_form
+msgid "Classification"
+msgstr "শ্রেণিবিভাগ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__close_duration_days
 msgid "Close Duration (days)"
 msgstr "সমাপ্তি সময় (দিন)"
 
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Close Period"
+msgstr "পিরিয়ড বন্ধ করুন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__line_ids
 msgid "Close Steps"
 msgstr "সমাপ্তি ধাপসমূহ"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_gl_ext
+#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_chart_loader
+msgid "CoA Master Loader"
+msgstr "হিসাবের তালিকা (CoA) মাস্টার লোডার"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__company_id
 msgid "Company"
 msgstr "কোম্পানি"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__is_control_account
+msgid "Control Account"
+msgstr "নিয়ন্ত্রণ হিসাব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__control_subledger
+msgid "Control Subledger"
+msgstr "নিয়ন্ত্রণ উপ-খতিয়ান"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__cost_centre
 msgid "Cost Centre"
 msgstr "খরচ কেন্দ্র"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__currency_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__currency_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__balance
+msgid "Current Balance"
+msgstr "বর্তমান ব্যালেন্স"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close_line__state__done
+msgid "Done"
+msgstr "সম্পন্ন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__equity
+msgid "Equity"
+msgstr "মালিকানা স্বত্ব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__evidence_ref
 msgid "Evidence Reference"
 msgstr "প্রমাণের রেফারেন্স"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__expense
+msgid "Expense"
+msgstr "ব্যয়"
+
+#. module: cd_gl_ext
+#: model:ir.ui.menu,name:cd_gl_ext.menu_ws_finance
 msgid "Finance"
 msgstr "ফাইন্যান্স"
 
+#. module: cd_gl_ext
+#: model:ir.actions.act_window,name:cd_gl_ext.action_fix_fixed_asset_seam
+#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_fixed_asset_seam
 msgid "Fixed Asset Seam"
 msgstr "স্থায়ী সম্পদ সংযোগ"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__fixed_asset
+msgid "Fixed Assets"
+msgstr "স্থায়ী সম্পদসমূহ"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Generate 10 SOP Steps"
+msgstr "১০টি SOP ধাপ তৈরি করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Import MD-035 CoA"
+msgstr "MD-035 হিসাবের তালিকা আমদানি করুন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__state__in_progress
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close_line__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__income
+msgid "Income"
+msgstr "আয়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__pnl
+msgid "Income Statement / Profit & Loss"
+msgstr "আয় বিবরণী / লাভ-ক্ষতি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__stock
+msgid "Inventory Stock"
+msgstr "ইনভেন্টরি মজুদ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__move_line_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__move_line_id
 msgid "Journal Item"
 msgstr "জার্নাল আইটেম"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__is_locked
+msgid "Journals Locked"
+msgstr "জার্নাল লক করা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__liability
+msgid "Liability"
+msgstr "দায়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__odoo_account_id
+msgid "Linked Odoo Account"
+msgstr "সংযুক্ত Odoo হিসাব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__loaded
+msgid "Loaded"
+msgstr "লোডকৃত"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__fiscal_year_id
+msgid "OCA Fiscal Year"
+msgstr "OCA অর্থবছর"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__owner_role
 msgid "Owning Role"
 msgstr "দায়িত্বপ্রাপ্ত ভূমিকা"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close_line__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_gl_ext
 msgid "Period"
-msgstr "পর্যায়"
+msgstr "পিরিয়ড"
 
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Period & Target"
+msgstr "পিরিয়ড ও লক্ষ্য"
+
+#. module: cd_gl_ext
+#: model:ir.actions.act_window,name:cd_gl_ext.action_fix_period_close
+#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_period_close
 msgid "Period Close"
-msgstr "পর্যায় সমাপ্তি"
+msgstr "পিরিয়ড সমাপ্তি"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__period_end
 msgid "Period End"
-msgstr "পর্যায় সমাপ্তি"
+msgstr "পিরিয়ডের শেষ"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__is_postable
+msgid "Postable"
+msgstr "পোস্টযোগ্য"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_account_form
+msgid "Posting Controls"
+msgstr "পোস্টিং নিয়ন্ত্রণ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__state__ready_to_close
+msgid "Ready to Close"
+msgstr "বন্ধ করার জন্য প্রস্তুত"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Reconcile Chart"
+msgstr "হিসাবের তালিকা সমন্বয় করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Reconcile Inventory Suspense"
+msgstr "ইনভেন্টরি সাসপেন্স সমন্বয় করুন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__reconciled
+msgid "Reconciled"
+msgstr "সমন্বয়কৃত"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__name
+msgid "Report Name"
+msgstr "রিপোর্টের নাম"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__report_type
+msgid "Report Type"
+msgstr "রিপোর্টের ধরন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__requires_dimension
+msgid "Requires Dimension"
+msgstr "ডাইমেনশন আবশ্যক"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__report_data
+msgid "Serialized Report Data"
+msgstr "সিরিয়ালাইজড রিপোর্ট ডেটা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__sla_status
+msgid "SLA Performance"
+msgstr "SLA পারফরম্যান্স"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__source_file
+msgid "Source File"
+msgstr "উৎস ফাইল"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Source Specification"
+msgstr "উৎসের বিবরণী"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__started_at
+msgid "Started At"
+msgstr "শুরুর সময়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__cash_flow
+msgid "Statement of Cash Flows"
+msgstr "নগদ প্রবাহ বিবরণী"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__statutory_group
+msgid "Statutory Group"
+msgstr "সংবিধিবদ্ধ গ্রুপ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__tax
+msgid "Statutory Tax & VAT"
+msgstr "সংবিধিবদ্ধ কর ও VAT"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__name
 msgid "Step"
 msgstr "ধাপ"
 
+#. module: cd_gl_ext
 msgid "Suspense (AR-006 section 5.4)"
 msgstr "সাসপেন্স (AR-006)"
 
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
+msgid "Suspense Clearance (AR-006 §5.4)"
+msgstr "সাসপেন্স নিষ্পত্তি (AR-006 §5.4)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__suspense_closing
 msgid "Suspense Closing"
 msgstr "সাসপেন্স শেষ"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__cutover_voucher_ref
+msgid "Suspense Cutover Voucher Ref"
+msgstr "সাসপেন্স কাটওভার ভাউচার রেফারেন্স"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__suspense_opening
 msgid "Suspense Opening"
 msgstr "সাসপেন্স শুরু"
 
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__suspense_reconciled
+msgid "Suspense Reconciled"
+msgstr "সাসপেন্স সমন্বয়কৃত"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_account_form
+msgid "T-GG-SS-NNN"
+msgstr "T-GG-SS-NNN"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__target_completion_date
+msgid "Target Completion Date"
+msgstr "সম্পন্নের লক্ষ্য তারিখ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__target_day
 msgid "Target Day"
 msgstr "লক্ষ্য দিন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__vat_subledger
+msgid "VAT Sub-Ledger Statement"
+msgstr "VAT উপ-খতিয়ান বিবরণী"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Verification Telemetry"
+msgstr "যাচাই টেলিমেট্রি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__sla_status__within_sla
+msgid "Within 5-Day SLA"
+msgstr "৫ দিনের SLA-এর মধ্যে"

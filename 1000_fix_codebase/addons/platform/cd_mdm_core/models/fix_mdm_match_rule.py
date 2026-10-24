@@ -10,26 +10,37 @@ class FixMdmMatchRule(models.Model):
     field, the weight is added to the overall match score. Above a threshold,
     records are flagged as potential duplicates.
     """
+
     _name = "fix.mdm.match.rule"
     _description = "MDM Match Rule"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "model_name, sequence"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _model_field_unique = models.Constraint('UNIQUE (model_name, field_name)', 'One match rule per model+field')
+    _model_field_unique = models.Constraint(
+        "UNIQUE (model_name, field_name)", "One match rule per model+field"
+    )
 
     sequence = fields.Integer(default=10)
     model_name = fields.Char(string="Target Model", required=True, index=True)
     field_name = fields.Char(string="Field", required=True, index=True)
     match_type = fields.Selection(
-        [("exact", "Exact Match"), ("fuzzy", "Fuzzy (normalised)"),
-         ("phonetic", "Phonetic (Bengali-aware)"), ("numeric", "Numeric")],
-        required=True, default="exact")
+        [
+            ("exact", "Exact Match"),
+            ("fuzzy", "Fuzzy (normalised)"),
+            ("phonetic", "Phonetic (Bengali-aware)"),
+            ("numeric", "Numeric"),
+        ],
+        required=True,
+        default="exact",
+    )
     weight = fields.Float(
-        default=1.0, required=True,
-        help="Contribution to the match score when this field matches (0-1.0)")
+        default=1.0,
+        required=True,
+        help="Contribution to the match score when this field matches (0-1.0)",
+    )
     normalize = fields.Boolean(
-        default=True,
-        help="Strip spaces, case-fold, normalise Bengali digits before matching")
+        default=True, help="Strip spaces, case-fold, normalise Bengali digits before matching"
+    )
     description = fields.Text()
     active = fields.Boolean(default=True)

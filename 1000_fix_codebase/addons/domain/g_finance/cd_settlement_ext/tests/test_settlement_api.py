@@ -1,6 +1,10 @@
 # cd_settlement_ext tests — the seller settlement statement surface (PP5).
-from pathlib import Path
 import unittest
+from pathlib import Path
+
+import pytest
+
+pytestmark = [pytest.mark.financial]
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -23,9 +27,12 @@ class TestSettlementStatement(unittest.TestCase):
 
     def test_route_json_auth_readonly(self):
         import re
+
         routes = re.findall(
-            r'@http\.route\("(/seller/settlements)"[^)]*type="json",\s*'
-            r'auth="user",\s*readonly=True', API)
+            r'@http\.route\("(/seller/settlements)"[^)]*type="jsonrpc",\s*'
+            r'auth="user",\s*readonly=True',
+            API,
+        )
         self.assertEqual(len(routes), 1, routes)
 
 

@@ -4,12 +4,17 @@
 # lives in services/pricing-engine (L5 pure — T02). This module carries the
 # DATA: cards, tiers, contract lanes, validity windows. Discount governance
 # lives in cd_quotation (it is the quotation lifecycle's control).
+import sys
+from decimal import Decimal
+from pathlib import Path
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
-from decimal import Decimal
-
-from libs.py.fix_events import publish  # FF-28
+# services/pricing-engine is a hyphenated (non-package) service folder: its
+# module is imported from its src/ directory (same pattern as
+# cd_tax_engine_bd's e-VAT client). parents[5] = the codebase root.
+PRICING_ENGINE_SRC = Path(__file__).resolve().parents[5] / "services" / "pricing-engine" / "src"
 
 
 class FixRateCard(models.Model):
@@ -26,40 +31,67 @@ class FixRateCard(models.Model):
     _order = "product_code, min_tier"
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _product_tier_unique = models.Constraint('UNIQUE (product_code, min_tier, contract_no)', 'One rate per product, tier and contract')
+    # NULLS NOT DISTINCT (PostgreSQL 15+): a TIER card has no contract_no,
+    # and with plain UNIQUE two NULLs never collide - duplicate tier rates for
+    # one product slipped through and made the engine's resolution ambiguous.
+    _product_tier_unique = models.Constraint(
+        "UNIQUE NULLS NOT DISTINCT (product_code, min_tier, contract_no)",
+        "One rate per product, tier and contract",
+    )
 
     name = fields.Char(string="Rate Line Name", compute="_compute_name", store=True)
-    product_code = fields.Char(string="Product Code", required=True, index=True,
-                               help="Catalogue item code (product.default_code)")
+    product_code = fields.Char(
+        string="Product Code",
+        required=True,
+        index=True,
+        help="Catalogue item code (product.default_code)",
+    )
     line_type = fields.Selection(
-        [("labour", "Labour"), ("part", "Part"), ("consumable", "Consumable"),
-         ("transport", "Transport")], required=True, default="labour")
-    currency_id = fields.Many2one("res.currency", required=True,
-                                  default=lambda self: self.env.ref("base.BDT"))
-    unit_price = fields.Monetary(string="Rate (VAT-exclusive)", currency_field="currency_id",
-                                 required=True)
+        [
+            ("labour", "Labour"),
+            ("part", "Part"),
+            ("consumable", "Consumable"),
+            ("transport", "Transport"),
+        ],
+        required=True,
+        default="labour",
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    unit_price = fields.Monetary(
+        string="Rate (VAT-exclusive)", currency_field="currency_id", required=True
+    )
     min_tier = fields.Integer(
-        string="Minimum Tier", default=0,
-        help="Customer tier >= this applies. 99 = CONTRACT rate (requires contract_no)")
-    contract_no = fields.Char(string="Contract No.", index=True,
-                              help="Set for contract rates (min_tier 99)")
+        string="Minimum Tier",
+        default=0,
+        help="Customer tier >= this applies. 99 = CONTRACT rate (requires contract_no)",
+    )
+    contract_no = fields.Char(
+        string="Contract No.", index=True, help="Set for contract rates (min_tier 99)"
+    )
     valid_from = fields.Date(string="Valid From")
     valid_to = fields.Date(string="Valid To")
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     active = fields.Boolean(default=True)
 
     @api.depends("product_code", "min_tier", "contract_no")
     def _compute_name(self):
         for card in self:
-            scope = "contract %s" % card.contract_no if card.contract_no else "tier %d" % card.min_tier
+            scope = (
+                "contract %s" % card.contract_no if card.contract_no else "tier %d" % card.min_tier
+            )
             card.name = "%s @ %s" % (card.product_code, scope)
 
     @api.constrains("min_tier", "contract_no", "unit_price")
     def _check_card(self):
         for card in self:
             if card.min_tier == 99 and not card.contract_no:
-                raise UserError("A tier-99 rate is a CONTRACT rate — the contract number is required")
+                raise UserError(
+                    "A tier-99 rate is a CONTRACT rate — the contract number is required"
+                )
             if card.contract_no and card.min_tier != 99:
                 raise UserError("Contract rates carry min_tier 99 (the engine's contract lane)")
             if card.unit_price <= 0:
@@ -68,8 +100,19 @@ class FixRateCard(models.Model):
                 raise UserError("Validity window is inverted")
 
     def to_engine_line(self):
-        """Project this card to the pricing engine's RateCardLine."""
-        from services.pricing_engine import RateCardLine  # pragma: no cover - path at runtime
+        """Project this card to the pricing engine's RateCardLine.
+
+        (`from services.pricing_engine import ...` could never resolve - the
+        folder is `pricing-engine` - so the projection always raised
+        ModuleNotFoundError; a coverage exclusion comment hid it from the gate.)"""
+        self.ensure_one()
+        if str(PRICING_ENGINE_SRC) not in sys.path:
+            sys.path.insert(0, str(PRICING_ENGINE_SRC))
+        from pricing_engine import RateCardLine
+
         return RateCardLine(
-            product_code=self.product_code, line_type=self.line_type,
-            unit_price=Decimal(str(self.unit_price)), min_tier=self.min_tier)
+            product_code=self.product_code,
+            line_type=self.line_type,
+            unit_price=Decimal(str(self.unit_price)),
+            min_tier=self.min_tier,
+        )

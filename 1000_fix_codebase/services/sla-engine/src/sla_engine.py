@@ -7,20 +7,20 @@ near-breach warnings (80% threshold), and breach escalation tiers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from enum import Enum
-from typing import Optional, List, Dict, Any
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
+from typing import Any
 
 
-class SlaPriority(str, Enum):
+class SlaPriority(StrEnum):
     NORMAL = "normal"
     HIGH = "high"
     URGENT = "urgent"
     EMERGENCY = "emergency"
 
 
-class SlaState(str, Enum):
+class SlaState(StrEnum):
     ON_TRACK = "on_track"
     NEAR_BREACH = "near_breach"
     BREACHED = "breached"
@@ -28,11 +28,11 @@ class SlaState(str, Enum):
     RESOLVED = "resolved"
 
 
-class EscalationTier(str, Enum):
+class EscalationTier(StrEnum):
     NONE = "none"
-    TIER_1_WARNING = "tier_1_warning"       # 80% threshold reached -> assigned tech alert
-    TIER_2_SUPERVISOR = "tier_2_supervisor" # 100% breach -> branch supervisor alert
-    TIER_3_OPERATIONS = "tier_3_operations" # > 2h breach -> operations manager escalation
+    TIER_1_WARNING = "tier_1_warning"  # 80% threshold reached -> assigned tech alert
+    TIER_2_SUPERVISOR = "tier_2_supervisor"  # 100% breach -> branch supervisor alert
+    TIER_3_OPERATIONS = "tier_3_operations"  # > 2h breach -> operations manager escalation
 
 
 @dataclass(frozen=True)
@@ -58,33 +58,33 @@ class SlaClock:
     service_order_ref: str
     policy: SlaPolicy
     created_at: datetime
-    response_at: Optional[datetime] = None
-    resolution_at: Optional[datetime] = None
+    response_at: datetime | None = None
+    resolution_at: datetime | None = None
     is_paused: bool = False
-    paused_at: Optional[datetime] = None
+    paused_at: datetime | None = None
     total_paused_seconds: float = 0.0
 
-    def pause(self, when: Optional[datetime] = None) -> None:
+    def pause(self, when: datetime | None = None) -> None:
         if not self.is_paused:
             self.is_paused = True
-            self.paused_at = when or datetime.now(timezone.utc)
+            self.paused_at = when or datetime.now(UTC)
 
-    def resume(self, when: Optional[datetime] = None) -> None:
+    def resume(self, when: datetime | None = None) -> None:
         if self.is_paused:
-            now = when or datetime.now(timezone.utc)
+            now = when or datetime.now(UTC)
             if self.paused_at:
                 delta = (now - self.paused_at).total_seconds()
                 self.total_paused_seconds += max(0.0, delta)
             self.is_paused = False
             self.paused_at = None
 
-    def record_response(self, when: Optional[datetime] = None) -> None:
+    def record_response(self, when: datetime | None = None) -> None:
         if not self.response_at:
-            self.response_at = when or datetime.now(timezone.utc)
+            self.response_at = when or datetime.now(UTC)
 
-    def record_resolution(self, when: Optional[datetime] = None) -> None:
+    def record_resolution(self, when: datetime | None = None) -> None:
         if not self.resolution_at:
-            self.resolution_at = when or datetime.now(timezone.utc)
+            self.resolution_at = when or datetime.now(UTC)
 
 
 class SlaEngine:
@@ -93,47 +93,59 @@ class SlaEngine:
     NEAR_BREACH_THRESHOLD = 0.80  # 80% of SLA time elapsed
 
     @staticmethod
-    def calculate_deadline(start_time: datetime, target_hours: float, paused_seconds: float = 0.0) -> datetime:
+    def calculate_deadline(
+        start_time: datetime, target_hours: float, paused_seconds: float = 0.0
+    ) -> datetime:
         """Calculate deadline adding business hours + paused seconds."""
         # Simple continuous clock with paused seconds offset
         target_seconds = target_hours * 3600.0
         return start_time + timedelta(seconds=target_seconds + paused_seconds)
 
     @classmethod
-    def evaluate(cls, clock: SlaClock, current_time: Optional[datetime] = None) -> Dict[str, Any]:
-        now = current_time or datetime.now(timezone.utc)
+    def evaluate(cls, clock: SlaClock, current_time: datetime | None = None) -> dict[str, Any]:
+        now = current_time or datetime.now(UTC)
 
         # Ensure created_at has timezone
         created_at = clock.created_at
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
         if now.tzinfo is None:
-            now = now.replace(tzinfo=timezone.utc)
+            now = now.replace(tzinfo=UTC)
 
         # Effective paused seconds
         effective_paused = clock.total_paused_seconds
         if clock.is_paused and clock.paused_at:
             paused_at = clock.paused_at
             if paused_at.tzinfo is None:
-                paused_at = paused_at.replace(tzinfo=timezone.utc)
+                paused_at = paused_at.replace(tzinfo=UTC)
             effective_paused += max(0.0, (now - paused_at).total_seconds())
 
         # Response SLA
-        response_deadline = cls.calculate_deadline(created_at, clock.policy.response_hours, effective_paused)
+        response_deadline = cls.calculate_deadline(
+            created_at, clock.policy.response_hours, effective_paused
+        )
         response_time = clock.response_at or now
         if response_time.tzinfo is None:
-            response_time = response_time.replace(tzinfo=timezone.utc)
+            response_time = response_time.replace(tzinfo=UTC)
 
         # Resolution SLA
-        resolution_deadline = cls.calculate_deadline(created_at, clock.policy.resolution_hours, effective_paused)
+        resolution_deadline = cls.calculate_deadline(
+            created_at, clock.policy.resolution_hours, effective_paused
+        )
         resolution_time = clock.resolution_at or now
         if resolution_time.tzinfo is None:
-            resolution_time = resolution_time.replace(tzinfo=timezone.utc)
+            resolution_time = resolution_time.replace(tzinfo=UTC)
 
         # Resolution evaluation
         target_resolution_secs = clock.policy.resolution_hours * 3600.0
-        elapsed_resolution_secs = max(0.0, (resolution_time - created_at).total_seconds() - effective_paused)
-        consumed_ratio = min(5.0, elapsed_resolution_secs / target_resolution_secs) if target_resolution_secs > 0 else 1.0
+        elapsed_resolution_secs = max(
+            0.0, (resolution_time - created_at).total_seconds() - effective_paused
+        )
+        consumed_ratio = (
+            min(5.0, elapsed_resolution_secs / target_resolution_secs)
+            if target_resolution_secs > 0
+            else 1.0
+        )
 
         # Determine state and escalation tier
         if clock.resolution_at is not None:
@@ -174,6 +186,8 @@ class SlaEngine:
             "response_at": clock.response_at.isoformat() if clock.response_at else None,
             "resolution_at": clock.resolution_at.isoformat() if clock.resolution_at else None,
             "escalation_tier": escalation.value,
-            "escalation_template": clock.policy.escalation_template if escalation != EscalationTier.NONE else None,
-            "evaluation_time": now.isoformat()
+            "escalation_template": clock.policy.escalation_template
+            if escalation != EscalationTier.NONE
+            else None,
+            "evaluation_time": now.isoformat(),
         }

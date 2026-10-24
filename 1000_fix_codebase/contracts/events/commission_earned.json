@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "commission.earned",
+  "description": "Published by cd_marketplace through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "commission.earned"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_marketplace"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "gross",
+        "commission"
+      ],
+      "properties": {
+        "partner_id": {
+          "type": "integer"
+        },
+        "gross": {
+          "type": "number"
+        },
+        "commission": {
+          "type": "number"
+        },
+        "seller_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "seller_partner_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "order": {
+          "type": "string"
+        },
+        "currency": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_marketplace",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_partner/models/fix_partner.py",
+    "addons/domain/d_circular/cd_marketplace/models/fix_marketplace.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

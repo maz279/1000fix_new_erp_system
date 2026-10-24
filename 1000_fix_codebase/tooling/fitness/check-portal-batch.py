@@ -19,6 +19,7 @@ browser:
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -32,10 +33,15 @@ ADDONS = REPO / "addons"
 APPS = {
     "customer": {
         "title": "P01 Customer",
-        "routes": ["app/page.tsx", "app/booking/page.tsx",
-                   "app/tracking/page.tsx", "app/estimates/page.tsx",
-                   "app/devices/page.tsx", "app/consent/page.tsx",
-                   "app/technician/page.tsx"],
+        "routes": [
+            "app/page.tsx",
+            "app/booking/page.tsx",
+            "app/tracking/page.tsx",
+            "app/estimates/page.tsx",
+            "app/devices/page.tsx",
+            "app/consent/page.tsx",
+            "app/technician/page.tsx",
+        ],
         "bn": True,
     },
     "vendor": {
@@ -50,8 +56,12 @@ APPS = {
     },
     "seller": {
         "title": "P07 Seller",
-        "routes": ["app/page.tsx", "app/jobs/page.tsx",
-                   "app/scorecard/page.tsx", "app/settlements/page.tsx"],
+        "routes": [
+            "app/page.tsx",
+            "app/jobs/page.tsx",
+            "app/scorecard/page.tsx",
+            "app/settlements/page.tsx",
+        ],
         "bn": False,
     },
     "brand": {
@@ -66,8 +76,7 @@ APPS = {
     },
     "partner": {
         "title": "P12 Partner",
-        "routes": ["app/page.tsx", "app/referrals/page.tsx",
-                   "app/commissions/page.tsx"],
+        "routes": ["app/page.tsx", "app/referrals/page.tsx", "app/commissions/page.tsx"],
         "bn": False,
     },
 }
@@ -133,8 +142,7 @@ def main() -> int:
             continue
 
         # skeleton: package.json + barrel + api wrapper + theme
-        for rel in ("package.json", "lib/imports.ts", "lib/api.ts",
-                    "components/theme.tsx"):
+        for rel in ("package.json", "lib/imports.ts", "lib/api.ts", "components/theme.tsx"):
             if not (base / rel).is_file():
                 v.append(f"{spec['title']}: missing {rel}")
 
@@ -172,39 +180,49 @@ def main() -> int:
     if analytics_page.is_file():
         src = analytics_page.read_text(encoding="utf-8")
         if re.search(r'src="(http|https|wss)://', src):
-            v.append("P06: embed iframe src must come from the backend embed_url — no host literals")
+            v.append(
+                "P06: embed iframe src must come from the backend embed_url — no host literals"
+            )
         if "embed_available" not in src or "embed_url" not in src:
             v.append("P06: the embed seam must render backend embed availability")
 
-    brand_pages = [WEB / "brand" / "app" / "page.tsx",
-                   WEB / "brand" / "app" / "reconciliation" / "page.tsx"]
+    brand_pages = [
+        WEB / "brand" / "app" / "page.tsx",
+        WEB / "brand" / "app" / "reconciliation" / "page.tsx",
+    ]
     for p in brand_pages:
         if p.is_file():
             src = strip_comments(p.read_text(encoding="utf-8"))
             for m in re.finditer(r'callOdoo[^(]*\(\s*"(/brand/[^"]+)"', src):
                 # every /brand call site must carry brand_id in its params
-                window = src[m.end():m.end() + 400]
+                window = src[m.end() : m.end() + 400]
                 if "brand_id" not in window:
-                    v.append(f"P08: {p.name} call to {m.group(1)} lacks brand_id (per-brand isolation)")
+                    v.append(
+                        f"P08: {p.name} call to {m.group(1)} lacks brand_id (per-brand isolation)"
+                    )
 
     agent_queue = WEB / "agent-console" / "app" / "page.tsx"
     if agent_queue.is_file():
         src = agent_queue.read_text(encoding="utf-8")
         if "/contact/softphone" not in src:
             v.append("P10: the queue must render the softphone seam (/contact/softphone)")
-        if re.search(r'wss?://|sip:\w+@', src):
+        if re.search(r"wss?://|sip:\w+@", src):
             v.append("P10: softphone hosts must come from config — no literals")
 
     # the shared marketing shell (landing/login experience) --------------
     landing = REPO / "libs" / "ts" / "i18n" / "src" / "landing.generated.json"
     shell = REPO / "libs" / "ts" / "ui" / "src" / "landing.tsx"
     generator = REPO / "tooling" / "generators" / "generate-landing-artefact.py"
-    for p, what in ((landing, "landing artefact"), (shell, "LandingShell"),
-                    (generator, "landing generator")):
+    for p, what in (
+        (landing, "landing artefact"),
+        (shell, "LandingShell"),
+        (generator, "landing generator"),
+    ):
         if not p.is_file():
             v.append(f"landing: missing {what}: {p.relative_to(REPO)}")
     if landing.is_file():
         import json
+
         art = json.loads(landing.read_text(encoding="utf-8"))
         if len(art.get("portals", [])) != 12:
             v.append(f"landing: expected 12 portal cards, found {len(art.get('portals', []))}")
@@ -214,7 +232,7 @@ def main() -> int:
         src = shell.read_text(encoding="utf-8")
         if '"bn"' not in src:
             v.append("landing: the shell must be bilingual (DE-17 — Bengali default)")
-        if re.search(r'#[0-9a-fA-F]{3,8}\b', strip_comments(src)):
+        if re.search(r"#[0-9a-fA-F]{3,8}\b", strip_comments(src)):
             v.append("landing: hand-authored hex in the shell (CFM-01)")
 
     # server parity: every called path has a controller route -----------
@@ -238,11 +256,13 @@ def main() -> int:
             print(f"  {line}")
         return 1
 
-    print(f"portal-batch: OK — {len(APPS)} portals, "
-          f"{sum(len(s['routes']) for s in APPS.values())} routes, "
-          f"{len(CONTROLLER_MATRIX)} controller routes verified, "
-          "P-11 wrappers + CFM-01 tokens clean, P01 Bengali-first (DE-17), "
-          "P06 embed seam config-only, P08 brand isolation, P10 softphone seam")
+    print(
+        f"portal-batch: OK — {len(APPS)} portals, "
+        f"{sum(len(s['routes']) for s in APPS.values())} routes, "
+        f"{len(CONTROLLER_MATRIX)} controller routes verified, "
+        "P-11 wrappers + CFM-01 tokens clean, P01 Bengali-first (DE-17), "
+        "P06 embed seam config-only, P08 brand isolation, P10 softphone seam"
+    )
     return 0
 
 

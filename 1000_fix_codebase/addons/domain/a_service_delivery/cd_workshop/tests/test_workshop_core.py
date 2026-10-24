@@ -1,7 +1,8 @@
 # Tests for cd_workshop (M31, CD-M31-01, CD-M31-02, CD-M31-03).
 import inspect
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
 
 
 class TestWorkshopCore:
@@ -9,9 +10,9 @@ class TestWorkshopCore:
         """M31: verify all 5 core models are importable and defined."""
         from odoo.addons.cd_workshop.models.fix_workshop import FixWorkshop
         from odoo.addons.cd_workshop.models.fix_workshop_bench import FixWorkshopBench
+        from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
         from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
         from odoo.addons.cd_workshop.models.fix_workshop_part_line import FixWorkshopPartLine
-        from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
 
         assert FixWorkshop is not None
         assert FixWorkshopBench is not None
@@ -22,8 +23,10 @@ class TestWorkshopCore:
     def test_job_state_machine_declared(self):
         """AS-06 / DP-01: state transitions declared in one place with valid graph."""
         from odoo.addons.cd_workshop.models.fix_workshop_job import (
-            WORKSHOP_JOB_STATES, VALID_JOB_TRANSITIONS
+            VALID_JOB_TRANSITIONS,
+            WORKSHOP_JOB_STATES,
         )
+
         assert len(WORKSHOP_JOB_STATES) == 11
         assert len(VALID_JOB_TRANSITIONS) == 11
 
@@ -59,7 +62,9 @@ class TestWorkshopCore:
         job.name = "JOB-001"
         job.repair_level = "l2"  # Requires L2, bench is L1 -> should reject
 
-        with pytest.raises(UserError, match="requires L2 capability, but bench BENCH-TEST-L1 is only L1"):
+        with pytest.raises(
+            UserError, match="requires L2 capability, but bench BENCH-TEST-L1 is only L1"
+        ):
             FixWorkshopBench.action_assign_job(bench, job)
 
     def test_bench_capacity_limit_logic(self):
@@ -90,7 +95,7 @@ class TestWorkshopCore:
         assert 'self.env["fix.document"].attach' in source
         assert 'document_type="evidence_pack"' in source
         assert 'res_model="fix.workshop.job"' in source
-        assert 'isolation_tier=isolation_tier' in source
+        assert "isolation_tier=isolation_tier" in source
 
     def test_cross_wave_stub_m22_certification(self):
         """GV-005 / STUB-M31-M22-001: M31 -> M22 certification stub returns eligible with log until R06-M02."""
@@ -185,8 +190,8 @@ class TestWorkshopCore:
     def test_event_publish_sources(self):
         """AS-08: Events published from bench allocation, job transition, and evidence recording."""
         from odoo.addons.cd_workshop.models.fix_workshop_bench import FixWorkshopBench
-        from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
         from odoo.addons.cd_workshop.models.fix_workshop_evidence import FixWorkshopEvidence
+        from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
 
         bench_src = inspect.getsource(FixWorkshopBench._emit_bench_assigned)
         assert "workshop.bench.assigned" in bench_src

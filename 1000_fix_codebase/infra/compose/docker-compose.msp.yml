@@ -5,7 +5,7 @@
 
 services:
   meshcentral:
-    image: ylianyona/meshcentral@sha256:9ea262ff902fa18fcca8688af4c7fe62988254f5cf08f273193bec6b4cf626be
+    image: ghcr.io/ylianst/meshcentral:1.1.60@sha256:6a18ca8f5e1f86b5c8a0c111b42a138895dc1724182a50c6a46690237ac98185
     profiles: ["msp"]
     environment:
       USE_MONGODB: "false"

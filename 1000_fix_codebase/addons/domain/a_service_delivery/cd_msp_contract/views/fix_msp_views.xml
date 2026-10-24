@@ -65,6 +65,7 @@
             <list>
                 <field name="agent_id"/>
                 <field name="hostname"/>
+                <field name="device_id" optional="show"/>
                 <field name="health"/>
                 <field name="last_seen"/>
                 <field name="msp_contract_id"/>
@@ -78,11 +79,29 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="view_fix_msp_contract_list" model="ir.ui.view">
+        <field name="name">fix.msp.contract.list</field>
+        <field name="model">fix.msp.contract</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="contract_id"/>
+                <field name="device_count"/>
+                <field name="monitoring_scope"/>
+                <field name="per_device_monthly"/>
+            </list>
+        </field>
+    </record>
+
     <record id="view_fix_msp_contract_form" model="ir.ui.view">
         <field name="name">fix.msp.contract.form</field>
         <field name="model">fix.msp.contract</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <button name="action_generate_monthly_report" type="object"
+                            string="Generate Report" class="btn-primary"/>
+                </header>
                 <sheet>
                     <group>
                         <group>
@@ -91,10 +110,19 @@
                             <field name="monitoring_scope"/>
                         </group>
                         <group>
+                            <field name="device_count"/>
                             <field name="per_device_monthly"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="Monitored Assets">
+                            <field name="asset_ids"/>
+                        </page>
+                        <page string="Reports">
+                            <field name="report_ids"/>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -111,6 +139,48 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <record id="view_fix_remote_session_list" model="ir.ui.view">
+        <field name="name">fix.remote.session.list</field>
+        <field name="model">fix.remote.session</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="started_at"/>
+                <field name="msp_contract_id"/>
+                <field name="asset_id"/>
+                <field name="technician_id"/>
+                <field name="tool"/>
+                <field name="consent_captured"/>
+                <field name="ended_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_remote_session" model="ir.actions.act_window">
+        <field name="name">Remote Sessions</field>
+        <field name="res_model">fix.remote.session</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_msp_service_report_list" model="ir.ui.view">
+        <field name="name">fix.msp.service.report.list</field>
+        <field name="model">fix.msp.service.report</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="period_label"/>
+                <field name="msp_contract_id"/>
+                <field name="alert_count"/>
+                <field name="resolved_count"/>
+                <field name="sla_attainment"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_service_report" model="ir.actions.act_window">
+        <field name="name">Monthly Reports</field>
+        <field name="res_model">fix.msp.service.report</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_ws_msp" name="Managed Services"
               parent="cd_entity_config.menu_fix_operations_root" sequence="80"/>
     <menuitem id="menu_fix_msp_alerts" name="Alerts"
@@ -121,4 +191,10 @@
     <menuitem id="menu_fix_msp_contracts" name="MSP Contracts"
               parent="menu_ws_msp" action="action_fix_msp_contract"
               sequence="30"/>
+    <menuitem id="menu_fix_remote_session" name="Remote Sessions"
+              parent="menu_ws_msp" action="action_fix_remote_session"
+              sequence="40"/>
+    <menuitem id="menu_fix_msp_reports" name="Monthly Reports"
+              parent="menu_ws_msp" action="action_fix_msp_service_report"
+              sequence="50"/>
 </odoo>

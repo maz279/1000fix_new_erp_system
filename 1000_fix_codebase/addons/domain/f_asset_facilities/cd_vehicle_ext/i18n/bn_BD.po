@@ -3,33 +3,61 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Vehicle Assignment"
-msgstr "যানবাহন নির্ধারণ"
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__branch_id
+msgid "Branch"
+msgstr "শাখা"
 
-msgid "Driver (HR)"
-msgstr "চালক (এইচআর)"
-
-msgid "Fitness Expiry"
-msgstr "ফিটনেস মেয়াদ"
-
-msgid "Insurance Expiry"
-msgstr "বিমা মেয়াদ"
-
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__compliance_ok
 msgid "Compliance OK"
 msgstr "সম্মতি ঠিক আছে"
 
-msgid "Service Order"
-msgstr "সার্ভিস অর্ডার"
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__driver_employee_id
+msgid "Driver (HR)"
+msgstr "চালক (এইচআর)"
 
-msgid "Technician"
-msgstr "কারিগর"
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__fitness_expiry
+msgid "Fitness Expiry"
+msgstr "ফিটনেস মেয়াদ"
 
+#. module: cd_vehicle_ext
+#: model:ir.ui.menu,name:cd_vehicle_ext.menu_ws_fleet
 msgid "Fleet"
 msgstr "যানবাহন বহর"
 
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__insurance_expiry
+msgid "Insurance Expiry"
+msgstr "বিমা মেয়াদ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fleet_vehicle__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_vehicle_ext
+#: model:ir.model,name:cd_vehicle_ext.model_fix_vehicle_assignment
+msgid "Vehicle Assignment"
+msgstr "যানবাহন নির্ধারণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.actions.act_window,name:cd_vehicle_ext.action_fix_vehicle_assignment
+#: model:ir.ui.menu,name:cd_vehicle_ext.menu_fix_vehicle_assignment
 msgid "Vehicle Assignments"
 msgstr "যানবাহন নির্ধারণসমূহ"
-
-msgid "Branch"
-msgstr "শাখা"

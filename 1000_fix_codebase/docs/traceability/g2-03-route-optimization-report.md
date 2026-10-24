@@ -1,3 +1,5 @@
+> **PROVENANCE (R01 re-audit 2026-10-22): SYNTHETIC BENCHMARK, NOT FLEET MEASUREMENT.** The 18.86% figure comes from one 5-stop synthetic itinerary computed by the optimizer, not from measured technician travel time. G2-03 requires measured fleet travel-time reduction; `verify-gate-g2.ps1` grades it CONDITION.
+
 # Gate G2-03 Evidence Report: Route Optimization & Travel Time Reduction
 
 **Document ID**: `REP-G2-03-ROUTE-001`  

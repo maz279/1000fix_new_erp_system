@@ -4,6 +4,7 @@ Delivery rate, latency, channel mix, opt-out rate — the four M25 needs in
 Phase 7. OTP bodies are never counted (NT-007 security rule) and message text
 never enters a KPI.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

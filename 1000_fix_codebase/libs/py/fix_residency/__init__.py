@@ -26,10 +26,15 @@ _TIMEOUT = 10  # seconds
 # SSRF allowlist: ONLY these hosts may be reached. The residency service
 # runs on loopback (local stub) or the Docker compose network. No external
 # host, no cloud metadata endpoint, no private subnet scanning.
-_ALLOWED_HOSTS = frozenset({
-    "127.0.0.1", "localhost", "::1",
-    "residency-stub", "residency-service",  # Docker compose service names
-})
+_ALLOWED_HOSTS = frozenset(
+    {
+        "127.0.0.1",
+        "localhost",
+        "::1",
+        "residency-stub",
+        "residency-service",  # Docker compose service names
+    }
+)
 _ALLOWED_SCHEMES = frozenset({"http"})  # TLS terminates at the mesh, not here
 
 
@@ -47,18 +52,20 @@ def _validate_base_url(base_url: str) -> str:
     if parsed.scheme not in _ALLOWED_SCHEMES:
         raise ResidencyURLBlocked(
             f"scheme {parsed.scheme!r} not allowed (expected http); "
-            f"TLS terminates at the service mesh, not at this client")
+            f"TLS terminates at the service mesh, not at this client"
+        )
     if parsed.hostname not in _ALLOWED_HOSTS:
         raise ResidencyURLBlocked(
             f"host {parsed.hostname!r} not in the residency allowlist "
-            f"{sorted(_ALLOWED_HOSTS)}; fix RESIDENCY_BASE in .env")
+            f"{sorted(_ALLOWED_HOSTS)}; fix RESIDENCY_BASE in .env"
+        )
     return base_url.rstrip("/")
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
     """Refuse redirects — a redirect could bypass the allowlist."""
 
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: N802
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
         raise ResidencyURLBlocked(f"redirect to {newurl!r} refused (SSRF protection)")
 
 
@@ -73,14 +80,22 @@ class ResidencyClient:
     def __init__(self, base_url: str | None = None):
         raw = base_url or os.environ.get("RESIDENCY_BASE", "http://127.0.0.1:8100")
         self._base = _validate_base_url(raw)
-        # Redirect-refusing opener; no proxy (the service is always local)
-        self._opener = urllib.request.build_opener(_NoRedirect)
+        # Redirect-refusing opener; no proxy (the service is always local).
+        # An explicit empty ProxyHandler is required: build_opener() otherwise
+        # installs a default ProxyHandler that honours http_proxy/HTTP_PROXY and
+        # would ship classified values to a non-allowlisted proxy host.
+        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect)
+
+    @property
+    def base_url(self) -> str:
+        return self._base
 
     def _request(self, method: str, path: str, body: dict | None = None) -> dict:
         url = f"{self._base}{path}"
         data = json.dumps(body).encode("utf-8") if body else None
-        req = urllib.request.Request(url, data=data, method=method,
-                                     headers={"Content-Type": "application/json"})
+        req = urllib.request.Request(  # noqa: S310 - base URL checked by _validate_base_url()
+            url, data=data, method=method, headers={"Content-Type": "application/json"}
+        )
         try:
             with self._opener.open(req, timeout=_TIMEOUT) as resp:
                 if resp.status != 200:
@@ -88,8 +103,7 @@ class ResidencyClient:
                 return json.loads(resp.read().decode("utf-8"))
         except ResidencyURLBlocked:
             raise  # pass through the specific error
-        except (urllib.error.URLError, urllib.error.HTTPError,
-                socket.timeout, TimeoutError, OSError) as exc:
+        except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, OSError) as exc:
             raise ResidencyError(f"residency service unreachable: {exc}") from exc
 
     def put(self, key: str, value: str) -> dict:

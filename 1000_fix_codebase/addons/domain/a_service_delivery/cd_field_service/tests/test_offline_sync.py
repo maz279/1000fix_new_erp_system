@@ -1,15 +1,19 @@
-# -*- coding: utf-8 -*-
 """test_offline_sync — Unit and integration tests for offline sync engine and evidence channel (CD-M02-04)."""
 
 import base64
-import hashlib
 import json
+from datetime import datetime
 from unittest.mock import MagicMock, patch
-import pytest
 
-from odoo.addons.cd_field_service.models.fix_offline_idempotency_ledger import FixOfflineIdempotencyLedger
+from odoo.addons.cd_field_service.controllers.evidence_api import (
+    _ACTIVE_CHUNKS,
+    OfflineEvidenceApiController,
+)
 from odoo.addons.cd_field_service.controllers.offline_sync_api import OfflineSyncApiController
-from odoo.addons.cd_field_service.controllers.evidence_api import OfflineEvidenceApiController, _ACTIVE_CHUNKS
+from odoo.addons.cd_field_service.models.fix_offline_idempotency_ledger import (
+    FixOfflineIdempotencyLedger,
+)
+from odoo.addons.cd_service_order.controllers.technician_api import batch_digest
 
 
 class TestOfflineSyncSuite:
@@ -18,7 +22,7 @@ class TestOfflineSyncSuite:
     def test_idempotency_ledger_cache_hit_and_miss(self):
         """Test DI-05 idempotency ledger returns cached payload on repeat calls."""
         mock_model = MagicMock(spec=FixOfflineIdempotencyLedger)
-        
+
         # 1. Cache miss
         mock_model.search.return_value = False
         res = FixOfflineIdempotencyLedger.get_cached_result(mock_model, "cmd-uuid-nonexistent")
@@ -39,18 +43,18 @@ class TestOfflineSyncSuite:
         assert hit["idempotent_replay"] is True
 
     @patch("odoo.addons.cd_field_service.controllers.offline_sync_api._su_env")
-    @patch("odoo.addons.cd_field_service.controllers.offline_sync_api._resolve_technician")
+    @patch("odoo.addons.cd_field_service.controllers.offline_sync_api.resolve_technician")
     def test_offline_sync_upload_first_and_checksum(self, mock_resolve_tech, mock_su_env):
         """Test SP-07 upload-first processing and batch checksum calculation."""
         mock_tech = MagicMock()
         mock_tech.id = 5
-        mock_resolve_tech.return_value = mock_tech
+        mock_resolve_tech.return_value = (mock_tech, None)
 
         mock_ledger = MagicMock()
         mock_ledger.get_cached_result.return_value = None  # fresh commands
 
         mock_order = MagicMock()
-        mock_order.exists.return_value = True
+        mock_order.exists.return_value = mock_order  # recordset.exists() -> recordset
         mock_order.state = "assigned"
         mock_order.name = "FO-00123"
         mock_order.technician_id.id = 5
@@ -58,6 +62,7 @@ class TestOfflineSyncSuite:
         mock_orders_model = MagicMock()
         mock_orders_model.browse.return_value = mock_order
         mock_orders_model.search.return_value = [mock_order]
+        mock_orders_model.env.cr.now.return_value = datetime(2026, 10, 17, 9, 0)
 
         env_dict = {
             "fix.offline.idempotency.ledger": mock_ledger,
@@ -82,9 +87,10 @@ class TestOfflineSyncSuite:
                     "operation": "start_order",
                     "payload": {"order_id": 123},
                 }
-            ]
+            ],
         }
 
+        payload["batch_checksum"] = batch_digest(payload["commands"])
         result = controller.offline_sync(**payload)
 
         assert result["status"] == "success"
@@ -101,20 +107,21 @@ class TestOfflineSyncSuite:
         assert mock_ledger.record_execution.call_args.kwargs["status"] == "applied"
 
     @patch("odoo.addons.cd_field_service.controllers.offline_sync_api._su_env")
-    @patch("odoo.addons.cd_field_service.controllers.offline_sync_api._resolve_technician")
+    @patch("odoo.addons.cd_field_service.controllers.offline_sync_api.resolve_technician")
     def test_conflict_matrix_rejection_on_terminal_state(self, mock_resolve_tech, mock_su_env):
         """Test conflict matrix rejects technician transitions on terminal/cancelled orders."""
         mock_tech = MagicMock()
         mock_tech.id = 5
-        mock_resolve_tech.return_value = mock_tech
+        mock_resolve_tech.return_value = (mock_tech, None)
 
         mock_ledger = MagicMock()
         mock_ledger.get_cached_result.return_value = None
 
         mock_order = MagicMock()
-        mock_order.exists.return_value = True
+        mock_order.exists.return_value = mock_order  # recordset.exists() -> recordset
         mock_order.state = "cancelled"  # server authoritative cancelled state
         mock_order.name = "FO-00999"
+        mock_order.technician_id.id = 5
 
         mock_orders_model = MagicMock()
         mock_orders_model.browse.return_value = mock_order
@@ -140,9 +147,10 @@ class TestOfflineSyncSuite:
                     "operation": "start_order",
                     "payload": {"order_id": 999},
                 }
-            ]
+            ],
         }
 
+        payload["batch_checksum"] = batch_digest(payload["commands"])
         result = controller.offline_sync(**payload)
 
         assert "cmd-reject-001" in result["rejected"]
@@ -150,10 +158,14 @@ class TestOfflineSyncSuite:
         assert result["stats"]["rejected_count"] == 1
 
     @patch("odoo.addons.cd_field_service.controllers.evidence_api._su_env")
-    def test_deferred_evidence_chunked_upload_and_reassembly(self, mock_su_env):
+    @patch("odoo.addons.cd_field_service.controllers.evidence_api.resolve_technician")
+    def test_deferred_evidence_chunked_upload_and_reassembly(self, mock_resolve_tech, mock_su_env):
         """Test SP-09 resumable chunked upload reassembles multi-part media without blocking."""
         _ACTIVE_CHUNKS.clear()
-        
+        mock_tech = MagicMock()
+        mock_tech.id = 5
+        mock_resolve_tech.return_value = (mock_tech, None)
+
         mock_att = MagicMock()
         mock_att.id = 456
         mock_att_model = MagicMock()
@@ -165,7 +177,7 @@ class TestOfflineSyncSuite:
 
         controller = OfflineEvidenceApiController()
         media_id = "test-media-photo-uuid"
-        
+
         # Test binary data split into 2 chunks
         raw_bytes = b"EXIF_JPEG_IMAGE_CONTENT_SAMPLE_FOR_TESTING_EVIDENCE"
         b64_full = base64.b64encode(raw_bytes).decode("ascii")
@@ -182,7 +194,7 @@ class TestOfflineSyncSuite:
             media_type="photo",
             model="fix.field.order",
             record_id=10,
-            filename="diagnosis_photo.jpg"
+            filename="diagnosis_photo.jpg",
         )
         assert res0["status"] == "chunk_accepted"
         assert res0["complete"] is False
@@ -197,7 +209,7 @@ class TestOfflineSyncSuite:
             media_type="photo",
             model="fix.field.order",
             record_id=10,
-            filename="diagnosis_photo.jpg"
+            filename="diagnosis_photo.jpg",
         )
         assert res1["status"] == "complete"
         assert res1["complete"] is True

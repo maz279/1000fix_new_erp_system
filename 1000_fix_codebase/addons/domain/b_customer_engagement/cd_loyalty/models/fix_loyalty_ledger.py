@@ -1,6 +1,6 @@
 # fix_loyalty_ledger — M10 Append-Only Points Ledger (CD-M10-01).
 from dateutil.relativedelta import relativedelta
-from odoo import api, fields, models
+from odoo import fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -79,7 +79,8 @@ class FixLoyaltyLedger(models.Model):
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     expiry_date = fields.Date(
@@ -106,7 +107,9 @@ class FixLoyaltyLedger(models.Model):
                 raise UserError("Only draft transactions can be posted.")
             account = rec.account_id
             if account.state != "active":
-                raise UserError(f"Cannot post transaction: account {account.name} is {account.state}.")
+                raise UserError(
+                    f"Cannot post transaction: account {account.name} is {account.state}."
+                )
 
             # Validate sufficient points on redemption
             if rec.points < 0 and (account.points_balance + rec.points) < 0:
@@ -123,13 +126,19 @@ class FixLoyaltyLedger(models.Model):
             if rec.points > 0:
                 acc_updates["lifetime_points_earned"] = account.lifetime_points_earned + rec.points
                 if rec.order_amount_bdt:
-                    acc_updates["lifetime_spend_bdt"] = account.lifetime_spend_bdt + rec.order_amount_bdt
+                    acc_updates["lifetime_spend_bdt"] = (
+                        account.lifetime_spend_bdt + rec.order_amount_bdt
+                    )
             elif rec.points < 0:
-                acc_updates["lifetime_points_redeemed"] = account.lifetime_points_redeemed + abs(rec.points)
+                acc_updates["lifetime_points_redeemed"] = account.lifetime_points_redeemed + abs(
+                    rec.points
+                )
 
             # Auto-calculate expiration date for accruals
             if rec.points > 0 and not rec.expiry_date and account.program_id.expiry_months:
-                rec.expiry_date = fields.Date.today() + relativedelta(months=account.program_id.expiry_months)
+                rec.expiry_date = fields.Date.today() + relativedelta(
+                    months=account.program_id.expiry_months
+                )
 
             account.write(acc_updates)
             rec.state = "posted"

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Bengali (Bangladesh) back-office language - TR-07 / DoD-08 / AS-12.
+
+  Odoo 19 ships only bn_IN (inactive), whose PO lookup is bn.po / bn_IN.po.
+  Every first-party module ships i18n/bn_BD.po, which Odoo loads only for a
+  res.lang whose code is bn_BD (get_base_langs('bn_BD') == ['bn', 'bn_BD']).
+
+  Formats: dd/mm/yyyy, 12-hour clock, lakh/crore grouping [3,2,0]
+  (BN-007: 1,23,45,678.00), week starts Sunday (Friday+Saturday weekend).
+
+  Creating this record loads bn_BD terms only for modules installed in the
+  same run AFTER cd_multi_entity. Modules installed before it get their terms
+  from `odoo-bin i18n loadlang -l bn_BD`, which tooling/scripts/build-test-db.py
+  runs after the install (docs/guides/bn-terminology-glossary.md section 7).
+-->
+<odoo noupdate="1">
+    <record id="lang_bn_BD" model="res.lang">
+        <field name="name">Bengali (Bangladesh) / বাংলা</field>
+        <field name="code">bn_BD</field>
+        <field name="iso_code">bn_BD</field>
+        <field name="url_code">bn_BD</field>
+        <field name="direction">ltr</field>
+        <field name="date_format">%d/%m/%Y</field>
+        <field name="time_format">%I:%M:%S %p</field>
+        <field name="week_start">7</field>
+        <field name="grouping">[3,2,0]</field>
+        <field name="decimal_point">.</field>
+        <field name="thousands_sep">,</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

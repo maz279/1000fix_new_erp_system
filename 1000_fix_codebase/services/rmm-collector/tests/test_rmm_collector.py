@@ -1,4 +1,5 @@
 """rmm-collector tests — P08-M07-T04. Evaluation core, 100% of paths."""
+
 from __future__ import annotations
 
 import sys
@@ -7,8 +8,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from rmm_collector import (  # noqa: E402
-    AlertDecision, OdooClient, Telemetry, evaluate, validate_target)
+from rmm_collector import (
+    Telemetry,
+    evaluate,
+    validate_target,
+)
 
 
 class TestEvaluation(unittest.TestCase):

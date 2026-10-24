@@ -17,6 +17,7 @@ exists (CI stage 12, or locally with the compose stack up).
 
 Exit: 0 pass / 1 violations.
 """
+
 from __future__ import annotations
 
 import json
@@ -71,28 +72,35 @@ def check_no_clipping() -> list[str]:
                     continue
                 rel = path.relative_to(REPO)
                 violations.append(
-                    f"{rel}:{line_no}: truncation on a translatable surface ({hit.group()})"
-                    .replace("\\", "/")
+                    f"{rel}:{line_no}: truncation on a translatable surface ({hit.group()})".replace(
+                        "\\", "/"
+                    )
                 )
     return violations
 
 
 def main() -> int:
     if not REGISTRY.is_file():
-        print("expansion-static: FAIL - generated UI-copy registry missing "
-              "(run tooling/scripts/extract-ui-copy.py)")
+        print(
+            "expansion-static: FAIL - generated UI-copy registry missing "
+            "(run tooling/scripts/extract-ui-copy.py)"
+        )
         return 1
     budget_failures = check_budgets()
     clipping = check_no_clipping()
     doc = json.loads(REGISTRY.read_text(encoding="utf-8"))
     if budget_failures or clipping:
-        print(f"expansion-static: FAIL - {len(budget_failures)} budget / {len(clipping)} clipping issue(s):")
+        print(
+            f"expansion-static: FAIL - {len(budget_failures)} budget / {len(clipping)} clipping issue(s):"
+        )
         for v in budget_failures + clipping:
             print(f"  {v}")
         return 1
-    print(f"expansion-static: OK - budgets hold across {doc['total_keys']} keys; "
-          f"no truncation on translatable surfaces "
-          f"({doc['counterpart_pending']} keys await BN counterparts)")
+    print(
+        f"expansion-static: OK - budgets hold across {doc['total_keys']} keys; "
+        f"no truncation on translatable surfaces "
+        f"({doc['counterpart_pending']} keys await BN counterparts)"
+    )
     return 0
 
 

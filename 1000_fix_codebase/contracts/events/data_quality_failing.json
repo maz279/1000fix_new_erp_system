@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "data_quality.failing",
+  "description": "Published by cd_metric_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "data_quality.failing"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_metric_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "entity",
+        "result",
+        "threshold"
+      ],
+      "properties": {
+        "entity": {
+          "type": "string"
+        },
+        "result": {
+          "description": "Type not statically derivable from `result_pct` (addons/domain/j_data_analytics/cd_metric_registry/models/fix_metric_registry.py:149)."
+        },
+        "threshold": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_metric_registry",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_metric_registry/models/fix_metric_registry.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

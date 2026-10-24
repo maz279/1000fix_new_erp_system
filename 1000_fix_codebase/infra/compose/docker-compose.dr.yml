@@ -1,0 +1,194 @@
+# =============================================================================
+# 1000fix-erp - dr environment overlay (infra/environments.yaml, TSS §21.3)
+#
+# Disaster Recovery warm standby environment in Bangladesh secondary zone (Z4).
+# Data rule: streaming replica; residency_classified: yes-bangladesh-resident-standby.
+# Targets: RPO <= 15 min, RTO <= 2 h.
+#
+# Ports:
+#   PostgreSQL Standby: 127.0.0.1:5443
+#   Redis Standby:      127.0.0.1:6389
+#   Odoo Standby:       127.0.0.1:8079
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.dr.yml --profile dr up -d
+#
+# Roles: the standby is a physical clone of postgres-prod, so it has exactly
+# the primary's roles and passwords (no role can be created on a read-only
+# standby). odoo-dr therefore uses the replicated application role
+# fix_admin with the primary's secret (PROD_DB_PASSWORD).
+#
+# Promotion (RB-52 step 4) - Odoo cannot run on a read-only hot standby, so
+# odoo-dr lives in the separate `dr-failover` profile and refuses to start
+# until the standby has been promoted (dr-promoted-check):
+#   1. Fence the old primary (RB-52 step 3) - never promote while it can
+#      still accept writes.
+#   2. docker compose -f docker-compose.yml -f docker-compose.dr.yml exec \
+#        postgres-dr psql -U fix_admin -d fix_production \
+#        -c "SELECT pg_promote(wait => true, wait_seconds => 60);"
+#   3. Verify: ... exec postgres-dr psql -U fix_admin -d fix_production \
+#        -tAc "SELECT pg_is_in_recovery();"   -> f
+#   4. docker compose -f docker-compose.yml -f docker-compose.dr.yml \
+#        --profile dr --profile dr-failover up -d odoo-dr
+#   After promotion the postgres-dr healthcheck reports unhealthy by design
+#   (it is no longer a streaming standby); a new standby must be re-cloned
+#   onto an empty volume before the site is protected again.
+# =============================================================================
+services:
+  # Physical streaming replica of postgres-prod (docker-compose.prod.yml),
+  # which creates the replication role + slot `postgres_dr_standby` +
+  # pg_hba entry via postgres-replication/primary-init.sh (R01 DR audit).
+  # No POSTGRES_* here: the standby is a byte-for-byte clone of the primary
+  # (same roles, same databases) and never runs initdb.
+  postgres-dr:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["dr", "dr-failover"]
+    environment:
+      FIX_ENV: dr
+      PGDATA: /var/lib/postgresql/data
+      PG_REPLICATION_USER: ${PG_REPLICATION_USER:-fix_replicator}
+      PG_REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG replication password must be Vault injected}
+    # Standby bootstrap. The stock entrypoint would initdb an empty volume
+    # into an independent primary that never enters recovery. Instead, on
+    # first boot (no PG_VERSION) this clones the primary with
+    # `pg_basebackup -R` (writes standby.signal + primary_conninfo), using the
+    # primary_conninfo / primary_slot_name declared on `command` below as the
+    # single source of truth, then hands over to the stock entrypoint. An
+    # initialised volume (running standby, or a node promoted at failover) is
+    # started as-is: nothing here ever wipes data. The replication password
+    # reaches libpq only via a 0600 passfile - never argv or postgresql.auto.conf.
+    entrypoint:
+      - bash
+      - -Eeuo
+      - pipefail
+      - -c
+      - |
+        conninfo='' slot='' prev=''
+        for arg in "$$@"; do
+          if [ "$$prev" = -c ]; then
+            case "$$arg" in
+              primary_conninfo=*) conninfo="$${arg#primary_conninfo=}" ;;
+              primary_slot_name=*) slot="$${arg#primary_slot_name=}" ;;
+            esac
+          fi
+          prev="$$arg"
+        done
+        : "$${conninfo:?command must pass -c primary_conninfo=...}" "$${slot:?command must pass -c primary_slot_name=...}"
+        case "$$PG_REPLICATION_PASSWORD" in *$$'\n'*) echo "PG_REPLICATION_PASSWORD must be one line" >&2; exit 1 ;; esac
+        pass="$${PG_REPLICATION_PASSWORD//\\/\\\\}"
+        umask 077
+        printf '*:*:*:%s:%s\n' "$$PG_REPLICATION_USER" "$${pass//:/\\:}" > /var/lib/postgresql/.pgpass_replication
+        chown postgres:postgres /var/lib/postgresql/.pgpass_replication
+        unset PG_REPLICATION_PASSWORD pass
+        if [ ! -s "$$PGDATA/PG_VERSION" ]; then
+          install -d -o postgres -g postgres -m 0700 "$$PGDATA"
+          echo "standby bootstrap: $$PGDATA is empty - cloning the primary with pg_basebackup -R (slot $$slot)"
+          until gosu postgres pg_isready -q -d "$$conninfo replication=true"; do echo "standby bootstrap: waiting for the primary"; sleep 5; done
+          gosu postgres pg_basebackup --pgdata="$$PGDATA" --dbname="$$conninfo" --slot="$$slot" \
+            --wal-method=stream --checkpoint=fast --write-recovery-conf --no-password --verbose
+          test -f "$$PGDATA/standby.signal"
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - postgres-dr-bootstrap
+    command: [
+      "postgres",
+      "-c", "hot_standby=on",
+      "-c", "hot_standby_feedback=on",
+      "-c", "wal_receiver_timeout=60s",
+      "-c", "max_standby_streaming_delay=30s",
+      "-c", "primary_conninfo=host=${DR_PRIMARY_HOST:-postgres-prod} port=${DR_PRIMARY_PORT:-5432} user=${PG_REPLICATION_USER:-fix_replicator} passfile=/var/lib/postgresql/.pgpass_replication sslmode=require application_name=postgres_dr_standby",
+      "-c", "primary_slot_name=postgres_dr_standby"
+    ]
+    ports: ["127.0.0.1:5443:5432"]
+    volumes:
+      - pgdata-dr:/var/lib/postgresql/data
+      - pgwal-archive-dr:/var/lib/postgresql/wal_archive
+    healthcheck:
+      # Healthy only while in recovery AND the WAL receiver is streaming from
+      # the primary (pg_monitor, granted by primary-init.sh, lets the
+      # replication role read pg_stat_wal_receiver.status). After a promotion
+      # this reports unhealthy by design: the node is no longer a standby.
+      test: ["CMD-SHELL", "psql -XtA -U \"$${PG_REPLICATION_USER}\" -d postgres -c \"SELECT pg_is_in_recovery() AND EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming')\" | grep -qx t"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 120s
+    restart: unless-stopped
+
+  redis-dr:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    profiles: ["dr", "dr-failover"]
+    environment:
+      FIX_ENV: dr
+    command: ["redis-server", "--replicaof", "redis-prod", "6379", "--save", "", "--appendonly", "no"]
+    ports: ["127.0.0.1:6389:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # One-shot guard for odoo-dr: succeeds only once postgres-dr has been
+  # promoted (pg_is_in_recovery() = false). Uses the replicated fix_admin role.
+  dr-promoted-check:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["dr-failover"]
+    environment:
+      FIX_ENV: dr
+      PGPASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+    command:
+      - bash
+      - -c
+      - |
+        state=$$(psql -h postgres-dr -U fix_admin -d fix_production -XtAc 'SELECT pg_is_in_recovery()') || exit 1
+        if [ "$$state" != f ]; then
+          echo "odoo-dr refused: postgres-dr is still a read-only standby (pg_is_in_recovery=$$state) - promote it first (RB-52 step 4)" >&2
+          exit 1
+        fi
+        echo "postgres-dr is promoted (read-write)"
+    depends_on:
+      postgres-dr:
+        condition: service_started
+    restart: "no"
+
+  odoo-dr:
+    image: 1000fix/odoo:19.0-dr@sha256:bb924ef308fa55ffb6440588b7f5279f682aeab2821a5900699f5190667ccab1   # digest pinned from FIRST BUILD (local registry 127.0.0.1:5500; push to a production registry = operator step per docs/guides/digest-pinning-policy.md)
+    # built from the codebase root (infra/docker/odoo/Dockerfile, R01 re-audit)
+    build:
+      context: ../..
+      dockerfile: infra/docker/odoo/Dockerfile
+    # Started only after promotion (see header): never against a read-only standby.
+    profiles: ["dr-failover"]
+    # server-wide modules (same list as generate-odoo-conf): cd_entity_config
+    # carries the RPC error hardening (no tracebacks in JSON-RPC/XML-RPC
+    # errors outside dev mode, OWASP A05) and must load before any registry.
+    # Arguments starting with '-' are handed to odoo by the image entrypoint.
+    command: ["--load=base,rpc,web,cd_entity_config"]
+    environment:
+      FIX_ENV: dr
+      HOST: postgres-dr
+      PORT: 5432
+      # the replicated application role (exists on the clone; see header)
+      USER: fix_admin
+      PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+    ports: ["127.0.0.1:8079:8069"]
+    volumes:
+      - odoo-data-dr:/var/lib/odoo
+    depends_on:
+      # after promotion the standby healthcheck is unhealthy by design, so the
+      # gate is the promotion check, not postgres-dr's health
+      dr-promoted-check:
+        condition: service_completed_successfully
+      redis-dr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-dr:
+  pgwal-archive-dr:
+  odoo-data-dr:

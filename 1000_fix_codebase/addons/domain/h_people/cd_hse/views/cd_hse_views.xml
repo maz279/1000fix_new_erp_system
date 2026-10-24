@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_hse views (P09). -->
+<!-- cd_hse views (P09 / M59 HSE statutory depth). -->
 <odoo>
+    <!-- Incident -->
     <record id="view_fix_hse_incident_list" model="ir.ui.view">
         <field name="name">fix.hse.incident.list</field>
         <field name="model">fix.hse.incident</field>
@@ -9,15 +10,65 @@
                 <field name="name"/>
                 <field name="incident_type"/>
                 <field name="severity"/>
+                <field name="branch_id"/>
+                <field name="employee_id"/>
                 <field name="state"/>
             </list>
         </field>
     </record>
+    <record id="view_fix_hse_incident_form" model="ir.ui.view">
+        <field name="name">fix.hse.incident.form</field>
+        <field name="model">fix.hse.incident</field>
+        <field name="arch" type="xml">
+            <form string="HSE Incident">
+                <header>
+                    <button name="action_investigate" string="Investigate" type="object" invisible="state != 'reported'" class="btn-primary"/>
+                    <button name="action_close" string="Close Incident" type="object" invisible="state != 'investigating'" class="btn-success"/>
+                    <field name="state" widget="statusbar" statusbar_visible="reported,investigating,action_taken,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Incident Details">
+                            <field name="incident_type"/>
+                            <field name="severity"/>
+                            <field name="reported_at"/>
+                            <field name="employee_id"/>
+                            <field name="branch_id"/>
+                        </group>
+                        <group string="Statutory &amp; Injury">
+                            <field name="injured_employee_id"/>
+                            <field name="statutory_record_id" invisible="not statutory_record_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Description">
+                            <field name="description"/>
+                        </page>
+                        <page string="Corrective Actions">
+                            <field name="corrective_action"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
     <record id="action_fix_hse_incident" model="ir.actions.act_window">
-        <field name="name">Hse Incident</field>
+        <field name="name">HSE Incident</field>
         <field name="res_model">fix.hse.incident</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- Safety Inspection -->
     <record id="view_fix_safety_inspection_list" model="ir.ui.view">
         <field name="name">fix.safety.inspection.list</field>
         <field name="model">fix.safety.inspection</field>
@@ -26,8 +77,55 @@
                 <field name="name"/>
                 <field name="branch_id"/>
                 <field name="inspected_on"/>
+                <field name="esd_grounding_ok"/>
+                <field name="fire_extinguisher_ok"/>
                 <field name="state"/>
             </list>
+        </field>
+    </record>
+    <record id="view_fix_safety_inspection_form" model="ir.ui.view">
+        <field name="name">fix.safety.inspection.form</field>
+        <field name="model">fix.safety.inspection</field>
+        <field name="arch" type="xml">
+            <form string="Safety Inspection">
+                <header>
+                    <button name="action_complete" string="Complete Inspection" type="object" invisible="state != 'scheduled'" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="scheduled,done,follow_up"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Inspection Meta">
+                            <field name="branch_id"/>
+                            <field name="inspector_id"/>
+                            <field name="inspected_on"/>
+                        </group>
+                        <group string="Compliance Checklist">
+                            <field name="fire_extinguisher_ok"/>
+                            <field name="emergency_exit_ok"/>
+                            <field name="first_aid_ok"/>
+                            <field name="electrical_ok"/>
+                            <field name="esd_grounding_ok"/>
+                            <field name="fume_extraction_ok"/>
+                            <field name="chemical_storage_ok"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Findings &amp; Remediation">
+                            <field name="findings"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
     <record id="action_fix_safety_inspection" model="ir.actions.act_window">
@@ -36,6 +134,185 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_hse_incident" name="Hse Incident" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_hse_incident" sequence="200"/>
+    <!-- Safety Committee -->
+    <record id="view_fix_safety_committee_list" model="ir.ui.view">
+        <field name="name">fix.safety.committee.list</field>
+        <field name="model">fix.safety.committee</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="branch_id"/>
+                <field name="chairperson_id"/>
+                <field name="secretary_id"/>
+                <field name="member_count"/>
+                <field name="last_meeting_date"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_safety_committee_form" model="ir.ui.view">
+        <field name="name">fix.safety.committee.form</field>
+        <field name="model">fix.safety.committee</field>
+        <field name="arch" type="xml">
+            <form string="Statutory Safety Committee">
+                <header>
+                    <button name="action_record_meeting" string="Record Meeting" type="object" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="active,review_needed,dissolved"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Constitution (BLA 2006 §90A)">
+                            <field name="branch_id"/>
+                            <field name="formation_date"/>
+                            <field name="chairperson_id"/>
+                            <field name="secretary_id"/>
+                            <field name="member_count"/>
+                            <field name="dife_registered"/>
+                        </group>
+                        <group string="Meeting Schedule">
+                            <field name="meeting_frequency"/>
+                            <field name="last_meeting_date"/>
+                            <field name="next_meeting_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Latest Minutes">
+                            <field name="recent_minutes"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_safety_committee" model="ir.actions.act_window">
+        <field name="name">Safety Committee (BLA §90A)</field>
+        <field name="res_model">fix.safety.committee</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Statutory Accident Register -->
+    <record id="view_fix_statutory_accident_register_list" model="ir.ui.view">
+        <field name="name">fix.statutory.accident.register.list</field>
+        <field name="model">fix.statutory.accident.register</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="employee_id"/>
+                <field name="accident_date"/>
+                <field name="lost_work_days"/>
+                <field name="dife_notified"/>
+                <field name="statutory_compensation_bdt"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_statutory_accident_register_form" model="ir.ui.view">
+        <field name="name">fix.statutory.accident.register.form</field>
+        <field name="model">fix.statutory.accident.register</field>
+        <field name="arch" type="xml">
+            <form string="Statutory Accident Register (BLA Form 33/34)">
+                <header>
+                    <button name="action_notify_dife" string="Send DIFE Notice (Form 34)" type="object" invisible="dife_notified" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="recorded,dife_notified,compensation_settled,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Incident &amp; Worker">
+                            <field name="incident_id"/>
+                            <field name="employee_id"/>
+                            <field name="accident_date"/>
+                            <field name="affected_body_part"/>
+                            <field name="lost_work_days"/>
+                        </group>
+                        <group string="Statutory Notice &amp; Compensation">
+                            <field name="dife_notified"/>
+                            <field name="dife_notification_date"/>
+                            <field name="statutory_compensation_bdt"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Nature &amp; Cause of Injury">
+                            <field name="nature_of_injury"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_statutory_accident_register" model="ir.actions.act_window">
+        <field name="name">Accident Register (BLA Form 33/34)</field>
+        <field name="res_model">fix.statutory.accident.register</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- PPE Register -->
+    <record id="view_fix_ppe_register_list" model="ir.ui.view">
+        <field name="name">fix.ppe.register.list</field>
+        <field name="model">fix.ppe.register</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="item_type"/>
+                <field name="regulatory_standard"/>
+                <field name="stock_quantity"/>
+                <field name="min_required_quantity"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_ppe_register" model="ir.actions.act_window">
+        <field name="name">PPE Equipment Register</field>
+        <field name="res_model">fix.ppe.register</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Hazardous Substances -->
+    <record id="view_fix_hazardous_substance_register_list" model="ir.ui.view">
+        <field name="name">fix.hazardous.substance.register.list</field>
+        <field name="model">fix.hazardous.substance.register</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="un_number"/>
+                <field name="storage_location"/>
+                <field name="current_stock_litres"/>
+                <field name="max_allowable_litres"/>
+                <field name="msds_on_file"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_fix_hazardous_substance_register" model="ir.actions.act_window">
+        <field name="name">Hazardous Substances &amp; Solvents</field>
+        <field name="res_model">fix.hazardous.substance.register</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Menus -->
+    <menuitem id="menu_fix_hse_incident" name="HSE Incident" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_hse_incident" sequence="200"/>
     <menuitem id="menu_fix_safety_inspection" name="Safety Inspection" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_safety_inspection" sequence="210"/>
+    <menuitem id="menu_fix_safety_committee" name="Safety Committee (BLA §90A)" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_safety_committee" sequence="220"/>
+    <menuitem id="menu_fix_statutory_accident_register" name="Accident Register (BLA Form 33/34)" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_statutory_accident_register" sequence="230"/>
+    <menuitem id="menu_fix_ppe_register" name="PPE Equipment" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_ppe_register" sequence="240"/>
+    <menuitem id="menu_fix_hazardous_substance_register" name="Hazardous Substances" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_hazardous_substance_register" sequence="250"/>
 </odoo>

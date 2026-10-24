@@ -1,0 +1,106 @@
+{
+  "profile": "PE-004: Gate G6 1.5x Peak Load Profile & Asset Businesses Benchmark",
+  "timestamp_utc": "2026-10-22T09:10:01.038011+00:00",
+  "duration_seconds": 0.13,
+  "overall_status": "INCOMPLETE",
+  "sla_threshold_p95_ms": 250.0,
+  "measurement": {
+    "probe_target": "http://127.0.0.1:8069/jsonrpc common.version (read-only)",
+    "odoo_reachable": true,
+    "odoo_reachability_detail": "127.0.0.1:8069 accepted a TCP connection",
+    "unloaded_probe": {
+      "samples": 5,
+      "successes": 5,
+      "errors": 0,
+      "error_rate_pct": 0.0,
+      "error_samples": [],
+      "latency_ms": {
+        "p50": 23.2,
+        "p95": 36.85,
+        "max": 36.85,
+        "mean": 23.67
+      }
+    },
+    "workloads": [
+      {
+        "workload": "Odoo JSON-RPC Kernel Operations",
+        "target_rps_1_5x_peak": 45.0,
+        "status": "UNMEASURED",
+        "reason": "no load generated at 45.0 req/s: this measure-only tool sends 5 sequential read-only calls; the 1.5x-peak profile needs a load harness against the perf environment"
+      },
+      {
+        "workload": "Circular Asset Rental & Trade-in Engine",
+        "target_rps_1_5x_peak": 35.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "Data Services Z4 Custody Sanitization",
+        "target_rps_1_5x_peak": 25.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "ML Gateway Dispatch Scoring & Forecast",
+        "target_rps_1_5x_peak": 60.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "Kafka EventBus High-Throughput Outbox",
+        "target_rps_1_5x_peak": 80.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "workload": "Corporate Client SSO Federation (INT-046)",
+        "target_rps_1_5x_peak": 30.0,
+        "status": "UNMEASURED",
+        "reason": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      }
+    ],
+    "checks": [
+      {
+        "check": "odoo_jsonrpc_probe_error_free",
+        "status": "PASS",
+        "detail": "5/5 read-only common.version calls succeeded; errors none"
+      },
+      {
+        "check": "odoo_jsonrpc_unloaded_p95_within_budget",
+        "status": "PASS",
+        "detail": "unloaded p95 36.85 ms vs budget 250.0 ms over 5 timed calls"
+      },
+      {
+        "check": "pe004_1_5x_peak::Odoo JSON-RPC Kernel Operations",
+        "status": "UNMEASURED",
+        "detail": "no load generated at 45.0 req/s: this measure-only tool sends 5 sequential read-only calls; the 1.5x-peak profile needs a load harness against the perf environment"
+      },
+      {
+        "check": "pe004_1_5x_peak::Circular Asset Rental & Trade-in Engine",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::Data Services Z4 Custody Sanitization",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::ML Gateway Dispatch Scoring & Forecast",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::Kafka EventBus High-Throughput Outbox",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      },
+      {
+        "check": "pe004_1_5x_peak::Corporate Client SSO Federation (INT-046)",
+        "status": "UNMEASURED",
+        "detail": "no endpoint for this workload is probed by this tool (the previous version timed GET /web/login under this workload's name)"
+      }
+    ],
+    "status": "INCOMPLETE"
+  }
+}

@@ -3,66 +3,131 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Competency"
-msgstr "দক্ষতা"
-
-msgid "Certification"
-msgstr "সার্টিফিকেশন"
-
-msgid "Training Course"
-msgstr "প্রশিক্ষণ কোর্স"
-
-msgid "Training Enrollment"
-msgstr "প্রশিক্ষণ ভর্তি"
-
-msgid "Competency (Bengali)"
-msgstr "দক্ষতা (বাংলা)"
-
-msgid "Device Type Scope"
-msgstr "ডিভাইস ধরনের পরিসর"
-
-msgid "Evidence Reference"
-msgstr "প্রমাণ রেফারেন্স"
-
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__status__active
 msgid "Active"
 msgstr "সক্রিয়"
 
-msgid "Expiring Soon"
-msgstr "শীঘ্রই মেয়াদোত্তীর্ণ"
+#. module: cd_competency
+#: model:ir.model,name:cd_competency.model_fix_certification
+msgid "Certification"
+msgstr "সার্টিফিকেশন"
 
-msgid "Expired"
-msgstr "মেয়াদোত্তীর্ণ"
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_work_order__certification_waiver
+msgid "Certification Waiver"
+msgstr "সার্টিফিকেশন মওকুফ"
 
-msgid "Grant"
-msgstr "প্রদান"
-
-msgid "Content Pack"
-msgstr "কনটেন্ট প্যাক"
-
-msgid "Certifies Towards"
-msgstr "যে সার্টিফিকেশনের দিকে"
-
-msgid "Enrollments"
-msgstr "ভর্তিসমূহ"
-
-msgid "Enrolled"
-msgstr "ভর্তি"
-
-msgid "Passed"
-msgstr "উত্তীর্ণ"
-
-msgid "Failed"
-msgstr "অনুত্তীর্ণ"
-
-msgid "Competencies"
-msgstr "দক্ষতাসমূহ"
-
+#. module: cd_competency
+#: model:ir.actions.act_window,name:cd_competency.action_fix_certification
+#: model:ir.ui.menu,name:cd_competency.menu_fix_certification
 msgid "Certifications"
 msgstr "সার্টিফিকেশনসমূহ"
 
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__competency_id
+msgid "Certifies Towards"
+msgstr "যে সার্টিফিকেশনের দিকে"
+
+#. module: cd_competency
+#: model:ir.actions.act_window,name:cd_competency.action_fix_competency
+#: model:ir.ui.menu,name:cd_competency.menu_fix_competency
+msgid "Competencies"
+msgstr "দক্ষতাসমূহ"
+
+#. module: cd_competency
+#: model:ir.model,name:cd_competency.model_fix_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__competency_id
+msgid "Competency"
+msgstr "দক্ষতা"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__name_bn
+msgid "Competency (Bengali)"
+msgstr "দক্ষতা (বাংলা)"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__content_ref
+msgid "Content Pack"
+msgstr "কনটেন্ট প্যাক"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__name_bn
+msgid "Course (Bengali)"
+msgstr "কোর্স (বাংলা)"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__device_type
+msgid "Device Type Scope"
+msgstr "ডিভাইস ধরনের পরিসর"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_training_enrollment__state__enrolled
+msgid "Enrolled"
+msgstr "ভর্তি"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__enrollment_ids
+msgid "Enrollments"
+msgstr "ভর্তিসমূহ"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__evidence_ref
+msgid "Evidence Reference"
+msgstr "প্রমাণের রেফারেন্স"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__status__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__status__expiring
+msgid "Expiring Soon"
+msgstr "শীঘ্রই মেয়াদোত্তীর্ণ"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_training_enrollment__state__failed
+msgid "Failed"
+msgstr "অনুত্তীর্ণ"
+
+#. module: cd_competency
+#: model_terms:ir.ui.view,arch_db:cd_competency.view_fix_certification_form
+msgid "Grant"
+msgstr "প্রদান"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__operating_unit_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__operating_unit_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__operating_unit_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_training_enrollment__operating_unit_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_work_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_training_enrollment__state__passed
+msgid "Passed"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_competency
+#: model:ir.ui.menu,name:cd_competency.menu_fix_training
 msgid "Training"
 msgstr "প্রশিক্ষণ"
 
-msgid "Course (Bengali)"
-msgstr "কোর্স (বাংলা)"
+#. module: cd_competency
+#: model:ir.model,name:cd_competency.model_fix_training_course
+msgid "Training Course"
+msgstr "প্রশিক্ষণ কোর্স"
+
+#. module: cd_competency
+#: model:ir.model,name:cd_competency.model_fix_training_enrollment
+msgid "Training Enrollment"
+msgstr "প্রশিক্ষণ ভর্তি"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_work_order__certification_waiver_reason
+msgid "Waiver Justification"
+msgstr "মওকুফের যৌক্তিকতা"

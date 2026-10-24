@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+    <!-- Odoo 17+ removed res.groups.category_id; groups are categorised via
+         the module's own ir.module.category only. -->
     <record id="module_category_field_service" model="ir.module.category">
         <field name="name">Field Service</field>
         <field name="description">1000FiX Field Service, Dispatch and Geospatial Platform</field>
@@ -8,13 +10,11 @@
 
     <record id="group_fix_field_service_user" model="res.groups">
         <field name="name">Field Service / Technician</field>
-        <field name="category_id" ref="module_category_field_service"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 
     <record id="group_fix_field_service_manager" model="res.groups">
         <field name="name">Field Service / Dispatcher &amp; Manager</field>
-        <field name="category_id" ref="module_category_field_service"/>
         <field name="implied_ids" eval="[(4, ref('group_fix_field_service_user'))]"/>
     </record>
 

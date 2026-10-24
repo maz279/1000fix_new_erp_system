@@ -10,7 +10,11 @@ CD-M47-01 (P10) — Facility & Branch Infrastructure.
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",
     "depends": ["base", "mail", "cd_entity_config", "cd_equipment_register", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/cd_facility_views.xml"],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/cd_facility_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M47-01",

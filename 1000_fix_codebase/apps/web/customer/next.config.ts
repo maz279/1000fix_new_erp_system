@@ -4,6 +4,9 @@ import path from "node:path";
 /** PP1 scaffold — monorepo root lifts Turbopack's module boundary (see corporate). */
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // R01 re-audit 2026-10-22: standalone server for the portal Docker image
+  // (next start works locally, but the image ships .next/standalone only).
+  output: "standalone",
   outputFileTracingRoot: path.join(__dirname, "../../.."),
   async headers() {
     return [

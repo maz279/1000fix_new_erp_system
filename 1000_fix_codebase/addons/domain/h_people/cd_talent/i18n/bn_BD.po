@@ -3,6 +3,225 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__applied
+msgid "Applied"
+msgstr "প্রয়োগকৃত"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_talent
+#: model:ir.actions.act_window,name:cd_talent.action_fix_candidate
+#: model:ir.model,name:cd_talent.model_fix_candidate
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__candidate_id
+#: model:ir.ui.menu,name:cd_talent.menu_fix_candidate
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Candidate"
+msgstr "প্রার্থী"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Candidate Full Name"
+msgstr "প্রার্থীর পূর্ণ নাম"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "Complete Onboarding & Emit Joiner Event"
+msgstr "অনবোর্ডিং সম্পন্ন করুন ও যোগদান ইভেন্ট পাঠান"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__employee_id
+msgid "Created Employee Record"
+msgstr "তৈরিকৃত কর্মী রেকর্ড"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__department_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__department_id
+msgid "Department"
+msgstr "বিভাগ"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__draft
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_job_requisition_form
+msgid "e.g. Senior Cleanroom Technician"
+msgstr "যেমন সিনিয়র ক্লিনরুম টেকনিশিয়ান"
+
+#. module: cd_talent
+#: model:ir.ui.menu,name:cd_talent.menu_fix_onboarding_plan
+msgid "Employee Onboarding"
+msgstr "কর্মী অনবোর্ডিং"
+
+#. module: cd_talent
+#: model:ir.actions.act_window,name:cd_talent.action_fix_onboarding_plan
+#: model:ir.model,name:cd_talent.model_fix_onboarding_plan
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "Employee Onboarding Plan"
+msgstr "কর্মী অনবোর্ডিং পরিকল্পনা"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__contract_signed
+msgid "Employment Contract Executed"
+msgstr "চাকরি চুক্তি সম্পাদিত"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Extend Offer"
+msgstr "নিয়োগ প্রস্তাব দিন"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Hire & Start Onboarding"
+msgstr "নিয়োগ দিন ও অনবোর্ডিং শুরু করুন"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__hired
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__hired
+msgid "Hired"
+msgstr "নিয়োগপ্রাপ্ত"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__interview
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Interview"
+msgstr "সাক্ষাৎকার"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "IT & HSE Provisioning"
+msgstr "IT ও HSE সরঞ্জাম প্রদান"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__it_assets_allocated
+msgid "IT Equipment & Assets Allocated"
+msgstr "IT যন্ত্রপাতি ও সম্পদ বরাদ্দকৃত"
+
+#. module: cd_talent
+#: model:ir.actions.act_window,name:cd_talent.action_fix_job_requisition
+#: model:ir.model,name:cd_talent.model_fix_job_requisition
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__requisition_id
+#: model:ir.ui.menu,name:cd_talent.menu_fix_job_requisition
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_job_requisition_form
+msgid "Job Requisition"
+msgstr "নিয়োগ চাহিদাপত্র"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__joined_date
+msgid "Joining Date"
+msgstr "যোগদানের তারিখ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__keycloak_provisioned
+msgid "Keycloak Identity & Corporate SSO Provisioned"
+msgstr "Keycloak পরিচয় ও কর্পোরেট SSO চালু করা হয়েছে"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "Legal & Statutory (BLA 2006)"
+msgstr "আইনি ও সংবিধিবদ্ধ (BLA ২০০৬)"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_job_requisition_form
+msgid "Mark Hired"
+msgstr "নিয়োগপ্রাপ্ত চিহ্নিত করুন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__nid_verified
+msgid "NID / Identity Verified"
+msgstr "NID / পরিচয় যাচাইকৃত"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__offered
+msgid "Offered"
+msgstr "প্রস্তাব দেওয়া হয়েছে"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_job_requisition_form
+msgid "Open Requisition"
+msgstr "চলমান নিয়োগ চাহিদাপত্র"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__operating_unit_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__bank_details_captured
+msgid "Payroll & BEFTN Bank Details Captured"
+msgstr "পেরোল ও BEFTN ব্যাংক তথ্য সংগৃহীত"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__position_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__position_id
+msgid "Position"
+msgstr "পদ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__safety_kit_issued
+msgid "PPE & Workshop Safety Kit Issued"
+msgstr "PPE ও ওয়ার্কশপ নিরাপত্তা কিট প্রদত্ত"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__requisition_id
+msgid "Requisition"
+msgstr "নিয়োগ চাহিদাপত্র"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
+msgid "Screen Candidate"
+msgstr "প্রার্থী বাছাই করুন"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__screening
+msgid "Screening"
+msgstr "বাছাই"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "Start Onboarding"
+msgstr "অনবোর্ডিং শুরু করুন"
+
+#. module: cd_talent
+#: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_onboarding_plan_form
+msgid "Statutory & IT Onboarding Checklist"
+msgstr "সংবিধিবদ্ধ ও IT অনবোর্ডিং চেকলিস্ট"
+
+#. module: cd_talent
 msgid "Talent Acquisition & Onboarding"
-msgstr "Talent Acquisition & Onboarding (বাংলা)"
+msgstr "কর্মী নিয়োগ ও অনবোর্ডিং"

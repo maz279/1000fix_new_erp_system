@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "consent.withdrawn",
+  "description": "Event emitted when a customer revokes previously granted consent",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "consent.withdrawn"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_party_master"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "party_id",
+        "purpose_code",
+        "withdrawn_at"
+      ],
+      "properties": {
+        "party_id": {
+          "type": "integer"
+        },
+        "purpose_code": {
+          "type": "string"
+        },
+        "withdrawn_at": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

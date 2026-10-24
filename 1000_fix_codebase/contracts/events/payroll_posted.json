@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "payroll.posted",
+  "description": "Published by cd_payroll_bd through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "payroll.posted"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_payroll_bd"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "period",
+        "gross",
+        "net",
+        "tax",
+        "pf",
+        "total_debit",
+        "total_credit"
+      ],
+      "properties": {
+        "period": {
+          "type": "string"
+        },
+        "gross": {
+          "type": "number"
+        },
+        "net": {
+          "type": "number"
+        },
+        "tax": {
+          "type": "number"
+        },
+        "pf": {
+          "type": "number"
+        },
+        "total_debit": {
+          "description": "Type not statically derivable from `total_debit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:390)."
+        },
+        "total_credit": {
+          "description": "Type not statically derivable from `total_credit` (addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py:390)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_payroll_bd",
+  "x-publishers": [
+    "addons/domain/h_people/cd_payroll_bd/models/fix_payroll.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

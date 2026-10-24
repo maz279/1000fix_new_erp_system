@@ -1,31 +1,123 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_dynamic_pricing views (P10). -->
+<!-- cd_dynamic_pricing views (P10 / M11). -->
 <odoo>
     <record id="view_fix_dynamic_price_rule_list" model="ir.ui.view">
         <field name="name">fix.dynamic.price.rule.list</field>
         <field name="model">fix.dynamic.price.rule</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list>
+                <field name="name"/>
+                <field name="rule_type"/>
+                <field name="rate_card_id"/>
+                <field name="adjustment_pct"/>
+                <field name="surge_multiplier"/>
+                <field name="channel"/>
+                <field name="active"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_dynamic_price_rule_form" model="ir.ui.view">
+        <field name="name">fix.dynamic.price.rule.form</field>
+        <field name="model">fix.dynamic.price.rule</field>
+        <field name="arch" type="xml">
+            <form string="Dynamic Price Rule">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Configuration">
+                            <field name="rule_type"/>
+                            <field name="rate_card_id"/>
+                            <field name="channel"/>
+                            <field name="active"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group string="Adjustment &amp; Bounds">
+                            <field name="adjustment_pct"/>
+                            <field name="surge_multiplier"/>
+                            <field name="min_adjustment"/>
+                            <field name="max_adjustment"/>
+                            <field name="currency_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_dynamic_price_rule" model="ir.actions.act_window">
-        <field name="name">Dynamic Price Rule</field>
+        <field name="name">Dynamic Price Rules</field>
         <field name="res_model">fix.dynamic.price.rule</field>
         <field name="view_mode">list,form</field>
     </record>
+
     <record id="view_fix_price_explanation_list" model="ir.ui.view">
         <field name="name">fix.price.explanation.list</field>
         <field name="model">fix.price.explanation</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list>
+                <field name="name"/>
+                <field name="rule_id"/>
+                <field name="base_price"/>
+                <field name="final_price"/>
+                <field name="model_driven"/>
+                <field name="rules_applied"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_price_explanation_form" model="ir.ui.view">
+        <field name="name">fix.price.explanation.form</field>
+        <field name="model">fix.price.explanation</field>
+        <field name="arch" type="xml">
+            <form string="Price Audit Explanation">
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group string="Rule &amp; Calculation">
+                            <field name="rule_id"/>
+                            <field name="base_price"/>
+                            <field name="final_price"/>
+                            <field name="currency_id"/>
+                        </group>
+                        <group string="Audit &amp; Model">
+                            <field name="model_driven"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Audit Trail">
+                        <field name="rules_applied"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_price_explanation" model="ir.actions.act_window">
-        <field name="name">Price Explanation</field>
+        <field name="name">Price Explanations</field>
         <field name="res_model">fix.price.explanation</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_dynamic_price_rule" name="Dynamic Price Rule" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_dynamic_price_rule" sequence="300"/>
-    <menuitem id="menu_fix_price_explanation" name="Price Explanation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_price_explanation" sequence="310"/>
+    <menuitem id="menu_fix_dynamic_pricing_root" name="Dynamic Pricing" parent="cd_entity_config.menu_fix_operations_root" sequence="320"/>
+    <menuitem id="menu_fix_dynamic_price_rule" name="Dynamic Price Rules" parent="menu_fix_dynamic_pricing_root" action="action_fix_dynamic_price_rule" sequence="10"/>
+    <menuitem id="menu_fix_price_explanation" name="Price Explanations &amp; Audit" parent="menu_fix_dynamic_pricing_root" action="action_fix_price_explanation" sequence="20"/>
 </odoo>

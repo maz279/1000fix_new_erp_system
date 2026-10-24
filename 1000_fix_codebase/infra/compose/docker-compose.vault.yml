@@ -1,0 +1,41 @@
+# =============================================================================
+# 1000fix-erp - vault environment overlay (EP-06, PE-001 §6.3)
+#
+# OpenBao (Vault-API-compatible, MPL-2.0) kv-v2 secret engine configuration.
+# Rule EP-06: "Secrets are Vault-managed, never in repo/config/logs."
+#
+# Ports:
+#   Vault API: 127.0.0.1:8200
+#
+# Up: docker compose -f docker-compose.yml -f docker-compose.vault.yml --profile vault up -d
+# =============================================================================
+services:
+  # OpenBao (MPL-2.0) - the D-030 Wave 1 pick (tooling/licence/register.yaml:
+  # hashicorp/vault is BUSL-1.1 and NOT approved). API-compatible with Vault
+  # kv-v2, so the service keeps the `vault` name and port 8200 for clients.
+  # R01 re-audit 2026-10-22: replaced the hashicorp/vault image this overlay
+  # deployed in breach of the register.
+  vault:
+    image: openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
+    profiles: ["vault", "prod", "ha"]
+    environment:
+      # No default root token: a literal default is a shared secret in the
+      # repo (EP-06). Supply it from the secret store / environment.
+      BAO_DEV_ROOT_TOKEN_ID: ${VAULT_ROOT_TOKEN:?set VAULT_ROOT_TOKEN (EP-06 - never a repo default)}
+      BAO_DEV_LISTEN_ADDRESS: "0.0.0.0:8200"
+      BAO_ADDR: "http://127.0.0.1:8200"
+      FIX_ENV: prod
+    ports: ["127.0.0.1:8200:8200"]
+    volumes:
+      - vault-data:/openbao/file
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "bao", "status"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  vault-data:

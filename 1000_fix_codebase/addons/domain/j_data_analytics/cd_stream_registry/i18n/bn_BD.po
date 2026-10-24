@@ -2,3 +2,147 @@
 msgid ""
 msgstr ""
 "Language: bn_BD"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_alert__state__acked
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__alert_ids
+msgid "Alerts"
+msgstr "সতর্কতাসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__confidence
+msgid "Confidence (0-1)"
+msgstr "আস্থা (০-১)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__estimated_days_to_failure
+msgid "Days to Failure"
+msgstr "বিকল হওয়া পর্যন্ত দিন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__status__degraded
+msgid "Degraded"
+msgstr "অবনমিত"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_predictive_maintenance__prediction__degrading
+msgid "Degrading"
+msgstr "অবনতিশীল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__device_id
+msgid "Device Identifier"
+msgstr "ডিভাইস শনাক্তকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__equipment_id
+msgid "Equipment"
+msgstr "যন্ত্রপাতি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__equipment_id
+msgid "Equipment (M45)"
+msgstr "যন্ত্রপাতি (M45)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_predictive_maintenance__prediction__failure_predicted
+msgid "Failure Predicted"
+msgstr "বিকল হওয়ার পূর্বাভাস"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__gateway
+msgid "Gateway"
+msgstr "গেটওয়ে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__tracker
+msgid "GPS Tracker"
+msgstr "GPS ট্র্যাকার"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_predictive_maintenance__prediction__healthy
+msgid "Healthy"
+msgstr "স্বাভাবিক"
+
+#. module: cd_stream_registry
+#: model:ir.actions.act_window,name:cd_stream_registry.action_fix_iot_alert
+#: model:ir.ui.menu,name:cd_stream_registry.menu_fix_iot_alert
+msgid "Iot Alert"
+msgstr "IoT সতর্কতা"
+
+#. module: cd_stream_registry
+#: model:ir.actions.act_window,name:cd_stream_registry.action_fix_iot_device
+#: model:ir.ui.menu,name:cd_stream_registry.menu_fix_iot_device
+msgid "Iot Device"
+msgstr "IoT ডিভাইস"
+
+#. module: cd_stream_registry
+#: model:ir.actions.act_window,name:cd_stream_registry.action_fix_iot_telemetry
+#: model:ir.ui.menu,name:cd_stream_registry.menu_fix_iot_telemetry
+msgid "Iot Telemetry"
+msgstr "IoT টেলিমেট্রি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_alert__severity__major
+msgid "Major"
+msgstr "গুরুতর"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_alert__severity__minor
+msgid "Minor"
+msgstr "সামান্য"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_alert__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__status__offline
+msgid "Offline"
+msgstr "অফলাইন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__status__online
+msgid "Online"
+msgstr "অনলাইন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__operating_unit_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__operating_unit_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry__operating_unit_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_stream_registry
+#: model:ir.actions.act_window,name:cd_stream_registry.action_fix_predictive_maintenance
+#: model:ir.ui.menu,name:cd_stream_registry.menu_fix_predictive_maintenance
+msgid "Predictive Maintenance"
+msgstr "পূর্বাভাসমূলক রক্ষণাবেক্ষণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_alert__state__resolved
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__sensor
+msgid "Sensor"
+msgstr "সেন্সর"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__site_id
+msgid "Site (M47)"
+msgstr "সাইট (M47)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__meter
+msgid "Smart Meter"
+msgstr "স্মার্ট মিটার"

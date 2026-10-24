@@ -3,7 +3,48 @@
   "task": "R02-M05-T01",
   "gate": "G1-04",
   "verdict": "PASS",
-  "generated_at": "2026-10-16T15:26:35.020954+00:00",
+  "generated_at": "2026-10-22T09:01:30.099708+00:00",
+  "scope": "in-process services/sla-engine SlaEngine.evaluate with a simulated clock; escalation notification delivery is not exercised",
+  "simulated_time": "2026-10-16T13:00:00+00:00",
+  "checks_total": 7,
+  "checks_passed": 7,
+  "checks": [
+    {
+      "check": "case:CASE-01",
+      "status": "PASS",
+      "detail": "observed state/tier/deadline/consumed match"
+    },
+    {
+      "check": "case:CASE-02",
+      "status": "PASS",
+      "detail": "observed state/tier/deadline/consumed match"
+    },
+    {
+      "check": "case:CASE-03",
+      "status": "PASS",
+      "detail": "observed state/tier/deadline/consumed match"
+    },
+    {
+      "check": "case:CASE-04",
+      "status": "PASS",
+      "detail": "observed state/tier/deadline/consumed match"
+    },
+    {
+      "check": "case:CASE-05",
+      "status": "PASS",
+      "detail": "observed state/tier/deadline/consumed match"
+    },
+    {
+      "check": "state_coverage",
+      "status": "PASS",
+      "detail": "all observed"
+    },
+    {
+      "check": "escalation_tier_coverage",
+      "status": "PASS",
+      "detail": "all observed"
+    }
+  ],
   "total_cases_demonstrated": 5,
   "states_demonstrated": [
     "breached",
@@ -34,7 +75,15 @@
       "escalation_template": null,
       "evaluation_time": "2026-10-16T13:00:00+00:00",
       "case_id": "CASE-01",
-      "case_description": "Standard normal order: 5h elapsed of 24h limit (ON TRACK)"
+      "case_description": "Standard normal order: 5h elapsed of 24h limit (ON TRACK)",
+      "expected": {
+        "state": "on_track",
+        "escalation_tier": "none",
+        "resolution_deadline": "2026-10-17T08:00:00+00:00",
+        "consumed_pct": 20.8
+      },
+      "status": "PASS",
+      "problems": []
     },
     {
       "service_order_ref": "SO-2026-00102",
@@ -52,7 +101,15 @@
       "escalation_template": "NT-020",
       "evaluation_time": "2026-10-16T13:00:00+00:00",
       "case_id": "CASE-02",
-      "case_description": "Urgent repair order: 3.5h elapsed of 4h limit (NEAR BREACH: 87.5% consumed)"
+      "case_description": "Urgent repair order: 3.5h elapsed of 4h limit (NEAR BREACH: 87.5% consumed)",
+      "expected": {
+        "state": "near_breach",
+        "escalation_tier": "tier_1_warning",
+        "resolution_deadline": "2026-10-16T13:30:00+00:00",
+        "consumed_pct": 87.5
+      },
+      "status": "PASS",
+      "problems": []
     },
     {
       "service_order_ref": "SO-2026-00103",
@@ -70,7 +127,15 @@
       "escalation_template": "NT-020",
       "evaluation_time": "2026-10-16T13:00:00+00:00",
       "case_id": "CASE-03",
-      "case_description": "High priority order: 12.5h elapsed of 12h limit (BREACHED - Tier 2 Supervisor Alert)"
+      "case_description": "High priority order: 12.5h elapsed of 12h limit (BREACHED - Tier 2 Supervisor Alert)",
+      "expected": {
+        "state": "breached",
+        "escalation_tier": "tier_2_supervisor",
+        "resolution_deadline": "2026-10-16T12:30:00+00:00",
+        "consumed_pct": 104.2
+      },
+      "status": "PASS",
+      "problems": []
     },
     {
       "service_order_ref": "SO-2026-00104",
@@ -88,7 +153,15 @@
       "escalation_template": "NT-020",
       "evaluation_time": "2026-10-16T13:00:00+00:00",
       "case_id": "CASE-04",
-      "case_description": "Emergency order: 5.5h elapsed of 2h limit (SEVERELY BREACHED >2h - Tier 3 Ops Escalation)"
+      "case_description": "Emergency order: 5.5h elapsed of 2h limit (SEVERELY BREACHED >2h - Tier 3 Ops Escalation)",
+      "expected": {
+        "state": "breached",
+        "escalation_tier": "tier_3_operations",
+        "resolution_deadline": "2026-10-16T09:30:00+00:00",
+        "consumed_pct": 275.0
+      },
+      "status": "PASS",
+      "problems": []
     },
     {
       "service_order_ref": "SO-2026-00105",
@@ -106,7 +179,15 @@
       "escalation_template": null,
       "evaluation_time": "2026-10-16T13:00:00+00:00",
       "case_id": "CASE-05",
-      "case_description": "Standard order with clock PAUSED awaiting parts shipment"
+      "case_description": "Standard order with clock PAUSED awaiting parts shipment",
+      "expected": {
+        "state": "paused",
+        "escalation_tier": "none",
+        "resolution_deadline": "2026-10-17T09:00:00+00:00",
+        "consumed_pct": 16.7
+      },
+      "status": "PASS",
+      "problems": []
     }
   ]
 }

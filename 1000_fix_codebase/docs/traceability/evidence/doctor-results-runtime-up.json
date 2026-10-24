@@ -38,8 +38,8 @@
     {
         "Id":  "7",
         "Name":  "Module install (OD-02)",
-        "Status":  "PASS",
-        "Detail":  "all 66 cd_* modules installed"
+        "Status":  "FAIL",
+        "Detail":  "only 68/71 cd_* modules installed - run tasks.ps1 -Target odoo-init / odoo-install-wave1"
     },
     {
         "Id":  "8",
@@ -50,8 +50,8 @@
     {
         "Id":  "9",
         "Name":  "Quality gates",
-        "Status":  "PASS",
-        "Detail":  "Check the log at C:\\Users\\DELL\\.cache\\pre-commit\\pre-commit.log"
+        "Status":  "FAIL",
+        "Detail":  "[INFO] Initializing environment for https://github.com/OCA/pylint-odoo.\r\nAn unexpected error has occurred: CalledProcessError: command: (\u0027C:\\\\Program Files\\\\Git\\\\ucrt64\\\\bin\\\\git.EXE\u0027, \u0027checkout\u0027, \u0027v8.0.28\u0027)\r\nreturn code: 1\r\nstdout: (none)\r\nstderr:\r\n    error: pathspec \u0027v8.0.28\u0027 did not match any file(s) known to git\r\nCheck the log at C:\\Users\\DELL\\.cache\\pre-commit\\pre-commit.log"
     },
     {
         "Id":  "10",

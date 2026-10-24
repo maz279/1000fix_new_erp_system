@@ -1,0 +1,8 @@
+# corporate-sso (INT-046) runtime dependencies - keep in lockstep with the root
+# pyproject.toml dev group / uv.lock (same pins, same reasons):
+#   signxml >= 4 verifies XML-DSig with `cryptography` directly (no pyOpenSSL).
+#   Floors are the pip-audit-clean releases: signxml 3.x, cryptography < 49 and
+#   lxml < 6.1 carry known advisories. Licences: Apache-2.0 / BSD.
+signxml==5.2.0
+cryptography>=49
+lxml>=6.1,<7

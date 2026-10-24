@@ -3,6 +3,12 @@
 One gateway for all ML models, not per-model endpoints. Routes inference
 requests to the appropriate model backend.
 
+**Status (honest):** NO trained model is deployed and NO MLflow server is
+running. What serves today is the explainable heuristic below, and every
+response is labelled `model_backend: "heuristic-v1"` so it can never be
+mistaken for a trained model. Registry cards carry EMPTY `metrics` and `None`
+lineage until a real backend reports measured numbers.
+
 ## Models
 
 ### Dispatch scoring (P09-M06-T05)
@@ -30,7 +36,10 @@ forecasts = forecast_demand([("2026-01", 100), ("2026-02", 110)], periods_ahead=
 ```
 
 ## Model governance (P09-M06-T09)
-- `MODEL_REGISTRY`: version, stage, training metadata per model
+- `MODEL_REGISTRY`: version, stage, training metadata per model - `metrics`
+  stay empty until measured; nothing is invented
+- `trigger_retraining()` records a registry event (`status: "recorded"`) - no
+  training pipeline exists, so no post-retraining accuracy is fabricated
 - `detect_drift()`: triggers retraining when |actual - predicted| / actual > 15%
 - Every score is explainable (the factors dict shows each contribution)
 
@@ -38,3 +47,15 @@ forecasts = forecast_demand([("2026-01", 100), ("2026-02", 110)], periods_ahead=
 - MLflow (model registry): `docker compose --profile asset-ml up`
 - Ollama (LLM inference): same profile; GPU only if measured latency requires
 - Tests: `python -m pytest services/ml-gateway/tests`
+
+## HTTP API (src/main.py, stdlib http.server)
+
+```
+GET  /health          liveness + model_backend label + trained_model_deployed=false
+POST /v1/dispatch     {"candidates": [DispatchFeatures...]} -> ranked scores
+POST /v1/forecast     {"history": [["2026-01", 100], ...], "periods_ahead": 3}
+GET  /v1/models/<name> registry card
+```
+
+Run locally: `FIX_ENV=local python services/ml-gateway/src/main.py`
+(port 8090, override with `ML_GATEWAY_PORT`).

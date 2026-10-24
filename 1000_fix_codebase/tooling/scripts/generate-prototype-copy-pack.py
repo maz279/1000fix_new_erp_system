@@ -20,6 +20,7 @@ WRITES only the pack. Re-running is idempotent (byte-identical output).
 
 Exit: 0 written / 1 parse failure.
 """
+
 from __future__ import annotations
 
 import re
@@ -28,8 +29,13 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 FRONT = REPO.parent / "Front_end"
-OUT = (REPO.parent / "project_content" / "03_UI_Copy_and_Microcopy"
-       / "03A_Cross_Cutting" / "UI-900_Prototype_Shell_and_Landing_Copy_Pack.md")
+OUT = (
+    REPO.parent
+    / "project_content"
+    / "03_UI_Copy_and_Microcopy"
+    / "03A_Cross_Cutting"
+    / "UI-900_Prototype_Shell_and_Landing_Copy_Pack.md"
+)
 
 BENGALI = re.compile(r"[\u0980-\u09FF]")
 
@@ -37,10 +43,40 @@ BENGALI = re.compile(r"[\u0980-\u09FF]")
 # (live, ft, st1..st3) describe the PROTOTYPE (version line, demo login,
 # verification badges) and must not reach production copy (data strategy §3).
 LAND_KEYS = [
-    "h1a", "h1b", "h1d", "lede", "f1", "f2", "f3", "f4", "f5",
-    "s1", "s2", "s3", "s4", "s5", "s6", "jh", "js", "ph", "ps",
-    "p1t", "p1d", "p2t", "p2d", "p3t", "p3d", "p4t", "p4d",
-    "mh", "ms", "pth", "pts", "dh", "ds", "jn1",
+    "h1a",
+    "h1b",
+    "h1d",
+    "lede",
+    "f1",
+    "f2",
+    "f3",
+    "f4",
+    "f5",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "s6",
+    "jh",
+    "js",
+    "ph",
+    "ps",
+    "p1t",
+    "p1d",
+    "p2t",
+    "p2d",
+    "p3t",
+    "p3d",
+    "p4t",
+    "p4d",
+    "mh",
+    "ms",
+    "pth",
+    "pts",
+    "dh",
+    "ds",
+    "jn1",
 ]
 # 34 product keys. Excluded: live/ft/st1/st2/st3 (prototype-meta) and h1c
 # (locale-neutral punctuation " —", owned by the component).
@@ -105,8 +141,9 @@ def load_landing() -> tuple[dict[str, str], dict[str, str]]:
     en["s5"] = "ISO 9001:2015 certified operations"
     for key, val in en.items():
         if val.startswith((": ", "; ", ", ", ". ")) or not val:
-            raise SystemExit(f"generate-prototype-copy-pack: landing en for "
-                             f"{key} looks truncated: {val!r}")
+            raise SystemExit(
+                f"generate-prototype-copy-pack: landing en for " f"{key} looks truncated: {val!r}"
+            )
     return en, bn
 
 
@@ -120,7 +157,9 @@ def load_areas_modules() -> tuple[list[dict], list[dict]]:
     modules = []
     for m in re.finditer(r"\b(M\d{2}): \{ area:'(A\d+)', en:'([^']*)', bn:'([^']*)'", all3):
         modules.append({"id": m.group(1), "en": m.group(3), "bn": m.group(4)})
-    for m in re.finditer(r"FX_MODULES\.(M\d{2}) = \{ area:'(A\d+)', en:'([^']*)', bn:'([^']*)'", all3):
+    for m in re.finditer(
+        r"FX_MODULES\.(M\d{2}) = \{ area:'(A\d+)', en:'([^']*)', bn:'([^']*)'", all3
+    ):
         modules.append({"id": m.group(1), "en": m.group(3), "bn": m.group(4)})
     return areas, modules
 
@@ -144,8 +183,10 @@ def esc(text: str) -> str:
 def main() -> int:
     en_i18n, bn_i18n = load_i18n()
     if len(en_i18n) != 74 or len(bn_i18n) != 74 or set(en_i18n) != set(bn_i18n):
-        print(f"generate-prototype-copy-pack: FX_I18N shape unexpected "
-              f"(en={len(en_i18n)} bn={len(bn_i18n)})")
+        print(
+            f"generate-prototype-copy-pack: FX_I18N shape unexpected "
+            f"(en={len(en_i18n)} bn={len(bn_i18n)})"
+        )
         return 1
     en_land, bn_land = load_landing()
     if len(bn_land) != 40:
@@ -171,7 +212,9 @@ def main() -> int:
     for a in areas:
         rows.append((f"Area {a['id']}", f"nav.area.{a['id'].lower()}", a["en"], a["bn"]))
     for mod in sorted(modules, key=lambda x: x["id"]):
-        rows.append((f"Module {mod['id']}", f"nav.module.{mod['id'].lower()}", mod["en"], mod["bn"]))
+        rows.append(
+            (f"Module {mod['id']}", f"nav.module.{mod['id'].lower()}", mod["en"], mod["bn"])
+        )
     for pid, name_en in portals:
         rows.append((f"Portal {pid}", f"nav.portal.{pid.lower()}", name_en, PORTAL_BN[pid]))
 
@@ -196,8 +239,7 @@ def main() -> int:
         "| Label | Key | English | বাংলা |",
         "|---|---|---|---|",
     ]
-    lines += [f"| {esc(label)} | `{key}` | {esc(en)} | {esc(bn)} |"
-              for label, key, en, bn in rows]
+    lines += [f"| {esc(label)} | `{key}` | {esc(en)} | {esc(bn)} |" for label, key, en, bn in rows]
     lines.append("")
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -1,3 +1,5 @@
+> **PROVENANCE (R01 re-audit 2026-10-22): NOT EVIDENCE OF A FIELD OUTCOME.** This is a repository-authored narrative written during development; the system has not been deployed to the field, so the usage/measurement figures below were not produced by production telemetry. `verify-gate-g2.ps1` grades this criterion CONDITION until machine-produced telemetry exists. Do not cite these figures as measured.
+
 # Gate G2-06 Traceability & Executive Order: Paper Service Forms Withdrawal in Dhaka
 
 **Criterion ID**: G2-06 (MS-04, Month 8 Gate G2 Prerequisite)  

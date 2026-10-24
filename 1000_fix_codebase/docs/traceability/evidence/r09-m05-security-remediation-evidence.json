@@ -1,0 +1,70 @@
+{
+  "$schema": "1000fix-erp/evidence/1",
+  "milestone": "R09-M05",
+  "task": "R09-M05-T02",
+  "standard": "DoD-15 / Gate G8 Security Assurance",
+  "evaluated_at": "2026-10-22T10:19:04.709674+00:00",
+  "inputs": {
+    "pentest_evidence": "r09-m05-l9-pentest-evidence.json",
+    "pentest_run_at": "2026-10-22T08:57:26.561970+00:00",
+    "sast_evidence": "security-scan-latest.json",
+    "sast_run_at": "2026-10-21T03:49:08.257208+00:00"
+  },
+  "summary": {
+    "critical_findings_open": 0,
+    "high_findings_open": 2,
+    "medium_findings_open": 0,
+    "all_critical_high_remediated": false,
+    "status": "FAIL"
+  },
+  "checks": [
+    {
+      "id": "PENTEST_CRITICAL_HIGH",
+      "status": "FAIL",
+      "detail": "0 critical + 2 high open in the pentest run at 2026-10-22T08:57:26.561970+00:00: ['A01-05', 'A05-02']",
+      "critical_open": 0,
+      "high_open": 2
+    },
+    {
+      "id": "SAST_CRITICAL_HIGH",
+      "status": "PASS",
+      "detail": "security scan at 2026-10-21T03:49:08.257208+00:00: 0 critical + 0 high; scan verdict PASS",
+      "critical_open": 0,
+      "high_open": 0
+    },
+    {
+      "id": "RETEST_COVERAGE",
+      "status": "UNMEASURED",
+      "detail": "20 of 23 vectors measured; 3 not re-tested: ['A04-03', 'A07-02', 'A09-02']",
+      "unmeasured_vectors": [
+        "A04-03",
+        "A07-02",
+        "A09-02"
+      ]
+    },
+    {
+      "id": "MEDIUM_LOW_OWNERSHIP",
+      "status": "UNMEASURED",
+      "detail": "2 medium/low items (pentest 0 medium + 2 low/info; SAST 0 medium + 0 low); owner and target-date assignment for medium/low items needs a remediation register; none is committed to the repository",
+      "medium_low_items": 2
+    }
+  ],
+  "remediation_actions": [
+    {
+      "finding_code": "A01-05",
+      "severity": "HIGH",
+      "vector": "Operating-Unit Record-Rule Isolation",
+      "target": "Record Rules (ir.rule)",
+      "status": "OPEN",
+      "detail": "reported by the pentest run at 2026-10-22T08:57:26.561970+00:00"
+    },
+    {
+      "finding_code": "A05-02",
+      "severity": "HIGH",
+      "vector": "LB-06 Downstream Read-Only Enforcement",
+      "target": "ClickHouse Warehouse",
+      "status": "OPEN",
+      "detail": "reported by the pentest run at 2026-10-22T08:57:26.561970+00:00"
+    }
+  ]
+}

@@ -15,6 +15,7 @@ Every ir.ui.view is checked against the model its Python file defines:
 This is the audit companion to FF-27 (which checks the MENU contract); this
 checks the VIEW surface. Exit: 0 clean / 1 violations.
 """
+
 from __future__ import annotations
 
 import re
@@ -25,21 +26,36 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[2]
 ADDONS = REPO / "addons"
 
-FIELD_DECL = re.compile(
-    r"^\s{4}(\w+)\s*=\s*fields\.", re.MULTILINE
-)
+FIELD_DECL = re.compile(r"^\s{4}(\w+)\s*=\s*fields\.", re.MULTILINE)
 RELATION_DECL = re.compile(
     r'^\s{4}(\w+)\s*=\s*fields\.(One2many|Many2one)\(\s*"([\w.]+)"', re.MULTILINE
 )
 INHERIT_MODEL = re.compile(r'_inherit\s*=\s*"([\w.]+)"')
 MODEL_NAME = re.compile(r'_name\s*=\s*"([\w.]+)"')
 STANDARD_FIELDS = {
-    "id", "active", "sequence", "state", "name", "display_name", "company_id",
-    "currency_id", "create_date", "create_uid", "write_date", "write_uid",
-    "message_follower_ids", "activity_ids", "message_ids", "message_main_id",
-    "website_description", "partner_id", "user_id", "__last_update",
+    "id",
+    "active",
+    "sequence",
+    "state",
+    "name",
+    "display_name",
+    "company_id",
+    "currency_id",
+    "create_date",
+    "create_uid",
+    "write_date",
+    "write_uid",
+    "message_follower_ids",
+    "activity_ids",
+    "message_ids",
+    "message_main_id",
+    "website_description",
+    "partner_id",
+    "user_id",
+    "__last_update",
     # Odoo-standard fields present on mail-thread models
-    "message_unread", "message_needaction",
+    "message_unread",
+    "message_needaction",
 }
 
 
@@ -56,7 +72,8 @@ def load_model_fields() -> tuple[dict[str, set[str]], dict[str, dict[str, str]]]
         text = py.read_text(encoding="utf-8", errors="ignore")
         for model_match in re.finditer(
             r"class\s+\w+\(models\.(?:Model|AbstractModel|TransientModel)\):(.+?)(?=\nclass |\Z)",
-            text, re.DOTALL
+            text,
+            re.DOTALL,
         ):
             body = model_match.group(1)
             name_m = MODEL_NAME.search(body[:400])
@@ -99,9 +116,7 @@ def check_views(
             fname = el.get("name")
             if fname and fname not in fields_known(model):
                 scope = "subview" if inside_subview else "view"
-                violations.append(
-                    f"{rel}: {scope}[{model}] references unknown field {fname!r}"
-                )
+                violations.append(f"{rel}: {scope}[{model}] references unknown field {fname!r}")
                 return
             if fname and len(el) > 0:
                 comodel = relations.get(model, {}).get(fname)
@@ -131,7 +146,7 @@ def check_views(
         if not module:
             continue
         try:
-            tree = ET.parse(xml)
+            tree = ET.parse(xml)  # noqa: S314 - parses a repo-owned XML file, not untrusted input
         except ET.ParseError as exc:
             violations.append(f"{xml.relative_to(ADDONS).as_posix()}: NOT WELL-FORMED: {exc}")
             continue
@@ -159,8 +174,10 @@ def main() -> int:
         for v in violations:
             print(f"  {v}")
         return 1
-    print(f"view-integrity: OK - every view field reference resolves "
-          f"({len(fields_by_model)} models known)")
+    print(
+        f"view-integrity: OK - every view field reference resolves "
+        f"({len(fields_by_model)} models known)"
+    )
     return 0
 
 

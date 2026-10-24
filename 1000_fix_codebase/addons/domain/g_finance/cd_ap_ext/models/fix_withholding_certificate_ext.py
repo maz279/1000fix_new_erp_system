@@ -9,6 +9,6 @@ from odoo import fields, models
 class FixWithholdingCertificateApExt(models.Model):
     _inherit = "fix.withholding.certificate"
 
-    vendor_invoice_id = fields.Many2one("fix.vendor.invoice",
-                                        string="Vendor Invoice",
-                                        required=True, ondelete="cascade")
+    vendor_invoice_id = fields.Many2one(
+        "fix.vendor.invoice", string="Vendor Invoice", required=True, ondelete="cascade"
+    )

@@ -7,128 +7,888 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_inventory
 msgid "1000FiX Spare Parts & Inventory Management"
 msgstr "1000FiX খুচরা যন্ত্রাংশ ও ইনভেন্টরি ব্যবস্থাপনা"
 
-msgid "Spare Parts & Inventory"
-msgstr "খুচরা যন্ত্রাংশ ও ইনভেন্টরি"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__acquisition_cost
+msgid "Acquisition Cost (Trade-In)"
+msgstr "ক্রয় খরচ (ট্রেড-ইন)"
 
-msgid "Parts Catalog"
-msgstr "যন্ত্রাংশ ক্যাটালগ"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__active
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__active
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__state__active
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__state__active
+msgid "Active"
+msgstr "সক্রিয়"
 
-msgid "Stock Locations & Vans"
-msgstr "মজুদ অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__active
+msgid "Active Rule"
+msgstr "সক্রিয় নিয়ম"
 
-msgid "Locations & Mobile Vans"
-msgstr "অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__archived
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__archived
+msgid "Archived"
+msgstr "সংরক্ষণাগারভুক্ত"
 
-msgid "Parts Consumption (Scan-to-Consume)"
-msgstr "যন্ত্রাংশ ব্যবহার (স্ক্যান-টু-কনজিউম)"
+#. module: cd_inventory
+msgid "Assigned Technician"
+msgstr "নিয়োজিত টেকনিশিয়ান"
 
-msgid "Replenishment & Reorder Rules"
-msgstr "পুনঃসরবরাহ ও রি-অর্ডার রুলস"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__audit_discrepancy_count
+msgid "Audit Discrepancies"
+msgstr "নিরীক্ষায় অসঙ্গতি"
 
-msgid "Valuation Suspense Ledger (GV-005)"
-msgstr "মূল্যায়ন সাসপেন্স লেজার (GV-005)"
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Audit Van Stock"
+msgstr "ভ্যান মজুদ নিরীক্ষা করুন"
 
-msgid "Part Number / SKU"
-msgstr "যন্ত্রাংশ নম্বর / এসকেইউ"
-
-msgid "Part Name"
-msgstr "যন্ত্রাংশের নাম"
-
-msgid "Category"
-msgstr "বিভাগ"
-
-msgid "Brand"
-msgstr "ব্র্যান্ড"
-
+#. module: cd_inventory
 msgid "Barcode"
 msgstr "বারকোড"
 
-msgid "QR Code"
-msgstr "কিউআর কোড"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__barcode
+msgid "Barcode (EAN-13 / UPC)"
+msgstr "বারকোড (EAN-13 / UPC)"
 
-msgid "Serialized Part (IMEI/Serial Tracking)"
-msgstr "ক্রমিক নম্বরযুক্ত যন্ত্রাংশ (IMEI/সিরিয়াল ট্র্যাকিং)"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__branch_id
+msgid "Branch Hub"
+msgstr "শাখা হাব"
 
-msgid "Stock On Hand"
-msgstr "মজুদ পরিমাণ"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__branch
+msgid "Branch Hub / Workshop"
+msgstr "শাখা হাব / ওয়ার্কশপ"
 
-msgid "Unit Cost (BDT)"
-msgstr "একক খরচ (টাকা)"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__brand
+msgid "Brand"
+msgstr "ব্র্যান্ড"
 
-msgid "Sales Price (BDT)"
-msgstr "বিক্রয় মূল্য (টাকা)"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
 
-msgid "Minimum Stock (Reorder Point)"
-msgstr "সর্বনিম্ন মজুদ (রি-অর্ডার পয়েন্ট)"
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Categorization & Identification"
+msgstr "শ্রেণিবিন্যাস ও শনাক্তকরণ"
 
-msgid "Target Maximum Stock"
-msgstr "সর্বোচ্চ লক্ষ্য মজুদ"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__category
+msgid "Category"
+msgstr "বিভাগ"
 
-msgid "Safety Stock"
-msgstr "নিরাপত্তা মজুদ"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__central
+msgid "Central Warehouse"
+msgstr "কেন্দ্রীয় গুদাম"
 
-msgid "Warranty Period (Months)"
-msgstr "ওয়ারেন্টি মেয়াদ (মাস)"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__charging_port
+msgid "Charging Port & Sub-PCB"
+msgstr "চার্জিং পোর্ট ও সাব-PCB"
 
-msgid "Hardware Compatibility"
-msgstr "হার্ডওয়্যার সামঞ্জস্যতা"
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Comma-separated models, e.g. Dell Inspiron 15 3501, 3505, 3511"
+msgstr "কমা দিয়ে আলাদা করা মডেল, যেমন Dell Inspiron 15 3501, 3505, 3511"
 
-msgid "Location Code"
-msgstr "অবস্থান কোড"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__company_id
+msgid "Company"
+msgstr "কোম্পানি"
 
-msgid "Location Name"
-msgstr "অবস্থানের নাম"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__compatible_models
+msgid "Compatible Models / Hardware Matrix"
+msgstr "সামঞ্জস্যপূর্ণ মডেল / হার্ডওয়্যার ম্যাট্রিক্স"
 
-msgid "Location Type"
-msgstr "অবস্থানের ধরন"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__part_category
+msgid "Component Category"
+msgstr "উপাদানের শ্রেণি"
 
-msgid "Mobile Technician Van"
-msgstr "ভ্রাম্যমাণ টেকনিশিয়ান ভ্যান"
-
-msgid "Assigned Technician"
-msgstr "দায়িত্বপ্রাপ্ত টেকনিশিয়ান"
-
-msgid "Van Registration / Plate"
-msgstr "ভ্যান নম্বর / প্লেট"
-
-msgid "Consumption Reference"
-msgstr "ব্যবহারের রেফারেন্স"
-
-msgid "Service Order Reference"
-msgstr "সার্ভিস অর্ডার রেফারেন্স"
-
-msgid "Consumed Quantity"
-msgstr "ব্যবহৃত পরিমাণ"
-
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
 msgid "Confirm Consumption"
 msgstr "ব্যবহার নিশ্চিত করুন"
 
-msgid "Returned to Location"
-msgstr "অবস্থানে ফেরত পাঠানো হয়েছে"
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__consumed
+msgid "Consumed on Job"
+msgstr "জবে ব্যবহৃত"
 
-msgid "Return Reason"
-msgstr "ফেরতের কারণ"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__quantity
+msgid "Consumed Quantity"
+msgstr "ব্যবহৃত পরিমাণ"
 
-msgid "Suspense Account Code"
-msgstr "সাসপেন্স অ্যাকাউন্ট কোড"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__technician_id
+msgid "Consuming Technician"
+msgstr "ব্যবহারকারী টেকনিশিয়ান"
 
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__name
+msgid "Consumption Reference"
+msgstr "ব্যবহারের রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__consumed_at
+msgid "Consumption Timestamp"
+msgstr "ব্যবহারের সময়"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__core_exchange_required
+msgid "Core Return Required"
+msgstr "পুরনো যন্ত্রাংশ (কোর) ফেরত আবশ্যক"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__current_stock
+msgid "Current Stock On Hand"
+msgstr "বর্তমান হাতে থাকা মজুদ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__technician_id
+msgid "Custodian Technician"
+msgstr "রক্ষক টেকনিশিয়ান"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__customer_refusal
+msgid "Customer declined estimate"
+msgstr "গ্রাহক আনুমানিক খরচ প্রত্যাখ্যান করেছেন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__location_id
+msgid "Deduction Location / Van"
+msgstr "মজুদ কর্তনের অবস্থান / ভ্যান"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__wrong_diagnosis
+msgid "Defect misdiagnosed - part not needed"
+msgstr "ত্রুটি ভুল নির্ণীত - যন্ত্রাংশ প্রয়োজন নেই"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__device_brand
+msgid "Device Brand / Manufacturer"
+msgstr "ডিভাইস ব্র্যান্ড / প্রস্তুতকারক"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__compatibility_notes
+msgid "Device Compatibility Matrix"
+msgstr "ডিভাইস সামঞ্জস্যতা ম্যাট্রিক্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__device_id
+msgid "Device Serial"
+msgstr "ডিভাইস সিরিয়াল"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__state__discontinued
+msgid "Discontinued"
+msgstr "বন্ধ করা হয়েছে"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__display
+msgid "Display & Touch Screen Assembly"
+msgstr "ডিসপ্লে ও টাচ স্ক্রিন অ্যাসেম্বলি"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_graded_stock__state__draft
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__draft
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__draft
+msgid "Draft Scan"
+msgstr "খসড়া স্ক্যান"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__motor
+msgid "Drive Motor & Pump"
+msgstr "ড্রাইভ মোটর ও পাম্প"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "e.g. 15.6 Inch FHD IPS Display Panel"
+msgstr "যেমন 15.6 ইঞ্চি FHD IPS ডিসপ্লে প্যানেল"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "e.g. Central Warehouse Mirpur"
+msgstr "যেমন কেন্দ্রীয় গুদাম মিরপুর"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__name
+msgid "Entry Reference"
+msgstr "এন্ট্রি রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__entry_type
+msgid "Entry Type"
+msgstr "এন্ট্রির ধরন"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__excess_draw
+msgid "Excess van stock drawn and returned"
+msgstr "অতিরিক্ত ভ্যান মজুদ তোলা ও ফেরত দেওয়া হয়েছে"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__camera
+msgid "Front / Rear Camera Module"
+msgstr "সামনের / পেছনের ক্যামেরা মডিউল"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__gl_cutover_ref
+msgid "GL Cutover Voucher Ref"
+msgstr "GL কাটওভার ভাউচার রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__status
 msgid "GL Status"
 msgstr "জিএল স্থিতি"
 
-msgid "Pending GL Cutover (M19 Suspense)"
-msgstr "জিএল স্থানান্তর অপেক্ষমাণ (M19 সাসপেন্স)"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__stub_reference
+msgid "GV-005 Stub Reference"
+msgstr "GV-005 স্টাব রেফারেন্স"
 
-msgid "Reconciled to GL"
-msgstr "জিএলে সমন্বয়কৃত"
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_inventory_valuation_suspense_form
+msgid "GV-005 Suspense Stub Governance"
+msgstr "GV-005 সাসপেন্স স্টাব গভর্নেন্স"
 
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Hardware Compatibility"
+msgstr "হার্ডওয়্যার সামঞ্জস্যতা"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__fastener
+msgid "Housing, Screws & Thermal Pads"
+msgstr "হাউজিং, স্ক্রু ও থার্মাল প্যাড"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_graded_stock__state__in_stock
+msgid "In Stock (Available)"
+msgstr "মজুদে আছে (উপলব্ধ)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__state__inactive
+msgid "Inactive"
+msgstr "নিষ্ক্রিয়"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qr_code
+msgid "Internal QR Code"
+msgstr "অভ্যন্তরীণ QR কোড"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Inventory & Pricing"
+msgstr "ইনভেন্টরি ও মূল্য নির্ধারণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__revaluation
+msgid "Inventory Revaluation"
+msgstr "ইনভেন্টরি পুনর্মূল্যায়ন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__state
+msgid "Inventory Status"
+msgstr "ইনভেন্টরির অবস্থা"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__inventory_valuation
+msgid "Inventory Valuation"
+msgstr "ইনভেন্টরি মূল্যায়ন"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__compressor
+msgid "Inverter / Rotary Compressor"
+msgstr "ইনভার্টার / রোটারি কম্প্রেসর"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__is_van_location
+msgid "Is Van Location"
+msgstr "ভ্যান অবস্থান"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__is_van_stock
+msgid "Is Van Stock"
+msgstr "ভ্যান মজুদ"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__consumption
+msgid "Job Consumption"
+msgstr "জবে ব্যবহার"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__return
+msgid "Job Return"
+msgstr "জব থেকে ফেরত"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__last_alert_date
+msgid "Last Alert Triggered At"
+msgstr "সর্বশেষ সতর্কতা ট্রিগারের সময়"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__last_audit_date
+msgid "Last Physical Audit Date"
+msgstr "সর্বশেষ সরেজমিন নিরীক্ষার তারিখ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__legacy_reference
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__legacy_reference
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__legacy_reference
+msgid "Legacy Reference"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__list_price
+msgid "List Price (BDT)"
+msgstr "তালিকা মূল্য (টাকা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__battery
+msgid "Lithium Battery Pack"
+msgstr "লিথিয়াম ব্যাটারি প্যাক"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__code
+msgid "Location Code"
+msgstr "অবস্থান কোড"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Location Metadata"
+msgstr "অবস্থানের মেটাডেটা"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__name
+msgid "Location Name"
+msgstr "অবস্থানের নাম"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__location_type
+msgid "Location Type"
+msgstr "অবস্থানের ধরন"
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_stock_locations
+msgid "Locations & Mobile Vans"
+msgstr "অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_predicted_demand
+msgid "M43 7-Day Forecast Demand"
+msgstr "M43 ৭ দিনের পূর্বাভাসিত চাহিদা"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_ai_override
 msgid "M43 Dynamic AI Forecast Active"
 msgstr "M43 গতিশীল এআই পূর্বাভাস সক্রিয়"
 
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "M43 Machine Learning Forecasting Seam (Phase R07)"
+msgstr "M43 মেশিন লার্নিং পূর্বাভাস সিম (পর্যায় R07)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_model_version
+msgid "M43 Seam Interface Version"
+msgstr "M43 সিম ইন্টারফেস সংস্করণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__min_qty
+msgid "Minimum Reorder Point"
+msgstr "সর্বনিম্ন রি-অর্ডার পয়েন্ট"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__min_qty
+msgid "Minimum Stock (Reorder Point)"
+msgstr "সর্বনিম্ন মজুদ (রি-অর্ডার পয়েন্ট)"
+
+#. module: cd_inventory
+msgid "Mobile Technician Van"
+msgstr "ভ্রাম্যমাণ টেকনিশিয়ান ভ্যান"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__van
+msgid "Mobile Technician Van Stock"
+msgstr "ভ্রাম্যমাণ টেকনিশিয়ান ভ্যানের মজুদ"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Mobile Van Configuration"
+msgstr "ভ্রাম্যমাণ ভ্যান কনফিগারেশন"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__motherboard
+msgid "Motherboard / Main PCB"
+msgstr "মাদারবোর্ড / প্রধান PCB"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__quantity
+msgid "Movement Quantity"
+msgstr "স্থানান্তরিত পরিমাণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__state__obsolete
+msgid "Obsolete"
+msgstr "অপ্রচলিত"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__branch_id
+msgid "Operating Branch / Hub"
+msgstr "পরিচালনাকারী শাখা / হাব"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__consumption_id
+msgid "Originating Consumption"
+msgstr "উৎস ব্যবহার"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__tradein_id
+msgid "Originating Trade-In ID"
+msgstr "উৎস ট্রেড-ইন আইডি"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__tradein_ref
+msgid "Originating Trade-In Ref"
+msgstr "উৎস ট্রেড-ইন রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__parent_id
+msgid "Parent Location"
+msgstr "ঊর্ধ্বতন অবস্থান"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__name
+msgid "Part Description"
+msgstr "যন্ত্রাংশের বিবরণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__defective_new
+msgid "Part DOA / defective out of box"
+msgstr "যন্ত্রাংশ DOA / বাক্স খোলার সময়েই ত্রুটিপূর্ণ"
+
+#. module: cd_inventory
+msgid "Part Name"
+msgstr "যন্ত্রাংশের নাম"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__part_number
+msgid "Part Number / SKU"
+msgstr "যন্ত্রাংশ নম্বর / এসকেইউ"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Part Scan & Valuation"
+msgstr "যন্ত্রাংশ স্ক্যান ও মূল্যায়ন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__serial_number
+msgid "Part Serial Number / IMEI"
+msgstr "যন্ত্রাংশের সিরিয়াল নম্বর / IMEI"
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_spare_parts
+msgid "Parts Catalog"
+msgstr "যন্ত্রাংশ ক্যাটালগ"
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_stock_consumption
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_stock_consumption
+msgid "Parts Consumption (Scan-to-Consume)"
+msgstr "যন্ত্রাংশ ব্যবহার (স্ক্যান-টু-কনজিউম)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__pending_gl_cutover
+msgid "Pending GL Cutover (M19 Suspense)"
+msgstr "জিএল স্থানান্তর অপেক্ষমাণ (M19 সাসপেন্স)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__initial_count
+msgid "Physical Baseline Migration"
+msgstr "সরেজমিন ভিত্তি মাইগ্রেশন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__projected_margin
+msgid "Projected Margin"
+msgstr "প্রত্যাশিত মার্জিন"
+
+#. module: cd_inventory
+msgid "QR Code"
+msgstr "কিউআর কোড"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qty_available
+msgid "Quantity On Hand"
+msgstr "হাতে থাকা পরিমাণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qty_reserved
+msgid "Quantity Reserved"
+msgstr "সংরক্ষিত পরিমাণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__quarantine
+msgid "Quarantine / Inspection"
+msgstr "কোয়ারেন্টাইন / পরিদর্শন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__scanned_code
+msgid "Raw Scanned Barcode/QR"
+msgstr "স্ক্যানকৃত মূল বারকোড/QR"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__reconciled_at
+msgid "Reconciled Timestamp"
+msgstr "সমন্বয়ের সময়"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__reconciled
+msgid "Reconciled to GL"
+msgstr "জিএলে সমন্বয়কৃত"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__refurbishment_cost
+msgid "Refurbishment Cost"
+msgstr "রিফার্বিশমেন্ট খরচ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__grade_id
+msgid "Refurbishment Grade"
+msgstr "রিফার্বিশমেন্ট গ্রেড"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "Reorder Scope"
+msgstr "রি-অর্ডারের পরিসর"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Repair Job Reference"
+msgstr "মেরামত জব রেফারেন্স"
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_reorder_rule
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_reorder_rules
+msgid "Replenishment & Reorder Rules"
+msgstr "পুনঃসরবরাহ ও রি-অর্ডার রুলস"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__alert
+msgid "Replenishment Alert"
+msgstr "পুনঃসরবরাহ সতর্কতা"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__lead_time_days
+msgid "Replenishment Lead Time (Days)"
+msgstr "পুনঃসরবরাহের লিড টাইম (দিন)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__ordered
+msgid "Requisition In Flight"
+msgstr "চলমান চাহিদাপত্র"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_graded_stock__state__reserved
+msgid "Reserved"
+msgstr "সংরক্ষিত"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__sales_price
+msgid "Retail Replacement Price (BDT)"
+msgstr "খুচরা প্রতিস্থাপন মূল্য (টাকা)"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Return Information"
+msgstr "ফেরতের তথ্য"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__return_notes
+msgid "Return Notes"
+msgstr "ফেরতের নোট"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__return_reason
+msgid "Return Reason"
+msgstr "ফেরতের কারণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__returned_at
+msgid "Return Timestamp"
+msgstr "ফেরতের সময়"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__returned
+msgid "Returned to Location"
+msgstr "অবস্থানে ফেরত পাঠানো হয়েছে"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__name
+msgid "Rule Code"
+msgstr "নিয়ম কোড"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__safety_stock
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__safety_stock
+msgid "Safety Buffer Stock"
+msgstr "নিরাপত্তা বাফার মজুদ"
+
+#. module: cd_inventory
+msgid "Safety Stock"
+msgstr "নিরাপত্তা মজুদ"
+
+#. module: cd_inventory
+msgid "Sales Price (BDT)"
+msgstr "বিক্রয় মূল্য (টাকা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__scrap
+msgid "Scrap / E-Waste Disposal"
+msgstr "স্ক্র্যাপ / ই-বর্জ্য নিষ্পত্তি"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_graded_stock__state__scrapped
+msgid "Scrapped / E-Waste"
+msgstr "স্ক্র্যাপকৃত / ই-বর্জ্য"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__is_serialized
+msgid "Serialized Component"
+msgstr "সিরিয়ালযুক্ত উপাদান"
+
+#. module: cd_inventory
+msgid "Serialized Part (IMEI/Serial Tracking)"
+msgstr "ক্রমিক নম্বরযুক্ত যন্ত্রাংশ (IMEI/সিরিয়াল ট্র্যাকিং)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__service_order_ref
+msgid "Service Order Reference"
+msgstr "সার্ভিস অর্ডার রেফারেন্স"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "SKU / Part Number"
+msgstr "SKU / যন্ত্রাংশ নম্বর"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_graded_stock__state__sold
+msgid "Sold / Delivered"
+msgstr "বিক্রীত / ডেলিভারি সম্পন্ন"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__product_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__spare_part_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__product_id
+msgid "Spare Part"
+msgstr "খুচরা যন্ত্রাংশ"
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_inventory_root
+msgid "Spare Parts & Inventory"
+msgstr "খুচরা যন্ত্রাংশ ও ইনভেন্টরি"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__unit_cost
+msgid "Standard Cost (BDT)"
+msgstr "আদর্শ ব্যয় (টাকা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__state
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__location_id
+msgid "Stock Location / Van"
+msgstr "মজুদ অবস্থান / ভ্যান"
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_stock_location
+msgid "Stock Locations & Vans"
+msgstr "মজুদ অবস্থান ও ভ্রাম্যমাণ ভ্যান"
+
+#. module: cd_inventory
+msgid "Stock On Hand"
+msgstr "মজুদ পরিমাণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__name
+msgid "Stock Tag / Serial"
+msgstr "মজুদ ট্যাগ / সিরিয়াল"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__stub_expiry_date
+msgid "Stub Expiry Target"
+msgstr "স্টাব মেয়াদের লক্ষ্য"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__suggested_order_qty
+msgid "Suggested Order Qty"
+msgstr "প্রস্তাবিত অর্ডার পরিমাণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__suspense_account_code
+msgid "Suspense Account Code"
+msgstr "সাসপেন্স অ্যাকাউন্ট কোড"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__max_qty
+msgid "Target Max Stock"
+msgstr "সর্বোচ্চ লক্ষ্য মজুদ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__max_qty
+msgid "Target Maximum Stock"
+msgstr "সর্বোচ্চ লক্ষ্য মজুদ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__resale_price
+msgid "Target Resale Price"
+msgstr "লক্ষ্য পুনঃবিক্রয় মূল্য"
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__sensor
+msgid "Thermal / Pressure Sensor"
+msgstr "থার্মাল / চাপ সেন্সর"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "Thresholds & Lead Time"
+msgstr "সীমা ও লিড টাইম"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__total_valuation
+msgid "Total Valuation (BDT)"
+msgstr "মোট মূল্যায়ন (টাকা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__total_cost
+msgid "Total Valuation Cost (BDT)"
+msgstr "মোট মূল্যায়িত খরচ (টাকা)"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
 msgid "Trigger Replenishment Alert"
 msgstr "পুনঃসরবরাহ সতর্কতা ট্রিগার করুন"
 
-msgid "Audit Van Stock"
-msgstr "ভ্যান মজুদ নিরীক্ষা করুন"
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__unit_cost
+msgid "Unit Cost (BDT)"
+msgstr "একক খরচ (টাকা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__uom
+msgid "Unit of Measure"
+msgstr "পরিমাপের একক"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__unit_cost
+msgid "Unit Valuation Cost (BDT)"
+msgstr "একক মূল্যায়িত খরচ (টাকা)"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_inventory_valuation_suspense_form
+msgid "Valuation Movement"
+msgstr "মূল্যায়ন পরিবর্তন"
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_inventory_valuation_suspense
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_valuation_suspense
+msgid "Valuation Suspense Ledger (GV-005)"
+msgstr "মূল্যায়ন সাসপেন্স লেজার (GV-005)"
+
+#. module: cd_inventory
+msgid "Van Registration / Plate"
+msgstr "ভ্যান নম্বর / প্লেট"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__van_plate
+msgid "Vehicle Registration / Plate Number"
+msgstr "যানবাহন নিবন্ধন / প্লেট নম্বর"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_graded_stock__location_id
+msgid "Warehouse Location"
+msgstr "গুদামের অবস্থান"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__warranty_months
+msgid "Warranty Period (Months)"
+msgstr "ওয়ারেন্টি মেয়াদ (মাস)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__work_order_ref
+msgid "Work Order Reference"
+msgstr "ওয়ার্ক অর্ডার রেফারেন্স"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "বাংলা নাম (যেমন: কেন্দ্রীয় গুদাম মিরপুর)"
+msgstr "বাংলা নাম (যেমন: কেন্দ্রীয় গুদাম মিরপুর)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__name_bn
+msgid "ব্যবহারের রেফারেন্স (বাংলা)"
+msgstr "ব্যবহারের রেফারেন্স (বাংলা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__name_bn
+msgid "মূল্যায়ন এন্ট্রি রেফারেন্স (বাংলা)"
+msgstr "মূল্যায়ন এন্ট্রি রেফারেন্স (বাংলা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__name_bn
+msgid "যন্ত্রাংশের নাম (বাংলা)"
+msgstr "যন্ত্রাংশের নাম (বাংলা)"
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "যন্ত্রাংশের বাংলা বিবরণ"
+msgstr "যন্ত্রাংশের বাংলা বিবরণ"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__name_bn
+msgid "রি-অর্ডার রুল নাম (বাংলা)"
+msgstr "রি-অর্ডার রুলের নাম (বাংলা)"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__name_bn
+msgid "লোকেশন নাম (বাংলা)"
+msgstr "অবস্থানের নাম (বাংলা)"

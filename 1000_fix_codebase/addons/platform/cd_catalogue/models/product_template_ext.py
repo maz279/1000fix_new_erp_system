@@ -12,13 +12,15 @@ class ProductTemplateExt(models.Model):
     "currency_id" respectively. This extension confirms and enforces the
     constraint: NO price field anywhere in the estate uses Float.
     """
+
     _inherit = "product.template"
 
     # Catalogue link (one-to-one with fix.catalogue.item)
     catalogue_item_id = fields.One2many(
-        "fix.catalogue.item", "product_tmpl_id", string="Catalogue Item")
+        "fix.catalogue.item", "product_tmpl_id", string="Catalogue Item"
+    )
 
     # DE-17: Bengali name for the product (used in bilingual catalogues)
     name_bn = fields.Char(
-        string="Product Name (Bengali)",
-        help="Bengali display name — DE-17 Bengali-first")
+        string="Product Name (Bengali)", help="Bengali display name — DE-17 Bengali-first"
+    )

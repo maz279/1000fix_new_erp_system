@@ -7,42 +7,136 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__branch_transfer
+msgid "Branch Transfer"
+msgstr "শাখা স্থানান্তর"
 
+#. module: cd_consignment
+#: model_terms:ir.ui.view,arch_db:cd_consignment.view_fix_consignment_tree
 msgid "Chain"
 msgstr "চেইন"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__chain_broken
 msgid "Chain Broken"
 msgstr "চেইন ভাঙা"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__confirmed
+msgid "Confirmed"
+msgstr "নিশ্চিতকৃত"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__name
 msgid "Consignment No."
 msgstr "কনসাইনমেন্ট নং"
 
+#. module: cd_consignment
+#: model:ir.actions.act_window,name:cd_consignment.action_fix_consignment
+#: model:ir.ui.menu,name:cd_consignment.menu_fix_consignment
 msgid "Consignments"
 msgstr "কনসাইনমেন্টসমূহ"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__custody_ids
 msgid "Custody Chain"
 msgstr "কাস্টডি চেইন"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__delivered
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__delivered
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__delivery
+msgid "Delivery (branch -> customer)"
+msgstr "ডেলিভারি (শাখা -> গ্রাহক)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__dest_branch_id
 msgid "Destination"
 msgstr "গন্তব্য"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__device_serial
 msgid "Device Serial"
 msgstr "ডিভাইস সিরিয়াল"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__hub_scan
+msgid "Hub Scan"
+msgstr "হাব স্ক্যান"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__in_transit
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__in_transit
+msgid "In Transit"
+msgstr "পরিবহনে"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__location_branch_id
 msgid "Location"
 msgstr "অবস্থান"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__lost
+msgid "Lost"
+msgstr "হারানো"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__origin_branch_id
 msgid "Origin"
 msgstr "উৎস"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__out_for_delivery
+msgid "Out for Delivery"
+msgstr "ডেলিভারির পথে"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__picked_up
+msgid "Picked Up"
+msgstr "সংগৃহীত"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__pickup
+msgid "Pickup (customer -> branch)"
+msgstr "পিকআপ (গ্রাহক -> শাখা)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__purchase_order_id
 msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__return_to_vendor
+msgid "Return to Vendor"
+msgstr "ভেন্ডরের কাছে ফেরত"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__returned
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__returned
+msgid "Returned"
+msgstr "ফেরতকৃত"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__rider_id
 msgid "Rider"
 msgstr "রাইডার"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__scanned_by
 msgid "Scanned By"
 msgstr "স্ক্যানকারী"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"

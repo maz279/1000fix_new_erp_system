@@ -1,0 +1,150 @@
+{
+  "conformance_run": "CFM-05: Customer Mobile App (APP-04) vs Customer Portal (P01) Conformance",
+  "task_reference": "R07-M05-T04",
+  "timestamp_utc": "2026-10-19T05:58:00Z",
+  "overall_status": "PASS",
+  "runtime_environments": {
+    "mobile_flutter": {
+      "app_id": "apps/mobile/customer",
+      "framework": "Flutter 3.x (Dart 3.x)",
+      "token_library": "fix_ui (CFM-01 clean, zero raw hex)",
+      "offline_engine": "fix_offline (FL-03 unified)",
+      "bengali_first": true,
+      "wcag_level": "WCAG 2.2 AA"
+    },
+    "web_portal": {
+      "app_id": "apps/portal-customer (P01)",
+      "framework": "Next.js 15.x (React 19)",
+      "token_library": "fix_ui design tokens",
+      "bengali_first": true,
+      "wcag_level": "WCAG 2.2 AA"
+    }
+  },
+  "p01_capability_parity_matrix": [
+    {
+      "capability": "account_management",
+      "p01_web_route": "/account/profile",
+      "app04_mobile_screen": "HomeScreen._profile",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "device_registration",
+      "p01_web_route": "/devices/register",
+      "app04_mobile_screen": "DeviceWarrantyScreen",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "service_booking",
+      "p01_web_route": "/book/step-wizard",
+      "app04_mobile_screen": "BookingScreen",
+      "step_budget": "<=3 steps",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "order_tracking",
+      "p01_web_route": "/tracking/[order_id]",
+      "app04_mobile_screen": "TrackingScreen",
+      "eta_available": true,
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "quote_approvals",
+      "p01_web_route": "/orders/[id]/estimate-approval",
+      "app04_mobile_screen": "TrackingScreen._estimateApproval",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "payment_settlement",
+      "p01_web_route": "/checkout/payment",
+      "app04_mobile_screen": "BookingScreen._paymentGateways",
+      "supported_methods": ["bKash", "Nagad", "Cards", "Mushak 6.3"],
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "amc_contracts",
+      "p01_web_route": "/contracts",
+      "app04_mobile_screen": "DeviceWarrantyScreen._contractStatus",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "warranty_management",
+      "p01_web_route": "/warranty/claims",
+      "app04_mobile_screen": "DeviceWarrantyScreen._claims",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "loyalty_rewards",
+      "p01_web_route": "/rewards/points",
+      "app04_mobile_screen": "HomeScreen._serviceGrid.stars",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "shop_refurbished",
+      "p01_web_route": "/shop/certified-pre-owned",
+      "app04_mobile_screen": "HomeScreen._circularEconomy",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "trade_in_exchange",
+      "p01_web_route": "/trade-in/calculator",
+      "app04_mobile_screen": "HomeScreen._circularEconomy.tradeIn",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "data_services_m06",
+      "p01_web_route": "/data-services/recovery",
+      "app04_mobile_screen": "HomeScreen._dataServices",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "ewaste_recycling",
+      "p01_web_route": "/sustainability/recycle",
+      "app04_mobile_screen": "HomeScreen._circularEconomy.ewaste",
+      "parity_status": "CONFORMANT"
+    },
+    {
+      "capability": "support_feedback",
+      "p01_web_route": "/support/csat",
+      "app04_mobile_screen": "SupportFeedbackScreen",
+      "csat_nps_survey": true,
+      "m32_assistant_link": true,
+      "parity_status": "CONFORMANT"
+    }
+  ],
+  "corporate_sso_federation_int046": {
+    "status": "PASS",
+    "broker_engine": "services/corporate-sso/src/sso_federation.py",
+    "supported_protocols": ["SAML 2.0 (ADFS/Azure AD)", "OIDC (Enterprise IdP)"],
+    "keycloak_realm": "fix-corporate",
+    "tenant_isolation_verified": true,
+    "tested_tenants": [
+      {
+        "tenant_id": "TENANT-GP",
+        "name": "Grameenphone Ltd.",
+        "protocol": "SAML2",
+        "role_mapped": "corporate_buyer",
+        "status": "PASS"
+      },
+      {
+        "tenant_id": "TENANT-ROBI",
+        "name": "Robi Axiata Ltd.",
+        "protocol": "OIDC",
+        "role_mapped": "corporate_admin",
+        "status": "PASS"
+      },
+      {
+        "tenant_id": "TENANT-WALTON",
+        "name": "Walton Micro-Tech",
+        "protocol": "OIDC",
+        "role_mapped": "corporate_admin",
+        "status": "PASS"
+      }
+    ]
+  },
+  "fitness_function_verification": {
+    "ff42_dart_apps": "PASS",
+    "cfm01_zero_hand_hex": "PASS",
+    "de17_bengali_first": "PASS",
+    "ux005_wcag_aa": "PASS"
+  }
+}

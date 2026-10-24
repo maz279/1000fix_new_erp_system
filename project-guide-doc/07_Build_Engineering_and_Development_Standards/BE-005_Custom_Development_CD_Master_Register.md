@@ -681,6 +681,7 @@ does not estimate it (`GV-007` `EM-01`).
 | **`CD-M30-02`** | `cd_feature_flag` | flag registry, targeting, evaluation service, kill switch, telemetry correlation, stale… | Odoo module + service | W1 | 3 | `CD-135` |
 | **`CD-M30-03`** | `cd_platform_ops` | configuration registry, versioning, promotion and rollback, emergency path, health cons… | Odoo module + frontend | W1 | 7 | `CD-138` |
 | **`CD-M30-04`** | `cd_job_registry` | scheduled job registry, execution monitoring with failure, overrun and missed-run detec… | Odoo module | W1 | 2 | `CD-159` |
+| **`CD-M30-05`** | `cd_design_tokens` | DTCG design-token realization and asset carrier for OWL 2 / Odoo Web (DSY-01, CR-P04-DSY-01) | Odoo module | W1 | 3 | `CD-DSY` |
 | **`CD-M64-01`** | `cd_mdm` | domain register, governed attribute model, direct-edit prevention, change request workf… | Odoo module + frontend | W2 | 8 | `CD-134` |
 | **`CD-M64-02`** | `cd_data_quality` | rule engine across six dimensions, classification and gating, scoring, continuous evalu… | Odoo module + service | W2 | 6 | `CD-160` |
 | **`CD-M64-03`** | `cd_reference_data` | code list master, versioning and effective dating, distribution and cache invalidation,… | Odoo module | W2 | 3 | `CD-161` |

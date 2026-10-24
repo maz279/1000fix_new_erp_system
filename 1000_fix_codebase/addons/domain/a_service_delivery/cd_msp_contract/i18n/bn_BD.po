@@ -3,99 +3,224 @@ msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "MSP Contract"
-msgstr "এমএসপি চুক্তি"
-
-msgid "Monitored Asset"
-msgstr "পর্যবেক্ষিত সম্পদ"
-
-msgid "MSP Alert"
-msgstr "এমএসপি সতর্কতা"
-
-msgid "Remote Session"
-msgstr "রিমোট সেশন"
-
-msgid "MSP Service Report"
-msgstr "এমএসপি সার্ভিস রিপোর্ট"
-
-msgid "Contract (M08)"
-msgstr "চুক্তি (M08)"
-
-msgid "Covered Devices"
-msgstr "আচ্ছাদিত ডিভাইস"
-
-msgid "Endpoints Only"
-msgstr "শুধু এন্ডপয়েন্ট"
-
-msgid "Endpoints + Network"
-msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
-
-msgid "Full Stack"
-msgstr "ফুল স্ট্যাক"
-
-msgid "Per-Device Monthly"
-msgstr "প্রতি ডিভাইস মাসিক"
-
-msgid "Monitored Assets"
-msgstr "পর্যবেক্ষিত সম্পদসমূহ"
-
-msgid "Service Reports"
-msgstr "সার্ভিস রিপোর্টসমূহ"
-
-msgid "Healthy"
-msgstr "সুস্থ"
-
-msgid "Degraded"
-msgstr "খারাপ"
-
-msgid "Offline"
-msgstr "অফলাইন"
-
-msgid "Raised"
-msgstr "উত্থাপিত"
-
-msgid "Acknowledged"
-msgstr "স্বীকৃত"
-
-msgid "Ticketed"
-msgstr "টিকেটকৃত"
-
-msgid "Resolved"
-msgstr "সমাধানকৃত"
-
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
 msgid "Acknowledge"
 msgstr "স্বীকার করুন"
 
-msgid "Create Ticket"
-msgstr "টিকেট তৈরি করুন"
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__acked
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
 
-msgid "MeshCentral"
-msgstr "মেশসেন্ট্রাল"
-
-msgid "RustDesk"
-msgstr "রাস্টডেস্ক"
-
-msgid "Technician"
-msgstr "কারিগর"
-
-msgid "Period"
-msgstr "পিরিয়ড"
-
-msgid "SLA Attainment (0-1)"
-msgstr "এসএলএ অর্জন (০-১)"
-
-msgid "সারসংক্ষেপ (Bengali)"
-msgstr "সারসংক্ষেপ (বাংলা)"
-
-msgid "Summary (English)"
-msgstr "সারসংক্ষেপ (ইংরেজি)"
-
-msgid "Managed Services"
-msgstr "পরিচালিত সেবা"
-
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_alerts
 msgid "Alerts"
 msgstr "সতর্কতাসমূহ"
 
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__contract_id
+msgid "Contract (M08)"
+msgstr "চুক্তি (M08)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__device_count
+msgid "Covered Devices"
+msgstr "আচ্ছাদিত ডিভাইস"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
+msgid "Create Ticket"
+msgstr "টিকেট তৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__degraded
+msgid "Degraded"
+msgstr "অবনমিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints_network
+msgid "Endpoints + Network"
+msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints
+msgid "Endpoints Only"
+msgstr "শুধু এন্ডপয়েন্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__full
+msgid "Full Stack"
+msgstr "ফুল স্ট্যাক"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Generate Report"
+msgstr "রিপোর্ট তৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__healthy
+msgid "Healthy"
+msgstr "স্বাভাবিক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__major
+msgid "Major"
+msgstr "গুরুতর"
+
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_ws_msp
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__meshcentral
+msgid "MeshCentral"
+msgstr "মেশসেন্ট্রাল"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__minor
+msgid "Minor"
+msgstr "সামান্য"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_monitored_asset
+msgid "Monitored Asset"
+msgstr "পর্যবেক্ষিত সম্পদ"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_monitored_asset
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__asset_ids
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_assets
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Monitored Assets"
+msgstr "পর্যবেক্ষিত সম্পদসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_service_report
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_reports
+msgid "Monthly Reports"
+msgstr "মাসিক রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_alert
+msgid "MSP Alert"
+msgstr "এমএসপি সতর্কতা"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_contract
+msgid "MSP Contract"
+msgstr "এমএসপি চুক্তি"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_contracts
 msgid "MSP Contracts"
 msgstr "এমএসপি চুক্তিসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_service_report
+msgid "MSP Service Report"
+msgstr "এমএসপি সার্ভিস রিপোর্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__offline
+msgid "Offline"
+msgstr "অফলাইন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__per_device_monthly
+msgid "Per-Device Monthly"
+msgstr "প্রতি ডিভাইস মাসিক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__period_label
+msgid "Period"
+msgstr "পিরিয়ড"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_list
+msgid "Raised"
+msgstr "উত্থাপিত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__device_id
+msgid "Registered Device"
+msgstr "নিবন্ধিত ডিভাইস"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_remote_session
+msgid "Remote Session"
+msgstr "রিমোট সেশন"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_remote_session
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_remote_session
+msgid "Remote Sessions"
+msgstr "রিমোট সেশনসমূহ"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_contract_form
+msgid "Reports"
+msgstr "রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__resolved
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__rustdesk
+msgid "RustDesk"
+msgstr "রাস্টডেস্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__report_ids
+msgid "Service Reports"
+msgstr "সার্ভিস রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__sla_attainment
+msgid "SLA Attainment (0-1)"
+msgstr "এসএলএ অর্জন (০-১)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_en
+msgid "Summary (English)"
+msgstr "সারসংক্ষেপ (ইংরেজি)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__ticketed
+msgid "Ticketed"
+msgstr "টিকেটকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_bn
+msgid "সারসংক্ষেপ (Bengali)"
+msgstr "সারসংক্ষেপ (বাংলা)"

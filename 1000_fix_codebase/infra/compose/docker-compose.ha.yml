@@ -1,0 +1,253 @@
+# =============================================================================
+# 1000fix-erp - ha environment overlay (PE-001, TSS §21.3)
+#
+# High Availability (HA) pairs for the four total-outage components:
+# 1. PostgreSQL 17 (Primary + Standby)
+# 2. Keycloak 26 (Clustered 2-Node with Infinispan)
+# 3. Kong API Gateway (Clustered 2-Node)
+# 4. Nginx Edge Ingress (Dual-Node with Health Check Failover)
+#
+# Rule TSS §21.3: "The four components where a single node causes total outage
+# are PostgreSQL primary, Keycloak, Kong, Nginx — all four are HA from Wave 1."
+# =============================================================================
+services:
+  # ---------------------------------------------------------------------------
+  # 1. PostgreSQL 17 Primary & Standby HA Pair
+  # ---------------------------------------------------------------------------
+  # Streaming replication (R01 DR audit): postgres-replication/primary-init.sh
+  # gives the primary a replication role, the slot `postgres_ha_standby` and a
+  # pg_hba `replication` entry scoped to `samenet` (this compose network); the
+  # standby clones the primary with pg_basebackup -R on first boot and then
+  # streams from it. Promote the standby with `pg_ctl promote` (or
+  # SELECT pg_promote()) - nothing here fails over automatically.
+  postgres-ha-primary:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      POSTGRES_USER: fix_admin
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+      POSTGRES_DB: fix_production
+      PG_REPLICATION_USER: ${PG_REPLICATION_USER:-fix_replicator}
+      PG_REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG replication password must be Vault injected}
+      PG_REPLICATION_SLOTS: postgres_ha_standby
+      PG_REPLICATION_HBA_TYPE: host
+      PG_REPLICATION_ALLOWED_ADDRESS: samenet
+    command: [
+      "postgres",
+      "-c", "wal_level=replica",
+      "-c", "max_wal_senders=10",
+      "-c", "max_replication_slots=10",
+      "-c", "max_slot_wal_keep_size=4GB"
+    ]
+    ports: ["127.0.0.1:5462:5432"]
+    volumes:
+      - pgdata-ha-primary:/var/lib/postgresql/data
+      - ./postgres-replication/primary-init.sh:/docker-entrypoint-initdb.d/10-replication-primary.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix_admin -d fix_production"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  # No POSTGRES_* here: the standby is a byte-for-byte clone of the primary
+  # (same roles, same databases) and never runs initdb. No depends_on either:
+  # after a failover, starting this node must not drag the old primary back up
+  # (split brain) - the bootstrap below waits for the primary itself.
+  postgres-ha-standby:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      PG_REPLICATION_USER: ${PG_REPLICATION_USER:-fix_replicator}
+      PG_REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG replication password must be Vault injected}
+    # Standby bootstrap (same script as postgres-dr in docker-compose.dr.yml).
+    # On first boot (no PG_VERSION) clone the primary with `pg_basebackup -R`
+    # (writes standby.signal + primary_conninfo) using the primary_conninfo /
+    # primary_slot_name declared on `command`, then hand over to the stock
+    # entrypoint. An initialised volume (running standby, or a node promoted
+    # at failover) is started as-is: nothing here ever wipes data. The
+    # replication password reaches libpq only via a 0600 passfile.
+    entrypoint:
+      - bash
+      - -Eeuo
+      - pipefail
+      - -c
+      - |
+        conninfo='' slot='' prev=''
+        for arg in "$$@"; do
+          if [ "$$prev" = -c ]; then
+            case "$$arg" in
+              primary_conninfo=*) conninfo="$${arg#primary_conninfo=}" ;;
+              primary_slot_name=*) slot="$${arg#primary_slot_name=}" ;;
+            esac
+          fi
+          prev="$$arg"
+        done
+        : "$${conninfo:?command must pass -c primary_conninfo=...}" "$${slot:?command must pass -c primary_slot_name=...}"
+        case "$$PG_REPLICATION_PASSWORD" in *$$'\n'*) echo "PG_REPLICATION_PASSWORD must be one line" >&2; exit 1 ;; esac
+        pass="$${PG_REPLICATION_PASSWORD//\\/\\\\}"
+        umask 077
+        printf '*:*:*:%s:%s\n' "$$PG_REPLICATION_USER" "$${pass//:/\\:}" > /var/lib/postgresql/.pgpass_replication
+        chown postgres:postgres /var/lib/postgresql/.pgpass_replication
+        unset PG_REPLICATION_PASSWORD pass
+        if [ ! -s "$$PGDATA/PG_VERSION" ]; then
+          install -d -o postgres -g postgres -m 0700 "$$PGDATA"
+          echo "standby bootstrap: $$PGDATA is empty - cloning the primary with pg_basebackup -R (slot $$slot)"
+          until gosu postgres pg_isready -q -d "$$conninfo replication=true"; do echo "standby bootstrap: waiting for the primary"; sleep 5; done
+          gosu postgres pg_basebackup --pgdata="$$PGDATA" --dbname="$$conninfo" --slot="$$slot" \
+            --wal-method=stream --checkpoint=fast --write-recovery-conf --no-password --verbose
+          test -f "$$PGDATA/standby.signal"
+        fi
+        exec docker-entrypoint.sh "$$@"
+      - postgres-ha-standby-bootstrap
+    command: [
+      "postgres",
+      "-c", "hot_standby=on",
+      "-c", "hot_standby_feedback=on",
+      "-c", "primary_conninfo=host=postgres-ha-primary port=5432 user=${PG_REPLICATION_USER:-fix_replicator} passfile=/var/lib/postgresql/.pgpass_replication application_name=postgres_ha_standby",
+      "-c", "primary_slot_name=postgres_ha_standby"
+    ]
+    ports: ["127.0.0.1:5463:5432"]
+    volumes:
+      - pgdata-ha-standby:/var/lib/postgresql/data
+    healthcheck:
+      # Healthy only while in recovery AND streaming from the primary
+      # (pg_monitor, granted by primary-init.sh, lets the replication role read
+      # pg_stat_wal_receiver.status). Unhealthy after promotion by design.
+      test: ["CMD-SHELL", "psql -XtA -U \"$${PG_REPLICATION_USER}\" -d postgres -c \"SELECT pg_is_in_recovery() AND EXISTS (SELECT 1 FROM pg_stat_wal_receiver WHERE status = 'streaming')\" | grep -qx t"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 2. Keycloak 26 Clustered Pair (Node 1 + Node 2 with Infinispan Cache)
+  # ---------------------------------------------------------------------------
+  keycloak-ha-01:
+    image: quay.io/keycloak/keycloak:26.0.0@sha256:db0d0f2c2eee8618a37a50e04affb69823e56687b4d1b676a847a4b85de62178
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres-ha-primary
+      KC_DB_USERNAME: fix_admin
+      KC_DB_PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+      KC_CACHE_STACK: udp
+    command: ["start", "--optimized", "--cache=ispn"]
+    ports: ["127.0.0.1:8181:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  keycloak-ha-02:
+    image: quay.io/keycloak/keycloak:26.0.0@sha256:db0d0f2c2eee8618a37a50e04affb69823e56687b4d1b676a847a4b85de62178
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres-ha-primary
+      KC_DB_USERNAME: fix_admin
+      KC_DB_PASSWORD: ${PROD_DB_PASSWORD:?Production DB password must be Vault injected}
+      KC_CACHE_STACK: udp
+    command: ["start", "--optimized", "--cache=ispn"]
+    ports: ["127.0.0.1:8182:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:8080/health/ready || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 3. Kong API Gateway Clustered Pair (Node 1 + Node 2)
+  # ---------------------------------------------------------------------------
+  kong-ha-01:
+    image: kong:3.8.0@sha256:322e80209a919d6eb221e5082db939753a602a09f210f8314a4c7533b7d170d4
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+    # The repository's only declarative Kong config (infra/compose/kong/kong.yml,
+    # shared with the core `kong` service): routes the portal API surface to the
+    # Odoo on the host (host.docker.internal:8069) with the dev portal CORS
+    # origins. A site-specific production config (prod upstream, prod portal
+    # origins) is not defined anywhere in the repo and must replace this mount.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./kong:/kong:ro
+    ports: ["127.0.0.1:8101:8000", "127.0.0.1:8444:8443"]
+    healthcheck:
+      test: ["CMD-SHELL", "kong health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  kong-ha-02:
+    image: kong:3.8.0@sha256:322e80209a919d6eb221e5082db939753a602a09f210f8314a4c7533b7d170d4
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/kong.yml
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+    # The repository's only declarative Kong config (infra/compose/kong/kong.yml,
+    # shared with the core `kong` service): routes the portal API surface to the
+    # Odoo on the host (host.docker.internal:8069) with the dev portal CORS
+    # origins. A site-specific production config (prod upstream, prod portal
+    # origins) is not defined anywhere in the repo and must replace this mount.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./kong:/kong:ro
+    ports: ["127.0.0.1:8002:8000", "127.0.0.1:8445:8443"]
+    healthcheck:
+      test: ["CMD-SHELL", "kong health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # 4. Nginx Edge Ingress Dual-Node HA Pair
+  # ---------------------------------------------------------------------------
+  nginx-ha-01:
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+    ports: ["127.0.0.1:8090:80"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1/ || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+  nginx-ha-02:
+    image: nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+    profiles: ["ha"]
+    environment:
+      FIX_ENV: prod
+    ports: ["127.0.0.1:8091:80"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1/ || exit 1"]
+      interval: 3s
+      timeout: 2s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata-ha-primary:
+  pgdata-ha-standby:

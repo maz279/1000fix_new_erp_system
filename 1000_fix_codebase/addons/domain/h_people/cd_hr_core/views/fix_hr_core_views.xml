@@ -1,15 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_hr_core views — M21 (P08-M01). Odoo 19: list views, no tree. -->
+<!-- cd_hr_core views — M21 (P08-M01, R06-M01). Odoo 19: list views, no tree. -->
 <odoo>
+    <!-- Employment Contracts -->
     <record id="view_fix_employment_contract_list" model="ir.ui.view">
         <field name="name">fix.employment.contract.list</field>
         <field name="model">fix.employment.contract</field>
         <field name="arch" type="xml">
             <list>
+                <field name="name"/>
                 <field name="employee_id"/>
                 <field name="contract_type"/>
                 <field name="joining_date"/>
+                <field name="statutory_density_score"/>
                 <field name="basic_monthly"/>
+                <field name="legal_signoff_state"/>
                 <field name="state"/>
             </list>
         </field>
@@ -21,28 +25,53 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_generate_contract_document" type="object"
+                            string="Generate Contract (Form 6)" class="btn-primary"
+                            icon="fa-file-text-o"/>
+                    <button name="action_approve_legal_signoff" type="object"
+                            string="Approve Legal Signoff" class="btn-secondary"
+                            invisible="legal_signoff_state == 'approved'"/>
                     <button name="action_activate" type="object" string="Activate"
-                            class="btn-primary" invisible="state != 'draft'"/>
-                    <button name="action_terminate" type="object" string="Terminate"
-                            invisible="state not in ('active', 'expired')"/>
-                    <field name="state" widget="statusbar"/>
+                            class="btn-success" invisible="state != 'draft'"/>
+                    <button name="action_terminate" type="object" string="Terminate &amp; Deprovision"
+                            class="btn-danger" invisible="state not in ('active', 'expired')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,terminated"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Contract Reference"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
                     <group>
-                        <group>
+                        <group string="Employment Details">
                             <field name="employee_id"/>
                             <field name="contract_type"/>
                             <field name="joining_date"/>
                             <field name="probation_end"/>
+                            <field name="operating_unit_id"/>
                         </group>
-                        <group>
+                        <group string="Statutory Terms &amp; Compensation">
                             <field name="basic_monthly"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="weekly_hours"/>
-                            <field name="operating_unit_id"/>
                             <field name="identity_document_note"/>
                         </group>
                     </group>
+                    <notebook>
+                        <page string="M24 Document &amp; Form 6 Governance">
+                            <group>
+                                <group string="M24 Template Engine">
+                                    <field name="template_id"/>
+                                    <field name="document_id"/>
+                                    <field name="statutory_density_score"/>
+                                </group>
+                                <group string="Legal Signoff &amp; Compliance">
+                                    <field name="legal_signoff_state"/>
+                                    <field name="signed_by_legal_counsel"/>
+                                </group>
+                            </group>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>
@@ -59,6 +88,69 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Leave Types (Statutory Bangladesh Catalogue - DoD-17) -->
+    <record id="view_fix_leave_type_list" model="ir.ui.view">
+        <field name="name">fix.leave.type.list</field>
+        <field name="model">fix.leave.type</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="name_bn"/>
+                <field name="entitlement_days"/>
+                <field name="is_statutory"/>
+                <field name="labour_act_section"/>
+                <field name="carry_forward_limit"/>
+                <field name="encashable"/>
+                <field name="verified_on"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_leave_type_form" model="ir.ui.view">
+        <field name="name">fix.leave.type.form</field>
+        <field name="model">fix.leave.type</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group string="Basic Configuration">
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="name_bn"/>
+                            <field name="entitlement_days"/>
+                            <field name="is_statutory"/>
+                            <field name="encashable"/>
+                            <field name="maternity"/>
+                            <field name="carry_forward_limit"/>
+                        </group>
+                        <group string="Statutory Citations (DoD-17)">
+                            <field name="labour_act_section"/>
+                            <field name="amendment_ref"/>
+                            <field name="verified_on"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Legal Citation (Statutory Floor)">
+                        <field name="legal_citation" nolabel="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_leave_type" model="ir.actions.act_window">
+        <field name="name">Statutory Leave Catalogue</field>
+        <field name="res_model">fix.leave.type</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Leave Requests -->
     <record id="view_fix_leave_request_list" model="ir.ui.view">
         <field name="name">fix.leave.request.list</field>
         <field name="model">fix.leave.request</field>
@@ -113,6 +205,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Positions -->
     <record id="view_fix_org_position_list" model="ir.ui.view">
         <field name="name">fix.org.position.list</field>
         <field name="model">fix.org.position</field>
@@ -131,15 +224,45 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Menus -->
     <menuitem id="menu_ws_people" name="People &amp; Payroll"
               parent="cd_entity_config.menu_fix_operations_root" sequence="60"/>
     <menuitem id="menu_fix_contracts" name="Employment Contracts"
               parent="menu_ws_people" action="action_fix_employment_contract"
               sequence="10"/>
-    <menuitem id="menu_fix_leave" name="Leave"
+    <menuitem id="menu_fix_leave" name="Leave Requests"
               parent="menu_ws_people" action="action_fix_leave_request"
               sequence="20"/>
+    <menuitem id="menu_fix_leave_types" name="Statutory Leave Types"
+              parent="menu_ws_people" action="action_fix_leave_type"
+              sequence="25"/>
     <menuitem id="menu_fix_positions" name="Positions"
               parent="menu_ws_people" action="action_fix_org_position"
               sequence="30"/>
+
+    <!-- KPI-090 leaver deprovisioning: the clock starts at the leaver event;
+         an HR manager confirms the Keycloak removal (manual control) -->
+    <record id="view_employee_form_kpi_090" model="ir.ui.view">
+        <field name="name">hr.employee.form.kpi.090</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//header" position="inside">
+                <button name="action_confirm_keycloak_deprovisioned" type="object"
+                        string="Confirm Keycloak Deprovisioned"
+                        groups="hr.group_hr_manager"
+                        invisible="keycloak_deprovision_status not in ('pending', 'failed')"
+                        confirm="Confirm that this leaver's Keycloak account was verified as removed?"/>
+            </xpath>
+            <xpath expr="//page[@name='hr_settings']" position="inside">
+                <group string="Leaver Deprovisioning (KPI-090)" name="kpi_090">
+                    <field name="keycloak_deprovision_status"/>
+                    <field name="left_at"/>
+                    <field name="keycloak_deprovisioned_at"/>
+                    <field name="keycloak_deprovision_hours"/>
+                    <field name="keycloak_deprovision_confirmed_by"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
 </odoo>

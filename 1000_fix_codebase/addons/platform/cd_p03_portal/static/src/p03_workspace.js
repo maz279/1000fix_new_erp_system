@@ -1136,10 +1136,14 @@ export class P03Workspace extends Component {
     // --- Dynamics-365 Tell Me Command Palette ---
     openTellMe() {
         this.state.tellMeOpen = true;
+        this.state.tellMeQuery = "";
+        this.state.tellMeLiveRecords = [];
     }
 
     closeTellMe() {
         this.state.tellMeOpen = false;
+        this.state.tellMeQuery = "";
+        this.state.tellMeLiveRecords = [];
     }
 
     async onTellMeInput(ev) {
@@ -1215,7 +1219,7 @@ export class P03Workspace extends Component {
         Object.values(P03_MODULES).forEach(m => {
             m.groups.forEach(g => {
                 g.screens.forEach(s => {
-                    if (s.en.toLowerCase().includes(q) || s.id.toLowerCase().includes(q)) {
+                    if (s.en.toLowerCase().includes(q) || s.id.toLowerCase().includes(q) || g.en.toLowerCase().includes(q) || m.en.toLowerCase().includes(q) || m.code.toLowerCase().includes(q)) {
                         scrs.push({
                             id: s.id,
                             title: `${s.en} (${m.code})`,

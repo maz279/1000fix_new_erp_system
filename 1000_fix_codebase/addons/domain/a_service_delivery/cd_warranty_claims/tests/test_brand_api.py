@@ -1,7 +1,7 @@
 # cd_warranty_claims tests — P08 Brand API surface (source-level).
-from pathlib import Path
 import re
 import unittest
+from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1]
 REPO = Path(__file__).resolve().parents[5]
@@ -9,34 +9,23 @@ API = (MODULE / "controllers" / "brand_api.py").read_text(encoding="utf-8")
 
 
 class TestBrandIsolation(unittest.TestCase):
-    """PP5 special requirement: per-brand branding isolation — the
-    brand_id filter is mandatory and unscoped reads are refused."""
+    """PP5 special requirement: per-brand isolation - the brand is resolved from
+    the authenticated user and every claim search carries it (behaviour:
+    test_brand_api_behaviour.py)."""
 
-    def test_brand_id_required_everywhere(self):
-        # every route method calls _brand_scope and rejects None (1 def + 4 endpoints)
-        self.assertEqual(API.count("_brand_scope(kwargs)"), 5)
-        self.assertIn("missing_brand", API)
-
-    def test_brand_id_popped_before_helper_dispatch(self):
-        # live-fire regression: the dispatcher passes every param as a
-        # kwarg, so helpers taking brand_id positionally got it twice
-        # (TypeError: got multiple values for argument 'brand_id')
-        self.assertIn('kwargs.pop("brand_id", None)', API)
-
-    def test_cross_brand_claim_is_invisible(self):
-        # another brand's claim returns not-found, never the data
-        self.assertIn("claim.brand_id.id != brand_id", API)
+    def test_brand_resolved_from_the_authenticated_user_everywhere(self):
+        # one definition + the four endpoints
+        self.assertEqual(API.count("resolve_brand(kwargs)"), 5)
+        self.assertIn("def resolve_brand(kwargs)", API)
+        self.assertIn('("api_user_ids", "in", user.id)', API)
 
     def test_claims_search_filters_brand(self):
-        # literal-domain searches (claim_status, reconciliation) all
-        # carry brand_id; _list_claims builds its domain from brand_id first
-        searches = re.findall(
-            r'\.search\(\s*\[(.*?)\]', API, re.S)
-        self.assertGreaterEqual(len(searches), 2)
+        # every claim search domain carries the resolved brand
+        searches = re.findall(r'\["fix\.warranty\.claim"\]\.search\(\s*\[(.*?)\]', API, re.S)
+        self.assertGreaterEqual(len(searches), 4)
         for s in searches:
-            self.assertIn("brand_id", s,
-                          "unscoped claim search: [%s]" % s[:60])
-        self.assertIn('domain = [("brand_id", "=", brand_id)]', API)
+            self.assertIn("brand", s, "unscoped search: [%s]" % s[:60])
+        self.assertIn('domain = [("brand_id", "=", brand.id)]', API)
 
 
 class TestDecisionAndReconciliation(unittest.TestCase):
@@ -55,7 +44,7 @@ class TestDecisionAndReconciliation(unittest.TestCase):
 
     def test_webhook_endpoint_implemented(self):
         # T05: inbound status webhook acknowledging claim events
-        self.assertIn("@http.route(\"/brand/claims/webhook\"", API)
+        self.assertIn('@http.route("/brand/claims/webhook"', API)
         self.assertIn("event_type", API)
         self.assertIn("claim.action_decide", API)
 
@@ -66,17 +55,19 @@ class TestDecisionAndReconciliation(unittest.TestCase):
 class TestApiSurface(unittest.TestCase):
     def test_openapi_has_brand_operations(self):
         import json
-        spec = json.loads((REPO / "contracts" / "openapi"
-                           / "w4-portals.json").read_text(encoding="utf-8"))
+
+        spec = json.loads(
+            (REPO / "contracts" / "openapi" / "w4-portals.json").read_text(encoding="utf-8")
+        )
         self.assertIn("/brand/claims", spec["paths"])
         self.assertIn("/brand/claims/{claim_no}/status", spec["paths"])
         self.assertIn("/brand/claims/webhook", spec["paths"])
         self.assertIn("/brand/reconciliation", spec["paths"])
 
-    def test_routes_json_auth_user(self):
+    def test_routes_jsonrpc_auth_bearer(self):
         routes = re.findall(
-            r'@http\.route\("(/brand/[^"]+)"[^)]*type="json",\s*auth="user"',
-            API)
+            r'@http\.route\("(/brand/[^"]+)"[^)]*type="jsonrpc",\s*auth="bearer"', API
+        )
         self.assertEqual(len(routes), 4, routes)
 
 
