@@ -19,7 +19,7 @@ Owns:
 
 CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",
@@ -30,6 +30,7 @@ CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
         "operating_unit",
     ],
     "data": [
+        "security/fix_isolation_rules.xml",
         "security/cd_entity_config_security.xml",
         "security/ir.model.access.csv",
         "views/fix_portal_shell_views.xml",
@@ -39,12 +40,12 @@ CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
         "views/fix_working_calendar_views.xml",
         "views/fix_feature_flag_views.xml",
         "views/fix_admin_extra_views.xml",
+        "data/main_company_bd.xml",
     ],
     "demo": [],
     "installable": True,
     "application": False,
     "auto_install": False,
-
     # --- 1000FiX mandatory keys (AR-007 section 3.2, FF-16 validated) --------
     "x_cd_id": "CD-M30-01",
     "x_module_id": "M30",
