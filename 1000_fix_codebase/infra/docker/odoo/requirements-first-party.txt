@@ -1,0 +1,8 @@
+# Python packages first-party addons import at runtime that are NOT in
+# vendor/odoo/requirements.txt. Versions must equal uv.lock
+# (tooling/tests/test_odoo_security_overrides.py checks it).
+#   cd_workflow_engine (models/fix_workflow_engine.py): `import yaml`
+pyyaml==6.0.3
+#   libs/py/fix_events (kafka_backend.py): the real Kafka transport the addons
+#   publish through (`import kafka`); version = uv.lock
+kafka-python-ng==2.2.3
