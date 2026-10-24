@@ -1,0 +1,71 @@
+# telemetry-collector (CD-M02-03, Go) - stateless ingest; writes to its own
+# database on the EXTERNAL managed PostgreSQL (Secret fix-db-telemetry).
+# /health answers 503 until the store is connected, so readiness gates on the
+# database while liveness only checks the listener (a DB outage must not
+# restart-loop the collector, which keeps buffering).
+apiVersion: v1
+kind: Service
+metadata:
+  name: telemetry-collector
+  labels: { app.kubernetes.io/name: telemetry-collector }
+spec:
+  selector: { app.kubernetes.io/name: telemetry-collector }
+  ports:
+    - { name: http, port: 8084, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: telemetry-collector
+  labels: { app.kubernetes.io/name: telemetry-collector, app.kubernetes.io/component: service }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app.kubernetes.io/name: telemetry-collector }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: telemetry-collector, app.kubernetes.io/component: service }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: telemetry-collector
+          image: 1000fix/telemetry-collector:release
+          env:
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - { name: PORT, value: "8084" }
+            - name: DATABASE_URL
+              valueFrom: { secretKeyRef: { name: fix-db-telemetry, key: database-url } }
+          ports:
+            - { name: http, containerPort: 8084 }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket: { port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: telemetry-collector
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: telemetry-collector }

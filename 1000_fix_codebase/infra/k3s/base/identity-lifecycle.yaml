@@ -1,0 +1,105 @@
+# identity-lifecycle (M29 leaver deprovisioning) - cluster-internal only (not
+# routed by Kong); its ops endpoints require IDENTITY_LIFECYCLE_TOKEN.
+# ONE replica (processed-event ledger on a RWO volume).
+# PRODUCTION NOTE: the service's own check_environment() still accepts only
+# FIX_ENV local/staging and exits 42 on `prod`; the production overlay
+# therefore scales this Deployment to 0 until that source change lands
+# (infra/README-production.md "Known gaps").
+apiVersion: v1
+kind: Service
+metadata:
+  name: identity-lifecycle
+  labels: { app.kubernetes.io/name: identity-lifecycle }
+spec:
+  selector: { app.kubernetes.io/name: identity-lifecycle }
+  ports:
+    - { name: http, port: 8120, targetPort: http }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: identity-lifecycle-ledger
+  labels: { app.kubernetes.io/name: identity-lifecycle }
+spec:
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests: { storage: 1Gi }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: identity-lifecycle
+  labels: { app.kubernetes.io/name: identity-lifecycle, app.kubernetes.io/component: service }
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: identity-lifecycle }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: identity-lifecycle, app.kubernetes.io/component: service }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: identity-lifecycle
+          image: 1000fix/identity-lifecycle:release
+          env:
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - { name: IDENTITY_LIFECYCLE_HOST, value: 0.0.0.0 }
+            - { name: KEYCLOAK_URL, value: http://keycloak:8080 }
+            - name: KEYCLOAK_REALM
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: KEYCLOAK_REALM } }
+            - name: KEYCLOAK_ADMIN_REALM
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: KEYCLOAK_REALM } }
+            - name: KEYCLOAK_ADMIN_CLIENT_ID
+              valueFrom: { secretKeyRef: { name: fix-identity-lifecycle, key: client-id } }
+            - name: KEYCLOAK_ADMIN_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: fix-identity-lifecycle, key: client-secret } }
+            - name: IDENTITY_LIFECYCLE_TOKEN
+              valueFrom: { secretKeyRef: { name: fix-identity-lifecycle, key: ops-token } }
+            - { name: IDENTITY_LIFECYCLE_LEDGER, value: /var/lib/identity-lifecycle/ledger.json }
+            - name: REDIS_URL
+              valueFrom: { secretKeyRef: { name: fix-redis, key: url } }
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: bootstrap-servers } }
+            - name: KAFKA_SECURITY_PROTOCOL
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: security-protocol } }
+            - name: KAFKA_SASL_MECHANISM
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-mechanism } }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-username } }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-password } }
+          ports:
+            - { name: http, containerPort: 8120 }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 15
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 30
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 25m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: ledger, mountPath: /var/lib/identity-lifecycle }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: ledger
+          persistentVolumeClaim: { claimName: identity-lifecycle-ledger }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

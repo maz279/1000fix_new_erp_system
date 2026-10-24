@@ -1,0 +1,50 @@
+# The only externally reachable object: every public host -> kong:80.
+# TLS terminates here with the certificate in Secret fix-edge-tls (managed by
+# cert-manager or uploaded by the operator - never committed). Host names are
+# placeholders; the production overlay replaces them (JSON patch).
+# ingressClassName assumes ingress-nginx (the NetworkPolicy
+# kong-from-ingress-controller admits namespace ingress-nginx).
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fix-edge
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: 25m
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "180"
+    nginx.ingress.kubernetes.io/proxy-http-version: "1.1"   # Odoo /websocket
+spec:
+  ingressClassName: nginx
+  tls:
+    - secretName: fix-edge-tls
+      hosts:
+        - api.example.invalid
+        - erp.example.invalid
+        - auth.example.invalid
+        - customer.example.invalid
+        - corporate.example.invalid
+        - vendor.example.invalid
+        - partner.example.invalid
+        - seller.example.invalid
+        - brand.example.invalid
+        - analytics.example.invalid
+        - agent.example.invalid
+  rules:
+    - host: api.example.invalid
+      http: &kong
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: kong, port: { name: proxy } }
+    - { host: erp.example.invalid, http: *kong }
+    - { host: auth.example.invalid, http: *kong }
+    - { host: customer.example.invalid, http: *kong }
+    - { host: corporate.example.invalid, http: *kong }
+    - { host: vendor.example.invalid, http: *kong }
+    - { host: partner.example.invalid, http: *kong }
+    - { host: seller.example.invalid, http: *kong }
+    - { host: brand.example.invalid, http: *kong }
+    - { host: analytics.example.invalid, http: *kong }
+    - { host: agent.example.invalid, http: *kong }

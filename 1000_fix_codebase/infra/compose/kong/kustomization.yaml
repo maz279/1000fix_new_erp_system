@@ -1,0 +1,14 @@
+# Kustomize entry for the Kong production config TEMPLATE (consumed by
+# infra/k3s/base). It lives here, next to the files, because Kustomize only
+# loads files from inside a kustomization's own directory: kong.prod.yml and
+# render-kong-config.py therefore have ONE copy, shared by compose
+# (docker-compose.prod.full.yml `kong-config`) and Kubernetes (the
+# `render-config` initContainer of the kong Deployment).
+# Ignored by docker compose; harmless inside the local Kong bind mount.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+configMapGenerator:
+  - name: kong-config-template
+    files:
+      - kong.prod.yml
+      - render-kong-config.py

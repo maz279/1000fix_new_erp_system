@@ -1,0 +1,141 @@
+# Odoo 19 (1000fix/odoo image, infra/docker/odoo/Dockerfile).
+# ONE replica by design: Odoo keeps HTTP sessions and the attachment filestore
+# in data_dir (/var/lib/odoo) on a ReadWriteOnce volume. Scaling out needs a
+# shared session store + object-storage attachments first (README "Known
+# gaps"). No PodDisruptionBudget for the same reason (a PDB on a single
+# replica would only block node drains).
+# Database: the EXTERNAL managed PostgreSQL (Secret fix-db-odoo), TLS required.
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo
+  labels: { app.kubernetes.io/name: odoo }
+spec:
+  selector: { app.kubernetes.io/name: odoo }
+  ports:
+    - { name: http, port: 8069, targetPort: http }
+    - { name: websocket, port: 8072, targetPort: websocket }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-headless
+  labels: { app.kubernetes.io/name: odoo }
+spec:
+  clusterIP: None
+  selector: { app.kubernetes.io/name: odoo }
+  ports:
+    - { name: http, port: 8069, targetPort: http }
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: odoo
+  labels: { app.kubernetes.io/name: odoo, app.kubernetes.io/component: erp }
+spec:
+  serviceName: odoo-headless
+  replicas: 1
+  podManagementPolicy: OrderedReady
+  updateStrategy: { type: RollingUpdate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: odoo }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: odoo, app.kubernetes.io/component: erp }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: odoo
+          image: 1000fix/odoo:release
+          # '-' args go to odoo-bin; the entrypoint generates odoo.conf at start
+          # (list_db=False outside local). $(ODOO_DB) is expanded by Kubernetes.
+          args:
+            - --load=base,rpc,web,cd_entity_config
+            - --database=$(ODOO_DB)
+            - --db-filter=^$(ODOO_DB)$
+            - --proxy-mode
+            - --limit-time-cpu=600
+            - --limit-time-real=120
+            - --limit-memory-soft=2684354560
+            - --limit-memory-hard=3221225472
+          env:
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - name: ODOO_DB
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: ODOO_DB } }
+            - name: ODOO_WORKERS
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: ODOO_WORKERS } }
+            - name: HOST
+              valueFrom: { secretKeyRef: { name: fix-db-odoo, key: host } }
+            - name: PORT
+              valueFrom: { secretKeyRef: { name: fix-db-odoo, key: port } }
+            - name: USER
+              valueFrom: { secretKeyRef: { name: fix-db-odoo, key: user } }
+            - name: PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-db-odoo, key: password } }
+            - name: PGSSLMODE
+              value: require
+            - name: ODOO_DB_WAIT
+              value: "120"
+            - name: ODOO_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-odoo, key: admin-password } }
+            - name: REDIS_URL
+              valueFrom: { secretKeyRef: { name: fix-redis, key: url } }
+            - name: KAFKA_BOOTSTRAP_SERVERS
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: bootstrap-servers } }
+            - name: KAFKA_SECURITY_PROTOCOL
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: security-protocol } }
+            - name: KAFKA_SASL_MECHANISM
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-mechanism } }
+            - name: KAFKA_SASL_USERNAME
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-username } }
+            - name: KAFKA_SASL_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-kafka, key: sasl-password } }
+          ports:
+            - { name: http, containerPort: 8069 }
+            - { name: websocket, containerPort: 8072 }
+          startupProbe:
+            httpGet: { path: /web/health, port: http }
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /web/health, port: http }
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /web/health, port: http }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests: { cpu: "1", memory: 3Gi }
+            limits: { cpu: "4", memory: 8Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: data, mountPath: /var/lib/odoo }
+            - { name: conf, mountPath: /etc/odoo }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: conf
+          emptyDir: { medium: Memory, sizeLimit: 1Mi }
+        - name: tmp
+          emptyDir: { sizeLimit: 2Gi }
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests: { storage: 100Gi }

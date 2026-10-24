@@ -1,0 +1,114 @@
+# Keycloak 26 in production mode (`start`, no start-dev, no realm import).
+# External managed PostgreSQL (Secret fix-db-keycloak, TLS). TLS terminates at
+# the Ingress/Kong; Keycloak trusts X-Forwarded-* (proxy-headers=xforwarded).
+# Clustering: Keycloak 26.3 discovers peers through the shared database
+# (default jdbc-ping stack) and talks JGroups on 7800/57800 - allowed between
+# keycloak pods only (networkpolicies.yaml). /admin is not routed by Kong.
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  labels: { app.kubernetes.io/name: keycloak }
+spec:
+  selector: { app.kubernetes.io/name: keycloak }
+  ports:
+    - { name: http, port: 8080, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  labels: { app.kubernetes.io/name: keycloak, app.kubernetes.io/component: identity }
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app.kubernetes.io/name: keycloak }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: keycloak, app.kubernetes.io/component: identity }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 0
+        seccompProfile: { type: RuntimeDefault }
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels: { app.kubernetes.io/name: keycloak }
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.3.0@sha256:08a31919cfcd814bf1b465142b1a716c4d1a8830f772bb5c9dffcbd96de3fba6
+          args: ["start"]
+          env:
+            - name: KC_DB
+              value: postgres
+            - name: KC_DB_URL
+              valueFrom: { secretKeyRef: { name: fix-db-keycloak, key: jdbc-url } }
+            - name: KC_DB_USERNAME
+              valueFrom: { secretKeyRef: { name: fix-db-keycloak, key: username } }
+            - name: KC_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-db-keycloak, key: password } }
+            - name: AUTH_HOST
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: AUTH_HOST } }
+            - name: KC_HOSTNAME
+              value: https://$(AUTH_HOST)
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: xforwarded
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_METRICS_ENABLED
+              value: "true"
+            - name: KC_CACHE
+              value: ispn
+            # one-time bootstrap admin; create a real admin, then delete the Secret keys
+            - name: KC_BOOTSTRAP_ADMIN_USERNAME
+              valueFrom: { secretKeyRef: { name: fix-keycloak-bootstrap, key: username, optional: true } }
+            - name: KC_BOOTSTRAP_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: fix-keycloak-bootstrap, key: password, optional: true } }
+            - name: JAVA_OPTS_KC_HEAP
+              value: -XX:MaxRAMPercentage=70
+          ports:
+            - { name: http, containerPort: 8080 }
+            - { name: management, containerPort: 9000 }
+            - { name: jgroups, containerPort: 7800 }
+            - { name: jgroups-fd, containerPort: 57800 }
+          startupProbe:
+            httpGet: { path: /health/started, port: management }
+            periodSeconds: 10
+            failureThreshold: 60
+          readinessProbe:
+            httpGet: { path: /health/ready, port: management }
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet: { path: /health/live, port: management }
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests: { cpu: 500m, memory: 1Gi }
+            limits: { cpu: "2", memory: 2Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: [ALL] }
+            # Keycloak (re)builds its Quarkus app under /opt/keycloak at start
+            readOnlyRootFilesystem: false
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keycloak
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: keycloak }

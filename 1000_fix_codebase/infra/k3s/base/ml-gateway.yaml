@@ -1,0 +1,71 @@
+# ml-gateway (CD-M26-01) - stateless, labelled heuristic backend.
+# Reached only through Kong (/svc/ml on the API host, JWT required).
+apiVersion: v1
+kind: Service
+metadata:
+  name: ml-gateway
+  labels: { app.kubernetes.io/name: ml-gateway }
+spec:
+  selector: { app.kubernetes.io/name: ml-gateway }
+  ports:
+    - { name: http, port: 8090, targetPort: http }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ml-gateway
+  labels: { app.kubernetes.io/name: ml-gateway, app.kubernetes.io/component: service }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app.kubernetes.io/name: ml-gateway }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: ml-gateway, app.kubernetes.io/component: service }
+    spec:
+      automountServiceAccountToken: false
+      enableServiceLinks: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: ml-gateway
+          image: 1000fix/ml-gateway:release
+          env:
+            - name: FIX_ENV
+              valueFrom: { configMapKeyRef: { name: fix-platform, key: FIX_ENV } }
+            - { name: ML_GATEWAY_HOST, value: 0.0.0.0 }
+            - { name: ML_GATEWAY_PORT, value: "8090" }
+          ports:
+            - { name: http, containerPort: 8090 }
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 256Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: [ALL] }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ml-gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: ml-gateway }

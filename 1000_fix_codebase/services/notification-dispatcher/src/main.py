@@ -11,6 +11,7 @@ Endpoints:
 The long-running deployment does not serve HTTP on the send path: events flow
 fix_events.consume(handler=dispatcher.handle). HTTP exists for operations.
 """
+
 from __future__ import annotations
 
 import json
@@ -21,10 +22,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "libs" / "py"))
 
-from src.dispatcher import Dispatcher, load_registry  # noqa: E402
-from src.delivery import FALLBACK_REGISTER  # noqa: E402
+from src.delivery import FALLBACK_REGISTER
+from src.dispatcher import Dispatcher, load_registry
 
-HOST = "127.0.0.1"
+# Bind address: loopback unless the deployment says otherwise. The container
+# image sets FIX_NOTIFICATION_DISPATCHER_HOST=0.0.0.0 (in-container bind; the
+# published/cluster port is the only way in - compose publishes on loopback,
+# production reaches it only through Kong/NetworkPolicy).
+HOST = os.environ.get("FIX_NOTIFICATION_DISPATCHER_HOST", "").strip() or "127.0.0.1"
 PORT = int(os.environ.get("FIX_NOTIFICATION_DISPATCHER_PORT", "8110"))
 
 
@@ -40,47 +45,92 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(payload)))
+        # NFR-092 / PE-08: correlation-id + traceparent on every response.
+        for header, value in getattr(self, "_trace_headers", {}).items():
+            self.send_header(header, value)
         self.end_headers()
         self.wfile.write(payload)
+        if hasattr(self, "_observe"):
+            try:
+                from libs.py.fix_telemetry import end_http
 
-    def do_GET(self) -> None:  # noqa: N802 - stdlib signature
+                end_http(code)
+            except ImportError:
+                pass
+
+    def _observe(self) -> None:
+        try:
+            from libs.py.fix_telemetry import observe_http
+
+            _, headers = observe_http(
+                "notification-dispatcher",
+                self.path,
+                dict(self.headers.items()),
+            )
+            self._trace_headers = headers
+        except ImportError:
+            self._trace_headers = {}
+
+    def do_GET(self) -> None:
+        self._observe()
         if self.path == "/health":
-            self._json(200, {
-                "status": "UP",
-                "module": "M27",
-                "cd": "CD-M27-nn",
-                "wave": self.dispatcher.router.active_wave,
-                "consent_classes": sorted(self.dispatcher.rules),
-                "events": len(self.dispatcher.registry["event_matrix"]),
-                "dry_run_default": True,
-            })
+            self._json(
+                200,
+                {
+                    "status": "UP",
+                    "module": "M27",
+                    "cd": "CD-M27-nn",
+                    "wave": self.dispatcher.router.active_wave,
+                    "consent_classes": sorted(self.dispatcher.rules),
+                    "events": len(self.dispatcher.router.matrix),  # event rows only
+                    "dry_run_default": True,
+                },
+            )
         elif self.path == "/kpis":
             self._json(200, self.dispatcher.kpi_snapshot())
         elif self.path == "/dlq":
             records = self.dispatcher.tracker.dead_letters
-            self._json(200, {"count": len(records), "records": [
-                {"id": r.id, "event": r.event, "party_id": r.party_id, "state": r.state}
-                for r in records
-            ]})
+            self._json(
+                200,
+                {
+                    "count": len(records),
+                    "records": [
+                        {"id": r.id, "event": r.event, "party_id": r.party_id, "state": r.state}
+                        for r in records
+                    ],
+                },
+            )
         elif self.path == "/fallbacks":
             self._json(200, FALLBACK_REGISTER)
         else:
             self._json(404, {"error": "not found"})
 
-    def do_POST(self) -> None:  # noqa: N802 - stdlib signature
+    def do_POST(self) -> None:
+        self._observe()
         if self.path != "/consume/once":
             self._json(404, {"error": "not found"})
             return
-        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            length = -1
+        if length < 0:
+            # A negative length would read "until EOF" — on a live socket that
+            # blocks this single-threaded server.
+            self._json(400, {"error": "invalid content-length"})
+            return
         try:
             event = json.loads(self.rfile.read(length) or b"{}")
-        except json.JSONDecodeError:
+        except ValueError:  # JSONDecodeError and UnicodeDecodeError alike
             self._json(400, {"error": "invalid json"})
+            return
+        if not isinstance(event, dict):
+            self._json(400, {"error": "event must be a JSON object"})
             return
         decisions = self.dispatcher.handle(event)
         self._json(200, {"decisions": decisions, "kpis": self.dispatcher.kpi_snapshot()})
 
-    def log_message(self, fmt: str, *args) -> None:  # noqa: A003, N802 - stdlib signature
+    def log_message(self, fmt: str, *args) -> None:
         print(f"notification-dispatcher: {fmt % args}")
 
 

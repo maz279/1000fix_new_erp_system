@@ -1,0 +1,12 @@
+# Production namespace. Pod Security Admission `restricted` is ENFORCED: every
+# workload in base/ runs non-root, drops all capabilities, forbids privilege
+# escalation and uses the RuntimeDefault seccomp profile.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fix-erp-prod
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -1,0 +1,128 @@
+# Portal Dockerfile — 1000 FiX web portals (R01 re-audit 2026-10-22; production
+# build args 2026-10-23).
+#
+# Multi-stage, non-root, healthchecked. The build context must be the
+# REPO ROOT (the portals' libs/ts/* and design-token sources live there);
+# build per portal (PORTAL = the app directory under apps/web/):
+#   docker build -f apps/web/Dockerfile.portal --build-arg PORTAL=customer \
+#     -t 1000fix/portal-customer:local .
+#
+# Production build (NEXT_PUBLIC_* values are INLINED into the client bundle by
+# `next build`, so they are build arguments, not runtime env; nothing secret
+# may ever be passed here):
+#   docker build -f apps/web/Dockerfile.portal \
+#     --build-arg PORTAL=customer --build-arg PORTAL_BUILD_PROFILE=production \
+#     --build-arg NEXT_PUBLIC_FIX_API_BASE=https://api.example.com \
+#     --build-arg NEXT_PUBLIC_ODOO_DB=fix_production \
+#     --build-arg NEXT_PUBLIC_OIDC_ISSUER=https://auth.example.com/realms/1000fix \
+#     --build-arg NEXT_PUBLIC_OIDC_CLIENT_ID=1000fix-customer-web \
+#     --build-arg NEXT_PUBLIC_OIDC_REDIRECT_URI=https://customer.example.com/auth/callback \
+#     -t <registry>/1000fix/portal-customer:<release> .
+# infra/compose/docker-compose.prod.build.yml passes the same args per portal.
+#
+# Every NEXT_PUBLIC_* arg defaults to EMPTY (no localhost value is baked by
+# this file). PORTAL_BUILD_PROFILE=production makes the build FAIL unless
+# NEXT_PUBLIC_FIX_API_BASE and NEXT_PUBLIC_ODOO_DB are set, and refuses any
+# NEXT_PUBLIC_* URL that is not https or that points at localhost/127.0.0.1.
+# (The portals' own source still carries localhost fallbacks for an EMPTY
+# value - the production profile is what guarantees they are never reached.)
+#
+# The runtime stage ships only .next/standalone with .next/static and public/
+# placed NEXT TO server.js (apps/web/<portal>/ inside the standalone tree -
+# that is where the standalone server serves them from), runs as UID 10001,
+# and exposes PORT (default 3000).
+
+ARG NODE_VERSION=22-alpine@sha256:fe4f6d74e20370acb04ad889077d14d0f64a9c8ea6a42bc60cddf1e844699914
+FROM node:${NODE_VERSION} AS deps
+ARG PORTAL
+WORKDIR /build
+RUN apk add --no-cache libc6-compat
+# Fail fast with a clear message on a missing / unknown portal name.
+RUN case "${PORTAL}" in \
+      agent-console|analytics|brand|corporate|customer|partner|seller|vendor) ;; \
+      *) echo "Dockerfile.portal: --build-arg PORTAL=<agent-console|analytics|brand|corporate|customer|partner|seller|vendor> is required (got '${PORTAL}')" >&2; exit 1;; \
+    esac
+COPY apps/web/${PORTAL}/package.json apps/web/${PORTAL}/package-lock.json* ./portal/
+# FULL install (dev deps included): the builder needs TypeScript and the
+# workspace type declarations; nothing from this stage ships to the runtime.
+RUN cd portal && (npm ci || npm install)
+
+FROM node:${NODE_VERSION} AS builder
+WORKDIR /build
+ARG PORTAL
+ARG PORTAL_BUILD_PROFILE=local
+ARG NEXT_PUBLIC_FIX_API_BASE=
+ARG NEXT_PUBLIC_ODOO_DB=
+ARG NEXT_PUBLIC_SUPERSET_URL=
+ARG NEXT_PUBLIC_OIDC_ISSUER=
+ARG NEXT_PUBLIC_OIDC_CLIENT_ID=
+ARG NEXT_PUBLIC_OIDC_REDIRECT_URI=
+ARG NEXT_PUBLIC_OTEL_ENDPOINT=
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_FIX_API_BASE=${NEXT_PUBLIC_FIX_API_BASE} \
+    NEXT_PUBLIC_ODOO_DB=${NEXT_PUBLIC_ODOO_DB} \
+    NEXT_PUBLIC_SUPERSET_URL=${NEXT_PUBLIC_SUPERSET_URL} \
+    NEXT_PUBLIC_OIDC_ISSUER=${NEXT_PUBLIC_OIDC_ISSUER} \
+    NEXT_PUBLIC_OIDC_CLIENT_ID=${NEXT_PUBLIC_OIDC_CLIENT_ID} \
+    NEXT_PUBLIC_OIDC_REDIRECT_URI=${NEXT_PUBLIC_OIDC_REDIRECT_URI} \
+    NEXT_PUBLIC_OTEL_ENDPOINT=${NEXT_PUBLIC_OTEL_ENDPOINT}
+RUN set -eu; \
+    case "${PORTAL_BUILD_PROFILE}" in local|production) ;; \
+      *) echo "Dockerfile.portal: PORTAL_BUILD_PROFILE must be local or production" >&2; exit 1;; esac; \
+    if [ "${PORTAL_BUILD_PROFILE}" = production ]; then \
+      [ -n "${NEXT_PUBLIC_FIX_API_BASE}" ] || { echo "production build: NEXT_PUBLIC_FIX_API_BASE is required" >&2; exit 1; }; \
+      [ -n "${NEXT_PUBLIC_ODOO_DB}" ] || { echo "production build: NEXT_PUBLIC_ODOO_DB is required" >&2; exit 1; }; \
+      for pair in "NEXT_PUBLIC_FIX_API_BASE=${NEXT_PUBLIC_FIX_API_BASE}" \
+                  "NEXT_PUBLIC_SUPERSET_URL=${NEXT_PUBLIC_SUPERSET_URL}" \
+                  "NEXT_PUBLIC_OIDC_ISSUER=${NEXT_PUBLIC_OIDC_ISSUER}" \
+                  "NEXT_PUBLIC_OIDC_REDIRECT_URI=${NEXT_PUBLIC_OIDC_REDIRECT_URI}" \
+                  "NEXT_PUBLIC_OTEL_ENDPOINT=${NEXT_PUBLIC_OTEL_ENDPOINT}"; do \
+        name="${pair%%=*}"; value="${pair#*=}"; \
+        [ -z "$value" ] && continue; \
+        case "$value" in https://*) ;; *) echo "production build: $name must be an https URL" >&2; exit 1;; esac; \
+        case "$value" in *localhost*|*127.0.0.1*|*0.0.0.0*) echo "production build: $name points at a loopback host" >&2; exit 1;; esac; \
+      done; \
+    fi
+# Hoisted to /build/node_modules: the portals' outputFileTracingRoot is the
+# repo root, so TS resolves react/types for libs/ts/** from the root, not
+# from apps/web/<portal>/node_modules.
+COPY --from=deps /build/portal/node_modules ./node_modules
+COPY apps/web/${PORTAL} ./apps/web/${PORTAL}
+COPY libs ./libs
+WORKDIR /build/apps/web/${PORTAL}
+# A workstation's own node_modules / .next (host-OS native binaries, stale
+# build output) arrive with the context: drop them so only the Linux install
+# above is used. public/ is optional in the source tree - create it so the
+# runtime COPY below never depends on a glob matching (classic builder safe).
+RUN rm -rf node_modules .next \
+ && mkdir -p public \
+ && npm run build
+
+FROM node:${NODE_VERSION} AS runner
+WORKDIR /app
+ARG PORTAL
+ARG FIX_RELEASE=unversioned
+LABEL org.opencontainers.image.title="1000fix-portal-${PORTAL}" \
+      org.opencontainers.image.version="${FIX_RELEASE}"
+ENV NODE_ENV=production \
+    NEXT_TELEMETRY_DISABLED=1 \
+    PORT=3000 \
+    HOSTNAME=0.0.0.0 \
+    FIX_PORTAL=${PORTAL}
+RUN addgroup -g 10001 -S portal && adduser -u 10001 -S portal -G portal
+# ${PORTAL} is a BUILD-time arg here, so COPY resolves the real portal path.
+# With outputFileTracingRoot at the repo root the standalone tree mirrors the
+# repo layout: server.js lives in apps/web/<portal>/ and serves .next/static
+# and public/ relative to ITS OWN directory - so they are copied there (the
+# previous /app/.next/static location was never served).
+COPY --from=builder --chown=portal:portal /build/apps/web/${PORTAL}/.next/standalone ./
+COPY --from=builder --chown=portal:portal /build/apps/web/${PORTAL}/.next/static ./apps/web/${PORTAL}/.next/static
+COPY --from=builder --chown=portal:portal /build/apps/web/${PORTAL}/public ./apps/web/${PORTAL}/public
+# A root symlink keeps CMD stable; node resolves the symlink to the real file
+# (its __dirname is apps/web/<portal>) so relative requires and assets work.
+RUN ln -s apps/web/${PORTAL}/server.js /app/server.js
+USER 10001
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["node", "server.js"]

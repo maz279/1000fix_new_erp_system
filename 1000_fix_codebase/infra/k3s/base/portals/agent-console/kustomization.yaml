@@ -1,0 +1,13 @@
+# portal-agent-console (apps/web/agent-console) - instance of ../_template.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../_template
+nameSuffix: -agent-console
+labels:
+  - pairs:
+      app.kubernetes.io/name: portal-agent-console
+    includeSelectors: true
+images:
+  - name: 1000fix/portal
+    newName: 1000fix/portal-agent-console

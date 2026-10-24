@@ -9,6 +9,14 @@
 # (P-11: portals never bypass Kong) to Odoo, and CORS runs on Kong with
 # credentials for the explicit dev portal origins (a wildcard cannot be
 # used with credentials — CORS spec).
+#
+# AUTH (authorization audit 2026-10-23): this LOCAL config deliberately
+# carries no authentication plugin - the local portals authenticate with
+# Odoo session cookies and Odoo authorises every route itself. Staging and
+# production MUST NOT mount this file: they mount kong.prod.yml, which
+# requires a Keycloak-issued RS256 JWT (OSS `jwt` plugin, issuer-keyed
+# consumer) on every Odoo route except the anonymous OTP / tracking /
+# session endpoints.
 _format_version: "3.0"
 
 services:
@@ -35,6 +43,8 @@ services:
           - "/seller"
           - "/corporate"
           - "/technician"
+          - "/storefront"
+          - "/p03"
           - "/web/session"
 
 plugins:

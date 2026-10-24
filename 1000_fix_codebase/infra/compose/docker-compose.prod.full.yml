@@ -1,0 +1,520 @@
+# =============================================================================
+# 1000fix-erp - COMPLETE single-host production stack (infra/environments.yaml
+# `prod`; residency_classified: yes-Z4-only).
+#
+# Self-contained: run it ALONE (not layered on docker-compose.yml, whose
+# services are local/synthetic). docker-compose.prod.yml stays the narrow
+# Odoo+DB overlay of the env ladder; this file is the full deployment.
+#
+#   deploy:  docker compose -p fix-prod -f infra/compose/docker-compose.prod.full.yml \
+#              --env-file /etc/1000fix/prod.env pull
+#            docker compose -p fix-prod -f infra/compose/docker-compose.prod.full.yml \
+#              --env-file /etc/1000fix/prod.env up -d
+#   build:   add -f infra/compose/docker-compose.prod.build.yml (build args per
+#            portal) and run `build`, then push to ${FIX_IMAGE_REGISTRY}.
+#
+# Every secret is a `${VAR:?}` (compose refuses to load the file while one is
+# unset) or a docker secret file; no credential literal appears here. The
+# required variable list is in infra/README-production.md and is checked by
+# `docker compose config`.
+#
+# Networks (only Kong is published):
+#   edge      Kong's published HTTPS port (the ONLY published port)
+#   backend   internal: true - no route off the host; every service
+#   egress    outbound internet for the components that must call out (Odoo:
+#             payment/NBR/mail gateways; dispatcher: SMS/WhatsApp/email
+#             gateways; portals: server-side calls to the public API host;
+#             Kafka when it is a managed/external cluster)
+#
+# Out of scope of this file (external, see README): the REAL residency service
+# / Bangladesh Zone 4 replica (D-013 Option B; local-residency-stub is
+# synthetic and refuses FIX_ENV=prod), the Kafka cluster
+# (KAFKA_BOOTSTRAP_SERVERS), TLS certificates, DNS, payment/NBR/bank/SMS
+# gateway credentials, backups/DR (docker-compose.dr.yml).
+# =============================================================================
+name: fix-prod
+
+x-hardened: &hardened
+  restart: unless-stopped
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  logging:
+    driver: json-file
+    options: { max-size: "50m", max-file: "5" }
+
+x-portal: &portal
+  <<: *hardened
+  read_only: false   # Next's runtime cache (.next/cache) is written next to server.js
+  tmpfs: ["/tmp"]
+  networks: [backend, egress]
+  depends_on:
+    kong-config: { condition: service_completed_successfully }
+  healthcheck:
+    test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+    interval: 30s
+    timeout: 5s
+    retries: 5
+    start_period: 30s
+  deploy:
+    resources:
+      limits: { cpus: "1.0", memory: 768M }
+
+x-portal-env: &portal-env
+  NODE_ENV: production
+  PORT: "3000"
+  HOSTNAME: 0.0.0.0
+  FIX_ENV: prod
+  # runtime CSP (apps/web/*/proxy.ts): the browser talks to the API and auth hosts only
+  CSP_CONNECT_SRC: "https://${API_HOST:?API_HOST (public API host name) is required} https://${AUTH_HOST:?AUTH_HOST (public Keycloak host name) is required}"
+  FRAME_ANCESTORS: "'self'"
+  FIX_API_BASE: "https://${API_HOST:?API_HOST is required}"
+
+services:
+  # ------------------------------------------------------------------ data
+  postgres:
+    image: postgres:17.4@sha256:304ab813518754228f9f792f79d6da36359b82d8ecf418096c636725f8c930ad
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      FIX_ENV: prod
+      POSTGRES_USER: fix_admin
+      POSTGRES_PASSWORD: ${PROD_DB_PASSWORD:?Production DB superuser password must be Vault injected}
+      POSTGRES_DB: postgres
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=en-US"
+      # application roles/databases (postgres/init-prod/20-app-databases.sh)
+      ODOO_DB: ${ODOO_DB:-fix_production}
+      ODOO_DB_PASSWORD: ${ODOO_DB_PASSWORD:?Odoo DB role password must be Vault injected}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Keycloak DB role password must be Vault injected}
+      TELEMETRY_DB_PASSWORD: ${TELEMETRY_DB_PASSWORD:?Telemetry DB role password must be Vault injected}
+      # streaming-replication primary for the DR standby (docker-compose.dr.yml)
+      PG_REPLICATION_USER: ${PG_REPLICATION_USER:-fix_replicator}
+      PG_REPLICATION_PASSWORD: ${PG_REPLICATION_PASSWORD:?PG replication password must be Vault injected}
+      PG_REPLICATION_SLOTS: postgres_dr_standby
+      PG_REPLICATION_HBA_TYPE: hostssl
+      PG_REPLICATION_ALLOWED_ADDRESS: ${PG_REPLICATION_ALLOWED_ADDRESS:-samenet}
+    # TLS fail-closed + WAL-archive ownership (same contract as docker-compose.prod.yml)
+    entrypoint:
+      - bash
+      - -Eeuo
+      - pipefail
+      - -c
+      - |
+        for f in /run/secrets/pg_tls_cert /run/secrets/pg_tls_key; do
+          if [ ! -s "$$f" ]; then
+            echo "postgres: TLS material $$f is missing or empty - set PG_TLS_CERT_FILE / PG_TLS_KEY_FILE; refusing to start with ssl=on" >&2
+            exit 1
+          fi
+        done
+        install -d -o postgres -g postgres -m 0700 /var/lib/postgresql/wal_archive /var/lib/postgresql/tls
+        install -o postgres -g postgres -m 0644 /run/secrets/pg_tls_cert /var/lib/postgresql/tls/server.crt
+        install -o postgres -g postgres -m 0600 /run/secrets/pg_tls_key /var/lib/postgresql/tls/server.key
+        exec docker-entrypoint.sh "$$@"
+      - postgres-entrypoint
+    command: [
+      "postgres",
+      "-c", "wal_level=replica",
+      "-c", "max_wal_senders=10",
+      "-c", "max_replication_slots=10",
+      "-c", "max_slot_wal_keep_size=16GB",
+      "-c", "archive_mode=on",
+      "-c", "archive_command=test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f",
+      "-c", "ssl=on",
+      "-c", "ssl_min_protocol_version=TLSv1.2",
+      "-c", "ssl_cert_file=/var/lib/postgresql/tls/server.crt",
+      "-c", "ssl_key_file=/var/lib/postgresql/tls/server.key",
+      "-c", "password_encryption=scram-sha-256",
+      "-c", "shared_buffers=2GB",
+      "-c", "work_mem=64MB",
+      "-c", "max_connections=300"
+    ]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - pgwal-archive:/var/lib/postgresql/wal_archive
+      - ./postgres-replication/primary-init.sh:/docker-entrypoint-initdb.d/10-replication-primary.sh:ro
+      - ./postgres/init-prod/20-app-databases.sh:/docker-entrypoint-initdb.d/20-app-databases.sh:ro
+    secrets: [pg_tls_cert, pg_tls_key]
+    networks: [backend]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fix_admin -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits: { cpus: "4.0", memory: 8G }
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+
+  redis:
+    image: redis:7.2.5@sha256:3aaec283e6e593bde528077d60280ac1589887067a39273348860837c9346d7e
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      FIX_ENV: prod
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?Redis password must be Vault injected}
+      REDISCLI_AUTH: ${REDIS_PASSWORD:?Redis password must be Vault injected}
+    # the password is read from the environment by the shell, not baked into argv of compose
+    command:
+      - sh
+      - -c
+      - exec redis-server --requirepass "$$REDIS_PASSWORD" --save 60 1000 --appendonly yes --maxmemory 2gb --maxmemory-policy volatile-lru --protected-mode yes
+    volumes:
+      - redis-data:/data
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 2560M }
+    logging:
+      driver: json-file
+      options: { max-size: "50m", max-file: "5" }
+
+  # ------------------------------------------------------------------ ERP
+  odoo:
+    <<: *hardened
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY (registry holding the 1000fix/* release images) is required}/1000fix/odoo:${FIX_RELEASE:?FIX_RELEASE (immutable release tag) is required}
+    # Arguments starting with '-' go to odoo-bin (infra/docker/odoo/entrypoint.py
+    # generates the conf at start: list_db=False outside local).
+    command:
+      - --load=base,rpc,web,cd_entity_config
+      - --database=${ODOO_DB:-fix_production}
+      - --db-filter=^${ODOO_DB:-fix_production}$$
+      - --proxy-mode
+      # (no demo data: Odoo 19 installs demo data only with --with-demo)
+      - --limit-time-cpu=600
+      - --limit-time-real=120
+      - --limit-memory-soft=2684354560
+      - --limit-memory-hard=3221225472
+    environment:
+      FIX_ENV: prod
+      HOST: postgres
+      PORT: "5432"
+      USER: odoo
+      PASSWORD: ${ODOO_DB_PASSWORD:?Odoo DB role password must be Vault injected}
+      PGSSLMODE: require
+      ODOO_ADMIN_PASSWORD: ${ODOO_ADMIN_PASSWORD:?Odoo master (admin_passwd) must be Vault injected}
+      ODOO_WORKERS: ${ODOO_WORKERS:-4}
+      ODOO_DB_WAIT: "120"
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Redis password must be Vault injected}@redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS (event bus brokers) is required}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?KAFKA_SASL_USERNAME is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?KAFKA_SASL_PASSWORD must be Vault injected}
+    tmpfs: ["/tmp"]
+    volumes:
+      - odoo-data:/var/lib/odoo
+    networks: [backend, egress]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8069/web/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 120s
+    deploy:
+      resources:
+        limits: { cpus: "4.0", memory: 8G }
+
+  # ------------------------------------------------------------------ identity
+  keycloak:
+    <<: *hardened
+    image: quay.io/keycloak/keycloak:26.3.0@sha256:08a31919cfcd814bf1b465142b1a716c4d1a8830f772bb5c9dffcbd96de3fba6
+    # production mode: no start-dev, no realm import of the synthetic dev realm
+    command: ["start"]
+    environment:
+      FIX_ENV: prod
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak?sslmode=require
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Keycloak DB role password must be Vault injected}
+      KC_HOSTNAME: https://${AUTH_HOST:?AUTH_HOST is required}
+      KC_HOSTNAME_STRICT: "true"
+      # TLS terminates at Kong; Keycloak trusts X-Forwarded-* from it
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_LOG_LEVEL: info
+      # one-time bootstrap admin: replace with a real admin account, then unset
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_BOOTSTRAP_ADMIN_USER:-bootstrap-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_BOOTSTRAP_ADMIN_PASSWORD:?Keycloak bootstrap admin password must be Vault injected}
+    networks: [backend]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && echo -e 'GET /health/ready HTTP/1.1\\nHost: 127.0.0.1\\nConnection: close\\n\\n' >&3 && grep -q '\"status\": \"UP\"' <&3"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 2G }
+
+  # ------------------------------------------------------------------ gateway
+  # One-shot: renders kong/kong.prod.yml (${...} placeholders) into the volume
+  # Kong reads. Fails closed - Kong does not start on a missing value.
+  kong-config:
+    image: python:3.12-slim@sha256:cb33f7f771ecec2ef1225cf39b159591a040391bd73e4c01f00fdfc4c47611d2
+    restart: "no"
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    read_only: true
+    network_mode: none
+    command: ["python", "-I", "/opt/kong-render/render-kong-config.py", "/opt/kong-render/kong.prod.yml", "/kong/rendered/kong.yml"]
+    environment:
+      KEYCLOAK_ISSUER: https://${AUTH_HOST:?AUTH_HOST is required}/realms/${KEYCLOAK_REALM:?KEYCLOAK_REALM (production realm name) is required}
+      KEYCLOAK_REALM_PUBLIC_KEY_FILE: /run/secrets/keycloak_realm_public_key
+      ODOO_UPSTREAM: http://odoo:8069
+      API_HOST: ${API_HOST:?API_HOST is required}
+      ERP_HOST: ${ERP_HOST:?ERP_HOST (Odoo back-office host name) is required}
+      AUTH_HOST: ${AUTH_HOST:?AUTH_HOST is required}
+      PORTAL_HOST_CUSTOMER: ${PORTAL_HOST_CUSTOMER:?PORTAL_HOST_CUSTOMER is required}
+      PORTAL_HOST_CORPORATE: ${PORTAL_HOST_CORPORATE:?PORTAL_HOST_CORPORATE is required}
+      PORTAL_HOST_VENDOR: ${PORTAL_HOST_VENDOR:?PORTAL_HOST_VENDOR is required}
+      PORTAL_HOST_PARTNER: ${PORTAL_HOST_PARTNER:?PORTAL_HOST_PARTNER is required}
+      PORTAL_HOST_SELLER: ${PORTAL_HOST_SELLER:?PORTAL_HOST_SELLER is required}
+      PORTAL_HOST_BRAND: ${PORTAL_HOST_BRAND:?PORTAL_HOST_BRAND is required}
+      PORTAL_HOST_ANALYTICS: ${PORTAL_HOST_ANALYTICS:?PORTAL_HOST_ANALYTICS is required}
+      PORTAL_HOST_AGENT_CONSOLE: ${PORTAL_HOST_AGENT_CONSOLE:?PORTAL_HOST_AGENT_CONSOLE is required}
+    volumes:
+      - ./kong/render-kong-config.py:/opt/kong-render/render-kong-config.py:ro
+      - ./kong/kong.prod.yml:/opt/kong-render/kong.prod.yml:ro
+      - kong-rendered:/kong/rendered
+    secrets: [keycloak_realm_public_key]
+
+  kong:
+    <<: *hardened
+    image: kong:3.9@sha256:92035d16d7ff86b7bc12fb1d0090d29357d924238b1880f78735f3f2fea6b631
+    read_only: true
+    tmpfs: ["/tmp", "/kong_prefix:uid=1001,gid=1001,mode=0700"]   # kong image user = 1001
+    environment:
+      FIX_ENV: prod
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /kong/rendered/kong.yml
+      KONG_PREFIX: /kong_prefix
+      # HTTPS only on the edge; 8100 = status API for the healthcheck (internal)
+      KONG_PROXY_LISTEN: 0.0.0.0:8443 ssl http2 reuseport backlog=16384
+      KONG_ADMIN_LISTEN: "off"
+      KONG_STATUS_LISTEN: 127.0.0.1:8100
+      KONG_SSL_CERT: /run/secrets/kong_tls_cert
+      KONG_SSL_CERT_KEY: /run/secrets/kong_tls_key
+      KONG_SSL_PROTOCOLS: TLSv1.2 TLSv1.3
+      KONG_HEADERS: "off"
+      KONG_TRUSTED_IPS: ${KONG_TRUSTED_IPS:-127.0.0.1/32}
+      KONG_REAL_IP_HEADER: X-Forwarded-For
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_NGINX_PROXY_CLIENT_MAX_BODY_SIZE: 25m
+    volumes:
+      - kong-rendered:/kong/rendered:ro
+    secrets: [kong_tls_cert, kong_tls_key]
+    ports:
+      # the ONLY published port of the stack
+      - "${KONG_HTTPS_BIND:-0.0.0.0}:${KONG_HTTPS_PORT:-443}:8443"
+    networks: [edge, backend]
+    depends_on:
+      kong-config: { condition: service_completed_successfully }
+      odoo: { condition: service_started }
+      keycloak: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+    deploy:
+      resources:
+        limits: { cpus: "2.0", memory: 1G }
+
+  # ------------------------------------------------------------------ portals
+  # One image per portal (apps/web/Dockerfile.portal, NEXT_PUBLIC_* baked at
+  # build time - docker-compose.prod.build.yml). Runtime env is server-side only.
+  portal-customer:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-customer:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment:
+      <<: *portal-env
+      FIX_ODOO_DB: ${ODOO_DB:-fix_production}
+      FIX_TECHNICIAN_API_KEY: ${FIX_TECHNICIAN_API_KEY:?FIX_TECHNICIAN_API_KEY (technician relay credential) must be Vault injected}
+  portal-corporate:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-corporate:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment:
+      <<: *portal-env
+      OIDC_ISSUER: https://${AUTH_HOST:?AUTH_HOST is required}/realms/${KEYCLOAK_REALM:?KEYCLOAK_REALM is required}
+      OIDC_REDIRECT_URI: https://${PORTAL_HOST_CORPORATE:?PORTAL_HOST_CORPORATE is required}/auth/callback
+      OIDC_CLIENT_ID: ${CORPORATE_OIDC_CLIENT_ID:-1000fix-corporate-web}
+      # optional: a public PKCE client needs no secret; a confidential client does
+      OIDC_CLIENT_SECRET: ${CORPORATE_OIDC_CLIENT_SECRET:-}
+  portal-vendor:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-vendor:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+  portal-partner:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-partner:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+  portal-seller:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-seller:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+  portal-brand:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-brand:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+  portal-analytics:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-analytics:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+  portal-agent-console:
+    <<: *portal
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/portal-agent-console:${FIX_RELEASE:?FIX_RELEASE is required}
+    environment: *portal-env
+
+  # ------------------------------------------------------------------ services
+  identity-lifecycle:
+    <<: *hardened
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/identity-lifecycle:${FIX_RELEASE:?FIX_RELEASE is required}
+    # Runs in production (check_environment accepts prod); its ops endpoints
+    # stay closed without IDENTITY_LIFECYCLE_TOKEN.
+    read_only: true
+    tmpfs: ["/tmp"]
+    environment:
+      FIX_ENV: prod
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:?KEYCLOAK_REALM is required}
+      KEYCLOAK_ADMIN_REALM: ${KEYCLOAK_REALM:?KEYCLOAK_REALM is required}
+      KEYCLOAK_ADMIN_CLIENT_ID: ${IDENTITY_LIFECYCLE_CLIENT_ID:-identity-lifecycle}
+      KEYCLOAK_ADMIN_CLIENT_SECRET: ${IDENTITY_LIFECYCLE_CLIENT_SECRET:?identity-lifecycle service-account secret must be Vault injected}
+      IDENTITY_LIFECYCLE_TOKEN: ${IDENTITY_LIFECYCLE_TOKEN:?identity-lifecycle ops token must be Vault injected}
+      IDENTITY_LIFECYCLE_LEDGER: /var/lib/identity-lifecycle/ledger.json
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Redis password must be Vault injected}@redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS is required}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?KAFKA_SASL_USERNAME is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?KAFKA_SASL_PASSWORD must be Vault injected}
+    volumes:
+      - identity-lifecycle-data:/var/lib/identity-lifecycle
+    networks: [backend, egress]
+    depends_on:
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8120/health',timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  notification-dispatcher:
+    <<: *hardened
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/notification-dispatcher:${FIX_RELEASE:?FIX_RELEASE is required}
+    read_only: true
+    tmpfs: ["/tmp"]
+    environment:
+      # the image entrypoint normalises prod -> production (channels.py production rules)
+      FIX_ENV: prod
+      FIX_ACTIVE_WAVE: ${FIX_ACTIVE_WAVE:-W1}
+      REDIS_URL: redis://:${REDIS_PASSWORD:?Redis password must be Vault injected}@redis:6379/0
+      KAFKA_BOOTSTRAP_SERVERS: ${KAFKA_BOOTSTRAP_SERVERS:?KAFKA_BOOTSTRAP_SERVERS is required}
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_SSL}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-SCRAM-SHA-256}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:?KAFKA_SASL_USERNAME is required}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD:?KAFKA_SASL_PASSWORD must be Vault injected}
+      # Gateways: unset = that channel stays in dry-run / fails closed. Values are
+      # https endpoints + tokens issued by the providers (never committed).
+      FIX_SMS_GATEWAY_URL: ${FIX_SMS_GATEWAY_URL:-}
+      FIX_SMS_GATEWAY_TOKEN: ${FIX_SMS_GATEWAY_TOKEN:-}
+      FIX_SMS_REDUNDANT_GATEWAY_URL: ${FIX_SMS_REDUNDANT_GATEWAY_URL:-}
+      FIX_SMS_REDUNDANT_GATEWAY_TOKEN: ${FIX_SMS_REDUNDANT_GATEWAY_TOKEN:-}
+      FIX_WHATSAPP_API_URL: ${FIX_WHATSAPP_API_URL:-}
+      FIX_WHATSAPP_API_TOKEN: ${FIX_WHATSAPP_API_TOKEN:-}
+      FIX_EMAIL_API_URL: ${FIX_EMAIL_API_URL:-}
+      FIX_EMAIL_API_TOKEN: ${FIX_EMAIL_API_TOKEN:-}
+    networks: [backend, egress]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8110/health',timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+  telemetry-collector:
+    <<: *hardened
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/telemetry-collector:${FIX_RELEASE:?FIX_RELEASE is required}
+    read_only: true
+    tmpfs: ["/tmp"]
+    environment:
+      FIX_ENV: prod
+      PORT: "8084"
+      # dedicated least-privilege role/database (postgres/init-prod); the
+      # password must be URL-safe (it is embedded in the DSN)
+      DATABASE_URL: postgres://telemetry:${TELEMETRY_DB_PASSWORD:?Telemetry DB role password must be Vault injected}@postgres:5432/fix_telemetry?sslmode=require
+    networks: [backend]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8084/health >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+    deploy:
+      resources:
+        limits: { cpus: "1.0", memory: 512M }
+
+  ml-gateway:
+    <<: *hardened
+    image: ${FIX_IMAGE_REGISTRY:?FIX_IMAGE_REGISTRY is required}/1000fix/ml-gateway:${FIX_RELEASE:?FIX_RELEASE is required}
+    read_only: true
+    tmpfs: ["/tmp"]
+    environment:
+      FIX_ENV: prod
+      ML_GATEWAY_HOST: 0.0.0.0
+      ML_GATEWAY_PORT: "8090"
+    networks: [backend]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8090/health',timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 256M }
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+  egress: {}
+
+secrets:
+  pg_tls_cert:
+    file: ${PG_TLS_CERT_FILE:?postgres TLS certificate (PEM) path required}
+  pg_tls_key:
+    file: ${PG_TLS_KEY_FILE:?postgres TLS private key (PEM) path required}
+  kong_tls_cert:
+    file: ${KONG_TLS_CERT_FILE:?edge TLS certificate chain (PEM, covering every public host) path required}
+  kong_tls_key:
+    file: ${KONG_TLS_KEY_FILE:?edge TLS private key (PEM) path required}
+  keycloak_realm_public_key:
+    file: ${KEYCLOAK_REALM_PUBLIC_KEY_FILE:?Keycloak realm RS256 public key (PEM or base64) path required}
+
+volumes:
+  pgdata:
+  pgwal-archive:
+  redis-data:
+  odoo-data:
+  kong-rendered:
+  identity-lifecycle-data:

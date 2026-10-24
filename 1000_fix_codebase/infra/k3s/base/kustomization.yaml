@@ -1,0 +1,67 @@
+# 1000fix-erp - Kubernetes BASE (environment-neutral). Build an environment
+# from an overlay, never from here:
+#   kubectl kustomize infra/k3s/overlays/production
+#
+# Components: odoo (StatefulSet), keycloak, kong (the only Ingress backend),
+# the 8 web portals, notification-dispatcher, telemetry-collector, ml-gateway,
+# identity-lifecycle. PostgreSQL, Redis(Valkey) and Kafka are EXTERNAL managed
+# services (infra/terraform) referenced through Secrets - no database runs in
+# the cluster. Secrets are REFERENCED only (names/keys listed in
+# infra/README-production.md); no secret value lives in this tree.
+# Distribution-neutral: the directory is named k3s but nothing here is
+# k3s-specific (DigitalOcean Kubernetes is the provisioned target).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: fix-erp
+    includeSelectors: false
+
+resources:
+  - ../../compose/kong          # ConfigMap kong-config-template (single source)
+  - networkpolicies.yaml
+  - ingress.yaml
+  - odoo.yaml
+  - keycloak.yaml
+  - kong.yaml
+  - notification-dispatcher.yaml
+  - telemetry-collector.yaml
+  - ml-gateway.yaml
+  - identity-lifecycle.yaml
+  - portals/customer
+  - portals/corporate
+  - portals/vendor
+  - portals/partner
+  - portals/seller
+  - portals/brand
+  - portals/analytics
+  - portals/agent-console
+
+# Non-secret platform settings shared by the workloads. Every value here is a
+# neutral placeholder; the overlay MERGES the real host names.
+configMapGenerator:
+  - name: fix-platform
+    literals:
+      - FIX_ENV=prod
+      - ODOO_DB=fix_production
+      - ODOO_WORKERS=4
+      - ODOO_UPSTREAM=http://odoo:8069
+      - KEYCLOAK_REALM=1000fix
+      - KEYCLOAK_ISSUER=https://auth.example.invalid/realms/1000fix
+      - API_HOST=api.example.invalid
+      - ERP_HOST=erp.example.invalid
+      - AUTH_HOST=auth.example.invalid
+      - PORTAL_HOST_CUSTOMER=customer.example.invalid
+      - PORTAL_HOST_CORPORATE=corporate.example.invalid
+      - PORTAL_HOST_VENDOR=vendor.example.invalid
+      - PORTAL_HOST_PARTNER=partner.example.invalid
+      - PORTAL_HOST_SELLER=seller.example.invalid
+      - PORTAL_HOST_BRAND=brand.example.invalid
+      - PORTAL_HOST_ANALYTICS=analytics.example.invalid
+      - PORTAL_HOST_AGENT_CONSOLE=agent.example.invalid
+      - FIX_API_BASE=https://api.example.invalid
+      - CSP_CONNECT_SRC=https://api.example.invalid https://auth.example.invalid
+      - CORPORATE_OIDC_CLIENT_ID=1000fix-corporate-web
+      - CORPORATE_OIDC_REDIRECT_URI=https://corporate.example.invalid/auth/callback
+      - FIX_ACTIVE_WAVE=W1
