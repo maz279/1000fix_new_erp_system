@@ -1,11 +1,11 @@
 # fix.service.order — the flagship model (P04-M03-T02, CD-M01-01).
 # Full state machine per AS-06 (declared in ONE place, DP-01).
 # SLA computation delegated to services/sla-engine/ (AR-007 section 3.1).
-from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
-
 import logging
 import uuid
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -52,50 +52,73 @@ class FixServiceOrder(models.Model):
     Every device that enters a 1000FiX branch gets a service order. The
     full lifecycle from intake to delivery is tracked through this model.
     """
+
     _name = "fix.service.order"
     _description = "Service Order"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
     # AS-03
-    company_id = fields.Many2one("res.company", required=True, index=True,
-                                 default=lambda self: self.env.company)
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit",
-                                        index=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit", index=True)
 
     # Identity
-    name = fields.Char(string="Order Reference", readonly=True, index=True,
-                       default=lambda self: self.env["ir.sequence"].next_by_code(
-                           "fix.service.order") or "NEW")
-    idempotency_key = fields.Char(string="Idempotency Key", index=True, copy=False,
-                                  help="DI-04: a retried POST must not create two orders")
+    name = fields.Char(
+        string="Order Reference",
+        readonly=True,
+        index=True,
+        copy=False,
+        help="Assigned from the fix.service.order sequence in create(); a missing "
+        "sequence is an error, never a shared placeholder reference.",
+    )
+    idempotency_key = fields.Char(
+        string="Idempotency Key",
+        index=True,
+        copy=False,
+        help="DI-04: a retried POST must not create two orders",
+    )
 
     # The device (M17 registry)
-    device_id = fields.Many2one("fix.device", string="Device", required=True,
-                                ondelete="restrict", index=True)
-    device_serial = fields.Char(related="device_id.serial_number", store=True,
-                                string="S/N")
+    device_id = fields.Many2one(
+        "fix.device", string="Device", required=True, ondelete="restrict", index=True
+    )
+    device_serial = fields.Char(related="device_id.serial_number", store=True, string="S/N")
 
     # The customer (M33 party kernel)
-    customer_id = fields.Many2one("res.partner", string="Customer", required=True,
-                                  ondelete="restrict", index=True)
+    customer_id = fields.Many2one(
+        "res.partner", string="Customer", required=True, ondelete="restrict", index=True
+    )
     customer_phone = fields.Char(related="customer_id.phone", string="Phone")
 
     # Branch and assignment
-    branch_id = fields.Many2one("fix.branch", string="Branch", required=True,
-                                ondelete="restrict")
+    branch_id = fields.Many2one("fix.branch", string="Branch", required=True, ondelete="restrict")
     technician_id = fields.Many2one("hr.employee", string="Assigned Technician")
 
     # State machine (AS-06/DP-01: the declared transitions above are the authority)
-    state = fields.Selection(SERVICE_ORDER_STATES, default="draft",
-                             required=True, tracking=True, index=True,
-                             group_expand="_read_group_states")
+    state = fields.Selection(
+        SERVICE_ORDER_STATES,
+        default="draft",
+        required=True,
+        tracking=True,
+        index=True,
+        group_expand="_read_group_states",
+    )
 
     # Service details
     service_type = fields.Selection(
-        [("walk_in", "Walk-in"), ("collection", "Collection/Delivery"),
-         ("onsite", "On-site"), ("mail_in", "Mail-in"), ("corporate", "Corporate/Bulk")],
-        required=True, default="walk_in", tracking=True)
+        [
+            ("walk_in", "Walk-in"),
+            ("collection", "Collection/Delivery"),
+            ("onsite", "On-site"),
+            ("mail_in", "Mail-in"),
+            ("corporate", "Corporate/Bulk"),
+        ],
+        required=True,
+        default="walk_in",
+        tracking=True,
+    )
     # BRU-SRM-02/03: the commercial classification gating creation
     order_category = fields.Selection(
         [
@@ -108,20 +131,31 @@ class FixServiceOrder(models.Model):
             ("recycling", "Recycling / E-Waste"),
             ("goodwill", "Goodwill (Zero-Charge)"),
         ],
-        string="Order Category", default="standard", required=True, tracking=True,
-        help="Commercial classification gating order workflow (BRU-SRM-02/03 & W2 business lines)")
+        string="Order Category",
+        default="standard",
+        required=True,
+        tracking=True,
+        help="Commercial classification gating order workflow (BRU-SRM-02/03 & W2 business lines)",
+    )
     is_rework = fields.Boolean(
-        string="Rework", default=False, copy=False, tracking=True,
+        string="Rework",
+        default=False,
+        copy=False,
+        tracking=True,
         help="BRU-SRM-06: auto-flagged when the same device returns with the same "
-             "fault within 30 days; linked to the original order")
-    rework_of_id = fields.Many2one("fix.service.order", string="Rework Of",
-                                   copy=False, index=True, readonly=True)
-    fault_description = fields.Text(string="Fault Description", required=True,
-                                    tracking=True)
+        "fault within 30 days; linked to the original order",
+    )
+    rework_of_id = fields.Many2one(
+        "fix.service.order", string="Rework Of", copy=False, index=True, readonly=True
+    )
+    fault_description = fields.Text(string="Fault Description", required=True, tracking=True)
     catalog_item_id = fields.Many2one("fix.catalogue.item", string="Service Catalogue Item")
     priority = fields.Selection(
         [("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"), ("emergency", "Emergency")],
-        default="normal", required=True, tracking=True)
+        default="normal",
+        required=True,
+        tracking=True,
+    )
 
     # FR-SRM-080: Priority Override Logging
     priority_override_reason = fields.Text(string="Priority Override Justification", tracking=True)
@@ -131,22 +165,31 @@ class FixServiceOrder(models.Model):
     preferred_technician_id = fields.Many2one("hr.employee", string="Customer-Preferred Technician")
 
     # FR-SRM-082: Repeat-Visit Case Linkage
-    parent_case_id = fields.Many2one("fix.service.order", string="Parent Customer Problem Case", index=True)
-    linked_order_ids = fields.One2many("fix.service.order", "parent_case_id", string="Linked Visit Orders")
+    parent_case_id = fields.Many2one(
+        "fix.service.order", string="Parent Customer Problem Case", index=True
+    )
+    linked_order_ids = fields.One2many(
+        "fix.service.order", "parent_case_id", string="Linked Visit Orders"
+    )
 
     # Currency
     currency_id = fields.Many2one(
         "res.currency",
         string="Currency",
-        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False) or self.env.company.currency_id,
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
     )
 
     # --- W2 Business-Line Extensions (FR-SRM-063..088) ---
     # FR-SRM-063: Rental Service Intake
     is_rental = fields.Boolean(string="Rental Intake", default=False, tracking=True)
     rental_agreement_ref = fields.Char(string="Rental Agreement Ref", tracking=True)
-    rental_deposit_bdt = fields.Monetary(string="Rental Deposit (BDT)", currency_field="currency_id", default=0.0)
-    rental_liability_bdt = fields.Monetary(string="Rental Liability (BDT)", currency_field="currency_id", default=0.0)
+    rental_deposit_bdt = fields.Monetary(
+        string="Rental Deposit (BDT)", currency_field="currency_id", default=0.0
+    )
+    rental_liability_bdt = fields.Monetary(
+        string="Rental Liability (BDT)", currency_field="currency_id", default=0.0
+    )
     rental_start_date = fields.Date(string="Rental Start Date")
     rental_end_date = fields.Date(string="Rental End Date")
 
@@ -234,7 +277,9 @@ class FixServiceOrder(models.Model):
     e_waste_cert_ref = fields.Char(string="E-Waste Green Certificate Ref")
 
     # FR-SRM-075: Goodwill Repair
-    is_goodwill = fields.Boolean(string="Goodwill Repair (Zero-Charge)", default=False, tracking=True)
+    is_goodwill = fields.Boolean(
+        string="Goodwill Repair (Zero-Charge)", default=False, tracking=True
+    )
     goodwill_cost_attribution_bdt = fields.Monetary(
         string="Goodwill Cost Absorbed (BDT)",
         currency_field="currency_id",
@@ -249,7 +294,9 @@ class FixServiceOrder(models.Model):
     loan_condition = fields.Char(string="Loan Device Return Condition")
 
     # FR-SRM-077: Multi-Fault Handling Lines
-    fault_line_ids = fields.One2many("fix.service.order.fault", "order_id", string="Fault Diagnosis Lines")
+    fault_line_ids = fields.One2many(
+        "fix.service.order.fault", "order_id", string="Fault Diagnosis Lines"
+    )
 
     # SLA (T04: clocks and escalation — computation in services/sla-engine/)
     sla_policy_id = fields.Many2one("fix.sla.policy", string="SLA Policy")
@@ -257,8 +304,9 @@ class FixServiceOrder(models.Model):
     sla_resolution_deadline = fields.Datetime(readonly=True)
     sla_response_at = fields.Datetime(readonly=True)
     sla_resolution_at = fields.Datetime(readonly=True)
-    sla_clock_paused = fields.Boolean(default=False,
-                                      help="Clock paused during customer hold or parts wait")
+    sla_clock_paused = fields.Boolean(
+        default=False, help="Clock paused during customer hold or parts wait"
+    )
 
     # Related records
     estimate_ids = fields.One2many("fix.estimate", "order_id", string="Estimates")
@@ -266,14 +314,24 @@ class FixServiceOrder(models.Model):
     qc_checklist_ids = fields.One2many("fix.qc.checklist", "order_id", string="QC Checklists")
 
     # MIG-03: legacy reference (permanent)
-    legacy_reference = fields.Char(string="Legacy Reference", index=True,
-                                   help="MIG-03: the legacy system's order number, permanently retained")
+    legacy_reference = fields.Char(
+        string="Legacy Reference",
+        index=True,
+        help="MIG-03: the legacy system's order number, permanently retained",
+    )
 
     active = fields.Boolean(default=True)
 
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
-    _idempotency_key_unique = models.Constraint('UNIQUE (idempotency_key)', 'An order with this idempotency key already exists (DI-04 idempotency).')
+    _idempotency_key_unique = models.Constraint(
+        "UNIQUE (idempotency_key)",
+        "An order with this idempotency key already exists (DI-04 idempotency).",
+    )
+    _name_unique = models.Constraint(
+        "UNIQUE (name)",
+        "Service order references must be unique.",
+    )
 
     @api.model
     def _read_group_states(self, states, domain, order):
@@ -289,25 +347,50 @@ class FixServiceOrder(models.Model):
         if new_state not in valid_targets:
             raise ValidationError(
                 f"Invalid state transition: {old} -> {new_state}. "
-                f"Valid transitions from '{old}': {', '.join(sorted(valid_targets)) or '(terminal state)'}")
+                f"Valid transitions from '{old}': {', '.join(sorted(valid_targets)) or '(terminal state)'}"
+            )
+        if new_state == "ready":
+            # BRU-SRM-04 (H): the QC hard gate lives in the transition check
+            # so NO write path (action, controller, sync, RPC) reaches Ready
+            # without a passed checklist.
+            self._check_qc_gate()
+
+    def _check_qc_gate(self) -> None:
+        """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
+        quality checklist — a hard gate, not a warning."""
+        self.ensure_one()
+        checklists = self.qc_checklist_ids
+        if not checklists:
+            raise UserError(
+                "Order %s has no QC checklist — Ready requires one (BRU-SRM-04)" % self.name
+            )
+        failed = checklists.filtered(lambda c: c.state != "passed")
+        if failed:
+            raise UserError(
+                "Order %s cannot be Ready: %d QC checklist(s) not passed (BRU-SRM-04)"
+                % (self.name, len(failed))
+            )
 
     def write(self, vals):
+        old_states = {}
         if "state" in vals:
             for rec in self:
                 rec._validate_transition(vals["state"])
+                old_states[rec.id] = rec.state
         result = super().write(vals)
         if "state" in vals:
             for rec in self:
-                rec._on_state_change(vals["state"])
+                rec._on_state_change(vals["state"], old_states[rec.id])
         return result
 
-    def _on_state_change(self, new_state: str) -> None:
-        """Hook for side effects on state changes."""
+    def _on_state_change(self, new_state: str, old_state: str) -> None:
+        """Hook for side effects on state changes. ``old_state`` is captured
+        before the write: reading ``self.state`` here (after it) recorded every
+        history entry as "<new> -> <new>"."""
         self._emit(f"service_order.{new_state}", self)
         self.device_id.add_history(
-            "service_order",
-            f"Order {self.name}: {self.state} -> {new_state}",
-            order_id=self.id)
+            "service_order", f"Order {self.name}: {old_state} -> {new_state}", order_id=self.id
+        )
         # SLA clock events
         if new_state == "in_repair" and not self.sla_response_at:
             self.sla_response_at = fields.Datetime.now()
@@ -331,18 +414,10 @@ class FixServiceOrder(models.Model):
 
     def action_ready(self):
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
-        quality checklist — a hard gate, not a warning."""
+        quality checklist — a hard gate, not a warning. Enforced by
+        _validate_transition (write), so every path shares the one gate."""
         for order in self:
-            checklists = order.qc_checklist_ids
-            if not checklists:
-                raise UserError(
-                    "Order %s has no QC checklist — Ready requires one (BRU-SRM-04)"
-                    % order.name)
-            failed = checklists.filtered(lambda c: c.state != "passed")
-            if failed:
-                raise UserError(
-                    "Order %s cannot be Ready: %d QC checklist(s) not passed (BRU-SRM-04)"
-                    % (order.name, len(failed)))
+            order._check_qc_gate()
         self.state = "ready"
 
     def action_deliver(self):
@@ -361,29 +436,33 @@ class FixServiceOrder(models.Model):
         replacement = self.env["fix.device"].browse(replacement_device_id)
         if not replacement.exists():
             raise UserError("Selected replacement swap device does not exist.")
-        self.write({
-            "is_swap_out": True,
-            "swap_device_id": replacement.id,
-            "swap_reason": reason,
-            "swap_condition_grade": grade,
-            "swap_logistics_status": "dispatched",
-        })
+        self.write(
+            {
+                "is_swap_out": True,
+                "swap_device_id": replacement.id,
+                "swap_reason": reason,
+                "swap_condition_grade": grade,
+                "swap_logistics_status": "dispatched",
+            }
+        )
         self.message_post(
             body=f"FR-SRM-064: Asset swap triggered. Replacement device {replacement.name} "
-                 f"assigned with reason '{reason}' and condition '{grade}'."
+            f"assigned with reason '{reason}' and condition '{grade}'."
         )
         self._emit("service_order.device_swapped", self)
 
     def action_defer_order(self, reason="parts_backorder", resume_date=None, notes=None):
         """Pause active SLA clocks and record deferred hold."""
         self.ensure_one()
-        self.write({
-            "is_deferred_block": True,
-            "deferred_reason": reason,
-            "deferred_until": resume_date,
-            "deferred_notes": notes,
-            "sla_clock_paused": True,
-        })
+        self.write(
+            {
+                "is_deferred_block": True,
+                "deferred_reason": reason,
+                "deferred_until": resume_date,
+                "deferred_notes": notes,
+                "sla_clock_paused": True,
+            }
+        )
         self.message_post(
             body=f"Deferred repair hold activated: {reason}. Resumption target: {resume_date or 'Indefinite'}."
         )
@@ -392,72 +471,116 @@ class FixServiceOrder(models.Model):
     def action_resume_order(self):
         """Resume repair order and restart SLA clock."""
         self.ensure_one()
-        self.write({
-            "is_deferred_block": False,
-            "sla_clock_paused": False,
-        })
+        self.write(
+            {
+                "is_deferred_block": False,
+                "sla_clock_paused": False,
+            }
+        )
         self.message_post(body="Deferred repair hold lifted — order processing resumed.")
         self._emit("service_order.resumed", self)
 
     # --- Idempotency (T08, DI-04) ---
     @api.model_create_multi
     def create(self, vals_list):
-        # DI-04: if an idempotency key is provided and an order already
-        # exists with it, return the existing order instead of creating a new one
+        # DI-04: a vals whose idempotency key already exists yields the existing
+        # order instead of a new one. Per vals, in input order: the old body
+        # RETURNED on the first replayed key, silently dropping every other vals
+        # of the batch.
+        result_ids = []  # existing order id, or None for "created below"
+        to_create = []
         for vals in vals_list:
-            if vals.get("idempotency_key"):
-                existing = self.search([("idempotency_key", "=", vals["idempotency_key"])], limit=1)
-                if existing:
-                    return existing
-            if not vals.get("idempotency_key"):
+            key = vals.get("idempotency_key")
+            existing = key and self.search([("idempotency_key", "=", key)], limit=1)
+            if existing:
+                result_ids.append(existing.id)
+                continue
+            if not key:
                 vals["idempotency_key"] = str(uuid.uuid4())
-        records = super().create(vals_list)
+            if not vals.get("name"):
+                # The old field default fell back to the literal "NEW" when the
+                # sequence was missing: 825 orders in fix_dev shared that
+                # reference. A missing sequence must stop the create instead.
+                ref = self.env["ir.sequence"].next_by_code("fix.service.order")
+                if not ref:
+                    raise UserError(
+                        "The 'fix.service.order' sequence is missing — cannot assign "
+                        "a service order reference."
+                    )
+                vals["name"] = ref
+            result_ids.append(None)
+            to_create.append(vals)
+        records = super().create(to_create)
         for rec in records:
             rec._check_warranty_gate()
             rec._flag_rework()
             rec._emit("service_order.created", rec)
-        return records
+        created = iter(records.ids)
+        return self.browse([rid or next(created) for rid in result_ids])
 
     def _check_warranty_gate(self):
         """BRU-SRM-02 / WTY-01 (H): a warranty-type order can only be
-        created while the device's warranty is ACTIVE at the request date.
-        The device model computes the status; the gate reads it."""
+        created while the device's warranty is ACTIVE at the request date,
+        decided by the device (fix.device.is_under_warranty).
+
+        The gate used to compare fix.device.warranty_status with "active", a
+        value that field never takes ("in_warranty", "out_of_warranty",
+        "extended", "unknown"): EVERY warranty order was refused - from the P01
+        customer booking and the P04 corporate request alike (R01 re-audit
+        2026-10-22)."""
+        request_date = fields.Date.today()
         for order in self:
             if order.order_category != "warranty":
                 continue
-            status = order.device_id.warranty_status
-            if status != "active":
+            device = order.device_id
+            if not device.is_under_warranty(request_date):
                 raise UserError(
-                    "BRU-SRM-02: device %s warranty is '%s' — a warranty order "
-                    "needs an ACTIVE warranty at the request date"
-                    % (order.device_id.display_name, status or "none"))
+                    "BRU-SRM-02: device %s has no active warranty on %s (warranty status "
+                    "'%s') — a warranty order needs an ACTIVE warranty at the request date"
+                    % (device.display_name, request_date, device.warranty_status or "unknown")
+                )
 
     def _flag_rework(self):
         """BRU-SRM-06 (C): a new order for the same device with the same
         fault within 30 days is auto-flagged as rework and linked."""
         from datetime import timedelta
+
         cutoff = fields.Date.today() - timedelta(days=30)
         for order in self:
             if order.is_rework:
                 continue
-            original = self.search([
-                ("device_id", "=", order.device_id.id),
-                ("id", "!=", order.id),
-                ("state", "not in", ("cancelled",)),
-                ("create_date", ">=", cutoff),
-            ], order="create_date desc", limit=1)
+            original = self.search(
+                [
+                    ("device_id", "=", order.device_id.id),
+                    ("id", "!=", order.id),
+                    ("state", "not in", ("cancelled",)),
+                    ("create_date", ">=", cutoff),
+                ],
+                order="create_date desc",
+                limit=1,
+            )
             if original:
                 order.write({"is_rework": True, "rework_of_id": original.id})
-                order.message_post(body=(
-                    "BRU-SRM-06: flagged as rework — device returned within 30 "
-                    "days (linked to %s)" % original.name))
+                order.message_post(
+                    body=(
+                        "BRU-SRM-06: flagged as rework — device returned within 30 "
+                        "days (linked to %s)" % original.name
+                    )
+                )
 
     def _emit(self, event_type: str, rec) -> None:
         from libs.py.fix_events import publish
-        publish(self.env, event_type, "fix.service.order", rec.id, {
-            "order_id": rec.id,
-            "name": rec.name,
-            "device_id": rec.device_id.id,
-            "customer_id": rec.customer_id.id,
-            "state": rec.state,
-        })
+
+        publish(
+            self.env,
+            event_type,
+            "fix.service.order",
+            rec.id,
+            {
+                "order_id": rec.id,
+                "name": rec.name,
+                "device_id": rec.device_id.id,
+                "customer_id": rec.customer_id.id,
+                "state": rec.state,
+            },
+        )
