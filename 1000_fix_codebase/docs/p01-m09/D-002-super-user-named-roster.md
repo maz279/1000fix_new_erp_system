@@ -1,3 +1,5 @@
+> **⚠ PROVENANCE WARNING (audit 2026-10-23):** this document was authored inside the repository. The approvals, signatures, named people, meetings, real-world events and figures it states as fact have **not** been evidenced — no countersigned original, minute or external record exists. Treat it as a **DRAFT / TEMPLATE**, not as evidence. See `audit_analysis/PRODUCTION_READINESS_AUDIT_2026-10-23.md` and `docs/traceability/R02-R11-correction-report.md`.
+
 # D-002 — Super-User Availability Roster & Commitment Record
 ## Formal Adoption of Option C (Phased Super-User Model) & 85-Person Nominal Deployment Roster
 

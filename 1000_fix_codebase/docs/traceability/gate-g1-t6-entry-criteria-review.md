@@ -1,3 +1,5 @@
+> **⚠ PROVENANCE WARNING (audit 2026-10-23):** this document was authored inside the repository. The approvals, signatures, named people, meetings, real-world events and figures it states as fact have **not** been evidenced — no countersigned original, minute or external record exists. Treat it as a **DRAFT / TEMPLATE**, not as evidence. See `audit_analysis/PRODUCTION_READINESS_AUDIT_2026-10-23.md` and `docs/traceability/R02-R11-correction-report.md`.
+
 # Gate G1 Standing Criteria & T-6 Entry Review (GV-009 §9.1 & §9.2)
 
 **Document Reference**: `DOC-TRACE-G1-T6-001`  
