@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_campaign views — M35 (P08-M04-T08). -->
+<!-- cd_campaign views — M35 (P08-M04-T08, R06-M01-T05). -->
 <odoo>
     <record id="view_fix_campaign_list" model="ir.ui.view">
         <field name="name">fix.campaign.list</field>
@@ -7,7 +7,9 @@
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="name_bn"/>
                 <field name="channel"/>
+                <field name="target_audience_type"/>
                 <field name="budget"/>
                 <field name="response_count"/>
                 <field name="cost_per_response"/>
@@ -22,39 +24,62 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_launch" type="object" string="Launch"
+                    <button name="action_launch" type="object" string="Launch Campaign"
                             class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_trigger_loyalty_hook" type="object"
+                            string="Disburse Loyalty Rewards (M10)" class="btn-secondary"
+                            invisible="state not in ('running', 'completed')"/>
                     <button name="action_pause" type="object" string="Pause"
                             invisible="state != 'running'"/>
                     <button name="action_resume" type="object" string="Resume"
                             invisible="state != 'paused'"/>
-                    <button name="action_complete" type="object"
-                            string="Complete"
+                    <button name="action_complete" type="object" string="Complete"
                             invisible="state not in ('running', 'paused')"/>
-                    <field name="state" widget="statusbar"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,running,completed"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <label for="name" string="Campaign Name"/>
+                        <h1><field name="name" placeholder="e.g. Dhaka AC Season Overhaul 2026"/></h1>
+                    </div>
                     <group>
-                        <group>
-                            <field name="name"/>
+                        <group string="Campaign Definition">
                             <field name="name_bn"/>
                             <field name="channel"/>
+                            <field name="target_audience_type"/>
+                            <field name="pdpa_consent_verified"/>
+                            <field name="recipient_count"/>
+                            <field name="excluded_no_consent_count"/>
+                            <field name="operating_unit_id"/>
                         </group>
-                        <group>
+                        <group string="Budget &amp; Schedule">
                             <field name="budget"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="start_date"/>
                             <field name="end_date"/>
+                            <field name="utm_campaign"/>
                         </group>
                     </group>
-                    <field name="audience_domain"/>
-                    <field name="response_ids">
-                        <list>
-                            <field name="responded_at"/>
-                            <field name="partner_id"/>
-                            <field name="response_type"/>
-                        </list>
-                    </field>
+                    <notebook>
+                        <page string="Audience Segmentation &amp; Compliance">
+                            <group>
+                                <field name="audience_domain"/>
+                                <field name="utm_source"/>
+                                <field name="utm_medium"/>
+                            </group>
+                        </page>
+                        <page string="Response Attribution Ledger">
+                            <field name="response_ids">
+                                <list>
+                                    <field name="responded_at"/>
+                                    <field name="partner_id"/>
+                                    <field name="response_type"/>
+                                    <field name="conversion_status"/>
+                                    <field name="loyalty_points_awarded"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
                 <div class="oe_chatter">
                     <field name="message_follower_ids"/>

@@ -1,8 +1,80 @@
 # fix_mdm_stewardship — M64 Completion: Data Stewardship & Quality Scoring (CD-M64-02).
+import re
+from collections import Counter
+
 from odoo import api, fields, models
-from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
+
+_BD_MOBILE = re.compile(r"^(?:\+?880|0)1[3-9]\d{8}$")
+_EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_SERIAL = re.compile(r"^[A-Za-z0-9][A-Za-z0-9./-]{3,}$")
+_CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/-]*$")
+
+
+def _digits_phone(value):
+    return re.sub(r"[\s()-]", "", value or "")
+
+
+def _valid_party(rec):
+    phone = _digits_phone(rec.phone)
+    if phone and not _BD_MOBILE.match(phone):
+        return False
+    return not rec.email or bool(_EMAIL.match(rec.email))
+
+
+def _valid_product(rec):
+    code = rec.product_tmpl_id.default_code
+    return bool(code) and bool(_CODE.match(code))
+
+
+def _valid_asset(rec):
+    serial = rec.serial_number
+    if serial and not _SERIAL.match(serial):
+        return False
+    for imei in (rec.imei_1, rec.imei_2):
+        if imei and not re.fullmatch(r"\d{15}", imei):
+            return False
+    return bool(serial or rec.imei_1)
+
+
+def _valid_financial(rec):
+    return bool(rec.code) and bool(_CODE.match(rec.code))
+
+
+# The governed master of each domain: model, record filter, the attributes a
+# complete record must carry, the validity rule, and the uniqueness key.
+# Scores are MEASURED over these records - nothing is assumed.
+DOMAIN_RULES = {
+    "party": {
+        "model": "res.partner",
+        "domain": [("is_company", "=", False)],
+        "required": ("name", "phone"),
+        "valid": _valid_party,
+        "key": lambda r: _digits_phone(r.phone)[-10:] or None,
+    },
+    "product": {
+        "model": "fix.catalogue.item",
+        "domain": [],
+        "required": ("product_tmpl_id", "name_bn", "category_id"),
+        "valid": _valid_product,
+        "key": lambda r: (r.product_tmpl_id.default_code or "").strip().upper() or None,
+    },
+    "asset": {
+        "model": "fix.device",
+        "domain": [],
+        "required": ("device_model_id", "serial_number", "owner_id"),
+        "valid": _valid_asset,
+        "key": lambda r: (r.serial_number or "").strip().upper() or None,
+    },
+    "financial": {
+        "model": "operating.unit",
+        "domain": [],
+        "required": ("name", "code", "company_id", "partner_id"),
+        "valid": _valid_financial,
+        "key": lambda r: ((r.code or "").strip().upper(), r.company_id.id) if r.code else None,
+    },
+}
 
 
 class FixMdmStewardship(models.Model):
@@ -44,23 +116,40 @@ class FixMdmStewardship(models.Model):
         tracking=True,
     )
 
-    # Data Quality Dimensions (DAMA-DMBOK compliant)
+    # Data Quality Dimensions (DAMA-DMBOK compliant). MEASURED by
+    # action_audit_data_quality over the governed records; 0 until audited
+    # (audit_state says whether a score is a measurement at all).
     completeness_score = fields.Float(
         string="Completeness Score (%)",
-        default=95.0,
-        help="Percentage of mandatory attributes populated across master records.",
+        default=0.0,
+        readonly=True,
+        help="Percentage of master records with every mandatory attribute populated.",
         tracking=True,
     )
     uniqueness_score = fields.Float(
         string="Uniqueness Score (%)",
-        default=98.5,
-        help="Percentage of golden records with zero duplicate matches.",
+        default=0.0,
+        readonly=True,
+        help="Percentage of keyed records whose match key no other record shares.",
         tracking=True,
     )
     validity_score = fields.Float(
         string="Validity Score (%)",
-        default=99.0,
-        help="Percentage of records passing format & regex rules (e.g. NID, BIN, IMEI).",
+        default=0.0,
+        readonly=True,
+        help="Percentage of records passing format rules (e.g. BD mobile, IMEI, codes).",
+        tracking=True,
+    )
+    audit_state = fields.Selection(
+        [
+            ("not_audited", "Not Audited"),
+            ("audited", "Measured"),
+            ("no_data", "No Records to Measure"),
+        ],
+        string="Audit Status",
+        default="not_audited",
+        required=True,
+        readonly=True,
         tracking=True,
     )
     overall_quality_score = fields.Float(
@@ -86,26 +175,73 @@ class FixMdmStewardship(models.Model):
     def _compute_quality_index(self):
         for rec in self:
             rec.overall_quality_score = round(
-                (rec.completeness_score * 0.4) + (rec.uniqueness_score * 0.3) + (rec.validity_score * 0.3),
+                (rec.completeness_score * 0.4)
+                + (rec.uniqueness_score * 0.3)
+                + (rec.validity_score * 0.3),
                 2,
             )
 
-    def action_audit_data_quality(self):
-        """Execute automated domain quality audit and update metrics."""
-        self.ensure_one()
-        # Simulated audit execution for domain
-        count_map = {
-            "party": self.env["res.partner"].search_count([("is_company", "=", False)]),
-            "product": self.env["fix.catalogue.item"].search_count([]) if "fix.catalogue.item" in self.env else 100,
-            "asset": self.env["fix.device"].search_count([]) if "fix.device" in self.env else 100,
-            "financial": self.env["operating.unit"].search_count([]) if "operating.unit" in self.env else 10,
-        }
-        total_records = count_map.get(self.domain, 100)
+    @api.model
+    def _measure_domain(self, domain_code: str) -> dict:
+        """Measure completeness/uniqueness/validity over the governed records.
 
-        self.write({
-            "records_audited_count": max(total_records, 1),
-            "last_audit_date": fields.Datetime.now(),
-        })
+        Returns {"count", "completeness", "uniqueness", "validity"} (percent,
+        2 dp) or {"count": 0} when there is nothing to measure. A required
+        attribute the model does not carry counts as missing."""
+        rules = DOMAIN_RULES[domain_code]
+        if rules["model"] not in self.env:
+            return {"count": 0}
+        records = self.env[rules["model"]].search(rules["domain"])
+        total = len(records)
+        if not total:
+            return {"count": 0}
+        fields_map = records._fields
+        complete = sum(
+            1
+            for rec in records
+            if all(name in fields_map and rec[name] for name in rules["required"])
+        )
+        valid = sum(1 for rec in records if rules["valid"](rec))
+        keys = [rules["key"](rec) for rec in records]
+        keyed = [k for k in keys if k is not None]
+        counts = Counter(keyed)
+        unique = sum(1 for k in keyed if counts[k] == 1)
+
+        def pct(part, whole):
+            return round(100.0 * part / whole, 2) if whole else 0.0
+
+        return {
+            "count": total,
+            "completeness": pct(complete, total),
+            # unkeyed records cannot be matched: they are not "unique" either
+            "uniqueness": pct(unique, total),
+            "validity": pct(valid, total),
+        }
+
+    def action_audit_data_quality(self):
+        """Audit the domain's governed master and store the MEASURED scores.
+        An empty (or uninstalled) master is reported as no_data with zero
+        scores - never a perfect or assumed score."""
+        self.ensure_one()
+        measured = self._measure_domain(self.domain)
+        if measured["count"]:
+            vals = {
+                "completeness_score": measured["completeness"],
+                "uniqueness_score": measured["uniqueness"],
+                "validity_score": measured["validity"],
+                "audit_state": "audited",
+            }
+        else:
+            vals = {
+                "completeness_score": 0.0,
+                "uniqueness_score": 0.0,
+                "validity_score": 0.0,
+                "audit_state": "no_data",
+            }
+        vals.update(
+            {"records_audited_count": measured["count"], "last_audit_date": fields.Datetime.now()}
+        )
+        self.write(vals)
 
         publish(
             self.env,
@@ -114,6 +250,10 @@ class FixMdmStewardship(models.Model):
             self.id,
             {
                 "domain": self.domain,
+                "audit_state": self.audit_state,
+                "completeness_score": self.completeness_score,
+                "uniqueness_score": self.uniqueness_score,
+                "validity_score": self.validity_score,
                 "overall_quality_score": self.overall_quality_score,
                 "records_audited": self.records_audited_count,
             },

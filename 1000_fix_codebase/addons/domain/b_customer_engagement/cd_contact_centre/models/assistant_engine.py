@@ -1,22 +1,22 @@
-"""assistant_engine — Pure-Python transactional-intent engine for M32 Conversational AI.
+"""assistant_engine — Hybrid transactional and knowledge NLU engine for M32 Conversational AI.
 
 Supports authored Bengali (বাংলা) and English NLU for 1000FiX contact centre
 channels (Hotline 16743, WhatsApp, Web Chat, In-App).
 Adheres to strict enterprise rules:
-- Transactional only: M61 general knowledge base is out of scope (W6).
+- Transactional & Knowledge: Integrates M61 technical library (closing Q-01 scope reduction; R07-M04-T04).
 - Authored Bengali utterances: Never machine-translated (DE-17, T08).
 - Honest resolution measurement: Grounded ERP answers count as resolved;
   low-confidence or complaint/escalation intents hand off with full context.
 """
+
 from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
-
+from dataclasses import dataclass
 
 # --- 1. Transactional Intent Definitions with Authored Bengali & English Corpora ---
+
 
 @dataclass
 class IntentDefinition:
@@ -24,15 +24,20 @@ class IntentDefinition:
     name: str
     name_bn: str
     description: str
-    sample_bn: List[str]
-    sample_en: List[str]
+    sample_bn: list[str]
+    sample_en: list[str]
     grounding_source: str
     resolvable_by_ai: bool = True
     auto_handoff: bool = False
     handoff_reason: str = ""
+    # A transactional intent whose answer depends on the customer's live ERP
+    # records. The pure engine cannot answer it: it routes the turn to the
+    # Odoo-side grounding step (fix.conversation._ground_intent_response),
+    # which answers from real records or hands off - never a canned outcome.
+    requires_grounding: bool = False
 
 
-INTENT_REGISTRY: Dict[str, IntentDefinition] = {
+INTENT_REGISTRY: dict[str, IntentDefinition] = {
     "order.status": IntentDefinition(
         code="order.status",
         name="Order Status Inquiry",
@@ -64,6 +69,7 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         ],
         grounding_source="fix.service.order.state",
         resolvable_by_ai=True,
+        requires_grounding=True,
     ),
     "repair.price_estimate": IntentDefinition(
         code="repair.price_estimate",
@@ -92,6 +98,7 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         ],
         grounding_source="fix.pricing.card",
         resolvable_by_ai=True,
+        requires_grounding=True,
     ),
     "appointment.book": IntentDefinition(
         code="appointment.book",
@@ -114,6 +121,7 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         ],
         grounding_source="fix.field.service.appointment",
         resolvable_by_ai=True,
+        requires_grounding=True,
     ),
     "branch.locator": IntentDefinition(
         code="branch.locator",
@@ -138,6 +146,7 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         ],
         grounding_source="res.branch.directory",
         resolvable_by_ai=True,
+        requires_grounding=True,
     ),
     "invoice.download": IntentDefinition(
         code="invoice.download",
@@ -159,6 +168,7 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         ],
         grounding_source="account.move.customer_invoices",
         resolvable_by_ai=True,
+        requires_grounding=True,
     ),
     "complaint.register": IntentDefinition(
         code="complaint.register",
@@ -210,10 +220,112 @@ INTENT_REGISTRY: Dict[str, IntentDefinition] = {
         auto_handoff=True,
         handoff_reason="customer_requested_agent",
     ),
+    # --- M61 Knowledge Base Intents (R07-M04-T04 / Q-01 Scope Closure) ---
+    "knowledge.troubleshooting": IntentDefinition(
+        code="knowledge.troubleshooting",
+        name="Device Troubleshooting & Diagnostics",
+        name_bn="ডিভাইস ট্রাবলশুটিং ও প্রাথমিক সমাধান",
+        description="Customer asking how to diagnose or solve common hardware and software device glitches",
+        sample_bn=[
+            "ল্যাপটপ অন হচ্ছে না কি করব?",
+            "ফোন খুব গরম হয়ে যাচ্ছে করণীয় কি?",
+            "ডিসপ্লেতে আলো আসছে না কিন্তু ভাইব্রেশন হয়",
+            "ওয়াইফাই কানেক্ট হচ্ছে না কেন?",
+            "ব্যাটারি খুব দ্রুত ড্রেন হচ্ছে কিভাবে সমাধান করব?",
+            "ব্লু স্ক্রিন ইরর দেখাচ্ছে ল্যাপটপে",
+            "চার্জ নিচ্ছে না ল্যাপটপ কি করা যায়?",
+            "ক্যামেরা ওপেন হচ্ছে না মোবাইলে",
+        ],
+        sample_en=[
+            "My laptop is not turning on what should I do?",
+            "Phone is overheating rapidly troubleshooting steps",
+            "No display on screen but phone vibrates",
+            "WiFi not connecting to my device",
+            "Battery draining very fast how to fix",
+            "Laptop showing blue screen of death error",
+            "Device is not charging troubleshooting guide",
+            "Camera app crashing repeatedly on mobile",
+        ],
+        grounding_source="fix.knowledge.article[category='troubleshooting']",
+        resolvable_by_ai=True,
+    ),
+    "knowledge.repair_guide": IntentDefinition(
+        code="knowledge.repair_guide",
+        name="Repair Procedure & Diagnostic Guide",
+        name_bn="মেরামত পদ্ধতি ও ডায়াগনস্টিক নির্দেশিকা",
+        description="Inquiries regarding repair steps, cleanroom diagnostics, and quality inspection workflows",
+        sample_bn=[
+            "মাদারবোর্ড রিপেয়ারের ধাপগুলো কি কি?",
+            "স্ক্রিন পরিবর্তনের সময় কি কি চেক করা হয়?",
+            "ওয়াটার ড্যামেজ ফোনের মেরামত কিভাবে করা হয়?",
+            "রিপেয়ার প্রসেস কেমন হয়?",
+            "১০০০ফিক্সে ল্যাপটপ সার্ভিসিং কিভাবে করা হয়?",
+            "ওয়ার্কশপে ডিভাইস টেস্টিং কিভাবে করেন?",
+        ],
+        sample_en=[
+            "What are the steps for motherboard repair?",
+            "What is checked during screen replacement?",
+            "How is water damaged phone repaired?",
+            "Explain the repair process and diagnostic steps",
+            "How is laptop servicing performed at 1000FiX?",
+            "Quality inspection procedure during repair",
+        ],
+        grounding_source="fix.knowledge.article[category='repair_procedure']",
+        resolvable_by_ai=True,
+    ),
+    "knowledge.warranty_policy": IntentDefinition(
+        code="knowledge.warranty_policy",
+        name="Warranty & ISO Standards Policy",
+        name_bn="ওয়ারেন্টি নীতিমালা ও আইএসও মানদণ্ড",
+        description="Warranty duration, claim coverage, and ISO 9001:2015 certified service guarantees",
+        sample_bn=[
+            "মেরামতের পর কি কোনো ওয়ারেন্টি আছে?",
+            "স্পেয়ার পার্টসের ওয়ারেন্টি কতদিনের?",
+            "১০০০ফিক্সের আইএসও সার্টিফিকেশন সম্পর্কে জানতে চাই",
+            "ওয়ারেন্টি ক্লেইম করার নিয়ম কি?",
+            "সার্ভিস ওয়ারেন্টির শর্তাবলী কি?",
+            "রিপেয়ারের উপর কত মাস গ্যারান্টি দেন?",
+        ],
+        sample_en=[
+            "Is there any warranty after repair?",
+            "How long is the spare parts warranty?",
+            "Tell me about 1000FiX ISO 9001:2015 certification",
+            "How do I claim repair warranty?",
+            "What are the terms of your service warranty?",
+            "Official warranty period for replaced screens",
+        ],
+        grounding_source="fix.knowledge.article[category='policy']",
+        resolvable_by_ai=True,
+    ),
+    "knowledge.maintenance_tips": IntentDefinition(
+        code="knowledge.maintenance_tips",
+        name="Preventative Maintenance Tips",
+        name_bn="ডিভাইস সুরক্ষা ও প্রতিরোধমূলক রক্ষণাবেক্ষণ",
+        description="Tips to extend device lifespan, heat dissipation, and battery health preservation",
+        sample_bn=[
+            "ল্যাপটপের ব্যাটারি লাইফ কিভাবে বাড়ানো যায়?",
+            "এসি ভালো রাখার জন্য কিভাবে পরিষ্কার রাখব?",
+            "স্মার্টফোনের স্টোরেজ ও পারফরম্যান্স ভালো রাখার টিপস",
+            "বৃষ্টির দিনে গ্যাজেট সুরক্ষা কিভাবে করব?",
+            "ডিভাইস রক্ষণাবেক্ষণের সঠিক নিয়ম কি?",
+            "ল্যাপটপ গরম হওয়া কমানোর উপায় কি?",
+        ],
+        sample_en=[
+            "How to increase laptop battery lifespan?",
+            "Preventative maintenance tips for air conditioner",
+            "Tips to keep smartphone fast and optimize storage",
+            "How to protect electronics and gadgets from humidity",
+            "What are best practices for device maintenance?",
+            "How to prevent laptop from thermal overheating?",
+        ],
+        grounding_source="fix.knowledge.article[category='device_guide']",
+        resolvable_by_ai=True,
+    ),
 }
 
 
 # --- 2. Bengali & English Unicode Normalization ---
+
 
 def normalize_text(text: str) -> str:
     """Normalizes Bengali and English text for robust intent classification.
@@ -233,7 +345,7 @@ def normalize_text(text: str) -> str:
     return " ".join(text.split())
 
 
-def tokenize(text: str) -> List[str]:
+def tokenize(text: str) -> list[str]:
     """Tokenize normalized text into words and n-grams."""
     norm = normalize_text(text)
     return norm.split()
@@ -241,9 +353,10 @@ def tokenize(text: str) -> List[str]:
 
 # --- 3. Intent Classification Core ---
 
+
 @dataclass
 class IntentMatchResult:
-    matched_intent: Optional[str]
+    matched_intent: str | None
     confidence: float
     utterance: str
     normalized_utterance: str
@@ -253,23 +366,56 @@ class IntentMatchResult:
     handoff_reason: str
     response_text_bn: str
     response_text_en: str
+    requires_grounding: bool = False
+
+
+# Customer-facing wording of each fix.service.order state (cd_service_order's
+# SERVICE_ORDER_STATES). Authored bn/en (T08); used ONLY to describe the state
+# actually read from the customer's order.
+ORDER_STATE_TEXT: dict[str, tuple[str, str]] = {
+    "draft": ("অর্ডারটি এখনো খসড়া অবস্থায় আছে", "the order is still in draft"),
+    "intake": ("ডিভাইসটি গ্রহণ করা হয়েছে", "your device has been received at intake"),
+    "diagnostic": ("ডিভাইসটির ডায়াগনস্টিক চলছে", "your device is being diagnosed"),
+    "estimate_pending": ("খরচের এস্টিমেট প্রস্তুত করা হচ্ছে", "the cost estimate is being prepared"),
+    "estimate_sent": ("খরচের এস্টিমেট আপনাকে পাঠানো হয়েছে", "the cost estimate has been sent to you"),
+    "awaiting_approval": (
+        "এস্টিমেটের জন্য আপনার অনুমোদনের অপেক্ষায় আছে",
+        "it is awaiting your approval of the estimate",
+    ),
+    "approved": ("অনুমোদিত, মেরামতের জন্য সারিতে আছে", "approved and queued for repair"),
+    "in_repair": ("মেরামতের কাজ চলছে", "it is currently being repaired"),
+    "qc_pending": ("কোয়ালিটি পরীক্ষার অপেক্ষায় আছে", "it is waiting for quality inspection"),
+    "qc_failed": (
+        "কোয়ালিটি পরীক্ষায় উত্তীর্ণ হয়নি, পুনরায় মেরামত চলছে",
+        "it did not pass quality inspection and is being reworked",
+    ),
+    "ready": ("সংগ্রহের জন্য প্রস্তুত", "it is ready for collection"),
+    "delivered": ("ডেলিভারি সম্পন্ন হয়েছে", "it has been delivered"),
+    "closed": ("অর্ডারটি বন্ধ করা হয়েছে", "the order is closed"),
+    "cancelled": ("অর্ডারটি বাতিল করা হয়েছে", "the order was cancelled"),
+}
 
 
 class AssistantEngine:
     """Transactional NLU Classifier and Dialogue Manager."""
 
-    def __init__(self, intents: Optional[Dict[str, IntentDefinition]] = None):
+    def __init__(self, intents: dict[str, IntentDefinition] | None = None):
         self.intents = intents or INTENT_REGISTRY
         self._build_index()
 
     def _build_index(self):
-        """Build normalized lexical lookup maps for fast matching."""
-        self.sample_map: List[Tuple[str, str, str]] = []  # (intent_code, normalized_sample, lang)
+        """Build normalized lexical lookup maps for fast matching.
+
+        A sample that normalises to nothing (pure punctuation/whitespace) is
+        skipped: as the empty string it is a substring of every utterance and
+        would win the containment bonus for any input."""
+        self.sample_map: list[tuple[str, str, str]] = []  # (intent_code, normalized_sample, lang)
         for code, defn in self.intents.items():
-            for s in defn.sample_bn:
-                self.sample_map.append((code, normalize_text(s), "bn"))
-            for s in defn.sample_en:
-                self.sample_map.append((code, normalize_text(s), "en"))
+            for lang, samples in (("bn", defn.sample_bn), ("en", defn.sample_en)):
+                for s in samples:
+                    norm = normalize_text(s)
+                    if norm:
+                        self.sample_map.append((code, norm, lang))
 
     def classify_intent(self, utterance: str) -> IntentMatchResult:
         """Classify customer utterance against registered transactional intents."""
@@ -302,21 +448,21 @@ class AssistantEngine:
 
             sample_tokens = set(norm_sample.split())
             intersection = input_tokens.intersection(sample_tokens)
+            # norm_input is non-empty here, so input_tokens - and the union - never are
             union = input_tokens.union(sample_tokens)
 
-            # Jaccard + Overlap coefficient
-            if union:
-                jaccard = len(intersection) / len(union)
-                overlap = len(intersection) / min(len(input_tokens), len(sample_tokens)) if input_tokens and sample_tokens else 0
-                combined = 0.4 * jaccard + 0.6 * overlap
+            # Jaccard + Overlap coefficient (samples are never empty: see _build_index)
+            jaccard = len(intersection) / len(union)
+            overlap = len(intersection) / min(len(input_tokens), len(sample_tokens))
+            combined = 0.4 * jaccard + 0.6 * overlap
 
-                # Substring containment bonus
-                if norm_sample in norm_input or norm_input in norm_sample:
-                    combined = max(combined, 0.85)
+            # Substring containment bonus
+            if norm_sample in norm_input or norm_input in norm_sample:
+                combined = max(combined, 0.85)
 
-                if combined > best_score:
-                    best_score = combined
-                    best_intent = code
+            if combined > best_score:
+                best_score = combined
+                best_intent = code
 
         # High confidence threshold: >= 0.70
         confidence = round(best_score, 4)
@@ -335,8 +481,39 @@ class AssistantEngine:
                     response_text_bn="আপনার অনুরোধটি আমাদের প্রতিনিধির কাছে হস্তান্তর করা হচ্ছে। অনুগ্রহ করে লাইনে থাকুন।",
                     response_text_en="Transferring your request to a customer care representative. Please hold.",
                 )
+            elif defn.requires_grounding:
+                # The engine has no ERP access: it never invents the answer.
+                # Standalone it hands off; fix.conversation grounds it first.
+                return IntentMatchResult(
+                    matched_intent=best_intent,
+                    confidence=confidence,
+                    utterance=utterance,
+                    normalized_utterance=norm_input,
+                    grounding=defn.grounding_source,
+                    resolvable=False,
+                    requires_handoff=True,
+                    handoff_reason="requires_erp_grounding",
+                    response_text_bn="আপনার তথ্য যাচাই করতে একজন কাস্টমার কেয়ার প্রতিনিধির সাথে যুক্ত করছি।",
+                    response_text_en="Connecting you with a customer care representative to check your records.",
+                    requires_grounding=True,
+                )
             else:
-                resp_bn, resp_en = self._synthesize_grounded_response(best_intent)
+                authored = self._synthesize_grounded_response(best_intent)
+                if authored is None:
+                    # No authored answer: hand off rather than claim success.
+                    return IntentMatchResult(
+                        matched_intent=best_intent,
+                        confidence=confidence,
+                        utterance=utterance,
+                        normalized_utterance=norm_input,
+                        grounding=defn.grounding_source,
+                        resolvable=False,
+                        requires_handoff=True,
+                        handoff_reason="no_authored_answer",
+                        response_text_bn="আপনার প্রশ্নের নির্ভুল উত্তরের জন্য একজন কাস্টমার কেয়ার প্রতিনিধির সাথে যুক্ত করছি।",
+                        response_text_en="Connecting you with a customer care specialist to assist you accurately.",
+                    )
+                resp_bn, resp_en = authored
                 return IntentMatchResult(
                     matched_intent=best_intent,
                     confidence=confidence,
@@ -356,7 +533,9 @@ class AssistantEngine:
             confidence=confidence,
             utterance=utterance,
             normalized_utterance=norm_input,
-            grounding=self.intents[best_intent].grounding_source if (best_intent and confidence >= 0.40) else "",
+            grounding=self.intents[best_intent].grounding_source
+            if (best_intent and confidence >= 0.40)
+            else "",
             resolvable=False,
             requires_handoff=True,
             handoff_reason="low_intent_confidence",
@@ -364,37 +543,33 @@ class AssistantEngine:
             response_text_en="Connecting you with a customer care specialist to assist you accurately.",
         )
 
-    def _synthesize_grounded_response(self, intent_code: str) -> Tuple[str, str]:
-        """Synthesize answers grounded in 1000FiX ERP systems."""
-        if intent_code == "order.status":
-            return (
-                "আপনার সার্ভিস অর্ডারটির মেরামতের কাজ সফলভাবে সম্পন্ন হয়েছে এবং কোয়ালিটি টেস্টিং চলছে। শীঘ্রই ডেলিভারির জন্য কল পাবেন।",
-                "Your repair order has been successfully completed and is currently in Quality Inspection. You will receive a pickup call shortly.",
-            )
-        elif intent_code == "repair.price_estimate":
-            return (
-                "১০০০ফিক্স স্ট্যান্ডার্ড সার্ভিস ফি ৫০০ টাকা এবং ব্যবহৃত অথেনটিক পার্টসের মূল্যে ৯০ দিনের অফিসিয়াল ওয়ারেন্টি অন্তর্ভুক্ত।",
-                "Standard servicing labor fee is BDT 500, and genuine replacement parts carry a 90-day official warranty.",
-            )
-        elif intent_code == "appointment.book":
-            return (
-                "আপনার হোম সার্ভিস অ্যাপয়েন্টমেন্ট সফলভাবে নথিভুক্ত হয়েছে। নিকটস্থ শাখা থেকে একজন সার্টিফায়েড টেকনিশিয়ান নির্ধারিত সময়ে উপস্থিত হবেন।",
-                "Your technician home-visit appointment has been booked. A certified technician will arrive at the scheduled time.",
-            )
-        elif intent_code == "branch.locator":
-            return (
-                "১০০০ফিক্স ধানমন্ডি শাখা: হাউজ ৪২, রোড ৭, ধানমন্ডি। শনি থেকে বৃহস্পতিবার সকাল ৯:০০ টা থেকে রাত ৮:০০ টা পর্যন্ত খোলা থাকে।",
-                "1000FiX Dhanmondi Center: House 42, Road 7, Dhanmondi. Open Saturday to Thursday from 9:00 AM to 8:00 PM.",
-            )
-        elif intent_code == "invoice.download":
-            return (
-                "আপনার নিবন্ধিত মোবাইল নম্বর এবং পোর্টালে ডিজিটাল ইনভয়েস ও মুশক ৬.৩ চালান কপি পাঠিয়ে দেওয়া হয়েছে।",
-                "Your digital invoice and Mushak 6.3 receipt copy have been dispatched to your verified portal account.",
-            )
-        return (
-            "আপনার অনুরোধটি সফলভাবে গ্রহণ করা হয়েছে।",
-            "Your service request has been successfully accepted.",
-        )
+    def _synthesize_grounded_response(self, intent_code: str) -> tuple[str, str] | None:
+        """Authored general-guidance answers for the knowledge intents.
+
+        Transactional intents (requires_grounding) never reach this: their
+        answer depends on the customer's live records and is produced by
+        fix.conversation._ground_intent_response or handed off."""
+        responses: dict[str, tuple[str, str]] = {
+            "knowledge.troubleshooting": (
+                "প্রাথমিক ট্রাবলশুটিং: ডিভাইসটি ১০ সেকেন্ড পাওয়ার বাটন চেপে ধরে হার্ড রিবুট করুন। চার্জার কানেক্ট করে ১৫ মিনিট অপেক্ষা করুন। সমস্যা সমাধান না হলে আমাদের নিকটস্থ সেন্টারে ফ্রি ডায়াগনস্টিকের জন্য জমা দিন।",
+                "Basic Troubleshooting: Perform a hard restart by holding the power button for 10 seconds. Connect an authentic charger for 15 minutes. If issue persists, bring it to any 1000FiX center for complimentary diagnostics.",
+            ),
+            "knowledge.repair_guide": (
+                "১০০০ফিক্স রিপেয়ার প্রসেস: প্রথমে ISO 9001:2015 সার্টিফায়েড ল্যাবে সম্পূর্ণ ডায়াগনস্টিক, তারপর গ্রাহকের অনুমোদন সাপেক্ষে জেনুইন পার্টস প্রতিস্থাপন এবং মাল্টি-পয়েন্ট কোয়ালিটি চেক শেষে ডেলিভারি।",
+                "1000FiX Repair Protocol: Complete diagnosis in an ISO 9001:2015 certified cleanroom lab, followed by customer cost approval, genuine OEM parts replacement, and multi-point QA inspection before delivery.",
+            ),
+            "knowledge.warranty_policy": (
+                "ওয়ারেন্টি নীতিমালা: সকল অথেনটিক পার্টস ও রিপেয়ার সার্ভিসে ৯০ দিনের অফিসিয়াল ওয়ারেন্টি প্রদান করা হয়। ১০০০ফিক্স বাংলাদেশের একমাত্র ISO 9001:2015 সার্টিফায়েড আফটার-সেলস সার্ভিস প্রোভাইডার।",
+                "Warranty Policy: All genuine replacement parts and repair work carry a 90-day official warranty. 1000FiX is Bangladesh's only ISO 9001:2015 certified after-sales service network.",
+            ),
+            "knowledge.maintenance_tips": (
+                "রক্ষণাবেক্ষণ পরামর্শ: ডিভাইস ব্যাটারি ২০% এর নিচে ড্রেন হতে না দেওয়া, প্রতি ৬ মাসে ল্যাপটপের থার্মাল পেস্ট ও ফ্যান পরিষ্কার রাখা এবং আর্দ্রতা থেকে সুরক্ষিত রাখতে ড্রাই প্যাকেজিং ব্যবহার করুন।",
+                "Preventative Maintenance: Maintain battery charge between 20%-80%, service laptop thermal paste and clean internal fans every 6 months, and keep devices away from excessive heat and humidity.",
+            ),
+        }
+        # None = no authored answer: the caller hands off (never a generic
+        # "request accepted" that claims an action nobody performed).
+        return responses.get(intent_code)
 
 
 # Global singleton engine

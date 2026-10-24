@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_data_case views (P09). -->
+<!-- cd_data_case views (P09 / R07-M04). -->
 <odoo>
+    <!-- Data Recovery Case Views -->
     <record id="view_fix_data_recovery_case_list" model="ir.ui.view">
         <field name="name">fix.data.recovery.case.list</field>
         <field name="model">fix.data.recovery.case</field>
@@ -9,33 +10,174 @@
                 <field name="name"/>
                 <field name="customer_id"/>
                 <field name="media_type"/>
-                <field name="state"/>
+                <field name="residency_zone" widget="badge"/>
+                <field name="audit_count"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_data_recovery_case_form" model="ir.ui.view">
+        <field name="name">fix.data.recovery.case.form</field>
+        <field name="model">fix.data.recovery.case</field>
+        <field name="arch" type="xml">
+            <form string="Data Recovery Case">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="new,custody,recovering,recovered,handover,purged"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="media_type"/>
+                        </group>
+                        <group>
+                            <field name="residency_zone" widget="badge"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="audit_count"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Chain of Custody" name="custody">
+                            <field name="custody_chain" readonly="1" widget="text"/>
+                        </page>
+                        <page string="Z4 Per-Read Access Audits (SC-002)" name="z4_audits">
+                            <field name="audit_ids" readonly="1">
+                                <list>
+                                    <field name="access_time"/>
+                                    <field name="user_name"/>
+                                    <field name="access_type"/>
+                                    <field name="purpose"/>
+                                    <field name="ip_address"/>
+                                    <field name="step_up_verified" widget="boolean"/>
+                                    <field name="sha256_audit_hash"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Statutory Purge &amp; Wipe Record" name="purge">
+                            <group>
+                                <field name="purge_certificate_id" readonly="state != 'handover'" domain="[('sanitization_status', '=', 'verified')]"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_data_recovery_case" model="ir.actions.act_window">
         <field name="name">Data Recovery Case</field>
         <field name="res_model">fix.data.recovery.case</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- Z4 Access Audit Views -->
+    <record id="view_fix_z4_access_audit_list" model="ir.ui.view">
+        <field name="name">fix.z4.access.audit.list</field>
+        <field name="model">fix.z4.access.audit</field>
+        <field name="arch" type="xml">
+            <list create="false" edit="false" delete="false">
+                <field name="access_time"/>
+                <field name="case_id"/>
+                <field name="user_name"/>
+                <field name="access_type"/>
+                <field name="purpose"/>
+                <field name="ip_address"/>
+                <field name="step_up_verified"/>
+                <field name="sha256_audit_hash"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_z4_access_audit" model="ir.actions.act_window">
+        <field name="name">Z4 Sovereign Access Audit Log</field>
+        <field name="res_model">fix.z4.access.audit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- Data Wipe Certificate Views -->
     <record id="view_fix_data_wipe_certificate_list" model="ir.ui.view">
         <field name="name">fix.data.wipe.certificate.list</field>
         <field name="model">fix.data.wipe.certificate</field>
         <field name="arch" type="xml">
-            <list>
+            <list delete="false">
                 <field name="name"/>
                 <field name="device_id"/>
+                <field name="serial_number"/>
                 <field name="method"/>
+                <field name="sanitization_status" widget="badge"/>
+                <field name="statutory_record_retained" widget="boolean"/>
+                <field name="verification_hash"/>
                 <field name="certified_at"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_data_wipe_certificate_form" model="ir.ui.view">
+        <field name="name">fix.data.wipe.certificate.form</field>
+        <field name="model">fix.data.wipe.certificate</field>
+        <field name="arch" type="xml">
+            <form string="Data Wipe Certificate" delete="false">
+                <header>
+                    <button name="action_verify" type="object" string="Verify Evidence" class="oe_highlight" invisible="sanitization_status != 'pending_verification'"/>
+                    <button name="action_mark_failed" type="object" string="Mark Failed" invisible="sanitization_status != 'pending_verification'"/>
+                    <field name="sanitization_status" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="device_id"/>
+                            <field name="serial_number"/>
+                            <field name="method" required="1" readonly="sanitization_status == 'verified'"/>
+                            <field name="sector_count" required="method != 'physical_destruction'" readonly="sanitization_status == 'verified'"/>
+                            <field name="duration_seconds" readonly="sanitization_status == 'verified'"/>
+                            <field name="tool_name" readonly="sanitization_status == 'verified'"/>
+                            <field name="wipe_log_attachment_id" required="1" readonly="sanitization_status == 'verified'"/>
+                        </group>
+                        <group>
+                            <field name="statutory_record_retained"/>
+                            <field name="certified_by"/>
+                            <field name="certified_at"/>
+                            <field name="verified_by_id"/>
+                            <field name="verified_at"/>
+                            <field name="verification_hash"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_data_wipe_certificate" model="ir.actions.act_window">
         <field name="name">Data Wipe Certificate</field>
         <field name="res_model">fix.data.wipe.certificate</field>
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- Menu Items -->
     <menuitem id="menu_fix_data_recovery_case" name="Data Recovery Case" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_recovery_case" sequence="200"/>
+    <menuitem id="menu_fix_z4_access_audit" name="Z4 Sovereign Access Audits" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_z4_access_audit" sequence="205"/>
     <menuitem id="menu_fix_data_wipe_certificate" name="Data Wipe Certificate" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_data_wipe_certificate" sequence="210"/>
 </odoo>

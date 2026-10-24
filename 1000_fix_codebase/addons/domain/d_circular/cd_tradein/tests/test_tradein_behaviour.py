@@ -1,0 +1,551 @@
+"""cd_tradein behaviour (live ORM, rolled back): Journey 9 trade-in
+offer -> collection (M03) -> data wipe (M06 gate) -> refurbishment (M31)
+-> grading (M37) -> graded stock (M15) -> payout (M50)."""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+from odoo.exceptions import UserError, ValidationError
+
+TRD = "fix.tradein.request"
+
+
+def _events(env, event_type, res_id):
+    rows = env["fix.event.outbox"].search(
+        [("event_type", "=", event_type), ("aggregate", "=", TRD), ("aggregate_id", "=", res_id)],
+        order="id",
+    )
+    return [json.loads(r.payload) for r in rows]
+
+
+def _device(env):
+    brand = env["fix.brand"].create({"name": "Trade-in Brand (behaviour)", "code": "TRDB"})
+    model = env["fix.device.model"].create({"name": "Pixel 7", "brand_id": brand.id})
+    return env["fix.device"].create({"device_model_id": model.id})
+
+
+def _grade(env, code):
+    return env["fix.refurb.grade"].search([("code", "=", code)], limit=1)
+
+
+def _request(env, **vals):
+    vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
+    return env[TRD].create(vals)
+
+
+def _in(env, state, **vals):
+    rec = _request(env, **vals)
+    rec.write({"state": state})
+    return rec
+
+
+def _cert(env, verified=True, **vals):
+    """The wipe operator's M06 certificate, with real evidence when verified."""
+    vals.setdefault("method", "nist_800_88")
+    if verified:
+        log = env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
+        vals.setdefault("sector_count", 1000)
+        vals.setdefault("wipe_log_attachment_id", log.id)
+    cert = env["fix.data.wipe.certificate"].create(vals)
+    if verified:
+        cert.action_verify()
+    return cert
+
+
+def _approver(env):
+    user = env["res.users"].create(
+        {
+            "name": "Trade-in Payout Approver",
+            "login": "tradein-payout-approver",
+            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+        }
+    )
+    return user
+
+
+def _approved(env, rec, value):
+    """Graded value entered, requested (superuser) and approved (4-eyes)."""
+    rec.write({"graded_value": value})
+    rec.action_request_payout_approval()
+    rec.with_user(_approver(env)).sudo().action_approve_payout()
+    return rec
+
+
+# --------------------------------------------------------------------------
+# Valuation & bounds
+# --------------------------------------------------------------------------
+
+
+def test_refurbishment_cost_and_inventory_valuation(odoo_env):
+    rec = _request(odoo_env, offered_value=40000, parts_cost=4500, labour_cost=1500)
+    assert rec.refurbishment_cost == 6000
+    assert rec.inventory_valuation == 46000
+    rec.write({"labour_cost": 500})
+    assert rec.refurbishment_cost == 5000
+    assert rec.inventory_valuation == 45000
+
+
+@pytest.mark.parametrize(
+    ("field", "message"),
+    [
+        ("offered_value", "Offered value"),
+        ("resale_value", "Resale value"),
+        ("parts_cost", "Parts cost"),
+        ("labour_cost", "Labour cost"),
+    ],
+)
+def test_money_fields_cannot_be_negative(odoo_env, field, message):
+    with (
+        pytest.raises(ValidationError, match=f"{message} cannot be negative"),
+        odoo_env.cr.savepoint(),
+    ):
+        _request(odoo_env, **{field: -1})
+
+
+def test_names(odoo_env):
+    assert _request(odoo_env).name == "TRD/New"
+    assert _request(odoo_env, name="TRD/LEGACY/9").name == "TRD/LEGACY/9"
+    odoo_env["ir.sequence"].create({"name": "TRD test", "code": TRD, "prefix": "TRD/T/"})
+    assert _request(odoo_env).name.startswith("TRD/T/")
+
+
+def test_device_model_follows_device(odoo_env):
+    device = _device(odoo_env)
+    assert _request(odoo_env, device_id=device.id).device_model_id == device.device_model_id
+
+
+# --------------------------------------------------------------------------
+# Offer, acceptance, collection
+# --------------------------------------------------------------------------
+
+
+def test_offer_requires_positive_valuation(odoo_env):
+    rec = _request(odoo_env)
+    with pytest.raises(UserError, match="positive valuation"):
+        rec.action_send_offer()
+    assert rec.state == "draft"
+
+
+def test_offer_publishes_value(odoo_env):
+    rec = _request(odoo_env, offered_value=12000)
+    rec.action_send_offer()
+    assert rec.state == "offered"
+    assert _events(odoo_env, "tradein.offered", rec.id) == [
+        {"customer": "Trade-in Customer", "value": 12000.0}
+    ]
+
+
+def test_accept_only_from_offered(odoo_env):
+    rec = _request(odoo_env, offered_value=100)
+    with pytest.raises(UserError, match="Accept from offered"):
+        rec.action_accept()
+    rec.action_send_offer()
+    rec.action_accept()
+    assert rec.state == "accepted"
+
+
+def test_collect_only_from_accepted(odoo_env):
+    rec = _in(odoo_env, "offered")
+    with pytest.raises(UserError, match="Collect from accepted"):
+        rec.action_collect()
+    assert not rec.consignment_id
+
+
+def test_collect_creates_pickup_consignment(odoo_env):
+    """Regression: the pickup consignment was created without its REQUIRED
+    operating unit, so every collection failed in the database."""
+    device = _device(odoo_env)
+    rec = _in(odoo_env, "accepted", device_id=device.id)
+    rec.action_collect()
+    assert rec.state == "collected"
+    assert rec.consignment_id.consignment_type == "pickup"
+    assert rec.consignment_id.operating_unit_id == odoo_env.user.default_operating_unit_id
+    assert _events(odoo_env, "tradein.collected", rec.id) == [
+        {"device": device.name, "consignment": rec.consignment_id.name}
+    ]
+
+
+def test_collect_uses_request_ou_and_existing_consignment(odoo_env):
+    ou = odoo_env["operating.unit"].create(
+        {
+            "name": "Trade-in OU (behaviour)",
+            "code": "TRD-OU",
+            "partner_id": odoo_env.company.partner_id.id,
+        }
+    )
+    rec = _in(odoo_env, "accepted", operating_unit_id=ou.id)
+    assert rec._operating_unit() == ou
+    existing = odoo_env["fix.consignment"].create(
+        {"operating_unit_id": ou.id, "scheduled_date": "2026-11-01 10:00:00"}
+    )
+    rec.write({"consignment_id": existing.id})
+    rec.action_collect()
+    assert rec.consignment_id == existing
+    assert _events(odoo_env, "tradein.collected", rec.id) == [
+        {"device": "", "consignment": existing.name}
+    ]
+
+
+def test_collect_without_any_operating_unit_is_refused(odoo_env):
+    odoo_env.user.write({"default_operating_unit_id": False})
+    rec = _in(odoo_env, "accepted")
+    with pytest.raises(UserError, match="has no operating unit"):
+        rec.action_collect()
+    assert rec.state == "accepted"
+
+
+# --------------------------------------------------------------------------
+# M06 data wipe gate
+# --------------------------------------------------------------------------
+
+
+def test_wipe_only_from_collected(odoo_env):
+    rec = _in(odoo_env, "accepted")
+    with pytest.raises(UserError, match="Wipe from collected"):
+        rec.action_wipe()
+
+
+def test_wipe_never_fabricates_a_certificate(odoo_env):
+    rec = _in(odoo_env, "collected", device_id=_device(odoo_env).id)
+    before = odoo_env["fix.data.wipe.certificate"].search_count([])
+    with pytest.raises(UserError, match="no M06 data wipe certificate"):
+        rec.action_wipe()
+    assert odoo_env["fix.data.wipe.certificate"].search_count([]) == before
+    assert (rec.state, rec.wipe_certificate_id.id) == ("collected", False)
+
+
+def test_wipe_refuses_an_unverified_certificate(odoo_env):
+    pending = _cert(odoo_env, verified=False)
+    rec = _in(odoo_env, "collected", wipe_certificate_id=pending.id)
+    with pytest.raises(UserError, match="pending_verification"):
+        rec.action_wipe()
+    assert rec.state == "collected"
+
+
+def test_wipe_passes_on_the_operators_verified_certificate(odoo_env):
+    cert = _cert(odoo_env, method="cryptographic_erase")
+    rec = _in(odoo_env, "collected", wipe_certificate_id=cert.id)
+    rec.action_wipe()
+    assert rec.state == "wiped"
+    assert rec.wipe_certificate_id == cert
+    assert _events(odoo_env, "tradein.wiped", rec.id) == [
+        {
+            "certificate": cert.name,
+            "method": "cryptographic_erase",
+            "verification_hash": cert.verification_hash,
+        }
+    ]
+
+
+# --------------------------------------------------------------------------
+# M31 refurbishment
+# --------------------------------------------------------------------------
+
+
+def test_refurbish_only_after_wipe(odoo_env):
+    rec = _in(odoo_env, "collected")
+    with pytest.raises(UserError, match="the wipe gate"):
+        rec.action_refurbish()
+
+
+def test_refurbish_blocked_without_wipe_certificate(odoo_env):
+    rec = _in(odoo_env, "wiped")
+    with pytest.raises(UserError, match="verified M06 data wipe certificate"):
+        rec.action_refurbish()
+    assert not rec.workshop_job_id
+    assert rec.state == "wiped"
+    rec.wipe_certificate_id = _cert(odoo_env, verified=False)
+    with pytest.raises(UserError, match="not verified"):
+        rec.action_refurbish()
+
+
+def test_refurbish_opens_job_at_central_depot(odoo_env):
+    """Regression: the workshop job was created with a non-existent
+    `problem_description` field and without its required workshop and
+    fault description, so refurbishment always crashed."""
+    device = _device(odoo_env)
+    rec = _in(
+        odoo_env,
+        "collected",
+        device_id=device.id,
+        parts_cost=800,
+        labour_cost=400,
+        wipe_certificate_id=_cert(odoo_env).id,
+    )
+    rec.action_wipe()
+    rec.action_refurbish()
+    job = rec.workshop_job_id
+    assert rec.state == "refurbished"
+    assert job.workshop_id.workshop_type == "central"
+    assert job.device_id == device
+    assert job.customer_id == rec.customer_id
+    assert rec.name in job.fault_description
+    assert _events(odoo_env, "tradein.refurbished", rec.id) == [
+        {"workshop_job": job.name, "refurb_cost": 1200.0}
+    ]
+
+
+def test_refurbish_falls_back_to_any_company_workshop(odoo_env):
+    workshops = odoo_env["fix.workshop"].search([])
+    workshops.filtered(lambda w: w.workshop_type == "central").write({"workshop_type": "regional"})
+    rec = _in(odoo_env, "collected", wipe_certificate_id=_cert(odoo_env).id)
+    rec.action_wipe()
+    rec.action_refurbish()
+    assert rec.workshop_job_id.workshop_id in workshops
+
+
+def test_refurbish_without_any_workshop_is_refused(odoo_env):
+    odoo_env["fix.workshop"].search([]).write({"active": False})
+    rec = _in(odoo_env, "collected", wipe_certificate_id=_cert(odoo_env).id)
+    rec.action_wipe()
+    with pytest.raises(UserError, match="No active M31 workshop"):
+        rec.action_refurbish()
+    assert rec.state == "wiped"
+
+
+def test_refurbish_reuses_existing_job(odoo_env):
+    workshop = odoo_env["fix.workshop"].search([], limit=1)
+    job = odoo_env["fix.workshop.job"].create(
+        {"workshop_id": workshop.id, "fault_description": "Pre-booked refurb"}
+    )
+    rec = _in(odoo_env, "collected", workshop_job_id=job.id, wipe_certificate_id=_cert(odoo_env).id)
+    rec.action_wipe()
+    rec.action_refurbish()
+    assert rec.workshop_job_id == job
+
+
+# --------------------------------------------------------------------------
+# M37 grading
+# --------------------------------------------------------------------------
+
+
+def test_grade_only_from_refurbished(odoo_env):
+    rec = _in(odoo_env, "wiped", grade="a")
+    with pytest.raises(UserError, match="Grade from refurbished"):
+        rec.action_grade()
+
+
+def test_grade_required(odoo_env):
+    rec = _in(odoo_env, "refurbished")
+    with pytest.raises(UserError, match="A grade is required"):
+        rec.action_grade()
+
+
+def test_grade_selection_derived_from_master_grade(odoo_env):
+    master = _grade(odoo_env, "C")
+    rec = _in(odoo_env, "refurbished", refurb_grade_id=master.id, offered_value=10000)
+    rec.action_grade()
+    assert rec.state == "graded"
+    assert rec.grade == "c"
+    assert rec.resale_value == pytest.approx(10000 * 1.6 * master.price_multiplier)
+    assert _events(odoo_env, "tradein.graded", rec.id) == [
+        {"grade": "c", "grade_master": master.name, "resale_value": rec.resale_value}
+    ]
+
+
+def test_master_grade_linked_from_selection(odoo_env):
+    rec = _in(odoo_env, "refurbished", grade="a", offered_value=20000)
+    rec.action_grade()
+    assert rec.refurb_grade_id == _grade(odoo_env, "A")
+
+
+def test_selection_without_master_grade_prices_at_benchmark(odoo_env):
+    _grade(odoo_env, "D").write({"active": False})
+    rec = _in(odoo_env, "refurbished", grade="d", offered_value=300)
+    rec.action_grade()
+    assert not rec.refurb_grade_id
+    # floor benchmark of 1000 BDT, multiplier 1.0 without a master grade
+    assert rec.resale_value == 1000.0
+    (payload,) = _events(odoo_env, "tradein.graded", rec.id)
+    assert payload["grade_master"] == ""
+
+
+def test_both_grades_set_and_manual_resale_value_kept(odoo_env):
+    master = _grade(odoo_env, "B")
+    rec = _in(odoo_env, "refurbished", grade="a", refurb_grade_id=master.id, resale_value=55000)
+    rec.action_grade()
+    assert rec.grade == "a"
+    assert rec.refurb_grade_id == master
+    assert rec.resale_value == 55000
+
+
+# --------------------------------------------------------------------------
+# M15 graded stock & M50 payout
+# --------------------------------------------------------------------------
+
+
+def test_resale_ready_only_from_graded(odoo_env):
+    rec = _in(odoo_env, "refurbished")
+    with pytest.raises(UserError, match="Resale from graded"):
+        rec.action_resale_ready()
+
+
+def test_resale_ready_books_graded_stock(odoo_env):
+    device = _device(odoo_env)
+    master = _grade(odoo_env, "A")
+    rec = _in(
+        odoo_env,
+        "graded",
+        device_id=device.id,
+        refurb_grade_id=master.id,
+        grade="a",
+        offered_value=40000,
+        parts_cost=4500,
+        labour_cost=1500,
+        resale_value=58000,
+    )
+    rec.action_resale_ready()
+    stock = rec.graded_stock_id
+    assert rec.state == "resale_ready"
+    assert stock.device_id == device
+    assert stock.grade_id == master
+    assert stock.tradein_id == rec.id
+    assert stock.acquisition_cost == 40000
+    assert stock.refurbishment_cost == 6000
+    assert stock.resale_price == 58000
+    assert stock.projected_margin == 12000
+    assert stock.state == "in_stock"
+    assert _events(odoo_env, "tradein.resale_ready", rec.id) == [
+        {
+            "grade": "a",
+            "resale_value": 58000.0,
+            "inventory_valuation": 46000.0,
+            "graded_stock": stock.name,
+        }
+    ]
+
+
+def test_resale_ready_without_device_books_no_stock(odoo_env):
+    rec = _in(odoo_env, "graded", grade="b", refurb_grade_id=_grade(odoo_env, "B").id)
+    rec.action_resale_ready()
+    assert rec.state == "resale_ready"
+    assert not rec.graded_stock_id
+    (payload,) = _events(odoo_env, "tradein.resale_ready", rec.id)
+    assert payload["graded_stock"] == ""
+
+
+def test_pay_only_from_graded_or_resale_ready(odoo_env):
+    rec = _in(odoo_env, "refurbished", offered_value=100)
+    with pytest.raises(UserError, match="Payout from graded or resale-ready"):
+        rec.action_pay()
+
+
+@pytest.mark.parametrize("state", ["graded", "resale_ready"])
+def test_pay_executes_treasury_payout(odoo_env, state):
+    """Regression: the M50 payment execution was created without its
+    REQUIRED operating unit, so no trade-in could ever be paid out."""
+    rec = _in(odoo_env, state, offered_value=15000)
+    _approved(odoo_env, rec, 12500)  # graded below the offer
+    rec.action_pay()
+    payment = rec.payout_execution_id
+    assert rec.state == "closed"
+    assert rec.payout_amount == 12500  # the APPROVED graded value, not the offer
+    assert payment.state == "executed"
+    assert payment.amount == 12500
+    assert payment.method == "mobile_fs"
+    assert payment.payee == "Trade-in Customer"
+    assert (payment.source_model, payment.source_id) == (TRD, rec.id)
+    assert payment.operating_unit_id == odoo_env.user.default_operating_unit_id
+    # Regression: the event read `payment.name`, a field M50 payments do not
+    # have (AttributeError after the payout had already executed).
+    assert _events(odoo_env, "tradein.paid", rec.id) == [
+        {"payout": 12500.0, "payment_ref": f"fix.payment.execution,{payment.id}"}
+    ]
+
+
+def test_pay_requires_graded_value_and_approval(odoo_env):
+    rec = _in(odoo_env, "graded", offered_value=15000)
+    with pytest.raises(UserError, match="graded payout value"):
+        rec.action_pay()
+    with pytest.raises(UserError, match="graded payout value"):
+        rec.action_request_payout_approval()
+    rec.write({"graded_value": 9000})
+    with pytest.raises(UserError, match="'none': it must be approved"):
+        rec.action_pay()
+    rec.action_request_payout_approval()
+    assert (rec.payout_approval_state, rec.payout_requested_by_id) == ("pending", odoo_env.user)
+    with pytest.raises(UserError, match="must be approved"):
+        rec.action_pay()
+    with pytest.raises(UserError, match="Four-eyes"):
+        rec.action_approve_payout()
+    assert not rec.payout_execution_id and rec.state == "graded"
+
+
+def test_payout_approval_lifecycle(odoo_env):
+    rec = _in(odoo_env, "resale_ready", offered_value=5000)
+    _approved(odoo_env, rec, 4000)
+    assert rec.payout_approval_state == "approved"
+    assert rec.payout_approved_by_id.login == "tradein-payout-approver"
+    assert rec.payout_approved_at
+    with pytest.raises(UserError, match="already approved"):
+        rec.action_request_payout_approval()
+    with pytest.raises(UserError, match="Only a pending payout can be approved"):
+        rec.action_approve_payout()
+    rec.write({"graded_value": 4500})  # a new amount voids the old approval
+    assert rec.payout_approval_state == "none"
+    rec.action_request_payout_approval()
+    rec.action_reject_payout()
+    assert rec.payout_approval_state == "rejected"
+    with pytest.raises(UserError, match="Only a pending payout can be rejected"):
+        rec.action_reject_payout()
+    with pytest.raises(UserError, match="Payout approval from graded"):
+        _in(odoo_env, "wiped", graded_value=10).action_request_payout_approval()
+    with pytest.raises(ValidationError, match="Graded value cannot be negative"):
+        rec.write({"graded_value": -1})
+
+
+def test_graded_value_is_frozen_once_paid(odoo_env):
+    rec = _in(odoo_env, "graded", offered_value=3000)
+    _approved(odoo_env, rec, 3000)
+    rec.action_pay()
+    with pytest.raises(UserError, match="already executed"):
+        rec.write({"graded_value": 1})
+
+
+def test_pay_reuses_existing_payout(odoo_env):
+    rec = _in(odoo_env, "resale_ready", offered_value=900)
+    payment = odoo_env["fix.payment.execution"].create(
+        {
+            "operating_unit_id": odoo_env.user.default_operating_unit_id.id,
+            "source_model": TRD,
+            "source_id": rec.id,
+            "payee": "Pre-arranged",
+            "amount": 900,
+        }
+    )
+    rec.write({"payout_execution_id": payment.id})
+    _approved(odoo_env, rec, 900)
+    rec.action_pay()
+    assert rec.state == "closed"
+    assert rec.payout_execution_id == payment
+    assert payment.state == "pending"  # not executed a second time by the trade-in
+
+
+def test_full_journey(odoo_env):
+    device = _device(odoo_env)
+    rec = _request(odoo_env, device_id=device.id, offered_value=25000, parts_cost=2000)
+    rec.action_send_offer()
+    rec.action_accept()
+    rec.action_collect()
+    rec.write({"wipe_certificate_id": _cert(odoo_env, device_id=device.id).id})
+    rec.action_wipe()
+    rec.action_refurbish()
+    rec.write({"grade": "b"})
+    rec.action_grade()
+    rec.action_resale_ready()
+    _approved(odoo_env, rec, 22000)
+    rec.action_pay()
+    assert rec.state == "closed"
+    assert rec.graded_stock_id.grade_id == _grade(odoo_env, "B")
+    assert rec.payout_execution_id.state == "executed"
+
+
+def test_refurbishment_step_defaults(odoo_env):
+    rec = _request(odoo_env)
+    step = odoo_env["fix.refurbishment"].create({"name": "Intake", "tradein_id": rec.id})
+    assert (step.step, step.state, step.parts_cost) == ("intake", "pending", 0.0)
+    assert step.currency_id == odoo_env.ref("base.BDT")
+    rec.unlink()
+    assert not step.exists()

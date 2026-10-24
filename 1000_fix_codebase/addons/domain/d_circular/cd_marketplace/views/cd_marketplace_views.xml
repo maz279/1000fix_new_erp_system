@@ -1,57 +1,462 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_marketplace views (P10). -->
+<!-- cd_marketplace views — M12: Marketplace at Seller Scale (P10 & R08-M01). -->
 <odoo>
+    <!-- ==================== MARKETPLACE SELLER ==================== -->
     <record id="view_fix_marketplace_seller_list" model="ir.ui.view">
         <field name="name">fix.marketplace.seller.list</field>
         <field name="model">fix.marketplace.seller</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list string="Marketplace Sellers">
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="tier" widget="badge" decoration-success="tier == 'platinum'" decoration-info="tier == 'gold'" decoration-warning="tier == 'silver'" decoration-danger="tier == 'at_risk'" decoration-muted="tier == 'unrated'"/>
+                <field name="kyc_status" widget="badge" decoration-success="kyc_status == 'verified'" decoration-info="kyc_status == 'in_review'" decoration-danger="kyc_status == 'rejected'"/>
+                <field name="cfo_approved" widget="boolean_toggle"/>
+                <field name="payout_hold" widget="badge" decoration-danger="payout_hold"/>
+                <field name="rating"/>
+                <field name="total_jobs"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_marketplace_seller_form" model="ir.ui.view">
+        <field name="name">fix.marketplace.seller.form</field>
+        <field name="model">fix.marketplace.seller</field>
+        <field name="arch" type="xml">
+            <form string="Marketplace Seller">
+                <header>
+                    <button name="action_submit_kyc" string="Submit KYC (Z4)" type="object" invisible="kyc_status != 'pending'" class="btn-primary"/>
+                    <button name="action_cfo_approve" string="CFO Operational Approval" type="object" invisible="cfo_approved" class="btn-secondary"/>
+                    <button name="action_verify_kyc" string="Verify &amp; Approve Seller" type="object" invisible="kyc_status == 'verified'" class="btn-success"/>
+                    <button name="action_reject_kyc" string="Reject KYC" type="object" invisible="kyc_status in ('verified', 'rejected')" class="btn-danger"/>
+                    <field name="kyc_status" widget="statusbar" statusbar_visible="pending,in_review,verified,rejected"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Verified" bg_color="bg-success" invisible="kyc_status != 'verified'"/>
+                    <widget name="web_ribbon" title="Payout Hold" bg_color="bg-danger" invisible="not payout_hold"/>
+                    <div class="oe_title">
+                        <label for="name" string="Business / Shop Name"/>
+                        <h1><field name="name" placeholder="e.g. Uttara Express Phone Repair"/></h1>
+                    </div>
+                    <group>
+                        <group name="seller_main">
+                            <field name="partner_id"/>
+                            <field name="tier"/>
+                            <field name="rating"/>
+                            <field name="total_jobs"/>
+                        </group>
+                        <group name="governance_main">
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="cfo_approved" readonly="1"/>
+                            <field name="payout_hold" readonly="1"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="KYC &amp; Identity Verification (INT-034)" name="kyc_tab">
+                            <group>
+                                <group string="Statutory Identifiers">
+                                    <field name="nid_number"/>
+                                    <field name="trade_license_no"/>
+                                    <field name="tin_number"/>
+                                </group>
+                                <group string="Z4 Sovereign Split-Residency">
+                                    <field name="kyc_doc_z4_ref"/>
+                                    <field name="kyc_review_mode"/>
+                                    <field name="kyc_submission_date" readonly="1"/>
+                                    <field name="kyc_verified_date" readonly="1"/>
+                                </group>
+                            </group>
+                            <group string="Rejection / Compliance Notes" invisible="not rejection_reason">
+                                <field name="rejection_reason" readonly="1"/>
+                            </group>
+                        </page>
+                        <page string="CFO Operational Approval (BRU-ECM-01)" name="cfo_tab">
+                            <group>
+                                <group>
+                                    <field name="cfo_approval_date" readonly="1"/>
+                                    <field name="cfo_approved_by" readonly="1"/>
+                                    <field name="compliance_reviewer_id" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Approved Service Categories (BRU-ECM-07)" name="categories_tab">
+                            <field name="category_ids" widget="many2many_tags" placeholder="Select authorized repair/refurb categories..."/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_marketplace_seller" model="ir.actions.act_window">
-        <field name="name">Marketplace Seller</field>
+        <field name="name">Marketplace Sellers</field>
         <field name="res_model">fix.marketplace.seller</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- ==================== MARKETPLACE ORDER ==================== -->
     <record id="view_fix_marketplace_order_list" model="ir.ui.view">
         <field name="name">fix.marketplace.order.list</field>
         <field name="model">fix.marketplace.order</field>
         <field name="arch" type="xml">
-            <list><field name="name"/></list>
+            <list string="Marketplace Orders">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="order_type" widget="badge"/>
+                <field name="category_id"/>
+                <field name="budget"/>
+                <field name="selected_quote_id"/>
+                <field name="commission_amount"/>
+                <field name="has_open_dispute" widget="badge" decoration-danger="has_open_dispute"/>
+                <field name="state" widget="statusbar"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_marketplace_order_form" model="ir.ui.view">
+        <field name="name">fix.marketplace.order.form</field>
+        <field name="model">fix.marketplace.order</field>
+        <field name="arch" type="xml">
+            <form string="Marketplace Order">
+                <header>
+                    <button name="action_start_job" string="Start Job" type="object" invisible="state != 'selected'" class="btn-primary"/>
+                    <button name="action_complete" string="Complete Job" type="object" invisible="state != 'in_progress'" class="btn-success"/>
+                    <button name="action_review" string="Customer Sign-Off" type="object" invisible="state != 'completed'" class="btn-primary"/>
+                    <button name="action_earn_commission" string="Accrue Commission" type="object" invisible="state != 'reviewed' or has_open_dispute" class="btn-success"/>
+                    <button name="action_paid" string="Mark Paid" type="object" invisible="state != 'commissioned' or has_open_dispute" class="btn-secondary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,quoted,selected,in_progress,completed,reviewed,commissioned,paid"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Dispute Open" bg_color="bg-danger" invisible="not has_open_dispute"/>
+                    <div class="oe_title">
+                        <label for="name" string="Order Reference"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group name="order_info">
+                            <field name="order_type"/>
+                            <field name="customer_id"/>
+                            <field name="category_id"/>
+                            <field name="service_order_id"/>
+                        </group>
+                        <group name="financials">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="budget"/>
+                            <field name="commission_rate" readonly="state in ('commissioned', 'paid')"/>
+                            <field name="commission_amount" readonly="1"/>
+                            <field name="review_rating"/>
+                            <field name="has_open_dispute" readonly="1"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Order Description">
+                        <field name="description" placeholder="Describe device fault, diagnostic needs, or repair scope..."/>
+                    </group>
+                    <notebook>
+                        <page string="Seller Quotes" name="quotes_tab">
+                            <field name="quote_ids">
+                                <list string="Quotes" editable="bottom">
+                                    <field name="seller_id"/>
+                                    <field name="quoted_price"/>
+                                    <field name="eta_days"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Awarded Seller &amp; Ephemeral Contact (BRU-ECM-05)" name="contact_tab">
+                            <group>
+                                <group>
+                                    <field name="selected_quote_id" readonly="1"/>
+                                    <field name="revealed_seller_id" readonly="1"/>
+                                    <field name="customer_contact_revealed" readonly="1"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Refurbished Resale Wiring (BRU-TRF-04)" name="refurb_tab" invisible="order_type != 'refurb_resale'">
+                            <group>
+                                <group string="Graded Stock Link">
+                                    <field name="tradein_request_id"/>
+                                    <field name="graded_stock_id"/>
+                                </group>
+                                <group string="Mandatory Disclosures">
+                                    <field name="battery_health_percent"/>
+                                    <field name="disclosed_defects"/>
+                                </group>
+                            </group>
+                        </page>
+                        <page string="Disputes &amp; Arbitration" name="disputes_tab">
+                            <field name="dispute_ids" readonly="1">
+                                <list string="Disputes">
+                                    <field name="name"/>
+                                    <field name="seller_id"/>
+                                    <field name="dispute_reason"/>
+                                    <field name="disputed_amount"/>
+                                    <field name="sla_deadline"/>
+                                    <field name="state" widget="badge"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_marketplace_order" model="ir.actions.act_window">
-        <field name="name">Marketplace Order</field>
+        <field name="name">Marketplace Orders</field>
         <field name="res_model">fix.marketplace.order</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- ==================== SELLER QUOTE ==================== -->
     <record id="view_fix_seller_quote_list" model="ir.ui.view">
         <field name="name">fix.seller.quote.list</field>
         <field name="model">fix.seller.quote</field>
         <field name="arch" type="xml">
-            <list><field name="company_id"/></list>
+            <list string="Seller Quotes">
+                <field name="marketplace_order_id"/>
+                <field name="seller_id"/>
+                <field name="quoted_price"/>
+                <field name="eta_days"/>
+                <field name="state" widget="badge"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_seller_quote_form" model="ir.ui.view">
+        <field name="name">fix.seller.quote.form</field>
+        <field name="model">fix.seller.quote</field>
+        <field name="arch" type="xml">
+            <form string="Seller Quote">
+                <header>
+                    <field name="state" widget="statusbar" statusbar_visible="submitted,selected,not_selected"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="marketplace_order_id"/>
+                            <field name="seller_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="quoted_price"/>
+                            <field name="eta_days"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Quote Details">
+                        <field name="notes" placeholder="Proposal specifics, parts included, warranty duration..."/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_seller_quote" model="ir.actions.act_window">
-        <field name="name">Seller Quote</field>
+        <field name="name">Seller Quotes</field>
         <field name="res_model">fix.seller.quote</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- ==================== SELLER SCORE ==================== -->
     <record id="view_fix_seller_score_list" model="ir.ui.view">
         <field name="name">fix.seller.score.list</field>
         <field name="model">fix.seller.score</field>
         <field name="arch" type="xml">
-            <list><field name="company_id"/></list>
+            <list string="Seller Scores">
+                <field name="seller_id"/>
+                <field name="period"/>
+                <field name="acceptance_rate" widget="percentage"/>
+                <field name="on_time_rate" widget="percentage"/>
+                <field name="review_rating"/>
+                <field name="dispute_rate" widget="percentage"/>
+                <field name="composite"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
         </field>
     </record>
+
+    <record id="view_fix_seller_score_form" model="ir.ui.view">
+        <field name="name">fix.seller.score.form</field>
+        <field name="model">fix.seller.score</field>
+        <field name="arch" type="xml">
+            <form string="Seller Score">
+                <header>
+                    <button name="action_measure" string="Measure from Orders" type="object"/>
+                    <button name="action_publish" string="Measure, Rank &amp; Publish Score" type="object" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="seller_id"/>
+                            <field name="period"/>
+                        </group>
+                        <group>
+                            <field name="composite" readonly="1"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Performance Metrics">
+                        <group>
+                            <field name="metrics_measured" readonly="1"/>
+                            <field name="acceptance_rate" readonly="1"/>
+                            <field name="on_time_rate" readonly="1"/>
+                            <field name="review_rating" readonly="1"/>
+                            <field name="dispute_rate" readonly="1"/>
+                        </group>
+                        <group string="Evidence">
+                            <field name="quotes_decided"/>
+                            <field name="orders_awarded"/>
+                            <field name="orders_timed"/>
+                            <field name="orders_rated"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_seller_score" model="ir.actions.act_window">
-        <field name="name">Seller Score</field>
+        <field name="name">Seller Scores</field>
         <field name="res_model">fix.seller.score</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_marketplace_seller" name="Marketplace Seller" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_seller" sequence="300"/>
-    <menuitem id="menu_fix_marketplace_order" name="Marketplace Order" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_order" sequence="310"/>
-    <menuitem id="menu_fix_seller_quote" name="Seller Quote" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_quote" sequence="320"/>
-    <menuitem id="menu_fix_seller_score" name="Seller Score" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_score" sequence="330"/>
+    <!-- ==================== MARKETPLACE DISPUTE ==================== -->
+    <record id="view_fix_marketplace_dispute_list" model="ir.ui.view">
+        <field name="name">fix.marketplace.dispute.list</field>
+        <field name="model">fix.marketplace.dispute</field>
+        <field name="arch" type="xml">
+            <list string="Marketplace Disputes">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="seller_id"/>
+                <field name="customer_id"/>
+                <field name="dispute_reason"/>
+                <field name="disputed_amount"/>
+                <field name="sla_deadline"/>
+                <field name="sla_breached" widget="badge" decoration-danger="sla_breached"/>
+                <field name="state" widget="badge" decoration-warning="state == 'raised'" decoration-info="state in ('investigating', 'arbitration')" decoration-success="state == 'resolved'" decoration-danger="state == 'escalated'"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_marketplace_dispute_form" model="ir.ui.view">
+        <field name="name">fix.marketplace.dispute.form</field>
+        <field name="model">fix.marketplace.dispute</field>
+        <field name="arch" type="xml">
+            <form string="Marketplace Dispute">
+                <header>
+                    <button name="action_investigate" string="Investigate" type="object" invisible="state != 'raised'" class="btn-primary"/>
+                    <button name="action_arbitrate" string="Open Arbitration" type="object" invisible="state != 'investigating'" class="btn-secondary"/>
+                    <button name="action_resolve" string="Resolve &amp; Release Lock" type="object" invisible="state in ('resolved', 'escalated')" class="btn-success"/>
+                    <button name="action_escalate" string="Escalate to Executive" type="object" invisible="state in ('resolved', 'escalated')" class="btn-danger"/>
+                    <field name="state" widget="statusbar" statusbar_visible="raised,investigating,arbitration,resolved,escalated"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="SLA Breached" bg_color="bg-danger" invisible="not sla_breached"/>
+                    <widget name="web_ribbon" title="Resolved" bg_color="bg-success" invisible="state != 'resolved'"/>
+                    <div class="oe_title">
+                        <label for="name" string="Dispute ID"/>
+                        <h1><field name="name" readonly="1"/></h1>
+                    </div>
+                    <group>
+                        <group name="parties">
+                            <field name="order_id"/>
+                            <field name="seller_id"/>
+                            <field name="customer_id"/>
+                        </group>
+                        <group name="dispute_details">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="disputed_amount"/>
+                            <field name="dispute_reason"/>
+                            <field name="sla_deadline" readonly="1"/>
+                            <field name="sla_breached" readonly="1"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <group string="Customer Complaint">
+                        <field name="description"/>
+                    </group>
+                    <notebook>
+                        <page string="Arbitration &amp; Resolution" name="resolution_tab">
+                            <group>
+                                <group>
+                                    <field name="resolution_type"/>
+                                    <field name="resolved_by" readonly="1"/>
+                                    <field name="resolved_date" readonly="1"/>
+                                </group>
+                            </group>
+                            <group string="Resolution Rationale">
+                                <field name="resolution_notes" placeholder="Document reasons for ruling, concession amounts, or customer refund details..."/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_marketplace_dispute_search" model="ir.ui.view">
+        <field name="name">fix.marketplace.dispute.search</field>
+        <field name="model">fix.marketplace.dispute</field>
+        <field name="arch" type="xml">
+            <search string="Marketplace Disputes">
+                <field name="name"/>
+                <field name="order_id"/>
+                <field name="seller_id"/>
+                <filter name="filter_open" string="Open" domain="[('state', '!=', 'resolved')]"/>
+                <!-- sla_breached is computed live (not stored); its search method serves this filter -->
+                <filter name="filter_sla_breached" string="SLA Breached" domain="[('sla_breached', '=', True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_fix_marketplace_dispute" model="ir.actions.act_window">
+        <field name="name">Marketplace Disputes</field>
+        <field name="res_model">fix.marketplace.dispute</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== MENU ITEMS ==================== -->
+    <menuitem id="menu_fix_marketplace_seller" name="Marketplace Sellers" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_seller" sequence="300"/>
+    <menuitem id="menu_fix_marketplace_order" name="Marketplace Orders" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_order" sequence="310"/>
+    <menuitem id="menu_fix_seller_quote" name="Seller Quotes" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_quote" sequence="320"/>
+    <menuitem id="menu_fix_seller_score" name="Seller Scores" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_seller_score" sequence="330"/>
+    <menuitem id="menu_fix_marketplace_dispute" name="Marketplace Disputes" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_marketplace_dispute" sequence="335"/>
 </odoo>

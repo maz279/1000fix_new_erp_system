@@ -35,7 +35,7 @@
                         </group>
                         <group>
                             <field name="ncr_stub_ref" readonly="1"/>
-                            <field name="capa_stub_ref" readonly="1"/>
+                            <field name="capa_stub_ref" readonly="state in ('closed', 'rejected')"/>
                         </group>
                     </group>
                     <field name="description"/>

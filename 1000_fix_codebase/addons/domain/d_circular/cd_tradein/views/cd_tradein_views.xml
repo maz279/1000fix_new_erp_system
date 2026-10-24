@@ -1,42 +1,141 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_tradein views (P09). -->
+<!-- cd_tradein views (P09-M04 / R07-M03). -->
 <odoo>
+    <!-- Trade-In Request Views -->
     <record id="view_fix_tradein_request_list" model="ir.ui.view">
         <field name="name">fix.tradein.request.list</field>
         <field name="model">fix.tradein.request</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="Trade-In Requests">
                 <field name="name"/>
                 <field name="customer_id"/>
+                <field name="device_id"/>
+                <field name="device_model_id"/>
                 <field name="offered_value"/>
                 <field name="grade"/>
-                <field name="state"/>
+                <field name="refurbishment_cost"/>
+                <field name="inventory_valuation"/>
+                <field name="resale_value"/>
+                <field name="payout_amount"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
+    <record id="view_fix_tradein_request_form" model="ir.ui.view">
+        <field name="name">fix.tradein.request.form</field>
+        <field name="model">fix.tradein.request</field>
+        <field name="arch" type="xml">
+            <form string="Trade-In Request">
+                <header>
+                    <button name="action_send_offer" string="Send Valuation Offer" type="object" invisible="state != 'draft'" class="oe_highlight"/>
+                    <button name="action_accept" string="Customer Accepts" type="object" invisible="state != 'offered'" class="oe_highlight"/>
+                    <button name="action_collect" string="Dispatch Collection" type="object" invisible="state != 'accepted'"/>
+                    <button name="action_wipe" string="Secure Data Wipe" type="object" invisible="state != 'collected'" class="oe_highlight"/>
+                    <button name="action_refurbish" string="Start Workshop Refurbishment" type="object" invisible="state != 'wiped'" class="oe_highlight"/>
+                    <button name="action_grade" string="Assign Refurb Grade" type="object" invisible="state != 'refurbished'"/>
+                    <button name="action_resale_ready" string="Publish to Graded Stock &amp; Resale" type="object" invisible="state != 'graded'" class="oe_highlight"/>
+                    <button name="action_request_payout_approval" string="Request Payout Approval" type="object" invisible="state not in ('resale_ready', 'graded') or payout_approval_state in ('pending', 'approved')"/>
+                    <button name="action_approve_payout" string="Approve Payout" type="object" invisible="payout_approval_state != 'pending'" class="oe_highlight"/>
+                    <button name="action_reject_payout" string="Reject Payout" type="object" invisible="payout_approval_state != 'pending'"/>
+                    <button name="action_pay" string="Execute Treasury Payout" type="object" invisible="state not in ('resale_ready', 'graded') or payout_approval_state != 'approved'" class="oe_highlight"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,offered,accepted,collected,wiped,refurbished,graded,resale_ready,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" readonly="1"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <group string="Intake &amp; Device Details">
+                            <field name="customer_id"/>
+                            <field name="device_id"/>
+                            <field name="device_model_id"/>
+                            <field name="consignment_id" readonly="1"/>
+                        </group>
+                        <group string="Financials &amp; Payout (M50)">
+                            <field name="offered_value"/>
+                            <field name="graded_value" readonly="state not in ('graded', 'resale_ready')"/>
+                            <field name="payout_approval_state" widget="badge"/>
+                            <field name="payout_requested_by_id"/>
+                            <field name="payout_approved_by_id"/>
+                            <field name="payout_approved_at"/>
+                            <field name="payout_amount"/>
+                            <field name="payout_execution_id" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <group string="Data Wipe &amp; Security Gate (M06)">
+                        <group>
+                            <field name="wipe_certificate_id" readonly="state != 'collected'" domain="[('sanitization_status', '=', 'verified')]"/>
+                        </group>
+                    </group>
+                    <group string="Refurbishment (M31 Workshop) &amp; Grading (M37)">
+                        <group>
+                            <field name="workshop_job_id" readonly="1"/>
+                            <field name="refurb_grade_id"/>
+                            <field name="grade"/>
+                        </group>
+                        <group>
+                            <field name="parts_cost"/>
+                            <field name="labour_cost"/>
+                            <field name="refurbishment_cost"/>
+                        </group>
+                    </group>
+                    <group string="Inventory Valuation (M15) &amp; Marketplace Resale (M12)">
+                        <group>
+                            <field name="inventory_valuation"/>
+                            <field name="resale_value"/>
+                        </group>
+                        <group>
+                            <field name="graded_stock_id" readonly="1"/>
+                            <field name="marketplace_seller_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
     <record id="action_fix_tradein_request" model="ir.actions.act_window">
-        <field name="name">Tradein Request</field>
+        <field name="name">Trade-In Requests</field>
         <field name="res_model">fix.tradein.request</field>
         <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">
+                Register a new customer trade-in request.
+            </p>
+        </field>
     </record>
+
+    <!-- Refurbishment Views -->
     <record id="view_fix_refurbishment_list" model="ir.ui.view">
         <field name="name">fix.refurbishment.list</field>
         <field name="model">fix.refurbishment</field>
         <field name="arch" type="xml">
-            <list>
+            <list string="Refurbishment Steps">
                 <field name="name"/>
                 <field name="tradein_id"/>
                 <field name="step"/>
-                <field name="state"/>
+                <field name="technician_id"/>
+                <field name="parts_cost"/>
+                <field name="state" widget="badge"/>
             </list>
         </field>
     </record>
+
     <record id="action_fix_refurbishment" model="ir.actions.act_window">
-        <field name="name">Refurbishment</field>
+        <field name="name">Refurbishment Steps</field>
         <field name="res_model">fix.refurbishment</field>
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_tradein_request" name="Tradein Request" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_tradein_request" sequence="200"/>
-    <menuitem id="menu_fix_refurbishment" name="Refurbishment" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_refurbishment" sequence="210"/>
+    <menuitem id="menu_fix_tradein_request" name="Trade-In Requests" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_tradein_request" sequence="220"/>
+    <menuitem id="menu_fix_refurbishment" name="Refurbishment Steps" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_refurbishment" sequence="230"/>
 </odoo>

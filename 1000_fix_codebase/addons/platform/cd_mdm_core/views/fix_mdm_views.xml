@@ -126,6 +126,7 @@
                 <field name="uniqueness_score"/>
                 <field name="validity_score"/>
                 <field name="records_audited_count"/>
+                <field name="audit_state" widget="badge"/>
                 <field name="last_audit_date"/>
             </list>
         </field>
@@ -160,6 +161,7 @@
                         </group>
                     </group>
                     <group string="Audit Status">
+                        <field name="audit_state" widget="badge"/>
                         <field name="records_audited_count"/>
                         <field name="last_audit_date"/>
                     </group>

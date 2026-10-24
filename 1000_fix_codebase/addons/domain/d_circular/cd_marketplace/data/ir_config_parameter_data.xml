@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo noupdate="1">
+    <!-- M12 platform commission rate (0-1). Configuration, not code: change it
+         in Settings > Technical > System Parameters; an order copies it into
+         its own commission_rate when created. -->
+    <record id="param_platform_commission_rate" model="ir.config_parameter">
+        <field name="key">cd_marketplace.platform_commission_rate</field>
+        <field name="value">0.10</field>
+    </record>
+</odoo>

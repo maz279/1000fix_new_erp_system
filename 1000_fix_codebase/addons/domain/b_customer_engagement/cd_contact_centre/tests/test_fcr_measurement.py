@@ -1,22 +1,24 @@
-"""test_fcr_measurement — Empirical verification of First-Contact Resolution (FCR >= 40%).
+"""test_fcr_measurement — engine routing battery behind First-Contact Resolution (G4-05).
 
 Task R05-M03-T04 & Gate Item G4-05:
 "Implement human handoff with full context transfer and measure >= 40%
 first-contact resolution in production terms (G4-05) — rate report vs handoffs"
 
 Tests 100 realistic customer interactions (50 Bengali, 50 English) across common
-contact centre requests on Hotline 16743 and chat channels.
+contact centre requests on Hotline 16743 and chat channels. The FCR rate
+itself is measured on live conversations (resolution_rate()), counting only
+answers grounded in real records.
 """
+
+import sys
 import unittest
 from pathlib import Path
-import sys
 
 MODELS_DIR = Path(__file__).resolve().parents[1] / "models"
 if str(MODELS_DIR) not in sys.path:
     sys.path.insert(0, str(MODELS_DIR))
 
-from assistant_engine import AssistantEngine, default_assistant_engine
-
+from assistant_engine import AssistantEngine
 
 BENCHMARK_INTERACTIONS = [
     # 1. Order Status (Bengali & English) - 20 interactions
@@ -40,7 +42,6 @@ BENCHMARK_INTERACTIONS = [
     ("Has the technician inspected my device?", "en", True, "order.status"),
     ("Delivery date for serviced phone", "en", True, "order.status"),
     ("Want to know my order progress", "en", True, "order.status"),
-
     # 2. Repair Pricing (Bengali & English) - 16 interactions
     ("ডিসপ্লে পরিবর্তনের খরচ কত?", "bn", True, "repair.price_estimate"),
     ("ব্যাটারি চেঞ্জ করতে কত টাকা লাগবে?", "bn", True, "repair.price_estimate"),
@@ -58,7 +59,6 @@ BENCHMARK_INTERACTIONS = [
     ("Servicing cost for split AC", "en", True, "repair.price_estimate"),
     ("Cost of replacing charging port", "en", True, "repair.price_estimate"),
     ("What is the diagnostic fee?", "en", True, "repair.price_estimate"),
-
     # 3. Branch Locator & Hours (Bengali & English) - 12 interactions
     ("ধানমন্ডি সার্ভিস সেন্টার কোথায় এবং কখন খোলা?", "bn", True, "branch.locator"),
     ("চট্টগ্রাম ব্রাঞ্চের ঠিকানা দিন", "bn", True, "branch.locator"),
@@ -66,13 +66,17 @@ BENCHMARK_INTERACTIONS = [
     ("নিকটস্থ ১০০০ফিক্স সার্ভিস পয়েন্ট কোথায়?", "bn", True, "branch.locator"),
     ("সার্ভিস সেন্টার কয়টা পর্যন্ত খোলা থাকে?", "bn", True, "branch.locator"),
     ("মিরপুর ব্রাঞ্চের লোকেশন কোথায়?", "bn", True, "branch.locator"),
-    ("Where is your Dhanmondi service center and what are the hours?", "en", True, "branch.locator"),
+    (
+        "Where is your Dhanmondi service center and what are the hours?",
+        "en",
+        True,
+        "branch.locator",
+    ),
     ("Address for Chittagong branch please", "en", True, "branch.locator"),
     ("Is the Uttara repair depot open on Saturday?", "en", True, "branch.locator"),
     ("Where is the nearest 1000FiX service outlet?", "en", True, "branch.locator"),
     ("Operating hours of Gulshan branch", "en", True, "branch.locator"),
     ("What time does Motijheel branch close?", "en", True, "branch.locator"),
-
     # 4. Appointment Booking (Bengali & English) - 10 interactions
     ("কাল সকাল ১০টায় একজন টেকনিশিয়ান পাঠাতে পারবেন?", "bn", True, "appointment.book"),
     ("বাসায় এসে সার্ভিসিং করার বুকিং দিতে চাই", "bn", True, "appointment.book"),
@@ -84,7 +88,6 @@ BENCHMARK_INTERACTIONS = [
     ("I want to schedule an on-site technician appointment", "en", True, "appointment.book"),
     ("Technician booking for laptop maintenance", "en", True, "appointment.book"),
     ("Schedule home repair for washing machine", "en", True, "appointment.book"),
-
     # 5. Invoice & Receipt (Bengali & English) - 6 interactions
     ("আমার আগের ইনভয়েস বা রশিদ দরকার", "bn", True, "invoice.download"),
     ("পেমেন্ট বিল কপি পাঠানো যাবে?", "bn", True, "invoice.download"),
@@ -92,7 +95,6 @@ BENCHMARK_INTERACTIONS = [
     ("Send me the invoice for my last repair", "en", True, "invoice.download"),
     ("I need my payment receipt copy", "en", True, "invoice.download"),
     ("Download Mushak 6.3 tax invoice", "en", True, "invoice.download"),
-
     # --- Handoffs: Complaints, Explicit Agent Requests, Ambiguous / Out-of-Domain (36 interactions) ---
     # 6. Complaints (Auto-handoff) - 10 interactions
     ("কাজ ঠিকমতো হয়নি, আমি কমপ্লেইন করতে চাই", "bn", False, "complaint.register"),
@@ -100,12 +102,16 @@ BENCHMARK_INTERACTIONS = [
     ("মেরামতের পর আবার একই সমস্যা হচ্ছে", "bn", False, "complaint.register"),
     ("আমার অভিযোগ অফিসিয়ালি রেজিস্টার করুন", "bn", False, "complaint.register"),
     ("আমি সুপারভাইজারের সাথে কথা বলব", "bn", False, "complaint.register"),
-    ("The repair was defective, I want to file an official complaint", "en", False, "complaint.register"),
+    (
+        "The repair was defective, I want to file an official complaint",
+        "en",
+        False,
+        "complaint.register",
+    ),
     ("Technician did not show up, terrible experience", "en", False, "complaint.register"),
     ("Device is malfunctioning again after repair", "en", False, "complaint.register"),
     ("Escalate this complaint to a supervisor immediately", "en", False, "complaint.register"),
     ("I am extremely dissatisfied with the service delay", "en", False, "complaint.register"),
-
     # 7. Explicit Agent Requests (Auto-handoff) - 12 interactions
     ("মানুষের সাথে কথা বলতে চাই", "bn", False, "agent.request"),
     ("আমাকে একজন এজেন্টের কাছে দিন", "bn", False, "agent.request"),
@@ -119,7 +125,6 @@ BENCHMARK_INTERACTIONS = [
     ("Transfer to live agent", "en", False, "agent.request"),
     ("Can I speak to someone real?", "en", False, "agent.request"),
     ("Need human assistance immediately", "en", False, "agent.request"),
-
     # 8. Out of Domain / Low Confidence (Handoff fallback) - 14 interactions
     ("আজকে ঢাকায় আবহাওয়া কেমন থাকবে?", "bn", False, None),
     ("শেয়ার বাজারের খবর কি?", "bn", False, None),
@@ -143,49 +148,58 @@ class TestFCRMeasurement(unittest.TestCase):
         self.engine = AssistantEngine()
 
     def test_run_100_session_fcr_battery(self):
+        """Engine-level routing battery over 100 interactions.
+
+        The pure engine has no ERP access, so it can no longer "resolve" a
+        transactional query: every transactional row must be ROUTED to
+        live-record grounding (fix.conversation._ground_intent_response), and
+        every escalation / out-of-domain row must hand off. G4-05 FCR is
+        measured on live conversations by fix.conversation.resolution_rate(),
+        which counts only answers actually grounded in records - an engine
+        benchmark that counted canned replies as resolutions overstated it."""
         total_interactions = len(BENCHMARK_INTERACTIONS)
-        self.assertEqual(total_interactions, 100, "Benchmark suite must contain exactly 100 interactions")
+        self.assertEqual(
+            total_interactions, 100, "Benchmark suite must contain exactly 100 interactions"
+        )
 
-        ai_resolved_count = 0
+        routed_to_grounding = 0
+        engine_resolved = 0
         handoff_count = 0
-        context_transfers_complete = 0
 
-        for utterance, lang, expected_resolvable, expected_intent in BENCHMARK_INTERACTIONS:
+        for utterance, _lang, expected_resolvable, expected_intent in BENCHMARK_INTERACTIONS:
             result = self.engine.classify_intent(utterance)
 
-            if result.resolvable and not result.requires_handoff:
-                ai_resolved_count += 1
-                self.assertTrue(expected_resolvable, f"Unexpected AI resolution for '{utterance}'")
-                self.assertGreaterEqual(result.confidence, 0.70)
-                self.assertTrue(len(result.response_text_bn) > 0)
-                self.assertTrue(len(result.response_text_en) > 0)
+            # The intent the engine acted on: a candidate below the 0.70
+            # confidence threshold is a fallback handoff, not an intent match,
+            # so out-of-domain rows (expected_intent None) must not clear it.
+            confident_intent = result.matched_intent if result.confidence >= 0.70 else None
+            self.assertEqual(
+                confident_intent,
+                expected_intent,
+                f"Intent mismatch for '{utterance}': got {result.matched_intent!r} "
+                f"at confidence {result.confidence}",
+            )
+
+            if result.requires_grounding:
+                routed_to_grounding += 1
+                self.assertTrue(expected_resolvable, f"Unexpected grounding for '{utterance}'")
+                self.assertFalse(result.resolvable)
+            elif result.resolvable and not result.requires_handoff:
+                engine_resolved += 1
             else:
                 handoff_count += 1
-                self.assertFalse(expected_resolvable, f"Unexpected handoff for resolvable query '{utterance}'")
+                self.assertFalse(
+                    expected_resolvable, f"Unexpected handoff for resolvable query '{utterance}'"
+                )
                 self.assertTrue(result.requires_handoff)
                 self.assertTrue(len(result.handoff_reason) > 0)
-                # Verify context transfer payload integrity
-                context_transfers_complete += 1
 
-        # G4-05 honest resolution-rate formula:
-        # FCR = AI Resolved / (AI Resolved + Handoffs) * 100
-        total_eval = ai_resolved_count + handoff_count
-        self.assertEqual(total_eval, 100)
-        fcr_rate = round(100.0 * ai_resolved_count / total_eval, 2)
-
-        print("\n=== G4-05 FIRST-CONTACT RESOLUTION (FCR) TELEMETRY REPORT ===")
-        print(f"Total Benchmark Sessions  : {total_interactions}")
-        print(f"AI Autonomous Resolutions : {ai_resolved_count} ({ai_resolved_count}%)")
-        print(f"Escalated Human Handoffs  : {handoff_count} ({handoff_count}%)")
-        print(f"Full Context Transfer Hit : {context_transfers_complete} / {handoff_count} (100% PASS)")
-        print(f"Honest G4-05 FCR Rate     : {fcr_rate}% (Target: >= 40.0%)")
-        print(f"G4-05 Gate Verdict        : {'PASS' if fcr_rate >= 40.0 else 'FAIL'}")
-
-        # Assertions
-        self.assertGreaterEqual(fcr_rate, 40.0, f"FCR rate {fcr_rate}% failed threshold >= 40.0%")
-        self.assertEqual(ai_resolved_count, 64, "Expected exactly 64 autonomous transactional resolutions")
+        self.assertEqual(routed_to_grounding + engine_resolved + handoff_count, 100)
+        self.assertEqual(
+            routed_to_grounding, 64, "Expected 64 transactional queries routed to grounding"
+        )
+        self.assertEqual(engine_resolved, 0, "The engine must not resolve transactional queries")
         self.assertEqual(handoff_count, 36, "Expected exactly 36 escalated handoffs")
-        self.assertEqual(context_transfers_complete, handoff_count, "All handoffs must maintain 100% context transfer")
 
 
 if __name__ == "__main__":
