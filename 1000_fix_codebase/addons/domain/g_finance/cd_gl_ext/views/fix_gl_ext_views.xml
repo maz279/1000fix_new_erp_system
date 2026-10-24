@@ -53,6 +53,7 @@
                             <field name="suspense_opening"/>
                             <field name="suspense_closing"/>
                             <field name="suspense_reconciled" readonly="1"/>
+                            <field name="cutover_move_id" domain="[('state', '=', 'posted'), ('company_id', '=', company_id)]"/>
                             <field name="cutover_voucher_ref" readonly="1"/>
                         </group>
                     </group>

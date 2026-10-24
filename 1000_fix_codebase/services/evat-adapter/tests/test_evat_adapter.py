@@ -1,22 +1,22 @@
 """services/evat-adapter tests — INT-038 NBR e-VAT / IVAS filing adapter tests."""
+
 from __future__ import annotations
 
 import sys
 import unittest
 from decimal import Decimal
 from pathlib import Path
+
 import pytest
 
 pytestmark = [pytest.mark.tax, pytest.mark.financial]
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from evat_client import (  # noqa: E402
+from evat_client import (
     EvatSubmissionResult,
     EvatValidationError,
     Int038EvatClient,
-    IvasMushak91Payload,
-    IvasOutputLine,
     validate_ivas_payload,
 )
 
@@ -25,7 +25,18 @@ D = Decimal
 
 class TestEvatPayloadValidation(unittest.TestCase):
     def setUp(self):
-        self.client = Int038EvatClient()
+        client = Int038EvatClient()
+        build = client.build_payload
+
+        def build_with_declarant(**kwargs):
+            # synthetic test declarant (the builder no longer defaults one)
+            kwargs.setdefault("declarant_name", "Test Declarant")
+            kwargs.setdefault("declarant_designation", "Test Tax Manager")
+            kwargs.setdefault("declarant_nid", "1234567890")
+            return build(**kwargs)
+
+        client.build_payload = build_with_declarant
+        self.client = client
 
     def test_valid_payload_passes_validation(self):
         payload = self.client.build_payload(
@@ -91,9 +102,23 @@ class TestEvatPayloadValidation(unittest.TestCase):
 
 class TestInt038EvatClientSubmission(unittest.TestCase):
     def setUp(self):
-        self.client = Int038EvatClient()
+        client = Int038EvatClient()
+        build = client.build_payload
 
-    def test_submit_return_in_sandbox_mode(self):
+        def build_with_declarant(**kwargs):
+            # synthetic test declarant (the builder no longer defaults one)
+            kwargs.setdefault("declarant_name", "Test Declarant")
+            kwargs.setdefault("declarant_designation", "Test Tax Manager")
+            kwargs.setdefault("declarant_nid", "1234567890")
+            return build(**kwargs)
+
+        client.build_payload = build_with_declarant
+        self.client = client
+
+    def test_submit_return_unconfigured_is_not_accepted(self):
+        """GV-009: with no NBR endpoint configured the client must NOT mint a
+        local NBR-IVAS-...-M91 acceptance token — the return is explicitly
+        NOT accepted."""
         payload = self.client.build_payload(
             taxpayer_bin="1234567890123",
             taxpayer_name="1000 FiX Services Ltd.",
@@ -106,11 +131,16 @@ class TestInt038EvatClientSubmission(unittest.TestCase):
         )
         res = self.client.submit_return(payload)
         self.assertIsInstance(res, EvatSubmissionResult)
-        self.assertEqual(res.status, "ACCEPTED")
-        self.assertTrue(res.ack_token.startswith("NBR-IVAS-202609-M91-"))
+        self.assertEqual(res.status, "NOT_SUBMITTED")
+        self.assertEqual(res.ack_token, "")
         self.assertEqual(res.taxpayer_bin, "1234567890123")
         self.assertEqual(res.net_tax_payable, 61000.00)
         self.assertTrue(len(res.file_hash) == 64)
+        self.assertEqual(
+            res.validation_messages,
+            ["NBR endpoint not configured - return submission NOT accepted"],
+        )
+        self.assertEqual(res.raw_response, {})
 
     def test_export_batch_file_integrity(self):
         payload = self.client.build_payload(
@@ -138,3 +168,16 @@ class TestInt038EvatClientSubmission(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDeclarantRequired(unittest.TestCase):
+    def test_payload_without_a_declarant_is_rejected(self):
+        payload = Int038EvatClient().build_payload(
+            taxpayer_bin="1234567890123",
+            taxpayer_name="1000 FiX Services Ltd.",
+            tax_period="2026-09",
+            register_totals={"standard_15": (D("100.00"), D("15.00"))},
+        )
+        errors = validate_ivas_payload(payload)
+        self.assertIn("Declarant name is required", errors)
+        self.assertTrue(any("Declarant NID" in e for e in errors))

@@ -46,6 +46,10 @@
                             <field name="nbr_confirmation" readonly="1"/>
                         </group>
                     </group>
+                    <group string="Mushak 9.1 Lines by Treatment">
+                        <field name="treatment_breakdown" readonly="1"/>
+                        <field name="classification_notes" readonly="1" invisible="not classification_notes"/>
+                    </group>
                     <group string="Sub-Ledger Reconciliation (GL 210100 &amp; 110500)">
                         <group>
                             <field name="subledger_status" widget="badge"/>
@@ -90,7 +94,9 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_file" type="object" string="File Return with NBR" class="btn-primary" invisible="state == 'filed'"/>
+                    <!-- Records a filing done on the NBR portal: the acknowledgment number NBR
+                         issued must be entered first (the action refuses without it). -->
+                    <button name="action_file" type="object" string="Record NBR Filing" class="btn-primary" invisible="state == 'filed'"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,prepared,filed"/>
                 </header>
                 <sheet>
@@ -105,7 +111,8 @@
                         <group>
                             <field name="due_date" readonly="1"/>
                             <field name="filed_at" readonly="1"/>
-                            <field name="nbr_acknowledgment" readonly="1"/>
+                            <field name="nbr_acknowledgment" readonly="state == 'filed'"
+                                   placeholder="Acknowledgment No. issued by NBR"/>
                         </group>
                     </group>
                     <notebook>

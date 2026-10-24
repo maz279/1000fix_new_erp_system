@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine: Mushak 6.3 serial numbering (CD-M20-01).
+     A TEMPLATE sequence: the billing engine copies it once per company (the
+     register's (mushak_no, company) key is per company) and opens one date
+     range per company FISCAL YEAR, so numbering restarts each fiscal year.
+     no_gap: a statutory serial must not skip numbers on rolled-back invoices.
+     The prefix is the fiscal year's start year: 2026-000001 for FY 2026-27
+     (with a 30 June year end). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_mushak_63" model="ir.sequence">
+            <field name="name">Mushak 6.3 Serial (template)</field>
+            <field name="code">fix.mushak.63</field>
+            <field name="prefix">%(range_year)s-</field>
+            <field name="padding">6</field>
+            <field name="number_increment">1</field>
+            <field name="implementation">no_gap</field>
+            <field name="use_date_range" eval="True"/>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

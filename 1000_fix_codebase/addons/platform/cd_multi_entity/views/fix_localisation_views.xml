@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- fix.nil.return.generator list view -->
+    <record id="view_fix_nil_return_generator_tree" model="ir.ui.view">
+        <field name="name">fix.nil.return.generator.tree</field>
+        <field name="model">fix.nil.return.generator</field>
+        <field name="arch" type="xml">
+            <list string="Nil-Return Declarations">
+                <field name="name"/>
+                <field name="entity_id"/>
+                <field name="period_year"/>
+                <field name="period_month"/>
+                <field name="due_date"/>
+                <field name="is_newly_registered"/>
+                <field name="eligible_for_nil_return"/>
+                <field name="filing_reference"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- fix.nil.return.generator form view -->
+    <record id="view_fix_nil_return_generator_form" model="ir.ui.view">
+        <field name="name">fix.nil.return.generator.form</field>
+        <field name="model">fix.nil.return.generator</field>
+        <field name="arch" type="xml">
+            <form string="Statutory Nil-Return">
+                <header>
+                    <button name="action_verify_eligibility" type="object" string="Verify Eligibility"
+                            invisible="state != 'draft'" class="btn-primary"/>
+                    <button name="action_generate_nil_packs" type="object" string="Generate Nil Packs"
+                            invisible="state != 'verified'" class="btn-primary"/>
+                    <button name="action_submit_to_nbr" type="object" string="Record NBR Acknowledgement"
+                            invisible="state != 'generated'" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,verified,generated,submitted,acknowledged"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="entity_id"/>
+                            <field name="period_year"/>
+                            <field name="period_month"/>
+                            <field name="due_date"/>
+                        </group>
+                        <group>
+                            <field name="transaction_count"/>
+                            <field name="is_newly_registered"/>
+                            <field name="eligible_for_nil_return"/>
+                            <field name="filing_reference"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Mushak 9.1 Nil Payload">
+                            <field name="mushak_9_1_nil_payload" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                        <page string="TDS Nil Statement Payload">
+                            <field name="tds_nil_payload" widget="ace" options="{'mode': 'json'}"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <!-- Inherited fix.entity form view adding Localisation Tab -->
+    <record id="view_fix_entity_form_inherit_localisation" model="ir.ui.view">
+        <field name="name">fix.entity.form.inherit.localisation</field>
+        <field name="model">fix.entity</field>
+        <field name="inherit_id" ref="cd_entity_config.view_fix_entity_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="Localisation &amp; Statutory Tax Calendar">
+                        <group>
+                            <group string="Tax Identifiers">
+                                <field name="bin_number"/>
+                                <field name="tin_number"/>
+                                <field name="incorporation_date"/>
+                            </group>
+                            <group string="Statutory Compliance Schedule">
+                                <field name="vat_statutory_day"/>
+                                <field name="statutory_calendar_rule"/>
+                            </group>
+                        </group>
+                    </page>
+                </notebook>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- Action & Menus -->
+    <record id="action_fix_nil_return_generator" model="ir.actions.act_window">
+        <field name="name">Nil-Return Declarations</field>
+        <field name="res_model">fix.nil.return.generator</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_localisation_root" name="Statutory Localisation" parent="cd_entity_config.menu_fix_entity_root" sequence="70"/>
+    <menuitem id="menu_fix_nil_return" name="Nil-Return Declarations" parent="menu_fix_localisation_root" action="action_fix_nil_return_generator" sequence="10"/>
+</odoo>
