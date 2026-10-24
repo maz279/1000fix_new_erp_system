@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_payroll_bd security (authorization audit 2026-10-23).
+     Payroll data (payslips with salary + bank account numbers, BEFTN batches)
+     was granted to base.group_user - every employee could read and write it.
+     Access is now held by two payroll groups:
+       * Payroll Officer  - prepares periods, calculates payslips;
+       * Payroll Manager  - additionally APPROVES periods (maker-checker:
+                            never the calculator) and pays (BEFTN batches).
+     Plain employees hold no payroll ACL. Loaded BEFORE ir.model.access.csv. -->
+<odoo>
+    <record id="privilege_fix_payroll" model="res.groups.privilege">
+        <field name="name">Payroll (Bangladesh)</field>
+        <field name="description">1000FiX payroll: periods, payslips, BEFTN disbursement.</field>
+        <field name="sequence">60</field>
+    </record>
+
+    <record id="group_payroll_officer" model="res.groups">
+        <field name="name">Payroll Officer</field>
+        <field name="privilege_id" ref="privilege_fix_payroll"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Prepares payroll periods and calculates payslips.</field>
+    </record>
+
+    <record id="group_payroll_manager" model="res.groups">
+        <field name="name">Payroll Manager</field>
+        <field name="privilege_id" ref="privilege_fix_payroll"/>
+        <field name="implied_ids" eval="[(4, ref('group_payroll_officer'))]"/>
+        <field name="comment">Approves (second key, never the calculator) and pays payroll periods.</field>
+        <!-- the back office keeps working: the administrator holds the role -->
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+</odoo>

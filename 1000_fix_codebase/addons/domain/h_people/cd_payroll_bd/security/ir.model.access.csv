@@ -1,4 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_payroll_period,fix.payroll.period,model_fix_payroll_period,base.group_user,1,1,1,0
-access_fix_payslip,fix.payslip,model_fix_payslip,base.group_user,1,1,1,0
-access_fix_beftn_batch,fix.beftn.batch,model_fix_beftn_batch,base.group_user,1,0,0,0
+access_fix_payroll_period_officer,fix.payroll.period.officer,model_fix_payroll_period,group_payroll_officer,1,1,1,0
+access_fix_payslip_officer,fix.payslip.officer,model_fix_payslip,group_payroll_officer,1,1,1,0
+access_fix_beftn_batch_officer,fix.beftn.batch.officer,model_fix_beftn_batch,group_payroll_officer,1,0,0,0
+access_fix_beftn_batch_manager,fix.beftn.batch.manager,model_fix_beftn_batch,group_payroll_manager,1,1,1,0
