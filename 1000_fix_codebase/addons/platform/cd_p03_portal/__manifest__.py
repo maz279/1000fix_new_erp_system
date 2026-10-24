@@ -6,7 +6,7 @@
 # four persona role centers (A1).
 {
     "name": "P03 Admin Operations Portal",
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0.1",
     "category": "Platform/Portal",
     "author": "1000FiX Services Ltd",
     "license": "LGPL-3",

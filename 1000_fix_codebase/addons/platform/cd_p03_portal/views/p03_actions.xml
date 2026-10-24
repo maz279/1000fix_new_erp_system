@@ -20,19 +20,11 @@
         <field name="action_id" ref="action_p03_workspace"/>
     </record>
 
-    <!-- Override default mail.action_discuss to load 1000 FiX Operations Workspace at /odoo/discuss -->
-    <record id="mail.action_discuss" model="ir.actions.client">
-        <field name="name">1000 FiX ERP Operations Workspace</field>
-        <field name="tag">p03_workspace</field>
-        <field name="path">discuss</field>
-    </record>
-
-    <!-- Override default mail menu to open Operations Workspace -->
-    <record id="mail.menu_root_discuss" model="ir.ui.menu">
-        <field name="name">1000 FiX Operations</field>
-        <field name="action" ref="action_p03_workspace"/>
-        <field name="sequence">1</field>
-    </record>
+    <!-- Odoo's Discuss app (mail.action_discuss / mail.menu_root_discuss) is
+         left as Odoo ships it: overriding it here replaced internal chat with
+         the workspace. The workspace has its own menu (menu_p03_home) and is
+         the users' home action above; migrations/19.0.1.0.1 restores Discuss
+         on databases that carried the old override. -->
 
     <!-- The four persona role centers (registry personas: super/ops/
          finance/branch) — each opens the workspace pre-scoped. Dedicated
