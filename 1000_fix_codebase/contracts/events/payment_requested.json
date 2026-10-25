@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "payment.requested",
-  "description": "Published by cd_ap_ext through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_ap_ext through libs.py.fix_events.publish() (3 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -38,11 +38,11 @@
         "operating_unit_id"
       ],
       "properties": {
-        "vendor_id": {
+        "employee_id": {
           "type": "integer"
         },
         "amount": {
-          "type": "number"
+          "description": "Type not statically derivable at every publish site."
         },
         "currency": {
           "type": [
@@ -56,7 +56,7 @@
         "operating_unit_id": {
           "type": "integer"
         },
-        "employee_id": {
+        "vendor_id": {
           "type": "integer"
         }
       },
@@ -65,6 +65,7 @@
   },
   "x-owner-module": "cd_ap_ext",
   "x-publishers": [
+    "addons/domain/g_finance/cd_ap_ext/models/fix_ap_expense.py",
     "addons/domain/g_finance/cd_ap_ext/models/fix_ap_ext.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"

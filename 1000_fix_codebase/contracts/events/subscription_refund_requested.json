@@ -52,7 +52,7 @@
           "type": "number"
         },
         "requires_manager_approval": {
-          "description": "Type not statically derivable from `res.requires_manager_approval` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:211)."
+          "description": "Type not statically derivable from `res.requires_manager_approval` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:261)."
         }
       },
       "additionalProperties": false

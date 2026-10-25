@@ -59,7 +59,13 @@ def iso(odoo_env):
         {
             "name": f"Isolation probe {tag}",
             "login": f"isolation.probe.{tag}@example.test",
-            "group_ids": [Command.set([env.ref("base.group_user").id])],
+            # finance read access: the sample finance model is ACL-gated to the
+            # accounting groups; the isolation RULES are what is under test
+            "group_ids": [
+                Command.set(
+                    [env.ref("base.group_user").id, env.ref("account.group_account_readonly").id]
+                )
+            ],
             "company_id": company.id,
             "company_ids": [Command.set([company.id])],
             "assigned_operating_unit_ids": [Command.set([unit_a.id])],

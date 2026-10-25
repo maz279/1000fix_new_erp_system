@@ -42,7 +42,7 @@
           "type": "string"
         },
         "token": {
-          "description": "Type not statically derivable from `submission.ack_token` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_returns.py:251)."
+          "description": "Type not statically derivable from `submission.ack_token` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_returns.py:392)."
         },
         "net_payable": {
           "type": "number"

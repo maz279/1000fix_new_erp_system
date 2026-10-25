@@ -40,7 +40,7 @@
           "type": "string"
         },
         "handler": {
-          "description": "Type not statically derivable from `handler` (addons/domain/d_circular/cd_data_case/models/fix_data_case.py:188)."
+          "description": "Type not statically derivable from `handler` (addons/domain/d_circular/cd_data_case/models/fix_data_case.py:191)."
         }
       },
       "additionalProperties": false

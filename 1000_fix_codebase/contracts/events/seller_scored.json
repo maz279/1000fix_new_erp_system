@@ -35,7 +35,8 @@
         "seller",
         "period",
         "composite",
-        "tier"
+        "tier",
+        "measured"
       ],
       "properties": {
         "seller": {
@@ -49,6 +50,9 @@
         },
         "tier": {
           "type": "string"
+        },
+        "measured": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

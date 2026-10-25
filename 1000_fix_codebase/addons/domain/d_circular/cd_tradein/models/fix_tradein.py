@@ -470,7 +470,9 @@ class FixTradeinRequest(models.Model):
                     and rec.graded_value != vals["graded_value"]
                 ):
                     if rec.payout_execution_id or rec.state == "closed":
-                        raise UserError("Payout for %s already executed" % rec.name)
+                        raise UserError(
+                            "Payout for %s has already been sent to treasury" % rec.name
+                        )
                     vals = dict(vals, payout_approval_state="none")
         return super().write(vals)
 
@@ -488,20 +490,26 @@ class FixTradeinRequest(models.Model):
                     % (rec.name, rec.payout_approval_state)
                 )
 
-            # Create M50 treasury payment execution
+            # Queue the payout with M50 treasury. Only treasury releases it and
+            # marks it executed on bank/MFS evidence; trade-in never asserts
+            # the money left. Created with sudo after the approval checks
+            # above: a branch user requests a payout without treasury rights.
             if not rec.payout_execution_id:
-                payment = self.env["fix.payment.execution"].create(
-                    {
-                        "operating_unit_id": rec._operating_unit().id,
-                        "source_model": "fix.tradein.request",
-                        "source_id": rec.id,
-                        "payee": rec.customer_id.name,
-                        "amount": rec.graded_value,
-                        "method": "mobile_fs",  # default bKash/Nagad
-                    }
+                payment = (
+                    self.env["fix.payment.execution"]
+                    .sudo()
+                    .create(
+                        {
+                            "operating_unit_id": rec._operating_unit().id,
+                            "source_model": "fix.tradein.request",
+                            "source_id": rec.id,
+                            "payee": rec.customer_id.name,
+                            "amount": rec.graded_value,
+                            "method": "mobile_fs",  # default bKash/Nagad
+                        }
+                    )
                 )
                 rec.payout_execution_id = payment.id
-                payment.action_execute()
 
             rec.write({"state": "closed", "payout_amount": rec.graded_value})
             publish(
@@ -511,7 +519,7 @@ class FixTradeinRequest(models.Model):
                 rec.id,
                 {
                     "payout": float(rec.payout_amount),
-                    # fix.payment.execution has no `name` field: display_name is its reference
+                    # the treasury instruction's reference (PEX/...)
                     "payment_ref": rec.payout_execution_id.display_name
                     if rec.payout_execution_id
                     else "",

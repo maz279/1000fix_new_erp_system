@@ -33,7 +33,8 @@
       "type": "object",
       "required": [
         "certificate",
-        "method"
+        "method",
+        "verification_hash"
       ],
       "properties": {
         "certificate": {
@@ -43,7 +44,16 @@
           ]
         },
         "method": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "verification_hash": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

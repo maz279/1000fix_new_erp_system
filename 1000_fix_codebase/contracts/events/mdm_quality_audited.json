@@ -33,12 +33,28 @@
       "type": "object",
       "required": [
         "domain",
+        "audit_state",
+        "completeness_score",
+        "uniqueness_score",
+        "validity_score",
         "overall_quality_score",
         "records_audited"
       ],
       "properties": {
         "domain": {
           "type": "string"
+        },
+        "audit_state": {
+          "type": "string"
+        },
+        "completeness_score": {
+          "type": "number"
+        },
+        "uniqueness_score": {
+          "type": "number"
+        },
+        "validity_score": {
+          "type": "number"
         },
         "overall_quality_score": {
           "type": "number"

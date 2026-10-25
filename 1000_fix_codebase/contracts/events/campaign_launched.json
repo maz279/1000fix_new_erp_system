@@ -35,7 +35,9 @@
         "campaign",
         "channel",
         "target_segment",
-        "pdpa_consent_verified"
+        "pdpa_consent_verified",
+        "recipients",
+        "excluded_no_consent"
       ],
       "properties": {
         "campaign": {
@@ -49,6 +51,12 @@
         },
         "pdpa_consent_verified": {
           "type": "boolean"
+        },
+        "recipients": {
+          "type": "integer"
+        },
+        "excluded_no_consent": {
+          "type": "integer"
         }
       },
       "additionalProperties": false

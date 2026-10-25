@@ -37,7 +37,10 @@
       ],
       "properties": {
         "certificate": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "verification_hash": {
           "type": [

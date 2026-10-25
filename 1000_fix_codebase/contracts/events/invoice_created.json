@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "invoice.created",
-  "description": "Published by cd_billing_engine through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_billing_engine through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -33,6 +33,7 @@
       "type": "object",
       "required": [
         "invoice_ref",
+        "invoice_no",
         "mushak_no",
         "invoice_date",
         "supplier_name",
@@ -48,6 +49,12 @@
       "properties": {
         "invoice_ref": {
           "type": "string"
+        },
+        "invoice_no": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "mushak_no": {
           "type": "string"
@@ -71,7 +78,7 @@
           ]
         },
         "customer_bin": {
-          "description": "Type not statically derivable from `invoice.customer_id.vat or ''` (addons/domain/g_finance/cd_billing_engine/models/fix_billing_engine.py:224)."
+          "description": "Type not statically derivable at every publish site."
         },
         "taxable_amount": {
           "type": "number"

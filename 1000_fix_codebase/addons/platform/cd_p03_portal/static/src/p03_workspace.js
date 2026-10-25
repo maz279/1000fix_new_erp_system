@@ -1380,6 +1380,15 @@ export class P03Workspace extends Component {
         if (res.success) this.loadGlData();
     }
 
+    async arRegisterPaid(invoiceId) {
+        // close-out only on settlement evidence: the model refuses while a
+        // residual remains (receipts, credit notes, VDS certificates)
+        const res = await this._arCall("/p03/model/action", {
+            model: "fix.ar.invoice", ids: [invoiceId], method: "action_register_paid",
+        }, "Closed as paid");
+        if (res.success) this.loadGlData();
+    }
+
     /* ---------------- generic reason prompt ---------------- */
 
     glPrompt(title, label, action, id) {

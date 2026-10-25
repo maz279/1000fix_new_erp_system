@@ -331,7 +331,7 @@
                                     <span style="margin-right: 8px;"><t t-esc="state.activeModule.icon"/></span>
                                     <t t-esc="tBilingual(state.activeModule)"/>
                                 </h1>
-                                <p class="pg-sub"><t t-esc="state.activeModule.desc"/></p>
+                                <p class="pg-sub"><t t-esc="t(state.activeModule.desc)"/></p>
                             </div>
                             <div class="pg-actions">
                                 <button class="btn btn-primary" t-on-click="onModuleNew"><t t-esc="newButtonLabel"/></button>
@@ -367,7 +367,7 @@
                                             t-on-click="() => this.openFreg(state.activeModuleId, sub_index)"
                                             t-att-title="'Open sub-module ' + sub[1]">
                                         <span class="freg-n"><t t-esc="sub[0]"/></span>
-                                        <b><t t-esc="sub[1]"/></b>
+                                        <b><t t-esc="t(sub[1])"/></b>
                                         <span class="freg-c"><t t-esc="sub[2]"/> <t t-esc='t("fns ›")'/></span>
                                     </button>
                                 </t>
@@ -2106,6 +2106,7 @@
                                                 <button class="btn btn-sm btn-primary" t-if="state.gl.arDetail.invoice.state === 'draft'" t-on-click="() => this.arIssueDraft(state.gl.arDetail.invoice.id)"><t t-esc='t("Issue (Mushak + number + GL)")'/></button>
                                                 <button class="btn btn-sm" t-if="['draft', 'issued'].includes(state.gl.arDetail.invoice.state)" t-on-click="() => this.glPrompt('Cancel invoice', 'Cancellation reason (FR-ARB-011)', 'cancel_invoice', state.gl.arDetail.invoice.id)"><t t-esc='t("Cancel")'/></button>
                                                 <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.glPrompt('Write off residual', 'Write-off reason (authority matrix)', 'writeoff_invoice', state.gl.arDetail.invoice.id)"><t t-esc='t("Write off")'/></button>
+                                                <button class="btn btn-sm btn-primary" t-if="state.gl.arDetail.invoice.state === 'issued' &amp;&amp; Math.abs(state.gl.arDetail.invoice.residual || 0) &lt; 0.005" t-on-click="() => this.arRegisterPaid(state.gl.arDetail.invoice.id)"><t t-esc='t("Register Paid")'/></button>
                                                 <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.arOpenNoteForm(state.gl.arDetail.invoice.id)"><t t-esc='t("+ Credit note")'/></button>
                                                 <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.arCreateLink(state.gl.arDetail.invoice.id)"><t t-esc='t("Payment link")'/></button>
                                             </div>
@@ -2685,13 +2686,13 @@
                                 </div>
                                 <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
                                 <div t-if="!state.gl.data.error">
-                                    <h3 t-if="state.gl.data.title"><t t-esc="state.gl.data.title"/></h3>
+                                    <h3 t-if="state.gl.data.title"><t t-esc="t(state.gl.data.title)"/></h3>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
                                             <thead>
                                                 <tr>
                                                     <t t-foreach="state.gl.data.cols" t-as="col" t-key="col">
-                                                        <th><t t-esc="(state.gl.data.labels || {})[col] || col"/></th>
+                                                        <th><t t-esc="t((state.gl.data.labels || {})[col] || col)"/></th>
                                                     </t>
                                                 </tr>
                                             </thead>
@@ -2734,7 +2735,7 @@
                                     <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
                                         <button t-if="state.gl.modelCfg.create !== false" class="btn btn-sm" t-on-click="() => this.mlNew()"><t t-esc='t("+ New")'/></button>
                                         <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
-                                            <button class="btn btn-primary btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="act.l"/></button>
+                                            <button class="btn btn-primary btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
                                         </t>
                                     </div>
                                     <div class="tbl-wrap">
@@ -2757,7 +2758,7 @@
                                                         </td>
                                                     </t>
                                                 </tr>
-                                                <tr t-if="!mlRows.length"><td t-att-colspan="state.gl.modelCfg.cols.length" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No records yet — this surface wires to its model in its porting phase.")'/></td></tr>
+                                                <tr t-if="!mlRows.length"><td t-att-colspan="state.gl.modelCfg.cols.length" style="text-align: center; color: var(--ink-300);"><t t-esc='state.gl.modelCfg.create !== false ? t("No records yet — use + New to create the first one.") : t("No records yet.")'/></td></tr>
                                             </tbody>
                                         </table>
                                     </div>

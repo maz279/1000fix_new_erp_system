@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "journal.posted",
-  "description": "Published by cd_gl_ext through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_gl_ext through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -35,7 +35,8 @@
         "company_id",
         "amount",
         "currency",
-        "line_count"
+        "line_count",
+        "source"
       ],
       "properties": {
         "company_id": {
@@ -55,6 +56,12 @@
         },
         "line_count": {
           "type": "integer"
+        },
+        "source": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

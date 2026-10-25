@@ -43,7 +43,7 @@
           "type": "string"
         },
         "is_reconciled": {
-          "description": "Type not statically derivable from `recon.is_reconciled` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_returns.py:309)."
+          "description": "Type not statically derivable from `recon.is_reconciled` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_returns.py:492)."
         },
         "output_variance": {
           "type": "number"

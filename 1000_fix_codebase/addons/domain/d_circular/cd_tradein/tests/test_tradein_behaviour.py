@@ -442,16 +442,16 @@ def test_pay_executes_treasury_payout(odoo_env, state):
     payment = rec.payout_execution_id
     assert rec.state == "closed"
     assert rec.payout_amount == 12500  # the APPROVED graded value, not the offer
-    assert payment.state == "executed"
+    # queued with treasury; only bank/MFS evidence marks it executed
+    assert payment.state == "pending"
     assert payment.amount == 12500
     assert payment.method == "mobile_fs"
     assert payment.payee == "Trade-in Customer"
     assert (payment.source_model, payment.source_id) == (TRD, rec.id)
     assert payment.operating_unit_id == odoo_env.user.default_operating_unit_id
-    # Regression: the event read `payment.name`, a field M50 payments do not
-    # have (AttributeError after the payout had already executed).
+    assert payment.display_name.startswith("PEX/")
     assert _events(odoo_env, "tradein.paid", rec.id) == [
-        {"payout": 12500.0, "payment_ref": f"fix.payment.execution,{payment.id}"}
+        {"payout": 12500.0, "payment_ref": payment.display_name}
     ]
 
 
@@ -500,7 +500,7 @@ def test_graded_value_is_frozen_once_paid(odoo_env):
     rec = _in(odoo_env, "graded", offered_value=3000)
     _approved(odoo_env, rec, 3000)
     rec.action_pay()
-    with pytest.raises(UserError, match="already executed"):
+    with pytest.raises(UserError, match="already been sent to treasury"):
         rec.write({"graded_value": 1})
 
 
@@ -539,7 +539,7 @@ def test_full_journey(odoo_env):
     rec.action_pay()
     assert rec.state == "closed"
     assert rec.graded_stock_id.grade_id == _grade(odoo_env, "B")
-    assert rec.payout_execution_id.state == "executed"
+    assert rec.payout_execution_id.state == "pending"  # queued with treasury
 
 
 def test_refurbishment_step_defaults(odoo_env):

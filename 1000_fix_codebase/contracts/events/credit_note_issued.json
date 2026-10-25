@@ -33,18 +33,29 @@
       "type": "object",
       "required": [
         "invoice_ref",
+        "invoice",
         "amount",
-        "reason"
+        "reason",
+        "invoice_residual"
       ],
       "properties": {
         "invoice_ref": {
           "type": "string"
+        },
+        "invoice": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "amount": {
           "type": "number"
         },
         "reason": {
           "type": "string"
+        },
+        "invoice_residual": {
+          "type": "number"
         }
       },
       "additionalProperties": false

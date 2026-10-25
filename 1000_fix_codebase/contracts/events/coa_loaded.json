@@ -42,10 +42,10 @@
           "type": "integer"
         },
         "account_count": {
-          "description": "Type not statically derivable from `result['account_count']` (addons/domain/g_finance/cd_gl_ext/models/fix_chart_loader.py:268)."
+          "description": "Type not statically derivable from `result['account_count']` (addons/domain/g_finance/cd_gl_ext/models/fix_chart_loader.py:356)."
         },
         "postable_count": {
-          "description": "Type not statically derivable from `result['postable_count']` (addons/domain/g_finance/cd_gl_ext/models/fix_chart_loader.py:268)."
+          "description": "Type not statically derivable from `result['postable_count']` (addons/domain/g_finance/cd_gl_ext/models/fix_chart_loader.py:356)."
         },
         "sha256": {
           "type": "string"

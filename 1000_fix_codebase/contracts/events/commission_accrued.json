@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "commission.accrued",
-  "description": "Published by cd_settlement_ext through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_settlement_ext through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -34,12 +34,8 @@
       "required": [
         "commission_ref",
         "seller",
-        "gross",
         "commission_amount",
-        "seller_share",
-        "move_id",
-        "payment_id",
-        "rail"
+        "move_id"
       ],
       "properties": {
         "commission_ref": {
@@ -51,17 +47,20 @@
             "boolean"
           ]
         },
-        "gross": {
-          "type": "number"
+        "payee_type": {
+          "type": "string"
         },
         "commission_amount": {
           "type": "number"
         },
-        "seller_share": {
-          "type": "number"
-        },
         "move_id": {
           "type": "integer"
+        },
+        "gross": {
+          "type": "number"
+        },
+        "seller_share": {
+          "type": "number"
         },
         "payment_id": {
           "type": [
