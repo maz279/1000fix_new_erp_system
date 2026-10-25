@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_settlement_ext — A08 M53 views: commission schemes, escrow and
+     clawbacks, warranty provision; plus the payee-type / escrow / clawback
+     fields on the existing ledger and payout-run screens. The P03 workspace
+     opens these forms from its model_list screens. -->
+<odoo>
+    <!-- ================= Commission schemes ================= -->
+    <record id="view_fix_commission_scheme_list" model="ir.ui.view">
+        <field name="name">fix.commission.scheme.list</field>
+        <field name="model">fix.commission.scheme</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="scheme_type"/>
+                <field name="partner_type" optional="show"/>
+                <field name="seller_tier" optional="show"/>
+                <field name="commission_rate" widget="percentage"/>
+                <field name="tds_rate" widget="percentage"/>
+                <field name="tds_base"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_commission_scheme_form" model="ir.ui.view">
+        <field name="name">fix.commission.scheme.form</field>
+        <field name="model">fix.commission.scheme</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="scheme_type"/>
+                            <field name="partner_type" invisible="scheme_type != 'partner'"/>
+                            <field name="seller_tier" invisible="scheme_type != 'seller'"/>
+                            <field name="commission_rate" widget="percentage"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="tds_rate" widget="percentage"/>
+                            <field name="tds_base"/>
+                            <field name="tds_reference"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <field name="note" placeholder="Basis of the rate, adviser confirmation"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_commission_scheme" model="ir.actions.act_window">
+        <field name="name">Commission Schemes</field>
+        <field name="res_model">fix.commission.scheme</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Escrow & clawbacks ================= -->
+    <record id="view_fix_settlement_adjustment_list" model="ir.ui.view">
+        <field name="name">fix.settlement.adjustment.list</field>
+        <field name="model">fix.settlement.adjustment</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="state == 'active'" decoration-muted="state in ('cancelled', 'released', 'recovered')">
+                <field name="name"/>
+                <field name="adjustment_type"/>
+                <field name="seller_partner_id"/>
+                <field name="dispute_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount" sum="Total"/>
+                <field name="remaining_amount" sum="Open"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_settlement_adjustment_form" model="ir.ui.view">
+        <field name="name">fix.settlement.adjustment.form</field>
+        <field name="model">fix.settlement.adjustment</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" type="object" string="Activate" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_release" type="object" string="Release Escrow" invisible="state != 'active' or adjustment_type != 'escrow'"/>
+                    <button name="action_forfeit" type="object" string="Forfeit (refund customer)" invisible="state != 'active' or adjustment_type != 'escrow'" groups="account.group_account_manager"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('draft', 'active')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="adjustment_type" readonly="state != 'draft'"/>
+                            <field name="dispute_id" readonly="state != 'draft'"/>
+                            <field name="seller_partner_id" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" readonly="state != 'draft' or adjustment_type == 'escrow'"/>
+                            <field name="recovered_amount"/>
+                            <field name="remaining_amount"/>
+                        </group>
+                        <group>
+                            <field name="requested_by_id"/>
+                            <field name="decided_by_id"/>
+                            <field name="decided_at"/>
+                            <field name="move_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <field name="reason" placeholder="Why the amount is held / clawed back"/>
+                    <notebook>
+                        <page string="Commissions Held" name="held" invisible="adjustment_type != 'escrow'">
+                            <field name="commission_ids" readonly="state != 'draft'" domain="[('seller_partner_id', '=', seller_partner_id), ('state', 'in', ('earned', 'accrued'))]"/>
+                        </page>
+                        <page string="Recoveries" name="recoveries" invisible="adjustment_type != 'clawback'">
+                            <field name="recovery_ids" readonly="1">
+                                <list>
+                                    <field name="payout_run_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="amount"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_settlement_adjustment" model="ir.actions.act_window">
+        <field name="name">Escrow &amp; Clawbacks</field>
+        <field name="res_model">fix.settlement.adjustment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Warranty provision (IAS 37) ================= -->
+    <record id="view_fix_warranty_provision_policy_list" model="ir.ui.view">
+        <field name="name">fix.warranty.provision.policy.list</field>
+        <field name="model">fix.warranty.provision.policy</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="warranty_days"/>
+                <field name="lookback_months"/>
+                <field name="cost_ratio" widget="percentage"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_warranty_provision_policy_form" model="ir.ui.view">
+        <field name="name">fix.warranty.provision.policy.form</field>
+        <field name="model">fix.warranty.provision.policy</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="warranty_days"/>
+                            <field name="lookback_months"/>
+                            <field name="cost_ratio" widget="percentage"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="active"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <field name="note" placeholder="Basis of the estimate (rework cost study, auditor agreement)"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="view_fix_warranty_provision_list" model="ir.ui.view">
+        <field name="name">fix.warranty.provision.list</field>
+        <field name="model">fix.warranty.provision</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="period"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="revenue_in_warranty"/>
+                <field name="rework_rate" widget="percentage"/>
+                <field name="cost_ratio" widget="percentage"/>
+                <field name="required_balance"/>
+                <field name="movement"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_warranty_provision_form" model="ir.ui.view">
+        <field name="name">fix.warranty.provision.form</field>
+        <field name="model">fix.warranty.provision</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_compute" type="object" string="Compute" class="btn-primary" invisible="state == 'posted'"/>
+                    <button name="action_post" type="object" string="Post to GL" invisible="state != 'computed'" groups="account.group_account_manager"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="period" readonly="state == 'posted'"/>
+                            <field name="period_end"/>
+                            <field name="policy_id"/>
+                            <field name="lookback_orders"/>
+                            <field name="lookback_reworks"/>
+                            <field name="rework_rate" widget="percentage"/>
+                            <field name="cost_ratio" widget="percentage"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="revenue_in_warranty"/>
+                            <field name="required_balance"/>
+                            <field name="opening_balance"/>
+                            <field name="movement"/>
+                            <field name="move_id"/>
+                            <field name="computed_by_id"/>
+                            <field name="posted_by_id"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_warranty_provision" model="ir.actions.act_window">
+        <field name="name">Warranty Provision (IAS 37)</field>
+        <field name="res_model">fix.warranty.provision</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= additions to the W7 screens ================= -->
+    <record id="view_fix_commission_ledger_list_m53" model="ir.ui.view">
+        <field name="name">fix.commission.ledger.list.m53</field>
+        <field name="model">fix.commission.ledger</field>
+        <field name="inherit_id" ref="view_fix_commission_ledger_list"/>
+        <field name="arch" type="xml">
+            <field name="seller_partner_id" position="after">
+                <field name="source_type" optional="show"/>
+                <field name="escrow_hold" optional="show"/>
+            </field>
+        </field>
+    </record>
+    <record id="view_fix_payout_run_form_m53" model="ir.ui.view">
+        <field name="name">fix.payout.run.form.m53</field>
+        <field name="model">fix.payout.run</field>
+        <field name="inherit_id" ref="view_fix_payout_run_form"/>
+        <field name="arch" type="xml">
+            <button name="action_approve" position="before">
+                <button name="action_collect_accrued" string="Collect Accrued Commissions" type="object" invisible="state != 'draft'"/>
+            </button>
+            <field name="sod_verified" position="after">
+                <field name="total_clawback"/>
+            </field>
+        </field>
+    </record>
+
+    <menuitem id="menu_fix_commission_scheme" name="Commission Schemes" parent="menu_fix_settlement_root" action="action_fix_commission_scheme" sequence="50"/>
+    <menuitem id="menu_fix_settlement_adjustment" name="Escrow &amp; Clawbacks" parent="menu_fix_settlement_root" action="action_fix_settlement_adjustment" sequence="60"/>
+    <record id="action_fix_warranty_provision_policy" model="ir.actions.act_window">
+        <field name="name">Warranty Provision Policies</field>
+        <field name="res_model">fix.warranty.provision.policy</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_warranty_provision_policy" name="Warranty Provision Policies" parent="menu_fix_settlement_root" action="action_fix_warranty_provision_policy" sequence="75"/>
+    <menuitem id="menu_fix_warranty_provision" name="Warranty Provision (IAS 37)" parent="menu_fix_settlement_root" action="action_fix_warranty_provision" sequence="70"/>
+</odoo>

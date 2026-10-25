@@ -23,11 +23,13 @@ class TestConsolidatedInvoicing(unittest.TestCase):
         """T02: one invoice, many jobs, many sites — the flag defaults ON."""
         self.assertIn("consolidated = fields.Boolean(\n        default=True", SOURCE)
 
-    def test_consolidated_skips_standalone_invoice(self):
+    def test_every_cycle_is_one_charge_with_its_invoice(self):
+        """A08 M53: one fix.subscription.charge (and one invoice) per cycle;
+        consolidation happens in M20's period bill."""
         body = SOURCE[
             SOURCE.index("def action_generate_charge") : SOURCE.index("def action_trigger_dunning")
         ]
-        self.assertIn("if not sub.consolidated", body)
+        self.assertIn("charge._create_invoice()", body)
 
     def test_one_schedule_per_source(self):
         self.assertIn("source_schedule_unique", SOURCE)

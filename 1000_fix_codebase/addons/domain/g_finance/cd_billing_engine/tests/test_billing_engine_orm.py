@@ -215,7 +215,7 @@ class TestAutoInvoice:
         env = shop.env
         other = env["res.company"].create({"name": "M20 No Template Co"})
         with (
-            pytest.raises(UserError, match="Mushak 6.3 numbering sequence is missing"),
+            pytest.raises(UserError, match=r"Mushak 6.3 numbering sequence is missing"),
             env.cr.savepoint(),
         ):
             env.ref("cd_billing_engine.seq_fix_mushak_63").unlink()
@@ -285,10 +285,26 @@ class TestAutoInvoice:
 
     def test_payment_receipt(self, shop):
         invoice = shop.env["fix.ar.invoice"].from_closed_service_order(_job(shop), None)
+        # A08 M20: never paid without evidence - the open residual refuses
+        with (
+            pytest.raises(UserError, match="never marked paid without settlement evidence"),
+            shop.env.cr.savepoint(),
+        ):
+            invoice.action_register_paid()
+        assert invoice.state == "issued"
+        assert _events(shop.env, "invoice.paid", invoice.id) == []
+        # loyalty redemption covering the whole bill leaves nothing to settle
+        invoice.loyalty_discount_amount = 6785.0
+        assert invoice.amount_residual == 0.0
         invoice.action_register_paid()
-        assert invoice.state == "paid"
+        assert invoice.state == "paid" and invoice.paid_date
         assert _events(shop.env, "invoice.paid", invoice.id) == [
-            {"mushak_no": invoice.mushak_id.mushak_no, "total_payable": 6785.0}
+            {
+                "invoice": invoice.name,
+                "mushak_no": invoice.mushak_id.mushak_no,
+                "total_payable": 0.0,
+                "evidence": "",
+            }
         ]
         with (
             pytest.raises(UserError, match="Only issued invoices can be paid"),

@@ -13,9 +13,14 @@ CD-M39-01 + M53's W4 slice (P07-M03):
   never at the point of sale; cumulative idempotent drawdown
 - Commission CALCULATION consumes services/settlement-engine (T06/T07,
   pair 12: earning is an M12 event — M12 must not call M53)
+- A08 M53 (IFRS 15): fix.subscription.charge (one invoice per cycle,
+  billed to the contract liability), fix.performance.obligation (SSP
+  allocation of the transaction price, schedule per obligation) and
+  fix.revenue.recognition.line (each recognition posted Dr contract
+  liability / Cr revenue)
 - Events: subscription.charged/cancelled, revenue.recognized (AS-08)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Subscriptions",
@@ -27,11 +32,13 @@ CD-M39-01 + M53's W4 slice (P07-M03):
         "cd_party_master",
         "cd_contract_core",
         "cd_billing_engine",
+        "cd_tax_engine_bd",
         "cd_gl_ext",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_revenue_rules.xml",
         "views/fix_subscription_views.xml",
     ],
     "installable": True,

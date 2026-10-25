@@ -14,7 +14,8 @@ export const MODULE = {
     { l: 'DSO', m: 'dso' },
     { l: 'Auto-Gen %', m: 'auto_generated_pct' },
     { l: 'Within 1h %', m: 'within_1h_pct' },
-    { l: 'Credit Notes', m: 'credit_notes_total' }
+    { l: 'Credit Notes', m: 'credit_notes_total' },
+    { l: 'VDS to Claim', m: 'vds_unclaimed' }
   ],
   groups: [
     { en: 'Invoicing', screens: [
@@ -27,7 +28,9 @@ export const MODULE = {
     { en: 'Receipts', screens: [
       { id: 'M20-receipts', en: 'Receipts (All Methods)', bn: 'রিসিট', t: 'g' },
       { id: 'M20-links', en: 'Payment Links', bn: 'পেমেন্ট লিংক', t: 'g' },
-      { id: 'M20-allocation', en: 'Matching & Allocation', bn: 'মিলকরণ', t: 'c' }
+      { id: 'M20-allocation', en: 'Matching & Allocation', bn: 'মিলকরণ', t: 'c' },
+      { id: 'M20-vds', en: 'Customer VDS Certificates (Mushak 6.6)', bn: 'গ্রাহকের উৎসে ভ্যাট কর্তন সনদ (মুশক ৬.৬)', t: 'g' },
+      { id: 'M20-closeout', en: 'Invoice Settlement Close-out', bn: 'ইনভয়েস নিষ্পত্তি সমাপন', t: 'g' }
     ]},
     { en: 'Credit Control', screens: [
       { id: 'M20-credit', en: 'Limits, Terms & Holds', bn: 'ক্রেডিট নিয়ন্ত্রণ', t: 'g' },
@@ -38,11 +41,12 @@ export const MODULE = {
     { en: 'Analysis', screens: [
       { id: 'M20-aging', en: 'AR Ageing', bn: 'বয়স্ক প্রাপ্য', t: 'r' },
       { id: 'M20-leakage', en: 'Revenue-Leakage Detection', bn: 'রাজস্ব ক্ষয়', t: 'r' },
-      { id: 'M20-statements', en: 'Customer Statements', bn: 'গ্রাহক স্টেটমেন্ট', t: 'r' }
+      { id: 'M20-statements', en: 'Customer Statements', bn: 'গ্রাহক স্টেটমেন্ট', t: 'r' },
+      { id: 'M20-vds-register', en: 'VDS Claim Register (Mushak 9.1)', bn: 'উৎসে ভ্যাট কর্তন দাবি রেজিস্টার (মুশক ৯.১)', t: 'r' }
     ]}
   ],
-  reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity'],
-  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link'],
+  reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity', 'VDS Received Register'],
+  forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 99, sub: [
     ['1', 'Billable-Event Intake', 12], ['2', 'Invoice Assembly', 12], ['3', 'Mushak 6.3 Rendering', 8],
@@ -68,6 +72,16 @@ export const SCREENS = {
   'M20-aging': { kind: 'ar_aging' },
   'M20-leakage': { kind: 'ar_leakage' },
   'M20-statements': { kind: 'ar_statements' },
+  // ---- A08 additions (generic screens, controllers/a08/m20.py) ----
+  'M20-vds': { kind: 'model_list', model: 'fix.vds.certificate.received',
+    cols: ['name','customer_id','invoice_id','certificate_no','certificate_date','period','vds_amount','state'],
+    stateField: 'state',
+    actions: [{m:'action_verify',l:'Verify (checker)'},{m:'action_settle',l:'Settle against Receivable'},{m:'action_cancel',l:'Cancel'}] },
+  'M20-closeout': { kind: 'model_list', model: 'fix.ar.invoice',
+    cols: ['name','customer_id','invoice_date','total_payable','amount_paid','credited_amount','vds_settled_amount','amount_residual','state'],
+    domain: [['state','=','issued']], create: false,
+    actions: [{m:'action_register_paid',l:'Register Paid (residual covered)'}] },
+  'M20-vds-register': { kind: 'table_report', module: 'M20', report: 'vds_claim_register' },
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -78,6 +92,7 @@ export const REPORT_ROUTES = {
   "M20:Invoice Accuracy": "M20-refunds",
   "M20:Brand Receivable Ageing": "M20-brand",
   "M20:Collections Productivity": "M20-dunning",
+  "M20:VDS Received Register": "M20-vds-register",
 };
 
 /* data-entry form chips -> real model forms */
@@ -85,6 +100,9 @@ export const FORM_MODELS = {
   'M20:Invoice Request': 'fix.ar.invoice',
   'M20:Credit Note': 'fix.credit.note',
   'M20:Refund': 'fix.credit.note',
+  'M20:Receipt': 'fix.ar.receipt',
+  'M20:Payment Link': 'fix.ar.payment.link',
+  'M20:VDS Certificate': 'fix.vds.certificate.received',
 };
 
 /* the module's "+ New" surface */

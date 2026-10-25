@@ -30,6 +30,8 @@ GL_CODES = {
     "cash": ("101401", "asset_cash"),
     "bank": ("101402", "asset_cash"),
     "channel_mfs": ("251000", "liability_current"),
+    "vds_receivable": ("132000", "asset_current"),
+    "deferred_revenue": ("212000", "liability_current"),
 }
 
 
@@ -694,3 +696,199 @@ class TestStatementAndLeakage:
         leak = compute_leakage(odoo_env, company_id=shop.company.id)
         assert any(u["age_days"] >= 0 for u in leak["unbilled_closed_orders"])
         assert any(e["state"] == "failed" for e in leak["failed_events"])
+
+
+# ---------------------------------------------------------------------------
+# A08 M20 — customer VDS certificates (Mushak 6.6 received), close-out and
+# the credit-hold workflow
+# ---------------------------------------------------------------------------
+def _finance_user(shop, login, *groups):
+    env = shop.env
+    return env["res.users"].create(
+        {
+            "name": login.replace("-", " ").title(),
+            "login": f"{login}-{shop.company.id}@vds.test",
+            "company_id": shop.company.id,
+            "company_ids": [(6, 0, shop.company.ids)],
+            "operating_unit_ids": [(6, 0, shop.ou.ids)],
+            "group_ids": [(6, 0, [env.ref(g).id for g in ("base.group_user", *groups)])],
+        }
+    )
+
+
+def _cert(shop, invoice, user, amount, number="6.6/OCT/0001", **vals):
+    return (
+        shop.env(user=user)["fix.vds.certificate.received"]
+        .create(
+            {
+                "invoice_id": invoice.id,
+                "certificate_no": number,
+                "certificate_date": date(2026, 10, 5),
+                "vds_amount": amount,
+                "challan_no": "TR-77",
+                **vals,
+            }
+        )
+        .sudo(False)
+    )
+
+
+class TestVdsCertificatesReceived:
+    def test_vds_settles_the_receivable_and_the_receipt_pays_the_rest(self, odoo_env):
+        from odoo.exceptions import AccessError, ValidationError
+
+        shop = _gl_company(odoo_env, "vds1")
+        invoice = _issued(shop)  # 1000 taxable + 150 VAT = 1150
+        maker = _finance_user(shop, "vds-maker", "account.group_account_user")
+        checker = _finance_user(shop, "vds-checker", "account.group_account_user")
+
+        with (
+            pytest.raises(ValidationError, match="exceed the invoice VAT"),
+            shop.env.cr.savepoint(),
+        ):
+            _cert(shop, invoice, maker, 150.01)
+        cert = _cert(shop, invoice, maker, 150.0)
+        assert cert.name.startswith("VDS/")
+        assert (cert.period, cert.customer_bin, cert.state) == ("2026-10", CUSTOMER_BIN, "draft")
+        assert cert.company_id == shop.company and cert.customer_id == shop.customer
+
+        # a second certificate can never take the invoice past its VAT
+        with (
+            pytest.raises(ValidationError, match="exceed the invoice VAT"),
+            shop.env.cr.savepoint(),
+        ):
+            _cert(shop, invoice, maker, 1.0, number="6.6/OCT/0002")
+
+        with pytest.raises(UserError, match="Verify certificate"), shop.env.cr.savepoint():
+            cert.with_user(checker).action_settle()
+        with pytest.raises(AccessError, match="Segregation of duties"), shop.env.cr.savepoint():
+            cert.with_user(maker).action_verify()
+        cert.with_user(checker).action_verify()
+        assert (cert.state, cert.verified_by_id) == ("verified", checker)
+
+        cert.with_user(checker).action_settle()
+        assert cert.state == "settled" and cert.settled_move_id
+        # Dr VDS receivable 150 / Cr AR 150 (the customer's control line)
+        assert _postings(shop.env, cert.settled_move_id) == [
+            ("121000", 0.0, 150.0),
+            ("132000", 150.0, 0.0),
+        ]
+        assert _money(invoice.vds_settled_amount) == D("150.00")
+        assert _money(invoice.amount_residual) == D("1000.00")
+        assert invoice.state == "issued"
+
+        with pytest.raises(UserError, match="locked"), shop.env.cr.savepoint():
+            cert.vds_amount = 100.0
+        with pytest.raises(UserError, match="GL correction"), shop.env.cr.savepoint():
+            cert.action_cancel()
+
+        receipt = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 1000.0, "method": "bank_transfer"}
+        )
+        receipt.action_confirm()
+        shop.env["fix.ar.allocation"].create(
+            {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": 1000.0}
+        )
+        assert invoice.state == "paid"
+
+        # the 9.1 contract: settled certificates of the period, claimed once
+        Cert = shop.env["fix.vds.certificate.received"]
+        assert Cert.claimable_for_period("2026-10", shop.company) == cert
+        with pytest.raises(UserError, match="return reference"), shop.env.cr.savepoint():
+            cert.action_mark_claimed("")
+        cert.action_mark_claimed("9.1/2026-10")
+        assert (cert.state, cert.claimed_return_ref) == ("claimed", "9.1/2026-10")
+        assert not Cert.claimable_for_period("2026-10", shop.company)
+        with pytest.raises(UserError, match="Only settled"), shop.env.cr.savepoint():
+            cert.action_mark_claimed("9.1/again")
+
+    def test_vds_last_closes_the_invoice_with_evidence(self, odoo_env):
+        shop = _gl_company(odoo_env, "vds2")
+        invoice = _issued(shop)
+        receipt = shop.env["fix.ar.receipt"].create(
+            {"customer_id": shop.customer.id, "amount": 1000.0, "method": "bank_transfer"}
+        )
+        receipt.action_confirm()
+        shop.env["fix.ar.allocation"].create(
+            {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": 1000.0}
+        )
+        assert invoice.state == "issued"  # the VDS 150 is still open
+        maker = _finance_user(shop, "vds2-maker", "account.group_account_user")
+        checker = _finance_user(shop, "vds2-checker", "account.group_account_user")
+        cert = _cert(shop, invoice, maker, 150.0, period="2026-11")
+        cert.with_user(checker).action_verify()
+        cert.with_user(checker).action_settle()
+        assert invoice.state == "paid" and invoice.paid_date
+        paid = [p for p in _events(odoo_env, "invoice.paid") if p.get("invoice") == invoice.name]
+        assert paid and "VDS certificates 6.6/OCT/0001" in paid[-1]["evidence"]
+        assert "RCP/" in paid[-1]["evidence"]
+        assert cert.period == "2026-11"  # an explicit claim period wins
+
+    def test_vds_settlement_refuses_without_the_account(self, odoo_env):
+        shop = _gl_company(odoo_env, "vds3")
+        invoice = _issued(shop)
+        shop.accounts["vds_receivable"].active = False
+        maker = _finance_user(shop, "vds3-maker", "account.group_account_user")
+        checker = _finance_user(shop, "vds3-checker", "account.group_account_user")
+        cert = _cert(shop, invoice, maker, 100.0)
+        cert.with_user(checker).action_verify()
+        with pytest.raises(UserError, match="vds_receivable"), shop.env.cr.savepoint():
+            cert.with_user(checker).action_settle()
+        assert cert.state == "verified" and invoice.vds_settled_amount == 0.0
+
+    def test_period_format_and_cancel(self, odoo_env):
+        from odoo.exceptions import ValidationError
+
+        shop = _gl_company(odoo_env, "vds4")
+        invoice = _issued(shop)
+        maker = _finance_user(shop, "vds4-maker", "account.group_account_user")
+        with pytest.raises(ValidationError, match="YYYY-MM"), shop.env.cr.savepoint():
+            _cert(shop, invoice, maker, 10.0, period="10/2026")
+        cert = _cert(shop, invoice, maker, 10.0)
+        cert.action_cancel()
+        assert cert.state == "cancelled"
+        # a cancelled certificate frees the VAT headroom
+        _cert(shop, invoice, maker, 150.0, number="6.6/OCT/0009")
+
+
+class TestCloseOutAndHold:
+    def test_register_paid_closes_only_a_fully_settled_invoice(self, odoo_env):
+        shop = _gl_company(odoo_env, "close")
+        invoice = _issued(shop)
+        with (
+            pytest.raises(UserError, match=r"still has 1150.0 outstanding"),
+            shop.env.cr.savepoint(),
+        ):
+            invoice.action_register_paid()
+        # a legacy / zero-residual invoice (here: loyalty covered the bill)
+        invoice.loyalty_discount_amount = 1150.0
+        invoice.action_register_paid()
+        assert invoice.state == "paid"
+        with pytest.raises(UserError, match="Only issued"), shop.env.cr.savepoint():
+            invoice.action_register_paid()
+
+    def test_toggle_hold_records_reason_who_and_when(self, odoo_env):
+        shop = _gl_company(odoo_env, "holdwf")
+        profile = shop.env["fix.credit.profile"].create(
+            {"customer_id": shop.customer.id, "credit_limit": 5000}
+        )
+        clerk = _finance_user(shop, "hold-clerk", "account.group_account_user")
+        profile.with_user(clerk).action_toggle_hold(reason="cheque bounced twice")
+        assert (profile.credit_hold, profile.hold_reason, profile.hold_by) == (
+            True,
+            "cheque bounced twice",
+            clerk,
+        )
+        assert profile.hold_date
+        order = _closed_order(shop, JOB)
+        with pytest.raises(UserError, match="Credit hold"), shop.env.cr.savepoint():
+            shop.env["fix.ar.invoice"].from_closed_service_order(order, Datetime.now())
+        profile.with_user(clerk).action_toggle_hold()
+        assert (profile.credit_hold, profile.hold_reason) == (False, False)
+        # no reason given: an explicit manual-hold note naming the user
+        profile.with_user(clerk).action_toggle_hold()
+        assert (
+            profile.credit_hold and profile.hold_reason == "Manual hold placed by %s" % clerk.name
+        )
+        bodies = " ".join(profile.message_ids.mapped("body"))
+        assert "cheque bounced twice" in bodies and "released" in bodies

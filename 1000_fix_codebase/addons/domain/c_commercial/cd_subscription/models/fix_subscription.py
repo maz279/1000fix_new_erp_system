@@ -10,11 +10,14 @@ from datetime import date, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
+from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
 from . import rev_rec_engine
+
+TWO = Decimal("0.01")
 
 
 class FixSubscription(models.Model):
@@ -87,6 +90,31 @@ class FixSubscription(models.Model):
         help="T02: roll this subscription's period charges into the customer's "
         "ONE consolidated invoice (with jobs and other subscriptions)",
     )
+    # --- IFRS 15 contract (A08 M53) -----------------------------------
+    contract_value = fields.Monetary(
+        string="Transaction Price",
+        currency_field="currency_id",
+        tracking=True,
+        help="IFRS 15 transaction price for the contract term (VAT excluded), allocated "
+        "to the performance obligations by relative standalone selling price",
+    )
+    contract_end_date = fields.Date(string="Contract End", tracking=True)
+    obligation_ids = fields.One2many(
+        "fix.performance.obligation", "subscription_id", string="Performance Obligations"
+    )
+    charge_ids = fields.One2many("fix.subscription.charge", "subscription_id", string="Charges")
+    last_refund_amount = fields.Monetary(
+        string="Last Refund (net)", currency_field="currency_id", readonly=True, copy=False
+    )
+    last_refund_earned = fields.Monetary(
+        string="Earned at Cancellation", currency_field="currency_id", readonly=True, copy=False
+    )
+    refund_requires_approval = fields.Boolean(
+        string="Refund Needs Manager Approval", readonly=True, copy=False
+    )
+    refund_credit_note_id = fields.Many2one(
+        "fix.credit.note", string="Refund Credit Note", readonly=True, copy=False
+    )
 
     @api.constrains("recurring_amount")
     def _check_amount(self):
@@ -98,28 +126,34 @@ class FixSubscription(models.Model):
         return {"monthly": 30, "quarterly": 91, "annual": 365}[self.billing_cycle]
 
     def action_generate_charge(self):
-        """AUT-025: the cycle charge — creates the AR invoice line group and
-        advances the next date. Consolidated invoicing aggregates these per
-        customer per period (one invoice, not N)."""
-        Invoice = self.env["fix.ar.invoice"]
+        """AUT-025: the cycle charge. Every cycle is a fix.subscription.charge
+        with its own draft AR invoice (one line, VAT determined by M51) in
+        the SUBSCRIPTION's company, so a charge is billed exactly once and
+        the contract's billed amount is real. Finance issues the invoice
+        (Mushak 6.3 + number); its issue credits the contract liability, not
+        revenue (IFRS 15 — recognition runs from the performance
+        obligations). A consolidated subscription's invoices are rolled into
+        the customer's ONE period bill by M20's Consolidated Corporate
+        Invoices (one bill, not N)."""
+        Charge = self.env["fix.subscription.charge"]
         for sub in self:
             if sub.state != "active":
                 continue
-            # In the consolidated flow the charge is recorded against the
-            # customer's period invoice group; the standalone fallback opens
-            # a draft AR invoice for this subscription alone — in the
-            # SUBSCRIPTION's company, not whichever company the caller's
-            # environment happens to have active (multi-company billing).
-            if not sub.consolidated:
-                Invoice.create(
-                    {
-                        "company_id": sub.company_id.id,
-                        "customer_id": sub.customer_id.id,
-                        "operating_unit_id": sub.operating_unit_id.id,
-                        "source_model": "fix.subscription",
-                        "source_id": sub.id,
-                    }
-                )
+            if sub.recurring_amount <= 0:
+                raise UserError("Subscription %s has no recurring amount to charge" % sub.name)
+            period_start = sub.next_invoice_date
+            period_end = period_start + timedelta(days=sub._cycle_days() - 1)
+            charge = Charge.create(
+                {
+                    "company_id": sub.company_id.id,
+                    "operating_unit_id": sub.operating_unit_id.id,
+                    "subscription_id": sub.id,
+                    "period_start": period_start,
+                    "period_end": period_end,
+                    "amount": sub.recurring_amount,
+                }
+            )
+            charge._create_invoice()
             publish(
                 self.env,
                 "subscription.charged",
@@ -192,10 +226,17 @@ class FixSubscription(models.Model):
 
     def action_request_refund(self, cancellation_date=None, fee_pct=0.0):
         """Prorated mid-cycle cancellation and credit note flow.
-        Calculates earned vs unearned revenue and enforces BDT 25,000 approval threshold."""
+        Calculates earned vs unearned revenue and enforces BDT 25,000 approval threshold.
+
+        A08 M53: the figures are kept on the subscription; the cycle's issued
+        invoice gets a DRAFT credit note for the unearned share (gross of VAT
+        pro rata) that runs M20's approval ladder; the performance
+        obligations recognise up to the cancellation date and stop."""
         cancellation_date = cancellation_date or fields.Date.today()
         results = []
         for sub in self:
+            if sub.state in ("cancelled", "churned"):
+                raise UserError("Subscription %s is already %s" % (sub.name, sub.state))
             # Term calculation based on last cycle start to next invoice date
             cycle_days = sub._cycle_days()
             start = sub.next_invoice_date - timedelta(days=cycle_days)
@@ -208,6 +249,15 @@ class FixSubscription(models.Model):
                 cancellation_fee_pct=fee_pct,
             )
             sub.state = "cancelled"
+            sub.write(
+                {
+                    "last_refund_amount": float(res.net_refund_payable),
+                    "last_refund_earned": float(res.earned_revenue),
+                    "refund_requires_approval": res.requires_manager_approval,
+                }
+            )
+            sub._refund_credit_note(res, start)
+            sub._stop_recognition(cancellation_date)
             publish(
                 self.env,
                 "subscription.refund_requested",
@@ -223,6 +273,87 @@ class FixSubscription(models.Model):
             )
             results.append(res)
         return results
+
+    def _refund_credit_note(self, res, cycle_start):
+        """A draft credit note for the unearned share of the cycle invoice."""
+        self.ensure_one()
+        net = float(res.net_refund_payable)
+        if net <= 0 or not self.recurring_amount:
+            return
+        charge = self.charge_ids.filtered(
+            lambda c: (
+                c.period_start == cycle_start
+                and c.invoice_id.state in ("issued", "paid", "credited")
+            )
+        )[:1]
+        invoice = charge.invoice_id
+        if not invoice:
+            self.message_post(
+                body="Refund of %s computed; no issued invoice for the cycle starting %s — "
+                "raise the credit note in M20 once the cycle invoice is issued."
+                % (round(net, 2), cycle_start)
+            )
+            return
+        open_credit = invoice.total_payable - invoice.credited_amount
+        amount = invoice.currency_id.round(
+            min(invoice.total_payable * net / self.recurring_amount, open_credit)
+        )
+        if amount <= 0:
+            return
+        note = self.env["fix.credit.note"].create(
+            {
+                "company_id": invoice.company_id.id,
+                "operating_unit_id": invoice.operating_unit_id.id,
+                "invoice_id": invoice.id,
+                "amount": amount,
+                "reason_code": "subscription_refund",
+            }
+        )
+        self.refund_credit_note_id = note
+
+    def _stop_recognition(self, cancellation_date):
+        """Recognise every obligation up to the cancellation, then stop it."""
+        self.ensure_one()
+        for obligation in self.obligation_ids.filtered(lambda o: o.state != "cancelled"):
+            schedule = obligation.schedule_id
+            if schedule and schedule.state == "active":
+                schedule.action_recognize_period(as_of=cancellation_date)
+                if schedule.state == "active":
+                    schedule.write({"state": "cancelled", "cancelled_date": cancellation_date})
+            obligation.state = "cancelled" if obligation.state != "satisfied" else "satisfied"
+
+    def action_allocate_price(self):
+        """IFRS 15 step 4: allocate the transaction price to the performance
+        obligations by relative standalone selling price, at 2dp half-up; the
+        rounding residue lands on the largest obligation so the allocation
+        sums EXACTLY to the price. A contract whose obligations are already
+        scheduled is a contract MODIFICATION and is refused here."""
+        for sub in self:
+            obligations = sub.obligation_ids.filtered(lambda o: o.state != "cancelled")
+            if not obligations:
+                raise UserError(
+                    "Add the performance obligations of %s (AMC service, workmanship "
+                    "warranty, parts) before allocating the price" % sub.name
+                )
+            if obligations.filtered(lambda o: o.state in ("scheduled", "satisfied")):
+                raise UserError(
+                    "Obligations of %s are already scheduled — a price change is a contract "
+                    "modification; cancel and re-create the affected obligations" % sub.name
+                )
+            if sub.contract_value <= 0:
+                raise UserError("Enter the transaction price of %s first" % sub.name)
+            total_ssp = sum(obligations.mapped("standalone_price"))
+            if total_ssp <= 0:
+                raise UserError("The obligations of %s carry no standalone price" % sub.name)
+            price = Decimal(str(sub.contract_value)).quantize(TWO, ROUND_HALF_UP)
+            ssp = [Decimal(str(o.standalone_price)) for o in obligations]
+            shares = [
+                (price * p / Decimal(str(total_ssp))).quantize(TWO, ROUND_HALF_UP) for p in ssp
+            ]
+            largest = max(range(len(ssp)), key=lambda i: ssp[i])
+            shares[largest] += price - sum(shares, Decimal("0"))
+            for obligation, share in zip(obligations, shares, strict=True):
+                obligation.write({"allocated_amount": float(share), "state": "allocated"})
 
     @api.model
     def generate_consolidated_b2b_invoice(
@@ -331,7 +462,7 @@ class FixRevenueSchedule(models.Model):
     _name = "fix.revenue.schedule"
     _description = "Revenue Recognition Schedule"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _order = "recognize_date, id"
+    _order = "start_date, id"
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -351,6 +482,17 @@ class FixRevenueSchedule(models.Model):
     recognized_amount = fields.Monetary(
         string="Recognized", currency_field="currency_id", default=0.0, copy=False
     )
+    deferred_balance = fields.Monetary(
+        string="Deferred Balance",
+        currency_field="currency_id",
+        compute="_compute_deferred_balance",
+        store=True,
+        help="Contract liability still to recognise (total - recognised)",
+    )
+    line_ids = fields.One2many(
+        "fix.revenue.recognition.line", "schedule_id", string="Recognition Postings"
+    )
+    cancelled_date = fields.Date(string="Cancelled On", readonly=True, copy=False)
     state = fields.Selection(
         [("active", "Active"), ("complete", "Complete"), ("cancelled", "Cancelled")],
         default="active",
@@ -360,6 +502,15 @@ class FixRevenueSchedule(models.Model):
     _source_schedule_unique = models.Constraint(
         "UNIQUE (source_model, source_id)", "One recognition schedule per source document"
     )
+
+    @api.depends("total_amount", "recognized_amount", "state")
+    def _compute_deferred_balance(self):
+        for schedule in self:
+            schedule.deferred_balance = (
+                0.0
+                if schedule.state == "cancelled"
+                else max(schedule.total_amount - schedule.recognized_amount, 0.0)
+            )
 
     @api.constrains("start_date", "end_date", "total_amount")
     def _check_schedule(self):
@@ -402,9 +553,16 @@ class FixRevenueSchedule(models.Model):
         )
 
     def action_recognize_period(self, as_of: date | None = None):
-        """Recognize up to `as_of` (default today), straight-line, and
-        publish for the GL posting. Idempotent per call — recognition is
-        cumulative (recognized_amount only grows)."""
+        """Recognize up to `as_of` (default today), straight-line, post it to
+        the GL and publish. Idempotent per call — recognition is cumulative
+        (recognized_amount only grows), so re-running a period recognizes
+        nothing new.
+
+        A08 M53: each delta is a fix.revenue.recognition.line with its GL
+        move — Dr contract liability (deferred revenue) / Cr revenue — on the
+        company's configured accounts (cd_billing_engine.account_code.
+        deferred_revenue / .revenue). A missing account or journal REFUSES
+        the whole run: revenue is never recognised without its posting."""
         as_of = as_of or date.today()
         for schedule in self:
             if schedule.state != "active" or as_of < schedule.start_date:
@@ -416,6 +574,15 @@ class FixRevenueSchedule(models.Model):
             delta = round(target - schedule.recognized_amount, 2)
             if delta <= 0:
                 continue
+            move, deferred, revenue = schedule._post_recognition(delta, effective_end)
+            self.env["fix.revenue.recognition.line"].create(
+                {
+                    "schedule_id": schedule.id,
+                    "date": effective_end,
+                    "amount": delta,
+                    "move_id": move.id,
+                }
+            )
             schedule.recognized_amount = target
             if target >= schedule.total_amount - 0.01:
                 schedule.state = "complete"
@@ -429,7 +596,277 @@ class FixRevenueSchedule(models.Model):
                     "cumulative": schedule.recognized_amount,
                     "source_model": schedule.source_model,
                     "source_id": schedule.source_id,
-                    "gl_debit_account": "210200",  # Unearned Deferred Revenue
-                    "gl_credit_account": "410100",  # Subscription Service Revenue
+                    "gl_debit_account": deferred.code,
+                    "gl_credit_account": revenue.code,
                 },
             )
+
+    def _post_recognition(self, amount, entry_date):
+        """Dr contract liability / Cr revenue through M19's engine."""
+        from odoo.addons.cd_billing_engine.models.fix_ar_engine import (
+            _ar_account,
+            _ar_journal,
+            _post_ar_move,
+        )
+
+        self.ensure_one()
+        company = self.company_id
+        deferred = _ar_account(self.env, company, "deferred_revenue")
+        revenue = _ar_account(self.env, company, "revenue")
+        missing = [
+            role for role, acc in (("deferred_revenue", deferred), ("revenue", revenue)) if not acc
+        ]
+        if missing:
+            raise UserError(
+                "Revenue recognition refused for %s: GL account role(s) %s not configured in "
+                "company %s (system parameter cd_billing_engine.account_code.<role>)"
+                % (self.description, ", ".join(missing), company.name)
+            )
+        if not _ar_journal(self.env, company):
+            raise UserError(
+                "Revenue recognition refused: company %s has no general journal" % company.name
+            )
+        dims = self.env["fix.ar.invoice"]._ar_posting_dims()
+        move, note = _post_ar_move(
+            self.env,
+            company,
+            entry_date,
+            "REV-REC %s — %s" % (self.description, entry_date),
+            [
+                (deferred.id, "Contract liability released", amount, 0.0, False),
+                (revenue.id, "Revenue recognised (IFRS 15)", 0.0, amount, False),
+            ],
+            {0: dims, 1: dims},
+            source="ar",
+        )
+        if not move:
+            raise UserError("Revenue recognition refused: %s" % (note or "posting failed"))
+        return move, deferred, revenue
+
+
+class FixRevenueRecognitionLine(models.Model):
+    """One recognition posting of a schedule (the as-of history the
+    contract-balance and deferred-revenue reports read)."""
+
+    _name = "fix.revenue.recognition.line"
+    _description = "Revenue Recognition Posting"
+    _order = "date desc, id desc"
+
+    schedule_id = fields.Many2one(
+        "fix.revenue.schedule", required=True, ondelete="cascade", index=True
+    )
+    company_id = fields.Many2one(
+        related="schedule_id.company_id", store=True, index=True, string="Company"
+    )
+    operating_unit_id = fields.Many2one(
+        related="schedule_id.operating_unit_id", store=True, string="Operating Unit"
+    )
+    currency_id = fields.Many2one(related="schedule_id.currency_id")
+    date = fields.Date(required=True, index=True)
+    amount = fields.Monetary(currency_field="currency_id", required=True)
+    move_id = fields.Many2one("account.move", string="GL Move", readonly=True)
+
+
+class FixSubscriptionCharge(models.Model):
+    """One billing cycle of a subscription / AMC contract and its invoice."""
+
+    _name = "fix.subscription.charge"
+    _description = "Subscription Cycle Charge"
+    _order = "period_start desc, id desc"
+
+    _cycle_unique = models.Constraint(
+        "UNIQUE (subscription_id, period_start)", "One charge per subscription cycle"
+    )
+
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
+    subscription_id = fields.Many2one(
+        "fix.subscription", required=True, index=True, ondelete="restrict"
+    )
+    customer_id = fields.Many2one(related="subscription_id.customer_id", store=True)
+    currency_id = fields.Many2one(related="subscription_id.currency_id")
+    period_start = fields.Date(required=True)
+    period_end = fields.Date(required=True)
+    amount = fields.Monetary(string="Charge (VAT excl.)", currency_field="currency_id")
+    invoice_id = fields.Many2one("fix.ar.invoice", string="Invoice", readonly=True, copy=False)
+    invoice_state = fields.Selection(related="invoice_id.state", string="Invoice State")
+
+    def _create_invoice(self):
+        """The cycle's draft AR invoice: one line, VAT by M51's synchronous
+        determination (standard 15% unless the tariff says otherwise)."""
+        Invoice = self.env["fix.ar.invoice"]
+        for charge in self:
+            sub = charge.subscription_id
+            determination = tax_logic.determine_tax(
+                [
+                    tax_logic.TaxLine(
+                        product_code="AMC",
+                        qty=Decimal("1"),
+                        unit_price=Decimal(str(charge.amount)).quantize(TWO, ROUND_HALF_UP),
+                    )
+                ]
+            )
+            det = determination.lines[0]
+            invoice = Invoice.create(
+                {
+                    "company_id": charge.company_id.id,
+                    "customer_id": sub.customer_id.id,
+                    "operating_unit_id": charge.operating_unit_id.id,
+                    "source_model": "fix.subscription.charge",
+                    "source_id": charge.id,
+                    "invoice_date": charge.period_start,
+                    "manual_reason": "Subscription cycle charge %s (%s to %s)"
+                    % (sub.name, charge.period_start, charge.period_end),
+                    "line_ids": [
+                        (
+                            0,
+                            0,
+                            {
+                                "description": "%s — %s to %s"
+                                % (sub.name, charge.period_start, charge.period_end),
+                                "taxable_amount": float(det.taxable_amount),
+                                "vat_amount": float(det.vat_amount),
+                                "line_total": float(det.line_total),
+                            },
+                        )
+                    ],
+                }
+            )
+            charge.invoice_id = invoice
+
+
+OBLIGATION_TYPES = [
+    ("amc_service", "AMC Service (stand-ready)"),
+    ("workmanship_warranty", "Workmanship Warranty (service-type)"),
+    ("parts", "Parts Included"),
+    ("other", "Other Distinct Service"),
+]
+
+
+class FixPerformanceObligation(models.Model):
+    """IFRS 15 performance obligation of a subscription / AMC contract:
+    its standalone selling price, the allocated share of the transaction
+    price and the revenue schedule that recognises it."""
+
+    _name = "fix.performance.obligation"
+    _description = "Performance Obligation (IFRS 15)"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _order = "subscription_id, id"
+
+    subscription_id = fields.Many2one(
+        "fix.subscription", string="Contract", required=True, index=True, ondelete="cascade"
+    )
+    company_id = fields.Many2one(
+        related="subscription_id.company_id", store=True, index=True, string="Company"
+    )
+    operating_unit_id = fields.Many2one(
+        related="subscription_id.operating_unit_id", store=True, string="Operating Unit"
+    )
+    customer_id = fields.Many2one(related="subscription_id.customer_id", store=True)
+    currency_id = fields.Many2one(related="subscription_id.currency_id")
+    name = fields.Char(required=True)
+    obligation_type = fields.Selection(
+        OBLIGATION_TYPES, required=True, default="amc_service", tracking=True
+    )
+    satisfaction = fields.Selection(
+        [("over_time", "Over Time (ratable)"), ("point_in_time", "Point in Time")],
+        required=True,
+        default="over_time",
+        tracking=True,
+    )
+    standalone_price = fields.Monetary(
+        string="Standalone Selling Price", currency_field="currency_id", required=True
+    )
+    allocated_amount = fields.Monetary(
+        string="Allocated Price", currency_field="currency_id", readonly=True, copy=False
+    )
+    start_date = fields.Date(string="Satisfaction Start")
+    end_date = fields.Date(string="Satisfaction End / Date")
+    schedule_id = fields.Many2one(
+        "fix.revenue.schedule", string="Revenue Schedule", readonly=True, copy=False
+    )
+    recognized_amount = fields.Monetary(
+        related="schedule_id.recognized_amount", string="Recognised"
+    )
+    state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("allocated", "Price Allocated"),
+            ("scheduled", "Scheduled"),
+            ("satisfied", "Satisfied"),
+            ("cancelled", "Cancelled"),
+        ],
+        default="draft",
+        required=True,
+        tracking=True,
+    )
+
+    @api.constrains("standalone_price", "start_date", "end_date", "satisfaction")
+    def _check_obligation(self):
+        for obligation in self:
+            if obligation.standalone_price < 0:
+                raise UserError("A standalone selling price cannot be negative")
+            if (
+                obligation.satisfaction == "over_time"
+                and obligation.start_date
+                and obligation.end_date
+                and obligation.end_date <= obligation.start_date
+            ):
+                raise UserError("The satisfaction period must be positive")
+
+    @api.onchange("obligation_type")
+    def _onchange_obligation_type(self):
+        if self.obligation_type == "parts":
+            self.satisfaction = "point_in_time"
+
+    def action_create_schedule(self):
+        """Hand the allocated price to a revenue schedule: ratable over the
+        satisfaction period for over-time obligations; for a point-in-time
+        obligation a one-day schedule ending on the satisfaction date (it is
+        recognised in full when that date is reached)."""
+        Schedule = self.env["fix.revenue.schedule"]
+        for obligation in self:
+            if obligation.state != "allocated":
+                raise UserError("Allocate the transaction price before scheduling")
+            if obligation.allocated_amount <= 0:
+                raise UserError("Obligation %s has no allocated price" % obligation.name)
+            sub = obligation.subscription_id
+            if obligation.satisfaction == "over_time":
+                start = obligation.start_date or sub.start_date
+                end = obligation.end_date or sub.contract_end_date
+                if not end:
+                    raise UserError(
+                        "Set the satisfaction end (or the contract end) of %s" % obligation.name
+                    )
+            else:
+                end = obligation.end_date
+                if not end:
+                    raise UserError(
+                        "Set the satisfaction date of the point-in-time obligation %s"
+                        % obligation.name
+                    )
+                start = end - timedelta(days=1)
+            schedule = Schedule.create(
+                {
+                    "company_id": obligation.company_id.id,
+                    "operating_unit_id": obligation.operating_unit_id.id,
+                    "source_model": "fix.performance.obligation",
+                    "source_id": obligation.id,
+                    "description": "%s — %s" % (sub.name, obligation.name),
+                    "total_amount": obligation.allocated_amount,
+                    "start_date": start,
+                    "end_date": end,
+                }
+            )
+            obligation.write({"schedule_id": schedule.id, "state": "scheduled"})
+
+    def action_recognize(self):
+        """Recognise the obligation's schedule up to today."""
+        for obligation in self:
+            if not obligation.schedule_id:
+                raise UserError("Obligation %s has no revenue schedule yet" % obligation.name)
+            obligation.schedule_id.action_recognize_period()
+            if obligation.schedule_id.state == "complete":
+                obligation.state = "satisfied"

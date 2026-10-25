@@ -38,6 +38,11 @@ AR_ACCOUNTS = {
     "cash": ("101401", "Cash"),
     "bank": ("101402", "Bank"),
     "channel_mfs": ("251000", "MFS/Card Channel Clearing (two-stage; M50 settles)"),
+    # VAT the customer deducted at source (Mushak 6.6 received): a claim
+    # against the VAT payable, adjusted in the Mushak 9.1 return.
+    "vds_receivable": ("132000", "VDS Receivable (Mushak 6.6 received, claimed in 9.1)"),
+    # IFRS 15 contract liability for subscription / AMC billing.
+    "deferred_revenue": ("212000", "Contract Liability (Deferred Revenue)"),
 }
 
 # The eight capture tenders (FR-ARB-019) and the GL role each clears into.
@@ -650,7 +655,9 @@ class FixCreditProfile(models.Model):
         default=30, required=True, help="Days from invoice to due date (kills hardcoded net-30)"
     )
     credit_hold = fields.Boolean(tracking=True)
-    hold_reason = fields.Char()
+    hold_reason = fields.Char(tracking=True)
+    hold_by = fields.Many2one("res.users", string="Hold Changed By", readonly=True, copy=False)
+    hold_date = fields.Datetime(string="Hold Changed On", readonly=True, copy=False)
     exposure = fields.Monetary(
         compute="_compute_exposure",
         store=True,
@@ -677,11 +684,36 @@ class FixCreditProfile(models.Model):
             rec.exposure = sum(open_residuals.mapped("amount_residual"))
             rec.over_limit = bool(rec.credit_limit) and rec.exposure > rec.credit_limit
 
-    def action_toggle_hold(self):
+    def action_toggle_hold(self, reason=None):
+        """Place or release a credit hold (FR-ARB-031). Placing one records
+        the reason (the given one, the one already typed on the profile, or
+        an explicit manual-hold note naming the user); both directions are
+        stamped with who and when and logged in the chatter."""
+        now = fields.Datetime.now()
         for rec in self:
-            rec.credit_hold = not rec.credit_hold
-            if not rec.credit_hold:
-                rec.hold_reason = False
+            if rec.credit_hold:
+                rec.write(
+                    {
+                        "credit_hold": False,
+                        "hold_reason": False,
+                        "hold_by": self.env.user.id,
+                        "hold_date": now,
+                    }
+                )
+                rec.message_post(body="Credit hold released by %s" % self.env.user.name)
+            else:
+                why = (reason or rec.hold_reason or "").strip() or (
+                    "Manual hold placed by %s" % self.env.user.name
+                )
+                rec.write(
+                    {
+                        "credit_hold": True,
+                        "hold_reason": why,
+                        "hold_by": self.env.user.id,
+                        "hold_date": now,
+                    }
+                )
+                rec.message_post(body="Credit hold placed: %s" % why)
 
 
 # ---------------------------------------------------------------------------
@@ -816,7 +848,7 @@ class FixArAgingSnapshot(models.Model):
                 )
                 slot = per_customer.setdefault(
                     inv.customer_id.id,
-                    {b: 0.0 for b in self.BUCKETS},
+                    dict.fromkeys(self.BUCKETS, 0.0),
                 )
                 slot[bucket] += inv.amount_residual
             rec.line_ids = [

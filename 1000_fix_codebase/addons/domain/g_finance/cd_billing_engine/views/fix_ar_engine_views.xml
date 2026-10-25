@@ -151,8 +151,10 @@
                         <group>
                             <field name="exposure"/>
                             <field name="over_limit"/>
-                            <field name="credit_hold"/>
-                            <field name="hold_reason" invisible="not credit_hold"/>
+                            <field name="credit_hold" readonly="1"/>
+                            <field name="hold_reason" placeholder="Reason for placing the hold"/>
+                            <field name="hold_by" invisible="not hold_by"/>
+                            <field name="hold_date" invisible="not hold_date"/>
                         </group>
                     </group>
                 </sheet>

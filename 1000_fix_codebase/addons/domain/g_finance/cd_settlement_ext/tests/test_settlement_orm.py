@@ -454,7 +454,7 @@ class TestPayoutRun:
         run.action_query_status(rail_instance=_BankQueryRail(PayoutStatus.FAILED, ""))
         assert (run.state, run.rail_status) == ("executing", "failed")
         with (
-            pytest.raises(UserError, match="reported payout .* as FAILED"),
+            pytest.raises(UserError, match=r"reported payout .* as FAILED"),
             book.env.cr.savepoint(),
         ):
             run.action_confirm_bank_settlement("BK-1")
@@ -672,8 +672,19 @@ class TestSellerStatement:
                 "cert_ref": "NBR-TDS52-X",
             }
         ]
+        # A08 M53: settled only once the money really moved (executed run)
+        with pytest.raises(UserError, match="not confirmed as paid"), odoo_env.cr.savepoint():
+            stmt.action_settle_statement()
+        run = odoo_env["fix.payout.run"].create({"period": "2026-10"})
+        stmt.payout_run_id = run
+        with pytest.raises(UserError, match="not confirmed as paid"), odoo_env.cr.savepoint():
+            stmt.action_settle_statement()
+        run.state = "executed"
         stmt.action_settle_statement()
         assert stmt.state == "settled"
+        assert stmt.settled_by_id == odoo_env.user
+        with pytest.raises(UserError, match="Only an issued statement"), odoo_env.cr.savepoint():
+            stmt.action_settle_statement()
         named = odoo_env["fix.seller.statement"].create(
             {
                 "name": "STM/MANUAL/1",

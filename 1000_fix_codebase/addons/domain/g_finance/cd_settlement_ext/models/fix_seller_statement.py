@@ -1,5 +1,6 @@
 # fix_seller_statement.py — Bilingual seller statement with ITA 2023 §52 withholding certification.
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
@@ -46,9 +47,16 @@ class FixSellerStatement(models.Model):
     platform_fee = fields.Monetary(
         string="Platform Processing Fee / প্ল্যাটফর্ম ফি", currency_field="currency_id", default=0.0
     )
+    clawback_amount = fields.Monetary(
+        string="Clawback Recovered / ফেরত আদায়", currency_field="currency_id", default=0.0
+    )
     net_payable = fields.Monetary(
         string="Net Disbursed Amount / প্রদেয় নিট অর্থ", currency_field="currency_id", required=True
     )
+    settled_by_id = fields.Many2one(
+        "res.users", string="Settled By / নিষ্পত্তিকারী", readonly=True, copy=False
+    )
+    settled_at = fields.Datetime(string="Settled On / নিষ্পত্তির সময়", readonly=True, copy=False)
 
     withholding_cert_ref = fields.Char(
         string="Withholding Certificate Ref / প্রত্যয়নপত্র নং", required=True, index=True
@@ -85,7 +93,11 @@ class FixSellerStatement(models.Model):
         return super().create(vals_list)
 
     def action_issue_statement(self):
+        """Issue a draft statement to the seller (published for the P07
+        seller portal)."""
         for rec in self:
+            if rec.state != "draft":
+                raise UserError("Statement %s is already %s" % (rec.name, rec.state))
             rec.state = "issued"
             publish(
                 self.env,
@@ -104,5 +116,22 @@ class FixSellerStatement(models.Model):
             )
 
     def action_settle_statement(self):
+        """Close an issued statement once its money has really moved: the
+        payout run behind it must be executed (bank / rail confirmed)."""
         for rec in self:
-            rec.state = "settled"
+            if rec.state != "issued":
+                raise UserError(
+                    "Only an issued statement can be settled (%s is %s)" % (rec.name, rec.state)
+                )
+            if not rec.payout_run_id or rec.payout_run_id.state != "executed":
+                raise UserError(
+                    "Statement %s cannot be settled: its payout run is not confirmed as paid "
+                    "(%s)" % (rec.name, rec.payout_run_id.name or "no payout run")
+                )
+            rec.write(
+                {
+                    "state": "settled",
+                    "settled_by_id": self.env.user.id,
+                    "settled_at": fields.Datetime.now(),
+                }
+            )

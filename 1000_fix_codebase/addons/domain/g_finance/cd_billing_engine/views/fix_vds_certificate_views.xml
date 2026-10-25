@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — Customer VDS certificates (Mushak 6.6 received), A08 M20.
+     The P03 workspace screen M20-vds opens these forms; this is also the
+     backend fallback. -->
+<odoo>
+    <record id="view_fix_vds_certificate_received_list" model="ir.ui.view">
+        <field name="name">fix.vds.certificate.received.list</field>
+        <field name="model">fix.vds.certificate.received</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state == 'cancelled'" decoration-success="state == 'claimed'">
+                <field name="name"/>
+                <field name="customer_id"/>
+                <field name="invoice_id"/>
+                <field name="certificate_no"/>
+                <field name="certificate_date"/>
+                <field name="period"/>
+                <field name="vds_amount" sum="Total VDS"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_vds_certificate_received_form" model="ir.ui.view">
+        <field name="name">fix.vds.certificate.received.form</field>
+        <field name="model">fix.vds.certificate.received</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_verify" type="object" string="Verify (checker)" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_settle" type="object" string="Settle against Receivable" class="btn-primary" invisible="state != 'verified'"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('draft', 'verified')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,verified,settled,claimed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="invoice_id" readonly="state in ('settled', 'claimed')"/>
+                            <field name="customer_id"/>
+                            <field name="customer_bin"/>
+                            <field name="invoice_vat_amount"/>
+                            <field name="vds_amount" readonly="state in ('settled', 'claimed')"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="certificate_no" readonly="state in ('settled', 'claimed')"/>
+                            <field name="certificate_date"/>
+                            <field name="period" readonly="state in ('settled', 'claimed')"/>
+                            <field name="challan_no"/>
+                            <field name="challan_date"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group>
+                        <group>
+                            <field name="prepared_by_id"/>
+                            <field name="verified_by_id"/>
+                            <field name="verified_at"/>
+                        </group>
+                        <group>
+                            <field name="settled_move_id"/>
+                            <field name="settled_at"/>
+                            <field name="claimed_return_ref"/>
+                            <field name="claimed_at"/>
+                        </group>
+                    </group>
+                    <field name="note" placeholder="Notes"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_vds_certificate_received" model="ir.actions.act_window">
+        <field name="name">Customer VDS Certificates (Mushak 6.6)</field>
+        <field name="res_model">fix.vds.certificate.received</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

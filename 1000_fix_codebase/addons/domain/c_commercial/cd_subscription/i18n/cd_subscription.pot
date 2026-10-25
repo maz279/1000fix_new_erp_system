@@ -15,6 +15,21 @@ msgid "Active"
 msgstr ""
 
 #. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Allocate Price (IFRS 15)"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__allocated_amount
+msgid "Allocated Price"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__amc_service
+msgid "AMC Service (stand-ready)"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__annual
 msgid "Annual"
 msgstr ""
@@ -25,9 +40,31 @@ msgid "Basic"
 msgstr ""
 
 #. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Cancel & Refund"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__cancelled
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__cancelled
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__cancelled
 msgid "Cancelled"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__cancelled_date
+msgid "Cancelled On"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__amount
+msgid "Charge (VAT excl.)"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__charge_ids
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Charges"
 msgstr ""
 
 #. module: cd_subscription
@@ -36,13 +73,33 @@ msgid "Churned"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__complete
 msgid "Complete"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__subscription_id
 #: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_id
 msgid "Contract"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_end_date
+msgid "Contract End"
+msgstr ""
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_performance_obligation_form
+msgid "Create Revenue Schedule"
 msgstr ""
 
 #. module: cd_subscription
@@ -56,8 +113,48 @@ msgid "Deferred Amount"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__deferred_balance
+msgid "Deferred Balance"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__last_refund_earned
+msgid "Earned at Cancellation"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__final
 msgid "Final Notice (L2)"
+msgstr ""
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Generate Charge"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__move_id
+msgid "GL Move"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__invoice_id
+msgid "Invoice"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__invoice_state
+msgid "Invoice State"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__last_refund_amount
+msgid "Last Refund (net)"
 msgstr ""
 
 #. module: cd_subscription
@@ -71,6 +168,30 @@ msgid "None"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_recognition_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription_charge__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__other
+msgid "Other Distinct Service"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__satisfaction__over_time
+msgid "Over Time (ratable)"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__parts
+msgid "Parts Included"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__past_due
 msgid "Past Due"
 msgstr ""
@@ -81,13 +202,46 @@ msgid "Paused"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__obligation_ids
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Performance Obligations"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__satisfaction__point_in_time
+msgid "Point in Time"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__premium
 msgid "Premium"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__allocated
+msgid "Price Allocated"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__quarterly
 msgid "Quarterly"
+msgstr ""
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_performance_obligation_form
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_revenue_schedule_form
+msgid "Recognise to Today"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__recognized_amount
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_revenue_schedule_form
+msgid "Recognised"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__line_ids
+msgid "Recognition Postings"
 msgstr ""
 
 #. module: cd_subscription
@@ -101,14 +255,63 @@ msgid "Recurring Amount"
 msgstr ""
 
 #. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Refund"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__refund_credit_note_id
+msgid "Refund Credit Note"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__refund_requires_approval
+msgid "Refund Needs Manager Approval"
+msgstr ""
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Reinstate"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__reminder
 msgid "Reminder (L1)"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__schedule_id
+msgid "Revenue Schedule"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.actions.act_window,name:cd_subscription.action_fix_revenue_schedule
-#: model:ir.ui.menu,name:cd_subscription.menu_fix_revenue_schedule
 msgid "Revenue Schedules"
+msgstr ""
+
+#. module: cd_subscription
+#: model_terms:ir.ui.view,arch_db:cd_subscription.view_fix_subscription_form
+msgid "Run Dunning"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__end_date
+msgid "Satisfaction End / Date"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__start_date
+msgid "Satisfaction Start"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__satisfied
+msgid "Satisfied"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__state__scheduled
+msgid "Scheduled"
 msgstr ""
 
 #. module: cd_subscription
@@ -132,6 +335,11 @@ msgid "Source Model"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_performance_obligation__standalone_price
+msgid "Standalone Selling Price"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__standard
 msgid "Standard"
 msgstr ""
@@ -143,6 +351,16 @@ msgid "Subscriptions"
 msgstr ""
 
 #. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_value
+msgid "Transaction Price"
+msgstr ""
+
+#. module: cd_subscription
 #: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__trial
 msgid "Trial"
+msgstr ""
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_performance_obligation__obligation_type__workmanship_warranty
+msgid "Workmanship Warranty (service-type)"
 msgstr ""

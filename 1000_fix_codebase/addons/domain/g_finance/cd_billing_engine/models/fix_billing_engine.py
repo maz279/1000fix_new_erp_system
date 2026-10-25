@@ -141,6 +141,9 @@ class FixArInvoice(models.Model):
     paid_date = fields.Date(readonly=True)
     allocation_ids = fields.One2many("fix.ar.allocation", "invoice_id", string="Allocations")
     credit_note_ids = fields.One2many("fix.credit.note", "invoice_id", string="Credit Notes")
+    vds_certificate_ids = fields.One2many(
+        "fix.vds.certificate.received", "invoice_id", string="VDS Certificates (Mushak 6.6)"
+    )
     amount_paid = fields.Monetary(
         string="Paid",
         currency_field="currency_id",
@@ -153,6 +156,14 @@ class FixArInvoice(models.Model):
         currency_field="currency_id",
         compute="_compute_payment",
         store=True,
+    )
+    vds_settled_amount = fields.Monetary(
+        string="VDS Settled",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+        help="VAT the customer deducted at source and certified on a Mushak 6.6 that "
+        "finance has verified and settled against this invoice",
     )
     amount_residual = fields.Monetary(
         string="Residual",
@@ -170,7 +181,12 @@ class FixArInvoice(models.Model):
             inv.total_payable = max(0.0, subtotal_vat - (inv.loyalty_discount_amount or 0.0))
 
     @api.depends(
-        "total_payable", "allocation_ids.amount", "credit_note_ids.amount", "credit_note_ids.state"
+        "total_payable",
+        "allocation_ids.amount",
+        "credit_note_ids.amount",
+        "credit_note_ids.state",
+        "vds_certificate_ids.vds_amount",
+        "vds_certificate_ids.state",
     )
     def _compute_payment(self):
         for inv in self:
@@ -178,9 +194,25 @@ class FixArInvoice(models.Model):
             inv.credited_amount = sum(
                 inv.credit_note_ids.filtered(lambda n: n.state == "issued").mapped("amount")
             )
-            inv.amount_residual = max(
-                inv.total_payable - inv.amount_paid - inv.credited_amount, 0.0
+            inv.vds_settled_amount = sum(
+                inv.vds_certificate_ids.filtered(
+                    lambda c: c.state in ("settled", "claimed")
+                ).mapped("vds_amount")
             )
+            inv.amount_residual = max(
+                inv.total_payable - inv.amount_paid - inv.credited_amount - inv.vds_settled_amount,
+                0.0,
+            )
+
+    # Invoices billed for a subscription / AMC cycle charge are a CONTRACT
+    # LIABILITY until the performance obligations are satisfied (IFRS 15):
+    # their issue credits deferred revenue, and M53's recognition run moves
+    # it to revenue. Every other invoice credits revenue at issue.
+    DEFERRED_SOURCES = ("fix.subscription.charge",)
+
+    def _revenue_role(self) -> str:
+        self.ensure_one()
+        return "deferred_revenue" if self.source_model in self.DEFERRED_SOURCES else "revenue"
 
     # ------------------------------------------------------------------
     # M20 engine depth: terms, credit holds, GL posting, lifecycle actions
@@ -286,7 +318,7 @@ class FixArInvoice(models.Model):
                 return
             company = inv.company_id
             ar = _ar_account(inv.env, company, "ar")
-            revenue = _ar_account(inv.env, company, "revenue")
+            revenue = _ar_account(inv.env, company, inv._revenue_role())
             vat = _ar_account(inv.env, company, "vat_output")
             if not (ar and revenue and vat):
                 inv.gl_note = (
@@ -301,7 +333,7 @@ class FixArInvoice(models.Model):
                 vat_credit = inv.total_payable
                 revenue_credit = 0.0
             _dims = inv._ar_posting_dims(inv.branch_id.id)
-            dims = {i: _dims for i in range(3)}
+            dims = dict.fromkeys(range(3), _dims)
             move, note = _post_ar_move(
                 inv.env,
                 company,
@@ -316,7 +348,15 @@ class FixArInvoice(models.Model):
                         0.0,
                         inv.customer_id.id,
                     ),
-                    (revenue.id, "Service revenue", 0.0, revenue_credit, False),
+                    (
+                        revenue.id,
+                        "Contract liability (deferred revenue)"
+                        if inv._revenue_role() == "deferred_revenue"
+                        else "Service revenue",
+                        0.0,
+                        revenue_credit,
+                        False,
+                    ),
                     (
                         vat.id,
                         "VAT output 15%% (Mushak %s)" % (inv.mushak_id.mushak_no or "—"),
@@ -350,7 +390,7 @@ class FixArInvoice(models.Model):
                 % (", ".join(missing), self.company_id.name)
             )
         _dims = self._ar_posting_dims(self.branch_id.id)
-        dims = {i: _dims for i in range(len(debit_lines) + len(credit_lines))}
+        dims = dict.fromkeys(range(len(debit_lines) + len(credit_lines)), _dims)
         lines = [
             (acc.id, label, amount, 0.0, partner or False)
             for role, acc, amount, partner in debit_lines
@@ -379,7 +419,11 @@ class FixArInvoice(models.Model):
         for inv in self:
             if inv.state not in ("draft", "issued"):
                 raise UserError("Only draft/issued invoices can be cancelled")
-            if inv.amount_paid > 0.005 or inv.credited_amount > 0.005:
+            if (
+                inv.amount_paid > 0.005
+                or inv.credited_amount > 0.005
+                or inv.vds_settled_amount > 0.005
+            ):
                 raise UserError(
                     "Paid/credited invoices cannot be cancelled — issue a credit note instead"
                 )
@@ -387,14 +431,14 @@ class FixArInvoice(models.Model):
                 raise UserError("A cancellation reason is required (FR-ARB-011)")
             if inv.posted_move_id:
                 ar = _ar_account(inv.env, inv.company_id, "ar")
-                revenue = _ar_account(inv.env, inv.company_id, "revenue")
+                revenue = _ar_account(inv.env, inv.company_id, inv._revenue_role())
                 vat = _ar_account(inv.env, inv.company_id, "vat_output")
                 vat_credit = min(inv.vat_amount, inv.total_payable)
                 revenue_credit = inv.total_payable - vat_credit
                 inv._post_reversal_gl(
                     "CANCEL INV %s — %s" % (inv.name, reason),
                     [
-                        ("revenue", revenue, revenue_credit, False),
+                        (inv._revenue_role(), revenue, revenue_credit, False),
                         ("vat_output", vat, vat_credit, False),
                     ],
                     [("ar", ar, inv.total_payable, inv.customer_id.id)],
@@ -723,23 +767,57 @@ class FixArInvoice(models.Model):
             )
         return vat
 
-    def action_register_paid(self):
-        """Receipts arrive as M50 bank/cash events consumed here — this is
-        NOT a synchronous call into treasury (AR-006 pair 6)."""
+    def _settlement_evidence(self) -> str:
+        """The documents that cleared this invoice, for the paid event."""
+        self.ensure_one()
+        parts = []
+        receipts = [r for r in self.allocation_ids.mapped("receipt_id.name") if r]
+        if receipts:
+            parts.append("receipts %s" % ", ".join(receipts))
+        notes = self.credit_note_ids.filtered(lambda n: n.state == "issued")
+        if notes:
+            parts.append("credit notes %s" % ", ".join(str(n.id) for n in notes))
+        certs = self.vds_certificate_ids.filtered(lambda c: c.state in ("settled", "claimed"))
+        if certs:
+            parts.append("VDS certificates %s" % ", ".join(certs.mapped("certificate_no")))
+        return "; ".join(parts)
+
+    def _mark_paid(self):
+        """The evidence-bearing paid transition for the close-out and VDS
+        settlement paths (receipt allocations keep their own)."""
         for invoice in self:
-            if invoice.state != "issued":
-                raise UserError("Only issued invoices can be paid")
-            invoice.state = "paid"
+            invoice.write({"state": "paid", "paid_date": fields.Date.today()})
             publish(
                 self.env,
                 "invoice.paid",
                 "fix.ar.invoice",
                 invoice.id,
                 {
+                    "invoice": invoice.name,
                     "mushak_no": invoice.mushak_id.mushak_no,
                     "total_payable": invoice.total_payable,
+                    "evidence": invoice._settlement_evidence(),
                 },
             )
+
+    def action_register_paid(self):
+        """Close an issued invoice whose residual is fully covered by real
+        settlement documents (receipt allocations, issued credit notes,
+        settled VDS certificates). Receipts arrive as M50 bank/cash events
+        consumed by M20 — this is NOT a synchronous call into treasury
+        (AR-006 pair 6), and it never marks an invoice paid without evidence:
+        an open residual refuses."""
+        for invoice in self:
+            if invoice.state != "issued":
+                raise UserError("Only issued invoices can be paid")
+            if invoice.amount_residual > 0.005:
+                raise UserError(
+                    "Invoice %s still has %s outstanding — allocate a receipt, settle a VDS "
+                    "certificate or issue a credit note first; an invoice is never marked "
+                    "paid without settlement evidence."
+                    % (invoice.name, invoice.currency_id.round(invoice.amount_residual))
+                )
+        self._mark_paid()
 
     @api.model
     def benchmark_auto_invoice_timing(self, order_ids) -> dict:
@@ -966,6 +1044,7 @@ class FixCreditNote(models.Model):
             ("warranty", "Warranty Re-work"),
             ("goodwill", "Goodwill"),
             ("return", "Return"),
+            ("subscription_refund", "Subscription Cancellation Refund"),
         ],
         required=True,
     )
@@ -1050,7 +1129,7 @@ class FixCreditNote(models.Model):
                 continue
             company = invoice.company_id
             ar = _ar_account(note.env, company, "ar")
-            revenue = _ar_account(note.env, company, "revenue")
+            revenue = _ar_account(note.env, company, invoice._revenue_role())
             vat = _ar_account(note.env, company, "vat_output")
             if not (ar and revenue and vat):
                 note.gl_note = "GL not posted: accounts unconfigured for %s" % company.name
@@ -1059,7 +1138,7 @@ class FixCreditNote(models.Model):
             vat_part = note.amount * ratio
             revenue_part = note.amount - vat_part
             _dims = invoice._ar_posting_dims(invoice.branch_id.id)
-            dims = {i: _dims for i in range(3)}
+            dims = dict.fromkeys(range(3), _dims)
             move, gl_note = _post_ar_move(
                 note.env,
                 company,

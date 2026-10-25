@@ -699,11 +699,9 @@ class P03ArApiController(http.Controller):
                 if profile:
                     profile.write(vals)
                     if hold is not None and bool(hold) != profile.credit_hold:
-                        profile.write(
-                            {"credit_hold": bool(hold), "hold_reason": hold_reason or ""}
-                            if hold
-                            else {"credit_hold": False}
-                        )
+                        # the model's own hold workflow (A08 M20): reason,
+                        # who/when stamp and the chatter trail
+                        profile.action_toggle_hold(reason=hold_reason or None)
                 else:
                     vals.update(
                         {

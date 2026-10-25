@@ -97,7 +97,7 @@ def test_cycle_days(ctx, cycle, days):
 # --- AUT-025 cycle charge ---------------------------------------------------
 
 
-def test_consolidated_charge_publishes_and_advances_without_standalone_invoice(ctx):
+def test_consolidated_charge_publishes_advances_and_bills_the_cycle(ctx):
     sub = _sub(ctx)
     sub.action_generate_charge()
     # Jan 31 + 30 days = Mar 2 2026 (Feb has 28 days)
@@ -105,10 +105,20 @@ def test_consolidated_charge_publishes_and_advances_without_standalone_invoice(c
     assert _events(ctx.env, "subscription.charged", "fix.subscription", sub.id) == [
         {"customer_id": ctx.partner.id, "amount": 3000.0, "period_days": 30}
     ]
-    invoices = ctx.env["fix.ar.invoice"].search(
-        [("source_model", "=", "fix.subscription"), ("source_id", "=", sub.id)]
+    # A08 M53: every cycle is a charge with ONE draft invoice; the consolidated
+    # flag rolls these invoices into the customer's period bill (M20)
+    (charge,) = sub.charge_ids
+    assert (charge.period_start, charge.period_end) == (date(2026, 1, 31), date(2026, 3, 1))
+    invoice = charge.invoice_id
+    assert (invoice.source_model, invoice.source_id) == ("fix.subscription.charge", charge.id)
+    assert invoice.state == "draft"
+    # 3,000.00 + 15% VAT (M51 determination) = 3,450.00
+    assert (invoice.taxable_amount, invoice.vat_amount, invoice.total_payable) == (
+        3000.0,
+        450.0,
+        3450.0,
     )
-    assert not invoices  # consolidated: rolled into the customer's ONE invoice
+    assert invoice._revenue_role() == "deferred_revenue"
 
 
 def test_inactive_subscription_is_not_charged(ctx):
@@ -121,9 +131,7 @@ def test_inactive_subscription_is_not_charged(ctx):
 def test_standalone_charge_opens_its_own_invoice(ctx):
     sub = _sub(ctx, consolidated=False, billing_cycle="quarterly")
     sub.action_generate_charge()
-    invoice = ctx.env["fix.ar.invoice"].search(
-        [("source_model", "=", "fix.subscription"), ("source_id", "=", sub.id)]
-    )
+    invoice = sub.charge_ids.invoice_id
     assert len(invoice) == 1
     assert invoice.customer_id == ctx.partner
     assert invoice.operating_unit_id == ctx.ou
@@ -139,9 +147,7 @@ def test_standalone_invoice_lands_in_the_subscriptions_company(ctx):
     sub = _sub(ctx, consolidated=False, company_id=company_b.id, operating_unit_id=ou_b.id)
     assert ctx.env.company != company_b
     sub.action_generate_charge()
-    invoice = ctx.env["fix.ar.invoice"].search(
-        [("source_model", "=", "fix.subscription"), ("source_id", "=", sub.id)]
-    )
+    invoice = sub.charge_ids.invoice_id
     assert invoice.company_id == company_b
 
 
@@ -469,8 +475,9 @@ def test_recognition_straight_line_cumulative_and_completes(ctx):
     common = {
         "source_model": "fix.contract",
         "source_id": SOURCE_ID,
-        "gl_debit_account": "210200",
-        "gl_credit_account": "410100",
+        # the configured contract-liability / revenue accounts actually posted
+        "gl_debit_account": "212000",
+        "gl_credit_account": "400000",
     }
     assert events == [
         {"amount": 100.0, "cumulative": 100.0, **common},

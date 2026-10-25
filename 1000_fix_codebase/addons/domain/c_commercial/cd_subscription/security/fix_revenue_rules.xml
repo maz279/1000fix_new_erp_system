@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription: company isolation for the A08 M53 IFRS 15 models.
+     Hand-maintained beside the generated fix_isolation_rules.xml. -->
+<odoo>
+    <record id="rule_fix_subscription_charge_company" model="ir.rule">
+        <field name="name">fix.subscription.charge: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_charge"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_obligation_company" model="ir.rule">
+        <field name="name">fix.performance.obligation: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_obligation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_revenue_recognition_line_company" model="ir.rule">
+        <field name="name">fix.revenue.recognition.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_revenue_recognition_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

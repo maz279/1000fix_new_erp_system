@@ -27,6 +27,13 @@ SETTLEMENT_ACCOUNTS = {
     "commission_revenue": ("400100", "Marketplace Commission Revenue"),
     "seller_payable": ("200200", "Marketplace Seller Payable"),
     "tds_payable": ("210100", "TDS Withheld Liability (ITA 2023 §52)"),
+    # A08 M53 roles with NO default code: the chart has no semantically
+    # certain account for them, so the system parameter must name one.
+    "partner_commission_expense": (None, "Partner / Referral Commission Expense"),
+    "partner_payable": (None, "Partner Commission Payable"),
+    "clawback_recovery": (None, "Customer Refund Clearing (clawbacks / forfeited escrow)"),
+    "warranty_expense": (None, "Workmanship Warranty Expense (IAS 37)"),
+    "warranty_provision": (None, "Workmanship Warranty Provision (IAS 37)"),
 }
 
 
@@ -45,6 +52,12 @@ def _configured_account(env, company, role):
         env["ir.config_parameter"].sudo().get_param(f"cd_settlement_ext.account_code.{role}")
         or default_code
     )
+    if not code:
+        raise UserError(
+            "Settlement posting refused: no GL account is configured for %s in company %s. "
+            "Set system parameter cd_settlement_ext.account_code.%s to the account code to use."
+            % (label, company.name, role)
+        )
     accounts = env["account.account"].with_company(company)
     acc = accounts.search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
     if not acc:
@@ -128,10 +141,32 @@ class FixCommissionLedger(models.Model):
             ("earned", "Earned"),
             ("accrued", "Accrued / Posted to GL"),
             ("paid", "Disbursed / Paid"),
+            ("forfeited", "Forfeited (dispute ruling)"),
         ],
         default="earned",
         required=True,
         tracking=True,
+    )
+    # A08 M53: one ledger for marketplace sellers AND channel partners —
+    # both are paid through the same payout runs.
+    source_type = fields.Selection(
+        [("marketplace", "Marketplace Seller"), ("partner_referral", "Partner / Referral")],
+        string="Payee Type",
+        default="marketplace",
+        required=True,
+        index=True,
+        tracking=True,
+    )
+    referral_id = fields.Many2one(
+        "fix.referral", string="Referral", index=True, ondelete="restrict", copy=False
+    )
+    scheme_id = fields.Many2one("fix.commission.scheme", string="Commission Scheme")
+    escrow_hold = fields.Boolean(
+        string="Held in Escrow",
+        readonly=True,
+        copy=False,
+        tracking=True,
+        help="Held by an active escrow (open marketplace dispute): never collected into a payout",
     )
 
     # Four reconciliation keys required by LP-02 (IN-007 §5.1, §10.2)
@@ -149,11 +184,20 @@ class FixCommissionLedger(models.Model):
         for rec in self:
             rec.commission_amount = rec.gross_amount * rec.commission_rate
 
-    @api.depends("gross_amount", "commission_amount", "tds_amount")
+    @api.depends("gross_amount", "commission_amount", "tds_amount", "source_type")
     def _compute_net(self):
         for rec in self:
-            # Seller entitlement = Gross GMV - Commission Earned - TDS Withheld
-            rec.net_payable = rec.gross_amount - rec.commission_amount - (rec.tds_amount or 0.0)
+            if rec.source_type == "partner_referral":
+                # A partner is owed its commission (an expense of 1000 FiX),
+                # less the TDS withheld on it
+                rec.net_payable = rec.commission_amount - (rec.tds_amount or 0.0)
+            else:
+                # Seller entitlement = Gross GMV - Commission Earned - TDS Withheld
+                rec.net_payable = rec.gross_amount - rec.commission_amount - (rec.tds_amount or 0.0)
+
+    def _payable_role(self) -> str:
+        self.ensure_one()
+        return "partner_payable" if self.source_type == "partner_referral" else "seller_payable"
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -163,7 +207,12 @@ class FixCommissionLedger(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.commission.ledger")
                     or f"COM/{fields.Date.today().year}/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for rec, vals in zip(records, vals_list, strict=True):
+            # the scheme's effective-dated TDS rate, unless a figure was given
+            if rec.scheme_id and "tds_amount" not in vals:
+                rec.tds_amount = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
+        return records
 
     def write(self, vals):
         for rec in self:
@@ -181,6 +230,69 @@ class FixCommissionLedger(models.Model):
                     )
         return super().write(vals)
 
+    def _post_partner_accrual(self):
+        """Partner / referral commission is 1000 FiX's EXPENSE (it is the
+        principal for the referred repair): Dr commission expense / Cr
+        partner payable, the payable discharged by the payout run."""
+        self.ensure_one()
+        company = self.company_id
+        journal = _configured_journal(self.env, company)
+        expense = _configured_account(self.env, company, "partner_commission_expense")
+        payable = _configured_account(self.env, company, "partner_payable")
+        dims = {
+            "branch_id": self.branch_id.id,
+            "operating_unit_id": self.operating_unit_id.id,
+            "cost_centre": "CC-PAY",
+        }
+        move, _ = post_with_dimensions(
+            self.env,
+            {
+                "journal_id": journal.id,
+                "company_id": company.id,
+                "date": fields.Date.context_today(self),
+                "ref": f"COM-ACCRUAL-{self.name}",
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": f"Partner commission: {self.name}",
+                            "account_id": expense.id,
+                            "debit": self.commission_amount,
+                            "credit": 0.0,
+                        },
+                    ),
+                    (
+                        0,
+                        0,
+                        {
+                            "name": f"Partner commission payable: {self.name}",
+                            "account_id": payable.id,
+                            "partner_id": self.seller_partner_id.id,
+                            "debit": 0.0,
+                            "credit": self.commission_amount,
+                        },
+                    ),
+                ],
+            },
+            {0: dims, 1: dims},
+            source="settlement",
+        )
+        self.write({"state": "accrued", "gl_move_id": move.id})
+        publish(
+            self.env,
+            "commission.accrued",
+            "fix.commission.ledger",
+            self.id,
+            {
+                "commission_ref": self.name,
+                "seller": self.seller_partner_id.name,
+                "payee_type": "partner_referral",
+                "commission_amount": float(self.commission_amount),
+                "move_id": move.id,
+            },
+        )
+
     def action_post_to_gl(self):
         """Post commission accrual to GL through M19 (cd_gl_ext).
         Strictly enforces FF-91 (MS-01):
@@ -190,6 +302,9 @@ class FixCommissionLedger(models.Model):
         - Customer Clearing / Bank is debited (101000)."""
         for rec in self:
             if rec.state != "earned":
+                continue
+            if rec.source_type == "partner_referral":
+                rec._post_partner_accrual()
                 continue
 
             company = rec.company_id
@@ -344,6 +459,23 @@ class FixPayoutRun(models.Model):
     sod_verified = fields.Boolean(string="SoD Verified", readonly=True, default=False)
 
     commission_ids = fields.Many2many("fix.commission.ledger", string="Commissions")
+    clawback_ids = fields.Many2many(
+        "fix.settlement.adjustment",
+        "fix_payout_run_clawback_rel",
+        "run_id",
+        "adjustment_id",
+        string="Clawbacks to Recover",
+        domain=[("adjustment_type", "=", "clawback"), ("state", "=", "active")],
+    )
+    recovery_ids = fields.One2many(
+        "fix.settlement.recovery", "payout_run_id", string="Clawbacks Recovered"
+    )
+    total_clawback = fields.Monetary(
+        compute="_compute_total",
+        string="Clawback Deducted",
+        currency_field="currency_id",
+        store=True,
+    )
 
     # INT-007 Payout Rail Integration Fields
     idempotency_key = fields.Char(string="Idempotency Key (7-Day TTL)", copy=False, readonly=True)
@@ -397,14 +529,88 @@ class FixPayoutRun(models.Model):
     )
 
     @api.depends(
-        "commission_ids.net_payable", "commission_ids.tds_amount", "commission_ids.gross_amount"
+        "commission_ids.net_payable",
+        "commission_ids.tds_amount",
+        "commission_ids.gross_amount",
+        "clawback_ids.remaining_amount",
+        "recovery_ids.amount",
+        "state",
     )
     def _compute_total(self):
         for rec in self:
-            rec.total_payable = sum(rec.commission_ids.mapped("net_payable"))
+            rec.total_clawback = sum(
+                amount for pairs in rec._clawback_deductions().values() for _a, amount in pairs
+            )
+            rec.total_payable = sum(rec.commission_ids.mapped("net_payable")) - rec.total_clawback
             rec.total_tds = sum(rec.commission_ids.mapped("tds_amount"))
             rec.total_gross = sum(rec.commission_ids.mapped("gross_amount"))
             rec.seller_count = len(rec.commission_ids.mapped("seller_partner_id"))
+
+    def _clawback_deductions(self) -> dict:
+        """{payee: [(clawback, amount)]} deducted in this run. An executed
+        run reports what it recovered; an open run projects each payee's
+        open clawbacks against that payee's net in the run (never more)."""
+        self.ensure_one()
+        out: dict = {}
+        if self.state == "executed":
+            for line in self.recovery_ids:
+                out.setdefault(line.adjustment_id.seller_partner_id, []).append(
+                    (line.adjustment_id, line.amount)
+                )
+            return out
+        for payee in self.commission_ids.mapped("seller_partner_id"):
+            available = sum(
+                self.commission_ids.filtered(lambda c, p=payee: c.seller_partner_id == p).mapped(
+                    "net_payable"
+                )
+            )
+            for claw in self.clawback_ids.filtered(
+                lambda a, p=payee: a.seller_partner_id == p and a.state == "active"
+            ).sorted("id"):
+                take = round(min(available, claw.remaining_amount), 2)
+                if take <= 0:
+                    continue
+                out.setdefault(payee, []).append((claw, take))
+                available -= take
+        return out
+
+    def action_collect_accrued(self):
+        """Fill a draft run with every accrued commission (sellers AND
+        partners) not held in escrow and not already in another open run,
+        plus the payees' open clawbacks."""
+        Ledger = self.env["fix.commission.ledger"]
+        for run in self:
+            if run.state != "draft":
+                raise UserError("Commissions are collected into a draft payout run only")
+            busy = self.search(
+                [
+                    ("id", "!=", run.id),
+                    ("state", "!=", "executed"),
+                    ("company_id", "=", run.company_id.id),
+                ]
+            ).mapped("commission_ids")
+            rows = Ledger.search(
+                [
+                    ("company_id", "=", run.company_id.id),
+                    ("state", "=", "accrued"),
+                    ("escrow_hold", "=", False),
+                    ("id", "not in", busy.ids),
+                ]
+            )
+            if not rows and not run.commission_ids:
+                raise UserError(
+                    "No accrued commissions are free to pay — accrue commissions to the GL first"
+                )
+            run.commission_ids = [(6, 0, (run.commission_ids | rows).ids)]
+            claws = self.env["fix.settlement.adjustment"].search(
+                [
+                    ("company_id", "=", run.company_id.id),
+                    ("adjustment_type", "=", "clawback"),
+                    ("state", "=", "active"),
+                    ("seller_partner_id", "in", run.commission_ids.mapped("seller_partner_id").ids),
+                ]
+            )
+            run.clawback_ids = [(6, 0, claws.ids)]
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -423,6 +629,12 @@ class FixPayoutRun(models.Model):
         for rec in self:
             if not rec.commission_ids:
                 raise UserError("No commissions attached to this payout run.")
+            held = rec.commission_ids.filtered("escrow_hold")
+            if held:
+                raise UserError(
+                    "Payout run %s carries commissions held in escrow (%s) — remove them or "
+                    "release the escrow first." % (rec.name, ", ".join(held.mapped("name")))
+                )
             if rec.prepared_by_id and self.env.user.id == rec.prepared_by_id.id:
                 raise UserError("SoD Violation: Preparer cannot approve their own payout run.")
             if not (
@@ -517,8 +729,14 @@ class FixPayoutRun(models.Model):
             seller_totals[seller]["tds"] += Decimal(str(c.tds_amount or 0.0))
             seller_totals[seller]["comm"] += Decimal(str(c.commission_amount))
 
+        deductions = self._clawback_deductions()
         recipients = []
         for seller, amounts in seller_totals.items():
+            amounts["net_payable"] -= sum(
+                (Decimal(str(amt)) for _c, amt in deductions.get(seller, [])), Decimal("0.00")
+            )
+            if amounts["net_payable"] <= 0:
+                continue  # fully recovered by a clawback: nothing to disburse
             acc_num, routing = _bank_details(seller)  # validated: never invented
             recipients.append(
                 PayoutRecipient(
@@ -687,6 +905,16 @@ class FixPayoutRun(models.Model):
     def _finalize_payout_execution(self):
         """Finalize executed payout run: mark paid, generate bilingual statements, and post to GL."""
         self.ensure_one()
+        # freeze the clawback recoveries BEFORE the run turns executed
+        deductions = self._clawback_deductions()
+        Recovery = self.env["fix.settlement.recovery"]
+        for _payee, pairs in deductions.items():
+            for claw, amount in pairs:
+                Recovery.create(
+                    {"adjustment_id": claw.id, "payout_run_id": self.id, "amount": amount}
+                )
+                if claw.remaining_amount <= 0.005:
+                    claw.state = "recovered"
         self.state = "executed"
         self.commission_ids.write({"state": "paid"})
 
@@ -700,7 +928,8 @@ class FixPayoutRun(models.Model):
             gross_tot = sum(c.gross_amount for c in comms)
             comm_tot = sum(c.commission_amount for c in comms)
             tds_tot = sum(c.tds_amount or 0.0 for c in comms)
-            net_tot = sum(c.net_payable for c in comms)
+            clawback_tot = sum(amt for _c, amt in deductions.get(seller, []))
+            net_tot = sum(c.net_payable for c in comms) - clawback_tot
             cert_ref = f"NBR-TDS52-{fields.Date.today().year}-{seller.id:04d}-{seq:04d}"
 
             stmt_model.create(
@@ -713,6 +942,7 @@ class FixPayoutRun(models.Model):
                     "commission_amount": comm_tot,
                     "tds_withheld": tds_tot,
                     "net_payable": net_tot,
+                    "clawback_amount": clawback_tot,
                     "withholding_cert_ref": cert_ref,
                     "payout_run_id": self.id,
                     "state": "issued",
@@ -738,39 +968,77 @@ class FixPayoutRun(models.Model):
         )
 
     def action_post_payout_to_gl(self):
-        """Post payout discharge and statutory TDS withholding to General Ledger through M19."""
+        """Post payout discharge and statutory TDS withholding to General Ledger through M19.
+
+        Only an EXECUTED run (bank- or rail-confirmed) is discharged, once.
+        Each payee type clears its own payable (sellers 200200, partners the
+        configured partner payable); clawbacks recovered in the run credit
+        the customer-refund clearing account they reimburse."""
         for rec in self:
             if rec.gl_move_id:
                 continue
+            if rec.state != "executed":
+                raise UserError(
+                    "Payout %s is %s — only a confirmed (executed) payout is discharged in the GL"
+                    % (rec.name, rec.state)
+                )
 
             company = rec.company_id
             journal = _configured_journal(self.env, company)
             # Account codes per SETTLEMENT_ACCOUNTS: seller payable 200200,
             # TDS 210100 (ITA 2023 §52), disbursement bank 101000.
-            seller_payable = _configured_account(self.env, company, "seller_payable")
             tds_payable = _configured_account(self.env, company, "tds_payable")
             disbursement_bank = _configured_account(self.env, company, "clearing")
 
-            total_seller_liability = rec.total_payable + rec.total_tds
+            by_role: dict[str, float] = {}
+            for c in rec.commission_ids:
+                role = c._payable_role()
+                by_role[role] = by_role.get(role, 0.0) + c.net_payable + (c.tds_amount or 0.0)
             net_disbursed = rec.total_payable
             tds_withheld = rec.total_tds
+            labels = {
+                "seller_payable": "Discharge Seller Liability",
+                "partner_payable": "Discharge Partner Commission Liability",
+            }
+            debit_lines = [
+                (
+                    0,
+                    0,
+                    {
+                        "name": f"{labels[role]}: {rec.name}",
+                        "account_id": _configured_account(self.env, company, role).id,
+                        "debit": amount,
+                        "credit": 0.0,
+                    },
+                )
+                for role, amount in sorted(
+                    by_role.items(), key=lambda kv: kv[0] != "seller_payable"
+                )
+            ]
+            clawback_lines = []
+            if rec.total_clawback > 0.005:
+                recovery_acc = _configured_account(self.env, company, "clawback_recovery")
+                clawback_lines.append(
+                    (
+                        0,
+                        0,
+                        {
+                            "name": f"Clawbacks recovered: {rec.name}",
+                            "account_id": recovery_acc.id,
+                            "debit": 0.0,
+                            "credit": rec.total_clawback,
+                        },
+                    )
+                )
 
             move_vals = {
                 "journal_id": journal.id,
                 "company_id": company.id,
                 "date": fields.Date.context_today(rec),
                 "ref": f"PAYOUT-DISCHARGE-{rec.name}",
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "name": f"Discharge Seller Liability: {rec.name}",
-                            "account_id": seller_payable.id,
-                            "debit": total_seller_liability,
-                            "credit": 0.0,
-                        },
-                    ),
+                "line_ids": debit_lines
+                + clawback_lines
+                + [
                     (
                         0,
                         0,
@@ -794,10 +1062,18 @@ class FixPayoutRun(models.Model):
                 ],
             }
 
+            n_pay = len(debit_lines) + len(clawback_lines)
             dim_by_line = {
-                0: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-PAY"},
-                1: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-TAX"},
-                2: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-TREAS"},
+                i: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-PAY"}
+                for i in range(n_pay)
+            }
+            dim_by_line[n_pay] = {
+                "operating_unit_id": rec.operating_unit_id.id,
+                "cost_centre": "CC-TAX",
+            }
+            dim_by_line[n_pay + 1] = {
+                "operating_unit_id": rec.operating_unit_id.id,
+                "cost_centre": "CC-TREAS",
             }
 
             move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
