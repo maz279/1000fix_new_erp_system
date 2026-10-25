@@ -29,8 +29,13 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_activate" type="object" string="Activate"
+                            class="btn-primary" invisible="state == 'active'"
+                            groups="account.group_account_manager"/>
                     <button name="action_generate_entry" type="object" string="Generate Due Entry"
                             class="btn-primary" invisible="state != 'active'"/>
+                    <button name="action_pause" type="object" string="Pause"
+                            invisible="state != 'active'"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,active,paused"/>
                 </header>
@@ -48,6 +53,7 @@
                             <field name="currency_id" invisible="1"/>
                             <field name="last_move_id" readonly="1"/>
                             <field name="run_count" readonly="1"/>
+                            <field name="activated_by_id" readonly="1"/>
                         </group>
                     </group>
                     <notebook>

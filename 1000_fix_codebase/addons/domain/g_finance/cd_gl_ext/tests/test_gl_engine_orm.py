@@ -526,6 +526,54 @@ class TestJournalTemplates:
         assert due.run_count == 1
         assert not_due.run_count == 0
 
+    def _users(self, env, company):
+        def user(login, group):
+            return env["res.users"].create(
+                {
+                    "name": login,
+                    "login": "%s-%s@test.local" % (login, company.id),
+                    "company_id": company.id,
+                    "company_ids": [(6, 0, company.ids)],
+                    "group_ids": [(6, 0, [env.ref(group).id])],
+                }
+            )
+
+        return (
+            user("tmpl-maker", "account.group_account_manager"),
+            user("tmpl-checker", "account.group_account_manager"),
+            user("tmpl-clerk", "account.group_account_user"),
+        )
+
+    def test_activation_is_a_manager_approval_with_sod(self, odoo_env):
+        company = _fresh_company(odoo_env, "tmpl-sod")
+        accs = _company_accounts(odoo_env, company)
+        maker, checker, clerk = self._users(odoo_env, company)
+        template = self._template(odoo_env(user=maker.id), company, accs, state="draft").with_user(
+            maker
+        )
+        with pytest.raises(UserError, match="not active"), odoo_env.cr.savepoint():
+            template.action_generate_entry()
+        with pytest.raises(UserError, match="Only an accounting manager"), odoo_env.cr.savepoint():
+            template.with_user(clerk).action_activate()
+        with pytest.raises(UserError, match="Segregation of duties"), odoo_env.cr.savepoint():
+            template.action_activate()
+        assert template.state == "draft"
+        assert template.with_user(checker).action_activate() is True
+        assert template.state == "active" and template.activated_by_id == checker
+
+    def test_pause_stops_generation(self, odoo_env):
+        company = _fresh_company(odoo_env, "tmpl-pause")
+        accs = _company_accounts(odoo_env, company)
+        template = self._template(odoo_env, company, accs)
+        assert template.action_pause() is True
+        assert template.state == "paused"
+        with pytest.raises(UserError, match="Only an active template"), odoo_env.cr.savepoint():
+            template.action_pause()
+        assert odoo_env["fix.journal.template"]._cron_generate_due_entries() >= 0
+        assert template.run_count == 0
+        template.action_activate()  # superuser: the approval step itself
+        assert template.state == "active"
+
 
 # --------------------------------------------------------------------------- allocations
 
@@ -678,7 +726,7 @@ class TestStatementComputations:
     def test_cash_flow_categories_and_closing(self, odoo_env):
         from odoo.addons.cd_gl_ext.models.fix_fiscal_year_ext import compute_cash_flow
 
-        company, accs = self._posted_company(odoo_env, "cf", income=500.0, expense=300.0)
+        company, _accs = self._posted_company(odoo_env, "cf", income=500.0, expense=300.0)
         cf = compute_cash_flow(odoo_env, company, date(2026, 1, 1), date(2026, 12, 31))
         assert cf["basis"].startswith("posted cash/bank")
         # 500 in from the income entry, 300 out to the expense entry

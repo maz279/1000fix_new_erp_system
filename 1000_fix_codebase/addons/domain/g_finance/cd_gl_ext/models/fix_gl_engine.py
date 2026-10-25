@@ -52,6 +52,7 @@ class FixJournalPostingLog(models.Model):
             ("api", "Platform API"),
             ("ar", "AR Engine (M20)"),
             ("receipt", "AR Receipt (M20)"),
+            ("intercompany", "Inter-Company / Inter-Branch (M65)"),
         ],
         required=True,
         default="api",
@@ -176,6 +177,42 @@ class FixJournalTemplate(models.Model):
         """First day of the period FOLLOWING the run period — where an
         auto-reversing accrual's mirror entry lands."""
         return self._advance(date(run_date.year, run_date.month, 1))
+
+    # ------------------------------------------------------------------
+    # Approval (a template posts unattended once active)
+    # ------------------------------------------------------------------
+    activated_by_id = fields.Many2one(
+        "res.users", string="Activated By", readonly=True, copy=False, tracking=True
+    )
+
+    def action_activate(self):
+        """Approve a draft/paused template for automatic generation. An
+        active template posts without further review, so activation is the
+        checker step: accounting manager only, never the template's author
+        (segregation of duties, FR-FIN-015)."""
+        for template in self:
+            if template.state == "active":
+                continue
+            if not self.env.su:
+                if not self.env.user.has_group("account.group_account_manager"):
+                    raise UserError(
+                        "Only an accounting manager can activate a recurring journal template."
+                    )
+                if template.create_uid == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: %s created template %s and cannot also "
+                        "activate it." % (self.env.user.name, template.name)
+                    )
+            template.write({"state": "active", "activated_by_id": self.env.user.id})
+        return True
+
+    def action_pause(self):
+        """Stop automatic generation (the cron skips paused templates)."""
+        for template in self:
+            if template.state != "active":
+                raise UserError("Only an active template can be paused.")
+            template.write({"state": "paused"})
+        return True
 
     # ------------------------------------------------------------------
     # Generation

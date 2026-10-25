@@ -74,16 +74,21 @@ class TestFixIntercompany:
 
     def test_mirror_bill_generation_logic(self):
         from odoo.addons.cd_multi_entity.models.fix_intercompany import FixIntercompanyTransaction
+        from odoo.exceptions import UserError
 
-        tx = MagicMock(reference="IC-TXN-2026-0099", mirror_invoice_ref=False)
+        # No invented "MIRROR-AP-<ref>" number any more: without a rule there
+        # are no accounts to post on, so nothing is mirrored.
+        tx = MagicMock(target_move_id=False, state="draft", rule_id=False)
         tx.ensure_one = MagicMock()
 
-        FixIntercompanyTransaction.action_generate_mirror(tx)
+        with pytest.raises(UserError, match="Select the inter-company rule"):
+            FixIntercompanyTransaction.action_generate_mirror(tx)
+        tx.write.assert_not_called()
 
-        tx.write.assert_called_once()
-        args = tx.write.call_args[0][0]
-        assert args["mirror_invoice_ref"] == "MIRROR-AP-IC-TXN-2026-0099"
-        assert args["state"] == "pending_matching"
+        # already mirrored: idempotent, nothing written
+        done = MagicMock(target_move_id=MagicMock())
+        assert FixIntercompanyTransaction.action_generate_mirror(done) is True
+        done.write.assert_not_called()
 
 
 class TestLocalisationAndStatutoryCalendar:

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_multi_entity numbering: the defaults on fix.intercompany.transaction
+     and fix.nil.return.generator draw from these codes (they previously fell
+     back to a constant, so the second record collided on the unique key). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_intercompany_tx" model="ir.sequence">
+            <field name="name">Inter-Company Transaction Ref</field>
+            <field name="code">fix.intercompany.tx</field>
+            <field name="prefix">IC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_nil_return" model="ir.sequence">
+            <field name="name">Nil-Return Declaration Ref</field>
+            <field name="code">fix.nil.return</field>
+            <field name="prefix">NIL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

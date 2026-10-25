@@ -28,4 +28,16 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="False"/>
     </record>
+
+    <!-- Lines and eliminations follow their book's company (A08 rule 5). -->
+    <record id="rule_fix_consolidation_line_company" model="ir.rule">
+        <field name="name">fix.consolidation.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_consolidation_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_elimination_entry_company" model="ir.rule">
+        <field name="name">fix.elimination.entry: allowed companies</field>
+        <field name="model_id" ref="model_fix_elimination_entry"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

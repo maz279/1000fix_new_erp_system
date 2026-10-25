@@ -196,23 +196,65 @@ class TestChartLoader:
         with pytest.raises(UserError, match="No accounts loaded"), odoo_env.cr.savepoint():
             loader.action_reconcile_chart()
 
-    def _loaded_with_balances(self, env, balances):
-        loader = env["fix.chart.loader"].create({})
+    def _ledger_chart(self, env, legs, link=True):
+        """A fresh company with the sample chart loaded, each statutory
+        account linked to a real Odoo account, and ONE posted entry made of
+        `legs` = {statutory code or 'UNMAPPED': signed amount (+ debit)}."""
+        company = env["res.company"].create({"name": "CoA Recon Test Co"})
+        loader = env["fix.chart.loader"].create({"company_id": company.id})
         loader.action_load_from_csv(SAMPLE_CSV)
-        for code, balance in balances.items():
-            env["fix.chart.account"].search([("account_code", "=", code)]).balance = balance
+        journal = env["account.journal"].create(
+            {"name": "Recon", "code": "RCN", "type": "general", "company_id": company.id}
+        )
+        types = {"1": "asset_current", "2": "liability_current", "3": "equity"}
+        accounts = {}
+        for n, code in enumerate(sorted(legs), start=1):
+            odoo_account = env["account.account"].create(
+                {
+                    "code": "77%04d" % n,
+                    "name": "Recon %s" % code,
+                    "account_type": types.get(code[0], "asset_current"),
+                    "company_ids": [(6, 0, company.ids)],
+                }
+            )
+            accounts[code] = odoo_account
+            if link and code != "UNMAPPED":
+                env["fix.chart.account"].search(
+                    [("company_id", "=", company.id), ("account_code", "=", code)]
+                ).odoo_account_id = odoo_account
+        move = env["account.move"].create(
+            {
+                "journal_id": journal.id,
+                "company_id": company.id,
+                "date": date(2026, 3, 1),
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": code,
+                            "account_id": accounts[code].id,
+                            "debit": max(amount, 0.0),
+                            "credit": max(-amount, 0.0),
+                        },
+                    )
+                    for code, amount in legs.items()
+                ],
+            }
+        )
+        move.action_post()
         return loader
 
     def test_reconcile_balanced_trial_balance(self, odoo_env):
         # Assets 1,500.00 (cash 1,000.00 + debtors 500.00)
-        # = liabilities 400.00 + equity 1,100.00
-        loader = self._loaded_with_balances(
+        # = liabilities 400.00 + equity 1,100.00 — from the posted ledger
+        loader = self._ledger_chart(
             odoo_env,
             {
                 "1-10-10-010": 1000.0,
                 "1-20-10-010": 500.0,
-                "2-10-10-010": 400.0,
-                "3-10-10-010": 1100.0,
+                "2-10-10-010": -400.0,
+                "3-10-10-010": -1100.0,
             },
         )
         result = loader.action_reconcile_chart()
@@ -221,18 +263,47 @@ class TestChartLoader:
         assert _money(result["total_liabilities"]) == D("400.00")
         assert _money(result["total_equity"]) == D("1100.00")
         assert _money(result["discrepancy"]) == D("0.00")
-        assert loader.state == "reconciled"
+        assert result["unmapped_ledger_accounts"] == 0
+        assert loader.state == "reconciled" and loader.reconciled_at
+        assert loader.linked_count == 4
 
-    def test_unbalanced_trial_balance_is_not_marked_reconciled(self, odoo_env):
+    def test_unmapped_ledger_balance_is_not_marked_reconciled(self, odoo_env):
         """Regression: the loader was stamped 'reconciled' whatever the
-        discrepancy (MD-035 §6 requires an exact reconciliation)."""
-        loader = self._loaded_with_balances(
-            odoo_env, {"1-10-10-010": 1000.0, "2-10-10-010": 400.0, "3-10-10-010": 500.0}
+        discrepancy (MD-035 §6 requires an exact reconciliation), and the
+        reconciliation read typed-in balances instead of the ledger."""
+        loader = self._ledger_chart(
+            odoo_env, {"1-10-10-010": 1000.0, "2-10-10-010": -400.0, "UNMAPPED": -600.0}
         )
         result = loader.action_reconcile_chart()
         assert result["reconciled"] is False
-        assert _money(result["discrepancy"]) == D("100.00")  # 1000 - (400 + 500)
+        assert _money(result["discrepancy"]) == D("600.00")  # 1000 - 400
+        assert result["unmapped_ledger_accounts"] == 1
+        assert _money(result["unmapped_ledger_balance"]) == D("600.00")
         assert loader.state == "loaded"
+        assert (loader.unmapped_ledger_count, _money(loader.recon_discrepancy)) == (
+            1,
+            D("600.00"),
+        )
+
+    def test_typed_balances_are_not_the_ledger(self, odoo_env):
+        company = odoo_env["res.company"].create({"name": "CoA Typed Balance Co"})
+        loader = odoo_env["fix.chart.loader"].create({"company_id": company.id})
+        loader.action_load_from_csv(SAMPLE_CSV)
+        odoo_env["fix.chart.account"].search(
+            [("company_id", "=", company.id), ("account_code", "=", "1-10-10-010")]
+        ).balance = 1000.0
+        result = loader.action_reconcile_chart()
+        assert result["total_assets"] == 0.0  # the typed 1,000 is not a posting
+
+    def test_archive_refused_while_the_linked_ledger_carries_a_balance(self, odoo_env):
+        loader = self._ledger_chart(odoo_env, {"1-10-10-010": 250.0, "3-10-10-010": -250.0})
+        cash = odoo_env["fix.chart.account"].search(
+            [("company_id", "=", loader.company_id.id), ("account_code", "=", "1-10-10-010")]
+        )
+        assert cash.balance == 0.0
+        with pytest.raises(UserError, match=r"ledger balance 250.00"), odoo_env.cr.savepoint():
+            cash.action_archive()
+        assert cash.active
 
 
 # --------------------------------------------------------------------------- fix.period.close
@@ -742,8 +813,45 @@ class TestFiscalYearBridge:
         assert bs["unclosed_profit_and_loss"] == 900.0
         assert bs["balanced"] is True
 
+    def test_report_over_an_explicit_period_records_its_headline(self, odoo_env):
+        env, company, _fy = self._ledger(odoo_env)
+        report = env["fix.financial.report.bridge"].create(
+            {
+                "name": "PL Q1",
+                "report_type": "pnl",
+                "company_id": company.id,
+                "date_from": date(2026, 1, 1),
+                "date_to": date(2026, 3, 31),
+            }
+        )
+        result = report.action_generate_report()
+        assert result["line_count"] == 2
+        assert report.headline_amount == 600.0
+        assert report.line_count == 2 and report.generated_by_id == env.user
+        bs = env["fix.financial.report.bridge"].create(
+            {
+                "name": "BS",
+                "report_type": "balance_sheet",
+                "company_id": company.id,
+                "date_to": date(2026, 12, 31),
+            }
+        )
+        bs.action_generate_report()
+        assert bs.headline_amount == 900.0 and bs.is_balanced
+        backwards = env["fix.financial.report.bridge"].create(
+            {
+                "name": "Bad",
+                "report_type": "pnl",
+                "company_id": company.id,
+                "date_from": date(2026, 3, 1),
+                "date_to": date(2026, 1, 1),
+            }
+        )
+        with pytest.raises(UserError, match="must not be after"), env.cr.savepoint():
+            backwards.action_generate_report()
+
     def test_report_refuses_another_companys_fiscal_year(self, odoo_env):
-        env, company, fy = self._ledger(odoo_env)
+        env, _company, fy = self._ledger(odoo_env)
         other = env["res.company"].create({"name": "GL Other FY Co"})
         report = env["fix.financial.report.bridge"].create(
             {

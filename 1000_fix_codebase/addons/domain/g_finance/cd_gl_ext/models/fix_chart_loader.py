@@ -184,13 +184,48 @@ class FixChartAccount(models.Model):
             except coa_logic.CoaValidationError as e:
                 raise ValidationError(str(e)) from e
 
-    def action_archive(self):
-        """Archive account enforcing COA-04: zero-balance guard."""
-        for acc in self:
-            if acc.balance != 0.0:
-                raise UserError(
-                    f"Cannot archive account {acc.account_code} with non-zero balance {acc.balance:.2f} BDT (COA-04)"
+    # Natural sign per account type: the ledger balance (debit - credit) is
+    # positive for assets/expenses, negated for liabilities/equity/income.
+    _NATURAL_SIGN = {"asset": 1, "expense": 1, "liability": -1, "equity": -1, "income": -1}
+
+    def _ledger_balances(self) -> dict:
+        """{statutory account id: natural-sign posted ledger balance} for the
+        accounts linked to an Odoo account (unlinked accounts are absent)."""
+        result = {}
+        for company in self.mapped("company_id"):
+            linked = self.filtered(lambda a, c=company: a.company_id == c and a.odoo_account_id)
+            if not linked:
+                continue
+            groups = (
+                self.env["account.move.line"]
+                .sudo()
+                ._read_group(
+                    [
+                        ("company_id", "=", company.id),
+                        ("parent_state", "=", "posted"),
+                        ("account_id", "in", linked.mapped("odoo_account_id").ids),
+                    ],
+                    ["account_id"],
+                    ["balance:sum"],
                 )
+            )
+            by_account = {account.id: balance or 0.0 for account, balance in groups}
+            for acc in linked:
+                raw = by_account.get(acc.odoo_account_id.id, 0.0)
+                result[acc.id] = round(raw * self._NATURAL_SIGN[acc.account_type], 2)
+        return result
+
+    def action_archive(self):
+        """Archive account enforcing COA-04: zero-balance guard, on both the
+        recorded balance and the posted ledger balance of the linked account."""
+        ledger = self._ledger_balances()
+        for acc in self:
+            for label, value in (("balance", acc.balance), ("ledger balance", ledger.get(acc.id))):
+                if value:
+                    raise UserError(
+                        f"Cannot archive account {acc.account_code} with non-zero {label} "
+                        f"{value:.2f} BDT (COA-04)"
+                    )
             acc.write({"active": False})
 
 
@@ -224,7 +259,34 @@ class FixChartLoader(models.Model):
         [("draft", "Draft"), ("loaded", "Loaded"), ("reconciled", "Reconciled")],
         default="draft",
         required=True,
+        tracking=True,
     )
+    name = fields.Char(compute="_compute_name")
+    currency_id = fields.Many2one(related="company_id.currency_id")
+    linked_count = fields.Integer(
+        string="Linked to Ledger",
+        readonly=True,
+        help="Statutory accounts linked to an Odoo account",
+    )
+    reconciled_at = fields.Datetime(string="Last Reconciliation", readonly=True)
+    recon_discrepancy = fields.Monetary(
+        string="Equation Discrepancy",
+        readonly=True,
+        help="Assets - (liabilities + equity + income - expense) over the linked ledger balances",
+    )
+    unmapped_ledger_count = fields.Integer(
+        string="Unmapped Ledger Accounts",
+        readonly=True,
+        help="Odoo accounts with a posted balance that no statutory account is linked to",
+    )
+    unmapped_ledger_balance = fields.Monetary(
+        string="Unmapped Ledger Balance (absolute)", readonly=True
+    )
+
+    @api.depends("company_id")
+    def _compute_name(self):
+        for loader in self:
+            loader.name = "MD-035 CoA - %s" % (loader.company_id.name or "")
 
     def action_load_from_csv(self, csv_text: str | None = None) -> dict:
         """Load Chart of Accounts from CSV text or file path."""
@@ -311,43 +373,80 @@ class FixChartLoader(models.Model):
         }
 
     def action_reconcile_chart(self) -> dict:
-        """Execute trial balance reconciliation check across loaded accounts."""
+        """Reconcile the statutory chart with the POSTED ledger (MD-035 s.6).
+
+        Balances are the posted ledger balances of the Odoo accounts each
+        statutory account is linked to (never a typed-in figure). The chart
+        is reconciled only when (a) the accounting equation holds over those
+        balances and (b) no posted ledger balance sits on an Odoo account the
+        chart does not cover. Otherwise it stays loaded and the result says
+        why."""
         self.ensure_one()
-        accounts = self.env["fix.chart.account"].search(
-            [
-                ("company_id", "=", self.company_id.id),
-            ]
-        )
+        accounts = self.env["fix.chart.account"].search([("company_id", "=", self.company_id.id)])
         if not accounts:
             raise UserError("No accounts loaded for company")
 
+        ledger = accounts._ledger_balances()
         acc_records = []
         balances = {}
         for a in accounts:
             # Monetary is a float column: str() keeps the 2dp value exact
-            bal_dec = Decimal(str(a.balance or 0.0))
-            rec = coa_logic.AccountRecord(
-                account_code=a.account_code,
-                entity_code="EN-01",
-                account_name=a.name,
-                account_type=a.account_type,
-                account_subtype=a.account_subtype or "",
-                is_postable=a.is_postable,
-                is_control_account=a.is_control_account,
-                control_subledger=a.control_subledger or None,
-                requires_dimension=_split_dimensions(a.requires_dimension),
-                statutory_group=a.statutory_group,
-                active=a.active,
-                balance=bal_dec,
+            bal_dec = Decimal(str(ledger.get(a.id, 0.0)))
+            acc_records.append(
+                coa_logic.AccountRecord(
+                    account_code=a.account_code,
+                    entity_code="EN-01",
+                    account_name=a.name,
+                    account_type=a.account_type,
+                    account_subtype=a.account_subtype or "",
+                    is_postable=a.is_postable,
+                    is_control_account=a.is_control_account,
+                    control_subledger=a.control_subledger or None,
+                    requires_dimension=_split_dimensions(a.requires_dimension),
+                    statutory_group=a.statutory_group,
+                    active=a.active,
+                    balance=bal_dec,
+                )
             )
-            acc_records.append(rec)
             balances[a.account_code] = bal_dec
 
         recon_res = coa_logic.reconcile_trial_balance(balances, acc_records)
-        # MD-035 §6: balances must reconcile EXACTLY — an unbalanced trial
-        # balance never earns the 'reconciled' state (it stays 'loaded').
+
+        # Posted balances on Odoo accounts outside the statutory chart.
+        linked_ids = accounts.mapped("odoo_account_id").ids
+        groups = (
+            self.env["account.move.line"]
+            .sudo()
+            ._read_group(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("parent_state", "=", "posted"),
+                    ("account_id", "not in", linked_ids),
+                ],
+                ["account_id"],
+                ["balance:sum"],
+            )
+        )
+        unmapped = [(account, balance) for account, balance in groups if round(balance or 0.0, 2)]
+        recon_res["linked_accounts"] = len(linked_ids)
+        recon_res["unmapped_ledger_accounts"] = len(unmapped)
+        recon_res["unmapped_ledger_balance"] = round(sum(abs(b) for _a, b in unmapped), 2)
+        recon_res["unmapped_codes"] = sorted(a.code for a, _b in unmapped)[:20]
+        recon_res["reconciled"] = bool(recon_res["reconciled"] and not unmapped)
+
+        vals = {
+            "reconciled_at": fields.Datetime.now(),
+            "linked_count": len(linked_ids),
+            "recon_discrepancy": recon_res["discrepancy"],
+            "unmapped_ledger_count": len(unmapped),
+            "unmapped_ledger_balance": recon_res["unmapped_ledger_balance"],
+        }
+        # An unbalanced or incomplete chart never earns the reconciled state.
         if recon_res["reconciled"]:
-            self.write({"state": "reconciled"})
+            vals["state"] = "reconciled"
+        elif self.state == "reconciled":
+            vals["state"] = "loaded"
+        self.write(vals)
         return recon_res
 
     def action_link_odoo_accounts(self) -> dict:
@@ -384,6 +483,13 @@ class FixChartLoader(models.Model):
                 continue
             statutory.write({"odoo_account_id": odoo_account.id})
             linked += 1
+        self.write(
+            {
+                "linked_count": chart_model.search_count(
+                    [("company_id", "=", self.company_id.id), ("odoo_account_id", "!=", False)]
+                )
+            }
+        )
         _logger.info(
             "COA unification: %d statutory accounts linked for %s (unmatched: %s)",
             linked,

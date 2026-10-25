@@ -36,9 +36,9 @@ class FixEntityLocalisation(models.Model):
         required=True,
     )
 
-    incorporation_date = fields.Date(
-        string="Incorporation / Registration Date", default=fields.Date.context_today
-    )
+    # No default: an assumed incorporation date would make every entity look
+    # "newly registered" (nil-return eligibility reads it).
+    incorporation_date = fields.Date(string="Incorporation / Registration Date")
 
     def get_vat_return_due_date(self, period_year: int, period_month: int) -> date:
         """Calculate exact VAT return due date for given month.
@@ -116,29 +116,64 @@ class FixEntityLocalisation(models.Model):
         return True
 
 
+def _previous_month(today):
+    return (today.year - 1, 12) if today.month == 1 else (today.year, today.month - 1)
+
+
 class FixNilReturnGenerator(models.Model):
-    """Automates statutory Nil-Return generation for newly registered entities (R10-M01-T04).
-    Section 0.7.4 item 2: Mandatory nil return for newly registered entities with no transactions
-    from the month of registration."""
+    """Statutory nil-return packs (Mushak 9.1 + TDS) for an entity and tax
+    period WITHOUT any recorded transactions - typically a newly registered
+    entity, which must file from its month of registration.
+
+    Eligibility is measured, never assumed: "Verify" counts the entity
+    company's posted invoices, bills and P&L entries dated in the period.
+    The NBR acknowledgement is keyed in from the e-VAT portal; this module
+    does not file with NBR."""
 
     _name = "fix.nil.return.generator"
     _description = "Statutory Nil-Return Generator"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "period_year desc, period_month desc, id desc"
 
+    # move types that are supplies/purchases whatever accounts they touch
+    INVOICE_MOVE_TYPES = (
+        "out_invoice",
+        "out_refund",
+        "in_invoice",
+        "in_refund",
+        "out_receipt",
+        "in_receipt",
+    )
+    PL_ACCOUNT_TYPES = (
+        "income",
+        "income_other",
+        "expense",
+        "expense_other",
+        "expense_depreciation",
+        "expense_direct_cost",
+    )
+
     name = fields.Char(
         string="Declaration Reference",
         required=True,
-        default=lambda self: self.env["ir.sequence"].next_by_code("fix.nil.return")
-        or "NIL-RET-2026",
+        copy=False,
+        default=lambda self: self.env["ir.sequence"].next_by_code("fix.nil.return") or "/",
     )
     company_id = fields.Many2one(
         "res.company", string="Company", required=True, default=lambda self: self.env.company
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
     entity_id = fields.Many2one("fix.entity", string="Entity", required=True, tracking=True)
-    period_year = fields.Integer(string="Period Year", required=True, default=2026)
-    period_month = fields.Integer(string="Period Month", required=True, default=6)
+    period_year = fields.Integer(
+        string="Period Year",
+        required=True,
+        default=lambda self: _previous_month(fields.Date.context_today(self))[0],
+    )
+    period_month = fields.Integer(
+        string="Period Month",
+        required=True,
+        default=lambda self: _previous_month(fields.Date.context_today(self))[1],
+    )
     due_date = fields.Date(
         string="Statutory Filing Due Date", compute="_compute_due_date", store=True
     )
@@ -148,15 +183,22 @@ class FixNilReturnGenerator(models.Model):
     )
     transaction_count = fields.Integer(
         string="Transaction Count in Period",
-        default=0,
-        help="Total sales and purchase invoices recorded in the tax period",
+        readonly=True,
+        copy=False,
+        help="Posted sales/purchase documents and P&L entries of the entity's company "
+        "dated in the tax period, counted by Verify Eligibility",
+    )
+    transactions_counted_at = fields.Datetime(
+        string="Transactions Counted At", readonly=True, copy=False
     )
     eligible_for_nil_return = fields.Boolean(
         string="Eligible for Nil Return", compute="_compute_eligibility", store=True
     )
 
-    mushak_9_1_nil_payload = fields.Text(string="Mushak 9.1 Nil Return Payload (JSON)")
-    tds_nil_payload = fields.Text(string="TDS Nil Statement Payload (JSON)")
+    mushak_9_1_nil_payload = fields.Text(
+        string="Mushak 9.1 Nil Return Payload (JSON)", readonly=True
+    )
+    tds_nil_payload = fields.Text(string="TDS Nil Statement Payload (JSON)", readonly=True)
     filing_reference = fields.Char(string="NBR Acknowledgement Slip No", tracking=True)
 
     state = fields.Selection(
@@ -172,50 +214,105 @@ class FixNilReturnGenerator(models.Model):
         tracking=True,
     )
 
+    @api.constrains("period_month", "period_year")
+    def _check_period(self):
+        for rec in self:
+            if not 1 <= rec.period_month <= 12:
+                raise ValidationError("Period month must be between 1 and 12.")
+            if rec.period_year < 2000:
+                raise ValidationError("Period year is not valid.")
+
     @api.depends("entity_id", "period_year", "period_month")
     def _compute_due_date(self):
         for rec in self:
-            if rec.entity_id and rec.period_year and rec.period_month:
+            if rec.entity_id and rec.period_year and 1 <= rec.period_month <= 12:
                 rec.due_date = rec.entity_id.get_vat_return_due_date(
                     rec.period_year, rec.period_month
                 )
             else:
                 rec.due_date = False
 
-    @api.depends("entity_id", "transaction_count", "period_year", "period_month")
+    @api.depends(
+        "entity_id.incorporation_date",
+        "transaction_count",
+        "transactions_counted_at",
+        "period_year",
+        "period_month",
+    )
     def _compute_eligibility(self):
         for rec in self:
-            if not rec.entity_id:
+            inc_date = rec.entity_id.incorporation_date
+            if not inc_date or not rec.period_year or not 1 <= rec.period_month <= 12:
                 rec.is_newly_registered = False
-                rec.eligible_for_nil_return = False
-                continue
+            else:
+                # registered in the period's month or within the 12 months before it
+                period_start = date(rec.period_year, rec.period_month, 1)
+                inc_month = date(inc_date.year, inc_date.month, 1)
+                rec.is_newly_registered = 0 <= (period_start - inc_month).days <= 365
+            # Eligible only once the period has actually been counted.
+            rec.eligible_for_nil_return = bool(
+                rec.entity_id and rec.transactions_counted_at and rec.transaction_count == 0
+            )
 
-            # Check if incorporated in current or preceding fiscal year
-            inc_date = rec.entity_id.incorporation_date or fields.Date.context_today(rec)
-            period_date = date(rec.period_year, rec.period_month, 1)
-            days_since = (period_date - inc_date).days
-            is_new = 0 <= days_since <= 365
+    def _period_bounds(self):
+        start = date(self.period_year, self.period_month, 1)
+        nxt = (
+            date(self.period_year + 1, 1, 1)
+            if self.period_month == 12
+            else date(self.period_year, self.period_month + 1, 1)
+        )
+        return start, nxt - timedelta(days=1)
 
-            rec.is_newly_registered = is_new
-            # Eligible if 0 transactions
-            rec.eligible_for_nil_return = rec.transaction_count == 0
+    def _count_period_transactions(self) -> int:
+        """Posted moves of the entity's company dated in the period that are
+        sales/purchase documents or touch a P&L account."""
+        self.ensure_one()
+        start, end = self._period_bounds()
+        company = self.entity_id.company_id
+        # sudo: eligibility is a statutory fact about the entity's books,
+        # counted whatever journals the compliance officer can open.
+        return (
+            self.env["account.move"]
+            .sudo()
+            .search_count(
+                [
+                    ("company_id", "=", company.id),
+                    ("state", "=", "posted"),
+                    ("date", ">=", start),
+                    ("date", "<=", end),
+                    "|",
+                    ("move_type", "in", self.INVOICE_MOVE_TYPES),
+                    ("line_ids.account_id.account_type", "in", self.PL_ACCOUNT_TYPES),
+                ]
+            )
+        )
 
     def action_verify_eligibility(self):
-        """Verify statutory criteria for Nil-Return submission."""
+        """Count the period's real transactions; refuse when there are any."""
         self.ensure_one()
-        self._compute_eligibility()
-        if not self.eligible_for_nil_return:
+        if self.state not in ("draft", "verified"):
+            raise UserError("Eligibility can only be re-verified before the packs are generated.")
+        count = self._count_period_transactions()
+        if count:
             raise ValidationError(
-                f"Entity {self.entity_id.code} has {self.transaction_count} recorded transactions. "
-                "Standard Mushak 9.1 transaction return required instead of Nil Return."
+                f"Entity {self.entity_id.code} has {count} recorded transactions in "
+                f"{self.period_year}-{self.period_month:02d}. A standard Mushak 9.1 "
+                "transaction return is required instead of a nil return."
             )
-        self.state = "verified"
+        self.write(
+            {
+                "transaction_count": 0,
+                "transactions_counted_at": fields.Datetime.now(),
+                "state": "verified",
+            }
+        )
         return True
 
     def action_generate_nil_packs(self):
-        """Generate official NBR Mushak 9.1 Nil Return and TDS Nil Statement schemas."""
+        """Generate the Mushak 9.1 nil return and TDS nil statement payloads
+        for a VERIFIED declaration."""
         self.ensure_one()
-        if self.state not in ("verified", "draft"):
+        if self.state != "verified":
             raise ValidationError("Nil return must be verified prior to generation.")
 
         # Statutory identifiers must be the entity's real registrations: a
@@ -235,7 +332,6 @@ class FixNilReturnGenerator(models.Model):
                 "nil-return packs."
             )
 
-        # Mushak 9.1 Zero Return Schema
         mushak_payload = {
             "mushak_form": "9.1",
             "statutory_act": "Value Added Tax and Supplementary Duty Act 2012",
@@ -253,8 +349,6 @@ class FixNilReturnGenerator(models.Model):
                 "timestamp_utc": fields.Datetime.now().isoformat(),
             },
         }
-
-        # TDS Nil Return Schema
         tds_payload = {
             "form": "TDS_MONTHLY_NIL",
             "statutory_act": "Income Tax Act 2023 (Bangladesh)",
@@ -266,7 +360,6 @@ class FixNilReturnGenerator(models.Model):
             "total_deposited_treasury": 0.0,
             "is_nil_declaration": True,
         }
-
         self.write(
             {
                 "mushak_9_1_nil_payload": json.dumps(mushak_payload, indent=2),
@@ -282,13 +375,11 @@ class FixNilReturnGenerator(models.Model):
         There is no NBR e-filing integration in this module: the compliance
         officer files the generated packs on the NBR portal and enters the
         acknowledgement slip number NBR issued in ``filing_reference``. This
-        action refuses until that real slip number is present. (It previously
-        minted ``NBR-ACK-<entity>-<period>-NIL`` itself and marked the return
-        acknowledged without anything being filed.)
-        """
+        action refuses until the packs exist and that real slip number is
+        present."""
         self.ensure_one()
-        if not self.mushak_9_1_nil_payload:
-            self.action_generate_nil_packs()
+        if self.state != "generated" or not self.mushak_9_1_nil_payload:
+            raise UserError("Generate the nil-return packs before recording the NBR filing.")
         ack_ref = (self.filing_reference or "").strip()
         if not ack_ref:
             raise UserError(
@@ -296,10 +387,5 @@ class FixNilReturnGenerator(models.Model):
                 "before recording this nil return as acknowledged. This system does not "
                 "file with NBR and cannot generate an acknowledgement itself."
             )
-        self.write(
-            {
-                "filing_reference": ack_ref,
-                "state": "acknowledged",
-            }
-        )
+        self.write({"filing_reference": ack_ref, "state": "acknowledged"})
         return True

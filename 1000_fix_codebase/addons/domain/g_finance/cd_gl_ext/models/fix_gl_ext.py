@@ -533,8 +533,11 @@ def _attach_dimensions(env, move, dimension_by_line):
     for idx, line in enumerate(move.line_ids):
         dim_vals = dict(dimension_by_line.get(idx) or {})
         # An all-falsy annotation (branch False, cost_centre False...) is no
-        # annotation at all — no empty dimension rows ride the entry.
-        if not dim_vals or not any(dim_vals.values()):
+        # annotation at all — no empty dimension rows ride the entry. A line
+        # that names the operating unit key IS annotated even when its value
+        # is empty: it gets the company's OU below (AS-03, every posting
+        # carries one; e.g. a payroll period without its own unit).
+        if not dim_vals or ("operating_unit_id" not in dim_vals and not any(dim_vals.values())):
             continue
         # A missing/empty OU falls back to the MOVE's company OU — never
         # another company's (the dimension is the multi-entity ledger key).
@@ -654,7 +657,7 @@ def approve_journal_entry(env, move, dimension_by_line=None):
         )
     if not approver.has_group("account.group_account_manager"):
         raise UserError(
-            "Only the accounting manager group may approve journal entries " "(FR-FIN-015)."
+            "Only the accounting manager group may approve journal entries (FR-FIN-015)."
         )
     move.action_post()
     dimensions = env["fix.journal.dimension"]

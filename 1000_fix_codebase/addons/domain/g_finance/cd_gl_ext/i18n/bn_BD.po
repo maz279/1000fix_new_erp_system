@@ -13,6 +13,11 @@ msgid "1000FiX Period Close"
 msgstr "1000FiX পিরিয়ড সমাপ্তি"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__account_id
+msgid "Account"
+msgstr "হিসাব"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__account_code
 msgid "Account Code"
 msgstr "হিসাব কোড"
@@ -44,9 +49,41 @@ msgid "Accounts Receivable"
 msgstr "প্রাপ্য হিসাব"
 
 #. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_journal_template_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__activated_by_id
+msgid "Activated By"
+msgstr "সক্রিয়কারী"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__active
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_allocation_rule__state__active
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__state__active
 msgid "Active"
 msgstr "সক্রিয়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__allocation
+msgid "Allocation Rule"
+msgstr "বণ্টন নিয়ম"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__amount
+msgid "Amount"
+msgstr "পরিমাণ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__ar
+msgid "AR Engine (M20)"
+msgstr "AR ইঞ্জিন (M20)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__receipt
+msgid "AR Receipt (M20)"
+msgstr "AR রসিদ (M20)"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__asset
@@ -59,19 +96,48 @@ msgid "Asset Category"
 msgstr "সম্পদের শ্রেণি"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__auto_reverse
+msgid "Auto-Reversing (Accrual)"
+msgstr "স্বয়ংক্রিয় বিপরীতকরণ (বকেয়া)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__state__requested
+msgid "Awaiting Review"
+msgstr "পর্যালোচনার অপেক্ষায়"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__balance_sheet
 msgid "Balance Sheet (Financial Position)"
 msgstr "স্থিতিপত্র (আর্থিক অবস্থা)"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__is_balanced
+msgid "Balanced"
+msgstr "ভারসাম্যপূর্ণ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule_line__branch_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__branch_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__branch_id
 msgid "Branch"
 msgstr "শাখা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__brand
+msgid "Brand / OEM"
+msgstr "ব্র্যান্ড / OEM"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__sla_status__breached
 msgid "Breached Target"
 msgstr "লঙ্ঘিত লক্ষ্য"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule_line__business_line
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__business_line
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__business_line
+msgid "Business Line"
+msgstr "ব্যবসায়িক শাখা"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__name
@@ -85,7 +151,6 @@ msgstr "মূলধনীকৃত পরিমাণ"
 
 #. module: cd_gl_ext
 #: model:ir.actions.act_window,name:cd_gl_ext.action_fix_chart_account
-#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_chart_account
 msgid "Chart of Accounts"
 msgstr "হিসাবের তালিকা"
 
@@ -120,17 +185,19 @@ msgid "Closed"
 msgstr "বন্ধ"
 
 #. module: cd_gl_ext
-#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_chart_loader
 msgid "CoA Master Loader"
 msgstr "হিসাবের তালিকা (CoA) মাস্টার লোডার"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__company_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__company_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__company_id
 msgid "Company"
 msgstr "কোম্পানি"
@@ -146,13 +213,23 @@ msgid "Control Subledger"
 msgstr "নিয়ন্ত্রণ উপ-খতিয়ান"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule_line__cost_centre
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__cost_centre
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__cost_centre
 msgid "Cost Centre"
 msgstr "খরচ কেন্দ্র"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__credit
+msgid "Credit"
+msgstr "ক্রেডিট"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__currency_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__currency_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__currency_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__currency_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__currency_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__currency_id
 msgid "Currency"
 msgstr "মুদ্রা"
@@ -163,14 +240,46 @@ msgid "Current Balance"
 msgstr "বর্তমান ব্যালেন্স"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__debit
+msgid "Debit"
+msgstr "ডেবিট"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close_line__state__done
 msgid "Done"
 msgstr "সম্পন্ন"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_allocation_rule__state__draft
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__draft
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__state__draft
 msgid "Draft"
 msgstr "খসড়া"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__run_count
+msgid "Entries Generated"
+msgstr "তৈরি হওয়া এন্ট্রি"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_journal_posting_log_list
+msgid "Entry"
+msgstr "এন্ট্রি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__move_name
+msgid "Entry No"
+msgstr "এন্ট্রি নম্বর"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__memo
+msgid "Entry Reference"
+msgstr "এন্ট্রি রেফারেন্স"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__recon_discrepancy
+msgid "Equation Discrepancy"
+msgstr "সমীকরণের অমিল"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__equity
@@ -188,13 +297,16 @@ msgid "Expense"
 msgstr "ব্যয়"
 
 #. module: cd_gl_ext
-#: model:ir.ui.menu,name:cd_gl_ext.menu_ws_finance
 msgid "Finance"
 msgstr "ফাইন্যান্স"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__fiscal_year_id
+msgid "Fiscal Year"
+msgstr "অর্থবছর"
+
+#. module: cd_gl_ext
 #: model:ir.actions.act_window,name:cd_gl_ext.action_fix_fixed_asset_seam
-#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_fixed_asset_seam
 msgid "Fixed Asset Seam"
 msgstr "স্থায়ী সম্পদ সংযোগ"
 
@@ -204,9 +316,34 @@ msgid "Fixed Assets"
 msgstr "স্থায়ী সম্পদসমূহ"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__date_from
+msgid "From"
+msgstr "থেকে"
+
+#. module: cd_gl_ext
 #: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
 msgid "Generate 10 SOP Steps"
 msgstr "১০টি SOP ধাপ তৈরি করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_journal_template_form
+msgid "Generate Due Entry"
+msgstr "বকেয়া এন্ট্রি তৈরি করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_financial_report_bridge_form
+msgid "Generate from Ledger"
+msgstr "খতিয়ান থেকে তৈরি করুন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__generated_by_id
+msgid "Generated By"
+msgstr "প্রস্তুতকারী"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__headline_amount
+msgid "Headline Figure"
+msgstr "প্রধান অঙ্ক"
 
 #. module: cd_gl_ext
 #: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
@@ -230,9 +367,25 @@ msgid "Income Statement / Profit & Loss"
 msgstr "আয় বিবরণী / লাভ-ক্ষতি"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__intercompany
+msgid "Inter-Company / Inter-Branch (M65)"
+msgstr "আন্তঃকোম্পানি / আন্তঃশাখা (M65)"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__control_subledger__stock
 msgid "Inventory Stock"
 msgstr "ইনভেন্টরি মজুদ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__journal_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__journal_id
+msgid "Journal"
+msgstr "জার্নাল"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__move_id
+msgid "Journal Entry"
+msgstr "জার্নাল এন্ট্রি"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__move_line_id
@@ -241,9 +394,40 @@ msgid "Journal Item"
 msgstr "জার্নাল আইটেম"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__template
+msgid "Journal Template"
+msgstr "জার্নাল টেমপ্লেট"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__is_locked
 msgid "Journals Locked"
 msgstr "জার্নাল লক করা"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__last_run_id
+msgid "Last Allocation Entry"
+msgstr "সর্বশেষ বণ্টন এন্ট্রি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__last_move_id
+msgid "Last Generated Entry"
+msgstr "সর্বশেষ তৈরি এন্ট্রি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__reconciled_at
+msgid "Last Reconciliation"
+msgstr "সর্বশেষ মিলকরণ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__last_run_date
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__last_run_date
+msgid "Last Run"
+msgstr "সর্বশেষ চালনা"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Ledger Reconciliation"
+msgstr "খতিয়ান মিলকরণ"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_account__account_type__liability
@@ -251,14 +435,54 @@ msgid "Liability"
 msgstr "দায়"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__label
+msgid "Line Label"
+msgstr "লাইনের বিবরণ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__line_count
+msgid "Lines"
+msgstr "লাইন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Link to Ledger Accounts"
+msgstr "খতিয়ান হিসাবের সাথে যুক্ত করুন"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__odoo_account_id
 msgid "Linked Odoo Account"
 msgstr "সংযুক্ত Odoo হিসাব"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__linked_count
+msgid "Linked to Ledger"
+msgstr "খতিয়ানের সাথে যুক্ত"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__loaded
 msgid "Loaded"
 msgstr "লোডকৃত"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__manual
+msgid "Manual (workspace)"
+msgstr "হাতে করা (কর্মক্ষেত্র)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__schedule__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__next_run_date
+msgid "Next Run Date"
+msgstr "পরবর্তী চালনার তারিখ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__note
+msgid "Note"
+msgstr "নোট"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__fiscal_year_id
@@ -271,12 +495,15 @@ msgid "Open"
 msgstr "খোলা"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fiscal_period_bridge__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_fixed_asset_seam__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__operating_unit_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__operating_unit_id
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
@@ -285,6 +512,16 @@ msgstr "পরিচালন ইউনিট"
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__owner_role
 msgid "Owning Role"
 msgstr "দায়িত্বপ্রাপ্ত ভূমিকা"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_journal_template_form
+msgid "Pause"
+msgstr "বিরতি দিন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__state__paused
+msgid "Paused"
+msgstr "বিরতিতে"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close_line__state__pending
@@ -302,7 +539,6 @@ msgstr "পিরিয়ড ও লক্ষ্য"
 
 #. module: cd_gl_ext
 #: model:ir.actions.act_window,name:cd_gl_ext.action_fix_period_close
-#: model:ir.ui.menu,name:cd_gl_ext.menu_fix_period_close
 msgid "Period Close"
 msgstr "পিরিয়ড সমাপ্তি"
 
@@ -312,9 +548,29 @@ msgid "Period End"
 msgstr "পিরিয়ডের শেষ"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__api
+msgid "Platform API"
+msgstr "প্ল্যাটফর্ম API"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__is_postable
 msgid "Postable"
 msgstr "পোস্টযোগ্য"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__state__posted
+msgid "Posted"
+msgstr "পোস্ট করা হয়েছে"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__posted_at
+msgid "Posted At"
+msgstr "পোস্টের সময়"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__posted_by
+msgid "Posted By"
+msgstr "পোস্টকারী"
 
 #. module: cd_gl_ext
 #: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_account_form
@@ -322,12 +578,21 @@ msgid "Posting Controls"
 msgstr "পোস্টিং নিয়ন্ত্রণ"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__project_ref
+msgid "Project / Contract"
+msgstr "প্রকল্প / চুক্তি"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__schedule__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__state__ready_to_close
 msgid "Ready to Close"
 msgstr "বন্ধ করার জন্য প্রস্তুত"
 
 #. module: cd_gl_ext
-#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
 msgid "Reconcile Chart"
 msgstr "হিসাবের তালিকা সমন্বয় করুন"
 
@@ -335,6 +600,11 @@ msgstr "হিসাবের তালিকা সমন্বয় করু
 #: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_period_close_form
 msgid "Reconcile Inventory Suspense"
 msgstr "ইনভেন্টরি সাসপেন্স সমন্বয় করুন"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_chart_loader_form
+msgid "Reconcile with Ledger"
+msgstr "খতিয়ানের সাথে মিলকরণ"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_chart_loader__state__reconciled
@@ -352,9 +622,29 @@ msgid "Report Type"
 msgstr "রিপোর্টের ধরন"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__requested_by
+msgid "Requested By"
+msgstr "অনুরোধকারী"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_account__requires_dimension
 msgid "Requires Dimension"
 msgstr "ডাইমেনশন আবশ্যক"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__name
+msgid "Rule Name"
+msgstr "নিয়মের নাম"
+
+#. module: cd_gl_ext
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_allocation_rule_form
+msgid "Run Allocation (Month to Date)"
+msgstr "বণ্টন চালান (মাসের শুরু থেকে আজ পর্যন্ত)"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__run_count
+msgid "Runs"
+msgstr "চালনা"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__report_data
@@ -362,9 +652,29 @@ msgid "Serialized Report Data"
 msgstr "সিরিয়ালাইজড রিপোর্ট ডেটা"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_dimension__channel
+msgid "Service Channel"
+msgstr "সেবা চ্যানেল"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__settlement
+msgid "Settlement Engine"
+msgstr "নিষ্পত্তি ইঞ্জিন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule_line__percent
+msgid "Share %"
+msgstr "অংশ %"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__sla_status
 msgid "SLA Performance"
 msgstr "SLA পারফরম্যান্স"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__source_account_id
+msgid "Source Account"
+msgstr "উৎস হিসাব"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__source_file
@@ -416,6 +726,16 @@ msgid "Suspense Closing"
 msgstr "সাসপেন্স শেষ"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_posting_log__source__suspense
+msgid "Suspense Cutover"
+msgstr "সাসপেন্স স্থানান্তর"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__cutover_move_id
+msgid "Suspense Cutover Journal Entry"
+msgstr "সাসপেন্স স্থানান্তর জার্নাল এন্ট্রি"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__cutover_voucher_ref
 msgid "Suspense Cutover Voucher Ref"
 msgstr "সাসপেন্স কাটওভার ভাউচার রেফারেন্স"
@@ -436,6 +756,11 @@ msgid "T-GG-SS-NNN"
 msgstr "T-GG-SS-NNN"
 
 #. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule_line__account_id
+msgid "Target Account"
+msgstr "লক্ষ্য হিসাব"
+
+#. module: cd_gl_ext
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close__target_completion_date
 msgid "Target Completion Date"
 msgstr "সম্পন্নের লক্ষ্য তারিখ"
@@ -444,6 +769,49 @@ msgstr "সম্পন্নের লক্ষ্য তারিখ"
 #: model:ir.model.fields,field_description:cd_gl_ext.field_fix_period_close_line__target_day
 msgid "Target Day"
 msgstr "লক্ষ্য দিন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_allocation_rule__line_ids
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_allocation_rule_form
+msgid "Targets"
+msgstr "লক্ষ্যসমূহ"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_posting_log__template_id
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template_line__template_id
+msgid "Template"
+msgstr "টেমপ্লেট"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__line_ids
+#: model_terms:ir.ui.view,arch_db:cd_gl_ext.view_fix_journal_template_form
+msgid "Template Lines"
+msgstr "টেমপ্লেট লাইন"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_journal_template__name
+msgid "Template Name"
+msgstr "টেমপ্লেটের নাম"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_financial_report_bridge__date_to
+msgid "To"
+msgstr "পর্যন্ত"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__trial_balance
+msgid "Trial Balance"
+msgstr "রেওয়ামিল"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__unmapped_ledger_count
+msgid "Unmapped Ledger Accounts"
+msgstr "সংযোগহীন খতিয়ান হিসাব"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields,field_description:cd_gl_ext.field_fix_chart_loader__unmapped_ledger_balance
+msgid "Unmapped Ledger Balance (absolute)"
+msgstr "সংযোগহীন খতিয়ান স্থিতি (পরম মান)"
 
 #. module: cd_gl_ext
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_financial_report_bridge__report_type__vat_subledger
@@ -459,3 +827,8 @@ msgstr "যাচাই টেলিমেট্রি"
 #: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_period_close__sla_status__within_sla
 msgid "Within 5-Day SLA"
 msgstr "৫ দিনের SLA-এর মধ্যে"
+
+#. module: cd_gl_ext
+#: model:ir.model.fields.selection,name:cd_gl_ext.selection__fix_journal_template__schedule__yearly
+msgid "Yearly"
+msgstr "বার্ষিক"

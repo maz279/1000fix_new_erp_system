@@ -334,6 +334,14 @@ class TestPostWithDimensions:
             log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
 
 
+def _records(*recs, ledger=None):
+    """A recordset stand-in: iterable, with the ledger-balance lookup."""
+    rs = MagicMock()
+    rs.__iter__.side_effect = lambda: iter(recs)
+    rs._ledger_balances.return_value = ledger or {}
+    return rs
+
+
 class TestChartAccountAndLoader:
     def test_chart_account_check_coa_rules_valid(self):
         acc = MagicMock()
@@ -403,7 +411,7 @@ class TestChartAccountAndLoader:
         acc = MagicMock()
         acc.account_code = "1-10-10-001"
         acc.balance = 0.0
-        FixChartAccount.action_archive([acc])
+        FixChartAccount.action_archive(_records(acc))
         acc.write.assert_called_with({"active": False})
 
     def test_chart_account_action_archive_failure(self):
@@ -411,7 +419,13 @@ class TestChartAccountAndLoader:
         acc.account_code = "1-10-10-001"
         acc.balance = 500.00
         with pytest.raises(UserError, match="Cannot archive account"):
-            FixChartAccount.action_archive([acc])
+            FixChartAccount.action_archive(_records(acc))
+
+    def test_chart_account_action_archive_refused_on_ledger_balance(self):
+        acc = MagicMock(id=5, account_code="1-10-10-001", balance=0.0)
+        with pytest.raises(UserError, match="non-zero ledger balance"):
+            FixChartAccount.action_archive(_records(acc, ledger={5: 120.0}))
+        acc.write.assert_not_called()
 
     def test_chart_loader_action_load_from_csv_custom(self):
         loader = MagicMock()
@@ -474,28 +488,9 @@ class TestChartAccountAndLoader:
         with pytest.raises(UserError, match="No accounts loaded"):
             FixChartLoader.action_reconcile_chart(loader)
 
-    def test_chart_loader_action_reconcile_chart(self):
-        loader = MagicMock()
-        loader.company_id.id = 1
-        a1 = MagicMock(account_code="1-10-10-001", account_type="asset", balance=1000.0)
-        a2 = MagicMock(account_code="2-10-10-001", account_type="liability", balance=400.0)
-        a3 = MagicMock(account_code="3-10-10-001", account_type="equity", balance=600.0)
-        for a in (a1, a2, a3):
-            a.name = "Account Name"
-            a.account_subtype = "current"
-            a.is_postable = True
-            a.is_control_account = False
-            a.control_subledger = False
-            a.requires_dimension = ""
-            a.statutory_group = "Group"
-            a.active = True
-        acc_model = MagicMock()
-        acc_model.search.return_value = [a1, a2, a3]
-        loader.env = {"fix.chart.account": acc_model}
-
-        res = FixChartLoader.action_reconcile_chart(loader)
-        assert res["reconciled"] is True
-        loader.write.assert_called_with({"state": "reconciled"})
+    # The ledger-based reconciliation (posted balances of the linked Odoo
+    # accounts + unmapped-ledger detection) is covered on the live ORM in
+    # test_gl_ext_orm.py::TestChartLoader.
 
 
 class TestFiscalYearAndReporting:
@@ -515,6 +510,7 @@ class TestFiscalYearAndReporting:
         bridge.company_id.id = 1
         bridge.SUPPORTED_TYPES = FixMisReportBridge.SUPPORTED_TYPES
         bridge.fiscal_year_id = None
+        bridge.date_from = bridge.date_to = None
 
         # no constant {"status": "computed"} any more: without a fiscal year
         # there is no ledger window to compute from

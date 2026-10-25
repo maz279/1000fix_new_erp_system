@@ -71,6 +71,11 @@ msgid "Closed"
 msgstr "বন্ধ"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__closed_by_id
+msgid "Closed By"
+msgstr "বন্ধকারী"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__code
 msgid "Code"
 msgstr "কোড"
@@ -94,10 +99,40 @@ msgid "Consolidated Amount (BDT)"
 msgstr "একত্রিত পরিমাণ (টাকা)"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_assets
+msgid "Consolidated Assets"
+msgstr "একীভূত সম্পদ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__run_at
+msgid "Consolidated At"
+msgstr "একীভূতকরণের সময়"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__run_by_id
+msgid "Consolidated By"
+msgstr "একীভূতকারী"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_expense
+msgid "Consolidated Expense (Post-Elimination)"
+msgstr "একীভূত ব্যয় (বাদকরণের পরে)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_liabilities
+msgid "Consolidated Liabilities"
+msgstr "একীভূত দায়"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__line_ids
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
 msgid "Consolidated Lines"
 msgstr "একত্রিত লাইনসমূহ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_revenue
+msgid "Consolidated Revenue (Post-Elimination)"
+msgstr "একীভূত রাজস্ব (বাদকরণের পরে)"
 
 #. module: cd_multi_entity
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
@@ -124,6 +159,16 @@ msgstr "একত্রীকরণের মুদ্রা"
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidation_date
 msgid "Consolidation Date"
 msgstr "একত্রীকরণের তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_move_id
+msgid "Counterparty (Mirror) Entry"
+msgstr "প্রতিপক্ষের (প্রতিফলিত) এন্ট্রি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_branch_id
+msgid "Counterparty Branch"
+msgstr "প্রতিপক্ষ শাখা"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__to_entity_id
@@ -164,6 +209,26 @@ msgid "Draft"
 msgstr "খসড়া"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_receivable_account_id
+msgid "Due-From Account"
+msgstr "প্রাপ্য হিসাব"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_due_line_id
+msgid "Due-From Journal Item"
+msgstr "প্রাপ্য জার্নাল আইটেম"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_payable_account_id
+msgid "Due-To Account"
+msgstr "প্রদেয় হিসাব"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_due_line_id
+msgid "Due-To Journal Item"
+msgstr "প্রদেয় জার্নাল আইটেম"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__verified
 msgid "Eligibility Verified"
 msgstr "যোগ্যতা যাচাইকৃত"
@@ -190,17 +255,29 @@ msgid "Elimination Entries"
 msgstr "বাদকরণ এন্ট্রিসমূহ"
 
 #. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_elimination_entry_form
+msgid "Elimination Entry"
+msgstr "বাদকরণ এন্ট্রি"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__elimination_type
 msgid "Elimination Type"
 msgstr "বাদকরণের ধরন"
 
 #. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_elimination_entry
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_elimination_entry
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_elimination_entry_list
 msgid "Eliminations"
 msgstr "বাদকরণসমূহ"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__eliminated
+msgid "Eliminations Applied"
+msgstr "বাদকরণ প্রয়োগ করা হয়েছে"
+
+#. module: cd_multi_entity
 msgid "Eliminations Posted"
 msgstr "বাদকরণ পোস্ট করা হয়েছে"
 
@@ -240,7 +317,6 @@ msgid "Generate Eliminations"
 msgstr "বাদকরণ তৈরি করুন"
 
 #. module: cd_multi_entity
-#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
 msgid "Generate Mirror Bill"
 msgstr "মিরর বিল তৈরি করুন"
 
@@ -264,6 +340,18 @@ msgstr "গ্রুপ একত্রীকরণ"
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__incorporation_date
 msgid "Incorporation / Registration Date"
 msgstr "নিগমন / নিবন্ধনের তারিখ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__scope__interbranch
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__scope__interbranch
+msgid "Inter-Branch (within one legal entity)"
+msgstr "আন্তঃশাখা (একই আইনি সত্তার মধ্যে)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__scope__intercompany
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__scope__intercompany
+msgid "Inter-Company (between legal entities)"
+msgstr "আন্তঃকোম্পানি (আইনি সত্তাগুলোর মধ্যে)"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__transaction_type__loan_interest
@@ -337,8 +425,22 @@ msgstr "ব্যবস্থাপনা / পরামর্শ ফি"
 
 #. module: cd_multi_entity
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Mark Settled"
+msgstr "নিষ্পন্ন চিহ্নিত করুন"
+
+#. module: cd_multi_entity
 msgid "Match & Reconcile"
 msgstr "মিলান ও সমন্বয় করুন"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Match Against Ledger"
+msgstr "খতিয়ানের সাথে মিলান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__match_difference
+msgid "Match Difference"
+msgstr "মিলের পার্থক্য"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__state__matched
@@ -356,9 +458,13 @@ msgid "Member Entity"
 msgstr "সদস্য প্রতিষ্ঠান"
 
 #. module: cd_multi_entity
-#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__mirror_invoice_ref
 msgid "Mirror Bill Reference"
 msgstr "মিরর বিল রেফারেন্স"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__mirror_invoice_ref
+msgid "Mirror Entry Number"
+msgstr "প্রতিফলিত এন্ট্রি নম্বর"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_entity__statutory_calendar_rule__mushak_next_working_day
@@ -421,10 +527,20 @@ msgid "Original Currency"
 msgstr "মূল মুদ্রা"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_branch_id
+msgid "Originating Branch"
+msgstr "উৎস শাখা"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__from_entity_id
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_entity_id
 msgid "Originating Entity"
 msgstr "উৎস প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_move_id
+msgid "Originating Entry"
+msgstr "উৎস এন্ট্রি"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__parent_entity_id
@@ -454,9 +570,44 @@ msgid "Period Year"
 msgstr "পিরিয়ডের বছর"
 
 #. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Post Entries & Mirror"
+msgstr "এন্ট্রি পোস্ট ও প্রতিফলন করুন"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_entity_id
 msgid "Purchasing / Receiving Entity"
 msgstr "ক্রেতা / গ্রহীতা প্রতিষ্ঠান"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_branch_id
+msgid "Receiving Branch"
+msgstr "গ্রহীতা শাখা"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Receiving Side"
+msgstr "গ্রহীতা পক্ষ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_journal_id
+msgid "Receiving Side Journal"
+msgstr "গ্রহীতা পক্ষের জার্নাল"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_expense_account_id
+msgid "Recharge Expense Account"
+msgstr "পুনঃচার্জ ব্যয় হিসাব"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_income_account_id
+msgid "Recharge Income Account"
+msgstr "পুনঃচার্জ আয় হিসাব"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Record NBR Acknowledgement"
+msgstr "NBR প্রাপ্তিস্বীকার নথিভুক্ত করুন"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_line__account_type__revenue
@@ -480,6 +631,12 @@ msgid "Run Consolidation"
 msgstr "একত্রীকরণ চালান"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__scope
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__scope
+msgid "Scope"
+msgstr "পরিধি"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_entity_id
 msgid "Selling / Supplying Entity"
 msgstr "বিক্রেতা / সরবরাহকারী প্রতিষ্ঠান"
@@ -498,6 +655,11 @@ msgstr "যৌথ IT / ব্যাক-অফিস সার্ভিস"
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__management_fee
 msgid "Shared Management Fee"
 msgstr "যৌথ ব্যবস্থাপনা ফি"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__transaction_id
+msgid "Source Transaction"
+msgstr "উৎস লেনদেন"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__reference
@@ -537,7 +699,6 @@ msgid "Strict Calendar Day (No Rollover)"
 msgstr "নির্দিষ্ট ক্যালেন্ডার দিবস (পরিবর্তন নেই)"
 
 #. module: cd_multi_entity
-#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
 msgid "Submit to NBR"
 msgstr "NBR-এ জমা দিন"
 
@@ -545,6 +706,21 @@ msgstr "NBR-এ জমা দিন"
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__submitted
 msgid "Submitted to NBR"
 msgstr "NBR-এ জমা দেওয়া হয়েছে"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_branch_id
+msgid "Supplying Branch"
+msgstr "সরবরাহকারী শাখা"
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Supplying Side"
+msgstr "সরবরাহকারী পক্ষ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_journal_id
+msgid "Supplying Side Journal"
+msgstr "সরবরাহকারী পক্ষের জার্নাল"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__statutory_calendar_rule
@@ -572,6 +748,11 @@ msgid "TDS Nil Statement Payload (JSON)"
 msgstr "TDS শূন্য বিবরণী পেলোড (JSON)"
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_assets
+msgid "Total Assets (Pre-Elimination)"
+msgstr "মোট সম্পদ (বাদকরণের আগে)"
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_subsidiary_expense
 msgid "Total Expense (Pre-Elimination)"
 msgstr "মোট ব্যয় (বাদকরণের পূর্বে)"
@@ -580,6 +761,11 @@ msgstr "মোট ব্যয় (বাদকরণের পূর্বে)"
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_eliminations
 msgid "Total Inter-Company Eliminations"
 msgstr "মোট আন্তঃকোম্পানি বাদকরণ"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_liabilities
+msgid "Total Liabilities (Pre-Elimination)"
+msgstr "মোট দায় (বাদকরণের আগে)"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_subsidiary_revenue
@@ -612,9 +798,18 @@ msgid "Transaction Ref"
 msgstr "লেনদেন রেফারেন্স"
 
 #. module: cd_multi_entity
-#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transfer_pricing_compliant
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__transactions_counted_at
+msgid "Transactions Counted At"
+msgstr "লেনদেন গণনার সময়"
+
+#. module: cd_multi_entity
 msgid "Transfer Pricing Compliant (ITA 2023 s.107)"
 msgstr "ট্রান্সফার প্রাইসিং বিধিসম্মত (আয়কর আইন ২০২৩ ধারা ১০৭)"
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transfer_pricing_compliant
+msgid "Transfer Pricing Documentation on File"
+msgstr "স্থানান্তর মূল্য নির্ধারণের দলিল সংরক্ষিত"
 
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__markup_percent

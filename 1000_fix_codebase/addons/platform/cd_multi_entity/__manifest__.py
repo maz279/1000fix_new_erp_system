@@ -18,7 +18,7 @@ Owns:
 
 CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",
@@ -27,13 +27,16 @@ CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
         "base",
         "mail",
         "operating_unit",
+        "account",
         "cd_entity_config",
+        "cd_gl_ext",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/cd_multi_entity_security.xml",
         "security/ir.model.access.csv",
         "data/res_lang_bn_bd.xml",
+        "data/ir_sequence_data.xml",
         "views/fix_consolidation_views.xml",
         "views/fix_intercompany_views.xml",
         "views/fix_localisation_views.xml",

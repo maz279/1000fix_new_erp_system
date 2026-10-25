@@ -12,6 +12,7 @@
                 <field name="period_month"/>
                 <field name="due_date"/>
                 <field name="is_newly_registered"/>
+                <field name="transaction_count"/>
                 <field name="eligible_for_nil_return"/>
                 <field name="filing_reference"/>
                 <field name="state"/>
@@ -27,7 +28,7 @@
             <form string="Statutory Nil-Return">
                 <header>
                     <button name="action_verify_eligibility" type="object" string="Verify Eligibility"
-                            invisible="state != 'draft'" class="btn-primary"/>
+                            invisible="state not in ('draft', 'verified')" class="btn-primary"/>
                     <button name="action_generate_nil_packs" type="object" string="Generate Nil Packs"
                             invisible="state != 'verified'" class="btn-primary"/>
                     <button name="action_submit_to_nbr" type="object" string="Record NBR Acknowledgement"
@@ -40,13 +41,14 @@
                     </div>
                     <group>
                         <group>
-                            <field name="entity_id"/>
-                            <field name="period_year"/>
-                            <field name="period_month"/>
+                            <field name="entity_id" readonly="state != 'draft'"/>
+                            <field name="period_year" readonly="state != 'draft'"/>
+                            <field name="period_month" readonly="state != 'draft'"/>
                             <field name="due_date"/>
                         </group>
                         <group>
                             <field name="transaction_count"/>
+                            <field name="transactions_counted_at"/>
                             <field name="is_newly_registered"/>
                             <field name="eligible_for_nil_return"/>
                             <field name="filing_reference"/>

@@ -64,6 +64,11 @@ msgid "Closed"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__closed_by_id
+msgid "Closed By"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__code
 msgid "Code"
 msgstr ""
@@ -87,9 +92,39 @@ msgid "Consolidated Amount (BDT)"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_assets
+msgid "Consolidated Assets"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__run_at
+msgid "Consolidated At"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__run_by_id
+msgid "Consolidated By"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_expense
+msgid "Consolidated Expense (Post-Elimination)"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_liabilities
+msgid "Consolidated Liabilities"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__line_ids
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
 msgid "Consolidated Lines"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidated_revenue
+msgid "Consolidated Revenue (Post-Elimination)"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -116,6 +151,16 @@ msgstr ""
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__consolidation_date
 msgid "Consolidation Date"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_move_id
+msgid "Counterparty (Mirror) Entry"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_branch_id
+msgid "Counterparty Branch"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -157,6 +202,26 @@ msgid "Draft"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_receivable_account_id
+msgid "Due-From Account"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_due_line_id
+msgid "Due-From Journal Item"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_payable_account_id
+msgid "Due-To Account"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__target_due_line_id
+msgid "Due-To Journal Item"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__verified
 msgid "Eligibility Verified"
 msgstr ""
@@ -183,17 +248,29 @@ msgid "Elimination Entries"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_elimination_entry_form
+msgid "Elimination Entry"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__elimination_type
 msgid "Elimination Type"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.actions.act_window,name:cd_multi_entity.action_fix_elimination_entry
+#: model:ir.ui.menu,name:cd_multi_entity.menu_fix_elimination_entry
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_consolidation_book_form
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_elimination_entry_list
 msgid "Eliminations"
 msgstr ""
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_consolidation_book__state__eliminated
+msgid "Eliminations Applied"
+msgstr ""
+
+#. module: cd_multi_entity
 msgid "Eliminations Posted"
 msgstr ""
 
@@ -233,7 +310,6 @@ msgid "Generate Eliminations"
 msgstr ""
 
 #. module: cd_multi_entity
-#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
 msgid "Generate Mirror Bill"
 msgstr ""
 
@@ -256,6 +332,18 @@ msgstr ""
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_entity__incorporation_date
 msgid "Incorporation / Registration Date"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__scope__interbranch
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__scope__interbranch
+msgid "Inter-Branch (within one legal entity)"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_rule__scope__intercompany
+#: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_intercompany_transaction__scope__intercompany
+msgid "Inter-Company (between legal entities)"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -330,7 +418,21 @@ msgstr ""
 
 #. module: cd_multi_entity
 #: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Mark Settled"
+msgstr ""
+
+#. module: cd_multi_entity
 msgid "Match & Reconcile"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Match Against Ledger"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__match_difference
+msgid "Match Difference"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -349,8 +451,12 @@ msgid "Member Entity"
 msgstr ""
 
 #. module: cd_multi_entity
-#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__mirror_invoice_ref
 msgid "Mirror Bill Reference"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__mirror_invoice_ref
+msgid "Mirror Entry Number"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -414,9 +520,19 @@ msgid "Original Currency"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_branch_id
+msgid "Originating Branch"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__from_entity_id
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_entity_id
 msgid "Originating Entity"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__source_move_id
+msgid "Originating Entry"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -447,8 +563,43 @@ msgid "Period Year"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_transaction_form
+msgid "Post Entries & Mirror"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_entity_id
 msgid "Purchasing / Receiving Entity"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_branch_id
+msgid "Receiving Branch"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Receiving Side"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_journal_id
+msgid "Receiving Side Journal"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__target_expense_account_id
+msgid "Recharge Expense Account"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_income_account_id
+msgid "Recharge Income Account"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
+msgid "Record NBR Acknowledgement"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -473,6 +624,12 @@ msgid "Run Consolidation"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__scope
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_transaction__scope
+msgid "Scope"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_entity_id
 msgid "Selling / Supplying Entity"
 msgstr ""
@@ -490,6 +647,11 @@ msgstr ""
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_elimination_entry__elimination_type__management_fee
 msgid "Shared Management Fee"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_elimination_entry__transaction_id
+msgid "Source Transaction"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -530,13 +692,27 @@ msgid "Strict Calendar Day (No Rollover)"
 msgstr ""
 
 #. module: cd_multi_entity
-#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_nil_return_generator_form
 msgid "Submit to NBR"
 msgstr ""
 
 #. module: cd_multi_entity
 #: model:ir.model.fields.selection,name:cd_multi_entity.selection__fix_nil_return_generator__state__submitted
 msgid "Submitted to NBR"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_branch_id
+msgid "Supplying Branch"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model_terms:ir.ui.view,arch_db:cd_multi_entity.view_fix_intercompany_rule_form
+msgid "Supplying Side"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__source_journal_id
+msgid "Supplying Side Journal"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -565,6 +741,11 @@ msgid "TDS Nil Statement Payload (JSON)"
 msgstr ""
 
 #. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_assets
+msgid "Total Assets (Pre-Elimination)"
+msgstr ""
+
+#. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_subsidiary_expense
 msgid "Total Expense (Pre-Elimination)"
 msgstr ""
@@ -572,6 +753,11 @@ msgstr ""
 #. module: cd_multi_entity
 #: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_eliminations
 msgid "Total Inter-Company Eliminations"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_consolidation_book__total_liabilities
+msgid "Total Liabilities (Pre-Elimination)"
 msgstr ""
 
 #. module: cd_multi_entity
@@ -605,8 +791,17 @@ msgid "Transaction Ref"
 msgstr ""
 
 #. module: cd_multi_entity
-#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transfer_pricing_compliant
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_nil_return_generator__transactions_counted_at
+msgid "Transactions Counted At"
+msgstr ""
+
+#. module: cd_multi_entity
 msgid "Transfer Pricing Compliant (ITA 2023 s.107)"
+msgstr ""
+
+#. module: cd_multi_entity
+#: model:ir.model.fields,field_description:cd_multi_entity.field_fix_intercompany_rule__transfer_pricing_compliant
+msgid "Transfer Pricing Documentation on File"
 msgstr ""
 
 #. module: cd_multi_entity
