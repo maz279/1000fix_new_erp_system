@@ -1,17 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_fixed_asset_ext views — M49 (P08-M08). -->
+<!-- cd_fixed_asset_ext views — M49 register, CWIP and categories. -->
 <odoo>
+    <!-- ================= Fixed asset ================= -->
     <record id="view_fix_fixed_asset_list" model="ir.ui.view">
         <field name="name">fix.fixed.asset.list</field>
         <field name="model">fix.fixed.asset</field>
         <field name="arch" type="xml">
             <list>
+                <field name="code"/>
                 <field name="name"/>
                 <field name="category"/>
+                <field name="operating_unit_id" optional="show"/>
+                <field name="custodian_id" optional="show"/>
                 <field name="gross"/>
                 <field name="life_months"/>
                 <field name="monthly_depreciation"/>
                 <field name="state"/>
+                <field name="currency_id" column_invisible="1"/>
             </list>
         </field>
     </record>
@@ -22,6 +27,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_activate" type="object" string="Put into Service"
+                            class="oe_highlight" invisible="state != 'draft'"/>
                     <button name="action_accrue_month" type="object"
                             string="Accrue Month" invisible="state != 'active'"/>
                     <button name="action_dispose" type="object" string="Dispose"
@@ -29,27 +36,103 @@
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
+                    <div class="oe_title">
+                        <h1><field name="name" placeholder="Asset name"/></h1>
+                    </div>
                     <group>
                         <group>
-                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="category_id"/>
                             <field name="category"/>
+                            <field name="operating_unit_id"/>
+                            <field name="custodian_id"/>
                             <field name="seam_id"/>
+                            <field name="capex_request_id"/>
+                            <field name="lease_id" invisible="not lease_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group>
+                            <field name="purchase_date"/>
+                            <field name="depreciation_start"/>
                             <field name="gross"/>
                             <field name="salvage"/>
                             <field name="life_months"/>
                             <field name="monthly_depreciation"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="budget_reference"/>
+                            <field name="disposal_date" invisible="state != 'disposed'"/>
                         </group>
                     </group>
+                    <group string="Book and Tax Position">
+                        <group>
+                            <field name="cost"/>
+                            <field name="accumulated_depreciation"/>
+                            <field name="impairment_total"/>
+                            <field name="book_nbv"/>
+                            <field name="revaluation_surplus"/>
+                        </group>
+                        <group>
+                            <field name="book_months_done"/>
+                            <field name="tax_accumulated"/>
+                            <field name="tax_wdv"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Depreciation">
+                            <field name="depreciation_line_ids" readonly="1">
+                                <list>
+                                    <field name="period_start"/>
+                                    <field name="book"/>
+                                    <field name="amount"/>
+                                    <field name="state"/>
+                                    <field name="move_id"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Transfer History">
+                            <field name="transfer_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="from_operating_unit_id"/>
+                                    <field name="operating_unit_id"/>
+                                    <field name="from_custodian_id"/>
+                                    <field name="to_custodian_id"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Revaluations &amp; Impairments">
+                            <field name="revaluation_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="kind"/>
+                                    <field name="new_value"/>
+                                    <field name="pl_amount"/>
+                                    <field name="surplus_amount"/>
+                                    <field name="state"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Disposals">
+                            <field name="disposal_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="date"/>
+                                    <field name="kind"/>
+                                    <field name="proceeds"/>
+                                    <field name="gain_loss"/>
+                                    <field name="state"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
@@ -60,16 +143,55 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ================= CWIP ================= -->
     <record id="view_fix_cwip_list" model="ir.ui.view">
         <field name="name">fix.cwip.entry.list</field>
         <field name="model">fix.cwip.entry</field>
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="capex_request_id" optional="show"/>
+                <field name="category_id" optional="show"/>
                 <field name="amount"/>
                 <field name="state"/>
                 <field name="asset_id" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_cwip_form" model="ir.ui.view">
+        <field name="name">fix.cwip.entry.form</field>
+        <field name="model">fix.cwip.entry</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_capitalise" type="object" string="Capitalise"
+                            class="oe_highlight" invisible="state != 'open'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="capex_request_id"/>
+                            <field name="category_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                        <group>
+                            <field name="amount"/>
+                            <field name="life_months"/>
+                            <field name="salvage"/>
+                            <field name="asset_id"/>
+                            <field name="move_id"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="Scope of the project"/>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
 
@@ -79,4 +201,114 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ================= Categories and tax rates ================= -->
+    <record id="view_fix_asset_category_list" model="ir.ui.view">
+        <field name="name">fix.asset.category.list</field>
+        <field name="model">fix.asset.category</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="useful_life_months"/>
+                <field name="tax_rate_code"/>
+                <field name="journal_id"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_asset_category_form" model="ir.ui.view">
+        <field name="name">fix.asset.category.form</field>
+        <field name="model">fix.asset.category</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="code"/>
+                            <field name="useful_life_months"/>
+                            <field name="salvage_percent"/>
+                            <field name="tax_rate_code"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="journal_id"/>
+                        </group>
+                    </group>
+                    <group string="Posting Accounts">
+                        <group>
+                            <field name="asset_account_id"/>
+                            <field name="accumulated_account_id"/>
+                            <field name="expense_account_id"/>
+                            <field name="cwip_account_id"/>
+                        </group>
+                        <group>
+                            <field name="revaluation_surplus_account_id"/>
+                            <field name="impairment_account_id"/>
+                            <field name="gain_account_id"/>
+                            <field name="loss_account_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_asset_category" model="ir.actions.act_window">
+        <field name="name">Asset Categories</field>
+        <field name="res_model">fix.asset.category</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_asset_tax_rate_list" model="ir.ui.view">
+        <field name="name">fix.asset.tax.rate.list</field>
+        <field name="model">fix.asset.tax.rate</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="rate_percent"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="verified"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_asset_tax_rate_form" model="ir.ui.view">
+        <field name="name">fix.asset.tax.rate.form</field>
+        <field name="model">fix.asset.tax.rate</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="rate_percent"/>
+                            <field name="verified"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="legal_reference"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_asset_tax_rate" model="ir.actions.act_window">
+        <field name="name">Tax Depreciation Rates</field>
+        <field name="res_model">fix.asset.tax.rate</field>
+        <field name="view_mode">list,form</field>
+    </record>
 </odoo>

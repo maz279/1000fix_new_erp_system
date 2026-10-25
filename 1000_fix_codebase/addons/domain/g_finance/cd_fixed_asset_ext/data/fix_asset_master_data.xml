@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_fixed_asset_ext — M49 MASTER DATA (editable defaults, not business activity).
+
+  Tax depreciation rates: reducing-balance rates of the Income Tax Act 2023
+  Third Schedule as commonly cited from the ITO 1984 Third Schedule. They are
+  UNVERIFIED against the primary NBR text (audit_analysis/A08_FINANCE_RESEARCH.md):
+  every row is seeded with Verified = False and must be confirmed (or corrected
+  by adding a new effective-dated row) by the company's tax adviser.
+
+  Asset categories: the asset classes of a repair-service network with default
+  useful lives (company accounting policy, editable). Posting accounts and the
+  journal are deliberately left empty: every posting fails closed until Finance
+  configures them.
+-->
+<odoo noupdate="1">
+    <record id="tax_rate_computer" model="fix.asset.tax.rate">
+        <field name="code">ITA3-COMPUTER</field>
+        <field name="name">Computer hardware</field>
+        <field name="rate_percent">30.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: verify with the company's tax adviser against the current Third Schedule and Finance Act amendments.</field>
+    </record>
+    <record id="tax_rate_plant" model="fix.asset.tax.rate">
+        <field name="code">ITA3-PLANT</field>
+        <field name="name">Plant and machinery (general rate): tools and diagnostic equipment</field>
+        <field name="rate_percent">20.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: verify with the company's tax adviser against the current Third Schedule and Finance Act amendments.</field>
+    </record>
+    <record id="tax_rate_vehicle" model="fix.asset.tax.rate">
+        <field name="code">ITA3-VEHICLE</field>
+        <field name="name">Motor vehicles not plying for hire</field>
+        <field name="rate_percent">20.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: verify with the company's tax adviser (vehicle cost ceilings may also apply).</field>
+    </record>
+    <record id="tax_rate_furniture" model="fix.asset.tax.rate">
+        <field name="code">ITA3-FURNITURE</field>
+        <field name="name">Furniture and fittings</field>
+        <field name="rate_percent">10.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: verify with the company's tax adviser against the current Third Schedule and Finance Act amendments.</field>
+    </record>
+    <record id="tax_rate_office" model="fix.asset.tax.rate">
+        <field name="code">ITA3-OFFICE</field>
+        <field name="name">Office equipment</field>
+        <field name="rate_percent">10.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: verify with the company's tax adviser against the current Third Schedule and Finance Act amendments.</field>
+    </record>
+    <record id="tax_rate_building" model="fix.asset.tax.rate">
+        <field name="code">ITA3-BUILDING</field>
+        <field name="name">Buildings (general): branch fit-out and leasehold improvements</field>
+        <field name="rate_percent">10.0</field>
+        <field name="date_from">2023-07-01</field>
+        <field name="legal_reference">Income Tax Act 2023, Third Schedule (depreciation)</field>
+        <field name="verified" eval="False"/>
+        <field name="note">Seeded default: the tax treatment of fit-out in rented premises must be confirmed by the company's tax adviser.</field>
+    </record>
+
+    <record id="category_it" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">IT</field>
+        <field name="name">IT Equipment</field>
+        <field name="useful_life_months">36</field>
+        <field name="tax_rate_code">ITA3-COMPUTER</field>
+    </record>
+    <record id="category_tools" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">TOOL</field>
+        <field name="name">Tools &amp; Diagnostic Equipment</field>
+        <field name="useful_life_months">60</field>
+        <field name="tax_rate_code">ITA3-PLANT</field>
+    </record>
+    <record id="category_vehicle" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">VEH</field>
+        <field name="name">Vans &amp; Motorbikes</field>
+        <field name="useful_life_months">60</field>
+        <field name="salvage_percent">10.0</field>
+        <field name="tax_rate_code">ITA3-VEHICLE</field>
+    </record>
+    <record id="category_furniture" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">FURN</field>
+        <field name="name">Furniture &amp; Fixtures</field>
+        <field name="useful_life_months">96</field>
+        <field name="tax_rate_code">ITA3-FURNITURE</field>
+    </record>
+    <record id="category_office" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">OFF</field>
+        <field name="name">Office Equipment</field>
+        <field name="useful_life_months">60</field>
+        <field name="tax_rate_code">ITA3-OFFICE</field>
+    </record>
+    <record id="category_fitout" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">FIT</field>
+        <field name="name">Branch Fit-Out &amp; Leasehold Improvements</field>
+        <field name="useful_life_months">60</field>
+        <field name="tax_rate_code">ITA3-BUILDING</field>
+    </record>
+    <record id="category_rou" model="fix.asset.category">
+        <field name="company_id" ref="base.main_company"/>
+        <field name="code">ROU</field>
+        <field name="name">Right-of-Use: Branch Premises (IFRS 16)</field>
+        <field name="useful_life_months">60</field>
+    </record>
+</odoo>

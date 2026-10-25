@@ -9,6 +9,142 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "%s (%s) exceeds the budget's available amount (%s)."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s already charged for this month — skipped."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s asset(s) charged."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_common.py:0
+msgid "%s cannot be posted: configure %s on %s first."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_common.py:0
+msgid "%s does not balance — nothing was posted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s fully depreciated — nothing to charge."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "%s has no unposted month due."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s has nothing to post."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s is already posted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "%s is dated outside the budget period."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "%s is exempt (IFRS 16.5): its rent is expensed through AP — no right-of-use asset is recognised."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "%s is not active."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "%s is not an active asset."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_common.py:0
+msgid "%s needs the %s role."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s without a tax depreciation class — not in the tax book."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "%s: already depreciated for %s (or fully depreciated)."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_common.py:0
+msgid "%s: segregation of duties — the requester cannot approve their own request."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "%s: the accumulated cost exceeds the approved capex (%s) — raise a supplementary capex request first."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "A depreciation period starts on the 1st."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_master.py:0
+msgid "A depreciation rate is above 0% and at most 100%."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "A fair value / recoverable amount cannot be negative."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "A posted depreciation run cannot be deleted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "A posted disposal cannot be cancelled."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "A short-term lease runs 12 months or less (IFRS 16 Appendix A)."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "A write-off has no proceeds — use Sale or Scrap."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_lease_form
+msgid "Accounting"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_line__book__book
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_run__book__book
+msgid "Accounting Book (IAS 16)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
 #: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
 msgid "Accrue Month"
 msgstr ""
@@ -19,8 +155,202 @@ msgid "Accumulated Cost"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__accumulated_depreciation
+msgid "Accumulated Depreciation"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__accumulated_account_id
+msgid "Accumulated Depreciation & Impairment Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__accumulated
+msgid "Accumulated Depreciation Removed"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__impairment_total
+msgid "Accumulated Impairment"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__purchase_date
+msgid "Acquisition Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_lease_form
+msgid "Activate (Commence)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__active
 #: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__active
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__state__active
 msgid "Active"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__actual_amount
+msgid "Actual (CWIP / Capitalised)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__actual_cost
+msgid "Actual Cost"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "An impairment reversal is capped at the net impairment recognised (%s) — IAS 36.117."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__approved_date
+msgid "Approval Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_disposal_form
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_budget_form
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_request_form
+msgid "Approve"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_revaluation_form
+msgid "Approve & Post"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Approve the disposal before posting it."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__state__approved
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_budget__state__approved
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__approved
+msgid "Approved"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__approved_by_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__approved_by_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__approved_by_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__approved_by_id
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__asset_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__asset_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__asset_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__asset_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__asset_id
+msgid "Asset"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__asset_account_id
+msgid "Asset Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_asset_category
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__category_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__category_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__category_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__category_id
+msgid "Asset Category"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__name
+msgid "Asset Class"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__journal_id
+msgid "Asset Journal"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Asset name"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__asset_code
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__code
+msgid "Asset Tag"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__asset_ids
+msgid "Assets (Scope)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__asset_count
+msgid "Assets Charged"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__available_amount
+msgid "Available"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__basis
+msgid "Basis / Valuer Report"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__book
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__book
+msgid "Book"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Book and Tax Position"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__operating_unit_id
+msgid "Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_lease_form
+msgid "Branch premises lease"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__operating_unit_id
+msgid "Branch Scope"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__name
+msgid "Budget"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__amount
+msgid "Budget Amount"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -29,24 +359,284 @@ msgid "Budget Reference (Advisory)"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__justification
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_request_form
+msgid "Business Justification"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__partner_id
+msgid "Buyer"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__campaign_id
+msgid "Campaign"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_disposal_form
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_revaluation_form
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_transfer_form
+msgid "Cancel"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__state__cancelled
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__state__cancelled
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_transfer__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_capex_request
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__capex_request_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__capex_request_id
+msgid "Capex Request"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__request_ids
+msgid "Capex Requests"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_capex_budget
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__budget_id
+msgid "Capital Budget"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__move_id
+msgid "Capitalisation Entry"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
 #: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__seam_id
 msgid "Capitalisation Seam (M19)"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_cwip_form
+msgid "Capitalise"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__capitalised
 #: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_cwip_entry__state__capitalised
 msgid "Capitalised"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__carrying_amount
+msgid "Carrying Amount Before"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__name
+msgid "Category"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__category
+msgid "Category Label"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__cost_delta
+msgid "Change in Cost"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__accum_delta
+msgid "Change in Impairment"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Choose a different branch or custodian — nothing would move."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "Choose the asset category of %s first."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Choose the proceeds account for %s."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "Choose the right-of-use category of %s."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_master.py:0
+msgid "Class %s already has a rate in force for these dates."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__code
+msgid "Class Code"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_budget_form
+msgid "Close"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_verification_campaign_form
+msgid "Close Campaign"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_campaign__state__closed
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_budget__state__closed
+msgid "Closed"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__closing
+msgid "Closing Liability"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__code
+msgid "Code"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__commencement_date
+msgid "Commencement Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__committed_amount
+msgid "Committed"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_depreciation_run_form
+msgid "Compute"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "Compute %s before posting it."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_run__state__computed
+msgid "Computed"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_transfer_form
+msgid "Confirm Transfer"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__done_by_id
+msgid "Confirmed By"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__cost
+msgid "Cost / Revalued Amount"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__cost
+msgid "Cost Removed"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__date
+msgid "Count Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__custodian_id
+msgid "Custodian"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
 #: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_cwip
-#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_cwip
 msgid "CWIP"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__cwip_account_id
+msgid "CWIP Account"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
 #: model:ir.model,name:cd_fixed_asset_ext.model_fix_cwip_entry
 msgid "CWIP Entry"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__cwip_ids
+msgid "CWIP Projects"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__date
+msgid "Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__salvage_percent
+msgid "Default Residual Value %"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__useful_life_months
+msgid "Default Useful Life (Months)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__amount
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Depreciation"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__expense_account_id
+msgid "Depreciation Expense Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__depreciation_line_ids
+msgid "Depreciation Lines"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__depreciation_start
+msgid "Depreciation Start"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__description
+msgid "Description"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__date
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__disposal_date
+msgid "Disposal Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__disposal_ids
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Disposals"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -60,8 +650,78 @@ msgid "Disposed"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_transfer__state__done
+msgid "Done"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_run__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_transfer__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_campaign__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_budget__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__draft
 #: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__state__draft
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease_schedule_line__state__draft
 msgid "Draft"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__date_from
+msgid "Effective From"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__date_to
+msgid "Effective To"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_master.py:0
+msgid "Effective To is before Effective From."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "Empty tag."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__date_to
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__end_date
+msgid "End Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__state__ended
+msgid "Ended"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__expected_count
+msgid "Expected"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__operating_unit_id
+msgid "Expected Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__expected_custodian_id
+msgid "Expected Custodian"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__new_value
+msgid "Fair Value / Recoverable Amount"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__fiscal_year
+msgid "Fiscal Year"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -71,8 +731,43 @@ msgstr ""
 
 #. module: cd_fixed_asset_ext
 #: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_fixed_asset
-#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_fixed_assets
 msgid "Fixed Assets"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__found_count
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_line__result__found
+msgid "Found"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_line__result__misplaced
+msgid "Found at Another Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_line__result__unregistered
+msgid "Found — Not in Register"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__from_operating_unit_id
+msgid "From Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__from_custodian_id
+msgid "From Custodian"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__gain_loss
+msgid "Gain (+) / Loss (-)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__gain_account_id
+msgid "Gain on Disposal Account"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -81,8 +776,315 @@ msgid "Gross"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__exemption
+msgid "IFRS 16 Exemption"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__kind__impairment
+msgid "Impairment (IAS 36)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__impairment_account_id
+msgid "Impairment / Revaluation Loss Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__kind__impairment_reversal
+msgid "Impairment Reversal (IAS 36)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__payment_timing__advance
+msgid "In Advance"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__payment_timing__arrears
+msgid "In Arrears"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__cwip
+msgid "In CWIP"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_campaign__state__in_progress
+msgid "In Progress"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__ibr_percent
+msgid "Incremental Borrowing Rate % a Year"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__initial_direct_costs
+msgid "Initial Direct Costs"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__initial_liability
+msgid "Initial Lease Liability"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__interest
+msgid "Interest"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__interest_account_id
+msgid "Interest Expense Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__interest_to_date
+msgid "Interest to Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__move_ids
+msgid "Journal Entries"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__move_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__move_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__move_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__move_id
+msgid "Journal Entry"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__lease_id
+msgid "Lease"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__lease_id
+msgid "Lease (IFRS 16)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__liability_account_id
+msgid "Lease Liability Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__term_months
+msgid "Lease Term (Months)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__legal_reference
+msgid "Legal Reference"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__partner_id
+msgid "Lessor"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__liability_balance
+msgid "Liability Balance"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__line_ids
+msgid "Lines"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Link %s to a capital budget first."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__loss_account_id
+msgid "Loss on Disposal Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__exemption__low_value
+msgid "Low-Value Asset"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__misplaced_count
+msgid "Misplaced"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__missing_count
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_line__result__missing
+msgid "Missing"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "Month %s of %s is already posted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__sequence
+msgid "Month No."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
 #: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__monthly_depreciation
 msgid "Monthly Depreciation"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__payment_amount
+msgid "Monthly Rent (Gross)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__book_months_done
+msgid "Months Depreciated"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__nbv
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__book_nbv
+msgid "Net Book Value"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "No active assets in the campaign's scope."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_depreciation.py:0
+msgid "No tax depreciation rate is in force on %s for class(es) %s — add it under Tax Depreciation Rates (verify with the tax adviser)."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__exemption__none
+msgid "None — On Balance Sheet"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__unregistered_count
+msgid "Not in Register"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__note
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__note
+msgid "Note"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_common.py:0
+msgid "Nothing to post for %s."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "Only active assets can be disposed of."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only active assets can be revalued or impaired."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only active assets can be transferred."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "Only active leases post monthly entries."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only approved budgets can be closed."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only approved requests move to CWIP."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "Only campaigns in progress can be closed."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "Only draft assets can be deleted — dispose of the others."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "Only draft assets can be put into service."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only draft budgets can be approved."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "Only draft campaigns can be started."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only draft disposals can be approved."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only draft documents can be cancelled."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only draft documents can be posted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "Only draft leases can be activated."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only draft requests can be submitted."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only draft transfers can be cancelled."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Only draft transfers can be confirmed."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only submitted requests can be approved."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "Only submitted requests can be rejected."
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -91,9 +1093,196 @@ msgid "Open"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
-#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__operating_unit_id
-#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__operating_unit_id
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_request_form
+msgid "Open CWIP Project"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__opening
+msgid "Opening Liability"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
 msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__payment
+msgid "Payment"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__payment_timing
+msgid "Payment Timing"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__prepaid_payments
+msgid "Payments Before Commencement"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__pending_count
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_verification_line__result__pending
+msgid "Pending"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__period_start
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__period_start
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__period_start
+msgid "Period (Month)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_depreciation_run_form
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_disposal_form
+msgid "Post"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_lease_form
+msgid "Post Due Months"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "Post the earlier months of %s first."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_run__state__posted
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__state__posted
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__state__posted
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease_schedule_line__state__posted
+msgid "Posted"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_category_form
+msgid "Posting Accounts"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__prepared_by_id
+msgid "Prepared By"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__pv_preview
+msgid "Present Value (Preview)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__principal
+msgid "Principal"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__proceeds
+msgid "Proceeds"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__proceeds_account_id
+msgid "Proceeds Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "Proceeds cannot be negative."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Put into Service"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__rate_percent
+msgid "Rate % a Year"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__reason
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__reason
+msgid "Reason"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_disposal_form
+msgid "Reason / approval memo"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_transfer_form
+msgid "Reason for the move"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__move_id
+msgid "Recognition Entry"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__reference
+msgid "Reference"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_request_form
+msgid "Reject"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__rejected
+msgid "Rejected"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__rejection_reason
+msgid "Rejection Reason"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__payment_account_id
+msgid "Rent Payable / Clearing Account"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__request_date
+msgid "Request Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__amount
+msgid "Requested Amount"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__requested_by_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__requested_by_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__requested_by_id
+msgid "Requested By"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__responsible_id
+msgid "Responsible"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__operating_unit_id
+msgid "Restricted to Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__result
+msgid "Result"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
@@ -102,6 +1291,309 @@ msgid "Resulting Asset"
 msgstr ""
 
 #. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_campaign__line_ids
+msgid "Results"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_revaluation__kind__revaluation
+msgid "Revaluation (IAS 16)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__revaluation_surplus
+msgid "Revaluation Surplus"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__revaluation_surplus_account_id
+msgid "Revaluation Surplus Account (OCI)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__revaluation_ids
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Revaluations & Impairments"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__rou_amount
+msgid "Right-of-Use Asset"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__category_id
+msgid "Right-of-Use Category"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__asset_id
+msgid "ROU Asset"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease_schedule_line__depreciation
+msgid "ROU Depreciation"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_line__run_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__name
+msgid "Run"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__note
+msgid "Run Notes"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__kind__sale
+msgid "Sale"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__salvage
 #: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__salvage
 msgid "Salvage Value"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__scanned_at
+msgid "Scanned At"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__scanned_operating_unit_id
+msgid "Scanned At Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_verification_line__scanned_tag
+msgid "Scanned Tag"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_lease__schedule_line_ids
+msgid "Schedule"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_cwip_form
+msgid "Scope of the project"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__kind__scrap
+msgid "Scrap"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_lease__exemption__short_term
+msgid "Short-Term (12 Months or Less)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_verification_campaign_form
+msgid "Start Count"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__date_from
+msgid "Start Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "Start the campaign before scanning."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_capex_request_form
+msgid "Submit"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_capex_request__state__submitted
+msgid "Submitted"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_line__book__tax
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_depreciation_run__book__tax
+msgid "Tax Book (ITA 2023)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_category__tax_rate_code
+msgid "Tax Depreciation Class"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__tax_accumulated
+msgid "Tax Depreciation to Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__tax_wdv
+msgid "Tax Written-Down Value"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_fixed_asset.py:0
+msgid "The asset cost must be above zero."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "The borrowing rate must be from 0% to 99.99%."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The budget %s belongs to another branch."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The budget %s is for category %s only."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The budget amount must be above zero."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The budget cannot drop below the amount already committed."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The budget ends before it starts."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_verification.py:0
+msgid "The campaign is not in progress."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The capital budget %s is not approved."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "The fair value equals the carrying amount."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "The lease term must be at least one month."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_lease.py:0
+msgid "The monthly rent must be above zero."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "The recoverable amount is not above the carrying amount."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_lifecycle.py:0
+msgid "The recoverable amount is not below the carrying amount — no impairment."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_capex.py:0
+msgid "The requested amount must be above zero."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_master.py:0
+msgid "The residual value % must be from 0 to 99.99."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: code:addons/cd_fixed_asset_ext/models/fix_asset_master.py:0
+msgid "The useful life must be at least one month."
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__title
+msgid "Title"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__operating_unit_id
+msgid "To Branch"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__to_custodian_id
+msgid "To Custodian"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__pl_amount
+msgid "To Profit or Loss (Loss +, Gain -)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__surplus_amount
+msgid "To Revaluation Surplus (OCI)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_depreciation_run__total_amount
+msgid "Total Depreciation"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_transfer__date
+msgid "Transfer Date"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__transfer_ids
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Transfer History"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_disposal__kind
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_revaluation__kind
+msgid "Type"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_request__life_months
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__life_months
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__life_months
+msgid "Useful Life (Months)"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_capex_budget__utilisation_pct
+msgid "Utilisation %"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_asset_revaluation_form
+msgid "Valuer report / impairment indicators and value-in-use basis"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_asset_tax_rate__verified
+msgid "Verified by Tax Adviser"
+msgstr ""
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_asset_disposal__kind__write_off
+msgid "Write-Off (Lost / Missing)"
 msgstr ""

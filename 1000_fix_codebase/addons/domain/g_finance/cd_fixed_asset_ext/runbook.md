@@ -27,7 +27,7 @@ CD-M49-01 (P08-M08) — fixed assets on the seam M19 built (P06-M01-T07):
 - fix.cwip.entry — capital-work-in-progress: costs accumulate; the
   CAPITALISE action creates the fixed asset from the accumulated total
 - THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes
-  depreciation EVENTS (depreciation.accrued published monthly); M49
+  depreciation EVENTS (depreciation.accrued, published per POSTED monthly charge); M49
   does NOT read budgets — budget_reference is an ADVISORY char (5.4
   NOT-A-PREREQ), never a foreign key into M54
 
@@ -64,6 +64,15 @@ The module depends on the following prerequisite modules:
 - **Model**: `fix.cwip.entry` (Table: `fix_cwip_entry`)
   - *Description*: CWIP Entry
   - *Source File*: `models/fix_fixed_asset.py`
+- **Master data**: `fix.asset.category` (posting accounts, journal, default life, tax class) and
+  `fix.asset.tax.rate` (ITA 2023 Third Schedule reducing-balance rates, effective-dated, seeded
+  UNVERIFIED — the tax adviser ticks *Verified* or adds a corrected dated row) — `models/fix_asset_master.py`
+- **Depreciation**: `fix.asset.depreciation.run` / `.line` — monthly dual-book run; one line per
+  asset, book and month (DB constraint) — `models/fix_asset_depreciation.py`
+- **Capex**: `fix.capex.budget`, `fix.capex.request` — `models/fix_capex.py`
+- **Lifecycle**: `fix.asset.transfer`, `fix.asset.revaluation`, `fix.asset.disposal` — `models/fix_asset_lifecycle.py`
+- **Verification**: `fix.asset.verification.campaign` / `.line` — `models/fix_asset_verification.py`
+- **Leases (IFRS 16)**: `fix.lease`, `fix.lease.schedule.line` — `models/fix_lease.py`
 
 ### 3.2 Data Residency & Classification (PDPA / Statutory Compliance)
 - **Classification**: All tables storing customer identifiers, device serial numbers, or financial transactions are governed under Bangladesh Personal Data Protection statutory residency requirements.
@@ -78,7 +87,16 @@ The module depends on the following prerequisite modules:
 - **Nightly Reconciliation**: Automated integrity checks run via standard cron schedules to detect orphan records or stalled state transactions.
 - **Data Retention & Pruning**: Outbox payloads and temporary staging buffers are pruned according to data governance retention windows (90-day hot retention).
 
-### 4.2 Standard Operational Procedures
+### 4.2 Month-End Procedure (P03 workspace, M49)
+1. Configure each asset category's journal and accounts once (postings fail closed without them).
+2. *Leases*: Post Due Months on each active lease (interest + payment; the ROU depreciation is
+   charged through the depreciation run for that month).
+3. *Dual-Book Depreciation*: create a run per book for the month, Compute, check the notes, Post.
+   The accounting book posts one entry per journal (Dr depreciation expense / Cr accumulated);
+   the tax book is a memo book (no GL). Re-running a month never charges an asset twice.
+4. Post approved disposals and revaluations dated in the month, then review *Schedules & Movements*.
+
+### 4.3 Standard Operational Procedures
 1. **Module Deployment**:
    ```bash
    python3 -m odoo -u cd_fixed_asset_ext -d 1000fix_prod --stop-after-init
