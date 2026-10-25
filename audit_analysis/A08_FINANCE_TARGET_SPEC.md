@@ -205,3 +205,43 @@ These go to their owning areas; finance keeps only the posting and reconciliatio
 - Live gateway, bank and NBR APIs.
 - Adviser sign-off of the statutory rate and form matrix.
 - Installing OCA or standard finance modules: needs a separate decision.
+
+## 5. Outcome (2026-10-26)
+
+The work is on branch `feature/production-readiness-remediation` and is local only, not pushed.
+
+**Screen coverage**
+- Before: 102 registry screens, 52 wired, and the unwired screens showed service-order data.
+- Now: **154 screens across the 8 modules; 0 unwired.**
+- A sweep in the logged-in workspace loaded 125 generic list/report screens through `/p03/model/records` and `/p03/model/report` with **0 errors**. The 29 bespoke M19/M20 screens use their own endpoints.
+- Every KPI tile is backed by a real metric.
+
+| Module | Screens | Main additions |
+|---|---|---|
+| M19 GL | 24 | CoA loader, recurring journals, close SLA breaches, statutory report bridge, nil-return packs, consolidation books and eliminations from posted ledger, inter-company/inter-branch postings with match/settle, due-to/due-from |
+| M20 AR | 18 | Customer VDS certificates (Mushak 6.6 received) settling the receivable and feeding 9.1, settlement close-out, Register Paid on invoice detail, credit hold with reason |
+| M52 AP | 16 | Approval matrix with segregation of duties, payment runs on the treasury contract, effective-dated TDS/VDS with non-filer multiplier, vendor notes (6.7/6.8), advances, per-diem/mileage, expense policy, AP ageing, GRNI from real receipts, vendor tax profile, non-PO bills on approval control |
+| M50 Treasury | 27 | Bank-evidence payment lifecycle, whole-token + amount auto-match, cash position from GL, branch cash, rider COD, imprest, cheques, gateway three-way settlement, cash-in-transit, 13-week forecast, facilities and covenants, FX holdings |
+| M51 Tax | 18 | Mushak 6.1/6.2 corrected, challans, input credit, VDS + 6.6 issue, 6.10 high-value register, credit/debit note register, statutory calendar, audit pack with SHA-256 checksums, effective-dated rate and parameter masters |
+| M53 Rev Rec | 14 | IFRS 15 obligations with GL recognition, contract balances, deferred-revenue bridge, AMC/subscription charges, commission schemes (technician incentives moved to Payroll), partner payouts, escrow and clawbacks, payout reconciliation, IAS 37 warranty provision |
+| M49 Assets | 20 | Capex requests and budget, posted and idempotent depreciation, dual-book tax depreciation, revaluation/impairment, disposal gain/loss, transfers, physical verification, IFRS 16 leases |
+| M54 FP&A | 17 | Cost pools, posted allocation cycles, job costing (parts at cost + loaded labour), loaded technician rate, business-line/branch/customer profitability, unit economics, budget versions with approval, variance vs GL, rolling forecast, scenarios, issuable board pack |
+
+**Other fixes in this round**
+- Generic reads are gated by the user's own access rights.
+- No service-order data appears on finance screens.
+- "+ New" and "Open full record" open real forms in a dialog.
+- The generic report renderer was added.
+- Trade-in payouts are queued for treasury instead of being asserted as executed.
+- Isolation rules were regenerated.
+- The event contracts were re-derived (228 types).
+- Every A08 label, KPI, action, description and function-register name has Bengali.
+
+**Still needs people or decisions**
+- The Bangladesh tax/VAT adviser must sign off every rate, threshold and due day flagged "verify with adviser".
+- Finance must configure the GL account and journal parameters. Each action fails closed and names the missing parameter.
+- The Mushak VAT account defaults (210100/110500) do not match the dev chart and need to be set to the real chart.
+- Bank file layouts and gateway report formats must be confirmed per bank or provider.
+- There are no live bank, gateway or NBR APIs.
+- Report column headings computed in Python are still English in Bengali mode.
+- The workspace's shared "Function Register" headings are English in every area.
