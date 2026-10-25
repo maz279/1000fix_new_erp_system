@@ -4,7 +4,7 @@ Basis: the code at `38275123` (branch `feature/production-readiness-remediation`
 Sources for the target:
 - a live inspection of all eight modules in the P03 workspace;
 - the backend inventory below;
-- web research on SAP S/4HANA, Dynamics 365 Finance, NetSuite, Odoo 19 and OCA, plus Bangladesh NBR, Bangladesh Bank and PwC tax summaries. The research notes are in the session scratchpad as `a08-research.md`.
+- web research on SAP S/4HANA, Dynamics 365 Finance, NetSuite, Odoo 19 and OCA, plus Bangladesh NBR, Bangladesh Bank and PwC tax summaries. The sourced research notes are in `audit_analysis/A08_FINANCE_RESEARCH.md`.
 
 Bangladesh statutory values that could not be confirmed against a primary NBR text are marked "verify with the company's VAT/tax adviser". They must be stored as effective-dated master data, never hard-coded.
 
