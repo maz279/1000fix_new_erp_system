@@ -1018,6 +1018,10 @@ Object.assign(P03_BN, {
 Object.assign(P03_BN, {
   "records · live from Odoo": "টি রেকর্ড · Odoo থেকে লাইভ",
   "Record detail": "রেকর্ড বিস্তারিত",
+  "+ New": "+ নতুন",
+  "Open full record": "পূর্ণ রেকর্ড খুলুন",
+  "This finance screen is not built yet": "এই অর্থ স্ক্রিনটি এখনো তৈরি হয়নি",
+  "It has no backend surface, so it shows nothing rather than unrelated data.": "এর কোনো ব্যাকএন্ড উৎস নেই, তাই অপ্রাসঙ্গিক তথ্যের বদলে কিছুই দেখানো হচ্ছে না।",
   "Select a row first": "প্রথমে একটি সারি নির্বাচন করুন",
   "Rows are live records straight from the Odoo model. Action buttons call the same server-side workflow methods the back-office forms use — rules and states are enforced there, not here.": "সারিগুলো Odoo মডেলের সরাসরি লাইভ রেকর্ড। অ্যাকশন বোতাম ব্যাক-অফিস ফর্মের মতো একই সার্ভার-সাইড ওয়ার্কফ্লো মেথড কল করে — নিয়ম ও অবস্থা সেখানেই কার্যকর।",
 });

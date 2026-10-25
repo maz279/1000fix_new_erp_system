@@ -10,57 +10,20 @@
 #
 # Nothing here invents data: rows are live reads of the real models; actions
 # are the SAME methods the Odoo forms would call. Internal-user only (NVR-22).
+import logging
+
 from odoo import http
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
+from .a08 import SURFACES
 from .p03_service_order_api import _require_internal, _user_error
 
-# read whitelist: model -> {order, limit, state_fields}
-GENERIC_MODELS = {
-    "fix.vendor.invoice": {"order": "invoice_date desc, id desc", "limit": 200},
-    "fix.expense.claim": {"order": "expense_date desc, id desc", "limit": 200},
-    "fix.payment.execution": {"order": "id desc", "limit": 200},
-    "fix.bank.statement.line": {"order": "date desc, id desc", "limit": 200},
-    "fix.cash.position": {"order": "as_of desc, id desc", "limit": 50},
-    "fix.mushak.register": {"order": "invoice_date desc, id desc", "limit": 200},
-    "fix.vat.return": {"order": "period desc, id desc", "limit": 100},
-    "fix.tds.return": {"order": "id desc", "limit": 100},
-    "fix.vat.treatment": {"order": "code", "limit": 200},
-    "fix.withholding.certificate": {"order": "id desc", "limit": 200},
-    "fix.revenue.schedule": {"order": "start_date desc, id desc", "limit": 200},
-    "fix.commission.ledger": {"order": "id desc", "limit": 200},
-    "fix.payout.run": {"order": "id desc", "limit": 100},
-    "fix.seller.statement": {"order": "period desc, id desc", "limit": 100},
-    "fix.fixed.asset": {"order": "purchase_date desc, id desc", "limit": 200},
-    "fix.cwip.entry": {"order": "id desc", "limit": 200},
-    "fix.budget": {"order": "fiscal_year desc, id desc", "limit": 100},
-    "fix.cost.allocation": {"order": "id desc", "limit": 100},
-}
-
-# write whitelist: the headless workflow actions, per model
-GENERIC_ACTIONS = {
-    "fix.vendor.invoice": {"action_request_payment"},
-    "fix.expense.claim": {"action_submit", "action_approve"},
-    "fix.payment.execution": {"action_execute"},
-    "fix.bank.statement.line": {"auto_match"},
-    "fix.mushak.register": {"action_mark_posted", "action_rebuild_from_events"},
-    "fix.vat.return": {"action_prepare_period", "action_file"},
-    "fix.tds.return": {"action_prepare_quarter", "action_file"},
-    "fix.withholding.certificate": {"action_issue"},
-    "fix.commission.ledger": {"action_post_to_gl"},
-    "fix.payout.run": {
-        "action_approve",
-        "action_submit_payout",
-        "action_generate_beftn",
-        "action_confirm_bank_settlement",
-    },
-    "fix.fixed.asset": {"action_accrue_month", "action_dispose"},
-    "fix.cwip.entry": {"action_capitalise"},
-}
+_logger = logging.getLogger(__name__)
 
 # fields never returned over the generic endpoint
 _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
+_FAILED = "The request could not be completed — try again or contact Finance support."
 
 
 class P03GenericApiController(http.Controller):
@@ -70,10 +33,14 @@ class P03GenericApiController(http.Controller):
     def model_records(self, model=None, cols=None, domain=None, state_filter=None, **kw):
         _require_internal(request.env)
         env = request.env
-        conf = GENERIC_MODELS.get(model)
+        conf = SURFACES.get(model)
         if not conf:
             return {"error": "Model not served by the workspace screens"}
         try:
+            # The company-wide read below runs sudo (an accountant sees every
+            # operating unit), so the caller must first hold READ access on the
+            # model itself: finance/payroll ACL groups still decide who sees it.
+            env[model].check_access("read")
             fields_meta = env[model].fields_get(
                 [c for c in (cols or []) if c not in _BLOCKED_FIELDS],
                 attributes=["string", "type", "selection"],
@@ -118,16 +85,17 @@ class P03GenericApiController(http.Controller):
                 "count": len(rows),
                 "labels": {c: fields_meta[c]["string"] for c in cols if c in fields_meta},
             }
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"error": _user_error(exc)}
-        except Exception as exc:
-            return {"error": str(exc)[:200]}
+        except Exception:
+            _logger.exception("p03 model_records failed for %s", model)
+            return {"error": _FAILED}
 
     @http.route("/p03/model/action", type="jsonrpc", auth="user")
     def model_action(self, model=None, ids=None, method=None, kwargs=None, **kw):
         _require_internal(request.env)
         env = request.env
-        allowed = GENERIC_ACTIONS.get(model, set())
+        allowed = SURFACES.get(model, {}).get("actions", set())
         if method not in allowed:
             return {"success": False, "error": "Action not available for this surface"}
         try:
@@ -138,7 +106,8 @@ class P03GenericApiController(http.Controller):
                 result = getattr(records, method)(**(kwargs or {}))
                 payload = result if isinstance(result, dict) else {}
                 return {"success": True, "result": payload}
-        except UserError as exc:
+        except (UserError, AccessError) as exc:
             return {"success": False, "error": _user_error(exc)}
-        except Exception as exc:
-            return {"success": False, "error": str(exc)[:200]}
+        except Exception:
+            _logger.exception("p03 model_action %s.%s failed", model, method)
+            return {"success": False, "error": _FAILED}

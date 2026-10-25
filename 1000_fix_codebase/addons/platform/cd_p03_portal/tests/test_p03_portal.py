@@ -186,10 +186,11 @@ class TestP03OWLWorkspace(unittest.TestCase):
         )
 
     def test_kpi_labels_from_registry_values_never_literal(self):
-        """KPI cards render the registry label with a dash placeholder —
-        values come from read_group in the phase that wires the model."""
+        """KPI cards render the registry label (translated) and a value from
+        kpiValue() - a live read or a dash - never a literal number."""
         xml = (MODULE / "static" / "src" / "p03_workspace.xml").read_text(encoding="utf-8")
-        self.assertIn('t-esc="kpi"', xml)  # label
+        self.assertIn('t-esc="t(kpi.l)"', xml)  # label
+        self.assertIn('t-esc="kpiValue(kpi)"', xml)  # value
         self.assertNotIn("1,284", xml, "a literal KPI value leaked into the template")
 
 

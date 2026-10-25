@@ -1001,6 +1001,29 @@ export class P03Workspace extends Component {
         this.state.gl.mlSelected = this.state.gl.mlSelected === row ? null : row;
     }
 
+    /* The model's own Odoo form, in a dialog over the workspace: every field
+     * rule, constraint and ACL of the backend applies; the list reloads on
+     * close. */
+    mlOpenForm(resId) {
+        const gl = this.state.gl;
+        this.actionService.doAction(
+            {
+                type: "ir.actions.act_window",
+                name: (this.state.activeScreen && this.state.activeScreen.en) || "",
+                res_model: gl.modelCfg.model,
+                res_id: resId || false,
+                views: [[false, "form"]],
+                target: "new",
+                context: gl.modelCfg.context || {},
+            },
+            { onClose: () => this.loadGlData() }
+        );
+    }
+
+    mlNew() {
+        this.mlOpenForm(false);
+    }
+
     async mlAction(method, label) {
         const gl = this.state.gl;
         const row = gl.mlSelected;
@@ -1842,6 +1865,21 @@ export class P03Workspace extends Component {
                 views: isForm ? [[false, "form"]] : [[false, "list"], [false, "form"]],
                 target: "current",
             });
+            return;
+        }
+
+        // A08 finance screens are ONLY ever live data screens: one without a
+        // data screen shows an honest "not built" state, never the generic
+        // service-order grid (repair filters, order rows) other areas use.
+        if (hit.m.area === "A08") {
+            this.state.activeScreen = {
+                id: hit.sc.id, en: hit.sc.en, bn: hit.sc.bn, t: hit.sc.t, mid: hit.mid,
+                moduleTitle: hit.m.title, groupTitle: customGroupEn || hit.g.en,
+                notBuilt: true, gridData: { cols: [], rows: [] },
+            };
+            this.state.filteredGridRows = [];
+            this.state.viewMode = "screen";
+            this.ensureTab(`screen-${hit.sc.id}`, `◌ ${hit.sc.en}`, "◌", "screen", { screenId: hit.sc.id });
             return;
         }
 
