@@ -409,6 +409,18 @@ class TestPeriodClose:
         assert entry.status == "pending_gl_cutover"
         assert (close.suspense_closing, close.suspense_reconciled) == (1200.0, False)
 
+    def test_suspense_account_must_exist_in_the_chart(self, odoo_env):
+        env, company, part, cutover = self._suspense_company(odoo_env)
+        entry = env["fix.inventory.valuation.suspense"].create(
+            {"product_id": part.id, "quantity": 1.0, "unit_cost": 500.0}
+        )
+        entry.suspense_account_code = "999999"
+        close = _close(env, company_id=company.id, suspense_closing=500.0)
+        close.cutover_move_id = cutover(500.0)
+        with pytest.raises(UserError, match="999999 are not in the chart"), env.cr.savepoint():
+            close.action_reconcile_inventory_suspense()
+        assert entry.status == "pending_gl_cutover"
+
     def test_suspense_without_pending_entries_needs_no_voucher(self, odoo_env):
         env, company, _part, _cutover = self._suspense_company(odoo_env)
         close = _close(env, company_id=company.id)
@@ -729,6 +741,21 @@ class TestFiscalYearBridge:
         assert bs["lines"][0]["balance"] == 900.0  # cumulative: 300 + 1,000 - 400
         assert bs["unclosed_profit_and_loss"] == 900.0
         assert bs["balanced"] is True
+
+    def test_report_refuses_another_companys_fiscal_year(self, odoo_env):
+        env, company, fy = self._ledger(odoo_env)
+        other = env["res.company"].create({"name": "GL Other FY Co"})
+        report = env["fix.financial.report.bridge"].create(
+            {
+                "name": "TB",
+                "report_type": "trial_balance",
+                "company_id": other.id,
+                "fiscal_year_id": fy.id,
+            }
+        )
+        with pytest.raises(UserError, match="belongs to"), env.cr.savepoint():
+            report.action_generate_report()
+        assert not report.generated_at
 
     def test_report_refuses_without_fiscal_year_or_engine(self, odoo_env):
         Bridge = odoo_env["fix.financial.report.bridge"]

@@ -476,6 +476,29 @@ def test_wallet_rails_do_not_need_a_bank_routing_number(
     assert result.confirmed_amount == D("5000.00")
 
 
+def test_malformed_recipient_entries_resolve_nothing(
+    monkeypatch: pytest.MonkeyPatch, rail: INT007PayoutRail
+) -> None:
+    """Entries that are not objects, or carry no seller_ref, match no
+    recipient: those lines stay UNKNOWN instead of borrowing an outcome."""
+    _bank_answer(
+        monkeypatch,
+        lambda body: {
+            "status": "confirmed",
+            "recipients": [
+                "S1 confirmed",
+                {"status": "confirmed"},
+                {"seller_ref": "S2", "status": "confirmed"},
+            ],
+        },
+    )
+    result = rail.submit_payout_batch(_request())
+    s1, s2 = result.recipient_results
+    assert s1.status is PayoutStatus.UNKNOWN
+    assert s2.status is PayoutStatus.CONFIRMED
+    assert result.status is PayoutStatus.UNKNOWN
+
+
 def test_partial_failure_reports_counts_and_amounts_separately(
     rail: INT007PayoutRail, monkeypatch: pytest.MonkeyPatch
 ) -> None:

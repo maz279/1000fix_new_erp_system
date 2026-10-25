@@ -193,4 +193,6 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
+    # typing.Protocol classes are contracts: their `...` bodies never run
+    'class .*\(Protocol(\[.*\])?\):',
 ]

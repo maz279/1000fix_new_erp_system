@@ -47,6 +47,9 @@ class EvatClient(Protocol[_PayloadT]):
         tax_period: str,
         register_totals: dict[str, tuple[Decimal, Decimal]],
         input_vat: Decimal,
+        declarant_name: str,
+        declarant_designation: str,
+        declarant_nid: str,
     ) -> _PayloadT: ...
 
     def submit_return(self, payload: _PayloadT) -> EvatSubmission: ...

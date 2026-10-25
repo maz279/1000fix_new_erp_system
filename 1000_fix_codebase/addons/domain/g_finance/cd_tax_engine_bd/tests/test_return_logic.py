@@ -161,6 +161,14 @@ class TestRegisterClassification(unittest.TestCase):
         )
         self.assertEqual(classify_register_row(100, 0, "X: zero_rated @ 0%"), "zero_rated")
 
+    def test_unreadable_summary_lines_are_ignored(self):
+        """Lines with no "<product>: <treatment> @ <rate>" shape, or an empty
+        treatment, name nothing - the row falls back to its effective rate."""
+        self.assertEqual(
+            classify_register_row(1000, 150, "free text, no separator\nP:  @ 15%\n\n"),
+            "standard_15",
+        )
+
     def test_rate_identifies_a_summary_less_row(self):
         self.assertEqual(classify_register_row(D("2000.50"), D("300.08"), ""), "standard_15")
         self.assertEqual(classify_register_row(1000, 50, ""), "reduced_5")
