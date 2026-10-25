@@ -26,7 +26,7 @@ PORTAL_META = {
         "users_bn": "সাধারণ গ্রাহক এবং সরাসরি সেবা প্রার্থী",
         "volume_bn": "প্রতি মাসে ২,৫০,০০০+ সেবা",
         "url": "/",
-        "port": 3010,
+        "port": 3000,
         "is_live": True,
         "tech": "Next.js 16.3 + PWA",
         "capabilities_bn": [
@@ -47,8 +47,11 @@ PORTAL_META = {
         "bn": "টেকনিশিয়ান মোবাইল অ্যাপ",
         "users_bn": "ফিল্ড ও ওয়ার্কশপ টেকনিশিয়ান",
         "volume_bn": "২০০–৪০০ জন সক্রিয় টেকনিশিয়ান",
-        "url": "http://127.0.0.1:3010/technician",
-        "port": 3010,
+        # The technician PWA is served by the P01 customer app (:3000).
+        # Absolute on purpose: P02 shortcuts must survive being rendered
+        # from OTHER portals' /welcome pages (relative /technician 404s there).
+        "url": "http://127.0.0.1:3000/technician",
+        "port": 3000,
         "is_live": True,
         "is_mobile": True,
         "tech": "Flutter Mobile + Next.js PWA",
@@ -59,10 +62,27 @@ PORTAL_META = {
             "গাড়ির যন্ত্রাংশ স্ক্যান ও ব্যবহার",
         ],
         "shortcuts": [
-            {"label_en": "Technician PWA", "label_bn": "টেকনিশিয়ান PWA", "url": "/technician"},
-            {"label_en": "Day Queue", "label_bn": "দৈনিক কিউ", "url": "/technician"},
-            {"label_en": "Geofenced Clock-In", "label_bn": "জিওফেন্স হাজিরা", "url": "/technician"},
-            {"label_en": "Van Stock Scan", "label_bn": "ভ্যান স্টক স্ক্যান", "url": "/technician"},
+            # Absolute :3000 — these must work from any portal's landing.
+            {
+                "label_en": "Technician PWA",
+                "label_bn": "টেকনিশিয়ান PWA",
+                "url": "http://127.0.0.1:3000/technician",
+            },
+            {
+                "label_en": "Day Queue",
+                "label_bn": "দৈনিক কিউ",
+                "url": "http://127.0.0.1:3000/technician",
+            },
+            {
+                "label_en": "Geofenced Clock-In",
+                "label_bn": "জিওফেন্স হাজিরা",
+                "url": "http://127.0.0.1:3000/technician",
+            },
+            {
+                "label_en": "Van Stock Scan",
+                "label_bn": "ভ্যান স্টক স্ক্যান",
+                "url": "http://127.0.0.1:3000/technician",
+            },
             {
                 "label_en": "Field Dispatch Board",
                 "label_bn": "ফিল্ড ডেসপ্যাচ বোর্ড",

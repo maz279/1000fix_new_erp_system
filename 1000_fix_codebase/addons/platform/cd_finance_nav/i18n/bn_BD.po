@@ -1,0 +1,263 @@
+# Translation file for cd_finance_nav (bn_BD).
+# 2026-10-25 — finance bridge menus and actions.
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0
+"
+"Language: bn_BD
+"
+"Content-Type: text/plain; charset=UTF-8
+"
+"Plural-Forms: nplurals=2; plural=(n != 1);
+"
+
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_journal_entries
+msgid "Journal Entries"
+msgstr "জার্নাল এন্ট্রি"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_ar_invoices
+msgid "AR Invoices (Mushak 6.3)"
+msgstr "AR ইনভয়েস (মুশক 6.3)"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_consolidated_bills
+msgid "Consolidated Corporate Bills"
+msgstr "কনসলিডেটেড করপোরেট বিল"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_dunning
+msgid "Dunning Worklist"
+msgstr "ডানিং কার্যতালিকা"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_credit_notes
+msgid "Credit Notes"
+msgstr "ক্রেডিট নোট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_billable_events
+msgid "Billable Events"
+msgstr "বিলযোগ্য ইভেন্ট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_ar_receipts
+msgid "AR Receipts"
+msgstr "AR রিসিট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_ar_allocations
+msgid "Receipt Allocations"
+msgstr "রিসিট বণ্টন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_credit_profiles
+msgid "Customer Credit Profiles"
+msgstr "গ্রাহক ক্রেডিট প্রোফাইল"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_ar_disputes
+msgid "AR Disputes"
+msgstr "AR বিরোধ"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_ar_aging
+msgid "AR Ageing Snapshots"
+msgstr "AR বয়স্কতা স্ন্যাপশট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_payment_links
+msgid "AR Payment Links"
+msgstr "AR পেমেন্ট লিংক"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_expense_claims
+msgid "Expense Claims"
+msgstr "খরচের দাবি"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_cash_position
+msgid "Cash Position"
+msgstr "নগদ অবস্থান"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_payment_execution
+msgid "Payment Executions"
+msgstr "পেমেন্ট নির্বাহন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_mushak_register
+msgid "Mushak 6.3 Register"
+msgstr "মুশক 6.3 রেজিস্টার"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_tds_returns
+msgid "TDS Returns"
+msgstr "TDS রিটার্ন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_commission_ledger
+msgid "Commission Ledger"
+msgstr "কমিশন খতিয়ান"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_payout_runs
+msgid "Payout Runs"
+msgstr "পেআউট রান"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_seller_statements
+msgid "Seller Statements"
+msgstr "বিক্রেতা স্টেটমেন্ট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_payout_reconciliation
+msgid "Payout Reconciliation"
+msgstr "পেআউট মিলকরণ"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_fixed_assets
+msgid "Fixed Asset Register"
+msgstr "স্থায়ী সম্পদ রেজিস্টার"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_cwip
+msgid "CWIP Entries"
+msgstr "CWIP এন্ট্রি"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_budgets
+msgid "Budgets"
+msgstr "বাজেট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.actions.act_window,name:cd_finance_nav.action_fin_cost_allocation
+msgid "Cost Allocations"
+msgstr "ব্যয় বণ্টন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_ar_invoices
+msgid "AR Invoices"
+msgstr "AR ইনভয়েস"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_ar_aging
+msgid "Ageing Snapshots"
+msgstr "বয়স্কতা স্ন্যাপশট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_allocation_rules
+msgid "Allocation Rules"
+msgstr "বণ্টন নিয়ম"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_ar_allocations
+msgid "Allocations"
+msgstr "বণ্টন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_bank_statements
+msgid "Bank Statements"
+msgstr "ব্যাংক স্টেটমেন্ট"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fix_chart_account
+msgid "Chart of Accounts"
+msgstr "হিসাব-তালিকা"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fix_chart_loader
+msgid "CoA Master Loader"
+msgstr "হিসাব-তালিকা লোডার"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_consolidated_bills
+msgid "Consolidated Bills"
+msgstr "কনসলিডেটেড বিল"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_credit_profiles
+msgid "Credit Profiles"
+msgstr "ক্রেডিট প্রোফাইল"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_ar_disputes
+msgid "Disputes"
+msgstr "বিরোধ"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_dunning
+msgid "Dunning"
+msgstr "ডানিং"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fix_fixed_asset_seam
+msgid "Fixed Asset Seam"
+msgstr "স্থায়ী সম্পদ সীম"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_journal_dimensions
+msgid "Journal Dimensions"
+msgstr "জার্নাল ডাইমেনশন"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_payment_links
+msgid "Payment Links"
+msgstr "পেমেন্ট লিংক"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fix_period_close
+msgid "Period Close"
+msgstr "পিরিয়ড ক্লোজ"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_posting_log
+msgid "Posting Log (Audit)"
+msgstr "পোস্টিং লগ (অডিট)"
+
+#. module: cd_finance_nav
+#. module: cd_finance_nav
+#: model:ir.ui.menu,name:cd_finance_nav.menu_fin_vendor_bills
+msgid "Vendor Bills"
+msgstr "ভেন্ডর বিল"

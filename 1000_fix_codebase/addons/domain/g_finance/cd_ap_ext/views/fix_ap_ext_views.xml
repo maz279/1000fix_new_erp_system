@@ -95,9 +95,4 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_vendor_invoice" name="Vendor Invoices"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_vendor_invoice" sequence="80"/>
-    <menuitem id="menu_fix_expense_claim" name="Expense Claims"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_expense_claim" sequence="90"/>
-
 </odoo>

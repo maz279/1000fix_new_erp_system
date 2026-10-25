@@ -12,7 +12,7 @@ export default function PartnerLeadsPage() {
   return (
     <main style={{ padding: 32, maxWidth: 1050, margin: "0 auto" }}>
       <SectionHead
-        title="Enterprise B2B Leads (কর্পোরেট লিডস)"
+        title="Enterprise B2B Leads"
         note="Pass-through enterprise corporate repair leads"
       />
 

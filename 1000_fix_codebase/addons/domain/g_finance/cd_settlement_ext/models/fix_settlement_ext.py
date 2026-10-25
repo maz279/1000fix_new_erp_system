@@ -260,7 +260,7 @@ class FixCommissionLedger(models.Model):
                 },
             }
 
-            move, _ = post_with_dimensions(self.env, move_vals, dim_by_line)
+            move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
             rec.write(
                 {
                     "state": "accrued",
@@ -800,5 +800,5 @@ class FixPayoutRun(models.Model):
                 2: {"operating_unit_id": rec.operating_unit_id.id, "cost_centre": "CC-TREAS"},
             }
 
-            move, _ = post_with_dimensions(self.env, move_vals, dim_by_line)
+            move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
             rec.gl_move_id = move.id

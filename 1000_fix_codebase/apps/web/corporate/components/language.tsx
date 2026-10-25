@@ -148,7 +148,7 @@ const enTranslations: CorporateTranslations = {
   signOut: "Sign Out",
   guestUser: "Corporate Guest",
   loggedInAs: "Corporate Account",
-  toggleLangLabel: "Switch language to বাংলা",
+  toggleLangLabel: "বাংলা",
 
   overviewTitle: "Enterprise Fleet & Service Operations",
   overviewSubtitle: "Centralized device asset management, consolidated B2B billing, and SLA service order tracking across Bangladesh.",
@@ -264,7 +264,7 @@ const bnTranslations: CorporateTranslations = {
   signOut: "সাইন আউট",
   guestUser: "কর্পোরেট অতিথি",
   loggedInAs: "কর্পোরেট অ্যাকাউন্ট",
-  toggleLangLabel: "ইংরেজি ভাষায় পরিবর্তন করুন",
+  toggleLangLabel: "English",
 
   overviewTitle: "এন্টারপ্রাইজ ডিভাইস বহর ও সার্ভিস পরিচালনা",
   overviewSubtitle: "দেশজুড়ে করপোরেট ক্লায়েন্টদের কেন্দ্রীয় অ্যাসেট পর্যবেক্ষণ, সমন্বিত ইনভয়েস এবং দ্রুততম এসএলএ সার্ভিস ট্র্যাকিং।",

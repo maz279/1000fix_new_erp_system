@@ -10,9 +10,40 @@
  * Tokens only (CFM-01) — strictly zero hand-authored hex colors.
  * WCAG 2.2 AA compliant keyboard navigation and ARIA controls.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { tokens } from "./tokens/tokens.generated";
 import raw from "../../i18n/src/landing.generated.json";
+
+/**
+ * Local-estate link normalization (2026-10-24). The generated artefact
+ * records local URLs against the 127.0.0.1 literal, but Odoo/portal
+ * sessions live in a per-HOSTNAME cookie jar (cookies ignore ports, not
+ * hostnames): opening http://127.0.0.1:8069/odoo from a portal browsed on
+ * "localhost" lands on Odoo's LOGIN page, not the app. Loopback URLs are
+ * therefore rewritten to the hostname the user is actually browsing
+ * (port + path preserved), and bare /odoo links are upgraded to the P03
+ * Operations Workspace deep link (bare /odoo opens the webclient default
+ * app — verified wrong destination). Relative URLs and non-loopback
+ * (production) URLs pass through untouched. `host` is the mount-resolved
+ * browsing hostname (null during SSR/first paint → identity), so server
+ * and first client render agree and the swap is a normal re-render.
+ */
+function normalizeLocalUrl(url: string, host: string | null): string {
+  if (!host || !url.startsWith("http")) return url;
+  try {
+    const u = new URL(url);
+    const loopback = u.hostname === "127.0.0.1" || u.hostname === "localhost";
+    if (loopback && u.hostname !== host) {
+      u.hostname = host;
+    }
+    if (u.port === "8069" && (u.pathname === "/odoo" || u.pathname === "/odoo/")) {
+      u.pathname = "/odoo/action-cd_p03_portal.action_p03_workspace";
+    }
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
 
 interface PortalShortcut {
   label_en: string;
@@ -72,6 +103,11 @@ export function LandingShell({
 }) {
   const [internalLocale, setInternalLocale] = useState<"bn" | "en">("bn");
   const [openJourney, setOpenJourney] = useState<string | null>(null);
+  // Mount-resolved browsing hostname for normalizeLocalUrl (see its doc).
+  const [browsingHost, setBrowsingHost] = useState<string | null>(null);
+  useEffect(() => {
+    setBrowsingHost(window.location.hostname);
+  }, []);
 
   const currentLocale = controlledLocale ?? internalLocale;
   const handleToggle = () => {
@@ -360,7 +396,7 @@ export function LandingShell({
                 {/* Primary Action Button */}
                 <div style={{ marginTop: "auto" }}>
                   <a
-                    href={p.url}
+                    href={normalizeLocalUrl(p.url, browsingHost)}
                     target={p.url.startsWith("http") ? "_blank" : undefined}
                     rel="noreferrer"
                     aria-label={bn(`Launch portal ${p.id}: ${p.en}`, `${p.id} পোর্টাল খুলুন: ${p.bn}`)}
@@ -405,7 +441,7 @@ export function LandingShell({
                       {p.shortcuts.map((sc, sci) => (
                         <a
                           key={sci}
-                          href={sc.url}
+                          href={normalizeLocalUrl(sc.url, browsingHost)}
                           target={sc.url.startsWith("http") ? "_blank" : undefined}
                           rel="noreferrer"
                           style={{

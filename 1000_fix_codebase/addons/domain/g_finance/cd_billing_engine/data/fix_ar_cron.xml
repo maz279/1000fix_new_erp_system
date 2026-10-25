@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — M20 automations (CD-M20-02).
+     Hourly event intake + generation keeps FR-ARB-002 (invoice within 1h of
+     closure) honest; the daily dunning run advances the NT-006 ladder. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_ar_event_intake" model="ir.cron">
+            <field name="name">AR: billable-event intake (service_order.closed)</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_intake()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_event_process" model="ir.cron">
+            <field name="name">AR: generate invoices for due billable events</field>
+            <field name="model_id" ref="model_fix_billable_event"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_process_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_ar_dunning" model="ir.cron">
+            <field name="name">AR: dunning ladder run (NT-006)</field>
+            <field name="model_id" ref="model_fix_dunning"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_run_dunning()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

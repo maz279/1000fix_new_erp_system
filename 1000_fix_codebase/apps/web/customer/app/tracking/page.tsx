@@ -190,7 +190,7 @@ function TrackingContent() {
           }}
         >
           {locale === "bn"
-            ? "অর্ডার বা পূর্ববর্তী রেফারেন্স নম্বর অনুসন্ধান (FR-SRM-088 Legacy Lookup)"
+            ? "অর্ডার বা পূর্ববর্তী রেফারেন্স নম্বর অনুসন্ধান (FR-SRM-088)"
             : "Search by Order or Legacy Reference (FR-SRM-088 / MIG-03)"}
         </label>
         <div style={{ display: "flex", gap: 10 }}>

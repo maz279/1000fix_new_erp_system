@@ -882,27 +882,55 @@ export const P03_MODULES = {
   },
 
   /* ============ A08 · FINANCE & TREASURY =============================== */
+  /* Rebuilt 2026-10-24 as a faithful mirror of contracts/nav/registry.json
+   * (the canonical A08 structure): full groups/screens/reports/forms/freg per
+   * module, cross-links that resolve to real module names. kpis carry an
+   * optional `m` metric key served by /p03/finance/kpis (real Odoo reads). */
   M19: {
     area: 'A08', code: 'M19', en: 'Financial Accounting & GL', title: 'M19 · Financial Accounting & GL',
     bn: 'আর্থিক হিসাব', icon: '💰',
     desc: 'Chart of accounts, 7-dimension model, subledger posting engine, July–June close, statutory statements.',
     kpis: [
-      { l: 'Revenue MTD' },
-      { l: 'Operating Margin' }
+      { l: 'Revenue MTD', m: 'revenue_mtd' },
+      { l: 'Gross Margin' },
+      { l: 'Close Progress', m: 'open_period_closes' },
+      { l: 'Unposted Subledgers' },
+      { l: 'TB Imbalance', m: 'tb_imbalance' },
+      { l: 'Journals MTD', m: 'posted_moves_mtd' },
+      { l: 'Drafts in Review', m: 'draft_journals' }
     ],
     groups: [
-      {
-        en: 'General Ledger',
-        screens: [
-          { id: 'M19-journals', en: 'General Ledger & Journal Entries', bn: 'জার্নাল এন্ট্রি', t: 'g' },
-          { id: 'M19-close', en: 'Month-End Period Close & Locks', bn: 'মাসিক ক্লোজ', t: 'g' },
-          { id: 'M19-tb', en: 'Trial Balance & Financials', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' }
-        ]
-      }
+      { en: 'Ledger', screens: [
+        { id: 'M19-coa', en: 'Chart of Accounts', bn: 'হিসাবের ছক', t: 'g' },
+        { id: 'M19-journals', en: 'Journals', bn: 'জার্নাল', t: 'g' },
+        { id: 'M19-je', en: 'Journal Entry', bn: 'জার্নাল এন্ট্রি', t: 'f' },
+        { id: 'M19-tb', en: 'Trial Balance', bn: 'ট্রায়াল ব্যালেন্স', t: 'r' },
+        { id: 'M19-dimensions', en: '7-Dimension Model', bn: 'মাত্রা মডেল', t: 'g' }
+      ]},
+      { en: 'Close', screens: [
+        { id: 'M19-close', en: 'Month-End Close Console', bn: 'মাসিক ক্লোজ', t: 'c' },
+        { id: 'M19-periods', en: 'Periods & Locks', bn: 'পিরিয়ড', t: 'g' }
+      ]},
+      { en: 'Statements', screens: [
+        { id: 'M19-bs', en: 'Balance Sheet', bn: 'উত্তরপত্র', t: 'r' },
+        { id: 'M19-pl', en: 'Profit & Loss', bn: 'লাভ-ক্ষতি', t: 'r' },
+        { id: 'M19-cf', en: 'Cash Flow', bn: 'নগদ প্রবাহ', t: 'r' },
+        { id: 'M19-consol', en: 'Consolidation', bn: 'সমন্বয়', t: 'r' }
+      ]},
+      { en: 'Controls', screens: [
+        { id: 'M19-suspense', en: 'Suspense & Control Accounts', bn: 'সাসপেন্স', t: 'g' },
+        { id: 'M19-recon', en: 'Subledger vs Control', bn: 'উপ-খতিয়ান মিলকরণ', t: 'c' },
+        { id: 'M19-audit', en: 'Immutable Audit Trail', bn: 'নিরবচ্ছিন্ন অডিট', t: 'g' }
+      ]}
     ],
-    reports: ['Monthly Profit & Loss Statement', 'Balance Sheet Statement', 'Branch Profitability Report'],
-    forms: ['Create Manual Journal Entry'], cross: ['M20 Invoicing', 'M50 Accounts Payable'],
-    freg: { src: 118, sub: [['1', 'Automated Subledger Posting', 14], ['2', 'Financial Statement Generation', 12]] }
+    reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report'],
+    forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge'],
+    cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
+    freg: { src: 91, sub: [
+      ['1', 'CoA & Dimensions', 12], ['2', 'Journals', 11], ['3', 'Subledger Posting Engine', 12],
+      ['4', 'Fiscal Calendar & Close', 10], ['5', 'Multi-Entity & Consolidation', 9], ['6', 'Multi-Currency', 7],
+      ['7', 'Statutory Statements', 9], ['8', 'Audit & Retention', 7], ['9', 'Accrual Framework', 8], ['10', 'Controls & SoD', 6]
+    ] }
   },
 
   M20: {
@@ -910,101 +938,297 @@ export const P03_MODULES = {
     bn: 'প্রাপ্য ও ইনভয়েসিং', icon: '🧾',
     desc: 'Billable events from every module, Mushak 6.3 invoices, bKash/Nagad/card receipts, dunning, ageing.',
     kpis: [
-      { l: 'Mushak 6.3 Invoices MTD' },
-      { l: 'VAT Collected (15%)' },
-      { l: 'NBR Compliant' }
+      { l: 'Invoices MTD', m: 'ar_invoices_mtd' },
+      { l: 'Overdue > 60d', m: 'overdue_gt_60d' },
+      { l: 'DSO', m: 'dso' },
+      { l: 'Auto-Gen %', m: 'auto_generated_pct' },
+      { l: 'Within 1h %', m: 'within_1h_pct' },
+      { l: 'Credit Notes', m: 'credit_notes_total' }
     ],
     groups: [
-      {
-        en: 'Tax Invoices',
-        screens: [
-          { id: 'M20-invoices', en: 'All Mushak 6.3 Tax Invoices', bn: 'সকল মূসক ৬.৩ চালান', t: 'g' },
-          { id: 'M20-preview', en: 'Mushak 6.3 Invoice Printable', bn: 'চালান প্রিন্ট ভিউ', t: 'f' }
-        ]
-      }
+      { en: 'Invoicing', screens: [
+        { id: 'M20-invoices', en: 'Customer Invoices', bn: 'গ্রাহক ইনভয়েস', t: 'g' },
+        { id: 'M20-invoice', en: 'Invoice (Mushak 6.3)', bn: 'মুশক ৬.৩', t: 'f' },
+        { id: 'M20-events', en: 'Billable Events', bn: 'বিলযোগ্য ঘটনা', t: 'g' },
+        { id: 'M20-consolidated', en: 'Consolidated Corporate Invoices', bn: 'সমন্বিত ইনভয়েস', t: 'g' },
+        { id: 'M20-brand', en: 'Brand Claim Invoices', bn: 'ব্র্যান্ড ইনভয়েস', t: 'g' }
+      ]},
+      { en: 'Receipts', screens: [
+        { id: 'M20-receipts', en: 'Receipts (All Methods)', bn: 'রিসিট', t: 'g' },
+        { id: 'M20-links', en: 'Payment Links', bn: 'পেমেন্ট লিংক', t: 'g' },
+        { id: 'M20-allocation', en: 'Matching & Allocation', bn: 'মিলকরণ', t: 'c' }
+      ]},
+      { en: 'Credit Control', screens: [
+        { id: 'M20-credit', en: 'Limits, Terms & Holds', bn: 'ক্রেডিট নিয়ন্ত্রণ', t: 'g' },
+        { id: 'M20-dunning', en: 'Dunning Worklist', bn: 'দেনা আদায়', t: 'c' },
+        { id: 'M20-disputes', en: 'Disputes', bn: 'বিরোধ', t: 'g' },
+        { id: 'M20-refunds', en: 'Credit Notes & Refunds', bn: 'ক্রেডিট নোট', t: 'g' }
+      ]},
+      { en: 'Analysis', screens: [
+        { id: 'M20-aging', en: 'AR Ageing', bn: 'বয়স্ক প্রাপ্য', t: 'r' },
+        { id: 'M20-leakage', en: 'Revenue-Leakage Detection', bn: 'রাজস্ব ক্ষয়', t: 'r' },
+        { id: 'M20-statements', en: 'Customer Statements', bn: 'গ্রাহক স্টেটমেন্ট', t: 'r' }
+      ]}
     ],
-    reports: ['Monthly NBR Mushak 9.1 VAT Return', 'Withholding Tax (VDS) Summary'],
-    forms: ['Generate Mushak 6.3 Invoice Form', 'Credit Note (Mushak 6.7) Form'],
-    cross: ['M01 Service Orders', 'M19 General Ledger', 'M54 Tax Filing'],
-    freg: { src: 110, sub: [['1', 'NBR Mushak 6.3 Calculation Engine', 14], ['2', 'QR Code Digital Validation', 10], ['3', 'Mushak 9.1 Return Compilation', 12]] }
+    reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity'],
+    forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link'],
+    cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
+    freg: { src: 99, sub: [
+      ['1', 'Billable-Event Intake', 12], ['2', 'Invoice Assembly', 12], ['3', 'Mushak 6.3 Rendering', 8],
+      ['4', 'Delivery Channels', 6], ['5', 'Receipt Capture (8 methods)', 14], ['6', 'Matching & Allocation', 11],
+      ['7', 'Credit Control', 9], ['8', 'Dunning & Collections', 12], ['9', 'Credit Notes & Refunds', 8], ['10', 'Leakage Detection', 7]
+    ] }
   },
 
   M52: {
     area: 'A08', code: 'M52', en: 'AP & Employee Expense', title: 'M52 · AP & Employee Expense',
     bn: 'প্রদেয় ও ব্যয়', icon: '💸',
     desc: 'Vendor invoices with 3-way match, TDS/VDS at source, employee expenses & advances, payment runs.',
-    kpis: [{ l: 'Pending Vendor Bills' }],
-    groups: [
-      { en: 'Payables', screens: [{ id: 'M52-bills', en: 'Vendor Bills & Invoices', bn: 'ভেন্ডর বিল তালিকা', t: 'g' }] }
+    kpis: [
+      { l: 'Payables Open', m: 'vendor_bills_open' },
+      { l: 'Match Exceptions', m: 'match_exceptions' },
+      { l: 'Expense Claims Pending', m: 'expense_claims_pending' },
+      { l: 'TDS MTD' }
     ],
-    reports: ['Upcoming Payment Commitments'], forms: ['Record Vendor Bill'], cross: ['M41 Purchase Orders', 'M19 Ledger'],
-    freg: { src: 88, sub: [['1', '3-Way Match Verification', 10], ['2', 'TDS / VDS Statutory Deduction', 8]] }
+    groups: [
+      { en: 'Vendor Payables', screens: [
+        { id: 'M52-bills', en: 'Vendor Bills', bn: 'বিক্রেতার বিল', t: 'g' },
+        { id: 'M52-match', en: 'Match Exceptions', bn: 'মিল ব্যতিক্রম', t: 'g' },
+        { id: 'M52-approval', en: 'Approval Workflow', bn: 'অনুমোদন', t: 'c' }
+      ]},
+      { en: 'Payments', screens: [
+        { id: 'M52-runs', en: 'Payment Runs', bn: 'পেমেন্ট রান', t: 'c' },
+        { id: 'M52-tds', en: 'TDS / VDS at Source', bn: 'উৎসে কর', t: 'g' },
+        { id: 'M52-notes', en: 'Debit / Credit Notes', bn: 'ডেবিট নোট', t: 'g' }
+      ]},
+      { en: 'Employee Expense', screens: [
+        { id: 'M52-claims', en: 'Expense Claims', bn: 'খরচের দাবি', t: 'g' },
+        { id: 'M52-advances', en: 'Advances & Floats', bn: 'অগ্রিম', t: 'g' },
+        { id: 'M52-perdiem', en: 'Per-Diem & Mileage', bn: 'ভাতা ও মাইলেজ', t: 'g' },
+        { id: 'M52-policy', en: 'Expense Policy', bn: 'নীতি', t: 'g' }
+      ]},
+      { en: 'Analysis', screens: [
+        { id: 'M52-aging', en: 'AP Ageing', bn: 'প্রদেয় বয়স', t: 'r' },
+        { id: 'M52-grni', en: 'GRNI Accruals', bn: 'জিআরএনআই', t: 'r' }
+      ]}
+    ],
+    reports: ['AP Ageing', 'TDS Deduction Register', 'Payment Run Summary', 'Expense by Category', 'GRNI Reconciliation', 'Duplicate Prevention Log'],
+    forms: ['Vendor Bill', 'Expense Claim', 'Employee Advance', 'Debit Note'],
+    cross: ['Procurement & Sourcing', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
+    freg: { src: 82, sub: [
+      ['1', 'Invoice Capture', 10], ['2', 'Matching', 11], ['3', 'Approval', 8],
+      ['4', 'Payable Ledger', 8], ['5', 'Payment Runs', 9], ['6', 'TDS/VDS', 9],
+      ['7', 'Employee Expenses', 14], ['8', 'Advances & Cards', 8], ['9', 'GRNI', 5]
+    ] }
   },
 
   M50: {
     area: 'A08', code: 'M50', en: 'Treasury & Banking', title: 'M50 · Treasury & Banking',
     bn: 'কোষাগার ও ব্যাংক', icon: '🏦',
     desc: 'Bank reconciliation, branch cash consolidation, rider COD, gateway/MFS settlement, BEFTN/RTGS execution.',
-    kpis: [{ l: 'Reconciliation Health' }],
-    groups: [
-      { en: 'Banking & Treasury', screens: [{ id: 'M50-recon', en: 'Bank & Cash Reconciliation', bn: 'ব্যাংক স্টেটমেন্ট ম্যাচ', t: 'g' }] }
+    kpis: [
+      { l: 'Recon Exceptions', m: 'unreconciled_bank_lines' },
+      { l: 'Auto-Match Rate', m: 'auto_match_rate' },
+      { l: 'Cash Position' },
+      { l: 'Branch Cash Uncollected' }
     ],
-    reports: ['Unreconciled Bank Transactions'], forms: ['Perform Bank Reconciliation'], cross: ['M19 General Ledger'],
-    freg: { src: 80, sub: [['1', 'Bank Feed Parsing & Auto-Match', 10], ['2', 'bKash / Nagad Settlement Cleared', 8]] }
+    groups: [
+      { en: 'Cash', screens: [
+        { id: 'M50-position', en: 'Consolidated Cash Position', bn: 'নগদ অবস্থান', t: 'd' },
+        { id: 'M50-branchcash', en: 'Branch Cash Consolidation', bn: 'শাখা নগদ', t: 'c' },
+        { id: 'M50-ridercod', en: 'Rider COD Settlement', bn: 'রাইডার সিওডি', t: 'c' },
+        { id: 'M50-petty', en: 'Petty Cash (Imprest)', bn: 'খরচি নগদ', t: 'g' }
+      ]},
+      { en: 'Banking', screens: [
+        { id: 'M50-accounts', en: 'Bank Account Master', bn: 'ব্যাংক হিসাব', t: 'g' },
+        { id: 'M50-statements', en: 'Statements Import', bn: 'স্টেটমেন্ট', t: 'g' },
+        { id: 'M50-recon', en: 'Auto Reconciliation', bn: 'স্বয়ংক্রিয় মিলকরণ', t: 'c' }
+      ]},
+      { en: 'Execution', screens: [
+        { id: 'M50-beftn', en: 'BEFTN / RTGS Instructions', bn: 'বিইএফটিএন', t: 'g' },
+        { id: 'M50-cheques', en: 'Cheque Management', bn: 'চেক', t: 'g' },
+        { id: 'M50-mfs', en: 'MFS Disbursement', bn: 'এমএফএস বিতরণ', t: 'g' }
+      ]},
+      { en: 'Settlement', screens: [
+        { id: 'M50-gateway', en: 'Gateway / MFS Settlement', bn: 'গেটওয়ে সেটেলমেন্ট', t: 'c' },
+        { id: 'M50-cit', en: 'Cash-in-Transit', bn: 'নগদ পরিবহন', t: 'g' }
+      ]},
+      { en: 'Planning', screens: [
+        { id: 'M50-forecast', en: 'Cash-Flow Forecast', bn: 'নগদ প্রবাহ পূর্বাভাস', t: 'r' },
+        { id: 'M50-facilities', en: 'Facilities & Covenants', bn: 'সুবিধা ও চুক্তি', t: 'g' },
+        { id: 'M50-fx', en: 'FX Holdings', bn: 'বৈদেশিক মুদ্রা', t: 'g' }
+      ]}
+    ],
+    reports: ['Daily Cash Position', 'Bank Reconciliation Summary', 'Gateway Settlement Reconciliation', 'COD Settlement Report', '13-Week Cash Forecast', 'Bank Charges Analysis'],
+    forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up'],
+    cross: ['Financial Accounting & GL', 'AR, Invoicing & Collections', 'AP & Employee Expense'],
+    freg: { src: 88, sub: [
+      ['1', 'Bank Masters', 7], ['2', 'Statement & Recon', 13], ['3', 'Cash Position & Consolidation', 12],
+      ['4', 'Payment Execution', 13], ['5', 'Gateway/MFS Settlement', 11], ['6', 'Forecasting', 8],
+      ['7', 'Facilities & Trade Finance', 12], ['8', 'FX', 5], ['9', 'Controls', 7]
+    ] }
   },
 
   M51: {
     area: 'A08', code: 'M51', en: 'Tax & Regulatory (BD)', title: 'M51 · Tax & Regulatory (BD)',
     bn: 'কর ও ভ্যাট', icon: '🏛️',
     desc: 'VAT 15%, Mushak 6.1–9.1 registers & returns, TDS/VDS, challans, NID capture, statutory calendar.',
-    kpis: [{ l: 'Mushak 9.1 Status' }, { l: 'Input Credit Tracked' }],
-    groups: [
-      {
-        en: 'VAT & Returns',
-        screens: [
-          { id: 'M51-vat91', en: 'VAT Return 9.1 Statutory Filing', bn: 'ভ্যাট রিটার্ন ৯.১', t: 'g' },
-          { id: 'M51-mushak63', en: 'Mushak 6.3 Records', bn: 'মূশক ৬.৩', t: 'g' }
-        ]
-      }
+    kpis: [
+      { l: 'VAT Payable MTD', m: 'vat_collected_mtd' },
+      { l: 'Mushak 9.1 Status', m: 'vat_returns_count' },
+      { l: 'Input Credit Tracked', m: 'mushak_records' },
+      { l: 'TDS Certificates Due' }
     ],
-    reports: ['Mushak 9.1 Return Draft', 'VAT Reconciliation'], forms: ['Mushak 6.3 Entry', 'TDS Entry'], cross: ['M20 Invoicing', 'M19 General Ledger'],
-    freg: { src: 78, sub: [['1', 'VAT Output/Input', 12], ['2', 'VAT Return 9.1', 8]] }
+    groups: [
+      { en: 'VAT', screens: [
+        { id: 'M51-mushak61', en: 'Mushak 6.1 (Sales)', bn: 'মুশক ৬.১', t: 'g' },
+        { id: 'M51-mushak62', en: 'Mushak 6.2 (Purchases)', bn: 'মুশক ৬.২', t: 'g' },
+        { id: 'M51-mushak63', en: 'Mushak 6.3 Records', bn: 'মুশক ৬.৩', t: 'g' },
+        { id: 'M51-vat91', en: 'VAT Return 9.1 Filing', bn: 'ভ্যাট রিটার্ন ৯.১', t: 'c' },
+        { id: 'M51-challans', en: 'Challans (A-Challan)', bn: 'চালান', t: 'g' },
+        { id: 'M51-input', en: 'Input Credit Tracking', bn: 'ইনপুট ক্রেডিট', t: 'g' }
+      ]},
+      { en: 'Withholding', screens: [
+        { id: 'M51-tds', en: 'TDS Register', bn: 'টিডিএস রেজিস্টার', t: 'g' },
+        { id: 'M51-vds', en: 'VDS (45 Services)', bn: 'ভিডিএস', t: 'g' },
+        { id: 'M51-certs', en: 'Certificates', bn: 'সনদ', t: 'g' }
+      ]},
+      { en: 'Compliance', screens: [
+        { id: 'M51-determination', en: 'Tax Determination Service', bn: 'কর নির্ধারণ', t: 'c' },
+        { id: 'M51-nid', en: 'High-Value NID Capture', bn: 'এনআইডি সংগ্রহ', t: 'g' },
+        { id: 'M51-calendar', en: 'Statutory Calendar', bn: 'বিধিবদ্ধ ক্যালেন্ডার', t: 'c' },
+        { id: 'M51-audit', en: 'Audit Support Pack', bn: 'অডিট সহায়তা', t: 'r' }
+      ]}
+    ],
+    reports: ['Mushak 9.1 Return Draft', 'VAT Reconciliation', 'TDS Annual Summary', 'SD & AT Liability', 'Marketplace VAT Model', 'Statutory Compliance Calendar'],
+    forms: ['Mushak 6.3 Entry', 'TDS Entry', 'Challan', 'Tax Adjustment'],
+    cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Financial Accounting & GL'],
+    freg: { src: 78, sub: [
+      ['1', 'Determination Service', 9], ['2', 'VAT Output/Input', 12], ['3', 'Mushak Registers', 11],
+      ['4', 'VAT Return 9.1', 8], ['5', 'VDS', 7], ['6', 'TDS', 12],
+      ['7', 'Challans & Certificates', 7], ['8', 'NID & Cash Controls', 4], ['9', 'Calendar & Audit', 8]
+    ] }
   },
 
   M53: {
     area: 'A08', code: 'M53', en: 'Revenue Recognition & Settlement', title: 'M53 · Revenue Recognition & Settlement',
     bn: 'রাজস্ব ও নিষ্পত্তি', icon: '📊',
     desc: 'Performance obligations, contract balances, commission ledger, seller/partner payouts, clawbacks, escrow.',
-    kpis: [{ l: 'Budget Variance MTD' }],
-    groups: [
-      { en: 'Budgets', screens: [{ id: 'M53-budgets', en: 'Cost Center Budget Master', bn: 'কস্ট সেন্টার বাজেট', t: 'g' }] }
+    kpis: [
+      { l: 'Commission Accrued', m: 'commission_accrued_count' },
+      { l: 'Payout Runs MTD', m: 'payout_runs_open' },
+      { l: 'Deferred Revenue', m: 'revenue_schedules_count' },
+      { l: 'Recognised MTD' }
     ],
-    reports: ['Budget vs Actual Variance Report'], forms: ['Create Annual Branch Budget'], cross: ['M19 Ledger'],
-    freg: { src: 76, sub: [['1', 'Cost Center Allocation Rules', 8], ['2', 'Variance Alerting Engine', 8]] }
+    groups: [
+      { en: 'Revenue', screens: [
+        { id: 'M53-obligations', en: 'Performance Obligations', bn: 'পারফরম্যান্স বাধ্যবাধকতা', t: 'g' },
+        { id: 'M53-schedules', en: 'Revenue Schedules', bn: 'রাজস্ব সূচি', t: 'g' },
+        { id: 'M53-contract', en: 'Contract Assets & Liabilities', bn: 'চুক্তি সম্পদ', t: 'r' }
+      ]},
+      { en: 'Commission', screens: [
+        { id: 'M53-ledger', en: 'Commission Ledger', bn: 'কমিশন লেজার', t: 'g' },
+        { id: 'M53-schemes', en: 'Incentive Schemes', bn: 'প্রণোদনা কর্মসূচি', t: 'g' }
+      ]},
+      { en: 'Settlements', screens: [
+        { id: 'M53-payouts', en: 'Payout Runs', bn: 'পেআউট রান', t: 'c' },
+        { id: 'M53-sellers', en: 'Seller Statements', bn: 'বিক্রেতা বিবৃতি', t: 'r' },
+        { id: 'M53-partners', en: 'Partner / Referral Payouts', bn: 'পার্টনার পেআউট', t: 'g' },
+        { id: 'M53-escrow', en: 'Escrow & Clawbacks', bn: 'এসক্রো', t: 'g' }
+      ]}
+    ],
+    reports: ['Deferred Revenue Bridge', 'Rev-Rec by Stream', 'Commission Accrual', 'Payout Reconciliation', 'Clawback Register'],
+    forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme'],
+    cross: ['Subscriptions & Recurring', 'Marketplace & Sellers', 'Partner & Channel'],
+    freg: { src: 74, sub: [
+      ['1', 'Performance Obligations', 10], ['2', 'Allocation & SSP', 8], ['3', 'Schedules & Triggers', 12],
+      ['4', 'Modifications & Reversals', 8], ['5', 'Principal vs Agent', 5], ['6', 'Commission Ledger', 8],
+      ['7', 'Seller Settlement', 10], ['8', 'Partner Payouts', 7], ['9', 'Escrow & Clawbacks', 6]
+    ] }
   },
 
   M49: {
     area: 'A08', code: 'M49', en: 'Fixed Assets & Capex', title: 'M49 · Fixed Assets & Capex',
     bn: 'স্থায়ী সম্পদ ও ক্যাপেক্স', icon: '🏗️',
     desc: 'Capex requests to retirement — CWIP, dual-book depreciation (accounting + tax Third Schedule), verification.',
-    kpis: [{ l: 'Net Book Value' }],
-    groups: [
-      { en: 'Fixed Assets', screens: [{ id: 'M49-assets', en: 'Fixed Assets Register', bn: 'স্থাবর সম্পদ রেজিস্টার', t: 'g' }] }
+    kpis: [
+      { l: 'Gross Block', m: 'assets_gross_block' },
+      { l: 'CWIP', m: 'cwip_open_count' },
+      { l: 'NBV' },
+      { l: 'Depreciation Run' }
     ],
-    reports: ['Annual Depreciation Schedule'], forms: ['Add Fixed Asset'], cross: ['M19 General Ledger'],
-    freg: { src: 68, sub: [['1', 'Depreciation Run Generator', 8], ['2', 'Asset Disposal & Gain/Loss', 6]] }
+    groups: [
+      { en: 'Capex', screens: [
+        { id: 'M49-requests', en: 'Capex Requests', bn: 'ক্যাপেক্স অনুরোধ', t: 'g' },
+        { id: 'M49-budget', en: 'Capital Budget', bn: 'মূলধনী বাজেট', t: 'g' }
+      ]},
+      { en: 'Register', screens: [
+        { id: 'M49-register', en: 'Asset Register', bn: 'সম্পদ রেজিস্টার', t: 'g' },
+        { id: 'M49-cwip', en: 'CWIP Tracking', bn: 'সিডব্লিউআইপি', t: 'g' },
+        { id: 'M49-transfer', en: 'Transfers & Custodians', bn: 'স্থানান্তর', t: 'g' }
+      ]},
+      { en: 'Depreciation', screens: [
+        { id: 'M49-dep', en: 'Dual-Book Depreciation', bn: 'দ্বৈত অবচয়', t: 'c' },
+        { id: 'M49-schedules', en: 'Schedules & Movements', bn: 'সূচি', t: 'r' }
+      ]},
+      { en: 'Lifecycle', screens: [
+        { id: 'M49-impairment', en: 'Revaluation & Impairment', bn: 'পুনর্মূল্যায়ন', t: 'g' },
+        { id: 'M49-disposal', en: 'Disposal & Write-Off', bn: 'নিষ্পত্তি', t: 'g' },
+        { id: 'M49-verify', en: 'Physical Verification', bn: 'শারীরিক যাচাই', t: 'c' }
+      ]}
+    ],
+    reports: ['Fixed Asset Movement Schedule', 'Depreciation (Dual Book)', 'NBV by Category', 'Capex vs Budget', 'Disposal Gains/Losses'],
+    forms: ['Capex Request', 'Asset Capitalisation', 'Transfer', 'Disposal'],
+    cross: ['Financial Accounting & GL', 'Enterprise Assets & Test Equipment', 'Fleet & Vehicles'],
+    freg: { src: 66, sub: [
+      ['1', 'Capex & Approval', 9], ['2', 'Register & Capitalisation', 11], ['3', 'Componentisation', 5],
+      ['4', 'Dual-Book Depreciation', 12], ['5', 'Revaluation & Impairment', 7], ['6', 'Transfers & Custody', 6],
+      ['7', 'Verification & Tagging', 7], ['8', 'Disposal', 9]
+    ] }
   },
 
   M54: {
     area: 'A08', code: 'M54', en: 'Costing, Budget & FP&A', title: 'M54 · Costing, Budget & FP&A',
     bn: 'ব্যয়, বাজেট ও এফপিএ', icon: '🧮',
     desc: 'Allocation cycles, job & contract costing, 14-stream business-line profitability, branch league, budgets.',
-    kpis: [{ l: 'Audit Readiness Score' }],
-    groups: [
-      { en: 'Audit', screens: [{ id: 'M54-audit', en: 'Statutory Audit Document Vault', bn: 'অডিট ডকুমেন্ট ভল্ট', t: 'g' }] }
+    kpis: [
+      { l: 'Budget Variance', m: 'budget_total_variance' },
+      { l: 'Branch League #1' },
+      { l: 'Negative-Margin Branches' },
+      { l: 'Job Costing Coverage' }
     ],
-    reports: ['Annual Tax Schedule Package'], forms: ['Generate Statutory Audit File'], cross: ['M20 Mushak 6.3'],
-    freg: { src: 72, sub: [['1', 'Audit Trail Export & Reconciliation', 8], ['2', 'NBR Compliance Check', 8]] }
+    groups: [
+      { en: 'Costing', screens: [
+        { id: 'M54-pools', en: 'Cost Pools & Elements', bn: 'ব্যয় পুল', t: 'g' },
+        { id: 'M54-allocation', en: 'Allocation Cycles', bn: 'বণ্টন চক্র', t: 'c' },
+        { id: 'M54-jobs', en: 'Job / Work-Order Costing', bn: 'কাজের ব্যয়', t: 'r' },
+        { id: 'M54-loaded', en: 'Technician Loaded Cost', bn: 'কর্মী ব্যয়', t: 'r' }
+      ]},
+      { en: 'Profitability', screens: [
+        { id: 'M54-streams', en: '14 Business-Line P&L', bn: '১৪ ব্যবসার লাভ', t: 'r' },
+        { id: 'M54-branches', en: 'Branch Profitability', bn: 'শাখা লাভজনকতা', t: 'r' },
+        { id: 'M54-customers', en: 'Customer Profitability', bn: 'গ্রাহক লাভজনকতা', t: 'r' },
+        { id: 'M54-unitecon', en: 'Unit Economics', bn: 'একক অর্থনীতি', t: 'r' }
+      ]},
+      { en: 'Budgeting', screens: [
+        { id: 'M54-budgets', en: 'Operating & Capital Budgets', bn: 'বাজেট', t: 'g' },
+        { id: 'M54-workflow', en: 'Budget Workflow', bn: 'বাজেট প্রবাহ', t: 'c' },
+        { id: 'M54-bva', en: 'Variance Analysis', bn: 'বিচ্যুতি বিশ্লেষণ', t: 'r' }
+      ]},
+      { en: 'Planning', screens: [
+        { id: 'M54-rolling', en: 'Rolling Forecast', bn: 'রোলিং পূর্বাভাস', t: 'r' },
+        { id: 'M54-scenario', en: 'Scenario Modelling', bn: 'পরিস্থিতি মডেল', t: 'c' },
+        { id: 'M54-board', en: 'Board Pack', bn: 'বোর্ড প্যাক', t: 'r' }
+      ]}
+    ],
+    reports: ['Business-Line P&L (14)', 'Branch League Table', 'Budget vs Actual', 'Job Margin Distribution', 'Customer Profitability Deciles', 'Unit Economics per Repair'],
+    forms: ['Budget Version', 'Allocation Rule', 'Scenario'],
+    cross: ['Financial Accounting & GL', 'Workshop & Depot Repair', 'Business Intelligence'],
+    freg: { src: 70, sub: [
+      ['1', 'Cost Model', 9], ['2', 'Allocation Cycles', 10], ['3', 'Job & Contract Costing', 11],
+      ['4', 'Business-Line Profitability', 9], ['5', 'Branch & Channel Profitability', 8], ['6', 'Budgeting', 11],
+      ['7', 'Variance & Forecast', 8], ['8', 'Board Pack', 4]
+    ] }
   },
 
   /* ============ A09 · PEOPLE & WORKFORCE =============================== */
@@ -1304,3 +1528,223 @@ export function generateGridData(screenId, groupTitle, moduleTitle) {
   }
   return { cols: ['Record ID', 'Title / Description', 'Category', 'Assigned Hub', 'Created Date', 'Status', 'Actions'], rows: [] };
 }
+
+/* =====================================================================
+ * A08 live-surface map — registry screens backed by REAL Odoo models in
+ * the g_finance addons (installed in fix_dev). The workspace opens these
+ * as dynamic act_window views (list, or form for type-f screens). Every
+ * screen NOT listed here keeps the honest "porting phase" empty state.
+ * ===================================================================== */
+export const P03_LIVE_SCREENS = {
+  // M19 · Financial Accounting & GL (cd_gl_ext)
+  'M19-coa': 'fix.chart.account',
+  'M19-journals': 'account.move',
+  'M19-je': 'account.move',
+  'M19-dimensions': 'fix.journal.dimension',
+  'M19-close': 'fix.period.close',
+  'M19-periods': 'fix.period.close',
+  // M20 · AR, Invoicing & Collections — all 15 screens moved to the
+  // in-workspace data-screen framework (CD-M20-02); no stock doAction.
+  // M50 · Treasury & Banking (cd_cash_position)
+  // M51 · Tax & Regulatory BD (cd_tax_engine_bd)
+  // M52 · AP & Employee Expense (cd_ap_ext)
+  // M53 · Revenue Recognition & Settlement (cd_settlement_ext + cd_subscription)
+  // M49 · Fixed Assets & Capex (cd_fixed_asset_ext)
+  // M54 · Costing, Budget & FP&A (cd_fpa)
+};
+
+/* A08 module create surfaces: the "+ New" action for each finance module
+ * opens the REAL model's form view (replaces the M01 service-order intake
+ * that previously opened for every module). */
+export const P03_MODULE_CREATE = {
+  M19: { model: 'account.move', label: 'Journal Entry' },
+  M20: { model: 'fix.ar.invoice', label: 'AR Invoice' },
+  M52: { model: 'fix.vendor.invoice', label: 'Vendor Bill' },
+  M50: { model: 'fix.payment.execution', label: 'Payment Instruction' },
+  M51: { model: 'fix.mushak.register', label: 'Mushak 6.3 Entry' },
+  M53: { model: 'fix.payout.run', label: 'Payout Run' },
+  M49: { model: 'fix.fixed.asset', label: 'Fixed Asset' },
+  M54: { model: 'fix.budget', label: 'Budget' },
+};
+
+/* A08 data-entry form chips → real model forms. Keyed `${moduleId}:${form
+ * label}` (the same label can mean different models in different modules).
+ * Unmapped chips fall back to the module create surface or an honest
+ * "porting phase" toast — never the M01 intake form. */
+export const P03_FORM_MODELS = {
+  'M19:Journal Entry (manual/recurring)': 'account.move',
+  'M19:Allocation Rule': 'fix.allocation.rule',
+  'M20:Invoice Request': 'fix.ar.invoice',
+  'M20:Credit Note': 'fix.credit.note',
+  'M20:Refund': 'fix.credit.note',
+  'M50:Bank Statement Import': 'fix.bank.statement.line',
+  'M50:Payment Instruction': 'fix.payment.execution',
+  'M51:Mushak 6.3 Entry': 'fix.mushak.register',
+  'M51:TDS Entry': 'fix.tds.return',
+  'M51:Challan': 'fix.tds.return',
+  'M52:Vendor Bill': 'fix.vendor.invoice',
+  'M52:Expense Claim': 'fix.expense.claim',
+  'M53:Revenue Schedule': 'fix.revenue.schedule',
+  'M53:Payout Run': 'fix.payout.run',
+  'M49:Asset Capitalisation': 'fix.fixed.asset',
+  'M54:Budget Version': 'fix.budget',
+  'M54:Allocation Rule': 'fix.cost.allocation',
+};
+
+/* M19 in-workspace D365 screens (the GL pilot, 2026-10-24): every registry
+ * screen of the Financial Accounting & GL module renders INSIDE the
+ * workspace shell — fed by the /p03/gl/* endpoints — instead of leaving to
+ * a stock Odoo backend view. `kind` selects the screen layout; `report`
+ * parameterises the statement engine. Screens listed here are checked
+ * BEFORE P03_LIVE_SCREENS. Extend to other modules one pilot at a time. */
+export const P03_DATA_SCREENS = {
+  // Ledger
+  'M19-coa': { kind: 'coa' },
+  'M19-journals': { kind: 'journals' },
+  'M19-je': { kind: 'je_editor' },
+  'M19-tb': { kind: 'statement', report: 'trial_balance' },
+  'M19-dimensions': { kind: 'dimensions' },
+  // Close
+  'M19-close': { kind: 'close' },
+  'M19-periods': { kind: 'periods' },
+  // Statements
+  'M19-bs': { kind: 'statement', report: 'balance_sheet' },
+  'M19-pl': { kind: 'statement', report: 'pnl' },
+  'M19-cf': { kind: 'statement', report: 'cash_flow' },
+  'M19-consol': { kind: 'statement', report: 'consolidated' },
+  // Controls
+  'M19-suspense': { kind: 'suspense' },
+  'M19-recon': { kind: 'recon' },
+  'M19-audit': { kind: 'audit' },
+  // ---- A08 completion (2026-10-25): generic model_list screens ----
+  'M52-bills': { kind: 'model_list', model: 'fix.vendor.invoice',
+    cols: ['vendor_id','invoice_ref','invoice_date','subtotal','tds_amount','total_payable','match_state'],
+    stateField: 'match_state', actions: [{m:'action_request_payment',l:'Request Payment'}] },
+  'M52-match': { kind: 'model_list', model: 'fix.vendor.invoice',
+    cols: ['vendor_id','invoice_ref','invoice_date','total_payable','match_state','match_detail'],
+    stateField: 'match_state', domain: [['match_state','!=','matched']] },
+  'M52-claims': { kind: 'model_list', model: 'fix.expense.claim',
+    cols: ['employee_id','description','expense_date','amount','state'],
+    stateField: 'state', actions: [{m:'action_submit',l:'Submit'},{m:'action_approve',l:'Approve'}] },
+  'M50-position': { kind: 'model_list', model: 'fix.cash.position',
+    cols: ['as_of','bank_balance','drawer_float_total','pending_payments','total_position'] },
+  'M50-statements': { kind: 'model_list', model: 'fix.bank.statement.line',
+    cols: ['date','reference','narration','amount','match_state','matched_invoice_ref'],
+    stateField: 'match_state' },
+  'M50-recon': { kind: 'model_list', model: 'fix.bank.statement.line',
+    cols: ['date','reference','narration','amount','match_state','matched_invoice_ref'],
+    stateField: 'match_state', domain: [['match_state','=','unmatched']],
+    actions: [{m:'auto_match',l:'Auto-Match'}] },
+  'M50-beftn': { kind: 'model_list', model: 'fix.payment.execution',
+    cols: ['source_model','source_id','payee','amount','method','state','executed_at'],
+    stateField: 'state', actions: [{m:'action_execute',l:'Execute'}] },
+  'M50-mfs': { kind: 'model_list', model: 'fix.payment.execution',
+    cols: ['source_model','source_id','payee','amount','method','state','executed_at'],
+    stateField: 'state', domain: [['method','!=','beftn']], actions: [{m:'action_execute',l:'Execute'}] },
+  'M51-mushak61': { kind: 'model_list', model: 'fix.mushak.register',
+    cols: ['mushak_no','invoice_ref','invoice_date','customer_name','taxable_amount','vat_amount','posted'] },
+  'M51-mushak62': { kind: 'model_list', model: 'fix.mushak.register',
+    cols: ['mushak_no','invoice_ref','invoice_date','supplier_name','taxable_amount','vat_amount','posted'] },
+  'M51-mushak63': { kind: 'model_list', model: 'fix.mushak.register',
+    cols: ['mushak_no','invoice_ref','invoice_date','customer_name','taxable_amount','vat_amount','total_payable','posted'],
+    actions: [{m:'action_mark_posted',l:'Mark GL Posted'},{m:'action_rebuild_from_events',l:'Rebuild from Events'}] },
+  'M51-vat91': { kind: 'model_list', model: 'fix.vat.return',
+    cols: ['period','total_taxable','output_vat','input_vat','net_payable','due_date','state','filed_at'],
+    stateField: 'state', actions: [{m:'action_prepare_period',l:'Prepare Period'},{m:'action_file',l:'File Return'}] },
+  'M51-tds': { kind: 'model_list', model: 'fix.tds.return',
+    cols: ['quarter','fiscal_year','total_withheld','deductor_count','due_date','state','filed_at'],
+    stateField: 'state', actions: [{m:'action_prepare_quarter',l:'Prepare Quarter'},{m:'action_file',l:'File'}] },
+  'M51-determination': { kind: 'model_list', model: 'fix.vat.treatment',
+    cols: ['code','name','treatment_type','rate','active'] },
+  'M51-certs': { kind: 'model_list', model: 'fix.withholding.certificate',
+    cols: ['quarter','certificate_type','supplier_name','base_amount','rate_percent','withheld_amount','state'],
+    stateField: 'state', actions: [{m:'action_issue',l:'Issue Certificate'}] },
+  'M53-schedules': { kind: 'model_list', model: 'fix.revenue.schedule',
+    cols: ['source_model','description','total_amount','recognized_amount','start_date','end_date','state'],
+    stateField: 'state' },
+  'M53-ledger': { kind: 'model_list', model: 'fix.commission.ledger',
+    cols: ['name','seller_partner_id','gross_amount','commission_amount','tds_amount','net_payable','state'],
+    stateField: 'state', actions: [{m:'action_post_to_gl',l:'Post Accrual to GL'}] },
+  'M53-payouts': { kind: 'model_list', model: 'fix.payout.run',
+    cols: ['name','period','total_gross','total_tds','total_payable','seller_count','state'],
+    stateField: 'state', actions: [{m:'action_approve',l:'Approve (SoD)'},{m:'action_generate_beftn',l:'Generate BEFTN File'}] },
+  'M53-sellers': { kind: 'model_list', model: 'fix.seller.statement',
+    cols: ['seller_partner_id','period','gross_gmv','commission_amount','tds_withheld','net_payable','state'],
+    stateField: 'state' },
+  'M49-register': { kind: 'model_list', model: 'fix.fixed.asset',
+    cols: ['name','category','gross','salvage','life_months','purchase_date','monthly_depreciation','state'],
+    stateField: 'state', actions: [{m:'action_accrue_month',l:'Accrue Month'},{m:'action_dispose',l:'Dispose'}] },
+  'M49-cwip': { kind: 'model_list', model: 'fix.cwip.entry',
+    cols: ['name','amount','state','asset_id'],
+    stateField: 'state', actions: [{m:'action_capitalise',l:'Capitalise'}] },
+  'M54-budgets': { kind: 'model_list', model: 'fix.budget',
+    cols: ['name','fiscal_year','planned_amount','actual_amount','variance','state'],
+    stateField: 'state' },
+  'M54-allocation': { kind: 'model_list', model: 'fix.cost.allocation',
+    cols: ['name','direct_cost','allocated_overhead','total_cost'] },
+  // ---- M20 · AR, Invoicing & Collections (CD-M20-02) — /p03/ar/* ----
+  // Invoicing
+  'M20-invoices': { kind: 'ar_invoices' },
+  'M20-invoice': { kind: 'ar_editor' },
+  'M20-events': { kind: 'ar_events' },
+  'M20-consolidated': { kind: 'ar_consolidated' },
+  'M20-brand': { kind: 'ar_brand' },
+  // Receipts
+  'M20-receipts': { kind: 'ar_receipts' },
+  'M20-links': { kind: 'ar_links' },
+  'M20-allocation': { kind: 'ar_allocation' },
+  // Credit Control
+  'M20-credit': { kind: 'ar_credit' },
+  'M20-dunning': { kind: 'ar_dunning' },
+  'M20-disputes': { kind: 'ar_disputes' },
+  'M20-refunds': { kind: 'ar_refunds' },
+  // Analysis
+  'M20-aging': { kind: 'ar_aging' },
+  'M20-leakage': { kind: 'ar_leakage' },
+  'M20-statements': { kind: 'ar_statements' },
+};
+
+/* Built-in report chips → the in-workspace screen that already shows that
+ * report's data (M19/M20 wired; other modules get an honest toast). Keyed
+ * `${moduleId}:${reportName}`. */
+export const P03_REPORT_ROUTES = {
+  "M19:Trial Balance": "M19-tb",
+  "M19:P&L (BFRS)": "M19-pl",
+  "M19:Balance Sheet": "M19-bs",
+  "M19:Cash Flow": "M19-cf",
+  "M19:Dimensional P&L by Branch": "M19-dimensions",
+  "M19:Close Checklist Report": "M19-close",
+  "M20:AR Ageing by Segment": "M20-aging",
+  "M20:Dunning Effectiveness": "M20-dunning",
+  "M20:Payment Method Mix": "M20-receipts",
+  "M20:Invoice Accuracy": "M20-refunds",
+  "M20:Brand Receivable Ageing": "M20-brand",
+  "M20:Collections Productivity": "M20-dunning",
+};
+
+Object.assign(P03_REPORT_ROUTES, {
+  "M52:AP Ageing": "M52-bills",
+  "M52:TDS Deduction Register": "M52-bills",
+  "M52:Payment Run Summary": "M52-bills",
+  "M52:Expense by Category": "M52-claims",
+  "M52:GRNI Reconciliation": "M52-match",
+  "M52:Duplicate Prevention Log": "M52-match",
+  "M50:Daily Cash Position": "M50-position",
+  "M50:Bank Reconciliation Summary": "M50-recon",
+  "M50:Gateway Settlement Reconciliation": "M50-mfs",
+  "M50:COD Settlement Report": "M50-mfs",
+  "M51:Mushak 9.1 Return Draft": "M51-vat91",
+  "M51:VAT Reconciliation": "M51-vat91",
+  "M51:TDS Annual Summary": "M51-tds",
+  "M53:Commission Accrual": "M53-ledger",
+  "M53:Payout Reconciliation": "M53-payouts",
+  "M53:Deferred Revenue Bridge": "M53-schedules",
+  "M53:Rev-Rec by Stream": "M53-schedules",
+  "M53:Clawback Register": "M53-sellers",
+  "M49:Fixed Asset Movement Schedule": "M49-register",
+  "M49:Depreciation (Dual Book)": "M49-register",
+  "M49:NBV by Category": "M49-register",
+  "M49:Capex vs Budget": "M49-cwip",
+  "M49:Disposal Gains/Losses": "M49-register",
+  "M54:Budget vs Actual": "M54-budgets",
+});

@@ -76,11 +76,4 @@
         <field name="view_mode">form</field>
     </record>
 
-    <menuitem id="menu_fix_payment_execution" name="Payment Executions"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_payment_execution" sequence="100"/>
-    <menuitem id="menu_fix_bank_statement" name="Bank Statements"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_bank_statement_line" sequence="110"/>
-    <menuitem id="menu_fix_cash_position" name="Cash Position"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_cash_position" sequence="120"/>
-
 </odoo>

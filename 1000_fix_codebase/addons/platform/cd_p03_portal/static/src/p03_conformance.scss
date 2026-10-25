@@ -2367,3 +2367,42 @@ body:has(.p03-workspace-root) .o_action_manager {
     }
   }
 }
+
+/* ============ M19 GL IN-WORKSPACE SCREENS (D365 pilot) ============ */
+/* Grid + FactBox two-pane layout for the GL screens: main data pane with a
+   D365-style side inspector. Falls back to a single column under 1100px. */
+.gl-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 14px;
+  align-items: start;
+}
+.gl-layout .gl-main { min-width: 0; }
+.gl-factbox {
+  background: var(--surface);
+  border: 1px solid var(--stroke);
+  border-radius: var(--r-surface);
+  padding: 14px;
+  position: sticky;
+  top: calc(var(--topbar-h) + var(--tabstrip-h) + 12px);
+  max-height: calc(100vh - var(--topbar-h) - var(--tabstrip-h) - 32px);
+  overflow-y: auto;
+}
+.gl-factbox .fb-sec { padding: 8px 0; border-bottom: 1px solid var(--stroke); }
+.gl-factbox .fb-sec:last-child { border-bottom: none; }
+.gl-factbox .fb-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--ink-500);
+  text-transform: uppercase;
+}
+.gl-row-selected {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+  background: var(--primary-tint) !important;
+}
+@media (max-width: 1100px) {
+  .gl-layout { grid-template-columns: 1fr; }
+  .gl-factbox { position: static; max-height: none; }
+}

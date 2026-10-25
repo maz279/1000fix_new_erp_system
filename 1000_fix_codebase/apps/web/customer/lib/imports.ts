@@ -11,6 +11,12 @@ export {
 } from "../../../../libs/ts/ui/src/components";
 export type { Column } from "../../../../libs/ts/ui/src/components";
 export { LandingShell } from "../../../../libs/ts/ui/src/landing";
+// D365 shell types (lib) + implementation (app-local — imports next/link).
+export type { ShellSection, ShellCopy, ShellLocale } from "../../../../libs/ts/ui/src/shell";
+export { Shell } from "../components/shell-chrome";
+// The generated nav payload (asset 2 slice) — framework-free, stays in the lib.
+export { navAreas, navCounts } from "../../../../libs/ts/ui/src/nav.generated";
+export type { NavArea, NavModule, NavGroup, NavScreen } from "../../../../libs/ts/ui/src/nav.generated";
 export {
   isValidId, maskId, bn007, BIN_13, NID_10, NID_17, ETIN_12,
 } from "../../../../libs/ts/ui/src/masks";

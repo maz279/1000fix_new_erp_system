@@ -3,9 +3,11 @@
 /* P01 home — the customer's bookings at a glance (Dual Language: Bengali-first + English).
  * Every row comes from /customer/bookings through the api wrapper (P-11);
  * zero local data (FF-39); money never computed here (AS-09/AS-10).
- * Tokens only (CFM-01) — no hand-authored colors. */
+ * Backend-offline is distinguished from signed-out (the old page masked
+ * both behind the same "session expired" card). */
 import { useEffect, useState } from "react";
-import { tokens, Pill, SectionHead, DataTable, Loading, LoadError } from "../lib/imports";
+import Link from "next/link";
+import { Pill, SectionHead, DataTable, Loading, LoadError } from "../lib/imports";
 import type { Column } from "../lib/imports";
 import { callOdoo } from "../lib/api";
 import { useLanguage, Translations } from "../components/language";
@@ -37,7 +39,7 @@ function getStateLabel(state: string, t: Translations): string {
 
 export default function CustomerHome() {
   const { t, locale } = useLanguage();
-  const { user, openLoginModal } = useAuth();
+  const { user, openLoginModal, loginWithCredentials, backendReachable } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -61,38 +63,36 @@ export default function CustomerHome() {
 
   if (loading) return <Loading label={t.loading} />;
 
-  // Friendly authenticated guidance if unauthenticated or session expired
-  if (error && (error.toLowerCase().includes("session expired") || !user)) {
+  const offline = backendReachable === false;
+
+  if (error && offline) {
     return (
-      <main style={{ padding: 32, maxWidth: 680 }}>
+      <LoadError
+        what={locale === "bn" ? "ব্যাকএন্ড সংযোগ" : "Backend connection"}
+        message={
+          locale === "bn"
+            ? "Odoo ব্যাকএন্ডে পৌঁছানো যাচ্ছে না (127.0.0.1:8069)। স্ট্যাক চালু আছে কিনা দেখুন।"
+            : "Cannot reach the Odoo backend (127.0.0.1:8069). Check that the stack is running."
+        }
+      />
+    );
+  }
+
+  // Friendly authenticated guidance if unauthenticated or session expired
+  if (error && !user) {
+    return (
+      <main>
         <SectionHead title={t.homeTitle} note={t.sessionExpired} />
-        <div
-          style={{
-            marginTop: 20,
-            padding: 24,
-            background: tokens["color.surface.primary"],
-            border: `1px solid ${tokens["color.border.default"]}`,
-            borderRadius: tokens["dimension.border.radius-md"],
-          }}
-        >
-          <p style={{ margin: "0 0 16px", color: tokens["color.text.secondary"], fontSize: tokens["typography.size.200"] }}>
+        <div className="fx-card" style={{ marginTop: 20 }}>
+          <p className="muted" style={{ margin: "0 0 16px" }}>
             {t.homeSignInPrompt}
           </p>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "center" }}>
-            <button
-              onClick={openLoginModal}
-              style={{
-                padding: "10px 20px",
-                background: tokens["color.primary.base"],
-                color: tokens["color.text.inverse"],
-                border: "none",
-                borderRadius: tokens["dimension.border.radius-sm"],
-                cursor: "pointer",
-                fontSize: tokens["typography.size.200"],
-                fontWeight: Number(tokens["typography.weight.semibold"]),
-              }}
-            >
+            <button className="btn btn-primary" onClick={openLoginModal}>
               {t.homeSignInButton}
+            </button>
+            <button className="btn" onClick={() => loginWithCredentials("admin", "admin")}>
+              {locale === "bn" ? "⚡ এক-ক্লিক ডেমো লগইন" : "⚡ One-Click Demo Sign In"}
             </button>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function CustomerHome() {
   if (error) return <LoadError what={t.loadErrorTitle(locale === "bn" ? "বুকিং" : "Bookings")} message={error} />;
 
   const columns: Column<Booking>[] = [
-    { header: t.homeColRef, cell: (b) => b.ref },
+    { header: t.homeColRef, cell: (b) => <span className="id-chip">{b.ref}</span> },
     { header: t.homeColDevice, cell: (b) => b.device },
     { header: t.homeColFault, cell: (b) => b.fault },
     { header: t.homeColCategory, cell: (b) => b.category },
@@ -115,25 +115,21 @@ export default function CustomerHome() {
   ];
 
   return (
-    <main style={{ padding: 32 }}>
+    <main>
       <SectionHead
         title={t.homeTitle}
         note={t.homeSubtitle(bookings.length)}
       />
       {bookings.length === 0 ? (
-        <p style={{ color: tokens["color.text.secondary"], marginTop: 16 }}>{t.homeEmpty}</p>
+        <p className="muted" style={{ marginTop: 16 }}>{t.homeEmpty}</p>
       ) : (
-        <DataTable rows={bookings} columns={columns} />
+        <div className="fx-card" style={{ padding: 0, overflow: "hidden" }}>
+          <DataTable rows={bookings} columns={columns} />
+        </div>
       )}
-      <p style={{
-        marginTop: 24,
-        color: tokens["color.text.secondary"],
-        fontSize: tokens["typography.size.200"],
-      }}>
+      <p className="footer-note">
         {t.homeFooterNote}
-        <a href="/booking" style={{ color: tokens["color.primary.base"] }}>
-          {t.homeFooterLink}
-        </a>
+        <Link href="/booking">{t.homeFooterLink}</Link>
         {t.homeFooterEnd}
       </p>
     </main>

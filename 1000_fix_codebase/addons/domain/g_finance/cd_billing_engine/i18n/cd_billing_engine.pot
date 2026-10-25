@@ -290,3 +290,268 @@ msgstr ""
 #: model:ir.model.fields.selection,name:cd_billing_engine.selection__fix_credit_note__reason_code__warranty
 msgid "Warranty Re-work"
 msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_billable_event
+msgid "Billable Event"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__event_id
+msgid "Event ID"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__state
+msgid "State"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__attempts
+msgid "Attempts"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__last_error
+msgid "Last Error"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__first_seen_at
+msgid "First Seen At"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__invoiced_at
+msgid "Invoiced At"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_billable_event__age_days
+msgid "Age (days)"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_receipt
+msgid "AR Receipt"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__name
+msgid "Receipt No"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__amount
+msgid "Amount"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__method
+msgid "Method"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__reference
+msgid "Reference (trx id / cheque no)"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__nid_captured
+msgid "Customer NID (cash > BDT 50,000)"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__receipt_date
+msgid "Receipt Date"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__state
+msgid "State"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__allocated_amount
+msgid "Allocated"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__unapplied_amount
+msgid "Unapplied"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__posted_move_id
+msgid "GL Move"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_receipt__reversal_reason
+msgid "Reversal Reason"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_allocation
+msgid "AR Receipt Allocation"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_allocation__amount
+msgid "Amount"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_allocation__allocated_at
+msgid "Allocated At"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_allocation__allocated_by
+msgid "Allocated By"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_credit_profile
+msgid "Customer Credit Profile"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__credit_limit
+msgid "Credit Limit"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__payment_terms_days
+msgid "Payment Terms Days"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__credit_hold
+msgid "Credit Hold"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__hold_reason
+msgid "Hold Reason"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__exposure
+msgid "Exposure"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_profile__over_limit
+msgid "Over Limit"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_dispute
+msgid "AR Dispute"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_dispute__amount_disputed
+msgid "Disputed Amount"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_dispute__reason
+msgid "Reason"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_dispute__state
+msgid "State"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_dispute__resolution_note
+msgid "Resolution Note"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_aging_snapshot
+msgid "AR Ageing Snapshot"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_aging_snapshot__as_of_date
+msgid "As Of Date"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_aging_snapshot__state
+msgid "State"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_aging_snapshot__captured_at
+msgid "Captured At"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_aging_snapshot__total_open
+msgid "Total Open"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_aging_line
+msgid "AR Ageing Snapshot Line"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model,name:cd_billing_engine.model_fix_ar_payment_link
+msgid "AR Payment Link"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_payment_link__token
+msgid "Token"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_payment_link__expires_at
+msgid "Expires At"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_payment_link__state
+msgid "State"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__name
+msgid "Invoice No"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__posted_move_id
+msgid "GL Move"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__gl_note
+msgid "GL Note"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__amount_residual
+msgid "Residual"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__paid_date
+msgid "Paid Date"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_ar_invoice__manual_reason
+msgid "Manual Reason"
+msgstr ""
+
+#. module: cd_billing_engine
+#: model:ir.model.fields,field_description:cd_billing_engine.field_fix_credit_note__issued_at
+msgid "Issued At"
+msgstr ""

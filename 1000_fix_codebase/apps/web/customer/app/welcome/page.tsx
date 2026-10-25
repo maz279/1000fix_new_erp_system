@@ -5,7 +5,7 @@
  * cards + 10 journey strips from the generated landing artefact,
  * bilingual with a Bengali default (DE-17).
  * Integrated with Customer Portal LanguageProvider for synchronized
- * language switching across CustomerNavbar and LandingShell.
+ * language switching across the Fluent shell and LandingShell.
  */
 import { LandingShell } from "../../lib/imports";
 import { useLanguage } from "../../components/language";

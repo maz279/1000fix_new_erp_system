@@ -14,8 +14,10 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { rpc } from "@web/core/network/rpc";
 import { user } from "@web/core/user";
-import { Component, onWillStart, useState, markup } from "@odoo/owl";
-import { P03_AREAS, P03_MODULES, P03_ROLES, generateGridData } from "./p03_modules_meta";
+import { Component, onWillStart, onWillUnmount, useState, markup } from "@odoo/owl";
+import { P03_AREAS, P03_MODULES, P03_ROLES, generateGridData, P03_LIVE_SCREENS, P03_MODULE_CREATE, P03_FORM_MODELS, P03_DATA_SCREENS } from "./p03_modules_meta";
+import { P03_BN, P03_STATES } from "./p03_i18n";
+import { P03_REPORT_ROUTES } from "./p03_modules_meta";
 
 // Register rpc & user services in Odoo services registry to guarantee useService resolves cleanly
 export const rpcService = {
@@ -188,6 +190,16 @@ export class P03Workspace extends Component {
             this.userService = user;
         }
 
+        // ---- language (DE-17): exactly ONE language at a time. Priority:
+        // portal embed hint → per-browser memory → the Odoo user's lang.
+        // The toggle persists; embedded portals push p03:set-locale.
+        this._onEmbedLocale = (ev) => {
+            const data = ev.data || {};
+            if (data.type === "p03:set-locale" && (data.locale === "bn" || data.locale === "en")) {
+                this.setLang(data.locale, { persist: true });
+            }
+        };
+
         this.state = useState({
             viewMode: "home", // 'home' | 'workspace' | 'freg' | 'screen' | 'record' | 'console' | 'form' | 'dispatch_console' | 'branch_console' | 'workshop_console'
             activeTab: "home",
@@ -227,6 +239,11 @@ export class P03Workspace extends Component {
             recordLines: [],
             recordAttachments: [],
             recordAuditTrail: [],
+
+            // M19 GL in-workspace screens (the D365 pilot): one state object
+            // carrying the active screen kind, its live data from /p03/gl/*,
+            // the CoA FactBox selection, the JE editor and the close console.
+            gl: null,
 
             // 5-Tab Enterprise Data-Entry Form Modal State — blank inputs
             formModalOpen: false,
@@ -284,6 +301,41 @@ export class P03Workspace extends Component {
                 }
             });
         }
+
+        // --- P01 portal embed channel --------------------------------------
+        // The Next.js customer portal embeds this workspace in a cross-origin
+        // iframe (:3000 framing :8069 — allowed by cd_portal_embed's frame
+        // policy) and drives it to a module/screen via postMessage. The
+        // parent retries `p03:open` until the ack below, so mounting order
+        // is irrelevant.
+        this._onPortalMessage = (ev) => {
+            const data = ev && ev.data;
+            if (!data || data.type !== "p03:open") {
+                return;
+            }
+            const mid = P03_MODULES[data.m] ? data.m : null;
+            if (!mid) {
+                return;
+            }
+            if (data.s && typeof data.s === "string" && data.s.length <= 64) {
+                this.openScreen(data.s);
+            } else {
+                this.openModule(mid);
+            }
+            if (ev.source && ev.source.postMessage) {
+                ev.source.postMessage(
+                    { type: "p03:opened", m: mid, s: data.s || null },
+                    ev.origin
+                );
+            }
+        };
+        window.addEventListener("message", this._onPortalMessage);
+        this._initLang();
+        window.addEventListener("message", this._onEmbedLocale);
+        onWillUnmount(() => {
+            window.removeEventListener("message", this._onPortalMessage);
+            if (this._onEmbedLocale) window.removeEventListener("message", this._onEmbedLocale);
+        });
 
         onWillStart(async () => {
             await Promise.all([
@@ -361,6 +413,16 @@ export class P03Workspace extends Component {
 
     get rolesList() {
         return Array.isArray(this.roles) ? this.roles : Object.values(this.roles || {});
+    }
+
+    /* Registry totals computed from the loaded meta so rendered copy (mega
+     * menu header, rail annotations) can never drift from the data. */
+    get areaCount() {
+        return this.areas.length;
+    }
+
+    get moduleCount() {
+        return Object.keys(this.modules).length;
     }
 
     switchRole(roleId) {
@@ -451,7 +513,7 @@ export class P03Workspace extends Component {
         const orderId = this.state.quickDispatchOrder?.id ||
                         (this.state.mapSelectedPin?.pinType === "order" ? this.state.mapSelectedPin.id : null);
         if (!orderId) {
-            this.showToast("Please select an active order to assign.");
+            this.showToast(t('Please select an active order to assign.'));
             return;
         }
         try {
@@ -471,7 +533,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Dispatch assignment refused.");
             }
         } catch (err) {
-            this.showToast("Dispatch assignment failed — see server log.");
+            this.showToast(t('Dispatch assignment failed — see server log.'));
         }
     }
 
@@ -514,7 +576,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Notification failed — see server log.");
             }
         } catch (e) {
-            this.showToast("Notification failed — see server log.");
+            this.showToast(t('Notification failed — see server log.'));
         }
     }
 
@@ -534,7 +596,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Failed to advance order.");
             }
         } catch (e) {
-            this.showToast("QC advance failed — see server log.");
+            this.showToast(t('QC advance failed — see server log.'));
         }
     }
 
@@ -554,7 +616,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Failed to flag order for rework.");
             }
         } catch (e) {
-            this.showToast("QC rework update failed — see server log.");
+            this.showToast(t('QC rework update failed — see server log.'));
         }
     }
 
@@ -562,7 +624,7 @@ export class P03Workspace extends Component {
     /* Template-safe formatting helpers (null → em dash, never a crash). */
     fmtBDT(v) { return fmtBDT(v); }
     fmtNum(v) { return fmtNum(v); }
-    stateLabel(s) { return STATE_LABELS[s] || s || "—"; }
+    stateLabel(s) { return this.tState(s) !== s ? this.tState(s) : (STATE_LABELS[s] || s || "—"); }
     serviceTypeLabel(s) { return SERVICE_TYPE_LABELS[s] || s || "—"; }
     get jobCardDate() {
         return new Date().toLocaleDateString("en-GB",
@@ -572,6 +634,990 @@ export class P03Workspace extends Component {
     /* Module KPI labels (values land with each module's wiring phase). */
     get kpiLabels() {
         return (this.state.activeModule.kpis || []).map(k => k.l);
+    }
+
+    /* KPI objects for the module view; `m` is the metric key served by
+     * /p03/finance/kpis (real Odoo reads) when the module has live KPIs. */
+    get moduleKpis() {
+        return this.state.activeModule.kpis || [];
+    }
+
+    kpiValue(kpi) {
+        if (kpi.m && this.state.financeKpis && this.state.financeKpis[kpi.m] != null) {
+            const v = this.state.financeKpis[kpi.m];
+            return typeof v === "number" && !Number.isInteger(v) ? v.toLocaleString("en-BD", { maximumFractionDigits: 0 }) : String(v);
+        }
+        return "—";
+    }
+
+    kpiLive(kpi) {
+        return !!(kpi.m && this.state.financeKpis && this.state.financeKpis[kpi.m] != null);
+    }
+
+    /* Is this registry screen backed by a real Odoo model (A08 live map) or
+     * an in-workspace data screen (M19 GL pilot)? */
+    screenLive(screenId) {
+        return !!(P03_LIVE_SCREENS[screenId] || P03_DATA_SCREENS[screenId]);
+    }
+
+    /* The module's "+ New" label — finance modules create their OWN record
+     * type (P03_MODULE_CREATE), everything else stays the service order. */
+    get newButtonLabel() {
+        const create = P03_MODULE_CREATE[this.state.activeModuleId];
+        return create ? `+ ${this.t(create.label)}` : this.t("+ New Service Order");
+    }
+
+    onModuleNew() {
+        const mid = this.state.activeModuleId;
+        const create = P03_MODULE_CREATE[mid];
+        if (create) {
+            // M19's manual entry is the in-workspace D365 editor (draft →
+            // SoD review), not the stock Odoo form.
+            if (mid === "M19") {
+                this.openGlJeEditor();
+                return;
+            }
+            // M20's manual-exception invoice is the in-workspace editor too
+            if (mid === "M20") {
+                this.openScreen("M20-invoice");
+                return;
+            }
+            this.openModelForm(create.model, create.label);
+            return;
+        }
+        this.openNewForm();
+    }
+
+    /* Open a REAL Odoo form view for a model (finance data-entry forms). */
+    openModelForm(resModel, label) {
+        this.actionService.doAction({
+            type: "ir.actions.act_window",
+            name: label || "New Record",
+            res_model: resModel,
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
+
+    /* Data-entry form chips: A08 modules open their real model form; other
+     * modules keep the generic intake flow. Never the wrong-module form. */
+    openFormChip(formLabel) {
+        const mid = this.state.activeModuleId;
+        if (mid === "M19" && /journal entry/i.test(formLabel)) {
+            this.openGlJeEditor();
+            return;
+        }
+        if (mid === "M20") {
+            if (/invoice request/i.test(formLabel)) {
+                this.openScreen("M20-invoice");
+                return;
+            }
+            if (/receipt/i.test(formLabel)) {
+                this.openScreen("M20-receipts");
+                return;
+            }
+            if (/payment link/i.test(formLabel)) {
+                this.openScreen("M20-links");
+                return;
+            }
+            if (/credit note|refund/i.test(formLabel)) {
+                this.openScreen("M20-refunds");
+                return;
+            }
+        }
+        const mapped = P03_FORM_MODELS[`${mid}:${formLabel}`];
+        if (mapped) {
+            this.openModelForm(mapped, formLabel);
+            return;
+        }
+        if (mid === "M19" && /intercompany/i.test(formLabel)) {
+            this.showToast(t('Intercompany charges land with the multi-entity phase (FR-FIN-026..031)'));
+            return;
+        }
+        const create = P03_MODULE_CREATE[mid];
+        if (create) {
+            // Module has a live create surface — use it rather than nothing.
+            this.openModelForm(create.model, create.label);
+            return;
+        }
+        this.openNewForm();
+    }
+
+    /* ================================================================
+     * M19 GL IN-WORKSPACE SCREENS — the Dynamics-365 pilot. Every screen
+     * of the Financial Accounting & GL module renders INSIDE this shell
+     * from live /p03/gl/* data; nothing leaves to a stock Odoo view.
+     * ================================================================ */
+
+    _glFyWindow() {
+        // BD fiscal year July-June. Dates are formatted from LOCAL parts —
+        // toISOString() is UTC and shifts both edges back a day east of UTC.
+        const now = new Date();
+        const y = now.getFullYear();
+        const start = now.getMonth() >= 6 ? new Date(y, 6, 1) : new Date(y - 1, 6, 1); // July = month 6
+        const end = new Date(start.getFullYear() + 1, 5, 30);
+        const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        return [iso(start), iso(end)];
+    }
+
+    openGlScreen(screenId, hit, config) {
+        const [fyFrom, fyTo] = this._glFyWindow();
+        this.state.gl = {
+            screenId,
+            hitSc: hit ? hit.sc : null,
+            hitM: hit ? hit.m : null,
+            modelCfg: config.model ? config : null,
+            kind: config.kind,
+            report: config.report || null,
+            title: hit ? hit.sc.en : "GL",
+            moduleTitle: hit ? hit.m.title : "M19 · Financial Accounting & GL",
+            data: null,
+            loading: true,
+            error: null,
+            // CoA
+            selected: null,
+            coaType: "all",
+            coaSearch: "",
+            // journals
+            journalPill: "all",
+            drillCode: null,
+            jeDetail: null,
+            // statement
+            stmtFrom: fyFrom,
+            stmtTo: fyTo,
+            // close console
+            selectedCloseId: null,
+            evidenceStep: null,
+            evidenceText: "",
+            // JE editor
+            editor: null,
+            // ---- M20 AR screens ----
+            arState: "all",          // invoice state filter
+            arDetail: null,          // invoice record view
+            arEditor: null,          // manual invoice editor
+            arNoteForm: null,        // credit-note quick create (per invoice)
+            receiptForm: null,       // receipt quick create
+            allocPick: { receipt_id: null, invoice_id: null, amount: null }, // manual allocation
+            matchProposals: null,    // auto-match console
+            customers: [],           // picker for statements/editor
+            stmtCustomer: null,      // statement customer
+            arFrom: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
+            arTo: new Date().toISOString().slice(0, 10),
+            asOfDate: new Date().toISOString().slice(0, 10),
+            snapDetail: null,        // captured snapshot rows
+            prompt: null,            // generic reason prompt {title,label,action,id,value}
+            mlState: "__all",        // model_list state filter
+            mlSelected: null,        // model_list selected row
+        };
+        this.state.viewMode = "gl";
+        this.ensureTab(`gl-${screenId}`, `${hit && hit.sc.t === "f" ? "▤" : "⛁"} ${this.state.gl.title}`, "⛁", "gl", { screenId });
+        this.loadGlData();
+    }
+
+    /* Bilingual GL screen titles — re-resolve on every language switch. */
+    get glTitle() {
+        const gl = this.state.gl;
+        if (!gl) return "";
+        return (gl.hitSc && this.tBilingual(gl.hitSc)) || gl.title || "";
+    }
+
+    get glModuleTitle() {
+        const gl = this.state.gl;
+        if (!gl) return "";
+        return (gl.hitM && this.tBilingual(gl.hitM)) || gl.moduleTitle || "";
+    }
+
+    refreshGlScreen() {
+        if (this.state.viewMode === "gl" && this.state.gl) this.loadGlData();
+    }
+
+    async loadGlData() {
+        const gl = this.state.gl;
+        if (!gl) return;
+        gl.loading = true;
+        gl.error = null;
+        try {
+            if (gl.kind === "coa") {
+                gl.data = await this.rpc("/p03/gl/coa", {});
+            } else if (gl.kind === "journals") {
+                gl.jeDetail = null;
+                gl.data = await this.rpc("/p03/gl/journals", {
+                    state: gl.journalPill === "all" ? null : gl.journalPill,
+                    account_code: gl.drillCode,
+                });
+            } else if (gl.kind === "je_editor") {
+                const [accounts, templates] = await Promise.all([
+                    this.rpc("/p03/gl/accounts", {}),
+                    this.rpc("/p03/gl/templates", {}),
+                ]);
+                gl.data = {
+                    accounts: accounts.rows,
+                    branches: accounts.branches || [],
+                    templates: templates.rows,
+                };
+                if (!gl.editor) this._glNewEditor();
+            } else if (gl.kind === "statement") {
+                gl.data = await this.rpc("/p03/gl/statements", {
+                    report: gl.report,
+                    date_from: gl.stmtFrom,
+                    date_to: gl.stmtTo,
+                });
+                if (!gl.data || gl.data.success === false) {
+                    gl.error = (gl.data && gl.data.error) || "Statement unavailable";
+                    gl.data = null;
+                }
+            } else if (gl.kind === "close") {
+                gl.data = await this.rpc("/p03/gl/close", {});
+                if (!gl.selectedCloseId && gl.data.closes.length) {
+                    gl.selectedCloseId = gl.data.closes[0].id;
+                }
+            } else if (gl.kind === "periods") {
+                gl.data = await this.rpc("/p03/gl/periods", {});
+            } else if (gl.kind === "dimensions") {
+                gl.data = await this.rpc("/p03/gl/dimensions", {});
+            } else if (gl.kind === "suspense") {
+                gl.data = await this.rpc("/p03/gl/suspense", {});
+            } else if (gl.kind === "recon") {
+                gl.data = await this.rpc("/p03/gl/recon", {});
+            } else if (gl.kind === "audit") {
+                gl.data = await this.rpc("/p03/gl/audit", {});
+            } else if (gl.kind === "ar_invoices" || gl.kind === "ar_brand") {
+                gl.arDetail = null;
+                gl.data = await this.rpc("/p03/ar/invoices", {
+                    state: gl.arState === "all" ? null : gl.arState,
+                });
+            } else if (gl.kind === "ar_editor") {
+                const [customers, invoices] = await Promise.all([
+                    this.rpc("/p03/ar/customers", {}),
+                    this.rpc("/p03/ar/invoices", { state: "draft" }),
+                ]);
+                gl.customers = customers.rows;
+                gl.data = { drafts: invoices.rows };
+                if (!gl.arEditor) this._arNewEditor();
+            } else if (gl.kind === "ar_events") {
+                gl.data = await this.rpc("/p03/ar/events", {});
+            } else if (gl.kind === "ar_consolidated") {
+                gl.data = await this.rpc("/p03/ar/consolidated", {});
+            } else if (gl.kind === "ar_receipts") {
+                gl.data = await this.rpc("/p03/ar/receipts", {});
+                if (!gl.customers.length) {
+                    const res = await this.rpc("/p03/ar/customers", {});
+                    gl.customers = res.rows;
+                }
+            } else if (gl.kind === "ar_links") {
+                gl.data = await this.rpc("/p03/ar/payment-links", {});
+            } else if (gl.kind === "ar_allocation") {
+                const [match, openItems, receipts] = await Promise.all([
+                    this.rpc("/p03/ar/match", {}),
+                    this.rpc("/p03/ar/open-items", {}),
+                    this.rpc("/p03/ar/receipts", { state: "confirmed" }),
+                ]);
+                gl.matchProposals = match.proposals;
+                gl.data = {
+                    exceptions: match.exceptions,
+                    open_invoices: openItems.rows,
+                    unapplied: receipts.rows.filter((r) => r.unapplied > 0.005),
+                };
+            } else if (gl.kind === "ar_credit") {
+                gl.data = await this.rpc("/p03/ar/credit-profiles", {});
+                if (!gl.customers.length) {
+                    const res = await this.rpc("/p03/ar/customers", {});
+                    gl.customers = res.rows;
+                }
+            } else if (gl.kind === "ar_dunning" || gl.kind === "ar_disputes") {
+                gl.data = await this.rpc("/p03/ar/dunning", {});
+            } else if (gl.kind === "ar_refunds") {
+                gl.data = await this.rpc("/p03/ar/credit-notes", {});
+            } else if (gl.kind === "ar_aging") {
+                gl.data = await this.rpc("/p03/ar/aging", {});
+                gl.snapDetail = null;
+            } else if (gl.kind === "ar_leakage") {
+                gl.data = await this.rpc("/p03/ar/leakage", {});
+            } else if (gl.kind === "ar_statements") {
+                const res = await this.rpc("/p03/ar/customers", {});
+                gl.customers = res.rows;
+                if (!gl.data) gl.data = { statement: null };
+            } else if (gl.kind === "model_list") {
+                const res = await this.rpc("/p03/model/records", {
+                    model: gl.modelCfg.model,
+                    cols: gl.modelCfg.cols,
+                    domain: gl.modelCfg.domain || [],
+                    state_field: gl.modelCfg.stateField || null,
+                    state_filter: gl.mlState || "__all",
+                });
+                gl.data = res.error ? { error: res.error } : res;
+            }
+        } catch (e) {
+            gl.error = "Could not reach the GL endpoint — try Refresh.";
+            console.warn("GL screen load failed:", e);
+        }
+        gl.loading = false;
+    }
+
+
+    /* ---------------- generic model_list screens ---------------- */
+
+    get mlRows() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || gl.data.error) return [];
+        return gl.data.rows || [];
+    }
+
+    get mlStates() {
+        const gl = this.state.gl;
+        if (!gl || !gl.modelCfg || !gl.modelCfg.stateField) return [];
+        const seen = new Map();
+        for (const r of this.mlRows) {
+            const v = r[gl.modelCfg.stateField];
+            if (v && v.key != null && !seen.has(v.key)) seen.set(v.key, v.label);
+        }
+        return [...seen.entries()].map(([key, label]) => ({ key, label }));
+    }
+
+    mlSetState(key) {
+        this.state.gl.mlState = key;
+        this.loadGlData();
+    }
+
+    mlCell(row, field) {
+        const v = row[field];
+        if (v == null) return "—";
+        if (typeof v === "object") {
+            if (v.label != null) return v.label;          // selection
+            if (v.name != null) return v.name;            // many2one
+            return String(v);
+        }
+        if (typeof v === "boolean") return v ? "✓" : "—";
+        if (typeof v === "number" && Math.abs(v) >= 1000) return fmtBDT(v);
+        return String(v);
+    }
+
+    mlIsState(row, field) {
+        const v = row[field];
+        return !!(v && typeof v === "object" && v.key != null);
+    }
+
+    mlSelect(row) {
+        this.state.gl.mlSelected = this.state.gl.mlSelected === row ? null : row;
+    }
+
+    async mlAction(method, label) {
+        const gl = this.state.gl;
+        const row = gl.mlSelected;
+        if (!row) { this.showToast("Select a row first"); return; }
+        const res = await this._arCall("/p03/model/action", {
+            model: gl.modelCfg.model, ids: [row.id], method,
+        }, label ? label + " ✓" : "Done ✓");
+        if (res.success) { this.loadGlData(); this.state.gl.mlSelected = null; }
+    }
+
+    /* ---------------- CoA ---------------- */
+
+    get glCoaFiltered() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data) return [];
+        return gl.data.rows.filter((r) => {
+            if (gl.coaType !== "all" && r.type !== gl.coaType) return false;
+            if (gl.coaSearch) {
+                const q = gl.coaSearch.toLowerCase();
+                if (!(r.code.toLowerCase().includes(q) || (r.name || "").toLowerCase().includes(q))) return false;
+            }
+            return true;
+        });
+    }
+
+    glSelectAccount(row) {
+        this.state.gl.selected = row;
+    }
+
+    /* ---------------- Journals ---------------- */
+
+    glSetJournalPill(pill) {
+        this.state.gl.journalPill = pill;
+        this.loadGlData();
+    }
+
+    async glOpenJe(moveId) {
+        const gl = this.state.gl;
+        gl.jeDetail = { loading: true };
+        try {
+            const res = await this.rpc("/p03/gl/je", { move_id: moveId });
+            gl.jeDetail = res.success ? res : { error: res.error };
+        } catch (e) {
+            gl.jeDetail = { error: "Could not load the entry" };
+        }
+    }
+
+    glBackToJournals() {
+        this.state.gl.jeDetail = null;
+    }
+
+    async glApproveJe(moveId) {
+        try {
+            const res = await this.rpc("/p03/gl/je/approve", { move_id: moveId });
+            this.showToast(res.message || res.error);
+            if (res.success) {
+                this.glOpenJe(moveId);
+                this.loadGlData();
+            }
+        } catch (e) {
+            this.showToast(t('Approval failed — the SoD rules are enforced server-side'));
+        }
+    }
+
+    /* ---------------- JE editor (draft → SoD review) ---------------- */
+
+    _glNewEditor() {
+        this.state.gl.editor = {
+            ref: "",
+            date: new Date().toISOString().slice(0, 10),
+            lines: [
+                { account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" },
+                { account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" },
+            ],
+            templateName: "",
+            schedule: "monthly",
+            autoReverse: false,
+        };
+    }
+
+    glEditorSet(line, field, value) {
+        line[field] = value;
+    }
+
+    glEditorAddLine() {
+        this.state.gl.editor.lines.push({ account_id: "", label: "", debit: "", credit: "", branch_id: "", cost_centre: "", business_line: "" });
+    }
+
+    glEditorRemoveLine(idx) {
+        if (this.state.gl.editor.lines.length > 2) this.state.gl.editor.lines.splice(idx, 1);
+    }
+
+    get glEditorTotals() {
+        const lines = (this.state.gl && this.state.gl.editor && this.state.gl.editor.lines) || [];
+        const num = (v) => parseFloat(v) || 0.0;
+        const debit = lines.reduce((s, l) => s + num(l.debit), 0);
+        const credit = lines.reduce((s, l) => s + num(l.credit), 0);
+        return { debit, credit, balanced: Math.round((debit - credit) * 100) / 100 === 0 };
+    }
+
+    _glEditorPayload() {
+        const editor = this.state.gl.editor;
+        return {
+            ref: editor.ref,
+            date: editor.date,
+            lines: editor.lines
+                .filter((l) => l.account_id && (parseFloat(l.debit) || parseFloat(l.credit)))
+                .map((l) => ({
+                    account_id: parseInt(l.account_id, 10),
+                    label: l.label,
+                    debit: parseFloat(l.debit) || 0.0,
+                    credit: parseFloat(l.credit) || 0.0,
+                    branch_id: l.branch_id ? parseInt(l.branch_id, 10) : false,
+                    cost_centre: l.cost_centre,
+                    business_line: l.business_line,
+                })),
+        };
+    }
+
+    async glSaveDraft() {
+        const totals = this.glEditorTotals;
+        if (!totals.balanced) {
+            this.showToast(`Entry not balanced: debit ${totals.debit.toFixed(2)} vs credit ${totals.credit.toFixed(2)}`);
+            return;
+        }
+        try {
+            const res = await this.rpc("/p03/gl/je/create", this._glEditorPayload());
+            this.showToast(res.message || res.error);
+            if (res.success) this._glNewEditor();
+        } catch (e) {
+            this.showToast(t('Could not save the draft entry'));
+        }
+    }
+
+    async glSaveTemplate() {
+        const editor = this.state.gl.editor;
+        const payload = this._glEditorPayload();
+        if (payload.lines.length < 2) {
+            this.showToast(t('A template needs at least two filled lines'));
+            return;
+        }
+        try {
+            const res = await this.rpc("/p03/gl/templates/create", {
+                name: editor.templateName || editor.ref || "Workspace accrual template",
+                schedule: editor.schedule,
+                auto_reverse: editor.autoReverse,
+                next_run_date: editor.date,
+                ref: editor.ref,
+                lines: payload.lines,
+            });
+            this.showToast(res.message || res.error);
+            if (res.success) this.loadGlData(); // refresh the templates panel
+        } catch (e) {
+            this.showToast(t('Could not save the template'));
+        }
+    }
+
+    /* ---------------- Statements ---------------- */
+
+    glStmtInput(field, value) {
+        this.state.gl[field] = value;
+    }
+
+    glRunStatement() {
+        this.loadGlData();
+    }
+
+    glDrillAccount(code) {
+        // Statement drill-down: the Journals screen filtered to one account
+        this.state.gl.drillCode = code;
+        this.openGlScreen("M19-journals", null, { kind: "journals" });
+        this.state.gl.title = `Journals — account ${code}`;
+    }
+
+    /* ---------------- Close console ---------------- */
+
+    get glSelectedClose() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data) return null;
+        return gl.data.closes.find((c) => c.id === gl.selectedCloseId) || null;
+    }
+
+    glSelectClose(id) {
+        this.state.gl.selectedCloseId = id;
+    }
+
+    async glCloseAction(action, step) {
+        const gl = this.state.gl;
+        try {
+            const res = await this.rpc("/p03/gl/close/action", {
+                close_id: gl.selectedCloseId,
+                action,
+                step_id: step ? step.id : null,
+                evidence: action === "mark_done" ? (gl.evidenceText || "").trim() : null,
+                state: action === "set_state" ? "in_progress" : null,
+            });
+            this.showToast(res.message || res.error);
+            gl.evidenceStep = null;
+            gl.evidenceText = "";
+            if (res.success) this.loadGlData();
+        } catch (e) {
+            this.showToast(t('Close action failed'));
+        }
+    }
+
+    glEvidencePrompt(step) {
+        this.state.gl.evidenceStep = step;
+        this.state.gl.evidenceText = "";
+    }
+
+    /* ---------------- Periods / templates ---------------- */
+
+    async glLockPeriod(closeId) {
+        try {
+            const res = await this.rpc("/p03/gl/periods/lock", { close_id: closeId });
+            this.showToast(res.message || res.error);
+            if (res.success) this.loadGlData();
+        } catch (e) {
+            this.showToast(t('Lock failed'));
+        }
+    }
+
+    async glGenerateTemplate(templateId) {
+        try {
+            const res = await this.rpc("/p03/gl/templates/generate", { template_id: templateId });
+            this.showToast(res.message || res.error);
+            if (res.success) this.loadGlData();
+        } catch (e) {
+            this.showToast(t('Template run failed'));
+        }
+    }
+
+    /* Open the in-workspace JE editor (the "+ New Journal Entry" path —
+       previously called but never defined, a latent M19 defect). */
+    openGlJeEditor() {
+        this.openScreen("M19-je");
+    }
+
+    /* ================================================================
+     * M20 AR IN-WORKSPACE SCREENS — the CD-M20-02 extension of the GL
+     * pilot. All 15 screens of AR, Invoicing & Collections render inside
+     * this shell from live /p03/ar/* data; write actions call the same
+     * model methods the Odoo forms use (NID rule, FR-ARB-025, authority
+     * ladders all enforced server-side).
+     * ================================================================ */
+
+    async _arCall(url, payload, okMessage) {
+        try {
+            const res = await this.rpc(url, payload);
+            this.showToast(res.success ? (okMessage || "Done ✓") : (res.error || "Refused"));
+            return res;
+        } catch (e) {
+            this.showToast(t('The action failed — server-side rules are enforced'));
+            return { success: false };
+        }
+    }
+
+    /* ---------------- invoices ---------------- */
+
+    arSetStateFilter(value) {
+        this.state.gl.arState = value;
+        this.loadGlData();
+    }
+
+    async arOpenInvoice(invoiceId) {
+        const gl = this.state.gl;
+        gl.arDetail = { loading: true };
+        try {
+            const res = await this.rpc("/p03/ar/invoice", { invoice_id: invoiceId });
+            gl.arDetail = res.invoice ? res : { error: "Not found" };
+        } catch (e) {
+            gl.arDetail = { error: "Could not load the invoice" };
+        }
+    }
+
+    arBackToInvoices() {
+        this.state.gl.arDetail = null;
+    }
+
+    /* ---------------- manual invoice editor (FR-ARB-010) ---------------- */
+
+    _arNewEditor() {
+        this.state.gl.arEditor = {
+            customer_id: null,
+            date: new Date().toISOString().slice(0, 10),
+            reason: "",
+            lines: [{ description: "", taxable: 0, vat: 0 }],
+        };
+    }
+
+    arEditorSet(field, value) {
+        this.state.gl.arEditor[field] = value;
+    }
+
+    arEditorAddLine() {
+        this.state.gl.arEditor.lines.push({ description: "", taxable: 0, vat: 0 });
+    }
+
+    arEditorRemoveLine(index) {
+        this.state.gl.arEditor.lines.splice(index, 1);
+        if (this.state.gl.arEditor.lines.length < 1) this.arEditorAddLine();
+    }
+
+    get arEditorTotals() {
+        const editor = this.state.gl && this.state.gl.arEditor;
+        if (!editor) return { taxable: 0, vat: 0, total: 0 };
+        const taxable = editor.lines.reduce((s, l) => s + (parseFloat(l.taxable) || 0), 0);
+        const vat = editor.lines.reduce((s, l) => s + (parseFloat(l.vat) || 0), 0);
+        return { taxable, vat, total: taxable + vat };
+    }
+
+    /* Owl templates expose no JS globals — line totals are computed here,
+       never with parseFloat inside the template. */
+    arLineTotal(line) {
+        return (parseFloat(line.taxable) || 0) + (parseFloat(line.vat) || 0);
+    }
+
+    async arSaveDraftInvoice() {
+        const editor = this.state.gl.arEditor;
+        if (!editor.customer_id) {
+            this.showToast(t('Pick a customer first'));
+            return;
+        }
+        if (!editor.reason.trim()) {
+            this.showToast(t('A reason code is mandatory for manual invoices (FR-ARB-010)'));
+            return;
+        }
+        const res = await this._arCall("/p03/ar/invoice/create", {
+            customer_id: editor.customer_id,
+            invoice_date: editor.date,
+            reason: editor.reason,
+            lines: editor.lines.filter((l) => (parseFloat(l.taxable) || 0) > 0),
+        }, "Draft saved — review, then Issue");
+        if (res.success) {
+            this._arNewEditor();
+            this.loadGlData();
+        }
+    }
+
+    async arIssueDraft(invoiceId) {
+        const res = await this._arCall("/p03/ar/invoice/issue", { invoice_id: invoiceId }, "Issued — Mushak + number + GL");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- generic reason prompt ---------------- */
+
+    glPrompt(title, label, action, id) {
+        this.state.gl.prompt = { title, label, action, id, value: "" };
+    }
+
+    glPromptCancel() {
+        this.state.gl.prompt = null;
+    }
+
+    async glPromptOk() {
+        const p = this.state.gl.prompt;
+        if (!p) return;
+        this.state.gl.prompt = null;
+        const endpoints = {
+            cancel_invoice: ["/p03/ar/invoice/cancel", { invoice_id: p.id, reason: p.value }, "Cancelled — mirror posted"],
+            writeoff_invoice: ["/p03/ar/invoice/writeoff", { invoice_id: p.id, reason: p.value }, "Written off"],
+            reverse_receipt: ["/p03/ar/receipt/reverse", { receipt_id: p.id, reason: p.value }, "Receipt reversed"],
+            suppress_dunning: ["/p03/ar/dunning/suppress", { dunning_id: p.id, reason: p.value }, "Dunning suppressed"],
+            resolve_dispute: ["/p03/ar/dispute/resolve", { dispute_id: p.id, note: p.value }, "Dispute resolved"],
+        };
+        const call = endpoints[p.action];
+        if (!call) return;
+        const res = await this._arCall(call[0], call[1], call[2]);
+        if (res.success) {
+            this.loadGlData();
+            if (this.state.gl.arDetail) this.arOpenInvoice(this.state.gl.arDetail.invoice.id);
+        }
+    }
+
+    /* ---------------- billable events ---------------- */
+
+    async arEventGenerate(eventId) {
+        const res = await this._arCall("/p03/ar/event/generate", { event_id: eventId }, "Processed");
+        if (res.success) this.loadGlData();
+    }
+
+    async arEventProcessAll() {
+        const res = await this._arCall("/p03/ar/event/process-all", {}, "Batch processed");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- receipts ---------------- */
+
+    arOpenReceiptForm() {
+        this.state.gl.receiptForm = {
+            customer_id: null,
+            amount: null,
+            method: "cash",
+            reference: "",
+            nid: "",
+        };
+    }
+
+    arReceiptFormSet(field, value) {
+        this.state.gl.receiptForm[field] = value;
+    }
+
+    async arReceiptCreate() {
+        const form = this.state.gl.receiptForm;
+        if (!form.customer_id || !form.amount) {
+            this.showToast(t('Customer and amount are required'));
+            return;
+        }
+        const res = await this._arCall("/p03/ar/receipt/create", { ...form }, "Receipt captured (draft)");
+        if (res.success) {
+            this.state.gl.receiptForm = null;
+            this.loadGlData();
+        }
+    }
+
+    async arReceiptConfirm(receiptId) {
+        const res = await this._arCall("/p03/ar/receipt/confirm", { receipt_id: receiptId }, "Confirmed — GL posted");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- matching & allocation ---------------- */
+
+    async arAutoMatch() {
+        try {
+            const res = await this.rpc("/p03/ar/match", {});
+            this.state.gl.matchProposals = res.proposals;
+            this.state.gl.data.exceptions = res.exceptions;
+            this.showToast(`${res.proposals.length} proposal(s) scored · ${res.exceptions.length} exception(s)`);
+        } catch (e) {
+            this.showToast(t('Auto-match failed'));
+        }
+    }
+
+    async arApplyProposal(p) {
+        const res = await this._arCall("/p03/ar/allocation/create", {
+            receipt_id: p.receipt_id,
+            invoice_id: p.invoice_id,
+            amount: p.amount,
+        }, `Allocated ৳${p.amount.toFixed(2)} (score ${p.score})`);
+        if (res.success) this.loadGlData();
+    }
+
+    arAllocSet(field, value) {
+        // ids arrive as strings — parsed here, never with parseInt in the template
+        this.state.gl.allocPick[field] =
+            field === "amount" ? value : value ? parseInt(value, 10) : null;
+    }
+
+    async arAllocManual() {
+        const pick = this.state.gl.allocPick;
+        if (!pick.receipt_id || !pick.invoice_id || !pick.amount) {
+            this.showToast(t('Pick a receipt, an invoice and an amount'));
+            return;
+        }
+        const res = await this._arCall("/p03/ar/allocation/create", { ...pick }, "Allocated");
+        if (res.success) {
+            this.state.gl.allocPick = { receipt_id: null, invoice_id: null, amount: null };
+            this.loadGlData();
+        }
+    }
+
+    /* ---------------- credit control ---------------- */
+
+    arProfileNew() {
+        // reads the picker's value through state, never via document globals
+        const sel = document.getElementById("ar-credit-customer");
+        const customerId = sel ? parseInt(sel.value, 10) : null;
+        if (!customerId) {
+            this.showToast(t('Pick a customer first'));
+            return;
+        }
+        return this.arProfileSave(
+            { customer_id: customerId, limit: 0, terms: 30, hold: false },
+            "limit",
+            0
+        );
+    }
+
+    arStmtCustomerSet(value) {
+        this.state.gl.stmtCustomer = value ? parseInt(value, 10) : null;
+    }
+
+    async arProfileSave(row, field, value) {
+        const res = await this._arCall("/p03/ar/credit-profile/save", {
+            customer_id: row.customer_id,
+            credit_limit: field === "limit" ? value : row.limit,
+            terms_days: field === "terms" ? value : row.terms,
+            hold: field === "hold" ? value : row.hold,
+            hold_reason: row.hold_reason || "",
+        }, "Credit profile saved");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- dunning & disputes ---------------- */
+
+    async arRunDunning() {
+        const res = await this._arCall("/p03/ar/dunning/run", {}, "Dunning ladder run");
+        if (res.success) this.loadGlData();
+    }
+
+    async arDisputeCreate(invoiceId, amount, reason) {
+        if (!invoiceId || !amount) {
+            this.showToast(t('Disputed amount is required'));
+            return;
+        }
+        const res = await this._arCall("/p03/ar/dispute/create", {
+            invoice_id: invoiceId, amount, reason: reason || "",
+        }, "Dispute opened — dunning suspends on the disputed amount");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- ageing ---------------- */
+
+    async arCaptureSnapshot() {
+        const res = await this._arCall("/p03/ar/aging/capture", {
+            as_of: this.state.gl.asOfDate,
+        }, "Snapshot captured — immutable from now");
+        if (res.success) this.loadGlData();
+    }
+
+    async arAgingSelectSnapshot(snapshotId) {
+        const gl = this.state.gl;
+        gl.snapDetail = { loading: true };
+        try {
+            const res = await this.rpc("/p03/ar/aging/snapshot", { snapshot_id: snapshotId });
+            gl.snapDetail = res;
+        } catch (e) {
+            gl.snapDetail = { snapshot: null, rows: [] };
+        }
+    }
+
+    /* ---------------- credit notes ---------------- */
+
+    arOpenNoteForm(invoiceId) {
+        this.state.gl.arNoteForm = { invoice_id: invoiceId, amount: null, reason: "goodwill" };
+    }
+
+    arNoteFormSet(field, value) {
+        this.state.gl.arNoteForm[field] = value;
+    }
+
+    async arCreateNote() {
+        const form = this.state.gl.arNoteForm;
+        if (!form.amount) {
+            this.showToast(t('Credit amount is required'));
+            return;
+        }
+        const res = await this._arCall("/p03/ar/credit-note/create", { ...form }, "Credit note created");
+        if (res.success) {
+            this.state.gl.arNoteForm = null;
+            this.loadGlData();
+        }
+    }
+
+    async arIssueNote(noteId) {
+        const res = await this._arCall("/p03/ar/credit-note/issue", { note_id: noteId }, "Issued & applied");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- payment links ---------------- */
+
+    async arCreateLink(invoiceId) {
+        const res = await this._arCall("/p03/ar/payment-link/create", { invoice_id: invoiceId }, "Single-use link generated (gateway = porting phase)");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- consolidated bills ---------------- */
+
+    async arConsolidatedGenerate(customerId) {
+        const today = new Date();
+        const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+        const res = await this._arCall("/p03/ar/consolidated/generate", {
+            customer_id: customerId,
+            period_start: start,
+            period_end: today.toISOString().slice(0, 10),
+        }, "Consolidated bill generated");
+        if (res.success) this.loadGlData();
+    }
+
+    async arConsolidatedSend(billId) {
+        const res = await this._arCall("/p03/ar/consolidated/send", { bill_id: billId }, "Marked sent");
+        if (res.success) this.loadGlData();
+    }
+
+    /* ---------------- statements ---------------- */
+
+    async arRunStatement() {
+        const gl = this.state.gl;
+        if (!gl.stmtCustomer) {
+            this.showToast(t('Pick a customer'));
+            return;
+        }
+        try {
+            const res = await this.rpc("/p03/ar/statement", {
+                customer_id: gl.stmtCustomer,
+                date_from: gl.arFrom,
+                date_to: gl.arTo,
+            });
+            gl.data = { statement: res.statement };
+        } catch (e) {
+            this.showToast(t('Statement run failed'));
+        }
+    }
+
+    arStatementCsv() {
+        const stmt = this.state.gl.data && this.state.gl.data.statement;
+        if (!stmt) return;
+        const rows = [["Date", "Type", "Reference", "Detail", "Amount (BDT)"]]
+            .concat(stmt.rows.map((r) => [r.date, r.kind, r.ref, r.detail, r.charge.toFixed(2)]));
+        const csv = rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `1000FiX_Statement_${stmt.customer_id}_${stmt.date_to}.csv`;
+        a.click();
+        URL.revokeObjectURL(a.href);
+        this.showToast(`Statement exported (${stmt.rows.length} lines) ✓`);
     }
 
     /* Resolve a cross-navigation term to a real module/screen — no dead
@@ -600,6 +1646,43 @@ export class P03Workspace extends Component {
     }
 
     /* Open the P03 Report Center (A10/A11) for the report library. */
+    /* A built-in report chip: opens the in-workspace screen that already
+     * renders this report's data (M19/M20 routed); honest toast otherwise —
+     * NEVER a doAction that leaves the workspace shell. */
+    openReport(reportName, mid = this.state.activeModuleId) {
+        const route = P03_REPORT_ROUTES[`${mid}:${reportName}`];
+        if (route && (P03_DATA_SCREENS[route] || P03_LIVE_SCREENS[route])) {
+            this.openScreen(route);
+            return;
+        }
+        this.showToast(this.tf("Report '{name}' arrives with the workspace phase of its module", { name: reportName }));
+    }
+
+    openFregReport(reportName) {
+        this.openReport(reportName, this.state.activeFreg ? this.state.activeFreg.mid : this.state.activeModuleId);
+    }
+
+    /* The header "▤ Reports" chip: scroll to the Built-in Reports card. */
+    scrollToBuiltinReports() {
+        const el = document.getElementById("builtin-reports");
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
+    /* Receipts screen: live tender mix (Payment Method Mix report data). */
+    get glReceiptMethodMix() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "ar_receipts" || !gl.data) return [];
+        const mix = {};
+        for (const r of gl.data.rows) {
+            if (r.state === "reversed") continue;
+            const key = r.method || "—";
+            const slot = mix[key] || (mix[key] = { method: key, count: 0, amount: 0 });
+            slot.count += 1;
+            slot.amount += r.amount || 0;
+        }
+        return Object.values(mix).sort((a, b) => b.amount - a.amount);
+    }
+
     openReportCenter() {
         this.actionService.doAction("cd_p03_portal.action_p03_report_center");
     }
@@ -675,8 +1758,19 @@ export class P03Workspace extends Component {
         this.state.activeModuleId = mid;
         this.state.activeModule = mod;
         this.state.viewMode = "workspace";
+        this.state.financeKpis = null;
         this.ensureTab(`mod-${mid}`, `${mid} · ${mod.en}`, mod.icon, "workspace", { mid });
         this.state.megaMenuOpen = false;
+        // A08 modules fetch REAL KPI aggregates (metric keys on the kpis).
+        if ((mod.kpis || []).some(k => k.m)) {
+            this.rpc("/p03/finance/kpis", { module: mid })
+                .then((res) => {
+                    if (this.state.activeModuleId === mid && res && res[mid]) {
+                        this.state.financeKpis = res[mid];
+                    }
+                })
+                .catch(() => { /* KPIs stay placeholder "—" on failure */ });
+        }
     }
 
     openFreg(mid, fnIndex) {
@@ -726,6 +1820,31 @@ export class P03Workspace extends Component {
             hit = { mid: this.state.activeModuleId, m: mod, g: mod.groups[0], sc: mod.groups[0].screens[0] };
         }
 
+        // In-workspace D365 screens (M19 GL pilot): render INSIDE the shell
+        // from live /p03/gl/* data — checked BEFORE the live-model dispatch
+        // so these screens never leave the workspace for a stock Odoo view.
+        const dataScreen = P03_DATA_SCREENS[screenId];
+        if (dataScreen) {
+            this.openGlScreen(screenId, hit, dataScreen);
+            return;
+        }
+
+        // Live surfaces (A08 finance): screens backed by real Odoo models
+        // open the actual list (or form, for type-f screens) view instead of
+        // the empty placeholder grid.
+        const liveModel = P03_LIVE_SCREENS[screenId];
+        if (liveModel) {
+            const isForm = hit.sc.t === "f";
+            this.actionService.doAction({
+                type: "ir.actions.act_window",
+                name: hit.sc.en,
+                res_model: liveModel,
+                views: isForm ? [[false, "form"]] : [[false, "list"], [false, "form"]],
+                target: "current",
+            });
+            return;
+        }
+
         const glyph = hit.sc.t === "g" ? "⛁" : hit.sc.t === "f" ? "▤" : hit.sc.t === "d" ? "▦" : hit.sc.t === "c" ? "⌘" : "◈";
         const grid = generateGridData(hit.sc.id, hit.g.en, hit.m.en);
 
@@ -740,7 +1859,7 @@ export class P03Workspace extends Component {
                     o.device_id ? o.device_id[1] : "—",
                     o.branch_id ? o.branch_id[1] : "—",
                     o.technician_id ? o.technician_id[1] : "Unassigned",
-                    STATE_LABELS[o.state] || o.state || "—",
+                    this.stateLabel(o.state),
                     o.sla_resolution_deadline ? o.sla_resolution_deadline.slice(0, 10) : "—",
                     fmtBDT(o.grand_total),
                     fmtBDT(o.vat_amount)
@@ -761,7 +1880,10 @@ export class P03Workspace extends Component {
             gridData: grid
         };
         this.state.filteredGridRows = [...grid.rows];
-        this.state.viewMode = hit.sc.t === "f" ? "form" : hit.sc.t === "d" || hit.sc.t === "c" ? "console" : "screen";
+        // Type-f screens render as the grid view (no separate form template
+        // exists in the workspace canvas) — live ones opened a real Odoo
+        // form above; the rest show the honest empty state.
+        this.state.viewMode = hit.sc.t === "d" || hit.sc.t === "c" ? "console" : "screen";
         this.ensureTab(`screen-${hit.sc.id}`, `${glyph} ${hit.sc.en}`, glyph, this.state.viewMode, { screenId: hit.sc.id });
     }
 
@@ -830,7 +1952,7 @@ export class P03Workspace extends Component {
             tab.title = `▤ ${o.name}`;
         } catch (e) {
             console.error("Failed to load order", e);
-            this.showToast("Failed to load the order from the backend.");
+            this.showToast(t('Failed to load the order from the backend.'));
         }
     }
 
@@ -865,6 +1987,8 @@ export class P03Workspace extends Component {
         } else if (tab.mode === "freg" && tab.payload?.mid) {
             this.openFreg(tab.payload.mid, tab.payload.fnIndex);
         } else if (tab.mode === "screen" && tab.payload?.screenId) {
+            this.openScreen(tab.payload.screenId);
+        } else if (tab.mode === "gl" && tab.payload?.screenId) {
             this.openScreen(tab.payload.screenId);
         } else if (tab.mode === "record" && tab.payload?.orderId) {
             this.openRecord(tab.payload.orderId);
@@ -941,13 +2065,13 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Transition refused by the backend.");
             }
         } catch (e) {
-            this.showToast("Stage transition failed — see server log.");
+            this.showToast(t('Stage transition failed — see server log.'));
         }
     }
 
     holdStage() {
         if (!this.state.activeRecord) return;
-        this.showToast("Hold requires a reason dialog — lands with the SLA-hold phase (state stays unchanged).");
+        this.showToast(t('Hold requires a reason dialog — lands with the SLA-hold phase (state stays unchanged).'));
     }
 
     // --- Intake form line items ---
@@ -965,11 +2089,11 @@ export class P03Workspace extends Component {
     async submitServiceOrder() {
         const fd = this.state.formData;
         if (!fd.customer_name || !fd.customer_phone || !fd.fault_description || !fd.serial) {
-            this.showToast("Customer name, phone, serial and fault description are required.");
+            this.showToast(t('Customer name, phone, serial and fault description are required.'));
             this.state.modalStep = 1;
             return;
         }
-        this.showToast("Submitting Service Order to backend…");
+        this.showToast(t('Submitting Service Order to backend…'));
         try {
             const res = await this.rpc("/p03/order/create", {
                 customer_name: fd.customer_name,
@@ -996,7 +2120,7 @@ export class P03Workspace extends Component {
             }
         } catch (err) {
             console.error("Submission failed:", err);
-            this.showToast("Submission failed — the order was NOT created.");
+            this.showToast(t('Submission failed — the order was NOT created.'));
         }
     }
 
@@ -1018,7 +2142,58 @@ export class P03Workspace extends Component {
     }
 
     toggleLang() {
-        this.state.lang = this.state.lang === "en" ? "bn" : "en";
+        this.setLang(this.state.lang === "en" ? "bn" : "en", { persist: true });
+    }
+
+    /* ---- i18n helpers (DE-17): ONE language at a time, English fallback ---- */
+
+    _initLang() {
+        let lang = null;
+        try {
+            lang = window.localStorage.getItem("p03_lang");
+        } catch (_) { /* private mode */ }
+        if (lang !== "bn" && lang !== "en") {
+            const userLang = (this.userService && this.userService.lang) || "";
+            lang = userLang.startsWith("bn") ? "bn" : "en";
+        }
+        this.state.lang = lang;
+    }
+
+    setLang(lang, { persist = false } = {}) {
+        this.state.lang = lang;
+        if (persist) {
+            try {
+                window.localStorage.setItem("p03_lang", lang);
+            } catch (_) { /* private mode */ }
+        }
+    }
+
+    /* t(s): the Bangla rendering in bn mode, the English key otherwise.
+     * Unknown keys fall back to the English — never an invented value. */
+    t(s) {
+        if (this.state.lang === "bn" && s && Object.prototype.hasOwnProperty.call(P03_BN, s)) {
+            return P03_BN[s];
+        }
+        return s;
+    }
+
+    /* tf(s, params): t() plus {token} substitution for interpolated strings. */
+    tf(s, params = {}) {
+        return this.t(s).replace(/\{(\w+)\}/g, (m, k) =>
+            Object.prototype.hasOwnProperty.call(params, k) ? String(params[k]) : m);
+    }
+
+    /* tState(raw): model state keys → the active language's label. */
+    tState(raw) {
+        const row = raw != null ? P03_STATES[String(raw)] : null;
+        if (!row) return raw;
+        return this.state.lang === "bn" ? row.bn : row.en;
+    }
+
+    /* The active language's value for meta entities that carry both. */
+    tBilingual(entity) {
+        if (!entity) return "";
+        return this.state.lang === "bn" ? entity.bn || entity.en : entity.en;
     }
 
     onModuleSearch(ev) {
@@ -1040,7 +2215,7 @@ export class P03Workspace extends Component {
     // --- Job Card & Tax Invoice Modal ---
     openJobCardModal() {
         if (!this.state.activeRecord) {
-            this.showToast("Open a service order first — the Job Card prints the live record.");
+            this.showToast(t('Open a service order first — the Job Card prints the live record.'));
             return;
         }
         this.state.jobCardModalOpen = true;
@@ -1059,7 +2234,7 @@ export class P03Workspace extends Component {
     // --- Field Dispatch Modal ---
     openDispatchModal() {
         if (!this.state.activeRecord) {
-            this.showToast("Open a service order first.");
+            this.showToast(t('Open a service order first.'));
             return;
         }
         this.state.dispatchModalOpen = true;
@@ -1072,7 +2247,7 @@ export class P03Workspace extends Component {
     async confirmDispatch() {
         const df = this.state.dispatchForm;
         if (!df.technician) {
-            this.showToast("Enter the technician to assign (matched against HR records).");
+            this.showToast(t('Enter the technician to assign (matched against HR records).'));
             return;
         }
         try {
@@ -1091,14 +2266,14 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Dispatch refused by the backend.");
             }
         } catch (e) {
-            this.showToast("Dispatch failed — see server log.");
+            this.showToast(t('Dispatch failed — see server log.'));
         }
     }
 
     // --- Inventory Reservation Modal ---
     openInventoryModal() {
         if (!this.state.activeRecord) {
-            this.showToast("Open a service order first.");
+            this.showToast(t('Open a service order first.'));
             return;
         }
         this.state.inventoryModalOpen = true;
@@ -1111,7 +2286,7 @@ export class P03Workspace extends Component {
     async confirmInventoryReserve() {
         const inv = this.state.inventoryForm;
         if (!inv.partSku) {
-            this.showToast("Enter the part SKU (matched against the product catalogue).");
+            this.showToast(t('Enter the part SKU (matched against the product catalogue).'));
             return;
         }
         try {
@@ -1129,7 +2304,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Reservation refused by the backend.");
             }
         } catch (e) {
-            this.showToast("Reservation failed — see server log.");
+            this.showToast(t('Reservation failed — see server log.'));
         }
     }
 
@@ -1245,7 +2420,7 @@ export class P03Workspace extends Component {
     exportGridCsv() {
         const rows = this.state.filteredGridRows || [];
         if (!rows.length) {
-            this.showToast("No rows in the active grid — nothing to export.");
+            this.showToast(t('No rows in the active grid — nothing to export.'));
             return;
         }
         const cols = (this.state.activeScreen && this.state.activeScreen.gridData)

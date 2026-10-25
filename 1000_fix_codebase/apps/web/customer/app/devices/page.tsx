@@ -377,9 +377,9 @@ export default function DevicesPage() {
                   onChange={(e) => setPurchaseChannel(e.target.value)}
                   style={inputStyle}
                 >
-                  <option value="brand_store">{locale === "bn" ? "ব্র্যান্ড শোরুম (Brand Store)" : "Brand Store"}</option>
-                  <option value="partner">{locale === "bn" ? "অনুমোদিত ডিলার (Authorized Partner)" : "Authorized Partner"}</option>
-                  <option value="online">{locale === "bn" ? "অনলাইন ই-কমার্স (Online E-Commerce)" : "Online E-Commerce"}</option>
+                  <option value="brand_store">{locale === "bn" ? "ব্র্যান্ড শোরুম" : "Brand Store"}</option>
+                  <option value="partner">{locale === "bn" ? "অনুমোদিত ডিলার" : "Authorized Partner"}</option>
+                  <option value="online">{locale === "bn" ? "অনলাইন ই-কমার্স" : "Online E-Commerce"}</option>
                 </select>
               </div>
 

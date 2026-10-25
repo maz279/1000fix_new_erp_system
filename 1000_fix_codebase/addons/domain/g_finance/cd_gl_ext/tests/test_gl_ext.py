@@ -297,6 +297,7 @@ class TestPostWithDimensions:
         move_mock.company_id.id = 1
         move_mock.amount_total = 750.0
         move_mock.currency_id.name = "BDT"
+        move_mock.name = "ENTRY-01"
         line1 = MagicMock(id=501)
         line2 = MagicMock(id=502)
         move_mock.line_ids = [line1, line2]
@@ -305,11 +306,19 @@ class TestPostWithDimensions:
         dim_model.create.return_value = MagicMock()
         ou_model = MagicMock()
         ou_model.search.return_value = MagicMock(id=99)
+        # The statutory chart lookup: no linked accounts -> no COA-rule
+        # enforcement (unmapped accounts post with structural checks only).
+        chart_model = MagicMock()
+        chart_model.sudo.return_value.search.return_value = []
+        # The immutable posting log the helper appends (FR-FIN-042).
+        log_model = MagicMock()
 
         env = {
             "account.move": MagicMock(create=MagicMock(return_value=move_mock)),
             "fix.journal.dimension": dim_model,
             "operating.unit": ou_model,
+            "fix.chart.account": chart_model,
+            "fix.journal.posting.log": log_model,
         }
 
         with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
@@ -322,6 +331,7 @@ class TestPostWithDimensions:
             move_mock.action_post.assert_called_once()
             dim_model.create.assert_called_once()
             mock_pub.assert_called_once()
+            log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
 
 
 class TestChartAccountAndLoader:

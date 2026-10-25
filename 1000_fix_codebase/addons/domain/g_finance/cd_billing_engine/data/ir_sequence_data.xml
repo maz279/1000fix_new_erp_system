@@ -18,5 +18,28 @@
             <field name="use_date_range" eval="True"/>
             <field name="company_id" eval="False"/>
         </record>
+
+        <!-- CD-M20-02: the AR invoice number (FR-ARB-005 gapless, per
+             company via the template-copy pattern) and the receipt number. -->
+        <record id="seq_fix_ar_invoice" model="ir.sequence">
+            <field name="name">AR Invoice No (template)</field>
+            <field name="code">fix.ar.invoice</field>
+            <field name="prefix">INV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="number_increment">1</field>
+            <field name="implementation">no_gap</field>
+            <field name="use_date_range" eval="False"/>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ar_receipt" model="ir.sequence">
+            <field name="name">AR Receipt No (template)</field>
+            <field name="code">fix.ar.receipt</field>
+            <field name="prefix">RCP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="number_increment">1</field>
+            <field name="implementation">standard</field>
+            <field name="use_date_range" eval="False"/>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

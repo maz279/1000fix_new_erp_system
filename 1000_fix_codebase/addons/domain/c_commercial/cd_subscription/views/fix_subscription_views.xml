@@ -87,8 +87,4 @@
     <menuitem id="menu_fix_subscription" name="Subscriptions"
               parent="cd_contract_core.menu_ws_contract"
               action="action_fix_subscription" sequence="30"/>
-    <menuitem id="menu_fix_revenue_schedule" name="Revenue Schedules"
-              parent="cd_gl_ext.menu_ws_finance"
-              action="action_fix_revenue_schedule" sequence="130"/>
-
 </odoo>

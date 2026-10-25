@@ -197,18 +197,9 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <!-- Menus -->
-    <menuitem id="menu_ws_finance" name="Finance"
-              parent="cd_entity_config.menu_fix_operations_root"
-              groups="cd_rbac_ext.group_fix_portal_user"
-              sequence="80"/>
-    <menuitem id="menu_fix_chart_account" name="Chart of Accounts"
-              parent="menu_ws_finance" action="action_fix_chart_account" sequence="5"/>
-    <menuitem id="menu_fix_period_close" name="Period Close"
-              parent="menu_ws_finance" action="action_fix_period_close" sequence="10"/>
-    <menuitem id="menu_fix_chart_loader" name="CoA Master Loader"
-              parent="menu_ws_finance" action="action_fix_chart_loader" sequence="15"/>
-    <menuitem id="menu_fix_fixed_asset_seam" name="Fixed Asset Seam"
-              parent="menu_ws_finance" action="action_fix_fixed_asset_seam" sequence="20"/>
+    <!-- The menuitems attaching these actions to the generated P03 workspace
+         menu live in cd_finance_nav (the bridge depending on BOTH cd_gl_ext
+         and cd_p03_portal) — a domain module must not reference platform
+         menus it does not depend on (clean-install load order, FF-46). -->
 
 </odoo>

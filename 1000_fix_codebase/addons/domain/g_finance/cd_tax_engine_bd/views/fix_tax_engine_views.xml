@@ -102,9 +102,4 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_mushak_register" name="Mushak 6.3 Register"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_mushak_register" sequence="30"/>
-    <menuitem id="menu_fix_vat_treatment" name="VAT Treatments"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_vat_treatment" sequence="40"/>
-
 </odoo>

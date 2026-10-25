@@ -209,6 +209,18 @@ class TestAutoInvoice:
         assert Invoice._next_mushak_no(other, date(2026, 7, 1)) == "2026-000001"
         assert Invoice._mushak_sequence(other) != seq
 
+    def test_numbering_refuses_without_the_sequence_template(self, shop):
+        """A company's Mushak series is copied from the module template; with
+        the template gone numbering stops instead of inventing a number."""
+        env = shop.env
+        other = env["res.company"].create({"name": "M20 No Template Co"})
+        with (
+            pytest.raises(UserError, match="Mushak 6.3 numbering sequence is missing"),
+            env.cr.savepoint(),
+        ):
+            env.ref("cd_billing_engine.seq_fix_mushak_63").unlink()
+            env["fix.ar.invoice"]._mushak_sequence(other)
+
     def test_new_fiscal_range_continues_after_existing_numbers(self, shop):
         """Numbers written by the old scheme are never re-issued."""
         env = shop.env
@@ -396,20 +408,35 @@ class TestCreditNote:
         note.action_approve()  # superuser holds base.group_system
         assert (note.state, note.approved_by) == ("approved", shop.env.user)
 
-    def test_issue_credits_the_invoice(self, shop):
-        note = self._note(shop, 5000.0)
+    def test_issue_applies_credit_partially_then_fully(self, shop):
+        """CD-M20-02 semantics: a note applies its amount — only a FULLY
+        credited invoice flips to 'credited' (the old any-note-credits-all
+        behaviour was the audit's partial-application defect)."""
+        note = self._note(shop, 5000.0)  # invoice total is 69000
         with pytest.raises(UserError, match="Approve before issuing"), shop.env.cr.savepoint():
             note.action_issue()
         note.action_submit()
         note.action_issue()
-        assert (note.state, note.invoice_id.state) == ("issued", "credited")
-        assert _events(shop.env, "credit_note.issued", note.id) == [
-            {
-                "invoice_ref": "AR/%s" % note.invoice_id.id,
-                "amount": 5000.0,
-                "reason": "pricing_error",
-            }
-        ]
+        invoice = note.invoice_id
+        assert note.state == "issued"
+        assert invoice.state == "issued"  # partial credit keeps it open
+        assert _money(invoice.amount_residual) == D("64000.00")
+        assert _events(shop.env, "credit_note.issued", note.id)[-1] == {
+            "invoice_ref": "AR/%s" % invoice.id,
+            "invoice": invoice.name,
+            "amount": 5000.0,
+            "reason": "pricing_error",
+            "invoice_residual": 64000.0,
+        }
+        # a second note clearing the residual flips the invoice to credited
+        settle = self._note(shop, 64000.0)
+        settle.invoice_id = invoice
+        settle.action_submit()
+        settle.action_approve()  # above BDT 25,000 — superuser holds the group
+        settle.action_issue()
+        invoice.invalidate_recordset()
+        assert invoice.state == "credited"
+        assert _money(invoice.amount_residual) == D("0.00")
 
 
 class TestConsolidatedBill:

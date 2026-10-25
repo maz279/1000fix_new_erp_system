@@ -79,10 +79,4 @@
         <field name="view_mode">list,form</field>
     </record>
 
-    <menuitem id="menu_fix_fixed_assets" name="Fixed Assets"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_fixed_asset"
-              sequence="30"/>
-    <menuitem id="menu_fix_cwip" name="CWIP"
-              parent="cd_gl_ext.menu_ws_finance" action="action_fix_cwip"
-              sequence="40"/>
 </odoo>

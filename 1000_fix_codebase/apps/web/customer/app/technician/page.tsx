@@ -74,7 +74,7 @@ const TECHNICIAN_AUTH_COPY: Record<TechnicianAuthErrorCode, { bn: string; en: st
     en: "Access denied — the request named a different technician. You can only act on your own jobs.",
   },
   technician_auth_not_configured: {
-    bn: "এই সার্ভারে টেকনিশিয়ান অ্যাক্সেস কনফিগার করা হয়নি (FIX_TECHNICIAN_API_KEY সেট নেই)। অ্যাডমিনের সাথে যোগাযোগ করুন।",
+    bn: "এই সার্ভারে টেকনিশিয়ান অ্যাক্সেস কনফিগার করা হয়নি (API কী সেট নেই)। অ্যাডমিনের সাথে যোগাযোগ করুন।",
     en: "Technician access is not configured on this server (FIX_TECHNICIAN_API_KEY is not set). Contact your administrator.",
   },
   technician_auth_rejected: {
@@ -549,7 +549,7 @@ export default function TechnicianPortalPage() {
       await callOdooAsTechnician("/technician/job/status", { work_order_id: woId, action });
       setSuccessMsg(
         isBn
-          ? `কাজের অবস্থা আপডেট হয়েছে: ${action === "start" ? "চলমান (In Progress)" : "সম্পন্ন (Completed)"}`
+          ? `কাজের অবস্থা আপডেট হয়েছে: ${action === "start" ? "চলমান" : "সম্পন্ন"}`
           : `Job status updated: ${action === "start" ? "In Progress" : "Completed"}`
       );
       refreshAll();
@@ -1330,7 +1330,7 @@ export default function TechnicianPortalPage() {
                   {gpsError
                     ? geoFixErrorText(gpsError, isBn ? "bn" : "en")
                     : gpsFix
-                      ? `${isBn ? "নির্ভুলতা:" : "Accuracy:"} ${gpsFix.accuracyM !== null ? `±${Math.round(gpsFix.accuracyM)} m` : isBn ? "জানানো হয়নি" : "not reported"} · ${new Date(gpsFix.at).toLocaleTimeString()}`
+                      ? `${isBn ? "নির্ভুলতা:" : "Accuracy (m):"} ${gpsFix.accuracyM !== null ? `±${Math.round(gpsFix.accuracyM)} m` : isBn ? "জানানো হয়নি" : "n/a"} · ${new Date(gpsFix.at).toLocaleTimeString()}`
                       : isBn ? "ক্লক-ইন করার সময় নতুন ফিক্স নেওয়া হবে" : "A fresh fix is taken on clock-in"}
                 </div>
               </div>

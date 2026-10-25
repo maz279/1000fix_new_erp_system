@@ -81,6 +81,7 @@ class FixArInvoice(models.Model):
             ("issued", "Issued"),
             ("paid", "Paid"),
             ("credited", "Credited"),
+            ("written_off", "Written Off"),
             ("cancelled", "Cancelled"),
         ],
         default="draft",
@@ -113,6 +114,52 @@ class FixArInvoice(models.Model):
     generation_seconds = fields.Float(
         readonly=True, help="Closed-event to invoice duration — NFR-040 (5s)"
     )
+    # --- M20 engine depth (CD-M20-02) -------------------------------------
+    name = fields.Char(
+        string="Invoice No",
+        default="New",
+        copy=False,
+        readonly=True,
+        index=True,
+        help="Gapless per-company sequence drawn at issue (FR-ARB-005)",
+    )
+    manual_reason = fields.Char(
+        readonly=True, help="FR-ARB-010: mandatory reason for manual invoices"
+    )
+    posted_move_id = fields.Many2one(
+        "account.move",
+        string="GL Move",
+        readonly=True,
+        copy=False,
+        help="The AR posting through M19's post_with_dimensions (source='ar')",
+    )
+    gl_note = fields.Char(
+        readonly=True,
+        copy=False,
+        help="Honest skip reason when the GL posting could not run",
+    )
+    paid_date = fields.Date(readonly=True)
+    allocation_ids = fields.One2many("fix.ar.allocation", "invoice_id", string="Allocations")
+    credit_note_ids = fields.One2many("fix.credit.note", "invoice_id", string="Credit Notes")
+    amount_paid = fields.Monetary(
+        string="Paid",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+        help="Receipt allocations applied (the evidence path)",
+    )
+    credited_amount = fields.Monetary(
+        string="Credited",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+    )
+    amount_residual = fields.Monetary(
+        string="Residual",
+        currency_field="currency_id",
+        compute="_compute_payment",
+        store=True,
+    )
 
     @api.depends("line_ids.taxable_amount", "line_ids.vat_amount", "loyalty_discount_amount")
     def _compute_totals(self):
@@ -121,6 +168,350 @@ class FixArInvoice(models.Model):
             inv.vat_amount = sum(inv.line_ids.mapped("vat_amount"))
             subtotal_vat = inv.taxable_amount + inv.vat_amount
             inv.total_payable = max(0.0, subtotal_vat - (inv.loyalty_discount_amount or 0.0))
+
+    @api.depends(
+        "total_payable", "allocation_ids.amount", "credit_note_ids.amount", "credit_note_ids.state"
+    )
+    def _compute_payment(self):
+        for inv in self:
+            inv.amount_paid = sum(inv.allocation_ids.mapped("amount"))
+            inv.credited_amount = sum(
+                inv.credit_note_ids.filtered(lambda n: n.state == "issued").mapped("amount")
+            )
+            inv.amount_residual = max(
+                inv.total_payable - inv.amount_paid - inv.credited_amount, 0.0
+            )
+
+    # ------------------------------------------------------------------
+    # M20 engine depth: terms, credit holds, GL posting, lifecycle actions
+    # ------------------------------------------------------------------
+    def _payment_terms_days(self) -> int:
+        """The customer's terms from their credit profile (default net-30 —
+        the value that used to be hardcoded in the ageing compute)."""
+        self.ensure_one()
+        profile = (
+            self.env["fix.credit.profile"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "=", self.customer_id.id),
+                    ("company_id", "=", self.company_id.id),
+                ],
+                limit=1,
+            )
+        )
+        return profile.payment_terms_days if profile else 30
+
+    def _credit_hold_check(self):
+        """FR-ARB-031: a held customer blocks new invoicing. Blocking M01/M08
+        order intake is a cross-module change (porting phase)."""
+        for inv in self:
+            self._credit_hold_for(inv.customer_id, inv.company_id)
+
+    @api.model
+    def _credit_hold_for(self, customer, company):
+        profile = (
+            self.env["fix.credit.profile"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "=", customer.id),
+                    ("company_id", "=", company.id),
+                    ("credit_hold", "=", True),
+                ],
+                limit=1,
+            )
+        )
+        if profile:
+            raise UserError(
+                "Credit hold on %s (%s) — invoicing blocked (FR-ARB-031)"
+                % (customer.name, profile.hold_reason or "no reason recorded")
+            )
+
+    def _ar_posting_dims(self, branch_id=None):
+        """Dimensions for every AR-family GL posting: the branch, plus the
+        configured default cost centre and business line (COA-03 may require
+        any of them per account). Defaults come from config params so each
+        deployment sets its own; postings never invent values beyond these
+        configured defaults."""
+        param = self.env["ir.config_parameter"].sudo().get_param
+        return {
+            "branch_id": branch_id or False,
+            "cost_centre": param("cd_billing_engine.default_cost_centre") or "CORP",
+            "business_line": param("cd_billing_engine.default_business_line") or "RETAIL",
+        }
+
+    INVOICE_SEQUENCE_CODE = "fix.ar.invoice"
+
+    @api.model
+    def _invoice_sequence(self, company):
+        """The company's own invoice-number sequence — copied once from the
+        module template (the Mushak pattern, without fiscal-year ranges:
+        FR-ARB-005 gapless per entity)."""
+        Sequence = self.env["ir.sequence"].sudo()
+        seq = Sequence.search(
+            [("code", "=", self.INVOICE_SEQUENCE_CODE), ("company_id", "=", company.id)], limit=1
+        )
+        if not seq:
+            template = self.env.ref(
+                "cd_billing_engine.seq_fix_ar_invoice", raise_if_not_found=False
+            )
+            if not template:
+                raise UserError(
+                    "The invoice numbering sequence is missing — upgrade cd_billing_engine."
+                )
+            seq = template.copy(
+                {
+                    "name": "AR Invoice No — %s" % company.name,
+                    "company_id": company.id,
+                    "date_range_ids": [],
+                }
+            )
+        return seq
+
+    def _next_invoice_no(self) -> str:
+        self.ensure_one()
+        return self._invoice_sequence(self.company_id).next_by_id(sequence_date=self.invoice_date)
+
+    def _post_issue_gl(self):
+        """The issue posting through M19's hardened engine (source='ar'):
+        Dr AR control / Cr Revenue / Cr VAT output, branch dimension on every
+        line. Companies without the accounts/journal SKIP with an honest
+        gl_note — invoicing is never blocked by GL configuration."""
+        from .fix_ar_engine import _ar_account, _post_ar_move
+
+        for inv in self:
+            if inv.total_payable <= 0.005:
+                inv.gl_note = "Zero-total invoice — no GL effect"
+                return
+            company = inv.company_id
+            ar = _ar_account(inv.env, company, "ar")
+            revenue = _ar_account(inv.env, company, "revenue")
+            vat = _ar_account(inv.env, company, "vat_output")
+            if not (ar and revenue and vat):
+                inv.gl_note = (
+                    "GL not posted: AR/revenue/VAT account unconfigured for %s" % company.name
+                )
+                return
+            # loyalty reduces revenue; if it ever exceeded the taxable value,
+            # the VAT credit is reduced rather than inventing a negative line
+            vat_credit = inv.vat_amount
+            revenue_credit = inv.total_payable - vat_credit
+            if revenue_credit < 0:
+                vat_credit = inv.total_payable
+                revenue_credit = 0.0
+            _dims = inv._ar_posting_dims(inv.branch_id.id)
+            dims = {i: _dims for i in range(3)}
+            move, note = _post_ar_move(
+                inv.env,
+                company,
+                inv.invoice_date,
+                "INV %s — %s (Mushak %s)"
+                % (inv.name, inv.customer_id.name, inv.mushak_id.mushak_no or "—"),
+                [
+                    (
+                        ar.id,
+                        "AR %s" % inv.customer_id.name,
+                        inv.total_payable,
+                        0.0,
+                        inv.customer_id.id,
+                    ),
+                    (revenue.id, "Service revenue", 0.0, revenue_credit, False),
+                    (
+                        vat.id,
+                        "VAT output 15%% (Mushak %s)" % (inv.mushak_id.mushak_no or "—"),
+                        0.0,
+                        vat_credit,
+                        False,
+                    ),
+                ],
+                dims,
+                source="ar",
+            )
+            inv.write({"posted_move_id": move.id if move else False, "gl_note": note or False})
+            if move and inv.mushak_id:
+                # the flag the register has carried unset since day one
+                inv.mushak_id.sudo().posted = True
+
+    def _post_reversal_gl(self, label, debit_lines, credit_lines):
+        """A mirror posting for cancellations/write-offs; refuses (never
+        skips) when the posting accounts are missing — these are finance
+        actions, the GL IS the point."""
+        from .fix_ar_engine import _ar_journal, _post_ar_move
+
+        self.ensure_one()
+        journal = _ar_journal(self.env, self.company_id)
+        if not journal:
+            raise UserError("Posting refused: no general journal for %s" % self.company_id.name)
+        missing = [role for role, acc, *_rest in debit_lines + credit_lines if not acc]
+        if missing:
+            raise UserError(
+                "Posting refused: account role(s) %s unconfigured for %s"
+                % (", ".join(missing), self.company_id.name)
+            )
+        _dims = self._ar_posting_dims(self.branch_id.id)
+        dims = {i: _dims for i in range(len(debit_lines) + len(credit_lines))}
+        lines = [
+            (acc.id, label, amount, 0.0, partner or False)
+            for role, acc, amount, partner in debit_lines
+        ] + [
+            (acc.id, label, 0.0, amount, partner or False)
+            for role, acc, amount, partner in credit_lines
+        ]
+        move, note = _post_ar_move(
+            self.env,
+            self.company_id,
+            fields.Date.today(),
+            label,
+            lines,
+            dims,
+            source="ar",
+        )
+        if not move:
+            raise UserError("Posting refused: %s" % (note or "engine refused the move"))
+        return move
+
+    def action_cancel(self, reason=""):
+        """FR-ARB-011: unpaid invoices only, approved reason, number
+        retained; the GL mirror is posted when the issue was posted."""
+        from .fix_ar_engine import _ar_account
+
+        for inv in self:
+            if inv.state not in ("draft", "issued"):
+                raise UserError("Only draft/issued invoices can be cancelled")
+            if inv.amount_paid > 0.005 or inv.credited_amount > 0.005:
+                raise UserError(
+                    "Paid/credited invoices cannot be cancelled — issue a credit note instead"
+                )
+            if not (reason or "").strip():
+                raise UserError("A cancellation reason is required (FR-ARB-011)")
+            if inv.posted_move_id:
+                ar = _ar_account(inv.env, inv.company_id, "ar")
+                revenue = _ar_account(inv.env, inv.company_id, "revenue")
+                vat = _ar_account(inv.env, inv.company_id, "vat_output")
+                vat_credit = min(inv.vat_amount, inv.total_payable)
+                revenue_credit = inv.total_payable - vat_credit
+                inv._post_reversal_gl(
+                    "CANCEL INV %s — %s" % (inv.name, reason),
+                    [
+                        ("revenue", revenue, revenue_credit, False),
+                        ("vat_output", vat, vat_credit, False),
+                    ],
+                    [("ar", ar, inv.total_payable, inv.customer_id.id)],
+                )
+            inv.state = "cancelled"
+            publish(
+                inv.env,
+                "invoice.cancelled",
+                "fix.ar.invoice",
+                inv.id,
+                {"invoice": inv.name, "reason": reason[:500]},
+            )
+
+    def action_write_off(self, reason=""):
+        """FR-ARB-041: authority-matrix write-off — above BDT 25,000 a
+        manager approves (the credit-note ladder)."""
+        from .fix_ar_engine import _ar_account
+
+        for inv in self:
+            if inv.state != "issued":
+                raise UserError("Only issued invoices can be written off")
+            if inv.amount_residual <= 0.005:
+                raise UserError("Nothing residual to write off on %s" % inv.name)
+            if not (reason or "").strip():
+                raise UserError("A write-off reason is required (FR-ARB-041)")
+            if inv.amount_residual > 25000 and not self.env.user.has_group("base.group_system"):
+                raise UserError(
+                    "Write-offs above BDT 25,000 require managerial approval (05-04 section 7)"
+                )
+            writeoff = _ar_account(inv.env, inv.company_id, "writeoff_expense")
+            ar = _ar_account(inv.env, inv.company_id, "ar")
+            inv._post_reversal_gl(
+                "WRITE-OFF INV %s — %s" % (inv.name, reason),
+                [("writeoff_expense", writeoff, inv.amount_residual, False)],
+                [("ar", ar, inv.amount_residual, inv.customer_id.id)],
+            )
+            inv.state = "written_off"
+            publish(
+                inv.env,
+                "invoice.written_off",
+                "fix.ar.invoice",
+                inv.id,
+                {"invoice": inv.name, "amount": inv.amount_residual, "reason": reason[:500]},
+            )
+
+    @api.model
+    def create_manual_invoice(self, vals, lines, reason_code):
+        """FR-ARB-010: the manual exception path. A reason code is mandatory
+        and the invoice starts as draft — issue (Mushak + number + GL) is a
+        separate deliberate step."""
+        if not (reason_code or "").strip():
+            raise UserError("Manual invoices need a reason code (FR-ARB-010)")
+        vals = dict(vals)
+        vals.update({"source_model": "manual", "source_id": 0, "manual_reason": reason_code})
+        invoice = self.create(vals)
+        # keep the one-invoice-per-source guard meaningful for manual rows;
+        # flushed immediately so a following manual create cannot race the key
+        invoice.source_id = -invoice.id
+        self.env.flush_all()
+        for line in lines:
+            self.env["fix.ar.invoice.line"].create(dict(line, invoice_id=invoice.id))
+        return invoice
+
+    def action_issue(self):
+        """Issue a manual/draft invoice: draws the gapless number, writes the
+        Mushak 6.3 row, posts to GL, publishes invoice.created."""
+        for inv in self:
+            if inv.state != "draft":
+                raise UserError("Only draft invoices can be issued")
+            if not inv.line_ids:
+                raise UserError("An invoice needs at least one line")
+            if inv.total_payable <= 0.005:
+                raise UserError("Invoice total must be positive")
+            if not (inv.manual_reason or "").strip():
+                raise UserError("Manual invoices need a reason code (FR-ARB-010)")
+            inv._credit_hold_check()
+            company = inv.company_id
+            mushak = self.env["fix.mushak.register"].create(
+                {
+                    "operating_unit_id": inv.operating_unit_id.id,
+                    "mushak_no": self._next_mushak_no(company, inv.invoice_date),
+                    "invoice_ref": "AR/%s" % inv.id,
+                    "invoice_date": inv.invoice_date,
+                    "supplier_name": company.name,
+                    "supplier_bin": self._company_bin(company),
+                    "customer_name": inv.customer_id.name,
+                    "customer_bin": inv.customer_id.vat or "",
+                    "taxable_amount": inv.taxable_amount,
+                    "vat_amount": inv.vat_amount,
+                    "total_payable": inv.total_payable,
+                    "treatment_summary": "manual entry (%s)" % inv.manual_reason,
+                }
+            )
+            inv.write({"name": inv._next_invoice_no(), "mushak_id": mushak.id, "state": "issued"})
+            publish(
+                inv.env,
+                "invoice.created",
+                "fix.ar.invoice",
+                inv.id,
+                {
+                    "invoice_ref": "AR/%s" % inv.id,
+                    "invoice_no": inv.name,
+                    "mushak_no": mushak.mushak_no,
+                    "invoice_date": str(inv.invoice_date),
+                    "supplier_name": company.name,
+                    "supplier_bin": self._company_bin(company),
+                    "customer_name": inv.customer_id.name,
+                    "customer_bin": inv.customer_id.vat or "",
+                    "taxable_amount": inv.taxable_amount,
+                    "vat_amount": inv.vat_amount,
+                    "total_payable": inv.total_payable,
+                    "treatment_summary": mushak.treatment_summary,
+                    "operating_unit_id": inv.operating_unit_id.id,
+                },
+            )
+            inv.write({"generated_at": fields.Datetime.now(), "generation_seconds": 0.0})
+            inv._post_issue_gl()
 
     @api.model
     def from_closed_service_order(self, order, closed_event_at) -> "FixArInvoice":
@@ -146,6 +537,9 @@ class FixArInvoice(models.Model):
             raise UserError(
                 "No approved estimate on %s — invoicing requires one (BRU-SRM-05)" % order.name
             )
+
+        # FR-ARB-031: a held customer blocks invoicing before anything is created
+        self._credit_hold_for(order.customer_id, order.company_id)
 
         # fix.estimate.line carries no discount: the estimate's discount is a
         # HEADER amount (reading line.discount raised AttributeError on every
@@ -219,7 +613,13 @@ class FixArInvoice(models.Model):
                 ),
             }
         )
-        invoice.write({"mushak_id": mushak.id, "state": "issued"})
+        invoice.write(
+            {
+                "mushak_id": mushak.id,
+                "state": "issued",
+                "name": invoice._next_invoice_no(),
+            }
+        )
 
         publish(
             self.env,
@@ -228,6 +628,7 @@ class FixArInvoice(models.Model):
             invoice.id,
             {
                 "invoice_ref": "AR/%s" % invoice.id,
+                "invoice_no": invoice.name,
                 "mushak_no": mushak.mushak_no,
                 "invoice_date": str(invoice.invoice_date),
                 "supplier_name": company.name,
@@ -243,6 +644,9 @@ class FixArInvoice(models.Model):
         )
         elapsed = time.monotonic() - started
         invoice.write({"generated_at": fields.Datetime.now(), "generation_seconds": elapsed})
+        # the M19 posting the docstrings always claimed (skips with an
+        # honest gl_note when the company's GL is unconfigured)
+        invoice._post_issue_gl()
         return invoice
 
     MUSHAK_SEQUENCE_CODE = "fix.mushak.63"
@@ -418,13 +822,30 @@ class FixDunning(models.Model):
         required=True,
         tracking=True,
     )
+    step_date = fields.Date(
+        string="Step Date", help="When the current ladder step was set (grace runs from here)"
+    )
+    suppressed = fields.Boolean(
+        help="Dunning suspended for this invoice (dispute / payment plan / strategic)"
+    )
+    suppression_reason = fields.Selection(
+        [
+            ("dispute", "Open Dispute"),
+            ("payment_plan", "Payment Plan"),
+            ("strategic", "Strategic Customer"),
+        ],
+    )
+
+    # the NT-006 ladder: step -> (next step, grace days before advancing)
+    LADDER = {"reminder": ("final", 7), "final": ("escalate", 14)}
 
     @api.depends("invoice_id.invoice_date")
     def _compute_ageing(self):
         today = fields.Date.today()
         for run in self:
             if run.invoice_id.invoice_date:
-                delta = (today - run.invoice_id.invoice_date).days - 30  # net-30 terms
+                terms = run.invoice_id._payment_terms_days()
+                delta = (today - run.invoice_id.invoice_date).days - terms
                 run.days_overdue = max(delta, 0)
                 run.bucket = (
                     "current"
@@ -442,6 +863,83 @@ class FixDunning(models.Model):
                 # stored computes must always assign
                 run.days_overdue = 0
                 run.bucket = "current"
+
+    @api.model
+    def action_run_dunning(self, as_of=None):
+        """FR-ARB-032/033/036: the dunning engine. Scans issued+overdue
+        invoices (by the customer's OWN terms), creates the first run or
+        advances the NT-006 ladder after each step's grace days. An open
+        dispute suspends dunning for the DISPUTED AMOUNT ONLY — the
+        undisputed remainder keeps dunning. Returns measured counts."""
+        today = as_of or fields.Date.today()
+        Dispute = self.env["fix.ar.dispute"]
+        Invoice = self.env["fix.ar.invoice"]
+        created = advanced = suppressed = skipped = 0
+        invoices = Invoice.search([("state", "=", "issued")]).filtered(
+            lambda inv: inv.amount_residual > 0.005
+        )
+        for inv in invoices:
+            terms = inv._payment_terms_days()
+            days_past_due = (today - inv.invoice_date).days - terms
+            if days_past_due <= 0:
+                continue
+            disputed = sum(
+                Dispute.search([("invoice_id", "=", inv.id), ("state", "=", "open")]).mapped(
+                    "amount_disputed"
+                )
+            )
+            dunnable = inv.amount_residual - disputed
+            existing = self.search([("invoice_id", "=", inv.id)], limit=1)
+            if dunnable <= 0.005:
+                if existing and not existing.suppressed:
+                    existing.write({"suppressed": True, "suppression_reason": "dispute"})
+                    suppressed += 1
+                elif not existing:
+                    skipped += 1
+                continue
+            if existing:
+                if existing.suppressed:
+                    existing.write({"suppressed": False, "suppression_reason": False})
+                nxt, grace = self.LADDER.get(existing.step, (False, 0))
+                if (
+                    nxt
+                    and existing.step_date
+                    and (today - existing.step_date).days >= grace
+                    and existing.step != "escalate"
+                ):
+                    existing.write({"step": nxt, "step_date": today, "overdue_amount": dunnable})
+                    advanced += 1
+                else:
+                    existing.write({"overdue_amount": dunnable})
+            else:
+                self.create(
+                    {
+                        "company_id": inv.company_id.id,
+                        "operating_unit_id": inv.operating_unit_id.id,
+                        "invoice_id": inv.id,
+                        "overdue_amount": dunnable,
+                        "step": "reminder",
+                        "step_date": today,
+                    }
+                )
+                created += 1
+        return {
+            "invoices_scanned": len(invoices),
+            "created": created,
+            "advanced": advanced,
+            "suppressed": suppressed,
+            "fully_disputed_skipped": skipped,
+        }
+
+    def _cron_run_dunning(self):
+        """Daily cron entry: run the ladder."""
+        self.action_run_dunning()
+
+    def action_suppress(self, reason):
+        for run in self:
+            if reason not in ("dispute", "payment_plan", "strategic"):
+                raise UserError("Pick a suppression reason (FR-ARB-033)")
+            run.write({"suppressed": True, "suppression_reason": reason})
 
 
 class FixCreditNote(models.Model):
@@ -484,6 +982,9 @@ class FixCreditNote(models.Model):
         tracking=True,
     )
     approved_by = fields.Many2one("res.users", readonly=True)
+    issued_at = fields.Datetime(readonly=True, copy=False)
+    posted_move_id = fields.Many2one("account.move", string="GL Move", readonly=True, copy=False)
+    gl_note = fields.Char(readonly=True, copy=False)
     APPROVAL_THRESHOLD = 25000  # above BDT 25,000 a manager approves (05-04 section 7)
 
     def action_submit(self):
@@ -502,22 +1003,83 @@ class FixCreditNote(models.Model):
             note.write({"state": "approved", "approved_by": self.env.user.id})
 
     def action_issue(self):
+        """Issue = apply + post. Partial credits keep the invoice issued with
+        a residual; only a fully-credited invoice flips to 'credited'. The GL
+        mirror reverses revenue/VAT pro-rata — a credit note never invents
+        VAT relief beyond the invoice's own ratio."""
         for note in self:
             if note.state != "approved":
                 raise UserError("Approve before issuing")
-            note.state = "issued"
-            note.invoice_id.state = "credited"
+            invoice = note.invoice_id
+            if invoice.state not in ("issued", "paid"):
+                raise UserError(
+                    "Credit notes apply to issued/paid invoices only (state: %s)" % invoice.state
+                )
+            if note.amount > invoice.total_payable + 0.005:
+                raise UserError(
+                    "Credit %s exceeds invoice total %s" % (note.amount, invoice.total_payable)
+                )
+            note.write({"state": "issued", "issued_at": fields.Datetime.now()})
+            note._post_credit_gl()
+            # partial application: only fully-credited invoices flip state
+            if invoice.amount_residual <= 0.005:
+                invoice.state = "credited"
             publish(
                 self.env,
                 "credit_note.issued",
                 "fix.credit.note",
                 note.id,
                 {
-                    "invoice_ref": "AR/%s" % note.invoice_id.id,
+                    "invoice_ref": "AR/%s" % invoice.id,
+                    "invoice": invoice.name,
                     "amount": note.amount,
                     "reason": note.reason_code,
+                    "invoice_residual": invoice.amount_residual,
                 },
             )
+
+    def _post_credit_gl(self):
+        """The statutory mirror posting (FR-ARB-039): Dr Revenue + Dr VAT
+        pro-rata / Cr AR — only when the invoice itself posted to GL."""
+        from .fix_ar_engine import _ar_account, _post_ar_move
+
+        for note in self:
+            invoice = note.invoice_id
+            if not invoice.posted_move_id:
+                note.gl_note = "GL not posted: invoice %s has no GL move" % invoice.name
+                continue
+            company = invoice.company_id
+            ar = _ar_account(note.env, company, "ar")
+            revenue = _ar_account(note.env, company, "revenue")
+            vat = _ar_account(note.env, company, "vat_output")
+            if not (ar and revenue and vat):
+                note.gl_note = "GL not posted: accounts unconfigured for %s" % company.name
+                continue
+            ratio = (invoice.vat_amount / invoice.total_payable) if invoice.total_payable else 0.0
+            vat_part = note.amount * ratio
+            revenue_part = note.amount - vat_part
+            _dims = invoice._ar_posting_dims(invoice.branch_id.id)
+            dims = {i: _dims for i in range(3)}
+            move, gl_note = _post_ar_move(
+                note.env,
+                company,
+                fields.Date.today(),
+                "CREDIT NOTE INV %s — %s (%s)" % (invoice.name, note.amount, note.reason_code),
+                [
+                    (revenue.id, "Credit — service revenue", revenue_part, 0.0, False),
+                    (vat.id, "Credit — VAT output reversal", vat_part, 0.0, False),
+                    (
+                        ar.id,
+                        "AR credited — %s" % invoice.customer_id.name,
+                        0.0,
+                        note.amount,
+                        invoice.customer_id.id,
+                    ),
+                ],
+                dims,
+                source="ar",
+            )
+            note.write({"posted_move_id": move.id if move else False, "gl_note": gl_note or False})
 
 
 class FixArConsolidatedBill(models.Model):
@@ -598,4 +1160,19 @@ class FixArConsolidatedBill(models.Model):
                     "total_payable": bill.total_payable,
                     "invoice_count": len(bill.invoice_ids),
                 },
+            )
+
+    def action_send(self):
+        """Mark the consolidated bill sent. The delivery channel itself
+        (portal/email/WhatsApp) is porting phase — never faked."""
+        for bill in self:
+            if bill.state != "generated":
+                raise UserError("Generate the bill before sending")
+            bill.state = "sent"
+            publish(
+                self.env,
+                "consolidated_bill.sent",
+                "fix.ar.consolidated.bill",
+                bill.id,
+                {"bill_ref": bill.bill_ref, "customer_id": bill.customer_id.id},
             )

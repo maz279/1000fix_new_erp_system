@@ -7,9 +7,12 @@
  * - Bilingual support (English / বাংলা)
  * - Dark mode & density controls
  * - Odoo session authentication controls
- * - Direct cross-portal links to Customer (:3010) and Odoo ERP (:8069)
+ * - Direct cross-portal links to Customer (:3000) and the Odoo ERP P03
+ *   workspace (:8069) — both resolved to the BROWSING hostname after
+ *   mount so the per-hostname session cookie jar is shared.
  * Tokens only (CFM-01) — no hand-authored colors.
  */
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { tokens } from "../lib/imports";
@@ -21,6 +24,14 @@ export function CorporateNav() {
   const pathname = usePathname();
   const { t } = useLanguage();
   const { user, openLoginModal, logoutUser } = useAuth();
+  // Mount-resolved browsing hostname: cross-app links must share the
+  // per-hostname cookie jar (cookies ignore ports, not hostnames).
+  const [hostName, setHostName] = useState<string | null>(null);
+  useEffect(() => {
+    setHostName(window.location.hostname);
+  }, []);
+  const customerHref = `http://${hostName ?? "127.0.0.1"}:3000/`;
+  const odooHref = `http://${hostName ?? "127.0.0.1"}:8069/odoo/action-cd_p03_portal.action_p03_workspace`;
 
   const navLinks = [
     { href: "/", label: t.navOverview },
@@ -104,7 +115,7 @@ export function CorporateNav() {
         {/* Cross-Portal & Utility Links */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <a
-            href="http://127.0.0.1:3010/"
+            href={customerHref}
             target="_blank"
             rel="noreferrer"
             aria-label="Open Customer Portal in new tab"
@@ -119,7 +130,7 @@ export function CorporateNav() {
           </a>
 
           <a
-            href="http://127.0.0.1:8069/odoo"
+            href={odooHref}
             target="_blank"
             rel="noreferrer"
             aria-label="Open Odoo ERP backend in new tab"

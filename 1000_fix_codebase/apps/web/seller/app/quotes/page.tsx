@@ -50,7 +50,7 @@ export default function SellerQuotesPage() {
   return (
     <main style={{ padding: 32, maxWidth: 1000, margin: "0 auto" }}>
       <SectionHead
-        title="Seller Quotes (কোটেশনসমূহ)"
+        title="Seller Quotes"
         note="Quotes you have submitted on marketplace repair jobs (M12) — submit new quotes from the Jobs board"
       />
 

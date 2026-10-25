@@ -16,16 +16,24 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28: the only event client
 
+from . import coa_logic
+
 _logger = logging.getLogger(__name__)
 
 
-class FixJournalDimension(models.Model):
-    """Branch/cost-centre dimension attached to account.move lines.
+def _split_dims(value) -> set:
+    """'branch;cost_centre' -> {'branch', 'cost_centre'} (blank items dropped)."""
+    return {d.strip() for d in (value or "").split(";") if d.strip()}
 
-    Every posting carries its branch and operating unit — the multi-entity,
-    multi-branch ledger requirement (T03). Implementing as a mixin-style
+
+class FixJournalDimension(models.Model):
+    """The 7-dimension model on every posting (FR-FIN-001..007).
+
+    Every posting carries entity (company), operating unit, branch and cost
+    centre plus the business line / project / brand / channel tags — the
+    multi-entity, multi-branch ledger requirement (T03). Implementing as a
     model linked to move lines keeps Odoo's account.move untouched at the
-    column level while the dimension rides every entry."""
+    column level while the dimensions ride every entry."""
 
     _name = "fix.journal.dimension"
     _description = "Journal Posting Dimension"
@@ -42,6 +50,26 @@ class FixJournalDimension(models.Model):
         string="Cost Centre",
         index=True,
         help="Free-form cost centre code from the MD-* finance set",
+    )
+    business_line = fields.Char(
+        string="Business Line",
+        index=True,
+        help="One of the 14 business streams (White Goods / Mobile / ICT / AMC...)",
+    )
+    project_ref = fields.Char(
+        string="Project / Contract",
+        index=True,
+        help="Project or AMC contract reference riding the posting",
+    )
+    brand = fields.Char(
+        string="Brand / OEM",
+        index=True,
+        help="Brand/OEM dimension (Samsung, HP, Walton...) — warranty economics",
+    )
+    channel = fields.Char(
+        string="Service Channel",
+        index=True,
+        help="Carry-in depot / field service / mail-in channel tag",
     )
     move_line_id = fields.Many2one(
         "account.move.line", string="Journal Item", required=True, ondelete="cascade", index=True
@@ -429,41 +457,155 @@ class FixFixedAssetSeam(models.Model):
         self.write({"consumed": True})
 
 
-def post_with_dimensions(env, move_vals, dimension_by_line):
-    """T03/T09 helper: post an account.move and attach branch/OU dimensions
-    to every line in the SAME transaction, then emit journal.posted.
+def _chart_map_for_company(env, company_id):
+    """statutory accounts of the company linked to Odoo accounts, keyed by
+    Odoo account id — the COA unification lookup (FR-FIN-002). Archived
+    accounts keep their link: posting to one must still be refused."""
+    chart = (
+        env["fix.chart.account"]
+        .sudo()
+        .with_context(active_test=False)
+        .search([("company_id", "=", company_id), ("odoo_account_id", "!=", False)])
+    )
+    return {c.odoo_account_id.id: c for c in chart}
 
-    dimension_by_line: {line_index: {"branch_id": int, "cost_centre": str}}
-    Returns (move, dimensions)."""
-    move = env["account.move"].create(move_vals)
-    move.action_post()
+
+def _validate_move_against_chart(env, move, dimension_by_line, source):
+    """FR-FIN-011: enforce the MD-035 posting rules on every line whose
+    Odoo account is linked to the statutory chart — COA-01 (postable leaf),
+    COA-02 (no direct manual posting on control accounts), COA-03 (required
+    dimensions present) and the archived-account guard.
+
+    Lines on UNMAPPED accounts get no statutory check: the chart links
+    progressively (fix.chart.loader.action_link_odoo_accounts), and the
+    platform must post on the generic Odoo chart meanwhile."""
+    chart_map = _chart_map_for_company(env, move.company_id.id)
+    if not chart_map:
+        return
+    is_direct_manual = source in MANUAL_POSTING_SOURCES
+    for idx, line in enumerate(move.line_ids):
+        chart_account = chart_map.get(line.account_id.id)
+        if not chart_account:
+            continue
+        if not chart_account.active:
+            raise UserError(
+                "Posting refused: %s is archived in the statutory chart (%s)"
+                % (line.account_id.display_name, chart_account.account_code)
+            )
+        dims = dict(dimension_by_line.get(idx) or {})
+        dim_vals = {
+            "branch": dims.get("branch_id") or dims.get("branch"),
+            "cost_centre": dims.get("cost_centre"),
+            "business_line": dims.get("business_line"),
+            "project": dims.get("project_ref"),
+            "brand": dims.get("brand"),
+            "channel": dims.get("channel"),
+        }
+        record = coa_logic.AccountRecord(
+            account_code=chart_account.account_code,
+            entity_code="EN-01",
+            account_name=chart_account.name,
+            account_type=chart_account.account_type,
+            account_subtype=chart_account.account_subtype or "",
+            is_postable=chart_account.is_postable,
+            is_control_account=chart_account.is_control_account,
+            control_subledger=chart_account.control_subledger or None,
+            requires_dimension=_split_dims(chart_account.requires_dimension),
+            statutory_group=chart_account.statutory_group or "",
+            active=chart_account.active,
+        )
+        try:
+            coa_logic.validate_posting_attempt(
+                record, dim_vals, is_direct_manual_post=is_direct_manual
+            )
+        except coa_logic.CoaValidationError as exc:
+            raise UserError(
+                "Posting refused on %s (%s): %s"
+                % (line.account_id.display_name, chart_account.account_code, exc)
+            ) from exc
+
+
+def _attach_dimensions(env, move, dimension_by_line):
+    """Create the fix.journal.dimension rows for every annotated line.
+    Returns the dimension recordset (empty when nothing was annotated)."""
     dimension_model = env["fix.journal.dimension"]
     dimensions = dimension_model
     for idx, line in enumerate(move.line_ids):
-        dim_vals = dimension_by_line.get(idx, {})
-        if dim_vals:
-            # A missing/empty OU falls back to the MOVE's company OU — never
-            # another company's (the dimension is the multi-entity ledger key).
-            operating_unit_id = (
-                dim_vals.get("operating_unit_id")
-                or env["operating.unit"]
-                .search([("company_id", "=", move.company_id.id)], limit=1)
-                .id
+        dim_vals = dict(dimension_by_line.get(idx) or {})
+        # An all-falsy annotation (branch False, cost_centre False...) is no
+        # annotation at all — no empty dimension rows ride the entry.
+        if not dim_vals or not any(dim_vals.values()):
+            continue
+        # A missing/empty OU falls back to the MOVE's company OU — never
+        # another company's (the dimension is the multi-entity ledger key).
+        operating_unit_id = dim_vals.get("operating_unit_id") or (
+            env["operating.unit"].search([("company_id", "=", move.company_id.id)], limit=1).id
+        )
+        if not operating_unit_id:
+            raise UserError(
+                "Company %s has no operating unit — every posting carries one (AS-03)"
+                % move.company_id.name
             )
-            if not operating_unit_id:
-                raise UserError(
-                    "Company %s has no operating unit — every posting carries one (AS-03)"
-                    % move.company_id.name
-                )
-            dimensions |= dimension_model.create(
-                {
-                    "move_line_id": line.id,
-                    "company_id": move.company_id.id,
-                    "operating_unit_id": operating_unit_id,
-                    "branch_id": dim_vals.get("branch_id", False),
-                    "cost_centre": dim_vals.get("cost_centre", False),
-                }
-            )
+        dimensions |= dimension_model.create(
+            {
+                "move_line_id": line.id,
+                "company_id": move.company_id.id,
+                "operating_unit_id": operating_unit_id,
+                "branch_id": dim_vals.get("branch_id", False),
+                "cost_centre": dim_vals.get("cost_centre", False),
+                "business_line": dim_vals.get("business_line", False),
+                "project_ref": dim_vals.get("project_ref", False),
+                "brand": dim_vals.get("brand", False),
+                "channel": dim_vals.get("channel", False),
+            }
+        )
+    return dimensions
+
+
+def _log_posting(env, move, source, requested_by, template, state="posted"):
+    """Append the immutable posting-log row (FR-FIN-042). Created sudo: the
+    audit trail must never be the reason a posting fails on permissions."""
+    return (
+        env["fix.journal.posting.log"]
+        .with_context(force_edit=True)
+        .sudo()
+        .create(
+            {
+                "company_id": move.company_id.id,
+                "move_id": move.id,
+                "move_name": move.name or "",
+                "source": source,
+                "state": state,
+                "requested_by": requested_by or getattr(env, "uid", None),
+                "posted_by": getattr(env, "uid", None) if state == "posted" else False,
+                "posted_at": fields.Datetime.now() if state == "posted" else False,
+                "template_id": template.id if template else False,
+                "currency_id": move.currency_id.id,
+                "amount": move.amount_total,
+            }
+        )
+    )
+
+
+# Sources that count as DIRECT manual postings for the COA-02 control-account
+# rule. Engine/subledger sources (settlement, suspense, platform API seams)
+# may legitimately post on control accounts.
+MANUAL_POSTING_SOURCES = ("manual", "template", "allocation")
+
+
+def post_with_dimensions(env, move_vals, dimension_by_line, source="api", template=None):
+    """T03/T09 helper: post an account.move and attach the 7-dimension tags
+    to every line in the SAME transaction, then emit journal.posted.
+
+    dimension_by_line: {line_index: {"branch_id": int, "cost_centre": str,
+    "business_line": str, "project_ref": str, "brand": str, "channel": str}}.
+    FR-FIN-011: lines on accounts linked to the statutory chart are checked
+    against the MD-035 posting rules before anything posts. Returns
+    (move, dimensions)."""
+    move = env["account.move"].create(move_vals)
+    _validate_move_against_chart(env, move, dimension_by_line, source)
+    move.action_post()
+    dimensions = _attach_dimensions(env, move, dimension_by_line)
     publish(
         env,
         "journal.posted",
@@ -474,6 +616,71 @@ def post_with_dimensions(env, move_vals, dimension_by_line):
             "amount": float(move.amount_total),
             "currency": move.currency_id.name,
             "line_count": len(move.line_ids),
+            "source": source,
         },
     )
+    _log_posting(env, move, source, getattr(env, "uid", None), template, state="posted")
+    return move, dimensions
+
+
+def create_journal_entry_draft(env, move_vals, dimension_by_line, source="manual", template=None):
+    """Maker step of the JE review flow (FR-FIN-014/015): create the entry
+    as a DRAFT with its COA rules checked and its dimensions attached, and
+    queue it in the posting log as awaiting review. The checker posts it via
+    approve_journal_entry."""
+    move = env["account.move"].create(move_vals)
+    _validate_move_against_chart(env, move, dimension_by_line, source)
+    _attach_dimensions(env, move, dimension_by_line)
+    log = _log_posting(env, move, source, getattr(env, "uid", None), template, state="requested")
+    return move, log
+
+
+def approve_journal_entry(env, move, dimension_by_line=None):
+    """Checker step of the JE review flow. Segregation of duties is enforced
+    in Python, not just the UI: the approver must differ from the requester
+    and hold the accounting manager group (FR-FIN-015). Dimensions were
+    attached when the draft was created; an optional dimension_by_line
+    re-annotates (used only by engine callers)."""
+    approver = env.user
+    log = (
+        env["fix.journal.posting.log"]
+        .sudo()
+        .search([("move_id", "=", move.id), ("state", "=", "requested")], limit=1)
+    )
+    if log and log.requested_by.id == approver.id:
+        raise UserError(
+            "Segregation of duties (FR-FIN-015): %s requested this entry and "
+            "cannot approve their own posting." % approver.name
+        )
+    if not approver.has_group("account.group_account_manager"):
+        raise UserError(
+            "Only the accounting manager group may approve journal entries " "(FR-FIN-015)."
+        )
+    move.action_post()
+    dimensions = env["fix.journal.dimension"]
+    if dimension_by_line:
+        existing = env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
+        dimensions = existing | _attach_dimensions(env, move, dimension_by_line)
+    publish(
+        env,
+        "journal.posted",
+        "account.move",
+        move.id,
+        {
+            "company_id": move.company_id.id,
+            "amount": float(move.amount_total),
+            "currency": move.currency_id.name,
+            "line_count": len(move.line_ids),
+            "source": log.source if log else "manual",
+        },
+    )
+    if log:
+        log.with_context(force_edit=True).sudo().write(
+            {
+                "state": "posted",
+                "posted_by": approver.id,
+                "posted_at": fields.Datetime.now(),
+                "move_name": move.name or log.move_name,
+            }
+        )
     return move, dimensions

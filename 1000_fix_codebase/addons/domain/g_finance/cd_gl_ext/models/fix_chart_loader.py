@@ -16,6 +16,32 @@ from . import coa_logic
 _logger = logging.getLogger(__name__)
 
 
+# The COA unification map (FR-FIN-002): Odoo posting-chart code -> MD-035
+# statutory account code. Only semantically certain pairs are linked — an
+# arbitrary link is worse than none because it turns on the posting rules
+# (FR-FIN-011) for that account. Codes measured in fix_dev's generic
+# Bangladeshi chart template; extend as accounts are configured.
+ODOO_CHART_MAPPING = {
+    "101401": "1-10-20-010",  # Bank -> Operating bank account - BDT
+    "101402": "1-10-99-998",  # Bank suspense -> POS payment clearing
+    "121000": "1-20-10-010",  # Account Receivable -> Trade receivables - retail repair
+    "128000": "1-20-20-020",  # Prepaid Expenses -> Security deposits and prepayments
+    "211000": "2-10-10-010",  # Account Payable -> Trade payables - spare parts suppliers
+    "131000": "2-30-20-010",  # Tax Paid -> Input VAT credit deductible
+    "230000": "2-40-10-010",  # Salary Payable -> Accrued employee salaries and wages
+    "212000": "2-40-20-010",  # Deferred Revenue -> Customer advance repair deposits
+    "251000": "2-30-10-010",  # Tax Received -> VAT payable - output Mushak 6.3 15%
+    "252000": "2-30-30-010",  # Tax Payable -> TDS payable - supplier withholding
+    "400000": "4-10-10-010",  # Product Sales -> Service revenue - out of warranty repair
+    "450000": "4-90-10-010",  # Other Income -> Other income - scrap and e-waste
+    "500000": "5-10-10-010",  # Cost of Goods Sold -> Direct spare parts consumed
+    "612000": "5-20-10-010",  # Rent -> Branch rent and premises
+    "620000": "5-20-40-010",  # Bank Fees -> Bank and payment gateway fees
+    "630000": "5-20-20-010",  # Salary Expenses -> Office staff salaries and allowances
+    "962000": "5-20-30-010",  # Sales Expenses -> Marketing and customer outreach
+}
+
+
 def _split_dimensions(value: str | bool) -> set[str]:
     """'branch;cost_centre' -> {'branch', 'cost_centre'} (blank items dropped)."""
     return {d.strip() for d in (value or "").split(";") if d.strip()}
@@ -323,3 +349,45 @@ class FixChartLoader(models.Model):
         if recon_res["reconciled"]:
             self.write({"state": "reconciled"})
         return recon_res
+
+    def action_link_odoo_accounts(self) -> dict:
+        """COA unification (FR-FIN-002): populate ``odoo_account_id`` on the
+        statutory chart from the ODOO_CHART_MAPPING pairs that exist in the
+        company's Odoo chart. The link is what turns on the MD-035 posting
+        rules (FR-FIN-011) and the live ledger balance on the CoA screen —
+        a statutory account is only ever linked to an account that EXISTS in
+        the company chart, never invented."""
+        self.ensure_one()
+        chart_model = self.env["fix.chart.account"].with_context(active_test=False)
+        Account = self.env["account.account"].with_company(self.company_id)
+        linked, missing = 0, []
+        for odoo_code, statutory_code in ODOO_CHART_MAPPING.items():
+            odoo_account = Account.search(
+                [
+                    *Account._check_company_domain(self.company_id),
+                    ("code", "=", odoo_code),
+                ],
+                limit=1,
+            )
+            if not odoo_account:
+                missing.append(odoo_code)
+                continue
+            statutory = chart_model.search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("account_code", "=", statutory_code),
+                ],
+                limit=1,
+            )
+            if not statutory:
+                missing.append(statutory_code)
+                continue
+            statutory.write({"odoo_account_id": odoo_account.id})
+            linked += 1
+        _logger.info(
+            "COA unification: %d statutory accounts linked for %s (unmatched: %s)",
+            linked,
+            self.company_id.name,
+            missing or "none",
+        )
+        return {"status": "linked", "linked": linked, "unmatched": missing}

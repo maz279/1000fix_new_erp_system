@@ -187,7 +187,7 @@ msgstr "সর্বশেষ অ-খালি মান"
 #. module: cd_mdm_core
 #: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__most_verified
 msgid "Most Verified (verification_status = verified)"
-msgstr "সর্বাধিক যাচাইকৃত (verification_status = verified)"
+msgstr "সর্বাধিক যাচাইকৃত (verification_status)"
 
 #. module: cd_mdm_core
 #: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__priority__normal

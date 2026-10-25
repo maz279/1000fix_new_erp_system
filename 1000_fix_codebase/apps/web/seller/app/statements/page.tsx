@@ -79,7 +79,7 @@ export default function SellerStatementsPage() {
   return (
     <main style={{ padding: 32, maxWidth: 1100, margin: "0 auto" }}>
       <SectionHead
-        title="Settlement Statements &amp; NBR §52 Withholding (স্টেটমেন্ট ও কর প্রত্যয়ন)"
+        title="Settlement Statements & NBR §52 Withholding"
         note="Withholding (TDS) per commission-ledger line — backend-computed from the settlement ledger (M53)"
       />
 

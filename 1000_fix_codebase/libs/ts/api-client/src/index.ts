@@ -130,7 +130,19 @@ export class ApiClient {
     } catch (err) {
       throw new ApiError(0, "network", `request failed: ${(err as Error).message}`);
     }
-    const data = await res.json();
+    // A down upstream (or a plain-text proxy 500) must surface as a typed
+    // ApiError, never as a JSON SyntaxError ("Unexpected token 'I'").
+    let data: { error?: { code?: string; message?: string }; result?: unknown };
+    try {
+      data = (await res.json()) as typeof data;
+    } catch {
+      const text = await res.text().catch(() => "");
+      throw new ApiError(
+        res.status,
+        res.ok ? "invalid_json" : `http_${res.status}`,
+        `non-JSON response from ${path}: ${text.slice(0, 80) || res.statusText}`
+      );
+    }
     if (data.error) {
       throw new ApiError(res.status, data.error.code || "odoo_error",
                           data.error.message || "Odoo error");

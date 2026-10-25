@@ -49,7 +49,7 @@ export default function PartnerAttributionPage() {
   return (
     <main style={{ padding: 32, maxWidth: 1050, margin: "0 auto" }}>
       <SectionHead
-        title="Partner Attribution &amp; Funnel (অ্যাট্রিবিউশন ও ট্র্যাকিং)"
+        title="Partner Attribution & Funnel"
         note="Your partner identity and referral attribution"
       />
 

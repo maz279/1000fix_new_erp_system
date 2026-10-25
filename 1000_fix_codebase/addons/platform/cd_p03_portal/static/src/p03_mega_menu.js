@@ -62,6 +62,20 @@ export class P03MegaMenu extends Component {
         return (reg.modules || []).filter((m) => (area.modules || []).includes(m.id));
     }
 
+    /* Counts are computed from the served registry so the rendered copy can
+     * never drift from the data (module/screen totals are exactly what
+     * /p03/registry carries). */
+    get moduleCount() {
+        return (this.state.registry?.modules || []).length;
+    }
+
+    get screenCount() {
+        return (this.state.registry?.modules || []).reduce(
+            (n, m) => n + (m.groups || []).reduce((k, g) => k + (g.screens || []).length, 0),
+            0
+        );
+    }
+
     openWorkspace(modId) {
         this.close();
         this.action.doAction({

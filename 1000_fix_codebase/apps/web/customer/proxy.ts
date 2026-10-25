@@ -29,13 +29,32 @@ const CONNECT_SRC = [
 export function proxy(request: NextRequest) {
   const nonce = crypto.randomUUID().replace(/-/g, "");
 
+  // Dev-only: React's development bundle requires eval() for its debug
+  // introspection (the production bundle never uses it — the runtime warning
+  // says exactly that). `next dev` keeps the strict policy waived here;
+  // `next build && next start` sets NODE_ENV=production and stays hardened.
+  const devEval = process.env.NODE_ENV === "production" ? "" : " 'unsafe-eval'";
+
+  // frame-src: the ERP workspace pane (/workspace/*) embeds the Odoo web
+  // client on the SAME hostname the user browses (session cookie jar is
+  // host-only), so derive the origin from the request host and also allow
+  // both loopback names. Production overrides via CSP_FRAME_SRC.
+  const reqHost = (request.headers.get("host") || "localhost:3000").split(":")[0];
+  const frameSrc = [
+    process.env.CSP_FRAME_SRC?.trim(),
+    `http://${reqHost}:8069`,
+    "http://127.0.0.1:8069",
+    "http://localhost:8069",
+  ].filter(Boolean).join(" ");
+
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${devEval}`,
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
     `connect-src ${CONNECT_SRC}`,
+    `frame-src 'self' ${frameSrc}`,
     `frame-ancestors ${FRAME_ANCESTORS}`,
     "base-uri 'self'",
     "form-action 'self'",

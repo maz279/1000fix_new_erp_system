@@ -92,7 +92,7 @@ export default function SellerOnboardingPage() {
   return (
     <main style={{ padding: 32, maxWidth: 900, margin: "0 auto" }}>
       <SectionHead
-        title="Seller Onboarding & KYC (অনবোর্ডিং ও যাচাইকরণ)"
+        title="Seller Onboarding & KYC"
         note="L6 Merchant KYC — Trade Licence, BIN-13 and e-TIN registration (M12)"
       />
 

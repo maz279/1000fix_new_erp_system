@@ -14,7 +14,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - fix.credit.note — approval authority above BDT 25,000 (05-04 section 7)
 - Events: invoice.created, invoice.paid, credit_note.issued (AS-08)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -33,11 +33,13 @@ CD-M20-01: the M20 accounts-receivable core.
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        "data/fix_ar_cron.xml",
         "views/fix_billing_engine_views.xml",
+        "views/fix_ar_engine_views.xml",
     ],
     "installable": True,
     "application": False,
-    "x_cd_id": "CD-M20-01",
+    "x_cd_id": "CD-M20-02",
     "x_module_id": "M20",
     "x_wave": "W3",
     "x_owner": "Commercial & Finance",
