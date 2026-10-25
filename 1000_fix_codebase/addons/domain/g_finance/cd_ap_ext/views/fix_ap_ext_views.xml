@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_ap_ext views — vendor invoices (three-way match) + expense claims. -->
+<!-- cd_ap_ext views — vendor bills (three-way match, approval, TDS/VDS) and expense claims. -->
 <odoo>
 
     <record id="view_fix_vendor_invoice_tree" model="ir.ui.view">
@@ -10,10 +10,16 @@
                 <field name="invoice_date"/>
                 <field name="vendor_id"/>
                 <field name="invoice_ref"/>
+                <field name="due_date" optional="show"/>
+                <field name="currency_id" column_invisible="1"/>
                 <field name="subtotal"/>
+                <field name="vat_amount" optional="hide"/>
                 <field name="tds_amount" optional="show"/>
+                <field name="vds_amount" optional="hide"/>
                 <field name="total_payable"/>
                 <field name="match_state" widget="badge" string="3-Way"/>
+                <field name="approval_state" widget="badge"/>
+                <field name="payment_state" widget="badge" optional="show"/>
             </list>
         </field>
     </record>
@@ -23,19 +29,41 @@
         <field name="model">fix.vendor.invoice</field>
         <field name="arch" type="xml">
             <form>
+                <header>
+                    <button name="action_submit_approval" type="object" string="Submit for Approval"
+                            class="btn-primary" invisible="approval_state not in ('draft', 'rejected')"/>
+                    <button name="action_approve" type="object" string="Approve Level"
+                            class="btn-primary" invisible="approval_state != 'to_approve'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="approval_state != 'to_approve'"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft"
+                            invisible="approval_state != 'rejected'"/>
+                    <field name="approval_state" widget="statusbar" statusbar_visible="draft,to_approve,approved"/>
+                </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="invoice_ref"/></h1></div>
                     <group>
                         <group>
                             <field name="vendor_id"/>
+                            <field name="operating_unit_id"/>
                             <field name="invoice_date"/>
-                            <field name="requisition_id" string="Purchase Order"/>
+                            <field name="payment_term_days"/>
+                            <field name="due_date"/>
+                            <field name="bill_type"/>
+                            <field name="requisition_id" string="Purchase Order" invisible="bill_type == 'non_po'"/>
+                            <field name="supplier_mushak_no"/>
                         </group>
                         <group>
                             <field name="currency_id" invisible="1"/>
                             <field name="subtotal"/>
+                            <field name="vat_amount"/>
+                            <field name="gross_amount"/>
                             <field name="tds_amount"/>
+                            <field name="vds_rate_id" options="{'no_create': True}"/>
+                            <field name="vds_amount"/>
                             <field name="total_payable"/>
+                            <field name="payment_state"/>
+                            <field name="move_id" readonly="1"/>
                         </group>
                     </group>
                     <notebook>
@@ -45,9 +73,14 @@
                                     <field name="product_id"/>
                                     <field name="description"/>
                                     <field name="quantity"/>
+                                    <field name="currency_id" column_invisible="1"/>
                                     <field name="unit_price"/>
                                     <field name="line_total" sum="Total"/>
                                     <field name="tds_category"/>
+                                    <field name="tds_section" optional="show"/>
+                                    <field name="tds_rate" optional="show"/>
+                                    <field name="tds_multiplier" optional="hide"/>
+                                    <field name="tds_amount" sum="TDS"/>
                                     <field name="tds_exempt" optional="hide"/>
                                 </list>
                             </field>
@@ -58,17 +91,250 @@
                                 <field name="match_detail" nolabel="1" colspan="2"/>
                             </group>
                         </page>
+                        <page string="Approval">
+                            <group>
+                                <field name="approval_level"/>
+                                <field name="approval_levels_required"/>
+                                <field name="submitted_by"/>
+                            </group>
+                            <field name="approval_log_ids" readonly="1">
+                                <list>
+                                    <field name="logged_at"/>
+                                    <field name="action"/>
+                                    <field name="level"/>
+                                    <field name="user_id"/>
+                                    <field name="amount"/>
+                                    <field name="note"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="TDS / VDS">
+                            <field name="withholding_line_ids" readonly="1"/>
+                        </page>
+                        <page string="Debit / Credit Notes">
+                            <field name="note_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="note_date"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="signed_total"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
                     </notebook>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- Vendor tax profile -->
+    <record id="view_fix_vendor_tax_profile_tree" model="ir.ui.view">
+        <field name="name">fix.vendor.tax.profile.tree</field>
+        <field name="model">fix.vendor.tax.profile</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="partner_id"/>
+                <field name="tin"/>
+                <field name="bin"/>
+                <field name="taxpayer_type"/>
+                <field name="psr_reference"/>
+                <field name="psr_valid_until"/>
+                <field name="psr_valid"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_vendor_tax_profile_form" model="ir.ui.view">
+        <field name="name">fix.vendor.tax.profile.form</field>
+        <field name="model">fix.vendor.tax.profile</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="psr_valid">
+                        No valid proof of return submission: TDS is deducted at the non-filer multiplier where the rate applies.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="taxpayer_type"/>
+                            <field name="tin"/>
+                            <field name="bin"/>
+                            <field name="turnover_enlisted"/>
+                        </group>
+                        <group>
+                            <field name="psr_reference"/>
+                            <field name="psr_valid_until"/>
+                            <field name="psr_valid"/>
+                            <field name="psr_attachment_ids" widget="many2many_binary"/>
+                            <field name="default_tds_category"/>
+                            <field name="default_vds_rate_id"/>
+                            <field name="vds_exempt"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Approval matrix -->
+    <record id="view_fix_ap_approval_rule_tree" model="ir.ui.view">
+        <field name="name">fix.ap.approval.rule.tree</field>
+        <field name="model">fix.ap.approval.rule</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="level"/>
+                <field name="name"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount_min"/>
+                <field name="group_id"/>
+                <field name="active"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Vendor notes -->
+    <record id="view_fix_vendor_note_form" model="ir.ui.view">
+        <field name="name">fix.vendor.note.form</field>
+        <field name="model">fix.vendor.note</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve &amp; Post" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,applied"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="invoice_id" readonly="state != 'draft'"/>
+                            <field name="vendor_id"/>
+                            <field name="note_type" readonly="state != 'draft'"/>
+                            <field name="mushak_ref" readonly="state != 'draft'"/>
+                            <field name="note_date" readonly="state != 'draft'"/>
+                            <field name="reason" readonly="state != 'draft'"/>
+                            <field name="description"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="vat_amount" readonly="state != 'draft'"/>
+                            <field name="total"/>
+                            <field name="signed_total"/>
+                            <field name="created_by"/>
+                            <field name="approved_by"/>
+                            <field name="move_id"/>
+                            <field name="payment_run_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Payment runs -->
+    <record id="view_fix_payment_run_form" model="ir.ui.view">
+        <field name="name">fix.payment.run.form</field>
+        <field name="model">fix.payment.run</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_propose" type="object" string="Build Proposal" class="btn-primary"
+                            invisible="state not in ('draft', 'proposed')"/>
+                    <button name="action_submit" type="object" string="Submit for Approval"
+                            invisible="state != 'proposed'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state != 'to_approve'"/>
+                    <button name="action_release" type="object" string="Release to Bank" class="btn-primary"
+                            invisible="state != 'approved'"/>
+                    <button name="action_sync_bank_status" type="object" string="Read Bank Status"
+                            invisible="state != 'released'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state in ('released', 'done', 'cancelled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,proposed,to_approve,approved,released,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="rail" readonly="state not in ('draft', 'proposed')"/>
+                            <field name="payment_date" readonly="state not in ('draft', 'proposed')"/>
+                            <field name="due_by" readonly="state not in ('draft', 'proposed')"/>
+                            <field name="operating_unit_id" readonly="state not in ('draft', 'proposed')"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="bill_count"/>
+                            <field name="total_tds"/>
+                            <field name="total_vds"/>
+                            <field name="total_amount"/>
+                            <field name="prepared_by"/>
+                            <field name="approved_by"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list>
+                            <field name="partner_id"/>
+                            <field name="operating_unit_id" optional="hide"/>
+                            <field name="bank_account_id"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="gross_amount"/>
+                            <field name="tds_amount"/>
+                            <field name="vds_amount"/>
+                            <field name="notes_amount"/>
+                            <field name="amount" sum="Total"/>
+                            <field name="state"/>
+                            <field name="skip_reason" optional="show"/>
+                            <field name="execution_id" optional="hide"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Expense masters -->
+    <record id="view_fix_expense_rate_tree" model="ir.ui.view">
+        <field name="name">fix.expense.rate.tree</field>
+        <field name="model">fix.expense.rate</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="rate_type"/>
+                <field name="grade_id"/>
+                <field name="location"/>
+                <field name="vehicle"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="rate"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_expense_policy_tree" model="ir.ui.view">
+        <field name="name">fix.expense.policy.tree</field>
+        <field name="model">fix.expense.policy</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="category_id"/>
+                <field name="grade_id"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="limit_per_line"/>
+                <field name="limit_per_day"/>
+                <field name="receipt_required_above"/>
+                <field name="blocked"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Expense claims -->
     <record id="view_fix_expense_claim_tree" model="ir.ui.view">
         <field name="name">fix.expense.claim.tree</field>
         <field name="model">fix.expense.claim</field>
@@ -77,9 +343,107 @@
                 <field name="expense_date"/>
                 <field name="employee_id"/>
                 <field name="description"/>
+                <field name="currency_id" column_invisible="1"/>
                 <field name="amount"/>
                 <field name="state" widget="badge"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_expense_claim_form" model="ir.ui.view">
+        <field name="name">fix.expense.claim.form</field>
+        <field name="model">fix.expense.claim</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="btn-primary"
+                            invisible="state not in ('draft', 'rejected')"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state != 'submitted'"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'submitted'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,paid"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="employee_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="description"/>
+                            <field name="expense_date"/>
+                            <field name="advance_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" readonly="line_ids"/>
+                            <field name="submitted_by"/>
+                            <field name="approved_by"/>
+                            <field name="move_id"/>
+                        </group>
+                    </group>
+                    <field name="policy_notes" invisible="not policy_notes"/>
+                    <field name="line_ids" readonly="state not in ('draft', 'rejected')">
+                        <list editable="bottom">
+                            <field name="category_id"/>
+                            <field name="line_type" column_invisible="1"/>
+                            <field name="date"/>
+                            <field name="description"/>
+                            <field name="location" optional="show"/>
+                            <field name="vehicle" optional="show"/>
+                            <field name="quantity"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="unit_amount" readonly="line_type != 'actual'"/>
+                            <field name="amount" sum="Total"/>
+                            <field name="receipt_attachment_ids" widget="many2many_binary" optional="show"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Advances & floats -->
+    <record id="view_fix_employee_advance_form" model="ir.ui.view">
+        <field name="name">fix.employee.advance.form</field>
+        <field name="model">fix.employee.advance</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_confirm_disbursement" type="object" string="Confirm Disbursement"
+                            invisible="state != 'approved'"/>
+                    <button name="action_settle" type="object" string="Settle Against Claims"
+                            invisible="state != 'disbursed'"/>
+                    <button name="action_record_recovery" type="object" string="Recover Balance"
+                            invisible="state != 'disbursed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,disbursed,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="employee_id" readonly="state != 'draft'"/>
+                            <field name="operating_unit_id" readonly="state != 'draft'"/>
+                            <field name="advance_type" readonly="state != 'draft'"/>
+                            <field name="purpose" readonly="state != 'draft'"/>
+                            <field name="request_date" readonly="state != 'draft'"/>
+                            <field name="settle_by"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="settled_amount"/>
+                            <field name="recovered_amount"/>
+                            <field name="balance"/>
+                            <field name="recovery_method"/>
+                            <field name="execution_id"/>
+                        </group>
+                    </group>
+                    <field name="claim_ids" readonly="1"/>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
 

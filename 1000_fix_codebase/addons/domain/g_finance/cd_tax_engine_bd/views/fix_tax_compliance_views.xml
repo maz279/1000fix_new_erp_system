@@ -1,0 +1,391 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_tax_engine_bd — A08 M51 master data and compliance records (CD-M51-01).
+     These forms open from the P03 workspace ("+ New" / "Open full record"). -->
+<odoo>
+
+    <!-- Tax Rate Master -->
+    <record id="view_fix_tax_rate_tree" model="ir.ui.view">
+        <field name="name">fix.tax.rate.tree</field>
+        <field name="model">fix.tax.rate</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="verify_with_adviser">
+                <field name="tax_kind"/>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="section"/>
+                <field name="payee_type"/>
+                <field name="rate"/>
+                <field name="non_filer_applies"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="verify_with_adviser"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_tax_rate_form" model="ir.ui.view">
+        <field name="name">fix.tax.rate.form</field>
+        <field name="model">fix.tax.rate</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="not verify_with_adviser">
+                        Seeded from secondary sources — confirm this rate with the company's VAT/tax adviser.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="tax_kind"/>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="section"/>
+                            <field name="payee_type"/>
+                        </group>
+                        <group>
+                            <field name="rate"/>
+                            <field name="non_filer_applies" invisible="tax_kind != 'tds'"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="verify_with_adviser"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <field name="source_note" placeholder="Source of the rate (SRO, Finance Act, adviser memo)"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Statutory parameters -->
+    <record id="view_fix_tax_parameter_tree" model="ir.ui.view">
+        <field name="name">fix.tax.parameter.tree</field>
+        <field name="model">fix.tax.parameter</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="verify_with_adviser">
+                <field name="key"/>
+                <field name="value"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="verify_with_adviser"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_tax_parameter_form" model="ir.ui.view">
+        <field name="name">fix.tax.parameter.form</field>
+        <field name="model">fix.tax.parameter</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="not verify_with_adviser">
+                        Seeded from secondary sources — confirm this value with the company's VAT/tax adviser.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="key"/>
+                            <field name="value"/>
+                        </group>
+                        <group>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="verify_with_adviser"/>
+                        </group>
+                    </group>
+                    <field name="source_note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Statutory due-date rules -->
+    <record id="view_fix_statutory_due_rule_tree" model="ir.ui.view">
+        <field name="name">fix.statutory.due.rule.tree</field>
+        <field name="model">fix.statutory.due.rule</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="verify_with_adviser">
+                <field name="obligation"/>
+                <field name="name"/>
+                <field name="frequency"/>
+                <field name="due_day"/>
+                <field name="month_offset"/>
+                <field name="roll_to_working_day"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="verify_with_adviser"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_statutory_due_rule_form" model="ir.ui.view">
+        <field name="name">fix.statutory.due.rule.form</field>
+        <field name="model">fix.statutory.due.rule</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="alert alert-warning" role="alert" invisible="not verify_with_adviser">
+                        Due day seeded from secondary sources — confirm it with the company's VAT/tax adviser.
+                    </div>
+                    <group>
+                        <group>
+                            <field name="obligation"/>
+                            <field name="name"/>
+                            <field name="authority"/>
+                            <field name="frequency"/>
+                        </group>
+                        <group>
+                            <field name="due_day"/>
+                            <field name="month_offset"/>
+                            <field name="roll_to_working_day"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="verify_with_adviser"/>
+                        </group>
+                    </group>
+                    <field name="source_note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_statutory_filing_form" model="ir.ui.view">
+        <field name="name">fix.statutory.filing.form</field>
+        <field name="model">fix.statutory.filing</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="rule_id"/>
+                            <field name="period_key" placeholder="2026-09 / 2026-Q1 / FY2027"/>
+                            <field name="filed_on"/>
+                        </group>
+                        <group>
+                            <field name="reference"/>
+                            <field name="attachment_ids" widget="many2many_binary"/>
+                        </group>
+                    </group>
+                    <field name="note"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Withholding deductions -->
+    <record id="view_fix_withholding_line_tree" model="ir.ui.view">
+        <field name="name">fix.withholding.line.tree</field>
+        <field name="model">fix.withholding.line</field>
+        <field name="arch" type="xml">
+            <list create="0">
+                <field name="document_date"/>
+                <field name="tax_kind"/>
+                <field name="partner_id"/>
+                <field name="section"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="base_amount"/>
+                <field name="rate"/>
+                <field name="multiplier"/>
+                <field name="amount" sum="Total"/>
+                <field name="challan_no"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_withholding_line_form" model="ir.ui.view">
+        <field name="name">fix.withholding.line.form</field>
+        <field name="model">fix.withholding.line</field>
+        <field name="arch" type="xml">
+            <form create="0">
+                <header>
+                    <button name="action_issue_certificate" type="object" string="Issue Certificate"
+                            class="btn-primary" invisible="state != 'deposited'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="withheld,deposited,certified"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="tax_kind" readonly="1"/>
+                            <field name="partner_id" readonly="1"/>
+                            <field name="partner_tin" readonly="1"/>
+                            <field name="partner_bin" readonly="1"/>
+                            <field name="source_ref" readonly="1"/>
+                            <field name="document_date" readonly="1"/>
+                        </group>
+                        <group>
+                            <field name="rate_id" readonly="1"/>
+                            <field name="section" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="base_amount" readonly="1"/>
+                            <field name="rate" readonly="1"/>
+                            <field name="multiplier" readonly="1"/>
+                            <field name="non_filer" readonly="1"/>
+                            <field name="amount" readonly="1"/>
+                            <field name="challan_id" readonly="1"/>
+                            <field name="certificate_id" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Challans -->
+    <record id="view_fix_tax_challan_tree" model="ir.ui.view">
+        <field name="name">fix.tax.challan.tree</field>
+        <field name="model">fix.tax.challan</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="challan_date"/>
+                <field name="challan_no"/>
+                <field name="tax_kind"/>
+                <field name="period"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="amount"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_tax_challan_form" model="ir.ui.view">
+        <field name="name">fix.tax.challan.form</field>
+        <field name="model">fix.tax.challan</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_link_open_deductions" type="object" string="Link Open Deductions"
+                            invisible="state != 'draft' or tax_kind == 'vat'"/>
+                    <button name="action_confirm_deposit" type="object" string="Confirm Deposit &amp; Post"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,deposited"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="challan_no" readonly="state != 'draft'"/>
+                            <field name="challan_date" readonly="state != 'draft'"/>
+                            <field name="payment_mode" readonly="state != 'draft'"/>
+                            <field name="tax_kind" readonly="state != 'draft'"/>
+                            <field name="period" placeholder="YYYY-MM" readonly="state != 'draft'"/>
+                            <field name="vat_return_id" invisible="tax_kind != 'vat'" readonly="state != 'draft'"/>
+                        </group>
+                        <group>
+                            <field name="bank_name" readonly="state != 'draft'"/>
+                            <field name="bank_branch" readonly="state != 'draft'"/>
+                            <field name="economic_code" readonly="state != 'draft'"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" readonly="state != 'draft'"/>
+                            <field name="liability_total"/>
+                            <field name="move_id" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="withholding_line_ids" readonly="1" invisible="tax_kind == 'vat'">
+                        <list>
+                            <field name="partner_id"/>
+                            <field name="section"/>
+                            <field name="document_date"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount" sum="Total"/>
+                            <field name="state"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Input VAT credits -->
+    <record id="view_fix_input_vat_credit_tree" model="ir.ui.view">
+        <field name="name">fix.input.vat.credit.tree</field>
+        <field name="model">fix.input.vat.credit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="invoice_date"/>
+                <field name="partner_id"/>
+                <field name="supplier_mushak_no"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="taxable_amount"/>
+                <field name="vat_amount" sum="Total"/>
+                <field name="claim_period"/>
+                <field name="claim_deadline"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_input_vat_credit_form" model="ir.ui.view">
+        <field name="name">fix.input.vat.credit.form</field>
+        <field name="model">fix.input.vat.credit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_check_eligibility" type="object" string="Check Eligibility"
+                            class="btn-primary" invisible="state == 'claimed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,eligible,claimed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="supplier_bin"/>
+                            <field name="supplier_mushak_no"/>
+                            <field name="supplier_enlisted"/>
+                            <field name="invoice_date"/>
+                            <field name="source_ref"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="taxable_amount"/>
+                            <field name="vat_amount"/>
+                            <field name="claim_period" readonly="state == 'claimed'"/>
+                            <field name="claim_deadline"/>
+                            <field name="ineligible_reason" invisible="state != 'ineligible'"/>
+                            <field name="vat_return_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- Audit support pack -->
+    <record id="view_fix_tax_audit_pack_form" model="ir.ui.view">
+        <field name="name">fix.tax.audit.pack.form</field>
+        <field name="model">fix.tax.audit.pack</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate" type="object" string="Generate Pack" class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_verify" type="object" string="Verify Checksums"
+                            invisible="state != 'generated'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="date_from" readonly="state != 'draft'"/>
+                            <field name="date_to" readonly="state != 'draft'"/>
+                            <field name="attachment_id"/>
+                            <field name="file_count"/>
+                        </group>
+                        <group>
+                            <field name="pack_sha256"/>
+                            <field name="integrity_status"/>
+                            <field name="generated_at"/>
+                            <field name="generated_by"/>
+                        </group>
+                    </group>
+                    <field name="manifest"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+</odoo>

@@ -19,6 +19,36 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_statutory_due_rule_operating_unit" model="ir.rule">
+        <field name="name">fix.statutory.due.rule: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_statutory_due_rule"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_statutory_filing_operating_unit" model="ir.rule">
+        <field name="name">fix.statutory.filing: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_statutory_filing"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_audit_pack_operating_unit" model="ir.rule">
+        <field name="name">fix.tax.audit.pack: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tax_audit_pack"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_parameter_operating_unit" model="ir.rule">
+        <field name="name">fix.tax.parameter: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tax_parameter"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tax_rate_operating_unit" model="ir.rule">
+        <field name="name">fix.tax.rate: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tax_rate"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_tds_return_line_company" model="ir.rule">
         <field name="name">fix.tds.return.line: allowed companies</field>
         <field name="model_id" ref="model_fix_tds_return_line"/>

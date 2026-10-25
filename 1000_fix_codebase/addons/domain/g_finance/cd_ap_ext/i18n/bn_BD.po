@@ -13,9 +13,121 @@ msgid "3-Way"
 msgstr "থ্রি-ওয়ে"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_category__line_type__actual
+msgid "Actual cost (receipt)"
+msgstr "প্রকৃত খরচ (রসিদ)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__advance_type__advance
+msgid "Advance (one purpose)"
+msgstr "অগ্রিম (একক উদ্দেশ্য)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__professional_fees
+msgid "Advisory / consultancy (s.90)"
+msgstr "পরামর্শ সেবা (ধারা ৯০)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_journal_posting_log__source__ap_subledger
+msgid "AP Sub-ledger (M52)"
+msgstr "প্রদেয় উপ-খতিয়ান (M52)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_rule__amount_min
+msgid "Applies From (gross)"
+msgstr "প্রযোজ্য (মোট) থেকে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__approval_state
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Approval"
+msgstr "অনুমোদন"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_employee_advance_form
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_expense_claim_form
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_note_form
+msgid "Approve & Post"
+msgstr "অনুমোদন ও পোস্ট"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Approve Level"
+msgstr "স্তর অনুমোদন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_ap_approval_log__action__approve
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__state__approved
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__approved
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__approved
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__approval_state__approved
 msgid "Approved"
 msgstr "অনুমোদিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__state__approved
+msgid "Approved & Posted"
+msgstr "অনুমোদিত ও পোস্টকৃত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_rule__group_id
+msgid "Approver Group"
+msgstr "অনুমোদনকারী দল"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__approval_log_ids
+msgid "Approver Log"
+msgstr "অনুমোদন লগ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__rail__rtgs
+msgid "BD-RTGS (real time, high value)"
+msgstr "BD-RTGS (তাৎক্ষণিক, উচ্চমূল্য)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__rail__beftn
+msgid "BEFTN (batch)"
+msgstr "BEFTN (ব্যাচ)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__invoice_id
+msgid "Bill"
+msgstr "বিল"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_log__amount
+msgid "Bill Gross"
+msgstr "বিলের মোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__bill_type
+msgid "Bill Type"
+msgstr "বিলের ধরন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__bill_ids
+msgid "Bills"
+msgstr "বিলসমূহ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__due_by
+msgid "Bills Due By"
+msgstr "যে তারিখের মধ্যে বিল প্রদেয়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__gross_amount
+msgid "Bills Gross"
+msgstr "বিলসমূহের মোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__bin
+msgid "BIN"
+msgstr "BIN"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__match_state__blocked
@@ -23,25 +135,240 @@ msgid "Blocked"
 msgstr "আটকানো"
 
 #. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+msgid "Build Proposal"
+msgstr "প্রস্তাব তৈরি"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_note_form
+msgid "Cancel"
+msgstr "বাতিল"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__state__cancelled
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__cancelled
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিলকৃত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim_line__vehicle__car
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_rate__vehicle__car
+msgid "Car"
+msgstr "গাড়ি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__recovery_method__cash
+msgid "Cash / bank refund"
+msgstr "নগদ / ব্যাংক ফেরত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__courier_training_event
+msgid "Catering / event / courier / training (s.90)"
+msgstr "খাদ্য সরবরাহ / অনুষ্ঠান / কুরিয়ার / প্রশিক্ষণ (ধারা ৯০)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__rail__cheque
+msgid "Cheque"
+msgstr "চেক"
+
+#. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__amount
 msgid "Claimed Amount"
 msgstr "দাবিকৃত পরিমাণ"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_employee_advance__claim_ids
+msgid "Claims Settled"
+msgstr "নিষ্পন্ন দাবি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__manpower_gross
+msgid "Cleaning / security / manpower on gross (s.90)"
+msgstr "পরিচ্ছন্নতা / নিরাপত্তা / জনবল, মোটের উপর (ধারা ৯০)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__commission
+msgid "Commission / fees (s.94)"
+msgstr "কমিশন / ফি (ধারা ৯৪)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_log__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_rule__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_employee_advance__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_category__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_grade__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_policy__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_rate__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__company_id
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_tax_profile__taxpayer_type__company
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_employee_advance_form
+msgid "Confirm Disbursement"
+msgstr "বিতরণ নিশ্চিত করুন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__service_contractor
+msgid "Contract execution (s.89)"
+msgstr "চুক্তি সম্পাদন (ধারা ৮৯)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__note_type__decrease
+msgid "Credit note from vendor (Mushak 6.7) - reduces payable"
+msgstr "বিক্রেতার ক্রেডিট নোট (মুশক ৬.৭) - প্রদেয় কমায়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__note_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__note_ids
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Debit / Credit Notes"
+msgstr "ডেবিট / ক্রেডিট নোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__note_type__increase
+msgid "Debit note from vendor (Mushak 6.8) - increases payable"
+msgstr "বিক্রেতার ডেবিট নোট (মুশক ৬.৮) - প্রদেয় বাড়ায়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__default_tds_category
+msgid "Default TDS Category"
+msgstr "পূর্বনির্ধারিত TDS শ্রেণি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__default_vds_rate_id
+msgid "Default VDS Service Code"
+msgstr "পূর্বনির্ধারিত VDS সেবা কোড"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__state__disbursed
+msgid "Disbursed"
+msgstr "বিতরণকৃত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__done
+msgid "Done"
+msgstr "সম্পন্ন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__state__draft
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__draft
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__draft
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__approval_state__draft
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__state__draft
 msgid "Draft"
 msgstr "খসড়া"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__signed_total
+msgid "Effect on Payable"
+msgstr "প্রদেয়ের উপর প্রভাব"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_employee_advance__employee_id
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__employee_id
 msgid "Employee"
 msgstr "কর্মী"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_category__account_id
+msgid "Expense Account"
+msgstr "ব্যয় হিসাব"
+
+#. module: cd_ap_ext
 #: model:ir.actions.act_window,name:cd_ap_ext.action_fix_expense_claim
-#: model:ir.ui.menu,name:cd_ap_ext.menu_fix_expense_claim
 msgid "Expense Claims"
 msgstr "ব্যয় দাবিসমূহ"
+
+#. module: cd_ap_ext
+#: model:ir.model,name:cd_ap_ext.model_fix_expense_grade
+#: model:ir.model.fields,field_description:cd_ap_ext.field_hr_employee__expense_grade_id
+msgid "Expense Grade"
+msgstr "ব্যয় গ্রেড"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__line_ids
+msgid "Expense Lines"
+msgstr "ব্যয়ের লাইন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run_line__state__failed
+msgid "Failed"
+msgstr "ব্যর্থ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__advance_type__float
+msgid "Float (revolving)"
+msgstr "ঘূর্ণায়মান তহবিল"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__move_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__move_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__move_id
+msgid "GL Entry"
+msgstr "GL এন্ট্রি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__reason__return
+msgid "Goods returned"
+msgstr "পণ্য ফেরত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__gross_amount
+msgid "Gross (incl. VAT)"
+msgstr "মোট (VAT সহ)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__payment_state__in_run
+msgid "In Payment Run"
+msgstr "পেমেন্ট রানে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_tax_profile__taxpayer_type__individual
+msgid "Individual"
+msgstr "ব্যক্তি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__vat_amount
+msgid "Input VAT (6.3)"
+msgstr "উপকরণ VAT (৬.৩)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__input_credit_id
+msgid "Input VAT Credit"
+msgstr "উপকরণ VAT রেয়াত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_section
+msgid "ITA 2023 Section"
+msgstr "আয়কর আইন ২০২৩ ধারা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__approval_level
+msgid "Levels Approved"
+msgstr "অনুমোদিত স্তর"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__approval_levels_required
+msgid "Levels Required"
+msgstr "প্রয়োজনীয় স্তর"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_policy__limit_per_day
+msgid "Limit per Day"
+msgstr "দৈনিক সীমা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_policy__limit_per_line
+msgid "Limit per Expense"
+msgstr "প্রতি ব্যয়ের সীমা"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__line_total
@@ -60,14 +387,166 @@ msgid "Matched"
 msgstr "মিলকৃত"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_ap_approval_log__rule_id
+msgid "Matrix Row"
+msgstr "ম্যাট্রিক্সের সারি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_category__line_type__mileage
+msgid "Mileage"
+msgstr "মাইলেজ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_rate__rate_type__mileage
+msgid "Mileage (per km)"
+msgstr "মাইলেজ (প্রতি কিমি)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim_line__vehicle__motorcycle
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_rate__vehicle__motorcycle
+msgid "Motorcycle"
+msgstr "মোটরসাইকেল"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__mushak_ref
+msgid "Mushak 6.7 / 6.8 No"
+msgstr "মুশক ৬.৭ / ৬.৮ নং"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__amount
+msgid "Net to Pay"
+msgstr "নিট প্রদেয়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__state__applied
+msgid "Netted in Payment Run"
+msgstr "পেমেন্ট রানে সমন্বিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_multiplier
+msgid "Non-filer Multiplier"
+msgstr "রিটার্ন অদাখিলকারীর গুণক"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__bill_type__non_po
+msgid "Non-PO service / recurring (approval control)"
+msgstr "ক্রয় আদেশবিহীন সেবা / পুনরাবৃত্ত (অনুমোদন নিয়ন্ত্রণ)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__payment_state__not_paid
+msgid "Not Paid"
+msgstr "অপরিশোধিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_policy__blocked
+msgid "Not Reimbursable"
+msgstr "প্রতিপূরণযোগ্য নয়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__match_state__not_required
+msgid "Not required (non-PO)"
+msgstr "প্রয়োজন নেই (ক্রয় আদেশবিহীন)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__notes_amount
+msgid "Notes Netted"
+msgstr "সমন্বিত নোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__rail__npsb
+msgid "NPSB (instant)"
+msgstr "NPSB (তাৎক্ষণিক)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_employee_advance__balance
+msgid "Open Balance"
+msgstr "অবশিষ্ট স্থিতি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim_line__vehicle__other
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_rate__vehicle__other
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__reason__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_tax_profile__taxpayer_type__other
+msgid "Other / firm"
+msgstr "অন্যান্য / প্রতিষ্ঠান"
+
+#. module: cd_ap_ext
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__paid
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run_line__state__paid
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__payment_state__paid
 msgid "Paid"
 msgstr "পরিশোধিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__move_id
+msgid "Payment GL Entry"
+msgstr "পরিশোধের GL এন্ট্রি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__payment_run_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_line__payment_run_id
+msgid "Payment Run"
+msgstr "পেমেন্ট রান"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__payment_term_days
+msgid "Payment Terms (days)"
+msgstr "পরিশোধের মেয়াদ (দিন)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__recovery_method__payroll
+msgid "Payroll deduction (A09)"
+msgstr "বেতন থেকে কর্তন (A09)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_category__line_type__per_diem
+msgid "Per-diem"
+msgstr "দৈনিক ভাতা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_rate__rate_type__per_diem
+msgid "Per-diem (per day)"
+msgstr "দৈনিক ভাতা (প্রতিদিন)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__repair_platform
+msgid "Platform repair services (s.90)"
+msgstr "প্ল্যাটফর্ম মেরামত সেবা (ধারা ৯০)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__reason__price
+msgid "Price change"
+msgstr "মূল্য পরিবর্তন"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__product_id
 msgid "Product"
 msgstr "পণ্য"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__proposed
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run_line__state__proposed
+msgid "Proposed"
+msgstr "প্রস্তাবিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__psr_attachment_ids
+msgid "PSR Evidence"
+msgstr "PSR প্রমাণ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__psr_valid
+msgid "PSR Valid Today"
+msgstr "PSR আজ বৈধ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__psr_valid_until
+msgid "PSR Valid Until"
+msgstr "PSR বৈধতার শেষ তারিখ"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__requisition_id
@@ -76,11 +555,127 @@ msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__bill_type__po
+msgid "Purchase order (three-way match)"
+msgstr "ক্রয় আদেশ (ত্রিমুখী মিলকরণ)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__reason__quality
+msgid "Quality claim"
+msgstr "মান সংক্রান্ত দাবি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_note__reason__quantity
+msgid "Quantity correction"
+msgstr "পরিমাণ সংশোধন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim_line__rate_id
+msgid "Rate Row"
+msgstr "হারের সারি"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+msgid "Read Bank Status"
+msgstr "ব্যাংকের অবস্থা দেখুন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim_line__receipt_attachment_ids
+msgid "Receipts"
+msgstr "রসিদ"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_employee_advance_form
+msgid "Recover Balance"
+msgstr "স্থিতি আদায়"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_expense_claim_form
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_ap_approval_log__action__reject
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__rejected
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__approval_state__rejected
 msgid "Rejected"
 msgstr "প্রত্যাখ্যাত"
 
 #. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+msgid "Release to Bank"
+msgstr "ব্যাংকে প্রেরণ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__released
+msgid "Released to Bank"
+msgstr "ব্যাংকে প্রেরিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__rent_commercial
+msgid "Rent of premises (s.109)"
+msgstr "স্থাপনার ভাড়া (ধারা ১০৯)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_ap_approval_log__action__reset
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Reset to Draft"
+msgstr "খসড়ায় ফেরত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__psr_reference
+msgid "Return-Filing Proof (PSR) Ref"
+msgstr "রিটার্ন দাখিলের প্রমাণ (PSR) সূত্র"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run_line__state__sent
+msgid "Sent to Bank"
+msgstr "ব্যাংকে পাঠানো"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__service_general
+msgid "Services - other (s.90)"
+msgstr "সেবা - অন্যান্য (ধারা ৯০)"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_employee_advance_form
+msgid "Settle Against Claims"
+msgstr "দাবির বিপরীতে নিষ্পত্তি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_employee_advance__settle_by
+msgid "Settle By"
+msgstr "নিষ্পত্তির শেষ তারিখ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_employee_advance__state__settled
+msgid "Settled"
+msgstr "নিষ্পন্ন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__advance_id
+msgid "Settles Advance"
+msgstr "যে অগ্রিম নিষ্পত্তি করে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run_line__state__skipped
+msgid "Skipped"
+msgstr "বাদ দেওয়া"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_expense_claim_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_payment_run_form
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Submit for Approval"
+msgstr "অনুমোদনের জন্য জমা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_ap_approval_log__action__submit
 #: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__submitted
 msgid "Submitted"
 msgstr "জমা দেওয়া হয়েছে"
@@ -89,6 +684,33 @@ msgstr "জমা দেওয়া হয়েছে"
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__subtotal
 msgid "Subtotal"
 msgstr "উপমোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__supplier_mushak_no
+msgid "Supplier Mushak 6.3 No"
+msgstr "সরবরাহকারীর মুশক ৬.৩ নং"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__supply_of_goods
+msgid "Supply of goods (s.89)"
+msgstr "পণ্য সরবরাহ (ধারা ৮৯)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__tds_amount
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_amount
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "TDS"
+msgstr "TDS"
+
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "TDS / VDS"
+msgstr "TDS / VDS"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__withholding_line_ids
+msgid "TDS / VDS Deductions"
+msgstr "TDS / VDS কর্তন"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_category
@@ -101,15 +723,61 @@ msgid "TDS Deducted"
 msgstr "TDS কর্তন"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_rate
+msgid "TDS Rate (%)"
+msgstr "TDS হার (%)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_rate_id
+msgid "TDS Rate Row"
+msgstr "TDS হারের সারি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__total_tds
+msgid "TDS Withheld"
+msgstr "কর্তিত TDS"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__technical_services
+msgid "Technical services (s.90)"
+msgstr "কারিগরি সেবা (ধারা ৯০)"
+
+#. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__match_state
 #: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
 msgid "Three-Way Match"
 msgstr "থ্রি-ওয়ে ম্যাচ"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__tin
+msgid "TIN (e-TIN)"
+msgstr "TIN (e-TIN)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_payment_run__state__to_approve
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__approval_state__to_approve
+msgid "To Approve"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__total_amount
+msgid "To Pay"
+msgstr "প্রদেয়"
+
+#. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__total_payable
 msgid "Total Payable"
 msgstr "মোট প্রদেয়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__transport
+msgid "Transport / carriage"
+msgstr "পরিবহন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__turnover_enlisted
+msgid "Turnover-Tax Enlisted"
+msgstr "টার্নওভার কর তালিকাভুক্ত"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__unit_price
@@ -122,9 +790,58 @@ msgid "Unmatched"
 msgstr "অমিল"
 
 #. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__amount
+msgid "Value (excl. VAT)"
+msgstr "মূল্য (VAT ব্যতীত)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__vat_amount
+msgid "VAT"
+msgstr "VAT"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__vds_amount
+msgid "VDS"
+msgstr "VDS"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__vds_amount
+msgid "VDS Deducted"
+msgstr "কর্তিত VDS"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__vds_exempt
+msgid "VDS Not Applicable"
+msgstr "VDS প্রযোজ্য নয়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__vds_rate_id
+msgid "VDS Service Code"
+msgstr "VDS সেবা কোড"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__total_vds
+msgid "VDS Withheld"
+msgstr "কর্তিত VDS"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__partner_id
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__vendor_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_note__vendor_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_tax_profile__partner_id
 msgid "Vendor"
 msgstr "ভেন্ডর"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run_line__bank_account_id
+msgid "Vendor Bank Account"
+msgstr "বিক্রেতার ব্যাংক হিসাব"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_input_vat_credit__vendor_invoice_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_line__vendor_invoice_id
+msgid "Vendor Bill"
+msgstr "বিক্রেতার বিল"
 
 #. module: cd_ap_ext
 #: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_certificate__vendor_invoice_id
@@ -138,6 +855,10 @@ msgstr "ভেন্ডর চালান রেফারেন্স"
 
 #. module: cd_ap_ext
 #: model:ir.actions.act_window,name:cd_ap_ext.action_fix_vendor_invoice
-#: model:ir.ui.menu,name:cd_ap_ext.menu_fix_vendor_invoice
 msgid "Vendor Invoices"
 msgstr "ভেন্ডর চালানসমূহ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_payment_run__line_ids
+msgid "Vendor Lines"
+msgstr "বিক্রেতার লাইন"

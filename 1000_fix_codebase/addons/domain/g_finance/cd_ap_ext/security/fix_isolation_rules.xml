@@ -8,6 +8,18 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_ap_approval_rule_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.approval.rule: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_approval_rule"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_category_operating_unit" model="ir.rule">
+        <field name="name">fix.expense.category: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_expense_category"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_expense_claim_company" model="ir.rule">
         <field name="name">fix.expense.claim: allowed companies</field>
         <field name="model_id" ref="model_fix_expense_claim"/>
@@ -19,6 +31,30 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_expense_grade_operating_unit" model="ir.rule">
+        <field name="name">fix.expense.grade: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_expense_grade"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_policy_operating_unit" model="ir.rule">
+        <field name="name">fix.expense.policy: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_expense_policy"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_rate_operating_unit" model="ir.rule">
+        <field name="name">fix.expense.rate: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_expense_rate"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payment_run_operating_unit" model="ir.rule">
+        <field name="name">fix.payment.run: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payment_run"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_vendor_invoice_company" model="ir.rule">
         <field name="name">fix.vendor.invoice: allowed companies</field>
         <field name="model_id" ref="model_fix_vendor_invoice"/>
@@ -27,6 +63,12 @@
     <record id="rule_fix_vendor_invoice_operating_unit" model="ir.rule">
         <field name="name">fix.vendor.invoice: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_vendor_invoice"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vendor_tax_profile_operating_unit" model="ir.rule">
+        <field name="name">fix.vendor.tax.profile: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vendor_tax_profile"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -29,6 +29,16 @@ def ap(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     vendor = env["res.partner"].create({"name": "Apex Spare Parts Ltd."})
+    # a filer: valid proof of return on file, so the statutory rate applies
+    # without the non-filer multiplier (see test_ap_a08_orm for the 1.5x path)
+    env["fix.vendor.tax.profile"].create(
+        {
+            "partner_id": vendor.id,
+            "taxpayer_type": "company",
+            "psr_reference": "PSR-2026-APEX",
+            "psr_valid_until": "2099-06-30",
+        }
+    )
     screen = env["product.product"].create({"name": "LCD screen 14in"})
     battery = env["product.product"].create({"name": "Laptop battery"})
     return {"env": env, "ou": ou, "vendor": vendor, "screen": screen, "battery": battery}
@@ -150,9 +160,18 @@ class TestPaymentRequest:
             inv.action_request_payment()
         assert _events(ap["env"], "payment.requested", inv.id) == []
 
+    def test_matched_but_unapproved_invoice_cannot_be_paid(self, ap):
+        po = _po(ap, [(ap["screen"], 1.0, 1.0, 5000.0)])
+        inv = _invoice(ap, [(ap["screen"], "Screen", 1.0, 5000.0, {})], po)
+        with pytest.raises(UserError, match="only approved bills"), ap["env"].cr.savepoint():
+            inv.action_request_payment()
+        assert _events(ap["env"], "payment.requested", inv.id) == []
+
     def test_matched_invoice_raises_payment_event(self, ap):
         po = _po(ap, [(ap["screen"], 1.0, 1.0, 5000.0)])
         inv = _invoice(ap, [(ap["screen"], "Screen", 1.0, 5000.0, {})], po)
+        # the approval workflow itself is covered in test_ap_a08_orm
+        inv.approval_state = "approved"
         inv.action_request_payment()
         assert _events(ap["env"], "payment.requested", inv.id) == [
             {
@@ -166,6 +185,9 @@ class TestPaymentRequest:
 
 
 class TestExpenseClaim:
+    """Submission / approval basics; policy, SoD and GL posting are covered in
+    test_ap_a08_orm (they need the GL roles configured)."""
+
     def _claim(self, ap, amount, **vals):
         env = ap["env"]
         employee = env["hr.employee"].create({"name": "Field Technician Rafiq"})
@@ -179,42 +201,29 @@ class TestExpenseClaim:
             }
         )
 
-    def test_submit_threshold(self, ap):
+    def test_submit_moves_to_submitted(self, ap):
         small = self._claim(ap, 25000.0)
         large = self._claim(ap, 25000.01)
         (small | large).action_submit()
-        assert small.state == "submitted"
-        assert large.state == "draft"  # manager approval first
+        # above the threshold a finance MANAGER approves (checked on approval)
+        assert (small.state, large.state) == ("submitted", "submitted")
+        assert small.submitted_by == ap["env"].user
 
     def test_non_positive_claim_refused(self, ap):
         claim = self._claim(ap, 0.0)
         with pytest.raises(UserError, match="positive amount"), ap["env"].cr.savepoint():
             claim.action_submit()
-        with pytest.raises(UserError, match="positive amount"), ap["env"].cr.savepoint():
-            claim.action_approve()
 
-    def test_approval_requests_payment_once(self, ap):
+    def test_only_submitted_claims_are_approved(self, ap):
         claim = self._claim(ap, 1800.5)
-        claim.action_submit()
-        claim.action_approve()
-        assert claim.state == "approved"
-        assert _events(ap["env"], "payment.requested", claim.id) == [
-            {
-                "employee_id": claim.employee_id.id,
-                "amount": 1800.5,
-                "currency": "BDT",
-                "invoice_ref": "EXP/%s" % claim.id,
-                "operating_unit_id": ap["ou"].id,
-            }
-        ]
-        # Regression: re-approving an approved/paid claim raised a second
-        # payment.requested.
         with (
-            pytest.raises(UserError, match=r"Only draft or submitted claims .*\(approved\)"),
+            pytest.raises(UserError, match=r"Only submitted claims .*\(draft\)"),
             ap["env"].cr.savepoint(),
         ):
             claim.action_approve()
-        claim.state = "paid"
-        with pytest.raises(UserError, match=r"\(paid\)"), ap["env"].cr.savepoint():
+        claim.action_submit()
+        # Segregation of duties: the submitter cannot approve
+        with pytest.raises(UserError, match="Segregation of duties"), ap["env"].cr.savepoint():
             claim.action_approve()
-        assert len(_events(ap["env"], "payment.requested", claim.id)) == 1
+        assert claim.state == "submitted"
+        assert _events(ap["env"], "payment.requested", claim.id) == []

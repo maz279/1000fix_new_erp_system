@@ -143,7 +143,7 @@ class FixVatReturn(models.Model):
     filed_at = fields.Datetime(readonly=True)
     nbr_confirmation = fields.Char(
         string="NBR Confirmation",
-        help="Online filing only since 1 July 2026 — " "the confirmation reference from the portal",
+        help="Online filing only since 1 July 2026 — the confirmation reference from the portal",
     )
 
     subledger_output_variance = fields.Monetary(

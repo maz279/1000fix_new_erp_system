@@ -13,6 +13,13 @@ CD-M52-01: the accounts-payable core.
 - fix.expense.claim — employee expense on the M21-core master (MV-01)
 - T06: payment requests go to M50 as EVENTS (payment.requested) — no
   synchronous back-call (pair 9)
+- A08 build: amount-based approval matrix with segregation of duties and an
+  append-only approver log; GL posting on approval; TDS/VDS from M51's
+  effective-dated Tax Rate Master with the Vendor Tax Profile (PSR expiry
+  drives the non-filer multiplier); Mushak 6.7/6.8 vendor notes; payment
+  runs creating fix.payment.execution rows on BEFTN/RTGS/NPSB/cheque;
+  per-diem & mileage rate master, expense policy enforced on submit,
+  employee advances & floats with settlement and recovery
 """,
     "version": "19.0.1.0.0",
     "license": "LGPL-3",
@@ -30,10 +37,13 @@ CD-M52-01: the accounts-payable core.
         "cd_tax_engine_bd",
         "cd_requisition",
         "cd_gl_ext",
+        "cd_cash_position",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_a08_rules.xml",
+        "data/fix_ap_data.xml",
         "views/fix_ap_ext_views.xml",
     ],
     "installable": True,

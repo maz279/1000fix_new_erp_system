@@ -9,8 +9,43 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_statutory_filing_form
+msgid "2026-09 / 2026-Q1 / FY2027"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "2026-Q1 (Jul-Sep 2026)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__payment_mode__a_challan
+msgid "A-Challan (iBAS++)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__reference
+msgid "Acknowledgement / Reference"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Acknowledgment No. issued by NBR"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
 msgid "Amounts"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__annual
+msgid "Annual"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__any
+msgid "Any payee"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -19,13 +54,40 @@ msgid "Bank & Branch Name"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__base_amount
+msgid "Base"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__base_amount
 msgid "Base Gross Amount"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__rtgs_min_amount
+msgid "BD-RTGS minimum transfer (BDT)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__attachment_id
+msgid "Bundle (ZIP)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__pack_sha256
+msgid "Bundle SHA-256"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__cancelled
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__state__cancelled
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__cancelled
 msgid "Cancelled"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__certificate_id
+msgid "Certificate"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -34,8 +96,23 @@ msgid "Certificate Info"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__certified
+msgid "Certificate Issued"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__certificate_no
 msgid "Certificate No"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_id
+msgid "Challan"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_date
+msgid "Challan Date"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -45,8 +122,130 @@ msgid "Challan Deposit Date"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__challan_no
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__challan_no
+msgid "Challan No"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__challan_ids
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Challans"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_input_vat_credit_form
+msgid "Check Eligibility"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__tampered
+msgid "Checksum Mismatch"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__claim_period
+msgid "Claim Period"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__vat_return_id
+msgid "Claimed In"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__claimed
+msgid "Claimed in 9.1"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_parameter__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__company_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__company_id
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__company
+msgid "Company"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__company_itr
+msgid "Company income tax return (annual)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+msgid "Confirm Deposit & Post"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__customer_bin
 msgid "Customer BIN"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__decrease
+msgid "Decreasing adjustment (credit note 6.7)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__amount
+msgid "Deducted"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_id
+msgid "Deductee"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_bin
+msgid "Deductee BIN"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__partner_tin
+msgid "Deductee TIN"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__withholding_line_id
+msgid "Deduction"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__withholding_line_ids
+msgid "Deductions Settled"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__challan_date
+msgid "Deposit Date"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__amount
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__deposited
+msgid "Deposited"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__deposited
+msgid "Deposited & Posted"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__name
+msgid "Description"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -55,6 +254,8 @@ msgid "Determination"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__state__draft
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__state__draft
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return__state__draft
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__state__draft
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__state__draft
@@ -62,7 +263,31 @@ msgid "Draft"
 msgstr ""
 
 #. module: cd_tax_engine_bd
-#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__due_day
+msgid "Due Day of Month"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__payment_mode__e_payment
+msgid "e-Payment (RTGS)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__economic_code
+msgid "Economic / Revenue Code"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__eligible
+msgid "Eligible"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__attachment_ids
+msgid "Evidence Files"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 msgid "File Return with NBR"
 msgstr ""
 
@@ -83,6 +308,21 @@ msgid "Financials & Challan"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_audit_pack_form
+msgid "Generate Pack"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__state__generated
+msgid "Generated"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__move_id
+msgid "GL Entry"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__base_amount
 msgid "Gross Value"
 msgstr ""
@@ -92,8 +332,40 @@ msgid "Group By"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__increase
+msgid "Increasing adjustment (debit note 6.8)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__payee_type__individual
+msgid "Individual"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__ineligible
+msgid "Ineligible"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__input_credit_ids
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Input Credits Claimed"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__vat_amount
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__input_vat
 msgid "Input VAT"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__input_credit_window_periods
+msgid "Input VAT claim window (tax periods after the invoice)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__signed_vat
+msgid "Input VAT Effect"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -102,11 +374,17 @@ msgid "Input VAT Variance"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__intact
+msgid "Intact"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_form
 msgid "Invoice"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__invoice_date
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__invoice_date
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_search
 msgid "Invoice Date"
@@ -115,6 +393,11 @@ msgstr ""
 #. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__invoice_ref
 msgid "Invoice Reference"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_withholding_line_form
+msgid "Issue Certificate"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -128,19 +411,83 @@ msgid "Issued"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__109
+msgid "ITA 2023 s.109 - Rent"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__89
+msgid "ITA 2023 s.89 - Contractors / suppliers"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__90
+msgid "ITA 2023 s.90 - Services"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__94
+msgid "ITA 2023 s.94 - Commission"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__claim_deadline
+msgid "Last Claim Period"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__liability_total
+msgid "Liabilities Linked"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+msgid "Link Open Deductions"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__monthly
+msgid "Monthly"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__month_offset
+msgid "Months After Period End"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__multiplier
+msgid "Multiplier"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__mushak610_threshold
+msgid "Mushak 6.10 high-value invoice threshold (BDT)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__mushak_no
 msgid "Mushak 6.3 No."
 msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_mushak_register
-#: model:ir.ui.menu,name:cd_tax_engine_bd.menu_fix_mushak_register
 msgid "Mushak 6.3 Register"
 msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__certificate_type__mushak_6_6
 msgid "Mushak 6.6 (VAT Deduction at Source - VDS)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Mushak 9.1 Lines by Treatment"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__vat_91_return
+msgid "Mushak 9.1 monthly VAT return and payment"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -159,16 +506,55 @@ msgid "Net Payable"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__net_payable_after_vds
+msgid "Net Payable after VDS"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_tree
 msgid "Nil"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__non_filer
+msgid "Non-filer"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__non_filer_applies
+msgid "Non-filer Multiplier Applies"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_parameter__key__non_filer_multiplier
+msgid "Non-filer withholding multiplier (no proof of return)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__obligation
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__rule_id
+msgid "Obligation"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__operating_unit_id
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_audit_pack__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_parameter__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__operating_unit_id
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tds_return_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__operating_unit_id
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__operating_unit_id
 msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return_line__section_code__other
+msgid "Other section"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -192,14 +578,58 @@ msgid "Pending"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__state__pending
+msgid "Pending Check"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_filing__period_key
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__period
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__period
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__period
+msgid "Period"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Prepare from Deductions"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "Prepare from Registers"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tds_return__state__prepared
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__state__prepared
 msgid "Prepared"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_input_vat_credit__adjustment_type__invoice
+msgid "Purchase invoice (6.3)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__frequency__quarterly
+msgid "Quarterly"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__wht_return
+msgid "Quarterly withholding tax return"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__rate
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__rate
 msgid "Rate (%)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__rate_id
+msgid "Rate Row"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -210,6 +640,16 @@ msgstr ""
 #. module: cd_tax_engine_bd
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_vat_return__subledger_status__reconciled
 msgid "Reconciled"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tds_return_form
+msgid "Record NBR Filing"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_statutory_due_rule__roll_to_working_day
+msgid "Roll to Next Working Day"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -238,8 +678,24 @@ msgid "Sec 56 - Payment to Non-Residents"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__section
+msgid "Section / Service Code"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_certificate__certificate_type__section_52_income_tax
 msgid "Section 52 / Income Tax Withholding"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__source_note
+msgid "Source / Note"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__source_ref
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__source_ref
+msgid "Source Document"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -248,8 +704,23 @@ msgid "Source Event"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_rate_form
+msgid "Source of the rate (SRO, Finance Act, adviser memo)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__rate
+msgid "Statutory Rate (%)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
 msgid "Statutory Return Amounts"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_rate__section
+msgid "Statutory Section"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -263,6 +734,11 @@ msgid "Submit to NBR (INT-038)"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__partner_id
+msgid "Supplier"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_name
 msgid "Supplier / Deductee Name"
 msgstr ""
@@ -273,9 +749,15 @@ msgid "Supplier Address"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_bin
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__supplier_bin
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__supplier_bin
 msgid "Supplier BIN"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_mushak_no
+msgid "Supplier Mushak 6.3 No"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -284,8 +766,19 @@ msgid "Supplier TIN"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__supplier_enlisted
+msgid "Supplier Turnover-Tax Enlisted"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_treatment__code
 msgid "Tariff Code"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__tax_kind
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_line__tax_kind
+msgid "Tax"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -299,9 +792,31 @@ msgid "Tax Law Section"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_journal_posting_log__source__tax_subledger
+msgid "Tax Sub-ledger (M51)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_input_vat_credit__taxable_amount
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__taxable_amount
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__total_taxable
 msgid "Taxable Value"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__tds
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__tax_kind__tds
+msgid "TDS"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__tds
+msgid "TDS (income tax at source)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__tds_deposit
+msgid "TDS deposit (income tax withheld)"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -322,7 +837,6 @@ msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_tds_return
-#: model:ir.ui.menu,name:cd_tax_engine_bd.menu_fix_tds_return
 msgid "TDS Returns"
 msgstr ""
 
@@ -362,8 +876,23 @@ msgid "Truncated Fixed Base"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_audit_pack__integrity_status__unchecked
+msgid "Unchecked"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_mushak_register_search
 msgid "Unposted"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__date_from
+msgid "Valid From"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__date_to
+msgid "Valid To"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -373,19 +902,54 @@ msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_mushak_register__vat_amount
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__vat
 msgid "VAT"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__vat
+msgid "VAT (Mushak 9.1)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_challan__vat_return_id
+msgid "VAT Return (9.1)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_vat_return
-#: model:ir.ui.menu,name:cd_tax_engine_bd.menu_fix_vat_return
 msgid "VAT Returns"
 msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_vat_treatment
-#: model:ir.ui.menu,name:cd_tax_engine_bd.menu_fix_vat_treatment
 msgid "VAT Treatments"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_challan__tax_kind__vds
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__tax_kind__vds
+msgid "VDS"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_tax_rate__tax_kind__vds
+msgid "VDS (VAT at source)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__vds_claim_move_id
+msgid "VDS Claim Entry"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_vat_return__vds_received_credit
+msgid "VDS Credit (6.6 received)"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_statutory_due_rule__obligation__vds_deposit
+msgid "VDS deposit (VAT withheld)"
 msgstr ""
 
 #. module: cd_tax_engine_bd
@@ -408,6 +972,21 @@ msgid "Vendor TIN / e-TIN"
 msgstr ""
 
 #. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_audit_pack_form
+msgid "Verify Checksums"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_tax_effective_mixin__verify_with_adviser
+msgid "Verify with Adviser"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model:ir.model.fields.selection,name:cd_tax_engine_bd.selection__fix_withholding_line__state__withheld
+msgid "Withheld"
+msgstr ""
+
+#. module: cd_tax_engine_bd
 #: model:ir.model.fields,field_description:cd_tax_engine_bd.field_fix_withholding_certificate__withheld_amount
 msgid "Withheld Amount"
 msgstr ""
@@ -424,6 +1003,11 @@ msgstr ""
 
 #. module: cd_tax_engine_bd
 #: model:ir.actions.act_window,name:cd_tax_engine_bd.action_fix_withholding_certificate
-#: model:ir.ui.menu,name:cd_tax_engine_bd.menu_fix_withholding_certificate
 msgid "Withholding Certificates"
+msgstr ""
+
+#. module: cd_tax_engine_bd
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_tax_challan_form
+#: model_terms:ir.ui.view,arch_db:cd_tax_engine_bd.view_fix_vat_return_form
+msgid "YYYY-MM"
 msgstr ""

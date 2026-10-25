@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A08 M52 (CD-M52-01): company isolation of the AP masters and records;
+     operating-unit isolation of the transactional rows. -->
+<odoo>
+    <record id="rule_fix_vendor_tax_profile_company" model="ir.rule">
+        <field name="name">fix.vendor.tax.profile: allowed companies</field>
+        <field name="model_id" ref="model_fix_vendor_tax_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_approval_rule_company" model="ir.rule">
+        <field name="name">fix.ap.approval.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_approval_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_approval_log_company" model="ir.rule">
+        <field name="name">fix.ap.approval.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_approval_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_approval_log_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.approval.log: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_approval_log"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_vendor_note_company" model="ir.rule">
+        <field name="name">fix.vendor.note: allowed companies</field>
+        <field name="model_id" ref="model_fix_vendor_note"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_vendor_note_operating_unit" model="ir.rule">
+        <field name="name">fix.vendor.note: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_vendor_note"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_payment_run_company" model="ir.rule">
+        <field name="name">fix.payment.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_payment_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payment_run_line_company" model="ir.rule">
+        <field name="name">fix.payment.run.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_payment_run_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_payment_run_line_operating_unit" model="ir.rule">
+        <field name="name">fix.payment.run.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_payment_run_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_grade_company" model="ir.rule">
+        <field name="name">fix.expense.grade: allowed companies</field>
+        <field name="model_id" ref="model_fix_expense_grade"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_category_company" model="ir.rule">
+        <field name="name">fix.expense.category: allowed companies</field>
+        <field name="model_id" ref="model_fix_expense_category"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_rate_company" model="ir.rule">
+        <field name="name">fix.expense.rate: allowed companies</field>
+        <field name="model_id" ref="model_fix_expense_rate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_policy_company" model="ir.rule">
+        <field name="name">fix.expense.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_expense_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_expense_claim_line_company" model="ir.rule">
+        <field name="name">fix.expense.claim.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_expense_claim_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_employee_advance_company" model="ir.rule">
+        <field name="name">fix.employee.advance: allowed companies</field>
+        <field name="model_id" ref="model_fix_employee_advance"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_employee_advance_operating_unit" model="ir.rule">
+        <field name="name">fix.employee.advance: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_employee_advance"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

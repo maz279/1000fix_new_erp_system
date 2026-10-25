@@ -1,2 +1,11 @@
 # cd_ap_ext models.
-from . import fix_ap_ext, fix_withholding_certificate_ext
+from . import (
+    ap_gl,
+    fix_ap_expense,
+    fix_ap_ext,
+    fix_ap_notes,
+    fix_ap_payment_run,
+    fix_ap_tax_ext,
+    fix_ap_tax_profile,
+    fix_withholding_certificate_ext,
+)

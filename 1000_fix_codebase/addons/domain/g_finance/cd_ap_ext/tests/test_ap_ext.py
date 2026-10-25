@@ -37,11 +37,14 @@ class TestThreeWayMatch:
         assert "fix.purchase.order" in FixVendorInvoice.requisition_id.comodel_name
 
     def test_tds_is_synchronous_import(self):
-        """AR-006 pair 8: M52 calls M51 synchronously."""
+        """AR-006 pair 8: M52 calls M51 synchronously — since A08 through
+        M51's effective-dated Tax Rate Master (fix.tax.rate.find_rate)."""
         source = inspect.getsource(
-            __import__("odoo.addons.cd_ap_ext.models.fix_ap_ext", fromlist=["FixVendorInvoice"])
+            __import__(
+                "odoo.addons.cd_ap_ext.models.fix_ap_ext", fromlist=["FixVendorInvoiceLine"]
+            ).FixVendorInvoiceLine._compute_tds
         )
-        assert "from odoo.addons.cd_tax_engine_bd.models import tax_logic" in source
+        assert 'self.env["fix.tax.rate"]' in source and "Rate.find_rate(" in source
 
     def test_payment_requests_are_events(self):
         """AR-006 pair 9: M52 -> M50 is an event, never a synchronous call."""
@@ -155,7 +158,7 @@ class TestThreeWayMatch:
 
 class TestExpenseClaim:
     def test_threshold_and_employee_master(self):
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixExpenseClaim
+        from odoo.addons.cd_ap_ext.models.fix_ap_expense import FixExpenseClaim
 
         assert FixExpenseClaim.APPROVAL_THRESHOLD == 25000
         assert FixExpenseClaim.employee_id.comodel_name == "hr.employee"
