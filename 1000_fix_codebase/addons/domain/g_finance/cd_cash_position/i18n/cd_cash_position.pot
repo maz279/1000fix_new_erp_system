@@ -9,9 +9,63 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Activate"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__active
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__active
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_fund__state__active
+msgid "Active"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__amount
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__amount
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__amount
 msgid "Amount"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__amount_mismatch
+msgid "Amount Differs"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Approve"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__approved
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__approved
+msgid "Approved"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__operator__ge
+msgid "At Least (≥)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__operator__le
+msgid "At Most (≤)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_signatories
+msgid "Authorised Signatories"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__auto
+msgid "Auto-Detect"
 msgstr ""
 
 #. module: cd_cash_position
@@ -20,17 +74,99 @@ msgid "Auto-Matched"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__balanced
+msgid "Balanced"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__bank_balance
 msgid "Bank"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__journal_id
+msgid "Bank Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_branch_name
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_branch_name
+msgid "Bank Branch"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__is_bank_charge
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__charge
+msgid "Bank Charge"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Bank Confirmation"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__bank_confirmed
+msgid "Bank Confirmed"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__statement_line_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__statement_line_id
+msgid "Bank Credit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__bank_matched
+msgid "Bank Credit Matched"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__bank
+msgid "Bank Deposit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__bank_guarantee
+msgid "Bank Guarantee"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Bank Line"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__reference
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__bank_reference
 msgid "Bank Reference"
 msgstr ""
 
 #. module: cd_cash_position
-#: model:ir.ui.menu,name:cd_cash_position.menu_fix_bank_statement
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__bank_reference
+msgid "Bank Reference Recorded"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Bank Rejected"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_bank_statement_line
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__statement_line_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__statement_line_id
+msgid "Bank Statement Line"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__statement
+msgid "Bank Statement Match"
+msgstr ""
+
+#. module: cd_cash_position
 msgid "Bank Statements"
 msgstr ""
 
@@ -40,8 +176,68 @@ msgid "Bank Transfer"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__name
+msgid "Batch Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_account_type
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_account_type
+msgid "BD Account Type"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__beftn
+msgid "BEFTN"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__bkash
+msgid "bKash"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__mfs
+msgid "bKash / Nagad"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__mobile_fs
 msgid "bKash/Nagad Merchant Pay"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Book as Bank Charge"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_count__book_balance
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__book_balance
+msgid "Book Balance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_count_form
+msgid "Book Variance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__bounced
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Bounced"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__branch_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__branch_id
+msgid "Branch"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__deposit
+msgid "Branch Cash Deposit"
 msgstr ""
 
 #. module: cd_cash_position
@@ -50,19 +246,273 @@ msgid "Branch Drawers"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__carrier__staff
+msgid "Branch Staff"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__breach
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__breach
+msgid "Breach"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__confirmation_source__caller_asserted
+msgid "Caller-Asserted (No Bank Evidence)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+msgid "Cancel"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__cancelled
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__carrier_name
+msgid "Carried By"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cash
 msgid "Cash"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__count_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Cash Counts"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__cash_credit
+msgid "Cash Credit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__business_date
+msgid "Cash Day"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.actions.act_window,name:cd_cash_position.action_fix_cash_position
-#: model:ir.ui.menu,name:cd_cash_position.menu_fix_cash_position
 msgid "Cash Position"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__remittance_method__cash
+msgid "Cash to Branch"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__cash_in_transit_total
+msgid "Cash-in-Transit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__carrier__cit_company
+msgid "Cash-in-Transit Company"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__charge_move_id
+msgid "Charge Entry"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_cheque
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__cheque
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__method__cheque
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__cheque
 msgid "Cheque"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__cheque_date
+msgid "Cheque Date"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__cheque_no
+msgid "Cheque No"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__cleared
+msgid "Cleared"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Close"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__closed
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_fund__state__closed
+msgid "Closed"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__expected_amount
+msgid "COD Expected"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__order_ids
+msgid "COD Orders"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__collection
+msgid "Collection"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_company_currency_id
+msgid "Company Currency"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Confirm Bank Debit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Confirm Match"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__covenant_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Covenants"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__credited
+msgid "Credited by Bank"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__journal_id
+msgid "Credited To"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__csv
+msgid "CSV"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__current
+msgid "Current Account (CD)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__current_ratio
+msgid "Current Ratio"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__custodian_id
+msgid "Custodian"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__debit_account_id
+msgid "Debit Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__dscr
+msgid "Debt Service Coverage (trailing 12 months)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__debt_to_equity
+msgid "Debt to Equity"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Deposit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__journal_id
+msgid "Deposit Into"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__name
+msgid "Deposit Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__slip_no
+msgid "Deposit Slip No"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__deposited
+msgid "Deposited"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__principal
+msgid "Disbursed Principal"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_deposit_form
+msgid "Dispatch to Bank"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Dispute"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__disputed
+msgid "Disputed"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__draft
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__drawee_bank
+msgid "Drawn On (Bank / Branch)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__duplicate
+msgid "Duplicate File"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__duplicate
+msgid "Duplicate Transaction"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__exception_count
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__exceptions
+msgid "Exceptions"
 msgstr ""
 
 #. module: cd_cash_position
@@ -71,13 +521,218 @@ msgid "Executed"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__expense_account_id
+msgid "Expense Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__expiry_date
+msgid "Expiry / Maturity"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__utilisation_pct
+msgid "Facility Utilisation %"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__failed
 msgid "Failed"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__failure_reason
+msgid "Failure Reason"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__fee
+msgid "Fee (MDR)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__total_fee
+msgid "Fees (MDR)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__file_hash
+msgid "File Hash"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__filename
+msgid "File Name"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__start_date
+msgid "First Instalment Date"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__fdr
+msgid "Fixed Deposit (FDR)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_foreign_balance
+msgid "Foreign-Currency Balance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__format_type
+msgid "Format"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__gateway
+msgid "Gateway / MFS Settlement"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__gateway
+msgid "Gateway Settlement"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Generate Schedule"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_gl_balance
+msgid "GL Balance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__move_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__move_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__move_id
+msgid "GL Entry"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__gl_note
+msgid "GL Note"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__import_id
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_import_form
+msgid "Import"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Import Report"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__state__imported
+msgid "Imported"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__imported
+msgid "Imported — Awaiting Bank Credit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__imprest_limit
+msgid "Imprest Ceiling"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__in_transit
+msgid "In Transit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__direction__inflow
+msgid "Inflow"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__instruction_attachment_id
+msgid "Instruction File"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__name
+msgid "Instruction Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__interest_rate
+msgid "Interest Rate (% p.a.)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__direction__issued
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__issued
+msgid "Issued"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Ledger"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__lender_id
+msgid "Lender"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__lc
+msgid "Letter of Credit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__liability_account_id
+msgid "Liability Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__line_ids
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__line_ids
+msgid "Lines"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__imported_count
+msgid "Lines Imported"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Load COD Orders"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__manual
 msgid "Manually Matched"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_statement_line_form
+msgid "Match To (pick one)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__matched
+msgid "Matched"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_deposit_id
+msgid "Matched Cash Deposit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_cheque_id
+msgid "Matched Cheque"
 msgstr ""
 
 #. module: cd_cash_position
@@ -91,20 +746,226 @@ msgid "Matched Payment"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_gateway_id
+msgid "Matched Settlement"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__matched_kind
+msgid "Matched To"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__mfs_wallet
+msgid "MFS Merchant Wallet"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__mfs_wallet
+msgid "MFS Wallet"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__metric__min_liquidity
+msgid "Minimum Cash & Bank Balance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__repayment_frequency__monthly
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__monthly
+msgid "Monthly"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_import__format_type__mt940
+msgid "MT940"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__nagad
+msgid "Nagad"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__missing_receipt
+msgid "No Receipt Booked"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_repayment__sequence
+msgid "No."
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__na
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__na
+msgid "Not Computable"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__npsb
+msgid "NPSB"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__once
+msgid "Once"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__operating
+msgid "Operating"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__operating_unit_id
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_deposit__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_forecast_item__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__operating_unit_id
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__operating_unit_id
 msgid "Operating Unit"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__order_count
+msgid "Orders"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__other
+msgid "Other"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__other
+msgid "Other Gateway / Wallet"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__journal_id
+msgid "Our Bank Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__receipt_name
+msgid "Our Receipt"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__direction__outflow
+msgid "Outflow"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__matched_kind__payment
+msgid "Outgoing Payment"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__overdraft
+msgid "Overdraft"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__od_cc
+msgid "Overdraft / Cash Credit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_repayment__is_overdue
+msgid "Overdue"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_repayment__state__paid
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__paid
+msgid "Paid"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__journal_id
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__journal_id
+msgid "Paid From"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__partner_id
+msgid "Party"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_covenant_test__result__pass
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_covenant__last_result__pass
+msgid "Pass"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Pay"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Pay & Post"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+msgid "Pay from Bank"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__payee
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__payee
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
 msgid "Payee"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__payee_name
+msgid "Payee / Drawer Name"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__partner_bank_id
+msgid "Payee Account / Wallet"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__partner_id
+msgid "Payee Partner"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Payment"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model,name:cd_cash_position.model_fix_payment_execution
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__payment_execution_id
+msgid "Payment Execution"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.actions.act_window,name:cd_cash_position.action_fix_payment_execution
-#: model:ir.ui.menu,name:cd_cash_position.menu_fix_payment_execution
 msgid "Payment Executions"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__gateway
+msgid "Payment Gateway Merchant Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__payroll
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__payroll
+msgid "Payroll"
 msgstr ""
 
 #. module: cd_cash_position
@@ -118,8 +979,239 @@ msgid "Pending Payments"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__voucher_limit
+msgid "Per-Voucher Limit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__petty_cash_total
+msgid "Petty Cash"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__account_id
+msgid "Petty Cash GL Account"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_facility_repayment__state__planned
+msgid "Planned"
+msgstr ""
+
+#. module: cd_cash_position
 #: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cash_position_form
 msgid "Position"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Post"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__is_pdc
+msgid "Post-Dated"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__posted
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__posted
+msgid "Posted"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__provider_batch_ref
+msgid "Provider Settlement Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__repayment_frequency__quarterly
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__quarterly
+msgid "Quarterly"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__rail
+msgid "Rail"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Re-queue"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_gateway_settlement_form
+msgid "Re-run Match"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__receipt_ref
+msgid "Receipt / Bill Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__direction__received
+msgid "Received"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cheque__state__received
+msgid "Received (Held)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__received_date
+msgid "Received / Issued On"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remittance_journal_id
+msgid "Received Into"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__branch_id
+msgid "Receiving Branch"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_count_form
+msgid "Reconcile"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement_line__match_state__refund
+msgid "Refund / Chargeback — Review"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_topup_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Reject"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__rejected
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__rejected
+msgid "Rejected"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_payment_execution_form
+msgid "Release to Bank"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__sent_by_id
+msgid "Released By"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remittance_ref
+msgid "Remittance Ref / TrxID"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__remitted_amount
+msgid "Remitted"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__rent
+msgid "Rent"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__repayment_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Repayment Schedule"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Request Top-Up"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_topup__state__requested
+msgid "Requested"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__rider_id
+msgid "Rider"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_routing_number
+#: model:ir.model.fields,field_description:cd_cash_position.field_res_partner_bank__fix_routing_number
+msgid "Routing Number"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__rail__rtgs
+msgid "RTGS"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Sanction"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__sanction_ref
+msgid "Sanction Letter Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__limit_amount
+msgid "Sanctioned Limit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__savings
+msgid "Savings Account (SB)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_payment_execution__state__sent
+msgid "Sent — Awaiting Bank Confirmation"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+msgid "Settle"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__settled
+msgid "Settled"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__name
+msgid "Settlement Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__report_file
+msgid "Settlement Report (CSV)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__res_partner_bank__fix_account_type__snd
+msgid "Short Notice Deposit (SND)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__short_term_loan
+msgid "Short-Term Loan"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cheque__source_ref
+msgid "Source Document"
 msgstr ""
 
 #. module: cd_cash_position
@@ -133,6 +1225,21 @@ msgid "Source Model"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__source_posts_gl
+msgid "Source Posts GL"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__provider__sslcommerz
+msgid "SSLCOMMERZ"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_import__file
+msgid "Statement File"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_statement_line__statement_file_hash
 msgid "Statement File Hash"
 msgstr ""
@@ -143,11 +1250,169 @@ msgid "Statement Sequence"
 msgstr ""
 
 #. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cod_settlement_form
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_voucher_form
+msgid "Submit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cod_settlement__state__submitted
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_voucher__state__submitted
+msgid "Submitted"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__tax
+msgid "Tax / VAT Deposit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__tenor_months
+msgid "Tenor (Months)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__account_journal__fix_treasury_role__deposit
+msgid "Term Deposit"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_facility__facility_type__term_loan
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Term Loan"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Test"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_facility_covenant__test_ids
+msgid "Test History"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_gateway_settlement__state__matched
+msgid "Three-Way Matched"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_topup__name
+msgid "Top-Up Ref"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__replenish_amount
+msgid "Top-Up To Ceiling"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__topup_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Top-Ups"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields,field_description:cd_cash_position.field_fix_cash_position__total_position
 msgid "Total Position"
 msgstr ""
 
 #. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__txn_date
+msgid "Transaction Date"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__trx_id
+msgid "Transaction ID"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_journal_posting_log__source__treasury
+msgid "Treasury (M50)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_treasury_role
+msgid "Treasury Role"
+msgstr ""
+
+#. module: cd_cash_position
 #: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_bank_statement_line__match_state__unmatched
 msgid "Unmatched"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_account_journal__fix_unmatched_lines
+msgid "Unmatched Statement Lines"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__pending_vouchers
+msgid "Unposted Vouchers"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_bank_facility__utilisation_pct
+msgid "Utilisation %"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_bank_facility_form
+msgid "Utilisation (from the GL)"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__category__utilities
+msgid "Utilities"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_payment_execution__value_date
+msgid "Value Date"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_cod_settlement__variance
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_count__variance
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_deposit__state__variance
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__variance
+msgid "Variance"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_imprest_count__state__booked
+msgid "Variance Booked"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement_line__fee_vat
+msgid "VAT on Fee"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_gateway_settlement__total_fee_vat
+msgid "VAT on Fees"
+msgstr ""
+
+#. module: cd_cash_position
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_cheque_form
+msgid "Void"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_voucher__name
+msgid "Voucher No"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields,field_description:cd_cash_position.field_fix_imprest_fund__voucher_ids
+#: model_terms:ir.ui.view,arch_db:cd_cash_position.view_fix_imprest_fund_form
+msgid "Vouchers"
+msgstr ""
+
+#. module: cd_cash_position
+#: model:ir.model.fields.selection,name:cd_cash_position.selection__fix_cash_forecast_item__frequency__weekly
+msgid "Weekly"
 msgstr ""

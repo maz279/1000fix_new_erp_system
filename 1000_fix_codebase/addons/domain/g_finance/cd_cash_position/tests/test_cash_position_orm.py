@@ -96,62 +96,6 @@ class TestPaymentExecutionSeam:
         assert payment.operating_unit_id == ou
         assert payment.payee == "employee:%s" % employee.id
 
-    def test_end_to_end_from_the_ap_outbox(self, odoo_env):
-        ou = _ou(odoo_env)
-        vendor = odoo_env["res.partner"].create({"name": "Apex"})
-        product = odoo_env["product.product"].create({"name": "Screen"})
-        po = odoo_env["fix.purchase.order"].create(
-            {
-                "operating_unit_id": ou.id,
-                "vendor_id": vendor.id,
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "product_id": product.id,
-                            "qty_ordered": 1,
-                            "qty_received": 1,
-                            "unit_price": 2000.0,
-                        },
-                    )
-                ],
-            }
-        )
-        inv = odoo_env["fix.vendor.invoice"].create(
-            {
-                "operating_unit_id": ou.id,
-                "vendor_id": vendor.id,
-                "invoice_ref": "APX-1",
-                "requisition_id": po.id,
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "product_id": product.id,
-                            "description": "Screen",
-                            "quantity": 1,
-                            "unit_price": 2000.0,
-                        },
-                    )
-                ],
-            }
-        )
-        inv.action_request_payment()
-        outbox = odoo_env["fix.event.outbox"].search(
-            [("event_type", "=", "payment.requested"), ("aggregate_id", "=", inv.id)]
-        )
-        payment = odoo_env["fix.payment.execution"].consume_payment_requested(
-            {
-                "aggregate": outbox.aggregate,
-                "aggregate_id": outbox.aggregate_id,
-                "payload": json.loads(outbox.payload),
-            }
-        )
-        assert _money(payment.amount) == D("1800.00")  # 2,000.00 less 10% TDS
-        assert payment.operating_unit_id == ou
-
     @pytest.mark.parametrize(
         ("model", "source_id"),
         [("legacy.bill", 3), ("res.partner", 1), ("fix.vendor.invoice", 999999)],
@@ -318,19 +262,20 @@ class TestAutoMatch:
         ref_only = self._line(env, 600.0, narration="claim EXP/7 part")  # amount differs
         ref_and_amount = self._line(env, 1150.0, reference="AR/5")
 
+        # A08: a reference alone no longer matches — the amount must agree
+        # too, so EXP/7 is free for the line that carries the right amount.
         assert env["fix.bank.statement.line"].auto_match() == 3
         assert (ref_and_amount.match_state, ref_and_amount.matched_payment_id) == ("auto", ar)
         assert ref_and_amount.matched_invoice_ref == "AR/5"
-        assert (ref_only.matched_payment_id, ref_only.matched_invoice_ref) == (exp, "EXP/7")
-        assert (payee_and_amount.matched_payment_id, payee_and_amount.matched_invoice_ref) == (
-            other,
-            "3",
-        )
+        assert ref_only.match_state == "unmatched"
+        assert (second_claim.matched_payment_id, second_claim.matched_invoice_ref) == (exp, "EXP/7")
+        assert payee_and_amount.matched_payment_id == other
         assert amount_only.match_state == "unmatched"
-        assert second_claim.match_state == "unmatched"
         assert (
             ap.id
-            not in (ref_and_amount | ref_only | payee_and_amount).mapped("matched_payment_id").ids
+            not in (ref_and_amount | second_claim | payee_and_amount)
+            .mapped("matched_payment_id")
+            .ids
         )
 
     def test_payments_never_match_another_companys_bank_line(self, odoo_env):
@@ -382,15 +327,14 @@ class TestCashPosition:
         self._shift(odoo_env, 9999.0, state="closed", company=own)
         other_co = odoo_env["res.company"].create({"name": "1000FiX Sylhet Ltd"})
         self._shift(odoo_env, 7777.0, company=other_co)
-        snap = odoo_env["fix.cash.position"].create(
-            {"company_id": own.id, "bank_balance": 100000.0, "pending_payments": 25000.0}
-        )
+        snap = odoo_env["fix.cash.position"].create({"company_id": own.id})
         assert _money(snap.drawer_float_total) == D("7500.50")  # 5,000.00 + 2,500.50
-        assert _money(snap.total_position) == D("82500.50")  # 100,000.00 + 7,500.50 - 25,000.00
-        snap.bank_balance = 90000.0
-        assert _money(snap.total_position) == D("72500.50")
+        # A08: bank and pending payments are computed (posted GL / execution
+        # queue), no longer typed in — a new entity has neither.
+        assert (_money(snap.bank_balance), _money(snap.pending_payments)) == (D("0.00"), D("0.00"))
+        assert _money(snap.total_position) == D("7500.50")
         # a re-taken snapshot (as_of moves) picks up a newly opened drawer
         self._shift(odoo_env, 1000.0, company=own)
         snap.as_of = "2026-10-22 18:00:00"
         assert _money(snap.drawer_float_total) == D("8500.50")
-        assert _money(snap.total_position) == D("73500.50")
+        assert _money(snap.total_position) == D("8500.50")

@@ -8,6 +8,28 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_bank_facility_company" model="ir.rule">
+        <field name="name">fix.bank.facility: allowed companies</field>
+        <field name="model_id" ref="model_fix_bank_facility"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bank_facility_operating_unit" model="ir.rule">
+        <field name="name">fix.bank.facility: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_bank_facility"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_bank_statement_import_company" model="ir.rule">
+        <field name="name">fix.bank.statement.import: allowed companies</field>
+        <field name="model_id" ref="model_fix_bank_statement_import"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bank_statement_import_operating_unit" model="ir.rule">
+        <field name="name">fix.bank.statement.import: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_bank_statement_import"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_bank_statement_line_company" model="ir.rule">
         <field name="name">fix.bank.statement.line: allowed companies</field>
         <field name="model_id" ref="model_fix_bank_statement_line"/>
@@ -16,6 +38,149 @@
     <record id="rule_fix_bank_statement_line_operating_unit" model="ir.rule">
         <field name="name">fix.bank.statement.line: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_bank_statement_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_deposit_company" model="ir.rule">
+        <field name="name">fix.cash.deposit: allowed companies</field>
+        <field name="model_id" ref="model_fix_cash_deposit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_deposit_operating_unit" model="ir.rule">
+        <field name="name">fix.cash.deposit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cash_deposit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_forecast_item_company" model="ir.rule">
+        <field name="name">fix.cash.forecast.item: allowed companies</field>
+        <field name="model_id" ref="model_fix_cash_forecast_item"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cash_forecast_item_operating_unit" model="ir.rule">
+        <field name="name">fix.cash.forecast.item: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cash_forecast_item"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cheque_company" model="ir.rule">
+        <field name="name">fix.cheque: allowed companies</field>
+        <field name="model_id" ref="model_fix_cheque"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cheque_operating_unit" model="ir.rule">
+        <field name="name">fix.cheque: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cheque"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cod_settlement_company" model="ir.rule">
+        <field name="name">fix.cod.settlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_cod_settlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cod_settlement_operating_unit" model="ir.rule">
+        <field name="name">fix.cod.settlement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cod_settlement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_covenant_test_company" model="ir.rule">
+        <field name="name">fix.covenant.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_covenant_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_covenant_test_operating_unit" model="ir.rule">
+        <field name="name">fix.covenant.test: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_covenant_test"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_facility_covenant_company" model="ir.rule">
+        <field name="name">fix.facility.covenant: allowed companies</field>
+        <field name="model_id" ref="model_fix_facility_covenant"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_facility_covenant_operating_unit" model="ir.rule">
+        <field name="name">fix.facility.covenant: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_facility_covenant"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_facility_repayment_company" model="ir.rule">
+        <field name="name">fix.facility.repayment: allowed companies</field>
+        <field name="model_id" ref="model_fix_facility_repayment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_facility_repayment_operating_unit" model="ir.rule">
+        <field name="name">fix.facility.repayment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_facility_repayment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_gateway_settlement_company" model="ir.rule">
+        <field name="name">fix.gateway.settlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_gateway_settlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_gateway_settlement_operating_unit" model="ir.rule">
+        <field name="name">fix.gateway.settlement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_gateway_settlement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_gateway_settlement_line_company" model="ir.rule">
+        <field name="name">fix.gateway.settlement.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_gateway_settlement_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_gateway_settlement_line_operating_unit" model="ir.rule">
+        <field name="name">fix.gateway.settlement.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_gateway_settlement_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_count_company" model="ir.rule">
+        <field name="name">fix.imprest.count: allowed companies</field>
+        <field name="model_id" ref="model_fix_imprest_count"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_count_operating_unit" model="ir.rule">
+        <field name="name">fix.imprest.count: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_imprest_count"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_fund_company" model="ir.rule">
+        <field name="name">fix.imprest.fund: allowed companies</field>
+        <field name="model_id" ref="model_fix_imprest_fund"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_fund_operating_unit" model="ir.rule">
+        <field name="name">fix.imprest.fund: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_imprest_fund"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_topup_company" model="ir.rule">
+        <field name="name">fix.imprest.topup: allowed companies</field>
+        <field name="model_id" ref="model_fix_imprest_topup"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_topup_operating_unit" model="ir.rule">
+        <field name="name">fix.imprest.topup: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_imprest_topup"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_voucher_company" model="ir.rule">
+        <field name="name">fix.imprest.voucher: allowed companies</field>
+        <field name="model_id" ref="model_fix_imprest_voucher"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_imprest_voucher_operating_unit" model="ir.rule">
+        <field name="name">fix.imprest.voucher: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_imprest_voucher"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

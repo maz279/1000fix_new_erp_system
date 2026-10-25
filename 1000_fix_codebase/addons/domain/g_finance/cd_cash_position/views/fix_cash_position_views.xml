@@ -1,19 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_cash_position views — treasury (Finance workspace). -->
+<!-- cd_cash_position views — M50 Treasury & Banking (A08 workspace opens these forms). -->
 <odoo>
 
+    <!-- ===================== Bank Account Master (BD fields) ===================== -->
+    <record id="view_partner_bank_form_bd" model="ir.ui.view">
+        <field name="name">res.partner.bank.form.bd</field>
+        <field name="model">res.partner.bank</field>
+        <field name="inherit_id" ref="base.view_partner_bank_form"/>
+        <field name="arch" type="xml">
+            <field name="bank_id" position="after">
+                <field name="fix_branch_name"/>
+                <field name="fix_routing_number"/>
+                <field name="fix_account_type"/>
+            </field>
+        </field>
+    </record>
+
+    <record id="view_account_journal_form_bd" model="ir.ui.view">
+        <field name="name">account.journal.form.treasury.bd</field>
+        <field name="model">account.journal</field>
+        <field name="inherit_id" ref="account.view_account_journal_form"/>
+        <field name="arch" type="xml">
+            <field name="bank_id" position="after">
+                <field name="fix_branch_name" invisible="not bank_account_id"/>
+                <field name="fix_routing_number" invisible="not bank_account_id"/>
+                <field name="fix_account_type" invisible="not bank_account_id"/>
+                <field name="fix_treasury_role" invisible="type not in ('bank', 'cash')"/>
+                <field name="fix_signatories" invisible="type != 'bank'"/>
+            </field>
+        </field>
+    </record>
+
+    <!-- ===================== Payment execution ===================== -->
     <record id="view_fix_payment_execution_tree" model="ir.ui.view">
         <field name="name">fix.payment.execution.tree</field>
         <field name="model">fix.payment.execution</field>
         <field name="arch" type="xml">
-            <list decoration-success="state == 'executed'" decoration-danger="state == 'failed'">
+            <list decoration-success="state == 'executed'" decoration-danger="state == 'failed'" decoration-warning="state == 'sent'">
+                <field name="name"/>
                 <field name="source_model" optional="show"/>
                 <field name="payee"/>
                 <field name="amount"/>
                 <field name="method"/>
+                <field name="rail" optional="show"/>
                 <field name="state" widget="badge"/>
+                <field name="bank_confirmed" optional="show"/>
                 <field name="executed_at" optional="show"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_payment_execution_form" model="ir.ui.view">
+        <field name="name">fix.payment.execution.form</field>
+        <field name="model">fix.payment.execution</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_release" type="object" string="Release to Bank" class="btn-primary" invisible="state != 'pending'"/>
+                    <button name="action_confirm_bank" type="object" string="Confirm Bank Debit" class="btn-primary" invisible="state != 'sent'"/>
+                    <button name="action_mark_failed" type="object" string="Bank Rejected" invisible="state != 'sent'"/>
+                    <button name="action_retry" type="object" string="Re-queue" invisible="state != 'failed'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="pending,sent,executed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group string="Payee">
+                            <field name="payee"/>
+                            <field name="partner_id"/>
+                            <field name="partner_bank_id" domain="[('partner_id', '=', partner_id)]"/>
+                            <field name="source_model"/>
+                            <field name="source_id"/>
+                        </group>
+                        <group string="Payment">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="operating_unit_id"/>
+                            <field name="amount"/>
+                            <field name="method"/>
+                            <field name="rail" invisible="method != 'bank_transfer'"/>
+                            <field name="journal_id"/>
+                            <field name="debit_account_id"/>
+                            <field name="value_date"/>
+                        </group>
+                        <group string="Bank Confirmation">
+                            <field name="bank_reference"/>
+                            <field name="failure_reason"/>
+                            <field name="statement_line_id"/>
+                            <field name="confirmation_source"/>
+                            <field name="bank_confirmed"/>
+                            <field name="instruction_attachment_id"/>
+                        </group>
+                        <group string="Ledger">
+                            <field name="sent_at"/>
+                            <field name="sent_by_id"/>
+                            <field name="executed_at"/>
+                            <field name="move_id"/>
+                            <field name="gl_note"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Statements ===================== -->
+    <record id="view_fix_bank_statement_import_form" model="ir.ui.view">
+        <field name="name">fix.bank.statement.import.form</field>
+        <field name="model">fix.bank.statement.import</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_import" type="object" string="Import" class="btn-primary" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="journal_id"/>
+                            <field name="format_type"/>
+                            <field name="file" filename="filename"/>
+                            <field name="filename" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="imported_count"/>
+                            <field name="file_hash"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list>
+                            <field name="date"/>
+                            <field name="reference"/>
+                            <field name="narration"/>
+                            <field name="amount"/>
+                            <field name="match_state"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
 
@@ -23,15 +150,55 @@
         <field name="arch" type="xml">
             <list decoration-success="match_state == 'auto'" decoration-warning="match_state == 'unmatched'">
                 <field name="date"/>
+                <field name="journal_id" optional="show"/>
                 <field name="reference"/>
                 <field name="narration" optional="show"/>
                 <field name="amount"/>
                 <field name="match_state" widget="badge"/>
+                <field name="matched_kind" optional="show"/>
                 <field name="matched_invoice_ref" optional="show"/>
             </list>
         </field>
     </record>
 
+    <record id="view_fix_bank_statement_line_form" model="ir.ui.view">
+        <field name="name">fix.bank.statement.line.form</field>
+        <field name="model">fix.bank.statement.line</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_confirm_manual_match" type="object" string="Confirm Match" class="btn-primary" invisible="match_state != 'unmatched'"/>
+                    <button name="action_post_bank_charge" type="object" string="Book as Bank Charge" invisible="match_state != 'unmatched' or amount &gt;= 0"/>
+                    <field name="match_state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group string="Bank Line">
+                            <field name="currency_id" invisible="1"/>
+                            <field name="company_id" invisible="1"/>
+                            <field name="journal_id"/>
+                            <field name="date"/>
+                            <field name="amount"/>
+                            <field name="reference"/>
+                            <field name="narration"/>
+                        </group>
+                        <group string="Match To (pick one)">
+                            <field name="matched_payment_id" readonly="match_state != 'unmatched'"/>
+                            <field name="matched_deposit_id" readonly="match_state != 'unmatched'"/>
+                            <field name="matched_cheque_id" readonly="match_state != 'unmatched'"/>
+                            <field name="matched_gateway_id" readonly="match_state != 'unmatched'"/>
+                            <field name="matched_kind"/>
+                            <field name="matched_invoice_ref"/>
+                            <field name="charge_move_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Cash position ===================== -->
     <record id="view_fix_cash_position_form" model="ir.ui.view">
         <field name="name">fix.cash.position.form</field>
         <field name="model">fix.cash.position</field>
@@ -41,23 +208,455 @@
                     <div class="oe_title"><h1><field name="as_of" readonly="1"/></h1></div>
                     <group>
                         <group string="Position">
+                            <field name="company_id" readonly="1"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="bank_balance"/>
                             <field name="drawer_float_total"/>
+                            <field name="petty_cash_total"/>
+                            <field name="cash_in_transit_total"/>
                             <field name="pending_payments"/>
                             <field name="total_position"/>
                         </group>
                     </group>
                 </sheet>
-                <div class="oe_chatter">
-                    <field name="message_follower_ids"/>
-                    <field name="activity_ids"/>
-                    <field name="message_ids"/>
-                </div>
+                <chatter/>
             </form>
         </field>
     </record>
 
+    <!-- ===================== Cash-in-transit ===================== -->
+    <record id="view_fix_cash_deposit_form" model="ir.ui.view">
+        <field name="name">fix.cash.deposit.form</field>
+        <field name="model">fix.cash.deposit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_dispatch" type="object" string="Dispatch to Bank" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_resolve_variance" type="object" string="Book Variance" invisible="state != 'variance'"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state != 'draft'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,in_transit,credited"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="branch_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="business_date"/>
+                            <field name="journal_id"/>
+                            <field name="amount"/>
+                        </group>
+                        <group>
+                            <field name="slip_no"/>
+                            <field name="carrier"/>
+                            <field name="carrier_name"/>
+                            <field name="dispatched_at"/>
+                            <field name="statement_line_id"/>
+                            <field name="credited_amount"/>
+                            <field name="variance_amount"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== COD ===================== -->
+    <record id="view_fix_cod_settlement_form" model="ir.ui.view">
+        <field name="name">fix.cod.settlement.form</field>
+        <field name="model">fix.cod.settlement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_load_orders" type="object" string="Load COD Orders" invisible="state != 'draft'"/>
+                    <button name="action_submit" type="object" string="Submit" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_settle" type="object" string="Settle" class="btn-primary" invisible="state != 'submitted'" groups="account.group_account_manager"/>
+                    <button name="action_dispute" type="object" string="Dispute" invisible="state not in ('draft', 'submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,settled"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="rider_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
+                            <field name="settlement_date"/>
+                        </group>
+                        <group>
+                            <field name="order_count"/>
+                            <field name="expected_amount"/>
+                            <field name="remittance_method"/>
+                            <field name="remittance_journal_id"/>
+                            <field name="remitted_amount"/>
+                            <field name="remittance_ref"/>
+                            <field name="variance"/>
+                            <field name="dispute_reason"/>
+                            <field name="move_id"/>
+                        </group>
+                    </group>
+                    <field name="order_ids">
+                        <list>
+                            <field name="name"/>
+                            <field name="customer_id"/>
+                            <field name="order_date"/>
+                            <field name="total_amount"/>
+                            <field name="state"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Imprest ===================== -->
+    <record id="view_fix_imprest_fund_form" model="ir.ui.view">
+        <field name="name">fix.imprest.fund.form</field>
+        <field name="model">fix.imprest.fund</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_request_topup" type="object" string="Request Top-Up" class="btn-primary" invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="branch_id"/>
+                            <field name="operating_unit_id"/>
+                            <field name="custodian_id"/>
+                            <field name="account_id"/>
+                        </group>
+                        <group>
+                            <field name="imprest_limit"/>
+                            <field name="voucher_limit"/>
+                            <field name="book_balance"/>
+                            <field name="pending_vouchers"/>
+                            <field name="replenish_amount"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Vouchers">
+                            <field name="voucher_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="voucher_date"/>
+                                    <field name="description"/>
+                                    <field name="amount"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Top-Ups">
+                            <field name="topup_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="topup_date"/>
+                                    <field name="amount"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Cash Counts">
+                            <field name="count_ids" readonly="1">
+                                <list>
+                                    <field name="count_date"/>
+                                    <field name="counted_amount"/>
+                                    <field name="book_balance"/>
+                                    <field name="variance"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_imprest_voucher_form" model="ir.ui.view">
+        <field name="name">fix.imprest.voucher.form</field>
+        <field name="model">fix.imprest.voucher</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'submitted'"/>
+                    <button name="action_post" type="object" string="Pay &amp; Post" class="btn-primary" invisible="state != 'approved'"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('submitted', 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="fund_id"/>
+                            <field name="voucher_date"/>
+                            <field name="description"/>
+                            <field name="payee"/>
+                        </group>
+                        <group>
+                            <field name="expense_account_id"/>
+                            <field name="amount"/>
+                            <field name="receipt_ref"/>
+                            <field name="approved_by_id"/>
+                            <field name="move_id"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_imprest_topup_form" model="ir.ui.view">
+        <field name="name">fix.imprest.topup.form</field>
+        <field name="model">fix.imprest.topup</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'requested'" groups="account.group_account_manager"/>
+                    <button name="action_pay" type="object" string="Pay from Bank" class="btn-primary" invisible="state != 'approved'"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('requested', 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="requested,approved,paid"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="company_id" invisible="1"/>
+                        <field name="fund_id"/>
+                        <field name="amount"/>
+                        <field name="journal_id"/>
+                        <field name="topup_date"/>
+                        <field name="requested_by_id"/>
+                        <field name="approved_by_id"/>
+                        <field name="move_id"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_imprest_count_form" model="ir.ui.view">
+        <field name="name">fix.imprest.count.form</field>
+        <field name="model">fix.imprest.count</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_reconcile" type="object" string="Reconcile" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_book_variance" type="object" string="Book Variance" invisible="state != 'variance'" groups="account.group_account_manager"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <field name="currency_id" invisible="1"/>
+                        <field name="fund_id"/>
+                        <field name="count_date"/>
+                        <field name="counted_amount"/>
+                        <field name="book_balance"/>
+                        <field name="variance"/>
+                        <field name="counted_by_id"/>
+                        <field name="move_id"/>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Cheques ===================== -->
+    <record id="view_fix_cheque_form" model="ir.ui.view">
+        <field name="name">fix.cheque.form</field>
+        <field name="model">fix.cheque</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_deposit" type="object" string="Deposit" class="btn-primary" invisible="direction != 'received' or state not in ('received', 'bounced')"/>
+                    <button name="action_bounce" type="object" string="Bounced" invisible="state not in ('deposited', 'issued', 'cleared')"/>
+                    <button name="action_cancel" type="object" string="Void" invisible="direction != 'issued' or state not in ('issued', 'bounced')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="direction"/>
+                            <field name="cheque_no"/>
+                            <field name="drawee_bank"/>
+                            <field name="partner_id"/>
+                            <field name="payee_name"/>
+                            <field name="amount"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                        <group>
+                            <field name="cheque_date"/>
+                            <field name="received_date"/>
+                            <field name="is_pdc"/>
+                            <field name="journal_id"/>
+                            <field name="source_ref"/>
+                            <field name="payment_execution_id"/>
+                            <field name="deposited_date"/>
+                            <field name="cleared_date"/>
+                            <field name="statement_line_id"/>
+                            <field name="bounce_reason"/>
+                            <field name="bounce_count"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Gateway settlement ===================== -->
+    <record id="view_fix_gateway_settlement_form" model="ir.ui.view">
+        <field name="name">fix.gateway.settlement.form</field>
+        <field name="model">fix.gateway.settlement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_import_report" type="object" string="Import Report" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_match" type="object" string="Re-run Match" invisible="state in ('draft', 'posted')"/>
+                    <button name="action_post" type="object" string="Post" class="btn-primary" invisible="state != 'matched'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,imported,matched,posted"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="provider"/>
+                            <field name="provider_batch_ref"/>
+                            <field name="settlement_date"/>
+                            <field name="journal_id"/>
+                            <field name="report_file" filename="report_filename"/>
+                            <field name="report_filename" invisible="1"/>
+                        </group>
+                        <group>
+                            <field name="line_count"/>
+                            <field name="total_gross"/>
+                            <field name="total_fee"/>
+                            <field name="total_fee_vat"/>
+                            <field name="total_net"/>
+                            <field name="exception_count"/>
+                            <field name="statement_line_id"/>
+                            <field name="bank_matched"/>
+                            <field name="move_id"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list decoration-danger="match_state != 'matched'">
+                            <field name="trx_id"/>
+                            <field name="txn_date"/>
+                            <field name="gross"/>
+                            <field name="fee"/>
+                            <field name="fee_vat"/>
+                            <field name="net"/>
+                            <field name="receipt_name"/>
+                            <field name="receipt_amount"/>
+                            <field name="match_state"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Facilities ===================== -->
+    <record id="view_fix_bank_facility_form" model="ir.ui.view">
+        <field name="name">fix.bank.facility.form</field>
+        <field name="model">fix.bank.facility</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" type="object" string="Activate" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_generate_schedule" type="object" string="Generate Schedule" invisible="facility_type not in ('term_loan', 'short_term_loan') or state == 'closed'"/>
+                    <button name="action_close" type="object" string="Close" invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Sanction">
+                            <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="lender_id"/>
+                            <field name="facility_type"/>
+                            <field name="sanction_ref"/>
+                            <field name="sanction_date"/>
+                            <field name="expiry_date"/>
+                            <field name="limit_amount"/>
+                            <field name="interest_rate"/>
+                        </group>
+                        <group string="Utilisation (from the GL)">
+                            <field name="liability_account_id"/>
+                            <field name="journal_id"/>
+                            <field name="utilised"/>
+                            <field name="available"/>
+                            <field name="utilisation_pct"/>
+                            <field name="next_due_date"/>
+                            <field name="next_due_amount"/>
+                        </group>
+                        <group string="Term Loan" invisible="facility_type not in ('term_loan', 'short_term_loan')">
+                            <field name="principal"/>
+                            <field name="start_date"/>
+                            <field name="tenor_months"/>
+                            <field name="repayment_frequency"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Repayment Schedule">
+                            <field name="repayment_ids">
+                                <list editable="bottom">
+                                    <field name="sequence"/>
+                                    <field name="due_date"/>
+                                    <field name="principal"/>
+                                    <field name="interest"/>
+                                    <field name="total"/>
+                                    <field name="state"/>
+                                    <field name="is_overdue"/>
+                                    <button name="action_pay" type="object" string="Pay" invisible="state != 'planned'"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Covenants">
+                            <field name="covenant_ids">
+                                <list editable="bottom">
+                                    <field name="name"/>
+                                    <field name="metric"/>
+                                    <field name="operator"/>
+                                    <field name="threshold"/>
+                                    <field name="last_value"/>
+                                    <field name="last_result"/>
+                                    <field name="last_tested"/>
+                                    <button name="action_test" type="object" string="Test"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ===================== Window actions (backend menus) ===================== -->
     <record id="action_fix_payment_execution" model="ir.actions.act_window">
         <field name="name">Payment Executions</field>
         <field name="res_model">fix.payment.execution</field>

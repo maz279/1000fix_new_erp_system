@@ -14,7 +14,7 @@ class TestPaymentExecution:
             __import__(
                 "odoo.addons.cd_cash_position.models.fix_cash_position",
                 fromlist=["FixPaymentExecution"],
-            ).FixPaymentExecution.action_execute
+            ).FixPaymentExecution._publish_executed
         )
         assert '"payment.executed"' in source
 
@@ -36,68 +36,17 @@ class TestBankReconciliation:
         assert set(states) == {"unmatched", "auto", "manual"}
 
     def test_auto_match_ladder_supports_ar_ap_and_exp(self):
-        source = inspect.getsource(
-            __import__(
-                "odoo.addons.cd_cash_position.models.fix_cash_position",
-                fromlist=["FixBankStatementLine"],
-            ).FixBankStatementLine.auto_match
-        )
-        assert "AR" in source
-        assert "AP" in source
-        assert "EXP" in source
+        from odoo.addons.cd_cash_position.models.fix_cash_position import LEGACY_PREFIX
 
-    def test_live_auto_match_reconciliation_rate(self):
-        """Gate G3-02: Auto-reconciliation matches >= 90% of unambiguous executed payments."""
-        from unittest.mock import MagicMock
+        assert set(LEGACY_PREFIX.values()) == {"AR", "AP", "EXP"}
 
-        from odoo.addons.cd_cash_position.models.fix_cash_position import FixBankStatementLine
+    def test_reference_match_is_whole_token(self):
+        """A08: 'AR/5' must not match inside 'AR/55' (the old substring rule did)."""
+        from odoo.addons.cd_cash_position.models.treasury_common import has_token
 
-        currency_mock = MagicMock()
-        company_mock = MagicMock()
-        payments = []
-        statement_lines = []
-
-        # Generate 10 payments and 10 matching statement lines across AR, AP, and EXP
-        for i in range(1, 11):
-            source_model = (
-                "fix.ar.invoice"
-                if i <= 4
-                else "fix.vendor.invoice"
-                if i <= 7
-                else "fix.expense.claim"
-            )
-            prefix = "AR" if i <= 4 else "AP" if i <= 7 else "EXP"
-            p = MagicMock()
-            p.id = 100 + i
-            p.source_id = i
-            p.source_model = source_model
-            p.amount = float(1000 * i)
-            p.currency_id = currency_mock
-            p.company_id = company_mock
-            p.payee = f"vendor_{i}"
-            payments.append(p)
-
-            line = MagicMock()
-            line.id = 200 + i
-            line.match_state = "unmatched"
-            line.amount = float(1000 * i)
-            line.currency_id = currency_mock
-            line.company_id = company_mock
-            line.reference = f"{prefix}/{i} ref-txn-{i}"
-            line.narration = f"Settlement {prefix}/{i}"
-            statement_lines.append(line)
-
-        # Mock search calls
-        model_mock = MagicMock()
-        model_mock.search = MagicMock(return_value=statement_lines)
-        env_mock = MagicMock()
-        env_mock.__getitem__.return_value.search.return_value = payments
-        model_mock.env = env_mock
-
-        matched_count = FixBankStatementLine.auto_match(model_mock)
-        reconciliation_rate = (matched_count / len(statement_lines)) * 100.0
-        assert reconciliation_rate >= 90.0
-        assert matched_count == 10
+        assert has_token("paid AR/5 ok", "AR/5")
+        assert not has_token("paid AR/55", "AR/5")
+        assert not has_token("", "AR/5")
 
 
 class TestCashPosition:

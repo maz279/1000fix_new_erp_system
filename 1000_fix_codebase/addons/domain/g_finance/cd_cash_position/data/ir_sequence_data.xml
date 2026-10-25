@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_cash_position — treasury document numbering (master data). -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_payment_execution" model="ir.sequence">
+            <field name="name">Payment Instruction</field>
+            <field name="code">fix.payment.execution</field>
+            <field name="prefix">PEX/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_cash_deposit" model="ir.sequence">
+            <field name="name">Branch Cash Deposit</field>
+            <field name="code">fix.cash.deposit</field>
+            <field name="prefix">CIT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_cod_settlement" model="ir.sequence">
+            <field name="name">Rider COD Settlement</field>
+            <field name="code">fix.cod.settlement</field>
+            <field name="prefix">COD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_imprest_voucher" model="ir.sequence">
+            <field name="name">Petty Cash Voucher</field>
+            <field name="code">fix.imprest.voucher</field>
+            <field name="prefix">PCV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_imprest_topup" model="ir.sequence">
+            <field name="name">Petty Cash Top-Up</field>
+            <field name="code">fix.imprest.topup</field>
+            <field name="prefix">PCT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_gateway_settlement" model="ir.sequence">
+            <field name="name">Gateway Settlement Batch</field>
+            <field name="code">fix.gateway.settlement</field>
+            <field name="prefix">GWS/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

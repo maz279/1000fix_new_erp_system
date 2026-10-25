@@ -10,10 +10,16 @@ CD-M50-01: the treasury core.
   payment.executed
 - fix.bank.statement.line (+auto_match) — the reconciliation ladder's
   in-Odoo half: exact reference match, then amount+date-window
-- fix.cash.position — cash position consuming the M04 cash-drawer model
-  (Phase 4) plus pending payments
+- fix.cash.position — cash position from the posted bank GL, M04 cash
+  drawers, petty cash and cash-in-transit, less unconfirmed payments
+
+A08 (2026-10-26): bank account master (BD routing number / account type on
+account.journal + res.partner.bank), cash-in-transit, rider COD settlement
+(finance side), petty cash imprest, cheque register, gateway/MFS settlement
+with three-way match, facilities & covenants, recurring cash items, and the
+computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -25,10 +31,12 @@ CD-M50-01: the treasury core.
         "cd_event_outbox",
         "cd_front_desk",
         "cd_gl_ext",
+        "cd_storefront",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence_data.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,
