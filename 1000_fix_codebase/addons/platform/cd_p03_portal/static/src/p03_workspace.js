@@ -767,6 +767,7 @@ export class P03Workspace extends Component {
             hitSc: hit ? hit.sc : null,
             hitM: hit ? hit.m : null,
             modelCfg: config.model ? config : null,
+            reportCfg: config.kind === "table_report" ? config : null,
             kind: config.kind,
             report: config.report || null,
             title: hit ? hit.sc.en : "GL",
@@ -937,6 +938,17 @@ export class P03Workspace extends Component {
                 const res = await this.rpc("/p03/ar/customers", {});
                 gl.customers = res.rows;
                 if (!gl.data) gl.data = { statement: null };
+            } else if (gl.kind === "table_report") {
+                const cfg = gl.reportCfg;
+                const params = Object.assign({}, cfg.params || {});
+                if (cfg.period !== false) {
+                    params.date_from = gl.stmtFrom;
+                    params.date_to = gl.stmtTo;
+                }
+                const res = await this.rpc("/p03/model/report", {
+                    module: cfg.module, report: cfg.report, params,
+                });
+                gl.data = res.error ? { error: res.error } : res;
             } else if (gl.kind === "model_list") {
                 const res = await this.rpc("/p03/model/records", {
                     model: gl.modelCfg.model,

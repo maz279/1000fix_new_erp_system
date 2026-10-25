@@ -16,6 +16,7 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
+from . import a08
 from .a08 import SURFACES
 from .p03_service_order_api import _require_internal, _user_error
 
@@ -89,6 +90,28 @@ class P03GenericApiController(http.Controller):
             return {"error": _user_error(exc)}
         except Exception:
             _logger.exception("p03 model_records failed for %s", model)
+            return {"error": _FAILED}
+
+    @http.route("/p03/model/report", type="jsonrpc", auth="user", readonly=True)
+    def model_report(self, module=None, report=None, params=None, **kw):
+        """A module's declared report: controllers/a08/<module>.py REPORTS
+        maps name -> fn(env, **params) returning {cols, labels, rows,
+        totals?, notes?, title?, empty?}. The function reads with the
+        caller's env, so the models' own access rules apply."""
+        _require_internal(request.env)
+        mod = a08.MODULES.get(module)
+        fn = getattr(mod, "REPORTS", {}).get(report) if mod else None
+        if not fn:
+            return {"error": "Report not available on this surface"}
+        try:
+            out = fn(request.env, **(params or {}))
+            out.setdefault("rows", [])
+            out.setdefault("cols", [])
+            return out
+        except (UserError, AccessError) as exc:
+            return {"error": _user_error(exc)}
+        except Exception:
+            _logger.exception("p03 model_report %s.%s failed", module, report)
             return {"error": _FAILED}
 
     @http.route("/p03/model/action", type="jsonrpc", auth="user")

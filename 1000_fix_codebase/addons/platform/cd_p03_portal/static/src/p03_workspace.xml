@@ -2673,6 +2673,50 @@
                         </div>
 
 
+                        <!-- ============ GENERIC TABLE REPORT (A08 per-module REPORTS) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'table_report' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.reportCfg.period !== false" style="display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-bottom: 12px;">
+                                    <label class="fld"><span><t t-esc='t("From")'/></span>
+                                        <input type="date" t-att-value="state.gl.stmtFrom" t-on-change="(ev) => { state.gl.stmtFrom = ev.target.value; }"/></label>
+                                    <label class="fld"><span><t t-esc='t("To")'/></span>
+                                        <input type="date" t-att-value="state.gl.stmtTo" t-on-change="(ev) => { state.gl.stmtTo = ev.target.value; }"/></label>
+                                    <button class="btn btn-sm btn-primary" t-on-click="() => this.loadGlData()"><t t-esc='t("Run")'/></button>
+                                </div>
+                                <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
+                                <div t-if="!state.gl.data.error">
+                                    <h3 t-if="state.gl.data.title"><t t-esc="state.gl.data.title"/></h3>
+                                    <div class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead>
+                                                <tr>
+                                                    <t t-foreach="state.gl.data.cols" t-as="col" t-key="col">
+                                                        <th><t t-esc="(state.gl.data.labels || {})[col] || col"/></th>
+                                                    </t>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.data.rows" t-as="row" t-key="row_index" t-att-class="{'alt': row_index % 2}">
+                                                    <t t-foreach="state.gl.data.cols" t-as="col" t-key="col">
+                                                        <td><t t-esc="mlCell(row, col)"/></td>
+                                                    </t>
+                                                </tr>
+                                                <tr t-if="!state.gl.data.rows.length"><td t-att-colspan="state.gl.data.cols.length" style="text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.empty || t('No data for this period.')"/></td></tr>
+                                                <tr t-if="state.gl.data.totals" style="font-weight: 700;">
+                                                    <t t-foreach="state.gl.data.cols" t-as="col" t-key="col">
+                                                        <td><t t-esc="state.gl.data.totals[col] != null ? mlCell(state.gl.data.totals, col) : ''"/></td>
+                                                    </t>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <ul t-if="state.gl.data.notes &amp;&amp; state.gl.data.notes.length" style="margin-top: 10px; color: var(--ink-500); font-size: 12px;">
+                                        <li t-foreach="state.gl.data.notes" t-as="n" t-key="n_index"><t t-esc="n"/></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- ============ GENERIC MODEL LIST (A08 completion) ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'model_list' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">

@@ -104,3 +104,32 @@ def test_unexpected_failures_do_not_leak_internals(odoo_env, call):
     ):
         res = call(odoo_env, "model_records", model="fix.vendor.invoice", cols=["invoice_ref"])
     assert "secret" not in res["error"]
+
+
+def test_undeclared_report_is_refused(odoo_env, call):
+    res = call(odoo_env, "model_report", module="M52", report="nope")
+    assert res == {"error": "Report not available on this surface"}
+
+
+def test_declared_report_runs_with_params_and_defaults(odoo_env, call):
+    def ageing(env, date_from=None, date_to=None):
+        return {"cols": ["bucket"], "rows": [{"bucket": f"{date_from}..{date_to}"}]}
+
+    with mock.patch.object(a08.m52, "REPORTS", {"ageing": ageing}, create=True):
+        res = call(
+            odoo_env,
+            "model_report",
+            module="M52",
+            report="ageing",
+            params={"date_from": "2026-07-01", "date_to": "2027-06-30"},
+        )
+    assert res["rows"] == [{"bucket": "2026-07-01..2027-06-30"}]
+
+
+def test_report_failures_do_not_leak_internals(odoo_env, call):
+    def broken(env, **kw):
+        raise RuntimeError("SELECT secret")
+
+    with mock.patch.object(a08.m52, "REPORTS", {"broken": broken}, create=True):
+        res = call(odoo_env, "model_report", module="M52", report="broken")
+    assert "secret" not in res["error"]
