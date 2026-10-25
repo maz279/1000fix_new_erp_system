@@ -8,11 +8,15 @@
 # absent or unreadable come back as None and the workspace keeps the honest
 # placeholder. Read-only, internal-user only (NVR-22, same as /p03/registry).
 import datetime
+import logging
 
 from odoo import http
 from odoo.http import request
 
+from . import a08
 from .p03_service_order_api import _require_internal
+
+_logger = logging.getLogger(__name__)
 
 
 def _month_start():
@@ -199,4 +203,13 @@ class P03FinanceApiController(http.Controller):
                 "budgets_count": count("fix.budget", []),
             }
 
+        # Per-module metrics declared in controllers/a08/<module>.py as an
+        # optional kpis(env) -> {metric_key: value or None}.
+        for code, mod in a08.MODULES.items():
+            hook = getattr(mod, "kpis", None)
+            if hook and module in (None, code):
+                try:
+                    out.setdefault(code, {}).update(hook(env) or {})
+                except Exception:
+                    _logger.exception("p03 finance kpis hook failed for %s", code)
         return out
