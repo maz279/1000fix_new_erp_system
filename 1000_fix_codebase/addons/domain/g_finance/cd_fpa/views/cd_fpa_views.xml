@@ -1,33 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_fpa views (P09). -->
+<!-- cd_fpa views (P09; A08 M54 rebuild). The P03 workspace opens these forms
+     in a dialog ("+ New" / "Open full record"). -->
 <odoo>
-    <record id="view_fix_budget_list" model="ir.ui.view">
-        <field name="name">fix.budget.list</field>
-        <field name="model">fix.budget</field>
+    <!-- ============ Business lines (MD-036) ============ -->
+    <record id="view_fix_business_line_list" model="ir.ui.view">
+        <field name="name">fix.business.line.list</field>
+        <field name="model">fix.business.line</field>
         <field name="arch" type="xml">
             <list>
+                <field name="sequence" widget="handle"/>
+                <field name="code"/>
                 <field name="name"/>
-                <field name="fiscal_year"/>
-                <field name="planned_amount"/>
-                <field name="variance"/>
+                <field name="name_bn"/>
+                <field name="revenue_stream_no"/>
+                <field name="is_profit_centre"/>
+                <field name="active" column_invisible="1"/>
             </list>
         </field>
     </record>
-    <record id="action_fix_budget" model="ir.actions.act_window">
-        <field name="name">Budget</field>
-        <field name="res_model">fix.budget</field>
+    <record id="view_fix_business_line_form" model="ir.ui.view">
+        <field name="name">fix.business.line.form</field>
+        <field name="model">fix.business.line</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="name_bn"/>
+                            <field name="revenue_stream_no"/>
+                        </group>
+                        <group>
+                            <field name="is_profit_centre"/>
+                            <field name="sequence"/>
+                            <field name="active"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_business_line" model="ir.actions.act_window">
+        <field name="name">Business Lines</field>
+        <field name="res_model">fix.business.line</field>
         <field name="view_mode">list,form</field>
     </record>
+
+    <!-- ============ Cost pools & elements ============ -->
+    <record id="view_fix_cost_pool_list" model="ir.ui.view">
+        <field name="name">fix.cost.pool.list</field>
+        <field name="model">fix.cost.pool</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="pool_type"/>
+                <field name="receiver_type"/>
+                <field name="allocation_basis"/>
+                <field name="element_count"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_cost_pool_form" model="ir.ui.view">
+        <field name="name">fix.cost.pool.form</field>
+        <field name="model">fix.cost.pool</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                            <field name="pool_type"/>
+                            <field name="include_in_labour_rate"/>
+                        </group>
+                        <group>
+                            <field name="receiver_type"/>
+                            <field name="allocation_basis"/>
+                            <field name="target_account_id"/>
+                            <field name="clearing_account_id"/>
+                            <field name="journal_id"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Cost Elements">
+                            <field name="element_ids">
+                                <list editable="bottom">
+                                    <field name="code"/>
+                                    <field name="name"/>
+                                    <field name="element_type"/>
+                                    <field name="account_ids" widget="many2many_tags"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Fixed Shares" invisible="allocation_basis != 'fixed'">
+                            <field name="share_ids">
+                                <list editable="bottom">
+                                    <field name="branch_id" column_invisible="parent.receiver_type != 'branch'"/>
+                                    <field name="business_line_id" column_invisible="parent.receiver_type != 'business_line'"/>
+                                    <field name="percent"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_cost_pool" model="ir.actions.act_window">
+        <field name="name">Cost Pools</field>
+        <field name="res_model">fix.cost.pool</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ============ Allocation cycles ============ -->
     <record id="view_fix_cost_allocation_list" model="ir.ui.view">
         <field name="name">fix.cost.allocation.list</field>
         <field name="model">fix.cost.allocation</field>
         <field name="arch" type="xml">
             <list>
                 <field name="name"/>
+                <field name="pool_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
                 <field name="direct_cost"/>
                 <field name="allocated_overhead"/>
                 <field name="total_cost"/>
+                <field name="state"/>
             </list>
+        </field>
+    </record>
+    <record id="view_fix_cost_allocation_form" model="ir.ui.view">
+        <field name="name">fix.cost.allocation.form</field>
+        <field name="model">fix.cost.allocation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_compute" type="object" string="Compute" class="btn-primary" invisible="state not in ('draft', 'computed')"/>
+                    <button name="action_post" type="object" string="Post" class="btn-primary" invisible="state != 'computed'"/>
+                    <button name="action_reverse" type="object" string="Reverse" invisible="state != 'posted'"/>
+                    <button name="action_reset_draft" type="object" string="Reset to Draft" invisible="state not in ('computed', 'reversed')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="pool_id" readonly="state not in ('draft', 'computed')"/>
+                            <field name="receiver_type"/>
+                            <field name="allocation_basis"/>
+                            <field name="date_from" readonly="state not in ('draft', 'computed')"/>
+                            <field name="date_to" readonly="state not in ('draft', 'computed')"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="direct_cost" readonly="pool_id"/>
+                            <field name="allocated_overhead" readonly="pool_id"/>
+                            <field name="total_cost"/>
+                            <field name="move_id"/>
+                            <field name="reversal_move_id" invisible="not reversal_move_id"/>
+                            <field name="computed_by"/>
+                            <field name="posted_by"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list>
+                            <field name="receiver_name"/>
+                            <field name="driver_qty"/>
+                            <field name="share_pct"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
         </field>
     </record>
     <record id="action_fix_cost_allocation" model="ir.actions.act_window">
@@ -36,6 +188,240 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ============ Budget versions ============ -->
+    <record id="view_fix_budget_version_list" model="ir.ui.view">
+        <field name="name">fix.budget.version.list</field>
+        <field name="model">fix.budget.version</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="version_type"/>
+                <field name="fiscal_year"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="planned_revenue"/>
+                <field name="planned_cost"/>
+                <field name="planned_margin"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_budget_version_form" model="ir.ui.view">
+        <field name="name">fix.budget.version.form</field>
+        <field name="model">fix.budget.version</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_approve" type="object" string="Approve" class="btn-primary" invisible="state != 'submitted'" groups="account.group_account_manager"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state != 'submitted'" groups="account.group_account_manager"/>
+                    <button name="action_reset_draft" type="object" string="Back to Draft" invisible="state != 'rejected'"/>
+                    <button name="action_load_drivers" type="object" string="Load Drivers from Actuals" invisible="state != 'draft' or version_type == 'budget'"/>
+                    <button name="action_generate_plan" type="object" string="Generate Plan from Drivers" invisible="state != 'draft' or version_type == 'budget'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="state != 'draft'"/>
+                            <field name="version_type" readonly="state != 'draft'"/>
+                            <field name="fiscal_year" readonly="state != 'draft'"/>
+                            <field name="date_from" readonly="state != 'draft'"/>
+                            <field name="date_to" readonly="state != 'draft'"/>
+                            <field name="base_version_id" invisible="version_type != 'scenario'"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="planned_revenue"/>
+                            <field name="planned_cost"/>
+                            <field name="planned_margin"/>
+                            <field name="submitted_by"/>
+                            <field name="approved_by"/>
+                            <field name="rejection_reason" invisible="state not in ('submitted', 'rejected')"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Budgets">
+                            <field name="budget_ids" readonly="state != 'draft'">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="budget_type"/>
+                                    <field name="currency_id" column_invisible="1"/>
+                                    <field name="planned_amount"/>
+                                    <field name="actual_amount"/>
+                                    <field name="variance"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Drivers" invisible="version_type == 'budget'">
+                            <group>
+                                <group>
+                                    <field name="base_date_from"/>
+                                    <field name="base_date_to"/>
+                                </group>
+                                <group>
+                                    <field name="revenue_account_id" readonly="state != 'draft'"/>
+                                    <field name="parts_account_id" readonly="state != 'draft'"/>
+                                    <field name="labour_account_id" readonly="state != 'draft'"/>
+                                    <field name="overhead_account_id" readonly="state != 'draft'"/>
+                                </group>
+                            </group>
+                            <field name="driver_ids" readonly="state != 'draft'">
+                                <list editable="bottom" create="0">
+                                    <field name="driver_key"/>
+                                    <field name="base_value"/>
+                                    <field name="scenario_value"/>
+                                    <field name="change_pct"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_budget_version" model="ir.actions.act_window">
+        <field name="name">Budget Versions</field>
+        <field name="res_model">fix.budget.version</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ============ Budgets ============ -->
+    <record id="view_fix_budget_list" model="ir.ui.view">
+        <field name="name">fix.budget.list</field>
+        <field name="model">fix.budget</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="version_id"/>
+                <field name="budget_type"/>
+                <field name="fiscal_year"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="planned_amount"/>
+                <field name="actual_amount"/>
+                <field name="variance"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_budget_form" model="ir.ui.view">
+        <field name="name">fix.budget.form</field>
+        <field name="model">fix.budget</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_refresh_actuals" type="object" string="Refresh Actuals" class="btn-primary"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="version_id"/>
+                            <field name="budget_type"/>
+                            <field name="fiscal_year"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                        </group>
+                        <group>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="planned_amount" readonly="line_ids"/>
+                            <field name="actual_amount" readonly="1"/>
+                            <field name="variance"/>
+                            <field name="actuals_refreshed_at"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="state != 'draft'">
+                        <list editable="bottom">
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="account_id"/>
+                            <field name="branch_id" optional="show"/>
+                            <field name="business_line_id" optional="show"/>
+                            <field name="cost_centre" optional="hide"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="planned_amount"/>
+                            <field name="actual_amount"/>
+                            <field name="variance"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_budget" model="ir.actions.act_window">
+        <field name="name">Budget</field>
+        <field name="res_model">fix.budget</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ============ Board packs ============ -->
+    <record id="view_fix_board_pack_list" model="ir.ui.view">
+        <field name="name">fix.board.pack.list</field>
+        <field name="model">fix.board.pack</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="assembled_by"/>
+                <field name="issued_by"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_board_pack_form" model="ir.ui.view">
+        <field name="name">fix.board.pack.form</field>
+        <field name="model">fix.board.pack</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_assemble" type="object" string="Assemble" class="btn-primary" invisible="state == 'issued'"/>
+                    <button name="action_issue" type="object" string="Issue" invisible="state != 'assembled'" groups="account.group_account_manager"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name" readonly="state == 'issued'"/>
+                            <field name="date_from" readonly="state == 'issued'"/>
+                            <field name="date_to" readonly="state == 'issued'"/>
+                        </group>
+                        <group>
+                            <field name="export_filename" invisible="1"/>
+                            <field name="export_file" filename="export_filename"/>
+                            <field name="assembled_by"/>
+                            <field name="issued_by"/>
+                        </group>
+                    </group>
+                    <field name="line_ids" readonly="1">
+                        <list>
+                            <field name="section"/>
+                            <field name="metric"/>
+                            <field name="currency_id" column_invisible="1"/>
+                            <field name="amount" invisible="not has_amount"/>
+                            <field name="has_amount" column_invisible="1"/>
+                            <field name="detail"/>
+                        </list>
+                    </field>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_board_pack" model="ir.actions.act_window">
+        <field name="name">Board Packs</field>
+        <field name="res_model">fix.board.pack</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
     <menuitem id="menu_fix_budget" name="Budget" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_budget" sequence="200"/>
     <menuitem id="menu_fix_cost_allocation" name="Cost Allocation" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_cost_allocation" sequence="210"/>
+    <menuitem id="menu_fix_budget_version" name="Budget Versions" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_budget_version" sequence="201"/>
+    <menuitem id="menu_fix_cost_pool" name="Cost Pools" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_cost_pool" sequence="211"/>
+    <menuitem id="menu_fix_business_line" name="Business Lines" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_business_line" sequence="212"/>
+    <menuitem id="menu_fix_board_pack" name="Board Packs" parent="cd_entity_config.menu_fix_operations_root" action="action_fix_board_pack" sequence="213"/>
 </odoo>

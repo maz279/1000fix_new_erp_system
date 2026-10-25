@@ -6,9 +6,30 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__target_account_id
+msgid "Absorbed Overhead Account (Dr)"
+msgstr "শোষিত পরোক্ষ ব্যয় হিসাব (Dr)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__account_id
+msgid "Account"
+msgstr "হিসাব"
+
+#. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__actual_amount
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__actual_amount
 msgid "Actual"
 msgstr "প্রকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__actuals_refreshed_at
+msgid "Actuals Refreshed"
+msgstr "প্রকৃত হালনাগাদের সময়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__receiver_type
+msgid "Allocate To"
+msgstr "যাকে বণ্টন"
 
 #. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__allocated_overhead
@@ -16,48 +37,533 @@ msgid "Allocated Overhead"
 msgstr "বণ্টিত পরোক্ষ ব্যয়"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__allocation_basis
+msgid "Allocation Basis"
+msgstr "বণ্টনের ভিত্তি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__move_id
+msgid "Allocation Entry"
+msgstr "বণ্টন জাবেদা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__journal_id
+msgid "Allocation Journal"
+msgstr "বণ্টন জাবেদা বই"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Approve"
+msgstr "অনুমোদন"
+
+#. module: cd_fpa
 #: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__approved
 msgid "Approved"
 msgstr "অনুমোদিত"
 
 #. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_board_pack_form
+msgid "Assemble"
+msgstr "সংকলন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__assembled
+msgid "Assembled"
+msgstr "সংকলিত"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Back to Draft"
+msgstr "খসড়ায় ফেরত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__base_value
+msgid "Base (Actuals)"
+msgstr "ভিত্তি (প্রকৃত)"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_board_pack
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_board_pack
+msgid "Board Packs"
+msgstr "বোর্ড প্যাক"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__branch_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__branch_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__branch_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__receiver_type__branch
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__overhead
+msgid "Branch Overhead"
+msgstr "শাখার পরোক্ষ ব্যয়"
+
+#. module: cd_fpa
 #: model:ir.actions.act_window,name:cd_fpa.action_fix_budget
 #: model:ir.model,name:cd_fpa.model_fix_budget
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__budget_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__budget
 #: model:ir.ui.menu,name:cd_fpa.menu_fix_budget
 msgid "Budget"
 msgstr "বাজেট"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__line_ids
+msgid "Budget Lines"
+msgstr "বাজেট লাইন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__budget_type
+msgid "Budget Type"
+msgstr "বাজেটের ধরন"
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_budget_version
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__version_id
+msgid "Budget Version"
+msgstr "বাজেট সংস্করণ"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_budget_version
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_budget_version
+msgid "Budget Versions"
+msgstr "বাজেট সংস্করণসমূহ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__budget_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Budgets"
+msgstr "বাজেটসমূহ"
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_business_line
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__business_line_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__business_line_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__business_line_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__receiver_type__business_line
+msgid "Business Line"
+msgstr "ব্যবসা লাইন"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_business_line
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_business_line
+msgid "Business Lines"
+msgstr "ব্যবসা লাইনসমূহ"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__budget_type__capital
+msgid "Capital"
+msgstr "মূলধনী"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__change_pct
+msgid "Change %"
+msgstr "পরিবর্তন %"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__scenario_value_set
+msgid "Changed By Planner"
+msgstr "পরিকল্পনাকারী পরিবর্তন করেছেন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__company_id
+msgid "Company"
+msgstr "প্রতিষ্ঠান"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_version_id
+msgid "Compared With"
+msgstr "তুলনা করা হয়েছে"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Compute"
+msgstr "হিসাব করুন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__computed
+msgid "Computed"
+msgstr "হিসাবকৃত"
+
+#. module: cd_fpa
 #: model:ir.actions.act_window,name:cd_fpa.action_fix_cost_allocation
-#: model:ir.model,name:cd_fpa.model_fix_cost_allocation
 #: model:ir.ui.menu,name:cd_fpa.menu_fix_cost_allocation
 msgid "Cost Allocation"
 msgstr "খরচ বণ্টন"
 
 #. module: cd_fpa
-#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__direct_cost
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__cost_centre
+msgid "Cost Centre"
+msgstr "ব্যয় কেন্দ্র"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__element_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_pool_form
+msgid "Cost Elements"
+msgstr "ব্যয় উপাদান"
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_cost_pool
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__pool_id
+msgid "Cost Pool"
+msgstr "ব্যয় পুল"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_cost_pool
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_cost_pool
+msgid "Cost Pools"
+msgstr "ব্যয় পুলসমূহ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__export_file
+msgid "CSV Export"
+msgstr "CSV রপ্তানি"
+
+#. module: cd_fpa
 msgid "Direct Cost"
 msgstr "প্রত্যক্ষ খরচ"
 
 #. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__draft
 #: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__draft
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__draft
 msgid "Draft"
 msgstr "খসড়া"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__driver_key
+msgid "Driver"
+msgstr "চালক"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__driver_qty
+msgid "Driver Quantity"
+msgstr "চালকের পরিমাণ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__driver_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Drivers"
+msgstr "চালকসমূহ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_date_from
+msgid "Drivers Measured From"
+msgstr "চালক পরিমাপ শুরু"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_date_to
+msgid "Drivers Measured To"
+msgstr "চালক পরিমাপ শেষ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__element_type
+msgid "Element Type"
+msgstr "উপাদানের ধরন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__element_count
+msgid "Elements"
+msgstr "উপাদান"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__facility
+msgid "Facility & Occupancy"
+msgstr "স্থাপনা ও ভাড়া"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__share_ids
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__fixed
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_pool_form
+msgid "Fixed Shares"
+msgstr "নির্দিষ্ট অংশ"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__forecast
+msgid "Forecast"
+msgstr "পূর্বাভাস"
 
 #. module: cd_fpa
 msgid "FP&A, Cost Accounting & Budgeting"
 msgstr "FP&A, খরচ হিসাবরক্ষণ ও বাজেটিং"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__date_from
+msgid "From"
+msgstr "শুরু"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Generate Plan from Drivers"
+msgstr "চালক থেকে পরিকল্পনা তৈরি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__account_ids
+msgid "GL Accounts"
+msgstr "GL হিসাবসমূহ"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_board_pack_form
+msgid "Issue"
+msgstr "জারি"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__issued
+msgid "Issued"
+msgstr "জারিকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__labour_account_id
+msgid "Labour Cost Account"
+msgstr "শ্রম ব্যয় হিসাব"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__labour_hours_per_order
+msgid "Labour Hours per Order"
+msgstr "প্রতি অর্ডারে শ্রমঘণ্টা"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__labour
+msgid "Labour On-Cost"
+msgstr "শ্রমের আনুষঙ্গিক ব্যয়"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Load Drivers from Actuals"
+msgstr "প্রকৃত থেকে চালক আনুন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__include_in_labour_rate
+msgid "Load Into Technician Rate"
+msgstr "কারিগরের হারে যোগ করুন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__loaded_labour_rate
+msgid "Loaded Labour Rate per Hour"
+msgstr "ঘণ্টাপ্রতি পূর্ণ শ্রম হার"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__name_bn
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__budget_type__operating
+msgid "Operating"
+msgstr "পরিচালন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__overhead_per_month
+msgid "Operating Overhead per Month"
+msgstr "মাসিক পরিচালন পরোক্ষ ব্যয়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__overhead_account_id
+msgid "Overhead Account"
+msgstr "পরোক্ষ ব্যয় হিসাব"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__line_ids
+msgid "Pack Lines"
+msgstr "প্যাকের লাইন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__parts_cost_pct
+msgid "Parts Cost % of Revenue"
+msgstr "আয়ের তুলনায় যন্ত্রাংশ ব্যয় %"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__parts_account_id
+msgid "Parts Cost Account"
+msgstr "যন্ত্রাংশ ব্যয় হিসাব"
+
+#. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__planned_amount
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__planned_amount
 msgid "Planned"
 msgstr "পরিকল্পিত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__clearing_account_id
+msgid "Pool Clearing Account (Cr)"
+msgstr "পুল নিষ্পত্তি হিসাব (Cr)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__direct_cost
+msgid "Pool Cost"
+msgstr "পুলের ব্যয়"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Post"
+msgstr "পোস্ট করুন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__posted
+msgid "Posted"
+msgstr "পোস্টকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__revenue
+msgid "Posted Revenue"
+msgstr "পোস্টকৃত আয়"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_element__element_type__primary
+msgid "Primary (from the GL)"
+msgstr "প্রাথমিক (GL থেকে)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__is_profit_centre
+msgid "Profit Centre"
+msgstr "মুনাফা কেন্দ্র"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__receiver_name
+msgid "Receiver"
+msgstr "গ্রহীতা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__line_ids
+msgid "Receivers"
+msgstr "গ্রহীতাগণ"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_form
+msgid "Refresh Actuals"
+msgstr "প্রকৃত হালনাগাদ"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Reset to Draft"
+msgstr "খসড়ায় ফেরত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__revenue_account_id
+msgid "Revenue Account"
+msgstr "আয় হিসাব"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__revenue_per_order
+msgid "Revenue per Order"
+msgstr "প্রতি অর্ডারে আয়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__revenue_stream_no
+msgid "Revenue Stream No."
+msgstr "আয় ধারার নম্বর"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__reversal_move_id
+msgid "Reversal Entry"
+msgstr "বিপরীত জাবেদা"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Reverse"
+msgstr "বিপরীত করুন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__reversed
+msgid "Reversed"
+msgstr "বিপরীতকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__scenario
+msgid "Scenario"
+msgstr "পরিস্থিতি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__scenario_value
+msgid "Scenario Value"
+msgstr "পরিস্থিতির মান"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_element__element_type__secondary
+msgid "Secondary (allocated)"
+msgstr "মাধ্যমিক (বণ্টিত)"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__orders_per_month
+msgid "Service Orders per Month"
+msgstr "মাসিক সার্ভিস অর্ডার"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__service_orders
+msgid "Service Orders Received"
+msgstr "প্রাপ্ত সার্ভিস অর্ডার"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__share_pct
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__percent
+msgid "Share %"
+msgstr "অংশ %"
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__superseded
+msgid "Superseded"
+msgstr "প্রতিস্থাপিত"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__support
+msgid "Support Function"
+msgstr "সহায়ক বিভাগ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__date_to
+msgid "To"
+msgstr "শেষ"
 
 #. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__total_cost
@@ -65,6 +571,25 @@ msgid "Total"
 msgstr "মোট"
 
 #. module: cd_fpa
-#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__variance
 msgid "Variance"
 msgstr "তারতম্য"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__variance
+msgid "Variance (favourable +)"
+msgstr "তারতম্য (অনুকূল +)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__variance
+msgid "Variance (Planned − Actual)"
+msgstr "তারতম্য (পরিকল্পিত − প্রকৃত)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__version_type
+msgid "Version Type"
+msgstr "সংস্করণের ধরন"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__labour_hours
+msgid "Work-Order Labour Hours"
+msgstr "ওয়ার্ক অর্ডারের শ্রমঘণ্টা"

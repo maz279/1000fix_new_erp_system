@@ -9,8 +9,29 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__target_account_id
+msgid "Absorbed Overhead Account (Dr)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__account_id
+msgid "Account"
+msgstr ""
+
+#. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__actual_amount
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__actual_amount
 msgid "Actual"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__actuals_refreshed_at
+msgid "Actuals Refreshed"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__receiver_type
+msgid "Allocate To"
 msgstr ""
 
 #. module: cd_fpa
@@ -19,32 +40,257 @@ msgid "Allocated Overhead"
 msgstr ""
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__allocation_basis
+msgid "Allocation Basis"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__move_id
+msgid "Allocation Entry"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__journal_id
+msgid "Allocation Journal"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Approve"
+msgstr ""
+
+#. module: cd_fpa
 #: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__approved
 msgid "Approved"
 msgstr ""
 
 #. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_board_pack_form
+msgid "Assemble"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__assembled
+msgid "Assembled"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Back to Draft"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__base_value
+msgid "Base (Actuals)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_board_pack
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_board_pack
+msgid "Board Packs"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__branch_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__branch_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__branch_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__receiver_type__branch
+msgid "Branch"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__overhead
+msgid "Branch Overhead"
+msgstr ""
+
+#. module: cd_fpa
 #: model:ir.actions.act_window,name:cd_fpa.action_fix_budget
 #: model:ir.model,name:cd_fpa.model_fix_budget
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__budget_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__budget
 #: model:ir.ui.menu,name:cd_fpa.menu_fix_budget
 msgid "Budget"
 msgstr ""
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__line_ids
+msgid "Budget Lines"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__budget_type
+msgid "Budget Type"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_budget_version
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__version_id
+msgid "Budget Version"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_budget_version
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_budget_version
+msgid "Budget Versions"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__budget_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Budgets"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_business_line
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__business_line_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__business_line_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__business_line_id
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__receiver_type__business_line
+msgid "Business Line"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_business_line
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_business_line
+msgid "Business Lines"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__budget_type__capital
+msgid "Capital"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__change_pct
+msgid "Change %"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__scenario_value_set
+msgid "Changed By Planner"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_version_id
+msgid "Compared With"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Compute"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__computed
+msgid "Computed"
+msgstr ""
+
+#. module: cd_fpa
 #: model:ir.actions.act_window,name:cd_fpa.action_fix_cost_allocation
-#: model:ir.model,name:cd_fpa.model_fix_cost_allocation
 #: model:ir.ui.menu,name:cd_fpa.menu_fix_cost_allocation
 msgid "Cost Allocation"
 msgstr ""
 
 #. module: cd_fpa
-#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__direct_cost
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__cost_centre
+msgid "Cost Centre"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__element_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_pool_form
+msgid "Cost Elements"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model,name:cd_fpa.model_fix_cost_pool
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__pool_id
+msgid "Cost Pool"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_cost_pool
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_cost_pool
+msgid "Cost Pools"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__export_file
+msgid "CSV Export"
+msgstr ""
+
+#. module: cd_fpa
 msgid "Direct Cost"
 msgstr ""
 
 #. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__draft
 #: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__draft
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__draft
 msgid "Draft"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__driver_key
+msgid "Driver"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__driver_qty
+msgid "Driver Quantity"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__driver_ids
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Drivers"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_date_from
+msgid "Drivers Measured From"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__base_date_to
+msgid "Drivers Measured To"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__element_type
+msgid "Element Type"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__element_count
+msgid "Elements"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__facility
+msgid "Facility & Occupancy"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__share_ids
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__fixed
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_pool_form
+msgid "Fixed Shares"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__forecast
+msgid "Forecast"
 msgstr ""
 
 #. module: cd_fpa
@@ -52,14 +298,274 @@ msgid "FP&A, Cost Accounting & Budgeting"
 msgstr ""
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__date_from
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__date_from
+msgid "From"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Generate Plan from Drivers"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__account_ids
+msgid "GL Accounts"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_board_pack_form
+msgid "Issue"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_board_pack__state__issued
+msgid "Issued"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__labour_account_id
+msgid "Labour Cost Account"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__labour_hours_per_order
+msgid "Labour Hours per Order"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__labour
+msgid "Labour On-Cost"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Load Drivers from Actuals"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__include_in_labour_rate
+msgid "Load Into Technician Rate"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__loaded_labour_rate
+msgid "Loaded Labour Rate per Hour"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__name_bn
+msgid "Name (Bengali)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__budget_type__operating
+msgid "Operating"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__overhead_per_month
+msgid "Operating Overhead per Month"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_element__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__operating_unit_id
 msgid "Operating Unit"
 msgstr ""
 
 #. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__overhead_account_id
+msgid "Overhead Account"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__line_ids
+msgid "Pack Lines"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__parts_cost_pct
+msgid "Parts Cost % of Revenue"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__parts_account_id
+msgid "Parts Cost Account"
+msgstr ""
+
+#. module: cd_fpa
 #: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__planned_amount
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__planned_amount
 msgid "Planned"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool__clearing_account_id
+msgid "Pool Clearing Account (Cr)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__direct_cost
+msgid "Pool Cost"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Post"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__posted
+msgid "Posted"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__revenue
+msgid "Posted Revenue"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_element__element_type__primary
+msgid "Primary (from the GL)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__is_profit_centre
+msgid "Profit Centre"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__receiver_name
+msgid "Receiver"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__line_ids
+msgid "Receivers"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_form
+msgid "Refresh Actuals"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Reject"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__rejected
+msgid "Rejected"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Reset to Draft"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__revenue_account_id
+msgid "Revenue Account"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__revenue_per_order
+msgid "Revenue per Order"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_business_line__revenue_stream_no
+msgid "Revenue Stream No."
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__reversal_move_id
+msgid "Reversal Entry"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_cost_allocation_form
+msgid "Reverse"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_allocation__state__reversed
+msgid "Reversed"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget_version__version_type__scenario
+msgid "Scenario"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_fpa_driver__scenario_value
+msgid "Scenario Value"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_element__element_type__secondary
+msgid "Secondary (allocated)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_fpa_driver__driver_key__orders_per_month
+msgid "Service Orders per Month"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__service_orders
+msgid "Service Orders Received"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation_line__share_pct
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_pool_share__percent
+msgid "Share %"
+msgstr ""
+
+#. module: cd_fpa
+#: model_terms:ir.ui.view,arch_db:cd_fpa.view_fix_budget_version_form
+msgid "Submit"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__submitted
+msgid "Submitted"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__superseded
+msgid "Superseded"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__pool_type__support
+msgid "Support Function"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_board_pack__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__date_to
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__date_to
+msgid "To"
 msgstr ""
 
 #. module: cd_fpa
@@ -68,6 +574,25 @@ msgid "Total"
 msgstr ""
 
 #. module: cd_fpa
-#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__variance
 msgid "Variance"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_line__variance
+msgid "Variance (favourable +)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__variance
+msgid "Variance (Planned − Actual)"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget_version__version_type
+msgid "Version Type"
+msgstr ""
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_cost_pool__allocation_basis__labour_hours
+msgid "Work-Order Labour Hours"
 msgstr ""
