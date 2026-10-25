@@ -10,7 +10,7 @@ The largest single module in the programme. AS-06: state transitions declared
 in one place per model (DP-01). SLA computation lives in services/ so it is
 unit-testable without a database (AR-007 section 3.1).
 """,
-    "version": "19.0.1.0.1",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Orders",
@@ -29,8 +29,10 @@ unit-testable without a database (AR-007 section 3.1).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/fix_fault_codes.xml",
         "views/fix_service_order_views.xml",
         "views/fix_estimate_views.xml",
+        "views/fix_fault_code_views.xml",
         "views/fix_sla_policy_views.xml",
         "views/fix_device_history_order_views.xml",
         "report/report_jobcard.xml",

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- fix.fault.code — M01 Fault & Symptom Coding master (FR-SRM-077 support).
+     Estate-wide taxonomy; part of the Service Orders workspace menu. -->
+<odoo>
+    <record id="view_fix_fault_code_list" model="ir.ui.view">
+        <field name="name">fix.fault.code.list</field>
+        <field name="model">fix.fault.code</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="code"/>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="default_severity"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_fault_code_form" model="ir.ui.view">
+        <field name="name">fix.fault.code.form</field>
+        <field name="model">fix.fault.code</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="code"/>
+                            <field name="name"/>
+                        </group>
+                        <group>
+                            <field name="category"/>
+                            <field name="default_severity"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="What this code covers, when to pick it…"/>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_fault_code" model="ir.actions.act_window">
+        <field name="name">Fault &amp; Symptom Codes</field>
+        <field name="res_model">fix.fault.code</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">No fault codes yet</p>
+            <p>The repair fault &amp; symptom taxonomy used by fault lines, work orders and diagnostic trees.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_fix_fault_code" name="Fault &amp; Symptom Codes"
+              parent="menu_ws_service_orders"
+              action="action_fix_fault_code" sequence="40"/>
+</odoo>

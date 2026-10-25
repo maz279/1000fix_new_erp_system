@@ -809,6 +809,13 @@ export class P03Workspace extends Component {
             prompt: null,            // generic reason prompt {title,label,action,id,value}
             mlState: "__all",        // model_list state filter
             mlSelected: null,        // model_list selected row
+            // ---- M01 service-order screens ----
+            soCfg: config.scope || config.kind === "so_board" || config.kind === "so_intake" ? config : null,
+            soScope: config.scope || null,   // all|wip|holds|rework|rwty
+            soSearch: "",
+            soState: "all",          // state filter pill on so_list
+            boardCol: null,          // selected pipeline column (so_board)
+            soBusy: null,            // order id with an action in flight
         };
         this.state.viewMode = "gl";
         this.ensureTab(`gl-${screenId}`, `${hit && hit.sc.t === "f" ? "▤" : "⛁"} ${this.state.gl.title}`, "⛁", "gl", { screenId });
@@ -958,6 +965,30 @@ export class P03Workspace extends Component {
                     state_filter: gl.mlState || "__all",
                 });
                 gl.data = res.error ? { error: res.error } : res;
+            } else if (gl.kind === "so_list") {
+                const res = await this.rpc("/p03/orders/list", {
+                    limit: 200,
+                    scope: gl.soScope === "all" ? null : gl.soScope,
+                    search: gl.soSearch || null,
+                });
+                gl.data = res.error ? { error: res.error } : res;
+            } else if (gl.kind === "so_board") {
+                const [stats, orders] = await Promise.all([
+                    this.rpc("/p03/stats", {}),
+                    this.rpc("/p03/orders/list", { limit: 100, scope: "wip" }),
+                ]);
+                gl.data = { stats, orders: orders.orders || [], scope: orders.scope };
+            } else if (gl.kind === "so_intake") {
+                const [stats, walkins] = await Promise.all([
+                    this.rpc("/p03/stats", {}),
+                    this.rpc("/p03/model/records", {
+                        model: "fix.walkin.intake",
+                        cols: ["customer_id", "device_serial_input", "fault_description", "state", "create_date"],
+                        state_field: "state",
+                        state_filter: "__all",
+                    }),
+                ]);
+                gl.data = { stats, walkins: walkins.error ? [] : (walkins.rows || []).slice(0, 8) };
             }
         } catch (e) {
             gl.error = "Could not reach the GL endpoint — try Refresh.";
@@ -966,6 +997,170 @@ export class P03Workspace extends Component {
         gl.loading = false;
     }
 
+
+    /* ---------------- M01 service-order screens (so_*) ----------------
+     * The so_list/so_board/so_intake kinds: rows come from /p03/orders/list
+     * (real orders with estimate-backed amounts), the board adds /p03/stats.
+     * Actions run the SAME whitelisted model methods the Odoo forms use
+     * (/p03/model/action, savepointed) or the backend-driven stepper. */
+
+    get soRows() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || gl.data.error) return [];
+        const orders = gl.data.orders || [];
+        if (!gl.soState || gl.soState === "all") return orders;
+        return orders.filter((o) => o.state === gl.soState);
+    }
+
+    get soStateOptions() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || gl.data.error) return [];
+        const seen = new Map();
+        for (const o of gl.data.orders || []) {
+            if (o.state && !seen.has(o.state)) seen.set(o.state, this.stateLabel(o.state));
+        }
+        return [...seen.entries()].map(([key, label]) => ({ key, label }));
+    }
+
+    /* Channel mix as [{key, count}] — Owl expressions cannot carry object
+     * literals ({} breaks its expression parser), so this stays in JS. */
+    get soChannelMix() {
+        const gl = this.state.gl;
+        const mix = (gl && gl.data && gl.data.stats && gl.data.stats.channel_mix) || {};
+        return Object.entries(mix).map(([key, count]) => ({ key, count }));
+    }
+
+    get soScopeTitle() {
+        const gl = this.state.gl;
+        const scope = gl && gl.soScope;
+        const titles = {
+            all: this.t("All Service Orders"),
+            wip: this.t("WIP — orders in active work"),
+            holds: this.t("Holds — deferred repairs"),
+            rework: this.t("Rework-flagged open orders"),
+            rwty: this.t("Delivered & closed — repair warranty"),
+        };
+        return titles[scope] || this.t("Service Orders");
+    }
+
+    soAgeClass(days) {
+        if (days === null || days === undefined) return "";
+        if (days < 1) return "chip ok";
+        if (days < 2) return "chip warn";
+        return "chip bad";
+    }
+
+    soM2o(value) {
+        // many2one search_read values arrive as [id, name]
+        return Array.isArray(value) ? (value[1] || "—") : (value || "—");
+    }
+
+    /* Date rendering for Owl templates: expressions there expose NO JS
+     * globals (String/parseInt are unavailable — measured the hard way), so
+     * slicing stays in component code. Falsy (null/""/false) renders —. */
+    ymd(value) {
+        if (!value) return "—";
+        return String(value).slice(0, 10);
+    }
+
+    /** The AS-06 forward path (mirrors VALID_TRANSITIONS' happy path; the
+     * backend remains the authority — a refused transition comes back as an
+     * error toast, never a client-side state change). */
+    soNextState(state) {
+        const forward = {
+            draft: "intake", intake: "diagnostic", diagnostic: "estimate_pending",
+            estimate_pending: "estimate_sent", estimate_sent: "awaiting_approval",
+            awaiting_approval: "approved", approved: "in_repair", in_repair: "qc_pending",
+            qc_pending: "ready", qc_failed: "in_repair", ready: "delivered",
+            delivered: "closed",
+        };
+        return forward[state] || null;
+    }
+
+    async soAdvance(order) {
+        const next = this.soNextState(order.state);
+        if (!next) {
+            this.showToast(this.t("This order has no forward transition left."));
+            return;
+        }
+        if (!window.confirm(this.t("Advance order") + " " + order.name + ": " + this.stateLabel(order.state) + " → " + this.stateLabel(next) + "?")) return;
+        this.state.gl.soBusy = order.id;
+        try {
+            const res = await this.rpc("/p03/order/advance_stage", {
+                order_id: order.id,
+                next_state: next,
+            });
+            if (res && res.success) {
+                this.showToast(order.name + ": " + this.stateLabel(res.state));
+                await this.loadGlData();
+            } else {
+                this.showToast((res && res.error) || this.t("Transition refused by the backend."));
+            }
+        } finally {
+            this.state.gl.soBusy = null;
+        }
+    }
+
+    async soAction(order, method, labelEn) {
+        if (!window.confirm(order.name + " — " + this.t(labelEn) + "?")) return;
+        this.state.gl.soBusy = order.id;
+        try {
+            const res = await this.rpc("/p03/model/action", {
+                model: "fix.service.order",
+                ids: [order.id],
+                method,
+            });
+            if (res && res.success) {
+                this.showToast(order.name + " — " + this.t(labelEn) + " ✓");
+                await this.loadGlData();
+            } else {
+                this.showToast((res && res.error) || this.t("Action refused by the backend."));
+            }
+        } finally {
+            this.state.gl.soBusy = null;
+        }
+    }
+
+    /* Board pipeline: the 14 AS-06 states folded into board columns with
+     * live counts from /p03/stats.by_state. */
+    get boardColumns() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || gl.data.error || !gl.data.stats) return [];
+        const byState = gl.data.stats.by_state || {};
+        const cols = [
+            { key: "intake", label: this.t("Intake"), states: ["draft", "intake"] },
+            { key: "diagnostic", label: this.t("Diagnosis"), states: ["diagnostic"] },
+            { key: "estimate", label: this.t("Estimate & Approval"), states: ["estimate_pending", "estimate_sent", "awaiting_approval"] },
+            { key: "repair", label: this.t("Repair"), states: ["approved", "in_repair"] },
+            { key: "qc", label: this.t("QC"), states: ["qc_pending", "qc_failed"] },
+            { key: "ready", label: this.t("Ready"), states: ["ready"] },
+            { key: "delivered", label: this.t("Delivered"), states: ["delivered"] },
+            { key: "closed", label: this.t("Closed"), states: ["closed"] },
+            { key: "cancelled", label: this.t("Cancelled"), states: ["cancelled"] },
+        ];
+        for (const col of cols) {
+            col.count = col.states.reduce((sum, s) => sum + (byState[s] || 0), 0);
+            col.orders = (gl.data.orders || []).filter((o) => col.states.includes(o.state)).slice(0, 6);
+        }
+        return cols;
+    }
+
+    get boardRowsForColumn() {
+        const gl = this.state.gl;
+        if (!gl || !gl.boardCol) return [];
+        const col = this.boardColumns.find((c) => c.key === gl.boardCol);
+        if (!gl.data || gl.data.error) return [];
+        const states = col ? col.states : null;
+        const orders = gl.data.orders || [];
+        return states ? orders.filter((o) => states.includes(o.state)) : orders;
+    }
+
+    get soBoardSelectedLabel() {
+        const gl = this.state.gl;
+        if (!gl || !gl.boardCol) return "";
+        const col = this.boardColumns.find((c) => c.key === gl.boardCol);
+        return col ? col.label : "";
+    }
 
     /* ---------------- generic model_list screens ---------------- */
 
@@ -1805,9 +2000,11 @@ export class P03Workspace extends Component {
         this.state.financeKpis = null;
         this.ensureTab(`mod-${mid}`, `${mid} · ${mod.en}`, mod.icon, "workspace", { mid });
         this.state.megaMenuOpen = false;
-        // A08 modules fetch REAL KPI aggregates (metric keys on the kpis).
+        // A08 modules fetch REAL KPI aggregates (metric keys on the kpis);
+        // A02 modules have their own service KPI endpoint (same shape).
         if ((mod.kpis || []).some(k => k.m)) {
-            this.rpc("/p03/finance/kpis", { module: mid })
+            const kpiRoute = mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis";
+            this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
                         this.state.financeKpis = res[mid];
@@ -2124,7 +2321,7 @@ export class P03Workspace extends Component {
                 this.showToast(res?.error || "Transition refused by the backend.");
             }
         } catch (e) {
-            this.showToast(t('Stage transition failed — see server log.'));
+            this.showToast(this.t('Stage transition failed — see server log.'));
         }
     }
 

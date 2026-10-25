@@ -16,11 +16,20 @@ from odoo import http
 from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
-from . import a08
-from .a08 import SURFACES
+from . import a02, a08
+from .a02 import SURFACES as _A02_SURFACES
+from .a08 import SURFACES as _A08_SURFACES
 from .p03_service_order_api import _require_internal, _user_error
 
 _logger = logging.getLogger(__name__)
+
+# A08 (finance) + A02 (service operations) surfaces, merged: the generic
+# endpoints serve exactly what the per-module files declare.
+SURFACES = dict(_A08_SURFACES)
+for _model, _conf in _A02_SURFACES.items():
+    if _model in SURFACES:
+        raise ValueError("surface %s is declared by two areas" % _model)
+    SURFACES[_model] = _conf
 
 # fields never returned over the generic endpoint
 _BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
@@ -99,7 +108,7 @@ class P03GenericApiController(http.Controller):
         totals?, notes?, title?, empty?}. The function reads with the
         caller's env, so the models' own access rules apply."""
         _require_internal(request.env)
-        mod = a08.MODULES.get(module)
+        mod = a08.MODULES.get(module) or a02.MODULES.get(module)
         fn = getattr(mod, "REPORTS", {}).get(report) if mod else None
         if not fn:
             return {"error": "Report not available on this surface"}

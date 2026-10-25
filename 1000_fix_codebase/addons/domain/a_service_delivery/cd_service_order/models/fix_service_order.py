@@ -3,6 +3,7 @@
 # SLA computation delegated to services/sla-engine/ (AR-007 section 3.1).
 import logging
 import uuid
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -236,6 +237,23 @@ class FixServiceOrder(models.Model):
     deferred_until = fields.Date(string="Deferred Resumption Date", tracking=True)
     deferred_notes = fields.Text(string="Deferred Hold Justification")
 
+    # Repair warranty (M01 Quality & Release): the service guarantee 1000FiX
+    # issues on completed repairs. Complements the device entitlement in
+    # cd_device_registry — that warranty is the BRAND's contract; this one
+    # is ours.
+    service_warranty_days = fields.Integer(
+        string="Repair Warranty (Days)",
+        default=30,
+        tracking=True,
+        help="Service guarantee period issued on this repair.",
+    )
+    service_warranty_until = fields.Date(
+        string="Repair Warranty Valid Until", readonly=True, copy=False
+    )
+    service_warranty_issued_by = fields.Many2one(
+        "res.users", string="Repair Warranty Issued By", readonly=True, copy=False
+    )
+
     # FR-SRM-065: Data Services Case Intake
     is_data_service = fields.Boolean(string="Data Recovery / Migration", default=False)
     data_confidentiality_level = fields.Selection(
@@ -428,6 +446,42 @@ class FixServiceOrder(models.Model):
 
     def action_cancel(self):
         self.state = "cancelled"
+
+    def action_issue_repair_warranty(self):
+        """M01 Quality & Release: issue OUR repair-service warranty. Allowed
+        once the repair is proven done (delivered/closed); one issuance per
+        order, evidenced on the device history."""
+        for order in self:
+            if order.state not in ("delivered", "closed"):
+                raise UserError(
+                    "Repair warranty can only be issued after delivery "
+                    "(current state: %s)." % order.state
+                )
+            if order.service_warranty_until:
+                raise UserError(
+                    "Repair warranty for %s was already issued (valid until %s)."
+                    % (order.name, order.service_warranty_until)
+                )
+            days = order.service_warranty_days or 30
+            base = (
+                order.sla_resolution_at.date() if order.sla_resolution_at else fields.Date.today()
+            )
+            order.write(
+                {
+                    "service_warranty_until": base + timedelta(days=days),
+                    "service_warranty_issued_by": order.env.user.id,
+                }
+            )
+            order.device_id.add_history(
+                "warranty",
+                "Repair warranty issued with order %s: %d days" % (order.name, days),
+                order_id=order.id,
+            )
+            order.message_post(
+                body="Repair warranty issued: %d days (valid until %s)."
+                % (days, order.service_warranty_until)
+            )
+            order._emit("service_order.warranty_issued", order)
 
     # --- W2 Business-Line Actions ---
     def action_swap_device(self, replacement_device_id, reason="unrepairable", grade="grade_a"):

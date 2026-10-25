@@ -53,8 +53,29 @@ class FixEstimate(models.Model):
         readonly=True,
         help="BRU-SRM-08: branch-manager approval — required above BDT 25,000",
     )
-    APPROVAL_THRESHOLD = 5000  # customer approval documented
-    DUAL_APPROVAL_THRESHOLD = 25000  # + branch manager
+    APPROVAL_THRESHOLD = 5000  # BRU-SRM-07 default; config-param overridable
+    DUAL_APPROVAL_THRESHOLD = 25000  # BRU-SRM-08 default; config-param overridable
+
+    @api.model
+    def _threshold_customer(self) -> float:
+        """BRU-SRM-07 customer-approval threshold (BDT) — overridable via the
+        ``cd_service_order.estimate_threshold_customer`` config parameter so
+        the Approval Thresholds screen reflects one live value."""
+        return float(
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("cd_service_order.estimate_threshold_customer", self.APPROVAL_THRESHOLD)
+        )
+
+    @api.model
+    def _threshold_dual(self) -> float:
+        """BRU-SRM-08 dual-approval threshold (BDT) — overridable via
+        ``cd_service_order.estimate_threshold_dual``."""
+        return float(
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("cd_service_order.estimate_threshold_dual", self.DUAL_APPROVAL_THRESHOLD)
+        )
 
     # AS-10: Monetary totals
     parts_total = fields.Monetary(
@@ -141,27 +162,31 @@ class FixEstimate(models.Model):
             est._emit_event("estimate.sent")
 
     def action_approve(self):
-        """BRU-SRM-07 (H): above BDT 5,000 the CUSTOMER approval must be
-        documented before the estimate can be approved; BRU-SRM-08 (H):
-        above BDT 25,000 the BRANCH MANAGER approves too. Hard gates."""
+        """BRU-SRM-07 (H): above the customer threshold the CUSTOMER approval
+        must be documented before the estimate can be approved; BRU-SRM-08
+        (H): above the dual threshold the BRANCH MANAGER approves too. Hard
+        gates. Thresholds default to BDT 5,000 / 25,000 and are config-param
+        overridable — the live values drive the Approval Thresholds screen."""
         self._check_has_lines("approved")
+        customer_threshold = self._threshold_customer()
+        dual_threshold = self._threshold_dual()
         for est in self:
-            if est.grand_total > est.DUAL_APPROVAL_THRESHOLD:
+            if est.grand_total > dual_threshold:
                 if not est.customer_approval_ref:
                     raise UserError(
                         "BRU-SRM-07: documented customer approval is required "
-                        "before approving an estimate above BDT %.0f" % est.DUAL_APPROVAL_THRESHOLD
+                        "before approving an estimate above BDT %.0f" % dual_threshold
                     )
                 if not est.manager_approval_uid:
                     raise UserError(
                         "BRU-SRM-08: branch-manager approval is required above "
                         "BDT %.0f (record the customer approval first, then have "
-                        "the manager approve)" % est.DUAL_APPROVAL_THRESHOLD
+                        "the manager approve)" % dual_threshold
                     )
-            elif est.grand_total > est.APPROVAL_THRESHOLD and not est.customer_approval_ref:
+            elif est.grand_total > customer_threshold and not est.customer_approval_ref:
                 raise UserError(
                     "BRU-SRM-07: documented customer approval is required before "
-                    "approving an estimate above BDT %.0f" % est.APPROVAL_THRESHOLD
+                    "approving an estimate above BDT %.0f" % customer_threshold
                 )
             est.state = "approved"
             est.approved_at = fields.Datetime.now()
@@ -170,8 +195,9 @@ class FixEstimate(models.Model):
     def action_manager_approve(self):
         """The BRU-SRM-08 second key: the branch manager records their
         approval on an estimate already carrying customer approval."""
+        dual_threshold = self._threshold_dual()
         for est in self:
-            if est.grand_total <= est.DUAL_APPROVAL_THRESHOLD:
+            if est.grand_total <= dual_threshold:
                 continue  # single approval suffices
             if not est.customer_approval_ref:
                 raise UserError(

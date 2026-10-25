@@ -2789,6 +2789,188 @@
                             </aside>
                         </div>
 
+                        <!-- ============ M01 · SERVICE ORDER LIST (so_list) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'so_list' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
+                                <div t-if="!state.gl.data.error">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
+                                        <h3><t t-esc="soScopeTitle"/> — <t t-esc="soRows.length"/> <t t-esc='t("orders · live from Odoo")'/></h3>
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;" t-if="soStateOptions.length">
+                                            <button class="btn btn-sm" t-att-class="{'btn-primary': state.gl.soState === 'all'}" t-on-click="() => { state.gl.soState = 'all'; }"><t t-esc='t("All")'/></button>
+                                            <t t-foreach="soStateOptions" t-as="st" t-key="st.key">
+                                                <button class="btn btn-sm" t-att-class="{'btn-primary': state.gl.soState === st.key}" t-on-click="() => { state.gl.soState = st.key; }"><t t-esc="st.label"/></button>
+                                            </t>
+                                        </div>
+                                    </div>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; align-items: center;">
+                                        <input type="text" t-att-placeholder="t('Search order / customer / serial')" t-att-value="state.gl.soSearch" style="padding: 6px 10px; border: 1px solid var(--ink-100); border-radius: 6px; min-width: 260px;" t-on-keydown="(ev) => ev.key === 'Enter' &amp;&amp; this.loadGlData()" t-on-input="(ev) => this.state.gl.soSearch = ev.target.value"/>
+                                        <button class="btn btn-sm" t-on-click="() => this.loadGlData()"><t t-esc='t("Search")'/></button>
+                                        <button class="btn btn-sm" t-on-click="() => { this.state.gl.soSearch = ''; this.loadGlData(); }"><t t-esc='t("Clear")'/></button>
+                                    </div>
+                                    <div class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead><tr>
+                                                <th><t t-esc='t("Order")'/></th><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Device")'/></th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("Technician")'/></th><th><t t-esc='t("State")'/></th><th><t t-esc='t("Age (days)")'/></th>
+                                                <th t-if="state.gl.soScope === 'holds'"><t t-esc='t("Hold Until")'/></th>
+                                                <th t-if="state.gl.soScope === 'rwty'"><t t-esc='t("Repair Warranty")'/></th>
+                                                <th><t t-esc='t("SLA Target")'/></th><th><t t-esc='t("Total")'/></th><th></th>
+                                            </tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="soRows" t-as="row" t-key="row.id" style="cursor: pointer;"
+                                                    t-on-click="() => this.openRecord(row.id)"
+                                                    t-att-class="{'alt': row_index % 2}">
+                                                    <td><span class="id-chip"><t t-esc="row.name"/></span></td>
+                                                    <td><t t-esc="soM2o(row.customer_id)"/></td>
+                                                    <td><t t-esc="soM2o(row.device_id)"/></td>
+                                                    <td><t t-esc="soM2o(row.branch_id)"/></td>
+                                                    <td><t t-esc="row.technician_id ? soM2o(row.technician_id) : t('Unassigned')"/></td>
+                                                    <td><span class="chip"><t t-esc="stateLabel(row.state)"/></span></td>
+                                                    <td><span t-att-class="soAgeClass(row.age_days)"><t t-esc="row.age_days ?? '—'"/></span></td>
+                                                    <td t-if="state.gl.soScope === 'holds'"><t t-esc="ymd(row.deferred_until)"/></td>
+                                                    <td t-if="state.gl.soScope === 'rwty'">
+                                                        <span t-if="row.service_warranty_until" class="chip ok"><t t-esc="ymd(row.service_warranty_until)"/></span>
+                                                        <span t-elif="row.state === 'closed' || row.state === 'delivered'" class="chip warn"><t t-esc='t("Not issued")'/></span>
+                                                        <span t-else="" class="chip">—</span>
+                                                    </td>
+                                                    <td><t t-esc="ymd(row.sla_resolution_deadline)"/></td>
+                                                    <td style="text-align: right;"><t t-esc="row.grand_total != null ? fmtBDT(row.grand_total) : '—'"/></td>
+                                                    <td style="white-space: nowrap;" t-on-click.stop="">
+                                                        <button t-if="soNextState(row.state) &amp;&amp; state.gl.soScope !== 'rwty' &amp;&amp; state.gl.soScope !== 'holds'" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAdvance(row)"><t t-esc='t("Advance")'/></button>
+                                                        <button t-if="state.gl.soScope === 'holds'" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAction(row, 'action_resume_order', 'Resume order')"><t t-esc='t("Resume")'/></button>
+                                                        <button t-if="state.gl.soScope === 'rwty' &amp;&amp; !row.service_warranty_until &amp;&amp; (row.state === 'delivered' || row.state === 'closed')" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAction(row, 'action_issue_repair_warranty', 'Issue repair warranty')"><t t-esc='t("Issue Warranty")'/></button>
+                                                    </td>
+                                                </tr>
+                                                <tr t-if="!soRows.length">
+                                                    <td colspan="12" style="text-align: center; color: var(--ink-300);">
+                                                        <t t-if="state.gl.soScope === 'holds'" t-esc='t("No deferred holds right now — holds pause the SLA clock and resume with one click.")'/>
+                                                        <t t-elif="state.gl.soScope === 'rework'" t-esc='t("No rework-flagged open orders — same-device returns within 30 days flag automatically (BRU-SRM-06).")'/>
+                                                        <t t-elif="state.gl.soScope === 'rwty'" t-esc='t("No delivered or closed orders yet — repair warranties issue from this screen after delivery.")'/>
+                                                        <t t-else="" t-esc='t("No orders match this view.")'/>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("This view is live")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Rows are real service orders with estimate-backed amounts. Advance steps the AS-06 state machine on the backend; Resume and Issue Warranty call the same methods the back office uses.")'/></p></div>
+                            </aside>
+                        </div>
+
+                        <!-- ============ M01 · ORDER OPERATIONS BOARD (so_board) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'so_board' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
+                                <div t-if="!state.gl.data.error">
+                                    <div class="kpi-row" style="margin-bottom: 14px;">
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Open Orders")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.open_orders ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("SLA At-Risk")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.sla_at_risk ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Intake Today")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.intake_today ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Delivered Today")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.delivered_today ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Revenue MTD (est.)")'/></span><span class="kpi-v"><t t-esc="fmtBDT(state.gl.data.stats.revenue_mtd)"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("First-Time Fix")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.first_time_fix != null ? state.gl.data.stats.first_time_fix + '%' : '—'"/></span></div>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin-bottom: 14px;">
+                                        <t t-foreach="boardColumns" t-as="col" t-key="col.key">
+                                            <div t-on-click="() => { state.gl.boardCol = (state.gl.boardCol === col.key ? null : col.key); }" style="border: 1px solid var(--ink-100); border-radius: 8px; padding: 10px; cursor: pointer;" t-att-class="{'gl-row-selected': state.gl.boardCol === col.key}">
+                                                <div style="display: flex; justify-content: space-between; align-items: baseline;">
+                                                    <b style="font-size: 12px;"><t t-esc="col.label"/></b>
+                                                    <span class="chip" t-att-class="{'ok': col.key === 'closed', 'bad': col.key === 'cancelled', 'warn': col.key === 'qc'}"><t t-esc="col.count"/></span>
+                                                </div>
+                                                <div style="margin-top: 6px; font-size: 11px; color: var(--ink-500);">
+                                                    <div t-foreach="col.orders" t-as="o" t-key="o.id" style="display: flex; justify-content: space-between; gap: 6px;">
+                                                        <span class="id-chip" style="cursor: pointer;" t-on-click.stop="() => this.openRecord(o.id)"><t t-esc="o.name"/></span>
+                                                    </div>
+                                                    <div t-if="!col.orders.length" style="color: var(--ink-300);"><t t-esc='t("(no live WIP here)")'/></div>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </div>
+                                    <div t-if="state.gl.boardCol" class="fx-card" style="margin-top: 10px;">
+                                        <h3><t t-esc='t("Orders in")'/> <t t-esc="soBoardSelectedLabel"/></h3>
+                                        <div class="tbl-wrap">
+                                            <table class="fx-table">
+                                                <thead><tr><th><t t-esc='t("Order")'/></th><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("State")'/></th><th><t t-esc='t("SLA Target")'/></th><th><t t-esc='t("Total")'/></th></tr></thead>
+                                                <tbody>
+                                                    <tr t-foreach="boardRowsForColumn" t-as="row" t-key="row.id" style="cursor: pointer;" t-on-click="() => this.openRecord(row.id)" t-att-class="{'alt': row_index % 2}">
+                                                        <td><span class="id-chip"><t t-esc="row.name"/></span></td>
+                                                        <td><t t-esc="soM2o(row.customer_id)"/></td>
+                                                        <td><t t-esc="soM2o(row.branch_id)"/></td>
+                                                        <td><span class="chip"><t t-esc="stateLabel(row.state)"/></span></td>
+                                                        <td><t t-esc="ymd(row.sla_resolution_deadline)"/></td>
+                                                        <td style="text-align: right;"><t t-esc="row.grand_total != null ? fmtBDT(row.grand_total) : '—'"/></td>
+                                                    </tr>
+                                                    <tr t-if="!boardRowsForColumn.length"><td colspan="6" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No live WIP orders in this stage — the pipeline shows all 14 AS-06 states folded into board columns.")'/></td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    <p style="color: var(--ink-500); font-size: 12px; margin-top: 10px;"><t t-esc='t("Pipeline counts come from every order in the book; the columns under each stage list its live WIP (the 100 most recent active orders).")'/></p>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Worklist — act now")'/></h4>
+                                <div class="fb-sec" t-if="state.gl.data.stats.worklist">
+                                    <p style="font-size: 12px;"><t t-esc='t("SLA at-risk:")'/> <b><t t-esc="state.gl.data.stats.worklist.sla_at_risk ?? 0"/></b></p>
+                                    <p style="font-size: 12px;"><t t-esc='t("Unassigned work orders:")'/> <b><t t-esc="state.gl.data.stats.worklist.unassigned_wos ?? 0"/></b></p>
+                                    <p style="font-size: 12px;"><t t-esc='t("Awaiting customer approval:")'/> <b><t t-esc="state.gl.data.stats.worklist.awaiting_approval ?? 0"/></b></p>
+                                </div>
+                            </aside>
+                        </div>
+
+                        <!-- ============ M01 · OMNI-CHANNEL INTAKE (so_intake) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'so_intake' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
+                                <div t-if="!state.gl.data.error">
+                                    <div class="kpi-row" style="margin-bottom: 14px;">
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Intake Today")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.intake_today ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Open Orders")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.open_orders ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("SLA At-Risk")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.sla_at_risk ?? '—'"/></span></div>
+                                    </div>
+                                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+                                        <button class="btn btn-primary" t-on-click="() => this.openNewForm()"><t t-esc='t("+ New Service Order")'/></button>
+                                    </div>
+                                    <h3><t t-esc='t("Channel mix — last 30 days")'/></h3>
+                                    <div class="tbl-wrap" style="margin-bottom: 14px;">
+                                        <table class="fx-table">
+                                            <thead><tr><th><t t-esc='t("Channel")'/></th><th><t t-esc='t("Orders")'/></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="soChannelMix" t-as="chRow" t-key="chRow.key" t-att-class="{'alt': chRow_index % 2}">
+                                                    <td><t t-esc="chRow.key"/></td>
+                                                    <td><b><t t-esc="chRow.count"/></b></td>
+                                                </tr>
+                                                <tr t-if="!soChannelMix.length"><td colspan="2" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No intake recorded in the last 30 days.")'/></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <h3><t t-esc='t("Recent walk-in intakes (front desk)")'/></h3>
+                                    <div class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead><tr><th><t t-esc='t("Customer")'/></th><th><t t-esc='t("Device / Serial")'/></th><th><t t-esc='t("Fault")'/></th><th><t t-esc='t("State")'/></th><th><t t-esc='t("Created")'/></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.data.walkins" t-as="w" t-key="w.id" t-att-class="{'alt': w_index % 2}">
+                                                    <td><t t-esc="mlCell(w, 'customer_id')"/></td>
+                                                    <td><t t-esc="mlCell(w, 'device_serial_input')"/></td>
+                                                    <td><t t-esc="mlCell(w, 'fault_description')"/></td>
+                                                    <td><span class="chip"><t t-esc="mlCell(w, 'state')"/></span></td>
+                                                    <td><t t-esc="mlCell(w, 'create_date')"/></td>
+                                                </tr>
+                                                <tr t-if="!state.gl.data.walkins.length"><td colspan="5" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No walk-in intakes yet — the front-desk flow hands each one over into a service order.")'/></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("The 3-minute intake")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Every channel lands in the same order book: the + New Service Order form captures device, fault and channel in one pass; the front desk walk-in flow mirrors it at the counter.")'/></p></div>
+                            </aside>
+                        </div>
+
                         <!-- Generic reason prompt (AR write actions) -->
                         <div class="modal-scrim" t-if="state.gl.prompt" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 200;">
                             <div class="modal-dialog" style="max-width: 440px;">

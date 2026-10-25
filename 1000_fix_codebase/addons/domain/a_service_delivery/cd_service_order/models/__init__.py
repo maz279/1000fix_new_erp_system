@@ -2,6 +2,7 @@
 from . import (
     fix_device_history_ext,
     fix_estimate,
+    fix_fault_code,
     fix_qc_checklist,
     fix_service_order,
     fix_service_order_fault,

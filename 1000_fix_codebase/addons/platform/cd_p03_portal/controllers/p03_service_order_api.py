@@ -258,11 +258,43 @@ class P03ServiceOrderApiController(http.Controller):
         }
 
     @http.route("/p03/orders/list", type="jsonrpc", auth="user", readonly=True)
-    def list_orders(self, limit=50, branch=None, status=None, search=None):
-        """Recent service orders with REAL estimate-backed amounts."""
+    def list_orders(self, limit=50, branch=None, status=None, search=None, scope=None):
+        """Recent service orders with REAL estimate-backed amounts.
+
+        ``scope`` selects the M01 list screens' live slices:
+          wip    — orders in active work states (intake → qc_failed)
+          holds  — deferred repair holds (is_deferred_block)
+          rework — rework-flagged open orders (BRU-SRM-06)
+          rwty   — delivered/closed orders with their repair-warranty status
+          uncollected — repaired but not collected (ready/delivered)
+        """
         env = request.env
         _require_internal(env)
         domain = []
+        wip_states = [
+            "intake",
+            "diagnostic",
+            "estimate_pending",
+            "estimate_sent",
+            "awaiting_approval",
+            "approved",
+            "in_repair",
+            "qc_pending",
+            "qc_failed",
+        ]
+        open_states = [*wip_states, "draft"]
+        if scope == "wip":
+            domain.append(("state", "in", wip_states))
+        elif scope == "holds":
+            domain.append(("is_deferred_block", "=", True))
+            domain.append(("state", "in", open_states))
+        elif scope == "rework":
+            domain.append(("is_rework", "=", True))
+            domain.append(("state", "in", open_states))
+        elif scope == "rwty":
+            domain.append(("state", "in", ("delivered", "closed")))
+        elif scope == "uncollected":
+            domain.append(("state", "in", ("ready", "delivered")))
         if branch and branch not in ("All", "All 53 branches", ""):
             domain.append(("branch_id.name", "ilike", branch))
         if status and status not in ("Any", "All", ""):
@@ -289,17 +321,33 @@ class P03ServiceOrderApiController(http.Controller):
                 "technician_id",
                 "sla_resolution_deadline",
                 "create_date",
+                "is_deferred_block",
+                "deferred_reason",
+                "deferred_until",
+                "is_rework",
+                "rework_of_id",
+                "service_warranty_days",
+                "service_warranty_until",
             ],
             order="create_date desc",
             limit=limit,
         )
         totals = _estimate_totals([o["id"] for o in orders], env)
+        today = date.today()
         for o in orders:
             est = totals.get(o["id"])
             o["grand_total"] = est["grand_total"] if est else None
             o["vat_amount"] = est["vat_amount"] if est else None
             o["estimate_state"] = est["state"] if est else None
-        return {"orders": orders}
+            # days since intake — the WIP ageing measure
+            created = o.get("create_date")
+            o["age_days"] = (
+                (today - created.date()).days if created and hasattr(created, "date") else None
+            )
+            for field in ("sla_resolution_deadline", "create_date", "deferred_until"):
+                if o.get(field):
+                    o[field] = str(o[field])[:16]
+        return {"orders": orders, "scope": scope or "all"}
 
     @http.route("/p03/order/get", type="jsonrpc", auth="user", readonly=True)
     def get_order(self, order_id=None, order_name=None):

@@ -4,6 +4,7 @@
 # (AUT-018) and submitted within 72. The evidence pack's completeness check
 # BLOCKS submission (T05) — an incomplete claim is a rejected claim and a
 # re-work cycle.
+import logging
 import uuid
 from datetime import timedelta
 
@@ -11,6 +12,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
+
+logger = logging.getLogger(__name__)
 
 # The evidence pack: every item a brand submission needs (T04). The
 # completeness check walks this list; a claim without all of it is blocked.
@@ -248,9 +251,13 @@ class FixWarrantyClaim(models.Model):
     @api.model
     def consume_order_completed(self, event: dict) -> "FixWarrantyClaim | None":
         """AUT-018 (G4-01): a completed WARRANTY job auto-creates its claim.
-        Consumes the service_order.completed event; idempotent on the order
-        (one claim per warranty job). The 24-hour budget is the Airflow
-        workflow's trigger window; the creation here is immediate."""
+        Consumes the service_order.closed event — the completion event the
+        producer actually emits (``fix.service.order._on_state_change``
+        publishes service_order.{state}; a literal 'completed' state does not
+        exist in the AS-06 machine, so the historical
+        'service_order.completed' subscription was dead wiring). Idempotent
+        on the order (one claim per warranty job). The 24-hour budget is the
+        Airflow workflow's trigger window; the creation here is immediate."""
         payload = event.get("payload", {})
         order_id = event.get("aggregate_id")
         existing = self.search([("service_order_id", "=", order_id)])
@@ -288,6 +295,46 @@ class FixWarrantyClaim(models.Model):
             },
         )
         return claim
+
+    @api.model
+    def _cron_aut018_intake(self) -> int:
+        """AUT-018 wiring: drain the transactional outbox for
+        service_order.closed events and auto-create claims for WARRANTY
+        jobs. Same shape as the M20 AR billable-event intake: one row per
+        event, savepointed, idempotent through consume_order_completed's own
+        per-order search — replays are free."""
+        outbox = self.env["fix.event.outbox"].sudo()
+        events = outbox.search(
+            [("event_type", "=", "service_order.closed"), ("aggregate", "=", "fix.service.order")],
+            order="id asc",
+            limit=500,
+        )
+        created = 0
+        for evt in events:
+            try:
+                with self.env.cr.savepoint():
+                    # consume_order_completed returns the EXISTING claim on a
+                    # replay — only genuinely new claims count as created
+                    if self.search([("service_order_id", "=", evt.aggregate_id)]):
+                        continue
+                    claim = self.consume_order_completed(
+                        {
+                            "aggregate_id": evt.aggregate_id,
+                            "payload": {"completed_at": evt.create_date},
+                        }
+                    )
+                    if claim:
+                        created += 1
+            except Exception:
+                logger.warning(
+                    "AUT-018 intake skipped outbox event %s (order %s)",
+                    evt.event_id,
+                    evt.aggregate_id,
+                    exc_info=True,
+                )
+        if created:
+            logger.info("AUT-018 intake created %d warranty claim(s)", created)
+        return created
 
     # --- Submission with the blocking gate ------------------------------
 
