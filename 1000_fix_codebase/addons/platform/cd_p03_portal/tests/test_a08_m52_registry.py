@@ -20,7 +20,7 @@ from odoo.addons.cd_p03_portal.controllers.a08 import m52 as mod
 
 CODE = "M52"
 SRC = Path(__file__).resolve().parents[1] / "static" / "src"
-IMPORT = re.compile(r'from\s+"(\./a08/\w+)"')
+IMPORT = re.compile(r'from\s+"(\./a\d\d/\w+)"')
 # metrics served by the shared /p03/finance/kpis endpoint for this module
 SHARED = {"match_exceptions", "expense_claims_pending"}
 
@@ -31,9 +31,13 @@ def registry(tmp_path_factory):
     if not node:
         pytest.skip("node is not available to evaluate the ES-module registry")
     tmp = tmp_path_factory.mktemp("p03_registry_m52")
-    (tmp / "a08").mkdir()
-    for js in (SRC / "a08").glob("*.js"):
-        (tmp / "a08" / (js.stem + ".mjs")).write_text(js.read_text(encoding="utf-8"), "utf-8")
+    # every area folder the registry imports (a02, a08, ...)
+    for area in sorted(d for d in SRC.iterdir() if re.fullmatch(r"a\d\d", d.name)):
+        (tmp / area.name).mkdir()
+        for js in area.glob("*.js"):
+            (tmp / area.name / (js.stem + ".mjs")).write_text(
+                js.read_text(encoding="utf-8"), "utf-8"
+            )
     meta = (SRC / "p03_modules_meta.js").read_text(encoding="utf-8")
     (tmp / "meta.mjs").write_text(IMPORT.sub(r'from "\1.mjs"', meta), "utf-8")
     probe = tmp / "probe.mjs"

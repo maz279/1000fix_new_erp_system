@@ -28,13 +28,15 @@ def registry(tmp_path_factory):
     if not node:
         pytest.skip("node is not installed")
     tmp = tmp_path_factory.mktemp("p03meta")
-    (tmp / "a08").mkdir()
-    for js in (STATIC / "a08").glob("*.js"):
-        (tmp / "a08" / (js.stem + ".mjs")).write_text(
-            js.read_text(encoding="utf-8"), encoding="utf-8"
-        )
+    # every area folder the registry imports (a02, a08, ...)
+    for area in sorted(d for d in STATIC.iterdir() if re.fullmatch(r"a\d\d", d.name)):
+        (tmp / area.name).mkdir()
+        for js in area.glob("*.js"):
+            (tmp / area.name / (js.stem + ".mjs")).write_text(
+                js.read_text(encoding="utf-8"), encoding="utf-8"
+            )
     meta = (STATIC / "p03_modules_meta.js").read_text(encoding="utf-8")
-    meta = re.sub(r'from "\./a08/(m\d+)"', r'from "./a08/\1.mjs"', meta)
+    meta = re.sub(r'from "\./(a\d\d/m\d+)"', r'from "./\1.mjs"', meta)
     (tmp / "meta.mjs").write_text(meta, encoding="utf-8")
     (tmp / "run.mjs").write_text(
         "import * as M from './meta.mjs';\n"
