@@ -10,7 +10,7 @@ Gate criterion: walk-in intake in under 3 minutes, demonstrated by branch staff.
 Token queue management, handover with customer acknowledgement, cash drawer
 and shift control with AS-10 Monetary reconciliation.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Front Desk",
@@ -23,10 +23,14 @@ and shift control with AS-10 Monetary reconciliation.
         "cd_document_core",
         "cd_event_outbox",
         "cd_employee_core",
+        # counter sales price default from product.product
+        "product",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_counter_sale_sequence.xml",
+        "views/fix_counter_sale_views.xml",
         "views/fix_front_desk_views.xml",
     ],
     "installable": True,

@@ -64,12 +64,23 @@ SURFACES = {
     "fix.token.queue": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_call", "action_serving", "action_complete"},
+        "actions": {
+            "action_call",
+            "action_serving",
+            "action_complete",
+            # M04 queue extensions (defined in cd_front_desk's ext file)
+            "action_no_show",
+            "action_cancel",
+        },
     },
     "fix.walkin.intake": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_complete_handover"},
+        "actions": {
+            "action_complete_handover",
+            # M04 custody-parking step (cd_front_desk ext)
+            "action_submit_for_handover",
+        },
     },
     "fix.sla.policy": {
         "order": "code",

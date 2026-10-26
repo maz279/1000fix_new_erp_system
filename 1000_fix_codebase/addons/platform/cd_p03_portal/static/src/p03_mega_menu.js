@@ -189,7 +189,32 @@ export class P03MegaMenu extends Component {
             return;
         }
 
-        if (mId === "M04" || sId.includes("branch") || sId.includes("desk")) {
+        // M04 branch & front-desk: registry ids deep-link into the workspace
+        // screens. The old rule left the shell for the fix.branch backend
+        // list — wrong surface for every M04 screen.
+        if (mId === "M04") {
+            const screenMap = {
+                "m04-queue": "M04-queue",
+                "m04-counter": "M04-counter",
+                "m04-priority": "M04-priority",
+                "m04-storage": "M04-storage",
+                "m04-handover": "M04-handover",
+                "m04-uncollected": "M04-uncollected",
+                "m04-drawer": "M04-drawer",
+                "m04-payments": "M04-payments",
+                "m04-shift": "M04-shift",
+                "m04-banking": "M04-banking",
+                "m04-sales": "M04-sales",
+                "m04-kiosk": "M04-kiosk",
+                "m04-checklists": "M04-checklists",
+                "m04-dashboard": "M04-dashboard",
+                "m04-receipts": "M04-receipts",
+            };
+            this._openWorkspaceScreen(screenMap[sId] || "M04-queue", mId);
+            return;
+        }
+
+        if (sId.includes("branch") || sId.includes("desk")) {
             this.action.doAction({
                 type: "ir.actions.act_window",
                 name: screen.en || "Branches & Service Centers",

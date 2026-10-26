@@ -1024,6 +1024,28 @@ export class P03Workspace extends Component {
                     unassigned: unassigned.rows || [],
                     active: active.rows || [],
                 };
+            } else if (gl.kind === "bi_exec") {
+                // M25 executive C-Suite KPI dashboard: one live payload from
+                // /p03/bi/exec (real order/estimate/invoice aggregates). The
+                // branch precomputes display-ready rows so the template only
+                // loops — no Math or globals in template expressions.
+                const res = await this.rpc("/p03/bi/exec", {});
+                if (!res || res.error) {
+                    gl.data = { error: (res && res.error) || "Dashboard unavailable", kpis: {}, trend: [], channels: [], branches: [] };
+                } else {
+                    const trend = res.trend || [];
+                    let trendMax = 1;
+                    for (const pt of trend) { if (pt.orders > trendMax) trendMax = pt.orders; }
+                    const channels = res.channels || [];
+                    let chanMax = 1;
+                    for (const ch of channels) { if (ch.count > chanMax) chanMax = ch.count; }
+                    gl.data = {
+                        kpis: res.kpis || {},
+                        trend: trend.map(pt => ({ label: pt.month, orders: pt.orders, pct: Math.max(4, Math.round((pt.orders * 100) / trendMax)) })),
+                        channels: channels.map(ch => ({ label: ch.key, count: ch.count, pct: Math.max(4, Math.round((ch.count * 100) / chanMax)) })),
+                        branches: res.branches || [],
+                    };
+                }
             } else if (gl.kind === "fs_map") {
                 gl.data = await this.rpc("/p03/dispatch/map_data", {});
                 if (!gl.data || gl.data.error) {
@@ -2190,12 +2212,15 @@ export class P03Workspace extends Component {
         this.ensureTab(`mod-${mid}`, `${mid} · ${mod.en}`, mod.icon, "workspace", { mid });
         this.state.megaMenuOpen = false;
         // A08 modules fetch REAL KPI aggregates (metric keys on the kpis);
-        // A02 modules have their own service KPI endpoint (same shape).
+        // A02 modules have their own service KPI endpoint (same shape);
+        // A11 · M25 serves its own BI KPI payload.
         if ((mod.kpis || []).some(k => k.m)) {
             const kpiRoute = mid === "M02" ? "/p03/field/kpis"
                 : (mid === "M31" ? "/p03/workshop/kpis"
                 : (mid === "M03" ? "/p03/logistics/kpis"
-                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")));
+                : (mid === "M04" ? "/p03/branch/kpis"
+                : (mid === "M25" ? "/p03/bi/kpis"
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")))));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
@@ -2281,7 +2306,12 @@ export class P03Workspace extends Component {
         // A08 finance screens are ONLY ever live data screens: one without a
         // data screen shows an honest "not built" state, never the generic
         // service-order grid (repair filters, order rows) other areas use.
-        if (hit.m.area === "A08") {
+        // The same honesty applies to ANY unregistered dashboard (t:'d') or
+        // calculator (t:'c') screen: code reached here only when no live or
+        // data surface is registered, so the old behavior — silently falling
+        // through to console mode and rendering the M02 dispatch console —
+        // showed the WRONG module's content. Render "not built" instead.
+        if (hit.m.area === "A08" || hit.sc.t === "d" || hit.sc.t === "c") {
             this.state.activeScreen = {
                 id: hit.sc.id, en: hit.sc.en, bn: hit.sc.bn, t: hit.sc.t, mid: hit.mid,
                 moduleTitle: hit.m.title, groupTitle: customGroupEn || hit.g.en,

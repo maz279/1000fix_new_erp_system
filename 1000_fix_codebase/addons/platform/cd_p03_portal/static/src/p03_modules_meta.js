@@ -10,7 +10,9 @@ import * as A08_M54 from "./a08/m54";
 import * as A02_M01 from "./a02/m01";
 import * as A02_M02 from "./a02/m02";
 import * as A02_M03 from "./a02/m03";
+import * as A02_M04 from "./a02/m04";
 import * as A02_M31 from "./a02/m31";
+import * as A11_M25 from "./a11/m25";
 
 /* =====================================================================
  * 1000 FiX ERP — Complete 67-Module Metadata & Data Schema Dictionary
@@ -1272,8 +1274,18 @@ for (const f of A08_FRAGMENTS) {
 
 /* A02 · Service Operations lives in ./a02/<module>.js — same merge; the
  * fragment's MODULE replaces any in-file stub (single source: the fragment). */
-const A02_FRAGMENTS = [A02_M01, A02_M02, A02_M03, A02_M31];
+const A02_FRAGMENTS = [A02_M01, A02_M02, A02_M03, A02_M04, A02_M31];
 for (const f of A02_FRAGMENTS) {
+    P03_MODULES[f.MODULE.code] = f.MODULE;
+    Object.assign(P03_DATA_SCREENS, f.SCREENS);
+    Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
+    Object.assign(P03_FORM_MODELS, f.FORM_MODELS);
+    Object.assign(P03_MODULE_CREATE, f.CREATE);
+}
+
+/* A11 · Insights & Intelligence lives in ./a11/<module>.js — same merge. */
+const A11_FRAGMENTS = [A11_M25];
+for (const f of A11_FRAGMENTS) {
     P03_MODULES[f.MODULE.code] = f.MODULE;
     Object.assign(P03_DATA_SCREENS, f.SCREENS);
     Object.assign(P03_REPORT_ROUTES, f.REPORT_ROUTES);
