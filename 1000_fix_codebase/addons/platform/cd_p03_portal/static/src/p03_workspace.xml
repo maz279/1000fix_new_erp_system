@@ -287,7 +287,7 @@
                         <div class="fx-card">
                             <h3>Journeys — End-to-End Business Workflows</h3>
                             <div class="journey-strip">
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M31-all')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M31-orders')" style="cursor: pointer;">
                                     <b>J01</b> <t t-esc='t("Customer books on-site repair")'/>
                                     <span>9 steps</span>
                                 </div>

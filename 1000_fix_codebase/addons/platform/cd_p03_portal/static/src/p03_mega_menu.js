@@ -101,6 +101,28 @@ export class P03MegaMenu extends Component {
         const sId = (screen?.id || "").toLowerCase();
         const mId = (mod?.id || "").toUpperCase();
 
+        // M31 workshop: registry ids deep-link into the workspace screens.
+        // Without this the "orders" substring rule hijacked m31-orders to
+        // the M01 service-order backend list — wrong module, left the shell.
+        if (mId === "M31") {
+            const screenMap = {
+                "m31-orders": "M31-orders",
+                "m31-record": "M31-record",
+                "m31-transfer": "M31-transfer",
+                "m31-benches": "M31-benches",
+                "m31-benchmaster": "M31-benchmaster",
+                "m31-levels": "M31-levels",
+                "m31-diag": "M31-diag",
+                "m31-parts": "M31-parts",
+                "m31-testing": "M31-testing",
+                "m31-costing": "M31-costing",
+                "m31-throughput": "M31-throughput",
+                "m31-methods": "M31-methods",
+            };
+            this._openWorkspaceScreen(screenMap[sId] || "M31-orders", mId);
+            return;
+        }
+
         if (mId === "M01" || sId.includes("order") || sId.includes("ticket")) {
             const isNew = sId.includes("create") || sId.includes("intake") || sId.includes("new");
             this.action.doAction("cd_service_order.action_fix_service_order", {

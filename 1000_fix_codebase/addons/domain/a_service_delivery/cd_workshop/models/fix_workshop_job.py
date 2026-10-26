@@ -392,6 +392,65 @@ class FixWorkshopJob(models.Model):
     def action_cancel(self):
         return self.action_transition("cancelled")
 
+    def action_auto_assign_bench(self):
+        """The bench-allocation engine (M31 'Bench Allocation & Queue'):
+        pick the best bench for this job — deterministic and explainable.
+
+          1. level-capable (bench repair_level >= job repair_level)
+          2. capacity free (current_job_count < max_concurrent_jobs)
+          3. ESD-safe when the job's device demands it (L3 always prefers
+             ESD benches; is_esd_certified workshops' benches rank first)
+          4. same workshop as the job, calibration not expired
+
+        Ties break on lowest current load, then bench code. Returns the
+        bench; raises when nothing qualifies (the queue stays honest).
+        """
+        Bench = self.env["fix.workshop.bench"].sudo()
+        for job in self:
+            if job.bench_id:
+                continue  # already benched
+            candidates = Bench.search(
+                [
+                    ("workshop_id", "=", job.workshop_id.id),
+                    ("state", "in", ("available", "occupied")),
+                    ("repair_level", ">=", job.repair_level),
+                ]
+            ).filtered(
+                lambda b: b.current_job_count < b.max_concurrent_jobs
+                and (
+                    not b.calibration_expiry_date
+                    or b.calibration_expiry_date >= fields.Date.today()
+                )
+            )
+            if not candidates:
+                raise UserError(
+                    "No capable bench is free at %s for a %s job — add capacity "
+                    "or wait for a release." % (job.workshop_id.name, job.repair_level.upper())
+                )
+
+            def bench_score(bench, job_level="l3", want_esd=False):
+                level_rank = {"l1": 1, "l2": 2, "l3": 3}
+                # ascending sort: ESD-first flag (-1 sorts before 0), then the
+                # LOWEST level that can do the job (keeps L3 benches free for
+                # L3 work), then lowest load, then code for determinism
+                return (
+                    -1 if (bench.is_esd_safe and want_esd) else 0,
+                    level_rank.get(bench.repair_level, 1),
+                    bench.current_job_count,
+                    bench.code or "",
+                )
+
+            ranked = sorted(
+                candidates,
+                key=lambda b: bench_score(
+                    b,
+                    job_level=job.repair_level,
+                    want_esd=job.repair_level == "l3",
+                ),
+            )
+            ranked[0].action_assign_job(job.sudo())
+        return True
+
     # --- Cross-Wave Stubs Implementation (GV-005) ---
     def _check_technician_certification(self, technician, repair_level: str) -> bool:
         """STUB-M31-M22-001: M31 Workshop Repair Routing -> M22 Learning & Certification.

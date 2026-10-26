@@ -2173,7 +2173,9 @@ export class P03Workspace extends Component {
         // A08 modules fetch REAL KPI aggregates (metric keys on the kpis);
         // A02 modules have their own service KPI endpoint (same shape).
         if ((mod.kpis || []).some(k => k.m)) {
-            const kpiRoute = mid === "M02" ? "/p03/field/kpis" : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis");
+            const kpiRoute = mid === "M02" ? "/p03/field/kpis"
+                : (mid === "M31" ? "/p03/workshop/kpis"
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis"));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {

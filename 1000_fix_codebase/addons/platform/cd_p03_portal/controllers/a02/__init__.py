@@ -1,11 +1,12 @@
 # A02 · Service Operations — per-module workspace surfaces, merged here so
 # the generic endpoints serve exactly what the module files declare (same
 # shape as controllers/a08).
-from . import m01, m02
+from . import m01, m02, m31
 
 MODULES = {
     "M01": m01,
     "M02": m02,
+    "M31": m31,
 }
 
 SURFACES = {}

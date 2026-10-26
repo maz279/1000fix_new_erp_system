@@ -37,6 +37,9 @@ SURFACES = {
             # M02 bridge (defined in cd_field_service's extension): hand an
             # on-site order to the dispatch pipeline
             "action_create_field_order",
+            # M31 bridge (defined in cd_workshop's extension): hand a bench
+            # job order to the workshop pipeline
+            "action_create_workshop_job",
         },
     },
     "fix.estimate": {

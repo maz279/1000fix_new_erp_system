@@ -1,4 +1,5 @@
 from . import (
+    fix_service_order_workshop_bridge,
     fix_workshop,
     fix_workshop_bench,
     fix_workshop_evidence,
