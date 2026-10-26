@@ -9,6 +9,7 @@ import * as A08_M49 from "./a08/m49";
 import * as A08_M54 from "./a08/m54";
 import * as A02_M01 from "./a02/m01";
 import * as A02_M02 from "./a02/m02";
+import * as A02_M03 from "./a02/m03";
 import * as A02_M31 from "./a02/m31";
 
 /* =====================================================================
@@ -1271,7 +1272,7 @@ for (const f of A08_FRAGMENTS) {
 
 /* A02 · Service Operations lives in ./a02/<module>.js — same merge; the
  * fragment's MODULE replaces any in-file stub (single source: the fragment). */
-const A02_FRAGMENTS = [A02_M01, A02_M02, A02_M31];
+const A02_FRAGMENTS = [A02_M01, A02_M02, A02_M03, A02_M31];
 for (const f of A02_FRAGMENTS) {
     P03_MODULES[f.MODULE.code] = f.MODULE;
     Object.assign(P03_DATA_SCREENS, f.SCREENS);

@@ -40,6 +40,9 @@ SURFACES = {
             # M31 bridge (defined in cd_workshop's extension): hand a bench
             # job order to the workshop pipeline
             "action_create_workshop_job",
+            # M03 bridge (defined in cd_consignment's extension): hand a
+            # pick&drop order to logistics
+            "action_create_consignment",
         },
     },
     "fix.estimate": {

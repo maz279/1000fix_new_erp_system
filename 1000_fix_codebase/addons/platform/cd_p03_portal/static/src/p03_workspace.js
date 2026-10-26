@@ -1405,8 +1405,16 @@ export class P03Workspace extends Component {
         const gl = this.state.gl;
         const row = gl.mlSelected;
         if (!row) { this.showToast("Select a row first"); return; }
+        const cfg = (gl.modelCfg.actions || []).find((a) => a.m === method) || {};
+        if (cfg.ask) {
+            // needs a typed value (e.g. the customer's POD OTP) — the generic
+            // prompt modal collects it, then the action runs with kwargs
+            gl.prompt = { title: label, label: cfg.ask, value: "", _ml: { row, method, label } };
+            return;
+        }
         const res = await this._arCall("/p03/model/action", {
             model: gl.modelCfg.model, ids: [row.id], method,
+            kwargs: cfg.kw || undefined,
         }, label ? label + " ✓" : "Done ✓");
         if (res.success) { this.loadGlData(); this.state.gl.mlSelected = null; }
     }
@@ -1775,6 +1783,17 @@ export class P03Workspace extends Component {
             suppress_dunning: ["/p03/ar/dunning/suppress", { dunning_id: p.id, reason: p.value }, "Dunning suppressed"],
             resolve_dispute: ["/p03/ar/dispute/resolve", { dispute_id: p.id, note: p.value }, "Dispute resolved"],
         };
+        // model_list "ask" actions (e.g. the customer's POD OTP at hand-over)
+        if (p._ml) {
+            const { row, method, label } = p._ml;
+            const res = await this._arCall(
+                "/p03/model/action",
+                { model: this.state.gl.modelCfg.model, ids: [row.id], method, kwargs: { otp: p.value } },
+                label + " ✓"
+            );
+            if (res.success) { this.loadGlData(); this.state.gl.mlSelected = null; }
+            return;
+        }
         const call = endpoints[p.action];
         if (!call) return;
         const res = await this._arCall(call[0], call[1], call[2]);
@@ -2175,7 +2194,8 @@ export class P03Workspace extends Component {
         if ((mod.kpis || []).some(k => k.m)) {
             const kpiRoute = mid === "M02" ? "/p03/field/kpis"
                 : (mid === "M31" ? "/p03/workshop/kpis"
-                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis"));
+                : (mid === "M03" ? "/p03/logistics/kpis"
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
@@ -2808,7 +2828,7 @@ export class P03Workspace extends Component {
                 screens: [
                     { id: "M01-all", title: "All Service Orders", icon: "⛁", group: "Service Operations", fn: () => { this.closeTellMe(); this.openScreen("M01-all"); } },
                     { id: "M02-dispatch", title: "Live Dispatch Board", icon: "🚐", group: "Field Service", fn: () => { this.closeTellMe(); this.openScreen("M02-dispatch"); } },
-                    { id: "M03-counter", title: "Walk-in Counter Queue", icon: "🏢", group: "Branch Operations", fn: () => { this.closeTellMe(); this.openScreen("M03-counter"); } },
+                    { id: "M03-cons", title: "Consignments & Custody Chain", icon: "📦", group: "Logistics", fn: () => { this.closeTellMe(); this.openScreen("M03-cons"); } },
                     { id: "M15-stock", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-stock"); } }
                 ]
             };

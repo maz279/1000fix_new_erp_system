@@ -101,6 +101,30 @@ export class P03MegaMenu extends Component {
         const sId = (screen?.id || "").toLowerCase();
         const mId = (mod?.id || "").toUpperCase();
 
+        // M03 logistics: registry ids deep-link into the workspace screens.
+        if (mId === "M03") {
+            const screenMap = {
+                "m03-cons": "M03-cons",
+                "m03-record": "M03-record",
+                "m03-journeys": "M03-journeys",
+                "m03-manifest": "M03-manifest",
+                "m03-custody": "M03-custody",
+                "m03-pod": "M03-pod",
+                "m03-seals": "M03-seals",
+                "m03-riders": "M03-riders",
+                "m03-routes": "M03-routes",
+                "m03-app": "M03-app",
+                "m03-couriers": "M03-couriers",
+                "m03-bookings": "M03-bookings",
+                "m03-recon": "M03-recon",
+                "m03-exc": "M03-exc",
+                "m03-charges": "M03-charges",
+                "m03-cod": "M03-cod",
+            };
+            this._openWorkspaceScreen(screenMap[sId] || "M03-cons", mId);
+            return;
+        }
+
         // M31 workshop: registry ids deep-link into the workspace screens.
         // Without this the "orders" substring rule hijacked m31-orders to
         // the M01 service-order backend list — wrong module, left the shell.
