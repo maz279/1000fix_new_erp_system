@@ -1,6 +1,6 @@
 {
     "name": "1000FiX Field Service, Dispatch & Geospatial Platform",
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "category": "Service Delivery",
     "summary": "AI dispatch board, route optimization, field order tracking, accept/decline flows and geofencing",
     "author": "1000FiX Services Ltd.",
@@ -19,6 +19,10 @@
         # is defined by cd_hr_core - no cycle: cd_hr_core never reaches this module
         "cd_hr_core",
         "cd_inventory",
+        # M02 suggestion engine: fix.certification.dispatch_eligibility and
+        # the fix.roster.slot availability check
+        "cd_competency",
+        "cd_attendance",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

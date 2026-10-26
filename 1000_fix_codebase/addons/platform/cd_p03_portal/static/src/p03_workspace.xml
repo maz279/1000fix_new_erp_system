@@ -2971,6 +2971,147 @@
                             </aside>
                         </div>
 
+                        <!-- ============ M02 · FIELD DISPATCH BOARD (fs_board) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'fs_board' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div class="kpi-row" style="margin-bottom: 14px;">
+                                    <div class="kpi"><span class="kpi-l"><t t-esc='t("Jobs / Tech / Day")'/></span><span class="kpi-v"><t t-esc="fsKpis.jobs_tech_day ?? '—'"/></span></div>
+                                    <div class="kpi"><span class="kpi-l"><t t-esc='t("On-Time Arrival")'/></span><span class="kpi-v"><t t-esc="fsKpis.on_time_arrival != null ? fsKpis.on_time_arrival + '%' : '—'"/></span></div>
+                                    <div class="kpi"><span class="kpi-l"><t t-esc='t("Travel Time Share")'/></span><span class="kpi-v"><t t-esc="fsKpis.travel_share != null ? fsKpis.travel_share + '%' : '—'"/></span></div>
+                                    <div class="kpi"><span class="kpi-l"><t t-esc='t("Unassigned > 15m")'/></span><span class="kpi-v"><t t-esc="fsKpis.unassigned_15m ?? '—'"/></span></div>
+                                    <div class="kpi"><span class="kpi-l"><t t-esc='t("Offline Sync Health")'/></span><span class="kpi-v"><t t-esc="fsKpis.offline_sync_health != null ? fsKpis.offline_sync_health + '%' : '—'"/></span></div>
+                                </div>
+                                <h3><t t-esc='t("Unassigned jobs — dispatch with suggestions")'/> (<t t-esc="fsUnassigned.length"/>)</h3>
+                                <div class="tbl-wrap" style="margin-bottom: 14px;">
+                                    <table class="fx-table">
+                                        <thead><tr>
+                                            <th><t t-esc='t("Field Order")'/></th><th><t t-esc='t("Service Order")'/></th><th><t t-esc='t("Zone")'/></th><th><t t-esc='t("Priority")'/></th><th><t t-esc='t("Scheduled")'/></th><th><t t-esc='t("State")'/></th><th></th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <tr t-foreach="fsUnassigned" t-as="row" t-key="row.id" t-att-class="{'alt': row_index % 2}">
+                                                <td><span class="id-chip"><t t-esc="mlCell(row, 'name')"/></span></td>
+                                                <td><t t-esc="mlCell(row, 'order_id')"/></td>
+                                                <td><t t-esc="mlCell(row, 'zone_id')"/></td>
+                                                <td><span t-att-class="row.priority &amp;&amp; row.priority.key === '3' ? 'chip bad' : 'chip'"><t t-esc="mlCell(row, 'priority')"/></span></td>
+                                                <td><t t-esc="mlCell(row, 'scheduled_start')"/></td>
+                                                <td><span class="chip warn"><t t-esc="mlCell(row, 'state')"/></span></td>
+                                                <td t-on-click.stop="">
+                                                    <button t-if="row.state === 'draft'" class="btn btn-sm" t-att-disabled="state.gl.fsBusy === row.id" t-on-click="() => this.fsAction(row, 'action_request_dispatch', 'Submit for Dispatch')"><t t-esc='t("Submit for Dispatch")'/></button>
+                                                    <button t-else="" class="btn btn-sm btn-primary" t-att-disabled="state.gl.fsBusy === row.id" t-on-click="() => this.fsOpenSuggest(row)"><t t-esc='t("Dispatch…")'/></button>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="!fsUnassigned.length"><td colspan="7" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No unassigned field jobs — on-site orders reach this queue via the service-order hand-over (M01 → M02).")'/></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <h3><t t-esc='t("Active jobs in the field")'/> (<t t-esc="fsActive.length"/>)</h3>
+                                <div class="tbl-wrap">
+                                    <table class="fx-table">
+                                        <thead><tr>
+                                            <th><t t-esc='t("Field Order")'/></th><th><t t-esc='t("Technician")'/></th><th><t t-esc='t("Zone")'/></th><th><t t-esc='t("State")'/></th><th><t t-esc='t("SLA Deadline")'/></th><th></th>
+                                        </tr></thead>
+                                        <tbody>
+                                            <tr t-foreach="fsActive" t-as="row" t-key="row.id" t-att-class="{'alt': row_index % 2}">
+                                                <td><span class="id-chip"><t t-esc="mlCell(row, 'name')"/></span></td>
+                                                <td><t t-esc="mlCell(row, 'technician_id')"/></td>
+                                                <td><t t-esc="mlCell(row, 'zone_id')"/></td>
+                                                <td><span class="chip ok"><t t-esc="mlCell(row, 'state')"/></span></td>
+                                                <td><t t-esc="ymd(row.sla_deadline)"/></td>
+                                                <td style="white-space: nowrap;" t-on-click.stop="">
+                                                    <t t-if="fsNextAction(row)">
+                                                        <button class="btn btn-sm btn-primary" t-att-disabled="state.gl.fsBusy === row.id" t-on-click="() => this.fsAction(row, fsNextAction(row)[0], fsNextAction(row)[1])"><t t-esc="t(fsNextAction(row)[1])"/></button>
+                                                    </t>
+                                                </td>
+                                            </tr>
+                                            <tr t-if="!fsActive.length"><td colspan="6" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No active field jobs right now.")'/></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("The suggestion engine")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Every Dispatch button opens ranked technicians: rostered today (+30), certified for the device (+25), home zone (+20), minus 5 per active job. The reasons are shown — the dispatcher decides.")'/></p></div>
+                            </aside>
+                        </div>
+
+                        <!-- M02 dispatch suggestion modal -->
+                        <div class="modal-scrim" t-if="state.gl.fsSuggest" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 200;">
+                            <div class="modal-dialog" style="max-width: 560px;">
+                                <div class="modal-head"><h3><t t-esc='t("Dispatch")'/> <t t-esc="state.gl.fsSuggest.order.name"/></h3></div>
+                                <div class="modal-body">
+                                    <p t-if="!state.gl.fsSuggest.rows" style="color: var(--ink-300);"><t t-esc='t("Scoring technicians…")'/></p>
+                                    <div t-if="state.gl.fsSuggest.rows &amp;&amp; !state.gl.fsSuggest.rows.length" style="color: var(--ink-300);"><t t-esc='t("No candidate technicians yet — technicians appear once referenced on work orders, field orders or the roster.")'/></div>
+                                    <div t-foreach="state.gl.fsSuggest.rows || []" t-as="sug" t-key="sug.employee_id"
+                                                                         style="border: 1px solid var(--ink-100); border-radius: 8px; padding: 8px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer;"
+                                                                         t-att-class="{'gl-row-selected': state.gl.fsSuggestPicked === sug.employee_id}"
+                                                                         t-on-click="() => { state.gl.fsSuggestPicked = sug.employee_id; }">
+                                        <div>
+                                            <b><t t-esc="sug.name"/></b>
+                                            <span class="chip" t-att-class="{'ok': sug.rostered, 'warn': !sug.rostered}" style="margin-left: 6px;"><t t-esc="sug.score"/></span>
+                                            <div style="font-size: 11px; color: var(--ink-500);"><t t-esc="sug.reasons.join(' · ')"/></div>
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--ink-500);"><t t-esc="sug.open_jobs"/> <t t-esc='t("active")'/></div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button class="btn" t-on-click="() => this.fsCloseSuggest()"><t t-esc='t("Cancel")'/></button>
+                                    <button class="btn btn-primary" t-if="state.gl.fsSuggest.rows &amp;&amp; state.gl.fsSuggest.rows.length" t-att-disabled="state.gl.fsBusy" t-on-click="() => this.fsConfirmDispatch()"><t t-esc='t("Dispatch to selected")'/></button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ============ M02 · LIVE TECHNICIAN MAP (fs_map) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'fs_map' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <h3><t t-esc='t("Live fleet position — branches, technicians and open orders")'/></h3>
+                                <p style="color: var(--ink-500); font-size: 12px;"><t t-esc='t("Branch pins are city-anchored (precise geocoding is the M30 task); technician pins show only real GPS from attendance clock-ins; order pins sit at their branch. The full interactive map is the Dispatch Console (home screen top bar).")'/></p>
+                                <div class="tbl-wrap" style="margin-bottom: 12px;">
+                                    <table class="fx-table">
+                                        <thead><tr><th><t t-esc='t("Technician")'/></th><th><t t-esc='t("GPS")'/></th><th><t t-esc='t("Active Jobs")'/></th></tr></thead>
+                                        <tbody>
+                                            <tr t-foreach="state.gl.data.technicians || []" t-as="tech" t-key="tech.id" t-att-class="{'alt': tech_index % 2}">
+                                                <td><b><t t-esc="tech.name"/></b></td>
+                                                <td>
+                                                    <span t-if="tech.lat &amp;&amp; tech.lng" class="chip ok"><t t-esc="tech.lat.toFixed(4)"/>, <t t-esc="tech.lng.toFixed(4)"/></span>
+                                                    <span t-else="" class="chip warn"><t t-esc='t("no GPS yet — clock-in sets it")'/></span>
+                                                </td>
+                                                <td><t t-esc="tech.active_wos ?? 0"/></td>
+                                            </tr>
+                                            <tr t-if="!(state.gl.data.technicians || []).length"><td colspan="3" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No technicians found — the roster and clock-ins feed this list.")'/></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <button class="btn btn-primary" t-on-click="() => this.openDispatchConsole()"><t t-esc='t("Open the interactive Dispatch Console map")'/></button>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Telemetry pipeline")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Technician apps POST positions to the telemetry ping endpoint (authenticated); pings are throttled to one per 30 s and 100 m and land in the technician location log for this view.")'/></p></div>
+                            </aside>
+                        </div>
+
+                        <!-- ============ M02 · MULTI-TECH CREWS (fs_crews) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'fs_crews' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <h3><t t-esc='t("Multi-tech crews — service orders with more than one technician")'/></h3>
+                                <div class="tbl-wrap">
+                                    <table class="fx-table">
+                                        <thead><tr><th><t t-esc='t("Service Order")'/></th><th><t t-esc='t("Crew")'/></th></tr></thead>
+                                        <tbody>
+                                            <tr t-foreach="fsCrewPairs" t-as="crew" t-key="crew.order" t-att-class="{'alt': crew_index % 2}">
+                                                <td><span class="id-chip"><t t-esc="crew.order"/></span></td>
+                                                <td><b><t t-esc="crew.techs"/></b></td>
+                                            </tr>
+                                            <tr t-if="!fsCrewPairs.length"><td colspan="2" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No multi-technician crews yet — a dedicated crew model arrives with the field-crew phase; this view shows real co-assignments from work orders.")'/></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Honest scope")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Crews are measured from work orders, not a crew master — the crew-scheduling engine is a later phase.")'/></p></div>
+                            </aside>
+                        </div>
+
                         <!-- Generic reason prompt (AR write actions) -->
                         <div class="modal-scrim" t-if="state.gl.prompt" style="position: fixed; inset: 0; background: rgba(0,0,0,0.35); display: flex; align-items: center; justify-content: center; z-index: 200;">
                             <div class="modal-dialog" style="max-width: 440px;">

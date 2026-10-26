@@ -34,6 +34,9 @@ SURFACES = {
             "action_cancel",
             "action_resume_order",
             "action_issue_repair_warranty",
+            # M02 bridge (defined in cd_field_service's extension): hand an
+            # on-site order to the dispatch pipeline
+            "action_create_field_order",
         },
     },
     "fix.estimate": {

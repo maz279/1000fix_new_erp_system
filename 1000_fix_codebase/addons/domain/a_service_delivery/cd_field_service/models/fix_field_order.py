@@ -1,11 +1,14 @@
 # fix.field.order — Field Service Order & Execution Unit (CD-M02-01)
 import json
+import logging
 import math
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
+
+_logger = logging.getLogger(__name__)
 
 
 class FixFieldOrder(models.Model):
@@ -116,6 +119,29 @@ class FixFieldOrder(models.Model):
         tracking=True,
     )
 
+    # Journey stamps (M02): written by the state actions so travel time and
+    # on-time arrival are MEASURED, not estimated-only. actual_travel_minutes
+    # existed as a field no code ever wrote.
+    dispatched_at = fields.Datetime(string="Dispatched At", readonly=True, copy=False)
+    accepted_at = fields.Datetime(string="Accepted At", readonly=True, copy=False)
+    en_route_at = fields.Datetime(string="En Route At", readonly=True, copy=False)
+    arrived_at = fields.Datetime(string="Arrived At", readonly=True, copy=False)
+    started_work_at = fields.Datetime(string="Work Started At", readonly=True, copy=False)
+    completed_at = fields.Datetime(string="Completed At", readonly=True, copy=False)
+    on_time_arrival = fields.Boolean(
+        string="Arrived On Time",
+        compute="_compute_on_time_arrival",
+        store=True,
+        help="True when arrival was recorded at or before the scheduled start.",
+    )
+
+    @api.depends("arrived_at", "scheduled_start")
+    def _compute_on_time_arrival(self):
+        for rec in self:
+            rec.on_time_arrival = bool(
+                rec.arrived_at and rec.scheduled_start and rec.arrived_at <= rec.scheduled_start
+            )
+
     customer_address = fields.Text(string="Customer Address")
     latitude = fields.Float(
         string="Latitude",
@@ -199,6 +225,7 @@ class FixFieldOrder(models.Model):
                 rec.van_location_id = van.id
 
             rec.state = "dispatched"
+            rec.dispatched_at = fields.Datetime.now()
             rec._emit_field_event(
                 "field.order.dispatched",
                 {
@@ -219,6 +246,7 @@ class FixFieldOrder(models.Model):
             if rec.state != "dispatched":
                 raise UserError("Only dispatched orders can be accepted.")
             rec.state = "accepted"
+            rec.accepted_at = fields.Datetime.now()
             rec._emit_field_event(
                 "field.order.accepted",
                 {
@@ -273,6 +301,7 @@ class FixFieldOrder(models.Model):
             if rec.state != "accepted":
                 raise UserError("Technician must accept the order before starting travel.")
             rec.state = "en_route"
+            rec.en_route_at = fields.Datetime.now()
 
     def action_arrive(self, current_lat=None, current_lon=None):
         for rec in self:
@@ -293,6 +322,10 @@ class FixFieldOrder(models.Model):
                             "detail": "Arrival recorded outside designated geofence perimeter.",
                         },
                     )
+            rec.arrived_at = fields.Datetime.now()
+            if rec.en_route_at:
+                travelled = (rec.arrived_at - rec.en_route_at).total_seconds() / 60.0
+                rec.actual_travel_minutes = round(travelled, 1)
             rec.state = "arrived"
 
     def action_start_work(self):
@@ -300,12 +333,14 @@ class FixFieldOrder(models.Model):
             if rec.state != "arrived":
                 raise UserError("Technician must arrive on site before commencing work.")
             rec.state = "in_progress"
+            rec.started_work_at = fields.Datetime.now()
 
     def action_complete(self):
         for rec in self:
             if rec.state != "in_progress":
                 raise UserError("Only in-progress orders can be completed.")
             rec.state = "completed"
+            rec.completed_at = fields.Datetime.now()
 
     def action_cancel(self, reason=""):
         for rec in self:
@@ -314,6 +349,101 @@ class FixFieldOrder(models.Model):
             rec.state = "cancelled"
             if reason:
                 rec.notes = f"{rec.notes or ''}\nCancellation: {reason}".strip()
+
+    def action_suggest_technicians(self, limit=5):
+        """The dispatch suggestion engine (M02): a deterministic, explainable
+        ranking — NOT a black-box "AI". For this order's zone and scheduled
+        day, technicians score:
+
+          +30  rostered that day (fix.roster.slot — the real availability)
+          +25  certification-eligible for the device (FR-LMS-039
+               fix.certification.dispatch_eligibility; skills the W2 seam
+               left unwired at dispatch time)
+          +20  home zone matches the order's dispatch zone (roster branch)
+           -5  per already-assigned ACTIVE field order (load)
+
+        Candidates are the employees the business actually dispatches
+        (referenced as technicians on work orders, field orders or roster
+        slots). Returns a list of dicts sorted best-first; every line carries
+        its reasons so the dispatcher decides, the model only recommends.
+        """
+        self.ensure_one()
+        Employee = self.env["hr.employee"]
+        FieldOrder = self.env["fix.field.order"]
+        Roster = self.env["fix.roster.slot"]
+        Certification = self.env["fix.certification"]
+
+        candidate_ids = set()
+        for model, field in (
+            ("fix.work.order", "technician_id"),
+            ("fix.field.order", "technician_id"),
+            ("fix.roster.slot", "employee_id"),
+        ):
+            try:
+                candidate_ids.update(
+                    self.env[model].sudo().search([(field, "!=", False)]).mapped(field).ids
+                )
+            except Exception:
+                # a source model absent from this database simply contributes
+                # no candidates — the others still stand
+                _logger.debug("candidate source %s unavailable", model, exc_info=True)
+        if not candidate_ids:
+            return []
+
+        scheduled_day = (self.scheduled_start or fields.Datetime.now()).date()
+        roster_day = Roster.sudo().search([("date", "=", scheduled_day)])
+        roster_by_employee = {r.employee_id.id: r for r in roster_day}
+
+        device_type = None
+        device = self.order_id.device_id
+        if device and device.device_model_id:
+            device_type = device.device_model_id.device_type or None
+
+        active_states = ("dispatched", "accepted", "en_route", "arrived", "in_progress")
+        load_by_employee = {}
+        for fo in FieldOrder.sudo().search(
+            [("state", "in", active_states), ("technician_id", "!=", False)]
+        ):
+            load_by_employee[fo.technician_id.id] = load_by_employee.get(fo.technician_id.id, 0) + 1
+
+        suggestions = []
+        for employee in Employee.browse(candidate_ids).exists():
+            reasons = []
+            score = 0
+            rostered = roster_by_employee.get(employee.id)
+            if rostered:
+                score += 30
+                reasons.append("rostered today")
+            eligible, reason = Certification.dispatch_eligibility(employee, device_type)
+            if eligible:
+                score += 25
+                reasons.append("certified")
+            elif reason and "no gating" not in reason.lower():
+                reasons.append("cert: %s" % reason)
+            zone_match = False
+            if rostered and rostered.branch_id and rostered.branch_id.zone_id:
+                zone_match = rostered.branch_id.zone_id.id == self.zone_id.id
+            if zone_match:
+                score += 20
+                reasons.append("home zone")
+            open_jobs = load_by_employee.get(employee.id, 0)
+            score -= open_jobs * 5
+            if open_jobs:
+                reasons.append("%d active job(s)" % open_jobs)
+            suggestions.append(
+                {
+                    "employee_id": employee.id,
+                    "name": employee.name,
+                    "score": score,
+                    "eligible": bool(eligible),
+                    "rostered": bool(rostered),
+                    "zone_match": zone_match,
+                    "open_jobs": open_jobs,
+                    "reasons": reasons,
+                }
+            )
+        suggestions.sort(key=lambda s: (-s["score"], s["open_jobs"], s["name"]))
+        return suggestions[:limit]
 
     def _check_geofence_arrival(self, lat: float, lon: float) -> bool:
         """Validate if current coordinates fall within the assigned geofence."""

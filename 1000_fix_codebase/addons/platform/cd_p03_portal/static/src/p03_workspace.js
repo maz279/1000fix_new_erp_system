@@ -344,6 +344,18 @@ export class P03Workspace extends Component {
                 this.loadDispatchMap(),
                 this.loadConsoleData(),
             ]);
+            // client-action params (mega menu / deep links): the action may
+            // carry {module_id, screen_id} — land directly on that screen.
+            const params =
+                (this.props && (this.props.actionParams || (this.props.action && this.props.action.params))) || {};
+            const mid = params.module_id || params.moduleId;
+            const sid = params.screen_id || params.screenId;
+            if (mid && P03_MODULES[mid]) {
+                this.openModule(mid);
+                if (sid && typeof sid === "string" && sid.length <= 64) {
+                    this.openScreen(sid);
+                }
+            }
         });
     }
 
@@ -816,6 +828,10 @@ export class P03Workspace extends Component {
             soState: "all",          // state filter pill on so_list
             boardCol: null,          // selected pipeline column (so_board)
             soBusy: null,            // order id with an action in flight
+            // ---- M02 field-service screens ----
+            fsSuggest: null,         // suggestions for the dispatch modal {order, rows}
+            fsSuggestPicked: null,   // employee id picked in the modal
+            fsBusy: null,            // field order id with an action in flight
         };
         this.state.viewMode = "gl";
         this.ensureTab(`gl-${screenId}`, `${hit && hit.sc.t === "f" ? "▤" : "⛁"} ${this.state.gl.title}`, "⛁", "gl", { screenId });
@@ -989,6 +1005,38 @@ export class P03Workspace extends Component {
                     }),
                 ]);
                 gl.data = { stats, walkins: walkins.error ? [] : (walkins.rows || []).slice(0, 8) };
+            } else if (gl.kind === "fs_board") {
+                const [kpis, unassigned, active] = await Promise.all([
+                    this.rpc("/p03/field/kpis", {}),
+                    this.rpc("/p03/model/records", {
+                        model: "fix.field.order",
+                        cols: ["name", "order_id", "zone_id", "priority", "scheduled_start", "sla_deadline", "state", "technician_id"],
+                        domain: [["state", "in", ["draft", "pending_dispatch", "declined"]]],
+                    }),
+                    this.rpc("/p03/model/records", {
+                        model: "fix.field.order",
+                        cols: ["name", "order_id", "zone_id", "priority", "scheduled_start", "sla_deadline", "state", "technician_id"],
+                        domain: [["state", "in", ["dispatched", "accepted", "en_route", "arrived", "in_progress"]]],
+                    }),
+                ]);
+                gl.data = {
+                    kpis: kpis.M02 || kpis,
+                    unassigned: unassigned.rows || [],
+                    active: active.rows || [],
+                };
+            } else if (gl.kind === "fs_map") {
+                gl.data = await this.rpc("/p03/dispatch/map_data", {});
+                if (!gl.data || gl.data.error) {
+                    gl.data = { branches: [], technicians: [], orders: [] };
+                }
+            } else if (gl.kind === "fs_crews") {
+                // crews: co-dispatched technicians — measured as the field
+                // orders whose service order carries >1 work-order technician
+                gl.data = await this.rpc("/p03/model/records", {
+                    model: "fix.work.order",
+                    cols: ["name", "order_id", "technician_id", "state"],
+                    domain: [["technician_id", "!=", false]],
+                });
             }
         } catch (e) {
             gl.error = "Could not reach the GL endpoint — try Refresh.";
@@ -1160,6 +1208,128 @@ export class P03Workspace extends Component {
         if (!gl || !gl.boardCol) return "";
         const col = this.boardColumns.find((c) => c.key === gl.boardCol);
         return col ? col.label : "";
+    }
+
+    /* ---------------- M02 field-service screens (fs_*) ---------------- */
+
+    get fsKpis() {
+        const gl = this.state.gl;
+        return (gl && gl.data && gl.data.kpis) || {};
+    }
+
+    get fsUnassigned() {
+        const gl = this.state.gl;
+        return (gl && gl.data && gl.data.unassigned) || [];
+    }
+
+    get fsActive() {
+        const gl = this.state.gl;
+        return (gl && gl.data && gl.data.active) || [];
+    }
+
+    get fsCrewPairs() {
+        const gl = this.state.gl;
+        const rows = (gl && gl.data && gl.data.rows) || [];
+        const byOrder = {};
+        for (const wo of rows) {
+            const key = wo.order_id && wo.order_id.id;
+            if (!key) continue;
+            byOrder[key] = byOrder[key] || { order: wo.order_id.name || key, techs: new Map() };
+            if (wo.technician_id && wo.technician_id.name) {
+                byOrder[key].techs.set(wo.technician_id.id, wo.technician_id.name);
+            }
+        }
+        return Object.values(byOrder)
+            .filter((c) => c.techs.size > 1)
+            .map((c) => ({ order: c.order, techs: [...c.techs.values()].join(" + ") }));
+    }
+
+    /** Dispatch modal: pull the ranked suggestions for one field order. */
+    async fsOpenSuggest(row) {
+        const gl = this.state.gl;
+        gl.fsSuggest = { order: row, rows: null };
+        gl.fsSuggestPicked = null;
+        try {
+            const res = await this.rpc("/p03/field/suggest", { field_order_id: row.id });
+            if (gl.fsSuggest && gl.fsSuggest.order.id === row.id) {
+                gl.fsSuggest.rows = (res && res.suggestions) || [];
+            }
+        } catch (e) {
+            gl.fsSuggest.rows = [];
+        }
+    }
+
+    fsCloseSuggest() {
+        this.state.gl.fsSuggest = null;
+        this.state.gl.fsSuggestPicked = null;
+    }
+
+    /** Dispatch with the picked (or top-ranked) technician. */
+    async fsConfirmDispatch() {
+        const gl = this.state.gl;
+        if (!gl.fsSuggest || !gl.fsSuggest.rows) return;
+        const pickId = gl.fsSuggestPicked || (gl.fsSuggest.rows[0] && gl.fsSuggest.rows[0].employee_id);
+        if (!pickId) {
+            this.showToast(this.t("No technician available to dispatch."));
+            return;
+        }
+        const order = gl.fsSuggest.order;
+        gl.fsBusy = order.id;
+        try {
+            const res = await this.rpc("/p03/model/action", {
+                model: "fix.field.order",
+                ids: [order.id],
+                method: "action_dispatch",
+                kwargs: { technician_id: pickId },
+            });
+            if (res && res.success) {
+                const picked = gl.fsSuggest.rows.find((r) => r.employee_id === pickId);
+                this.showToast(order.name + " → " + (picked ? picked.name : this.t("technician")) + " ✓");
+                this.fsCloseSuggest();
+                await this.loadGlData();
+            } else {
+                this.showToast((res && res.error) || this.t("Dispatch refused by the backend."));
+            }
+        } finally {
+            gl.fsBusy = null;
+        }
+    }
+
+    /** Field-order lifecycle button (accept / travel / arrive / work / complete). */
+    async fsAction(row, method, labelEn) {
+        if (!window.confirm(row.name + " — " + this.t(labelEn) + "?")) return;
+        this.state.gl.fsBusy = row.id;
+        try {
+            const res = await this.rpc("/p03/model/action", {
+                model: "fix.field.order",
+                ids: [row.id],
+                method,
+            });
+            if (res && res.success) {
+                this.showToast(row.name + " — " + this.t(labelEn) + " ✓");
+                await this.loadGlData();
+            } else {
+                this.showToast((res && res.error) || this.t("Action refused by the backend."));
+            }
+        } finally {
+            this.state.gl.fsBusy = null;
+        }
+    }
+
+    fsNextAction(row) {
+        // the forward path of the field-order state machine (authority: the
+        // backend VALID transitions; this only picks the next button)
+        const forward = {
+            draft: ["action_request_dispatch", "Submit for Dispatch"],
+            pending_dispatch: ["action_dispatch", "Dispatch"],
+            declined: ["action_dispatch", "Dispatch"],
+            dispatched: ["action_accept", "Accept"],
+            accepted: ["action_start_travel", "Start Travel"],
+            en_route: ["action_arrive", "Mark Arrival"],
+            arrived: ["action_start_work", "Start Work"],
+            in_progress: ["action_complete", "Complete"],
+        };
+        return forward[row.state] || null;
     }
 
     /* ---------------- generic model_list screens ---------------- */
@@ -2003,7 +2173,7 @@ export class P03Workspace extends Component {
         // A08 modules fetch REAL KPI aggregates (metric keys on the kpis);
         // A02 modules have their own service KPI endpoint (same shape).
         if ((mod.kpis || []).some(k => k.m)) {
-            const kpiRoute = mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis";
+            const kpiRoute = mid === "M02" ? "/p03/field/kpis" : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis");
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {

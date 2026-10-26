@@ -85,6 +85,17 @@ export class P03MegaMenu extends Component {
         });
     }
 
+    /** Open a specific workspace screen (in-shell data screen) — the deep
+     * link lands on module_id + screen_id after the workspace mounts. */
+    _openWorkspaceScreen(screenId, modId) {
+        this.close();
+        this.action.doAction({
+            type: "ir.actions.client",
+            tag: "p03_workspace",
+            params: { module_id: modId, screen_id: screenId },
+        });
+    }
+
     openScreen(screen, mod) {
         this.close();
         const sId = (screen?.id || "").toLowerCase();
@@ -99,7 +110,29 @@ export class P03MegaMenu extends Component {
             return;
         }
 
-        if (mId === "M02" || sId.includes("device") || sId.includes("asset")) {
+        // M02 field service: every screen opens INSIDE the workspace (the
+        // dispatch board carries the suggestion engine); the old fallback
+        // opened the Device Registry — wrong area, wrong module.
+        if (mId === "M02") {
+            const dispatchScreens = {
+                "m02-dispatch": "M02-dispatch",
+                "m02-map": "M02-map",
+                "m02-unassigned": "M02-unassigned",
+                "m02-sla-risk": "M02-sla-risk",
+                "m02-wo": "M02-wo",
+                "m02-record": "M02-record",
+                "m02-exceptions": "M02-exceptions",
+                "m02-crews": "M02-crews",
+                "m02-zones": "M02-zones",
+                "m02-routes": "M02-routes",
+                "m02-territory": "M02-territory",
+                // registry-only technician-app / safety screens land on the board
+            };
+            this._openWorkspaceScreen(dispatchScreens[sId] || "M02-dispatch", mId);
+            return;
+        }
+
+        if (sId.includes("device") || sId.includes("asset")) {
             this.action.doAction({
                 type: "ir.actions.act_window",
                 name: screen.en || "Device Registry",
