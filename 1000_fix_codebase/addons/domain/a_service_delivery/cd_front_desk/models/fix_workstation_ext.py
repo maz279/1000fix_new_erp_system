@@ -1,6 +1,8 @@
-# M04 extensions (P04-M02 follow-up): state guards the queue never had, the
-# dead states made reachable, the token→order link actually written, and the
-# counter-sales model the module always named but never had.
+# M04 workstation extensions. FILE NAME IS LOAD-BEARING: it must sort
+# AFTER fix_cash_shift/fix_token_queue/fix_walkin_intake in the alphabetical
+# models import (these three are the base models this file extends; loading
+# the extension first kills the whole registry). Do not rename to anything
+# that sorts before fix_workin*.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
