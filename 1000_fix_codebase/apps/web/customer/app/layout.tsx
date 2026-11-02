@@ -6,6 +6,7 @@ import { LanguageProvider } from "../components/language";
 import { AuthProvider } from "../components/auth-modal";
 import { CustomerShell } from "../components/shell";
 import { RumMount } from "../components/rum";
+import { tokens } from "../lib/imports";
 
 // Self-hosted via next/font (build-time download — no runtime CDN, CSP-safe).
 // The token stacks in globals.css consume these variables with the token
@@ -15,10 +16,34 @@ const inter = Inter({
   variable: "--font-inter",
   display: "swap",
 });
+// DE-17: the Bengali face this shell loads must be the one the design system
+// names. next/font/google needs a statically analysable import, so the token
+// cannot pick the loader — it pins it instead: change
+// typography.font.bengali.family in tokens.json and this fails the build rather
+// than letting the rendered font drift away from the design system (re-audit
+// 2026-10-31; the layout and the token had no link at all).
+const BENGALI_FAMILY = tokens["typography.font.bengali.family"];
+// next/font requires the fallback list as explicit literals (a computed array
+// fails the page compile — caught by the 2026-10-31 A03 audit, portal was 500).
+// The DE-17 guard below keeps these literals welded to the token.
+const BENGALI_FALLBACK_TOKEN = "'SolaimanLipi', 'Kalpurush', 'Nikosh', sans-serif";
+if (BENGALI_FAMILY !== "Noto Sans Bengali") {
+  throw new Error(
+    `DE-17: this shell loads Noto Sans Bengali, but the design token names ` +
+      `"${BENGALI_FAMILY}" — update the loader and this guard together.`,
+  );
+}
+if (tokens["typography.font.bengali.fallback"] !== BENGALI_FALLBACK_TOKEN) {
+  throw new Error(
+    `DE-17: the Bengali fallback token drifted from the layout literals ` +
+      `(${tokens["typography.font.bengali.fallback"]}) — update both together.`,
+  );
+}
 const notoBengali = Noto_Sans_Bengali({
   subsets: ["bengali"],
   variable: "--font-noto-bengali",
   display: "swap",
+  fallback: ["SolaimanLipi", "Kalpurush", "Nikosh", "sans-serif"],
 });
 const sora = Sora({
   subsets: ["latin"],

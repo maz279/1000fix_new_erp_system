@@ -150,3 +150,27 @@ export class ApiClient {
     return data.result as T;
   }
 }
+
+/**
+ * Liveness probe for a shell's online/offline indicator.
+ *
+ * P-11 keeps every `fetch()` inside this library, so a portal cannot quietly
+ * grow its own HTTP surface with different timeout, cache and error behaviour.
+ * The customer shell polled its health URL with a bare `fetch()` and tripped
+ * FF-39 (re-audit 2026-10-31); it calls this instead.
+ *
+ * Never throws: a health poll that raises is a health poll that breaks the
+ * component it decorates. An unreachable or non-OK endpoint is simply `false`.
+ */
+export async function pingHealth(
+  url: string,
+  options: { fetchImpl?: typeof fetch; signal?: AbortSignal } = {},
+): Promise<boolean> {
+  const doFetch = options.fetchImpl ?? fetch;
+  try {
+    const res = await doFetch(url, { cache: "no-store", signal: options.signal });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

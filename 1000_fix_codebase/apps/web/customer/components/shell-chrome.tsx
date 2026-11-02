@@ -27,7 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { navAreas, navCounts } from "../lib/imports";
+import { navAreas, navCounts, pingHealth } from "../lib/imports";
 import type { NavArea, NavModule } from "../lib/imports";
 import type { ShellLocale, ShellSection, ShellCopy } from "../lib/imports";
 
@@ -399,12 +399,10 @@ export function Shell({
   useEffect(() => {
     let cancelled = false;
     const ping = async () => {
-      try {
-        const res = await fetch(healthUrl, { cache: "no-store" });
-        if (!cancelled) setOnline(res.ok);
-      } catch {
-        if (!cancelled) setOnline(false);
-      }
+      // P-11: every fetch() lives in libs/ts/api-client (FF-39). pingHealth
+      // never throws — an unreachable endpoint is simply offline.
+      const ok = await pingHealth(healthUrl);
+      if (!cancelled) setOnline(ok);
     };
     ping();
     const id = setInterval(ping, 30000);
