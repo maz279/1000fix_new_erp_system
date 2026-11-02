@@ -10,7 +10,7 @@
 from datetime import date, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -105,9 +105,115 @@ class FixContract(models.Model):
         help="T01: Rebuilt on OCA contract (12 modules) for recurring accounting, lines, and billing",
     )
 
+    # Statutory Stamp Duty (Stamp Act 1899) & Legal Documentation (FLAW-08.2)
+    stamp_duty_cert_no = fields.Char(
+        string="Stamp Duty Certificate No.",
+        tracking=True,
+        help="Stamp Act 1899 Schedule I compliance certificate number",
+    )
+    stamp_duty_amount = fields.Monetary(
+        string="Stamp Duty Paid", currency_field="currency_id", tracking=True
+    )
+    stamp_act_article = fields.Selection(
+        [
+            ("art_5", "Article 5 - Agreement / Memorandum"),
+            ("art_15", "Article 15 - Bond / Guarantee"),
+            ("art_35", "Article 35 - Lease / Hire"),
+        ],
+        string="Stamp Act Article",
+        default="art_5",
+        tracking=True,
+    )
+    has_signed_contract_doc = fields.Boolean(
+        string="Signed Contract PDF Attached",
+        default=False,
+        tracking=True,
+        help="Whether physical/digital signed contract document is archived",
+    )
+    stamp_duty_applicable = fields.Boolean(
+        string="Chargeable Under Schedule I",
+        default=True,
+        tracking=True,
+        help="Whether this instrument is chargeable with stamp duty under "
+        "Stamp Act 1899 Schedule I. Clearing it requires a recorded reason: "
+        "an exemption is a decision somebody owns, not a silent skip.",
+    )
+    stamp_duty_exemption_reason = fields.Char(
+        string="Non-Chargeable Reason",
+        tracking=True,
+        help="Why this instrument is not chargeable (e.g. not an instrument "
+        "within Schedule I, or duty discharged on a parent master agreement).",
+    )
+
+    # Delivery Cost Tracking & True Gross Margin (FLAW-08.1)
+    total_delivery_cost = fields.Monetary(
+        string="Total Delivery & Service Cost",
+        currency_field="currency_id",
+        compute="_compute_delivery_cost",
+        store=True,
+    )
+    contract_margin_bdt = fields.Monetary(
+        string="Gross Contract Margin",
+        currency_field="currency_id",
+        compute="_compute_delivery_cost",
+        store=True,
+    )
+    contract_margin_pct = fields.Float(
+        string="Gross Margin (%)",
+        compute="_compute_delivery_cost",
+        store=True,
+    )
+
+    service_order_ids = fields.One2many("fix.service.order", "contract_id", string="Work Delivered")
+    pm_visit_ids = fields.One2many(
+        "fix.contract.pm.visit", "contract_id", string="Preventive Maintenance Visits"
+    )
+    delivered_order_count = fields.Integer(
+        string="Orders Delivered", compute="_compute_delivery_cost", store=True
+    )
+
+    @api.depends(
+        "annual_value",
+        "service_order_ids.delivery_cost_bdt",
+        "pm_visit_ids.service_order_id.delivery_cost_bdt",
+    )
+    def _compute_delivery_cost(self):
+        """FLAW-08.1: true contract P&L.
+
+        This used to read `delivery_cost = 0.0`, hard-coded, so every contract
+        reported its full annual value as margin — a 100% margin on every row
+        (A04 audit, 2026-10-31). Cost is now the parts and labour actually
+        consumed by the work delivered under the contract, reached two ways:
+        orders booked directly against it, and orders raised to service its
+        preventive-maintenance visits. The two sets are unioned, because a PM
+        visit's order may also carry the contract link.
+        """
+        for contract in self:
+            orders = contract.service_order_ids
+            pm_orders = contract.pm_visit_ids.mapped("service_order_id")
+            delivered = orders | pm_orders
+            delivery_cost = sum(delivered.mapped("delivery_cost_bdt"))
+            contract.delivered_order_count = len(delivered)
+            contract.total_delivery_cost = delivery_cost
+            net_val = (contract.annual_value or 0.0) - delivery_cost
+            contract.contract_margin_bdt = net_val
+            contract.contract_margin_pct = (
+                round((net_val / contract.annual_value) * 100.0, 2)
+                if contract.annual_value
+                else 0.0
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # The article follows the instrument. The UI gets this from the
+            # onchange; records created in code (imports, conversions, tests)
+            # would otherwise keep the art_5 default and fail the constraint
+            # on a rental.
+            if not vals.get("stamp_act_article") and vals.get("family"):
+                suggested = self._FAMILY_ARTICLE.get(vals["family"])
+                if suggested:
+                    vals["stamp_act_article"] = suggested
             if not vals.get("code"):
                 vals["code"] = self.env["ir.sequence"].next_by_code("fix.contract") or (
                     "CTR/%s" % fields.Date.today()
@@ -205,9 +311,104 @@ class FixContract(models.Model):
             ),
         }
 
+    # Which Schedule I head a contract falls under follows from what kind of
+    # instrument it is. The VALUE thresholds do not: they move with each
+    # Finance Act and are not encoded here — an audit is not the place to
+    # invent a rate. What this does is stop the article being a silent default
+    # that contradicts the contract it sits on.
+    _FAMILY_ARTICLE = {
+        "amc": "art_5",  # agreement / memorandum
+        "ramc": "art_5",
+        "managed": "art_5",
+        "rental": "art_35",  # lease / hire
+        "marketplace": "art_5",
+    }
+
+    @api.onchange("family")
+    def _onchange_family_sets_article(self):
+        for rec in self:
+            suggested = rec._FAMILY_ARTICLE.get(rec.family)
+            if suggested:
+                rec.stamp_act_article = suggested
+
+    @api.constrains("family", "stamp_act_article", "stamp_duty_applicable")
+    def _check_article_matches_instrument(self):
+        """A rental contract stamped as an Article 5 agreement is a filing
+        error waiting to be found by an inspector. The article defaults to
+        art_5 for every family, so a rental silently carried the wrong head
+        (A04 audit, 2026-11-01)."""
+        for rec in self:
+            if not rec.stamp_duty_applicable:
+                continue
+            expected = rec._FAMILY_ARTICLE.get(rec.family)
+            if expected and rec.stamp_act_article != expected:
+                labels = dict(rec._fields["stamp_act_article"].selection)
+                raise ValidationError(
+                    "Stamp Act article mismatch on %s: a '%s' contract is "
+                    "chargeable under %s, not %s. Correct the article, or "
+                    "record why this instrument is classified differently."
+                    % (
+                        rec.code or "this contract",
+                        dict(FAMILIES).get(rec.family, rec.family),
+                        labels.get(expected, expected),
+                        labels.get(rec.stamp_act_article, rec.stamp_act_article),
+                    )
+                )
+
+    def _assert_stamp_duty_discharged(self):
+        """FLAW-08.2: a chargeable instrument activates only once duty is paid
+        and the executed contract is archived.
+
+        The first implementation of this control refused EVERY contract and
+        offered a `skip_stamp_duty_check` context key as the way out. Nothing
+        in the codebase ever set that key, so in practice it blocked all
+        activation while leaving a bypass any caller could pass (A04 audit,
+        2026-10-31). Chargeability is now an explicit, tracked decision and
+        there is no silent escape.
+        """
+        self.ensure_one()
+        if not self.stamp_duty_applicable:
+            if not (self.stamp_duty_exemption_reason or "").strip():
+                raise UserError(
+                    "Contract %s is marked not chargeable under Stamp Act 1899 "
+                    "Schedule I but records no reason. State the basis for "
+                    "non-chargeability before activating." % self.code
+                )
+            return
+        # Schedule I charges by value as well as by head. The rate table is
+        # effective-dated configuration (fix.stamp.duty.schedule) that Finance
+        # maintains; when no row covers the instrument the answer is
+        # "chargeable", so an unmaintained table never waives duty.
+        Schedule = self.env["fix.stamp.duty.schedule"]
+        if not Schedule.is_chargeable(
+            self.stamp_act_article,
+            self.annual_value,
+            on_date=self.date_start,
+            company=self.company_id,
+        ):
+            return
+        if not (self.stamp_duty_cert_no or "").strip():
+            raise UserError(
+                "Contract %s cannot be activated without a Stamp Duty Certificate "
+                "Number (Stamp Act 1899 Schedule I, %s). If the instrument is not "
+                "chargeable, clear 'Chargeable Under Schedule I' and record why."
+                % (
+                    self.code,
+                    dict(self._fields["stamp_act_article"].selection).get(
+                        self.stamp_act_article, "article not set"
+                    ),
+                )
+            )
+        if not self.has_signed_contract_doc:
+            raise UserError(
+                "Contract %s cannot be activated without an archived signed "
+                "contract PDF document." % self.code
+            )
+
     def action_activate(self):
         """Activation requires the e-signature envelope to be completed
-        (T07) — the contract exists, the signature makes it real."""
+        (T07) and Bangladesh statutory Stamp Duty compliance (Stamp Act 1899)
+        with signed contract archival (FLAW-08.2)."""
         for contract in self:
             envelope = contract.esignature_envelope_id
             if envelope and envelope.state != "completed":
@@ -215,6 +416,7 @@ class FixContract(models.Model):
                     "Contract %s: the e-signature envelope is '%s' — a contract "
                     "activates on a completed signature" % (contract.code, envelope.state)
                 )
+            contract._assert_stamp_duty_discharged()
             contract.state = "active"
             contract._generate_pm_schedule()
             contract.action_sync_oca_contract()
@@ -405,6 +607,191 @@ class FixContractEntitlement(models.Model):
             )
             return True
         return False
+
+    # ------------------------------------------------------------------
+    # S5 - the Entitlement Lookup Service (A03 gap-plan Part IV)
+    #
+    # entitlement_active() answers M01's device-and-category question at
+    # order time. The contact centre and the complaints desk ask a different
+    # one, at INTAKE, before any order exists: "this person is on the phone
+    # -- what are we contractually obliged to give them?" That question is
+    # about a PARTY, has no device in it, and needs the answer in words an
+    # agent can act on rather than a boolean.
+    #
+    # Before this, neither M27 conversations nor M34 complaints checked
+    # entitlements at all, so an AMC customer with a contracted four-hour
+    # response was routed exactly like a walk-in.
+    # ------------------------------------------------------------------
+    @api.model
+    def entitlement_summary_for_party(self, partner):
+        """What this party is contractually owed, right now.
+
+        Returns:
+            has_entitlement  bool  - any active contract covers them
+            available        bool  - any covering line still has quantity
+            contracts        list  - the covering contracts, with term dates
+            lines            list  - per-entitlement remaining quantities
+            note             str   - one line an agent can read aloud
+            sla_policy_id    int   - the contracted SLA policy, if any, so
+                                     the caller can start an S9 clock against
+                                     the promise the customer actually bought
+        """
+        partner_id = getattr(partner, "id", partner) or False
+        empty = {
+            "has_entitlement": False,
+            "available": False,
+            "contracts": [],
+            "lines": [],
+            "sla_policy_id": False,
+            "note": "No identified party, so no entitlement could be checked.",
+        }
+        if not partner_id:
+            return empty
+
+        today = fields.Date.context_today(self)
+        contracts = (
+            self.env["fix.contract"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "=", partner_id),
+                    ("state", "=", "active"),
+                    ("date_start", "<=", today),
+                    ("date_end", ">=", today),
+                ]
+            )
+        )
+        if not contracts:
+            return dict(
+                empty,
+                note="No active contract covers this customer today, so "
+                "standard service terms apply.",
+            )
+
+        lines = self.sudo().search([("contract_id", "in", contracts.ids)])
+        line_rows = []
+        any_available = False
+        for line in lines:
+            unlimited = line.quantity_included == 0
+            remaining = -1 if unlimited else line.quantity_remaining
+            if unlimited or remaining > 0:
+                any_available = True
+            line_rows.append(
+                {
+                    "contract": line.contract_id.name,
+                    "type": line.entitlement_type,
+                    "included": line.quantity_included,
+                    "consumed": line.quantity_consumed,
+                    "remaining": remaining,
+                    "unlimited": unlimited,
+                    "device_id": line.device_id.id or None,
+                }
+            )
+
+        # fix.contract carries sla_policy_ids (a contract may buy several
+        # targets). The first is handed back as the one to start a clock
+        # against; a caller needing a specific KPI reads the contract.
+        sla_policy = False
+        for contract in contracts:
+            policies = contract.sla_policy_ids
+            if policies:
+                sla_policy = policies[0].id
+                break
+
+        if not lines:
+            note = (
+                "Covered by %d active contract(s), but the contract buys no "
+                "entitlement lines - treat as standard/paid service." % len(contracts)
+            )
+        elif any_available:
+            parts = [
+                "%s %s"
+                % (
+                    "unlimited" if r["unlimited"] else ("%g left" % r["remaining"]),
+                    r["type"],
+                )
+                for r in line_rows
+                if r["unlimited"] or r["remaining"] > 0
+            ]
+            note = "Contract customer: %s." % ", ".join(parts)
+        else:
+            note = (
+                "Covered by an active contract, but every entitlement line is "
+                "exhausted - this visit is standard/paid."
+            )
+
+        return {
+            "has_entitlement": True,
+            "available": any_available,
+            "contracts": [
+                {
+                    "id": c.id,
+                    "name": c.name,
+                    "date_end": str(c.date_end),
+                }
+                for c in contracts
+            ],
+            "lines": line_rows,
+            "sla_policy_id": sla_policy,
+            "note": note,
+        }
+
+    @api.model
+    def consume_for_party(self, partner, entitlement_type, qty=1.0, source_ref=""):
+        """Draw down the best-fitting line for a party, or report why not.
+
+        Picks the line that is closest to exhaustion first, so that an
+        unlimited line is not burned while a counted one expires unused.
+        """
+        summary = self.entitlement_summary_for_party(partner)
+        if not summary["available"]:
+            return {"consumed": False, "reason": summary["note"]}
+        today = fields.Date.context_today(self)
+        contracts = (
+            self.env["fix.contract"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "=", getattr(partner, "id", partner)),
+                    ("state", "=", "active"),
+                    ("date_start", "<=", today),
+                    ("date_end", ">=", today),
+                ]
+            )
+        )
+        candidates = self.sudo().search(
+            [
+                ("contract_id", "in", contracts.ids),
+                ("entitlement_type", "=", entitlement_type),
+            ]
+        )
+        usable = candidates.filtered(
+            lambda line: line.quantity_included == 0 or line.quantity_remaining >= qty
+        )
+        if not usable:
+            return {
+                "consumed": False,
+                "reason": "No %s entitlement with %g remaining on any active "
+                "contract." % (entitlement_type, qty),
+            }
+        # counted lines before unlimited ones, lowest remaining first
+        ordered = usable.sorted(
+            key=lambda line: (
+                1 if line.quantity_included == 0 else 0,
+                line.quantity_remaining if line.quantity_included else 0,
+            )
+        )
+        line = ordered[0]
+        ok = line.consume(qty, source_ref=source_ref)
+        return {
+            "consumed": bool(ok),
+            "entitlement_id": line.id,
+            "contract": line.contract_id.name,
+            "remaining": line.quantity_remaining,
+            "reason": ""
+            if ok
+            else "The selected entitlement was exhausted " "between the check and the draw-down.",
+        }
 
     @api.model
     def entitlement_active(self, device_id: int, category: str) -> bool:

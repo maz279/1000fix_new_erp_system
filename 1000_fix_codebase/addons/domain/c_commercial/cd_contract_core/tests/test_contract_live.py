@@ -61,6 +61,12 @@ def _contract(ctx, **overrides):
         "date_start": date(2026, 1, 1),
         "date_end": date(2026, 12, 31),
         "annual_value": 120000.0,
+        # A contract that reaches 'active' in Bangladesh is a stamped,
+        # executed instrument (Stamp Act 1899 Schedule I) — the fixture
+        # reflects that rather than bypassing the control.
+        "stamp_duty_cert_no": "SD-2026-%s" % TAG,
+        "stamp_duty_amount": 300.0,
+        "has_signed_contract_doc": True,
     }
     vals.update(overrides)
     return ctx.env["fix.contract"].create(vals)

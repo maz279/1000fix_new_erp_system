@@ -62,6 +62,12 @@ class FixRateCard(models.Model):
     unit_price = fields.Monetary(
         string="Rate (VAT-exclusive)", currency_field="currency_id", required=True
     )
+    catalogue_item_id = fields.Many2one(
+        "fix.catalogue.item",
+        string="Catalogue Item",
+        index=True,
+        help="Optional link to the catalogue item: enables margin and realised-price analysis.",
+    )
     min_tier = fields.Integer(
         string="Minimum Tier",
         default=0,

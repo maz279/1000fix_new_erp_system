@@ -1,2 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_discount_approval,fix.discount.approval,model_fix_discount_approval,base.group_user,1,1,1,0
+access_fix_quotation,fix.quotation,model_fix_quotation,base.group_user,1,1,1,1
+access_fix_quote_review,fix.quote.review,model_fix_quote_review,base.group_user,1,1,1,1
+access_fix_tender,fix.tender,model_fix_tender,base.group_user,1,1,1,1
+access_fix_tender_bond,fix.tender.bond,model_fix_tender_bond,base.group_user,1,1,1,1

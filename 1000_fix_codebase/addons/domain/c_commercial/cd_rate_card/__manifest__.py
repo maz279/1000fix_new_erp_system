@@ -15,8 +15,20 @@ CD-M11-02: price books and rate cards.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Pricing",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox"],
-    "data": ["security/ir.model.access.csv", "views/fix_rate_card_views.xml"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        # fix.catalogue.item (cd_catalogue) is referenced by this module's models
+        # (FF-46).
+        "cd_catalogue",
+    ],
+    "data": [
+        "security/fix_isolation_rules.xml",
+        "security/ir.model.access.csv",
+        "views/fix_rate_card_views.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M11-02",

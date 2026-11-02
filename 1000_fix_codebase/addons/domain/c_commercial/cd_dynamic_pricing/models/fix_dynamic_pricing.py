@@ -1,5 +1,6 @@
 # fix_dynamic_pricing — M11 W7: dynamic pricing rules with audit explanations (P10-M05 / R08-M03).
 from datetime import datetime
+from decimal import ROUND_HALF_EVEN, Decimal
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -63,12 +64,17 @@ class FixDynamicPriceRule(models.Model):
                 )
 
     def apply_to(self, base_price):
+        """Compute adjusted dynamic price using high-precision Decimal arithmetic (FLAW-11.1)."""
         self.ensure_one()
         if base_price < 0:
             raise UserError("Base price cannot be negative")
-        mult = self.surge_multiplier if self.surge_multiplier > 0 else 1.0
-        adjusted = base_price * (1 + self.adjustment_pct / 100.0) * mult
-        return round(adjusted, 2)
+        d_base = Decimal(str(base_price))
+        d_mult = (
+            Decimal(str(self.surge_multiplier)) if self.surge_multiplier > 0 else Decimal("1.0")
+        )
+        d_pct = Decimal(str(self.adjustment_pct)) / Decimal("100.0")
+        adjusted = d_base * (Decimal("1.0") + d_pct) * d_mult
+        return float(adjusted.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
 
     def calculate_and_explain(self, base_price, context_info=None):
         """Calculate dynamic price and persist audit explanation trail."""

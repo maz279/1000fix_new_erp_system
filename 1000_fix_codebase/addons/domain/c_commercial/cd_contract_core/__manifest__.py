@@ -39,6 +39,8 @@ CD-M08-01..04: the contract engine.
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/fix_contract_template_data.xml",
+        "data/fix_contract_template_terms.xml",
         "views/fix_contract_views.xml",
     ],
     "installable": True,

@@ -167,9 +167,72 @@ class FixSubscription(models.Model):
             )
             sub.next_invoice_date = sub.next_invoice_date + timedelta(days=sub._cycle_days())
 
+    def action_generate_revrec_schedule(self):
+        """IFRS 15 Revenue Schedule Generation (FLAW-39.1).
+        Ratably distributes subscription fee or contract value over performance period."""
+        Obligation = self.env["fix.performance.obligation"]
+        created_schedules = self.env["fix.revenue.schedule"]
+        for sub in self:
+            val = sub.contract_value or sub.recurring_amount or 0.0
+            if val <= 0:
+                raise UserError(
+                    "Subscription %s requires contract value or recurring amount for revenue recognition."
+                    % sub.name
+                )
+            if not sub.obligation_ids:
+                end_date = sub.contract_end_date or (
+                    sub.start_date + timedelta(days=sub._cycle_days())
+                )
+                ob = Obligation.create(
+                    {
+                        "company_id": sub.company_id.id,
+                        "operating_unit_id": sub.operating_unit_id.id,
+                        "subscription_id": sub.id,
+                        "name": f"Subscription Service Delivery ({sub.name})",
+                        "obligation_type": "service",
+                        "standalone_price": val,
+                        "allocated_amount": val,
+                        "satisfaction": "over_time",
+                        "start_date": sub.start_date,
+                        "end_date": end_date,
+                        "state": "allocated",
+                    }
+                )
+                ob.action_create_schedule()
+                if ob.schedule_id:
+                    created_schedules |= ob.schedule_id
+            else:
+                for ob in sub.obligation_ids:
+                    if ob.state == "draft":
+                        ob.allocated_amount = ob.standalone_price or val
+                        ob.state = "allocated"
+                    if ob.state == "allocated" and not ob.schedule_id:
+                        ob.action_create_schedule()
+                        if ob.schedule_id:
+                            created_schedules |= ob.schedule_id
+            publish(
+                self.env,
+                "subscription.revrec_scheduled",
+                "fix.subscription",
+                sub.id,
+                {"subscription": sub.name, "amount": float(val)},
+            )
+        return created_schedules
+
     def action_trigger_dunning(self, as_of=None):
-        """Dunning state machine (T03): reminder ladder, grace period check,
-        and service suspension upon persistent default."""
+        """Automated 3-stage dunning workflow (FLAW-39.2).
+
+        Stage 1 (day 3 to day 7): reminder notice + SMS.
+        Stage 2 (day 8 to grace expiry): final notice + formal email.
+        Stage 3 (past grace): service-order lock and entitlement suspension.
+
+        `grace_period_days` is the escalation boundary and is configurable per
+        subscription. The first implementation of this ladder hard-coded the
+        docstring's "Day 14" as `min(grace_period_days, 13)`, which overrode
+        the customer's agreed grace period and moved every stage a day early:
+        a 7-day-overdue account was already at Final and a 15-day one was
+        suspended (A04 audit, 2026-10-31).
+        """
         as_of = as_of or fields.Date.today()
         for sub in self:
             if sub.state in ("cancelled", "churned"):
@@ -177,13 +240,53 @@ class FixSubscription(models.Model):
             if sub.next_invoice_date and as_of > sub.next_invoice_date:
                 overdue = (as_of - sub.next_invoice_date).days
                 sub.days_overdue = overdue
-                if overdue <= 7:
+                grace = sub.grace_period_days or 15
+                # A grace period shorter than the reminder band collapses the
+                # band rather than delaying escalation past what was agreed.
+                reminder_until = min(7, grace)
+                if overdue < 3:
+                    continue
+                elif overdue <= reminder_until:
                     sub.write({"state": "past_due", "dunning_step": "reminder"})
-                elif overdue <= sub.grace_period_days:
+                    publish(
+                        self.env,
+                        "subscription.dunning_reminder_sms",
+                        "fix.subscription",
+                        sub.id,
+                        {
+                            "customer_id": sub.customer_id.id,
+                            "days_overdue": overdue,
+                            "step": "reminder",
+                        },
+                    )
+                elif overdue <= grace:
                     sub.write({"state": "past_due", "dunning_step": "final"})
+                    publish(
+                        self.env,
+                        "subscription.dunning_final_email",
+                        "fix.subscription",
+                        sub.id,
+                        {
+                            "customer_id": sub.customer_id.id,
+                            "days_overdue": overdue,
+                            "step": "final",
+                        },
+                    )
                 else:
-                    # Beyond grace period -> service hold (no repairs/dispatches allowed)
+                    # Past the agreed grace period: service-order lock and
+                    # entitlement suspension.
                     sub.write({"state": "hold", "dunning_step": "escalate"})
+                    publish(
+                        self.env,
+                        "subscription.service_order_locked",
+                        "fix.subscription",
+                        sub.id,
+                        {
+                            "customer_id": sub.customer_id.id,
+                            "days_overdue": overdue,
+                            "step": "service_lock",
+                        },
+                    )
                 publish(
                     self.env,
                     "subscription.dunning_escalated",
@@ -519,6 +622,19 @@ class FixRevenueSchedule(models.Model):
                 raise UserError("The recognition term must be positive")
             if schedule.total_amount <= 0:
                 raise UserError("The deferred amount must be positive")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if not vals.get("source_model"):
+                # A manually entered schedule (the workspace form) has no
+                # source document; give it a unique trace key so the
+                # required source pair stays satisfied and distinct.
+                vals["source_model"] = "manual"
+                vals["source_id"] = int(fields.Datetime.now().timestamp()) % 1000000000 + (
+                    vals_list.index(vals) if vals_list.index(vals) else 0
+                )
+        return super().create(vals_list)
 
     @api.model
     def create_from_deferral(
