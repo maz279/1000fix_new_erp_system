@@ -16,7 +16,9 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "depends": ["base", "mail", "cd_entity_config", "cd_hr_core", "cd_event_outbox"],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
+        "data/talent_ops_sequences.xml",
         "views/cd_talent_views.xml",
     ],
     "installable": True,

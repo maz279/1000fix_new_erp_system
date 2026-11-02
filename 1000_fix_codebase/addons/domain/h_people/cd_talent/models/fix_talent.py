@@ -19,6 +19,10 @@ class FixJobRequisition(models.Model):
     department_id = fields.Many2one("hr.department", string="Department")
     position_id = fields.Many2one("fix.org.position", string="Position")
     openings = fields.Integer(default=1, required=True)
+    is_field_role = fields.Boolean(
+        string="Field / In-Home Service Role (Requires PCC & Assessment)",
+        default=False,
+    )
     state = fields.Selection(
         [("draft", "Draft"), ("open", "Open"), ("hired", "Hired"), ("closed", "Closed")],
         default="draft",
@@ -55,6 +59,10 @@ class FixCandidate(models.Model):
     email = fields.Char()
     phone = fields.Char()
     requisition_id = fields.Many2one("fix.job.requisition", string="Requisition")
+    employee_id = fields.Many2one("hr.employee", string="Hired Employee Record", readonly=True)
+    enforce_hiring_gates = fields.Boolean(
+        string="Enforce Pre-Hire PCC & Assessment Gates", default=False
+    )
     state = fields.Selection(
         [
             ("applied", "Applied"),
@@ -82,26 +90,81 @@ class FixCandidate(models.Model):
             rec.state = "offered"
 
     def action_hire(self):
+        from odoo.exceptions import UserError
+
         for rec in self:
-            rec.state = "hired"
-            # Create onboarding plan automatically
-            plan = self.env["fix.onboarding.plan"].create(
-                {
-                    "name": f"Onboarding: {rec.name}",
-                    "candidate_id": rec.id,
-                    "requisition_id": rec.requisition_id.id if rec.requisition_id else False,
-                    "position_id": rec.requisition_id.position_id.id
-                    if rec.requisition_id
-                    else False,
-                    "department_id": rec.requisition_id.department_id.id
-                    if rec.requisition_id
-                    else False,
-                    "company_id": rec.company_id.id,
-                    "operating_unit_id": rec.operating_unit_id.id
-                    if rec.operating_unit_id
-                    else False,
-                }
+            must_gate = rec.enforce_hiring_gates or (
+                rec.requisition_id and rec.requisition_id.is_field_role
             )
+            checks = self.env["fix.talent.check"].search([("candidate_id", "=", rec.id)])
+            assessments = self.env["fix.talent.assessment"].search([("candidate_id", "=", rec.id)])
+            if checks and any(c.result in ("pending", "discrepancy", "failed") for c in checks):
+                raise UserError(
+                    "Hiring Gate Blocked (RAP-M58-05): Candidate %s has un-cleared background/police checks."
+                    % rec.name
+                )
+            if must_gate and not any(
+                c.check_type == "police" and c.result == "clear" for c in checks
+            ):
+                raise UserError(
+                    "Hiring Gate Blocked (RAP-M58-05): Field/gated role requires a cleared Police Clearance (PCC) check before hiring %s."
+                    % rec.name
+                )
+            if assessments and any(not a.passed for a in assessments):
+                raise UserError(
+                    "Hiring Gate Blocked (RAP-M58-05): Candidate %s has a failed practical technical assessment."
+                    % rec.name
+                )
+            if must_gate and not any(a.passed for a in assessments):
+                raise UserError(
+                    "Hiring Gate Blocked (RAP-M58-05): Field/gated role requires a passed practical technical assessment before hiring %s."
+                    % rec.name
+                )
+
+            rec.state = "hired"
+            emp = rec.employee_id
+            if not emp:
+                emp = self.env["hr.employee"].create(
+                    {
+                        "name": rec.name,
+                        "work_email": rec.email or False,
+                        "work_phone": rec.phone or False,
+                        "company_id": rec.company_id.id,
+                        "operating_unit_id": rec.operating_unit_id.id
+                        if rec.operating_unit_id
+                        else False,
+                        "department_id": rec.requisition_id.department_id.id
+                        if rec.requisition_id and rec.requisition_id.department_id
+                        else False,
+                        "position_id": rec.requisition_id.position_id.id
+                        if rec.requisition_id and rec.requisition_id.position_id
+                        else False,
+                        "joining_date": fields.Date.today(),
+                    }
+                )
+                rec.employee_id = emp.id
+            plan = self.env["fix.onboarding.plan"].search([("candidate_id", "=", rec.id)], limit=1)
+            if not plan:
+                plan = self.env["fix.onboarding.plan"].create(
+                    {
+                        "name": f"Onboarding: {rec.name}",
+                        "candidate_id": rec.id,
+                        "employee_id": emp.id,
+                        "requisition_id": rec.requisition_id.id if rec.requisition_id else False,
+                        "position_id": rec.requisition_id.position_id.id
+                        if rec.requisition_id
+                        else False,
+                        "department_id": rec.requisition_id.department_id.id
+                        if rec.requisition_id
+                        else False,
+                        "company_id": rec.company_id.id,
+                        "operating_unit_id": rec.operating_unit_id.id
+                        if rec.operating_unit_id
+                        else False,
+                    }
+                )
+            elif not plan.employee_id:
+                plan.employee_id = emp.id
             publish(
                 self.env,
                 "candidate.hired",
@@ -200,6 +263,25 @@ class FixOnboardingPlan(models.Model):
                     "Cannot complete onboarding: statutory prerequisites (NID, Contract, "
                     "Keycloak SSO, Bank details) must be fully verified."
                 )
+            if not rec.employee_id:
+                emp = rec.candidate_id.employee_id
+                if not emp:
+                    emp = self.env["hr.employee"].create(
+                        {
+                            "name": rec.candidate_id.name,
+                            "work_email": rec.candidate_id.email or False,
+                            "work_phone": rec.candidate_id.phone or False,
+                            "company_id": rec.company_id.id,
+                            "operating_unit_id": rec.operating_unit_id.id
+                            if rec.operating_unit_id
+                            else False,
+                            "department_id": rec.department_id.id if rec.department_id else False,
+                            "position_id": rec.position_id.id if rec.position_id else False,
+                            "joining_date": rec.joined_date or fields.Date.today(),
+                        }
+                    )
+                    rec.candidate_id.employee_id = emp.id
+                rec.employee_id = emp.id
             rec.state = "completed"
             publish(
                 self.env,

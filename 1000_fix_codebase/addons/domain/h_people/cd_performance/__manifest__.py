@@ -16,7 +16,7 @@ CD-M57-01 (P08-M04):
   negative-testable (DoD-07)
 - emits scorecard.published / incentive.granted (P08-M04-T09)
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Performance",
@@ -31,6 +31,7 @@ CD-M57-01 (P08-M04):
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/perf_ops_sequences.xml",
         "views/fix_performance_views.xml",
     ],
     "installable": True,

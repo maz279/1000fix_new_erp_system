@@ -28,20 +28,20 @@ def _scorecard(env, name, period, ftf, sla, csat, rework):
 
 
 def test_scorecard_composite_and_publication(odoo_env):
-    # 0.35 x 0.9 + 0.30 x 0.8 + 0.20 x 0.7 - 0.15 x 0.1
-    # = 0.315 + 0.24 + 0.14 - 0.015 = 0.68
+    # Normalized 3-factor: (0.40 x 0.9 + 0.25 x 0.8 + 0.20 x 0.7) / 0.85 - 0.15 x 0.1
+    # = (0.36 + 0.20 + 0.14) / 0.85 - 0.015 = 0.70 / 0.85 - 0.015 = 0.8085
     card = _scorecard(odoo_env, "Tech Arif", "2026-09", 0.9, 0.8, 0.7, 0.1)
-    assert card.score == 0.68
+    assert card.score == 0.8085
     card.action_publish()
     assert _events(odoo_env, "scorecard.published", card.id) == [
-        {"employee": "Tech Arif", "period": "2026-09", "score": 0.68}
+        {"employee": "Tech Arif", "period": "2026-09", "score": 0.8085}
     ]
 
 
 def test_incentive_run_computes_banded_lines_and_feeds_payroll(odoo_env):
-    top = _scorecard(odoo_env, "Tech Arif", "2026-09", 1, 1, 1, 0)  # 0.85 -> 8% band
-    mid = _scorecard(odoo_env, "Tech Bina", "2026-09", 0.9, 0.8, 0.7, 0.1)  # 0.68 -> 4%
-    low = _scorecard(odoo_env, "Tech Chan", "2026-09", 0.5, 0.5, 0.5, 0.5)  # 0.35 -> 0%
+    top = _scorecard(odoo_env, "Tech Arif", "2026-09", 1, 1, 1, 0)  # 1.00 -> 15% top band!
+    mid = _scorecard(odoo_env, "Tech Bina", "2026-09", 0.8, 0.8, 0.8, 0.0)  # 0.80 -> 8% band
+    low = _scorecard(odoo_env, "Tech Chan", "2026-09", 0.5, 0.5, 0.5, 0.5)  # 0.425 -> 0%
     _scorecard(odoo_env, "Other Month", "2026-08", 1, 1, 1, 0)
     run = odoo_env["fix.incentive.run"].create({"period": "2026-09", "band_base": 20000.0})
     with pytest.raises(UserError, match="Compute before applying"), odoo_env.cr.savepoint():
@@ -49,9 +49,9 @@ def test_incentive_run_computes_banded_lines_and_feeds_payroll(odoo_env):
     run.action_compute()
     assert run.state == "computed"
     amounts = {line.scorecard_id: line.amount for line in run.line_ids}
-    # 20,000 x 8% = 1,600; x 4% = 800; x 0% = 0
-    assert amounts == {top: 1600.00, mid: 800.00, low: 0.00}
-    assert run.total == 2400.00
+    # 20,000 x 15% = 3,000; x 8% = 1,600; x 0% = 0
+    assert amounts == {top: 3000.00, mid: 1600.00, low: 0.00}
+    assert run.total == 4600.00
     with pytest.raises(UserError, match="Compute runs from draft only"), odoo_env.cr.savepoint():
         run.action_compute()
 
@@ -62,10 +62,33 @@ def test_incentive_run_computes_banded_lines_and_feeds_payroll(odoo_env):
         for line in run.line_ids
     }
     assert granted["Tech Arif"] == [
-        {"employee": "Tech Arif", "period": "2026-09", "amount": 1600.0}
+        {"employee": "Tech Arif", "period": "2026-09", "amount": 3000.0}
     ]
-    assert granted["Tech Bina"] == [{"employee": "Tech Bina", "period": "2026-09", "amount": 800.0}]
+    assert granted["Tech Bina"] == [
+        {"employee": "Tech Bina", "period": "2026-09", "amount": 1600.0}
+    ]
     assert granted["Tech Chan"] == [{"employee": "Tech Chan", "period": "2026-09", "amount": 0.0}]
+
+
+def test_scorecard_salvage_and_30d_rework_clawback(odoo_env):
+    """RAP-M57-02: salvage at target adds +0.15; 6% 30-day rework rate applies -0.30 penalty."""
+    emp = odoo_env["hr.employee"].create({"name": "Tech Salvage"})
+    card = odoo_env["fix.performance.scorecard"].create(
+        {
+            "employee_id": emp.id,
+            "period": "2026-10",
+            "first_time_fix": 1.0,
+            "sla_hit": 1.0,
+            "csat": 1.0,
+            "rework_rate": 0.0,
+            "salvage_value": 50000.0,
+            "salvage_target": 50000.0,
+            "rework_30d_rate": 0.06,
+        }
+    )
+    assert card.salvage_ratio == 1.0
+    assert card.rework_penalty_applied == 0.30
+    assert card.score == 0.70
 
 
 def test_incentive_run_needs_scorecards(odoo_env):

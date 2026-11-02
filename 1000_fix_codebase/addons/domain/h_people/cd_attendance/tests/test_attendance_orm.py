@@ -377,3 +377,48 @@ def test_every_work_order_of_a_batch_is_checked(wo_ctx):
     wo_ctx.env["fix.roster.slot"].search([("employee_id", "=", wo_ctx.tech.id)]).unlink()
     with pytest.raises(UserError, match="Tech Rafiq has no roster slot"), wo_ctx.env.cr.savepoint():
         (unassigned | assigned).action_check_technician_availability()
+
+
+def test_weekly_overtime_and_rest_day_callin(odoo_env, emp):
+    """RAP-M55-01 scenario 1: 6 days x 8h + 4h rest-day call-in -> weekly_ot_hours = 4.0."""
+    # Monday 2026-04-06 through Saturday 2026-04-11: 6 days x 8h = 48h
+    for day_offset in range(6):
+        d = date(2026, 4, 6) + timedelta(days=day_offset)
+        _record(
+            odoo_env,
+            emp,
+            datetime(d.year, d.month, d.day, 9, 0),
+            datetime(d.year, d.month, d.day, 17, 0),
+        )
+    # Sunday 2026-04-12 (7th day of ISO week): 4h rest-day call-in
+    rest_rec = odoo_env["fix.attendance.record"].create(
+        {
+            "employee_id": emp.id,
+            "check_in": datetime(2026, 4, 12, 10, 0),
+            "check_out": datetime(2026, 4, 12, 14, 0),
+            "source": "manual",
+            "is_rest_day": True,
+        }
+    )
+    assert rest_rec.week_start == date(2026, 4, 6)
+    assert rest_rec.rest_day_hours == 4.0
+    assert rest_rec.weekly_worked_hours == 52.0
+    assert rest_rec.weekly_ot_hours == 4.0
+    assert rest_rec.weekly_ot_limit_exceeded is False
+
+
+def test_weekly_ot_cap_breach_flagged(odoo_env, emp):
+    """RAP-M55-01 scenario 2: 3 x 5h OT in a week (15h weekly OT > 12h cap) -> week-cap breach flagged."""
+    recs = []
+    for day_offset in range(3):
+        d = date(2026, 4, 13) + timedelta(days=day_offset)
+        recs.append(
+            _record(
+                odoo_env,
+                emp,
+                datetime(d.year, d.month, d.day, 8, 0),
+                datetime(d.year, d.month, d.day, 21, 0),  # 13h worked -> 5h OT
+            )
+        )
+    assert recs[-1].weekly_ot_hours == 15.0
+    assert recs[-1].weekly_ot_limit_exceeded is True

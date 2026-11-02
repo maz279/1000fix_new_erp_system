@@ -3,22 +3,54 @@ import inspect
 import unittest
 
 from odoo.addons.cd_performance.models.fix_performance import (
+    WEIGHTS,
     FixCompensationBand,
     FixIncentiveRun,
     FixPerformanceScorecard,
     composite_score,
     incentive_amount,
+    rework_clawback_penalty,
 )
 
 
 class TestCompositeScore(unittest.TestCase):
     def test_perfect_scores(self):
-        self.assertEqual(composite_score(1, 1, 1, 0), 0.85)
+        # RAP-M57-01: positive weights sum to 1.00 so top band (>=0.90) is reachable
+        self.assertEqual(composite_score(1, 1, 1, 0), 1.0)
+        self.assertEqual(composite_score(1, 1, 1, 0, salvage=1.0), 1.0)
+        self.assertAlmostEqual(
+            WEIGHTS["first_time_fix"] + WEIGHTS["sla_hit"] + WEIGHTS["csat"] + WEIGHTS["salvage"],
+            1.0,
+            places=6,
+        )
 
     def test_rework_penalty_applies(self):
         clean = composite_score(1, 1, 1, 0)
         dirty = composite_score(1, 1, 1, 1)
         self.assertAlmostEqual(clean - dirty, 0.15, places=6)
+
+    def test_rework_30d_clawback_and_salvage_component(self):
+        # RAP-M57-02: 0% rework -> 0 penalty; 3% -> 0 penalty; 6% -> -0.30 penalty; salvage at target -> +0.15
+        self.assertEqual(rework_clawback_penalty(0.0), 0.0)
+        self.assertEqual(rework_clawback_penalty(0.03), 0.0)
+        self.assertEqual(rework_clawback_penalty(0.06), 0.30)
+        no_salvage = composite_score(1, 1, 1, 0, salvage=0.0)
+        with_salvage = composite_score(1, 1, 1, 0, salvage=1.0)
+        self.assertAlmostEqual(with_salvage - no_salvage, 0.15, places=6)
+        with_clawback = composite_score(1, 1, 1, 0, salvage=1.0, rework_30d=0.06)
+        self.assertEqual(with_clawback, 0.70)
+
+    def test_every_incentive_band_reachable_by_constructed_input(self):
+        # RAP-M57-01 property test: >=0.90 (15%), >=0.75 (8%), >=0.60 (4%), <0.60 (0%) all reachable
+        s_top = composite_score(1.0, 1.0, 1.0, 0.0)
+        s_mid = composite_score(0.8, 0.8, 0.8, 0.0)
+        s_low = composite_score(0.65, 0.65, 0.65, 0.0)
+        s_zero = composite_score(0.4, 0.4, 0.4, 0.0)
+        self.assertGreaterEqual(s_top, 0.90)
+        self.assertEqual(incentive_amount(s_top, 20000), 3000.00)
+        self.assertEqual(incentive_amount(s_mid, 20000), 1600.00)
+        self.assertEqual(incentive_amount(s_low, 20000), 800.00)
+        self.assertEqual(incentive_amount(s_zero, 20000), 0.00)
 
     def test_clamped_zero_one(self):
         self.assertEqual(composite_score(0, 0, 0, 1), 0.0)

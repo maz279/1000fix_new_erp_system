@@ -47,7 +47,7 @@ def _incident(ctx, **vals):
 
 def test_minor_incident_is_reported_without_register(ctx):
     incident = _incident(ctx, incident_type="injury", severity="low", employee_id=ctx.reporter.id)
-    assert incident.name == "HSE/New"  # no sequence configured for the code
+    assert incident.name.startswith("HSE/")  # sequenced since the M59 rebuild
     assert incident.state == "reported"
     assert not incident.statutory_record_id
     assert _events(ctx.env, "hse.incident_reported", incident.id) == [
@@ -179,3 +179,84 @@ def test_hazardous_substance_defaults(ctx):
     )
     assert (ipa.max_allowable_litres, ipa.current_stock_litres, ipa.state) == (50.0, 15.0, "safe")
     assert ipa.msds_on_file is True
+
+
+# --- s.80 closure gate and register dating (A09 zero-trust re-audit 2026-10-30)
+# These exercise the gate instead of asserting that an identifier appears in
+# the source of action_close(): the previous source-text check passed while the
+# gate was keyed on a "BLOCK_WITHOUT_DIFE" sentinel no record ever carried.
+
+
+def test_reportable_accident_cannot_close_before_the_dife_notice(ctx):
+    incident = _incident(
+        ctx,
+        incident_type="injury",
+        severity="high",
+        employee_id=ctx.reporter.id,
+        injured_employee_id=ctx.injured.id,
+    )
+    assert incident.statutory_record_id
+    assert not incident.statutory_record_id.dife_notified
+    with pytest.raises(UserError, match="s.80"):
+        incident.action_close()
+    assert incident.state != "closed"
+
+
+def test_closure_is_released_once_the_dife_notice_is_dispatched(ctx):
+    incident = _incident(
+        ctx,
+        incident_type="injury",
+        severity="high",
+        employee_id=ctx.reporter.id,
+        injured_employee_id=ctx.injured.id,
+    )
+    incident.action_dispatch_dife_notice("DIFE/2026/0042")
+    assert incident.statutory_record_id.dife_notified
+    incident.action_close()
+    assert incident.state == "closed"
+
+
+def test_a_non_reportable_incident_closes_without_a_notice(ctx):
+    incident = _incident(ctx, incident_type="near_miss", severity="low")
+    assert not incident.statutory_record_id
+    incident.action_close()
+    assert incident.state == "closed"
+
+
+def test_register_records_the_date_the_accident_happened(ctx):
+    """A late-keyed accident must not be filed under the keying date: the
+    Form 28 serial and the half-yearly return both hang off this date."""
+    accident = fields.Datetime.to_datetime("2026-10-20 09:30:00")
+    incident = _incident(
+        ctx,
+        incident_type="injury",
+        severity="medium",
+        employee_id=ctx.reporter.id,
+        injured_employee_id=ctx.injured.id,
+        accident_datetime=accident,
+    )
+    register = incident.statutory_record_id
+    assert register.accident_date == accident.date()
+    # Jan-Jun accident -> 15 Jul; Jul-Dec -> 15 Jan of the following year
+    assert str(register.half_year_return_due) == "2027-01-15"
+
+
+def test_register_entry_carries_a_form_28_serial(ctx):
+    """BLR 2015 r.73: the register is serially numbered. Every entry used to
+    carry the literal default "New"."""
+    ctx.env["ir.sequence"].create(
+        {
+            "name": "F28",
+            "code": "fix.statutory.accident.register",
+            "prefix": "F28/2026/",
+            "padding": 4,
+        }
+    )
+    incident = _incident(
+        ctx,
+        incident_type="injury",
+        severity="medium",
+        employee_id=ctx.reporter.id,
+        injured_employee_id=ctx.injured.id,
+    )
+    assert incident.statutory_record_id.register_entry_no == "F28/2026/0001"

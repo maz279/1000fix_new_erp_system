@@ -260,3 +260,43 @@ def test_every_work_order_of_a_batch_is_checked(ctx, wo):
     blocked.certification_waiver = False
     with pytest.raises(UserError, match="assignment blocked"), ctx.env.cr.savepoint():
         (waived | blocked).action_check_certification()
+
+
+def test_a_tier_shortfall_is_reported_as_a_tier_shortfall(ctx):
+    """RAP-M22-02 keeps "the explanatory reason". When a certificate matched the
+    brand but fell short on tier, the gate still reported "holds no ACTIVE brand
+    certification", sending the operator after a certificate they already hold."""
+    env = ctx.env
+    brand = env["fix.brand"].create({"name": "TierBrand", "code": "TBRD"})
+    cat = env["fix.device.category"].create({"code": "TIERCAT", "name": "Tier Category"})
+    comp = env["fix.competency"].create(
+        {
+            "code": "TIERC",
+            "name": "Tier competency",
+            "required_for_dispatch": True,
+            "brand_id": brand.id,
+            "device_category_id": cat.id,
+            "repair_tier": "l2",
+        }
+    )
+    env["fix.certification"].create(
+        {
+            "employee_id": ctx.tech.id,
+            "competency_id": comp.id,
+            "brand_id": brand.id,
+            "device_category_id": cat.id,
+            "repair_tier": "l2",
+        }
+    )
+    Cert = env["fix.certification"]
+    ok, why = Cert.dispatch_eligibility(
+        ctx.tech, device_type="TIERCAT", brand_id=brand.id, repair_tier="l2"
+    )
+    assert ok, why
+    # the same technician on an L4 job: refused, and told it is the tier
+    ok4, why4 = Cert.dispatch_eligibility(
+        ctx.tech, device_type="TIERCAT", brand_id=brand.id, repair_tier="l4"
+    )
+    assert ok4 is False
+    assert "tier L2" in why4 and "L4" in why4
+    assert "holds no ACTIVE brand certification" not in why4

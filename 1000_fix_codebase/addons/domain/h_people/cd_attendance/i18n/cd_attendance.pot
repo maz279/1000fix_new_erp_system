@@ -9,6 +9,12 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__active
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__active
+msgid "Active"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__approval_state
 msgid "Approval"
 msgstr ""
@@ -65,9 +71,24 @@ msgid "Branch / Facility"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_out
 #: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
 msgid "Check Out"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__company
+msgid "Company Day"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__completed
+msgid "Completed"
 msgstr ""
 
 #. module: cd_attendance
@@ -78,6 +99,11 @@ msgstr ""
 #. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__compliant
 msgid "Compliant"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__phone
+msgid "Contact Number"
 msgstr ""
 
 #. module: cd_attendance
@@ -146,6 +172,11 @@ msgid "GPS Accuracy (m)"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__name_bn
+msgid "Holiday (Bengali)"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__inside
 msgid "Inside Own-Zone Geofence"
 msgstr ""
@@ -153,6 +184,11 @@ msgstr ""
 #. module: cd_attendance
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__ip_address
 msgid "IP Address / Hostname"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__week_start
+msgid "ISO Week Start"
 msgstr ""
 
 #. module: cd_attendance
@@ -201,6 +237,11 @@ msgid "Mobile (Offline Journal)"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__moon
+msgid "Moon-Dependent (subject to sighting)"
+msgstr ""
+
+#. module: cd_attendance
 #: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_biometric_device_form
 msgid "Network & Location"
 msgstr ""
@@ -234,6 +275,7 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__operating_unit_id
@@ -253,6 +295,16 @@ msgstr ""
 #. module: cd_attendance
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__location_desc
 msgid "Physical Location"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__planned
+msgid "Planned"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__public
+msgid "Public Holiday"
 msgstr ""
 
 #. module: cd_attendance
@@ -281,8 +333,18 @@ msgid "Rejected"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__religious
+msgid "Religious"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__rest_interval_violation
 msgid "Rest Interval Violation (<11h)"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__rest_day_hours
+msgid "Rest-Day Worked Hours"
 msgstr ""
 
 #. module: cd_attendance
@@ -301,6 +363,7 @@ msgid "Roster Slot"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__shift_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__shift_id
 msgid "Shift"
 msgstr ""
@@ -317,13 +380,43 @@ msgid "Shift Templates"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__allowance
+msgid "Standby Allowance"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_biometric_device__status__syncing
 msgid "Syncing"
 msgstr ""
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__tentative
+msgid "Tentative (sighting-dependent)"
+msgstr ""
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__weekly_limit_exceeded
 msgid "Weekly Limit Exceeded (>60h)"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_limit_exceeded
+msgid "Weekly OT Cap Exceeded"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_hours
+msgid "Weekly Overtime Hours"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__is_rest_day
+msgid "Weekly Rest Day Call-In"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_worked_hours
+msgid "Weekly Worked Hours"
 msgstr ""
 
 #. module: cd_attendance

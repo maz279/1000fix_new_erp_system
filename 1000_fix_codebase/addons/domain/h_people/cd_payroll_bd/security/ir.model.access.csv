@@ -3,3 +3,10 @@ access_fix_payroll_period_officer,fix.payroll.period.officer,model_fix_payroll_p
 access_fix_payslip_officer,fix.payslip.officer,model_fix_payslip,group_payroll_officer,1,1,1,0
 access_fix_beftn_batch_officer,fix.beftn.batch.officer,model_fix_beftn_batch,group_payroll_officer,1,0,0,0
 access_fix_beftn_batch_manager,fix.beftn.batch.manager,model_fix_beftn_batch,group_payroll_manager,1,1,1,0
+access_fix_payroll_structure,fix.payroll.structure,model_fix_payroll_structure,group_payroll_officer,1,1,1,0
+access_fix_bonus_run,fix.payroll.bonus.run,model_fix_payroll_bonus_run,group_payroll_officer,1,1,1,0
+access_fix_payroll_certificate,fix.payroll.certificate,model_fix_payroll_certificate,group_payroll_officer,1,1,1,0
+access_fix_payroll_return,fix.payroll.return,model_fix_payroll_return,group_payroll_officer,1,1,1,0
+access_fix_offcycle,fix.payroll.offcycle,model_fix_payroll_offcycle,group_payroll_officer,1,1,1,0
+access_fix_wppf_allocation_officer,fix.wppf.allocation.officer,model_fix_wppf_allocation,group_payroll_officer,1,1,1,0
+access_fix_wppf_allocation_manager,fix.wppf.allocation.manager,model_fix_wppf_allocation,group_payroll_manager,1,1,1,1

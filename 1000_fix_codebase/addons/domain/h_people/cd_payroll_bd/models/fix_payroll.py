@@ -8,10 +8,12 @@ from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
 from libs.py.payroll_engine import (
+    OT_DIVISOR_HOURS,
     BeftnBatchHeader,
     BeftnEntry,
     PayslipInput,
     beftn_settlement_date,
+    completed_years,
     compute_payslip,
     generate_beftn_batch_file,
     gratuity,
@@ -196,13 +198,61 @@ class FixPayrollPeriod(models.Model):
                 routing = getattr(contract, "bank_routing_no", False)
                 bank_n = getattr(contract, "bank_name", False) or primary_bank.bank_id.name
 
-                self.env["fix.payslip"].create(
+                house_rent = float(
+                    getattr(contract, "house_rent", 0.0) or getattr(emp, "house_rent", 0.0) or 0.0
+                )
+                med_allow = float(
+                    getattr(contract, "medical_allowance", 0.0)
+                    or getattr(emp, "medical_allowance", 0.0)
+                    or 0.0
+                )
+                conv_allow = float(
+                    getattr(contract, "conveyance_allowance", 0.0)
+                    or getattr(emp, "conveyance_allowance", 0.0)
+                    or 0.0
+                )
+                tech_allow = float(
+                    getattr(contract, "technical_allowance", 0.0)
+                    or getattr(emp, "technical_allowance", 0.0)
+                    or 0.0
+                )
+                other_allow = float(getattr(contract, "other_allowance", 0.0) or 0.0)
+                da_allow = float(getattr(contract, "dearness_allowance", 0.0) or 0.0)
+                adhoc_allow = float(getattr(contract, "adhoc_allowance", 0.0) or 0.0)
+
+                inc_amount = 0.0
+                inc_line = None
+                if "fix.incentive.line" in self.env:
+                    ym = rec.period_start.strftime("%Y-%m") if rec.period_start else ""
+                    inc_line = self.env["fix.incentive.line"].search(
+                        [
+                            ("employee_id", "=", emp.id),
+                            ("run_id.state", "=", "applied"),
+                            "|",
+                            ("run_id.period", "=", rec.name),
+                            ("run_id.period", "=", ym),
+                        ],
+                        order="id desc",
+                        limit=1,
+                    )
+                    if inc_line:
+                        inc_amount = float(inc_line.amount or 0.0)
+
+                slip = self.env["fix.payslip"].create(
                     {
                         "period_id": rec.id,
                         "company_id": rec.company_id.id,
                         "employee_id": emp.id,
                         "basic": float(contract.basic_monthly),
+                        "house_rent": house_rent,
+                        "medical_allowance": med_allow,
+                        "conveyance_allowance": conv_allow,
+                        "technical_allowance": tech_allow,
+                        "other_allowance": other_allow,
+                        "dearness_allowance": da_allow,
+                        "adhoc_allowance": adhoc_allow,
                         "ot_hours": float(ot_hours),
+                        "incentive": inc_amount,
                         "taxpayer_category": tax_cat,
                         "minimum_tax_location": tax_loc,
                         "has_disabled_child": has_child,
@@ -212,6 +262,8 @@ class FixPayrollPeriod(models.Model):
                         "bank_name": bank_n,
                     }
                 )
+                if inc_line:
+                    inc_line.write({"payslip_ref_id": slip.id, "applied_to_payslip": True})
             rec.state = "calculated"
 
     def action_approve(self):
@@ -328,11 +380,26 @@ class FixPayrollPeriod(models.Model):
             pf_emp = sum(slips.mapped("pf_employee"))
             pf_empr = sum(slips.mapped("pf_employer"))
             tax = sum(slips.mapped("tax_withheld"))
+            allowances_sum = (
+                sum(slips.mapped("house_rent"))
+                + sum(slips.mapped("medical_allowance"))
+                + sum(slips.mapped("conveyance_allowance"))
+                + sum(slips.mapped("technical_allowance"))
+                + sum(slips.mapped("other_allowance"))
+                + sum(slips.mapped("dearness_allowance"))
+                + sum(slips.mapped("adhoc_allowance"))
+            )
             components = [  # (account field, label, debit, credit)
                 (
                     "payroll_salary_expense_account_id",
                     "Basic salary",
                     sum(slips.mapped("basic")),
+                    0.0,
+                ),
+                (
+                    "payroll_salary_expense_account_id",
+                    "Allowances",
+                    allowances_sum,
                     0.0,
                 ),
                 (
@@ -423,6 +490,27 @@ class FixPayslip(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     basic = fields.Monetary(string="Basic (Monthly)", currency_field="currency_id", required=True)
+    house_rent = fields.Monetary(
+        string="House Rent Allowance", currency_field="currency_id", default=0.0
+    )
+    medical_allowance = fields.Monetary(
+        string="Medical Allowance", currency_field="currency_id", default=0.0
+    )
+    conveyance_allowance = fields.Monetary(
+        string="Conveyance Allowance", currency_field="currency_id", default=0.0
+    )
+    technical_allowance = fields.Monetary(
+        string="Technical Skill / OEM Allowance", currency_field="currency_id", default=0.0
+    )
+    other_allowance = fields.Monetary(
+        string="Other Allowance", currency_field="currency_id", default=0.0
+    )
+    dearness_allowance = fields.Monetary(
+        string="Dearness Allowance", currency_field="currency_id", default=0.0
+    )
+    adhoc_allowance = fields.Monetary(
+        string="Ad-hoc / Interim Allowance", currency_field="currency_id", default=0.0
+    )
     ot_hours = fields.Float(string="Overtime Hours")
     incentive = fields.Monetary(
         string="Incentive (M57)",
@@ -463,6 +551,59 @@ class FixPayslip(models.Model):
     routing_no = fields.Char(string="Routing No (9 digits)")
     bank_name = fields.Char(string="Bank Name")
 
+    allowances_total = fields.Monetary(
+        string="Allowances Total", currency_field="currency_id", compute="_compute_slip", store=True
+    )
+    annual_exemption = fields.Monetary(
+        string="ITA 2023 Para 27 Annual Exemption",
+        currency_field="currency_id",
+        compute="_compute_slip",
+        store=True,
+    )
+    # --- Final settlement (BLA 2006 s.20/s.26/s.27 + Labour (Amendment) Act 2026)
+    # action_compute_separation / action_compute_retrenchment computed these and
+    # returned them to the caller without ever writing them down, so the payslip
+    # form's settlement fields had nothing to bind to and the operator's
+    # "Compute Separation" click left no record on the slip.
+    completed_years = fields.Integer(string="Completed Years of Service", readonly=True)
+    gratuity_amount = fields.Monetary(
+        string="Gratuity (BLA s.27)", currency_field="currency_id", readonly=True
+    )
+    resignation_compensation_amount = fields.Monetary(
+        string="Resignation Compensation (BLA s.27)",
+        currency_field="currency_id",
+        readonly=True,
+    )
+    retrenchment_compensation = fields.Monetary(
+        string="Retrenchment Compensation (BLA s.20)",
+        currency_field="currency_id",
+        readonly=True,
+    )
+    notice_pay_amount = fields.Monetary(
+        string="Notice Pay in Lieu (BLA s.26)",
+        currency_field="currency_id",
+        readonly=True,
+        help="The 120-day statutory notice less the notice actually served.",
+    )
+    unused_leave_days = fields.Float(
+        string="Unused Earned Leave (days)",
+        default=0.0,
+        help="Earned leave carried to separation; drives the encashment below.",
+    )
+    leave_encashment_amount = fields.Monetary(
+        string="Leave Encashment",
+        currency_field="currency_id",
+        compute="_compute_leave_encashment",
+        store=True,
+        help="Daily wage (basic / 30) x unused earned leave days.",
+    )
+
+    @api.depends("basic", "unused_leave_days")
+    def _compute_leave_encashment(self):
+        for rec in self:
+            daily = (rec.basic or 0.0) / 30.0
+            rec.leave_encashment_amount = round(daily * (rec.unused_leave_days or 0.0), 2)
+
     gross = fields.Monetary(
         string="Gross", currency_field="currency_id", compute="_compute_slip", store=True
     )
@@ -487,6 +628,13 @@ class FixPayslip(models.Model):
 
     @api.depends(
         "basic",
+        "house_rent",
+        "medical_allowance",
+        "conveyance_allowance",
+        "technical_allowance",
+        "other_allowance",
+        "dearness_allowance",
+        "adhoc_allowance",
         "ot_hours",
         "incentive",
         "pf_employee_pct",
@@ -496,25 +644,43 @@ class FixPayslip(models.Model):
         "has_disabled_child",
         "minimum_tax_location",
         "investment_allowance",
+        "company_id.ot_divisor_hours",
+        "company_id.ita_exemption_ceiling",
     )
     def _compute_slip(self):
         for rec in self:
+            divisor_val = getattr(rec.company_id, "ot_divisor_hours", 0.0) or float(
+                OT_DIVISOR_HOURS
+            )
+            ceiling_val = getattr(rec.company_id, "ita_exemption_ceiling", 0.0)
+            explicit_ceiling = Decimal(str(ceiling_val)) if ceiling_val > 0 else None
             result = compute_payslip(
                 PayslipInput(
                     employee_ref=rec.employee_id.name or "",
-                    basic_monthly=Decimal(str(rec.basic)),
-                    ot_hours=Decimal(str(rec.ot_hours)),
-                    incentive=Decimal(str(rec.incentive)),
-                    pf_employee_pct=Decimal(str(rec.pf_employee_pct)),
-                    pf_employer_pct=Decimal(str(rec.pf_employer_pct)),
-                    annual_taxable_other=Decimal(str(rec.annual_taxable_other)),
+                    basic_monthly=Decimal(str(rec.basic or 0.0)),
+                    house_rent=Decimal(str(rec.house_rent or 0.0)),
+                    medical_allowance=Decimal(str(rec.medical_allowance or 0.0)),
+                    conveyance_allowance=Decimal(str(rec.conveyance_allowance or 0.0)),
+                    technical_allowance=Decimal(str(rec.technical_allowance or 0.0)),
+                    other_allowance=Decimal(str(rec.other_allowance or 0.0)),
+                    dearness_allowance=Decimal(str(rec.dearness_allowance or 0.0)),
+                    adhoc_allowance=Decimal(str(rec.adhoc_allowance or 0.0)),
+                    ot_hours=Decimal(str(rec.ot_hours or 0.0)),
+                    incentive=Decimal(str(rec.incentive or 0.0)),
+                    pf_employee_pct=Decimal(str(rec.pf_employee_pct or 0.0)),
+                    pf_employer_pct=Decimal(str(rec.pf_employer_pct or 0.0)),
+                    annual_taxable_other=Decimal(str(rec.annual_taxable_other or 0.0)),
                     taxpayer_category=rec.taxpayer_category or "general",
                     disabled_dependents=1 if rec.has_disabled_child else 0,
                     tax_location=rec.minimum_tax_location or "dhaka_chattogram",
                     allowable_investment=Decimal(str(rec.investment_allowance or 0.0)),
+                    ot_divisor_hours=Decimal(str(divisor_val)),
+                    exemption_ceiling=explicit_ceiling,
                 )
             )
 
+            rec.allowances_total = float(result.allowances_total)
+            rec.annual_exemption = float(result.annual_exemption)
             rec.gross = float(result.gross)
             rec.overtime = float(result.overtime)
             rec.pf_employee = float(result.pf_employee)
@@ -538,6 +704,17 @@ class FixPayslip(models.Model):
         )
         comp = resignation_compensation(
             Decimal(str(self.basic)), fields.Date.to_date(contract.joining_date), separation_date
+        )
+        # Record the settlement on the slip: it is the payable document, and the
+        # figures must survive the call that produced them.
+        self.write(
+            {
+                "completed_years": completed_years(
+                    fields.Date.to_date(contract.joining_date), separation_date
+                ),
+                "gratuity_amount": float(grat),
+                "resignation_compensation_amount": float(comp),
+            }
         )
         publish(
             self.env,
@@ -572,6 +749,20 @@ class FixPayslip(models.Model):
             fields.Date.to_date(contract.joining_date),
             termination_date,
             notice_given_days=notice_given_days,
+        )
+        # s.26 pays the unserved part of the 120-day statutory notice; the
+        # engine returns service compensation and notice pay as one figure, so
+        # split it here to show the operator what each part is.
+        daily = Decimal(str(self.basic)) / Decimal(30)
+        notice_pay = daily * Decimal(max(120 - notice_given_days, 0))
+        self.write(
+            {
+                "completed_years": completed_years(
+                    fields.Date.to_date(contract.joining_date), termination_date
+                ),
+                "retrenchment_compensation": float(comp),
+                "notice_pay_amount": float(round(notice_pay, 2)),
+            }
         )
         return float(comp)
 
@@ -736,4 +927,14 @@ class ResCompanyPayrollAccounting(models.Model):
     )
     payroll_pf_payable_account_id = fields.Many2one(
         "account.account", string="Provident Fund Payable Account"
+    )
+    ot_divisor_hours = fields.Float(
+        string="Statutory Overtime Divisor Hours",
+        default=float(OT_DIVISOR_HOURS),
+        help="BLR 2015 formula: 208 hours/month (48h x 52 / 12)",
+    )
+    ita_exemption_ceiling = fields.Float(
+        string="ITA 2023 Para 27 Exemption Ceiling (BDT)",
+        default=0.0,
+        help="Optional company override for ITA 2023 Sixth Schedule Part 1 Para 27 ceiling (default BDT 450,000)",
     )

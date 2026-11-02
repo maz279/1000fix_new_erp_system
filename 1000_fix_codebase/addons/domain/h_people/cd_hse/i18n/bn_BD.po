@@ -6,6 +6,11 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__accident_datetime
+msgid "Accident Date & Time"
+msgstr "দুর্ঘটনার তারিখ ও সময়"
+
+#. module: cd_hse
 #: model:ir.actions.act_window,name:cd_hse.action_fix_statutory_accident_register
 #: model:ir.ui.menu,name:cd_hse.menu_fix_statutory_accident_register
 msgid "Accident Register (BLA Form 33/34)"
@@ -42,6 +47,11 @@ msgid "Applicable Standard"
 msgstr "প্রযোজ্য মানদণ্ড"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__approved_by_id
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hazardous_substance_register__storage_location
 msgid "Approved Storage Location"
 msgstr "অনুমোদিত সংরক্ষণ স্থান"
@@ -57,6 +67,13 @@ msgid "Battery Thermal Runaway"
 msgstr "ব্যাটারির থার্মাল রানঅ্যাওয়ে"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__brakes_ok
+msgid "Brakes OK"
+msgstr "ব্রেক ঠিক আছে"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_drill__branch_id
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__branch_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__branch_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__branch_id
 msgid "Branch"
@@ -83,6 +100,8 @@ msgid "Close Incident"
 msgstr "ঘটনা বন্ধ করুন"
 
 #. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__state__closed
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__state__closed
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__state__closed
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_statutory_accident_register__state__closed
 msgid "Closed"
@@ -114,9 +133,19 @@ msgid "Constitution (BLA 2006 §90A)"
 msgstr "গঠন (BLA ২০০৬ ধারা ৯০ক)"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__controls
+msgid "Controls per Step"
+msgstr "ধাপ অনুযায়ী নিয়ন্ত্রণ"
+
+#. module: cd_hse
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_hse_incident_form
 msgid "Corrective Actions"
 msgstr "সংশোধনমূলক পদক্ষেপসমূহ"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__critical_findings
+msgid "Critical Failed Checks"
+msgstr "গুরুতর ব্যর্থ পরীক্ষার সংখ্যা"
 
 #. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hazardous_substance_register__current_stock_litres
@@ -135,7 +164,21 @@ msgid "Description"
 msgstr "বিবরণ"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__dife_ack_ref
+msgid "DIFE Acknowledgement Reference"
+msgstr "ডিআইএফই প্রাপ্তি স্বীকারের সূত্র"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__dife_notified
+msgid "DIFE Form 27 / 27(a) Notice Dispatched"
+msgstr "ডিআইএফই ফরম ২৭ / ২৭(ক) নোটিশ প্রেরিত"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__dife_notice_ref
+msgid "DIFE Form 27/27(a) Dispatch Ref"
+msgstr "ডিআইএফই ফরম ২৭/২৭(ক) প্রেরণের সূত্র"
+
+#. module: cd_hse
 msgid "DIFE Form 34 Notice Dispatched"
 msgstr "DIFE ফরম ৩৪ নোটিশ প্রেরিত"
 
@@ -143,6 +186,11 @@ msgstr "DIFE ফরম ৩৪ নোটিশ প্রেরিত"
 #: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__dife_notification_date
 msgid "DIFE Notice Date"
 msgstr "DIFE নোটিশের তারিখ"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__notice_due
+msgid "DIFE Notice Deadline (2 Working Days, BLA s.80)"
+msgstr "ডিআইএফই নোটিশের সময়সীমা (২ কার্যদিবস, শ্রম আইন ধারা ৮০)"
 
 #. module: cd_hse
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_statutory_accident_register__state__dife_notified
@@ -165,9 +213,24 @@ msgid "Done"
 msgstr "সম্পন্ন"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__employee_id
+msgid "Driver"
+msgstr "চালক"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_drill__duration_min
+msgid "Duration (minutes)"
+msgstr "সময়কাল (মিনিট)"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__electrical_ok
 msgid "Electrical Wiring & Grounding Safe"
 msgstr "বৈদ্যুতিক ওয়্যারিং ও গ্রাউন্ডিং নিরাপদ"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_loneworker__buddy_id
+msgid "Emergency Contact"
+msgstr "জরুরি যোগাযোগ"
 
 #. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__emergency_exit_ok
@@ -188,6 +251,21 @@ msgstr "ESD বেঞ্চ ও ম্যাট গ্রাউন্ডেড (
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_safety_committee__meeting_frequency__bimonthly
 msgid "Every 2 Months"
 msgstr "প্রতি ২ মাসে"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__controls
+msgid "Existing Controls"
+msgstr "বিদ্যমান নিয়ন্ত্রণ ব্যবস্থা"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_loneworker__expected_end
+msgid "Expected End"
+msgstr "প্রত্যাশিত সমাপ্তি"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__findings_count
+msgid "Failed Checks"
+msgstr "ব্যর্থ পরীক্ষার সংখ্যা"
 
 #. module: cd_hse
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_safety_inspection_form
@@ -215,9 +293,29 @@ msgid "First Aid Emergency Kit"
 msgstr "প্রাথমিক চিকিৎসার জরুরি কিট"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__documents_ok
+msgid "Fitness / Insurance OK"
+msgstr "ফিটনেস / বিমা ঠিক আছে"
+
+#. module: cd_hse
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_safety_inspection__state__follow_up
 msgid "Follow-up Required"
 msgstr "ফলো-আপ প্রয়োজন"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__half_year_return_due
+msgid "Form 28 Half-Yearly Return Due Date"
+msgstr "ফরম ২৮ অর্ধবার্ষিক রিটার্নের নির্ধারিত তারিখ"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__register_entry_no
+msgid "Form 28 Register Serial No"
+msgstr "ফরম ২৮ রেজিস্টারের ক্রমিক নম্বর"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__half_year_return_filed_on
+msgid "Form 28 Return Filed On"
+msgstr "ফরম ২৮ রিটার্ন দাখিলের তারিখ"
 
 #. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_committee__formation_date
@@ -228,6 +326,11 @@ msgstr "গঠনের তারিখ"
 #: model:ir.ui.menu,name:cd_hse.menu_fix_hazardous_substance_register
 msgid "Hazardous Substances"
 msgstr "বিপজ্জনক পদার্থসমূহ"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__hazards
+msgid "Hazards per Step"
+msgstr "ধাপ অনুযায়ী ঝুঁকি"
 
 #. module: cd_hse
 msgid "Health, Safety & Environment"
@@ -250,6 +353,11 @@ msgstr "উচ্চ (গুরুতর / হাসপাতালে ভর্
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_hse_incident_form
 msgid "HSE Incident"
 msgstr "HSE ঘটনা"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__immediate_notification_required
+msgid "Immediate Phone/Fax Notice Required (BLA s.80)"
+msgstr "তাৎক্ষণিক ফোন/ফ্যাক্স নোটিশ আবশ্যক (শ্রম আইন ধারা ৮০)"
 
 #. module: cd_hse
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_ppe_register__item_type__goggles
@@ -302,6 +410,16 @@ msgid "IPA & Solvents Stored in Flammable Cabinet"
 msgstr "IPA ও দ্রাবক দাহ্য পদার্থের ক্যাবিনেটে সংরক্ষিত"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__job_type
+msgid "Job / Task Type"
+msgstr "কাজ / দায়িত্বের ধরন"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__steps
+msgid "Job Steps"
+msgstr "কাজের ধাপ"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_committee__last_meeting_date
 msgid "Last Meeting Conducted"
 msgstr "সর্বশেষ অনুষ্ঠিত সভা"
@@ -310,6 +428,16 @@ msgstr "সর্বশেষ অনুষ্ঠিত সভা"
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_safety_committee_form
 msgid "Latest Minutes"
 msgstr "সর্বশেষ কার্যবিবরণী"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__lights_ok
+msgid "Lights OK"
+msgstr "বাতি ঠিক আছে"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__likelihood
+msgid "Likelihood (1-5)"
+msgstr "সম্ভাবনা (১-৫)"
 
 #. module: cd_hse
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_hazardous_substance_register__state__threshold_exceeded
@@ -387,14 +515,27 @@ msgid "Normal / Safe"
 msgstr "স্বাভাবিক / নিরাপদ"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__notice_form_type
+msgid "Notice Form Type (BLR r.70)"
+msgstr "নোটিশ ফরমের ধরন (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hazardous_substance_register__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_drill__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__operating_unit_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_loneworker__operating_unit_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_ppe_register__operating_unit_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_committee__operating_unit_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__operating_unit_id
 #: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__passed
+msgid "Passed"
+msgstr "উত্তীর্ণ"
 
 #. module: cd_hse
 #: model:ir.ui.menu,name:cd_hse.menu_fix_ppe_register
@@ -405,6 +546,11 @@ msgstr "PPE সরঞ্জাম"
 #: model:ir.model.fields,field_description:cd_hse.field_fix_ppe_register__name
 msgid "PPE Item Name"
 msgstr "PPE আইটেমের নাম"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_jsa__ppe_required
+msgid "PPE Required"
+msgstr "প্রয়োজনীয় ব্যক্তিগত সুরক্ষা সরঞ্জাম"
 
 #. module: cd_hse
 #: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__incident_type__property_damage
@@ -457,6 +603,11 @@ msgid "Required Fire Extinguisher"
 msgstr "প্রয়োজনীয় অগ্নিনির্বাপক যন্ত্র"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__risk_score
+msgid "Risk Score"
+msgstr "ঝুঁকির স্কোর"
+
+#. module: cd_hse
 #: model:ir.actions.act_window,name:cd_hse.action_fix_safety_committee
 #: model:ir.ui.menu,name:cd_hse.menu_fix_safety_committee
 msgid "Safety Committee (BLA §90A)"
@@ -496,6 +647,11 @@ msgid "Service Centre / Branch"
 msgstr "সার্ভিস সেন্টার / শাখা"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_hazard__severity
+msgid "Severity (1-5)"
+msgstr "তীব্রতা (১-৫)"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_safety_inspection__fume_extraction_ok
 msgid "Soldering Fume Extractor Operational"
 msgstr "সোল্ডারিং ধোঁয়া নিষ্কাশন যন্ত্র সচল"
@@ -516,10 +672,14 @@ msgid "Statutory Accident Record"
 msgstr "সংবিধিবদ্ধ দুর্ঘটনা রেকর্ড"
 
 #. module: cd_hse
-#: model:ir.model,name:cd_hse.model_fix_statutory_accident_register
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_statutory_accident_register_form
 msgid "Statutory Accident Register (BLA Form 33/34)"
 msgstr "সংবিধিবদ্ধ দুর্ঘটনা রেজিস্টার (BLA ফরম ৩৩/৩৪)"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_incident__notice_form
+msgid "Statutory DIFE Notice Form"
+msgstr "বিধিবদ্ধ ডিআইএফই নোটিশ ফরম"
 
 #. module: cd_hse
 #: model_terms:ir.ui.view,arch_db:cd_hse.view_fix_statutory_accident_register_form
@@ -553,11 +713,243 @@ msgid "Total Committee Members"
 msgstr "কমিটির মোট সদস্য"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__tyres_ok
+msgid "Tyres OK"
+msgstr "টায়ার ঠিক আছে"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_hazardous_substance_register__un_number
 msgid "UN Transport Number (e.g. UN 1219 for IPA, UN 3481 for Li-Ion)"
 msgstr "UN পরিবহন নম্বর (যেমন IPA-র জন্য UN 1219, লিথিয়াম-আয়নের জন্য UN 3481)"
 
 #. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_hse_roadcheck__vehicle_ref
+msgid "Vehicle / Plate"
+msgstr "যানবাহন / নম্বরপ্লেট"
+
+#. module: cd_hse
 #: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__employee_id
 msgid "Worker Involved"
 msgstr "সংশ্লিষ্ট শ্রমিক"
+
+#. module: cd_hse
+#: model:ir.model.fields,field_description:cd_hse.field_fix_statutory_accident_register__return_to_work_date
+msgid "Worker Returned to Work On"
+msgstr "শ্রমিকের কাজে যোগদানের তারিখ"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_jsa__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__battery
+msgid "Battery / Thermal"
+msgstr "ব্যাটারি / তাপীয়"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__drill_type__battery
+msgid "Battery Thermal Incident"
+msgstr "ব্যাটারির তাপীয় দুর্ঘটনা"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_loneworker__state__checked_in
+msgid "Checked In"
+msgstr "প্রবেশ নথিভুক্ত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_loneworker__state__checked_out
+msgid "Checked Out"
+msgstr "প্রস্থান নথিভুক্ত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__chemical
+msgid "Chemical"
+msgstr "রাসায়নিক"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__drill_type__chemical
+msgid "Chemical Spill"
+msgstr "রাসায়নিক নিঃসরণ"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__state__controlled
+msgid "Controlled"
+msgstr "নিয়ন্ত্রিত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__residual_risk__critical
+msgid "Critical"
+msgstr "গুরুতর"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_jsa__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__drill_type__earthquake
+msgid "Earthquake"
+msgstr "ভূমিকম্প"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__electrical
+msgid "Electrical"
+msgstr "বৈদ্যুতিক"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__ergonomic
+msgid "Ergonomic"
+msgstr "দেহভঙ্গিমাগত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_loneworker__state__escalated
+msgid "Escalated"
+msgstr "ঊর্ধ্বতন পর্যায়ে প্রেরিত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__drill_type__fire
+msgid "Fire Evacuation"
+msgstr "অগ্নি নির্গমন মহড়া"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__drill_type__first_aid
+msgid "First Aid"
+msgstr "প্রাথমিক চিকিৎসা"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__fitness__fit
+msgid "Fit for Duty"
+msgstr "দায়িত্ব পালনে সক্ষম"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__fitness__fit_restricted
+msgid "Fit with Restrictions"
+msgstr "শর্তসহ সক্ষম"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_statutory_accident_register__notice_form_type__form_27
+msgid "Form 27 - Fatal / Lost-Time Accident (BLR r.70)"
+msgstr "ফরম ২৭ - মৃত্যুজনিত / কর্মঘণ্টা ক্ষতিকর দুর্ঘটনা (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__notice_form__form_27
+msgid "Form 27 - Fatal / Lost-Time Accident Notice (BLR r.70)"
+msgstr "ফরম ২৭ - মৃত্যুজনিত / কর্মঘণ্টা ক্ষতিকর দুর্ঘটনার নোটিশ (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_statutory_accident_register__notice_form_type__form_27a
+msgid "Form 27(a) - Dangerous Occurrence (BLR r.70)"
+msgstr "ফরম ২৭(ক) - বিপজ্জনক ঘটনা (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__notice_form__form_27a
+msgid "Form 27(a) - Dangerous Occurrence Notice (BLR r.70)"
+msgstr "ফরম ২৭(ক) - বিপজ্জনক ঘটনার নোটিশ (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__notice_form__form_27b
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_statutory_accident_register__notice_form_type__form_27b
+msgid "Form 27(b) - Minor Injury Notice (BLR r.70)"
+msgstr "ফরম ২৭(খ) - সামান্য আঘাতের নোটিশ (শ্রম বিধি ৭০)"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__residual_risk__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__residual_risk__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__residual_risk__medium
+msgid "Medium"
+msgstr "মধ্যম"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_loneworker__state__missed
+msgid "Missed Check-Out"
+msgstr "প্রস্থান নথিভুক্ত হয়নি"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_incident__notice_form__none
+msgid "Not Reportable"
+msgstr "রিপোর্টযোগ্য নয়"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__state__open
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__state__open
+msgid "Open"
+msgstr "চলমান"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__fitness__pending
+msgid "Pending Review"
+msgstr "পর্যালোচনা অপেক্ষমাণ"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__record_type__medical
+msgid "Periodic Medical"
+msgstr "নিয়মিত স্বাস্থ্য পরীক্ষা"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_drill__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_jsa__state__retired
+msgid "Retired"
+msgstr "অবসরপ্রাপ্ত"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__record_type__return_to_work
+msgid "Return to Work"
+msgstr "কাজে প্রত্যাবর্তন"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__road
+msgid "Road / Driving"
+msgstr "সড়ক / চালনা"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__slip_trip
+msgid "Slip / Trip"
+msgstr "পিছলে পড়া / হেঁচট খাওয়া"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__fitness__unfit
+msgid "Unfit"
+msgstr "অক্ষম"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__record_type__vaccination
+msgid "Vaccination"
+msgstr "টিকাদান"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_health__record_type__restriction
+msgid "Work Restriction"
+msgstr "কাজের সীমাবদ্ধতা"
+
+#. module: cd_hse
+#: model:ir.model.fields.selection,name:cd_hse.selection__fix_hse_hazard__hazard_type__height
+msgid "Work at Height"
+msgstr "উচ্চতায় কাজ"

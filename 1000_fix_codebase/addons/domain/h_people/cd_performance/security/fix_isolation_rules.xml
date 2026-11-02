@@ -41,6 +41,26 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_performance_goal_company" model="ir.rule">
+        <field name="name">fix.performance.goal: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_goal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_pip_company" model="ir.rule">
+        <field name="name">fix.performance.pip: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_pip"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_recognition_company" model="ir.rule">
+        <field name="name">fix.performance.recognition: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_recognition"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_performance_review_company" model="ir.rule">
+        <field name="name">fix.performance.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_performance_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_performance_scorecard_company" model="ir.rule">
         <field name="name">fix.performance.scorecard: allowed companies</field>
         <field name="model_id" ref="model_fix_performance_scorecard"/>
@@ -51,5 +71,10 @@
         <field name="model_id" ref="model_fix_performance_scorecard"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_succession_plan_company" model="ir.rule">
+        <field name="name">fix.succession.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_succession_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

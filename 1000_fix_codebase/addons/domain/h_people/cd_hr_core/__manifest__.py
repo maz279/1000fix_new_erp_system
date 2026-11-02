@@ -36,8 +36,10 @@ master slice (cd_employee_core):
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
         "data/statutory_leave_data.xml",
+        "data/hr_ops_sequences.xml",
         "data/employment_contract_templates.xml",
         "data/identity_lifecycle_cron.xml",
         "views/fix_hr_core_views.xml",

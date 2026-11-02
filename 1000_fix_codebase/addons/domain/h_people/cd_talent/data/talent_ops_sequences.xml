@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_talent_interview" model="ir.sequence">
+            <field name="name">Talent Interview</field>
+            <field name="code">fix.talent.interview</field>
+            <field name="prefix">INT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_talent_assessment" model="ir.sequence">
+            <field name="name">Practical Assessment</field>
+            <field name="code">fix.talent.assessment</field>
+            <field name="prefix">TASM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_talent_check" model="ir.sequence">
+            <field name="name">Background Check</field>
+            <field name="code">fix.talent.check</field>
+            <field name="prefix">CHK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_talent_offer" model="ir.sequence">
+            <field name="name">Employment Offer</field>
+            <field name="code">fix.talent.offer</field>
+            <field name="prefix">OFR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_talent_first90" model="ir.sequence">
+            <field name="name">First-90 Review</field>
+            <field name="code">fix.talent.first90</field>
+            <field name="prefix">F90/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

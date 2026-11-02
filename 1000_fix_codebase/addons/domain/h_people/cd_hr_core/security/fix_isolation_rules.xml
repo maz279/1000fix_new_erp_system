@@ -19,6 +19,36 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_hr_dependant_company" model="ir.rule">
+        <field name="name">fix.hr.dependant: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_dependant"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_document_company" model="ir.rule">
+        <field name="name">fix.hr.document: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_document"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_education_company" model="ir.rule">
+        <field name="name">fix.hr.education: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_education"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_exit_company" model="ir.rule">
+        <field name="name">fix.hr.exit: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_exit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_experience_company" model="ir.rule">
+        <field name="name">fix.hr.experience: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_experience"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hr_transfer_company" model="ir.rule">
+        <field name="name">fix.hr.transfer: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_transfer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_leave_request_company" model="ir.rule">
         <field name="name">fix.leave.request: allowed companies</field>
         <field name="model_id" ref="model_fix_leave_request"/>

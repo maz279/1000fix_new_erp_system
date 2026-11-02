@@ -5,6 +5,36 @@ from odoo.exceptions import UserError
 from libs.py.fix_events import publish
 
 EXPIRING_WINDOW_DAYS = 30
+TIER_RANK = {"l1": 1, "l2": 2, "l3": 3, "l4": 4}
+
+
+class FixDeviceCategory(models.Model):
+    """Structured Device Taxonomy for M22 Competency & Certification Matrix (RAP-M22-01)."""
+
+    _name = "fix.device.category"
+    _description = "Device Category Taxonomy"
+    _order = "code, name"
+
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    code = fields.Char(required=True, index=True)
+    name = fields.Char(required=True)
+    name_bn = fields.Char(string="Category Name (Bengali)")
+    parent_id = fields.Many2one(
+        "fix.device.category", string="Parent Category", ondelete="restrict"
+    )
+    repair_tier_floor = fields.Selection(
+        [
+            ("l1", "L1 - Modular Replacement"),
+            ("l2", "L2 - Sub-Assembly Diagnostics"),
+            ("l3", "L3 - Component / BGA Micro-Soldering"),
+            ("l4", "L4 - Schematic & Firmware Engineering"),
+        ],
+        string="Minimum Repair Tier",
+        default="l1",
+    )
+    active = fields.Boolean(default=True)
 
 
 class FixCompetency(models.Model):
@@ -23,6 +53,19 @@ class FixCompetency(models.Model):
         string="Device Type Scope",
         help="e.g. smartphone, laptop, home_appliance — the dispatch "
         "eligibility match key (FR-LMS-039)",
+    )
+    device_category_id = fields.Many2one(
+        "fix.device.category", string="Device Category", ondelete="set null"
+    )
+    brand_id = fields.Many2one("fix.brand", string="OEM Brand Scope", ondelete="set null")
+    repair_tier = fields.Selection(
+        [
+            ("l1", "L1 - Modular Replacement"),
+            ("l2", "L2 - Sub-Assembly Diagnostics"),
+            ("l3", "L3 - Component / BGA Micro-Soldering"),
+            ("l4", "L4 - Schematic & Firmware Engineering"),
+        ],
+        string="Minimum Repair Tier",
     )
     required_for_dispatch = fields.Boolean(
         default=True, help="Unchecked for developmental competencies that do not gate " "assignment"
@@ -44,6 +87,21 @@ class FixCertification(models.Model):
     )
     employee_id = fields.Many2one("hr.employee", required=True, index=True)
     competency_id = fields.Many2one("fix.competency", required=True, ondelete="restrict")
+    brand_id = fields.Many2one("fix.brand", string="Certified OEM Brand", ondelete="set null")
+    device_category_id = fields.Many2one(
+        "fix.device.category", string="Device Category", ondelete="set null"
+    )
+    repair_tier = fields.Selection(
+        [
+            ("l1", "L1 - Modular Replacement"),
+            ("l2", "L2 - Sub-Assembly Diagnostics"),
+            ("l3", "L3 - Component / BGA Micro-Soldering"),
+            ("l4", "L4 - Schematic & Firmware Engineering"),
+        ],
+        string="Certified Repair Tier",
+    )
+    certificate_file = fields.Binary(string="Certificate Scan", attachment=True)
+    certificate_filename = fields.Char(string="Certificate Filename")
     issued_on = fields.Date(required=True, default=fields.Date.today)
     expires_on = fields.Date(help="Empty means non-expiring (e.g. internal licences)")
     evidence_ref = fields.Char(
@@ -96,19 +154,22 @@ class FixCertification(models.Model):
                 )
 
     @api.model
-    def dispatch_eligibility(self, employee, device_type=None):
-        """FR-LMS-039 — the dispatch eligibility check.
+    def dispatch_eligibility(
+        self,
+        employee,
+        device_type=None,
+        brand_id=None,
+        repair_tier=None,
+        fail_closed=False,
+    ):
+        """FR-LMS-039 — the dispatch eligibility check (brand + device + tier aware).
 
         Returns (eligible: bool, reason: str). A technician is eligible for
-        a device type when they hold an ACTIVE certification in a dispatch-
-        gating competency whose scope matches. This is the check the W2
-        seam stubbed to 'eligible' — the stub is CLOSED.
+        a device type, OEM brand, and repair tier when they hold an ACTIVE
+        certification in a dispatch-gating competency whose scope matches.
         """
         if not employee:
             return False, "no technician assigned"
-        # Validity is decided on TODAY's date, not on the stored status: that
-        # status is frozen at its last recompute (an expired certificate kept
-        # reading "active"), and "expiring" certificates are still valid.
         today = fields.Date.today()
         certs = self.search(
             [
@@ -119,13 +180,64 @@ class FixCertification(models.Model):
                 ("expires_on", ">=", today),
             ]
         )
+        brand_id_int = (
+            brand_id.id if hasattr(brand_id, "id") else (int(brand_id) if brand_id else None)
+        )
+        req_rank = TIER_RANK.get(repair_tier, 0) if repair_tier else 0
+
+        valid_certs = self.browse()
+        # Track WHY a certificate was filtered out. Reporting a tier shortfall
+        # as a missing brand certification sends the operator after the wrong
+        # certificate, which is worse than no reason at all.
+        tier_blocked = self.browse()
+        for cert in certs:
+            c_brand = cert.brand_id.id or cert.competency_id.brand_id.id or None
+            if brand_id_int and c_brand and c_brand != brand_id_int:
+                continue
+            c_tier = cert.repair_tier or cert.competency_id.repair_tier or None
+            if req_rank and c_tier and TIER_RANK.get(c_tier, 0) < req_rank:
+                tier_blocked |= cert
+                continue
+            valid_certs |= cert
+
         gating = self.env["fix.competency"].search([("required_for_dispatch", "=", True)])
         gating_by_id = {c.id: c for c in gating}
-        # `.ids`, not `.id`: `{certs.competency_id.id}` raised "Expected
-        # singleton" for a technician holding two certifications.
-        held = set(certs.competency_id.ids)
+        held = set(valid_certs.competency_id.ids)
+
+        if brand_id_int:
+            brand_gating = [c for c in gating if c.brand_id.id == brand_id_int]
+            if brand_gating and not any(
+                (cert.brand_id.id == brand_id_int or cert.competency_id.brand_id.id == brand_id_int)
+                for cert in valid_certs
+            ):
+                brand_rec = self.env["fix.brand"].browse(brand_id_int)
+                tier_hit = tier_blocked.filtered(
+                    lambda c: (c.brand_id.id or c.competency_id.brand_id.id) == brand_id_int
+                )
+                if tier_hit:
+                    held_tier = tier_hit[0].repair_tier or tier_hit[0].competency_id.repair_tier
+                    return False, (
+                        "FR-LMS-039: %s is certified for %s at tier %s, below the %s "
+                        "required by this job"
+                        % (
+                            employee.name,
+                            brand_rec.name or brand_id_int,
+                            (held_tier or "?").upper(),
+                            (repair_tier or "?").upper(),
+                        )
+                    )
+                return False, (
+                    "FR-LMS-039: %s holds no ACTIVE brand certification for %s"
+                    % (employee.name, brand_rec.name or brand_id_int)
+                )
+
         if device_type:
-            scoped = [c for c in gating if c.device_type and device_type in c.device_type]
+            scoped = [
+                c
+                for c in gating
+                if (c.device_type and device_type in [t.strip() for t in c.device_type.split(",")])
+                or (c.device_category_id and c.device_category_id.code == device_type)
+            ]
             if scoped:
                 for comp in scoped:
                     if comp.id in held:
@@ -134,9 +246,20 @@ class FixCertification(models.Model):
                     "FR-LMS-039: %s holds no ACTIVE certification for %s"
                     % (employee.name, device_type)
                 )
+            if fail_closed:
+                return False, (
+                    "FR-LMS-039: no dispatch-gating competency configured for %s (fail-closed)"
+                    % device_type
+                )
         # No device scope demanded: at least one gating competency held
         if held & set(gating_by_id):
             return True, "holds dispatch-gating certification"
+        if brand_id_int and certs and not valid_certs:
+            brand_rec = self.env["fix.brand"].browse(brand_id_int)
+            return False, (
+                "FR-LMS-039: %s holds no ACTIVE certification for brand %s"
+                % (employee.name, brand_rec.name or brand_id_int)
+            )
         return False, ("FR-LMS-039: %s holds no dispatch-gating certification" % employee.name)
 
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
@@ -235,8 +358,13 @@ class FixWorkOrderEligibilityExt(models.Model):
                 continue
             # order_id is required on fix.work.order, so the device is reachable
             device_type = rec.order_id.device_id.device_type or None
+            brand = (
+                rec.order_id.device_id.device_model_id.brand_id
+                if rec.order_id.device_id and rec.order_id.device_id.device_model_id
+                else None
+            )
             eligible, reason = self.env["fix.certification"].dispatch_eligibility(
-                rec.technician_id, device_type=device_type
+                rec.technician_id, device_type=device_type, brand_id=brand
             )
             if not eligible:
                 raise UserError("M22 eligibility: assignment blocked — %s" % reason)

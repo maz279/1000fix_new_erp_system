@@ -9,8 +9,11 @@ from libs.py.fix_events import publish
 # Bangladesh Labour Act 2006 (and 2013, 2018, 2026 amendments) Working-Time Standards:
 STANDARD_DAY_HOURS = 8.0  # s. 100 BLA 2006: standard daily hours
 MAX_DAILY_HOURS = 10.0  # s. 102 / s. 108 BLA 2006: daily ceiling with overtime
+MAX_DAILY_OT_HOURS = 2.0  # s. 108 BLA 2006: maximum daily overtime hours
 STANDARD_WEEKLY_HOURS = 48.0  # s. 102 BLA 2006: normal weekly limit
 MAX_WEEKLY_HOURS = 60.0  # s. 102 BLA 2006: weekly ceiling with overtime
+MAX_WEEKLY_OT_HOURS = 12.0  # s. 108 BLA 2006: maximum weekly overtime hours
+OT_DIVISOR_HOURS = 208.0  # BLR 2015 formula: 208-hour monthly divisor shared with M56
 MIN_SHIFT_REST_HOURS = (
     11.0  # s. 101 / s. 105 BLA 2006: minimum rest between shifts (spreadover 11-12h)
 )
@@ -267,6 +270,24 @@ class FixAttendanceRecord(models.Model):
     overtime_hours = fields.Float(
         compute="_compute_hours", store=True, help="Hours beyond the statutory 8/day (s. 100/108)"
     )
+    week_start = fields.Date(
+        string="ISO Week Start", compute="_compute_hours", store=True, index=True
+    )
+    is_rest_day = fields.Boolean(
+        string="Weekly Rest Day Call-In",
+        default=False,
+        help="BLA s.103/108: work performed on scheduled weekly rest day",
+    )
+    rest_day_hours = fields.Float(
+        string="Rest-Day Worked Hours", compute="_compute_hours", store=True
+    )
+    weekly_worked_hours = fields.Float(
+        string="Weekly Worked Hours", compute="_compute_weekly_totals"
+    )
+    weekly_ot_hours = fields.Float(string="Weekly Overtime Hours", compute="_compute_weekly_totals")
+    weekly_ot_limit_exceeded = fields.Boolean(
+        string="Weekly OT Cap Exceeded", compute="_compute_weekly_totals"
+    )
     display_label = fields.Char(compute="_compute_label")
     hr_attendance_id = fields.Many2one(
         "hr.attendance", string="Odoo Attendance Sync", ondelete="set null"
@@ -287,19 +308,72 @@ class FixAttendanceRecord(models.Model):
         string="Compliance Notes", compute="_compute_compliance", store=True
     )
 
-    @api.depends("check_in", "check_out", "approval_state")
+    @api.depends("check_in", "check_out", "approval_state", "is_rest_day")
     def _compute_hours(self):
         for rec in self:
+            if rec.check_in:
+                cdate = rec.check_in.date()
+                rec.week_start = cdate - timedelta(days=cdate.weekday())
+            else:
+                rec.week_start = False
             # a REJECTED clock-in is no worked time (and no overtime for M56)
             if rec.check_in and rec.check_out and rec.approval_state != "rejected":
                 span = (rec.check_out - rec.check_in).total_seconds() / 3600
                 rec.worked_hours = round(span, 2)
-                rec.overtime_hours = round(max(span - STANDARD_DAY_HOURS, 0), 2)
+                if rec.is_rest_day:
+                    rec.rest_day_hours = round(span, 2)
+                    rec.overtime_hours = round(span, 2)
+                else:
+                    rec.rest_day_hours = 0.0
+                    rec.overtime_hours = round(max(span - STANDARD_DAY_HOURS, 0), 2)
             else:
                 rec.worked_hours = 0.0
                 rec.overtime_hours = 0.0
+                rec.rest_day_hours = 0.0
 
-    @api.depends("worked_hours", "employee_id", "check_in", "check_out")
+    @api.depends(
+        "worked_hours",
+        "overtime_hours",
+        "rest_day_hours",
+        "week_start",
+        "employee_id",
+        "approval_state",
+    )
+    def _compute_weekly_totals(self):
+        for rec in self:
+            if not rec.employee_id or not rec.week_start:
+                rec.weekly_worked_hours = rec.worked_hours or 0.0
+                rec.weekly_ot_hours = rec.overtime_hours or 0.0
+                rec.weekly_ot_limit_exceeded = (
+                    rec.weekly_ot_hours > MAX_WEEKLY_OT_HOURS
+                    or rec.weekly_worked_hours > MAX_WEEKLY_HOURS
+                )
+                continue
+            w_start_dt = fields.Datetime.to_datetime(rec.week_start)
+            w_end_dt = fields.Datetime.to_datetime(rec.week_start + timedelta(days=7))
+            siblings = self.search(
+                [
+                    ("employee_id", "=", rec.employee_id.id),
+                    ("approval_state", "!=", "rejected"),
+                    ("check_in", ">=", w_start_dt),
+                    ("check_in", "<", w_end_dt),
+                ]
+            )
+            if rec.id and rec not in siblings:
+                siblings |= rec
+            w_worked = round(sum(siblings.mapped("worked_hours")), 2)
+            w_daily_ot = round(sum(siblings.mapped("overtime_hours")), 2)
+            if not rec.id and rec.approval_state != "rejected":
+                w_worked = round(w_worked + (rec.worked_hours or 0.0), 2)
+                w_daily_ot = round(w_daily_ot + (rec.overtime_hours or 0.0), 2)
+            w_excess_ot = round(max(w_worked - STANDARD_WEEKLY_HOURS, 0.0), 2)
+            rec.weekly_worked_hours = w_worked
+            rec.weekly_ot_hours = max(w_daily_ot, w_excess_ot)
+            rec.weekly_ot_limit_exceeded = (
+                rec.weekly_ot_hours > MAX_WEEKLY_OT_HOURS or w_worked > MAX_WEEKLY_HOURS
+            )
+
+    @api.depends("worked_hours", "overtime_hours", "employee_id", "check_in", "check_out")
     def _compute_compliance(self):
         for rec in self:
             status = "compliant"
@@ -328,6 +402,38 @@ class FixAttendanceRecord(models.Model):
                         notes = (
                             "BLA 2006 s.101/105 breach: %.2fh rest between shifts is under statutory 11.0h"
                             % rest_span
+                        )
+                if status == "compliant":
+                    cdate = rec.check_in.date()
+                    w_start = cdate - timedelta(days=cdate.weekday())
+                    siblings = self.search(
+                        [
+                            ("employee_id", "=", rec.employee_id.id),
+                            ("approval_state", "!=", "rejected"),
+                            ("check_in", ">=", fields.Datetime.to_datetime(w_start)),
+                            (
+                                "check_in",
+                                "<",
+                                fields.Datetime.to_datetime(w_start + timedelta(days=7)),
+                            ),
+                        ]
+                    )
+                    w_worked = round(sum(siblings.mapped("worked_hours")), 2)
+                    w_ot = max(
+                        round(sum(siblings.mapped("overtime_hours")), 2),
+                        round(max(w_worked - STANDARD_WEEKLY_HOURS, 0.0), 2),
+                    )
+                    if w_worked > MAX_WEEKLY_HOURS:
+                        status = "weekly_limit_exceeded"
+                        notes = (
+                            "BLA 2006 s.102 breach: %.2fh worked in week exceeds 60.0h weekly limit"
+                            % w_worked
+                        )
+                    elif w_ot > MAX_WEEKLY_OT_HOURS:
+                        status = "weekly_limit_exceeded"
+                        notes = (
+                            "BLA 2006 s.108 breach: %.2fh overtime in week exceeds 12.0h weekly OT cap"
+                            % w_ot
                         )
             rec.compliance_status = status
             rec.statutory_notes = notes
@@ -514,6 +620,81 @@ class FixAttendanceLock(models.Model):
                 self.env, "attendance.unlocked", "fix.attendance.lock", rec.id, {"period": rec.name}
             )
 
+    def action_export_form10_overtime_register(self):
+        """BLR 2015 Rule 102 / Form 10: Statutory Overtime Register using 208-hour divisor."""
+        from decimal import Decimal
+
+        from libs.py.payroll_engine import OT_DIVISOR_HOURS, overtime_amount
+
+        self.ensure_one()
+        records = self.env["fix.attendance.record"].search(
+            [
+                ("company_id", "=", self.company_id.id),
+                ("approval_state", "!=", "rejected"),
+                ("check_in", ">=", fields.Datetime.to_datetime(self.period_start)),
+                ("check_in", "<", fields.Datetime.to_datetime(self.period_end + timedelta(days=1))),
+            ],
+            order="employee_id, check_in",
+        )
+        by_emp = {}
+        for att in records:
+            emp = att.employee_id
+            bucket = by_emp.setdefault(
+                emp.id,
+                {
+                    "employee_id": emp.id,
+                    "employee_code": emp.employee_code or "",
+                    "employee_name": emp.name or "",
+                    "worked_hours": 0.0,
+                    "overtime_hours": 0.0,
+                    "rest_day_hours": 0.0,
+                },
+            )
+            bucket["worked_hours"] = round(bucket["worked_hours"] + (att.worked_hours or 0.0), 2)
+            bucket["overtime_hours"] = round(
+                bucket["overtime_hours"] + (att.overtime_hours or 0.0), 2
+            )
+            bucket["rest_day_hours"] = round(
+                bucket["rest_day_hours"] + (att.rest_day_hours or 0.0), 2
+            )
+
+        rows = []
+        for idx, (emp_id, data) in enumerate(by_emp.items(), start=1):
+            contract = self.env["fix.employment.contract"].search(
+                [("employee_id", "=", emp_id), ("state", "=", "active")],
+                order="joining_date desc, id desc",
+                limit=1,
+            )
+            emp = self.env["hr.employee"].browse(emp_id)
+            basic = Decimal(str((contract.basic_monthly if contract else emp.basic_wage) or 0.0))
+            dearness = Decimal(str((contract.dearness_allowance if contract else 0.0) or 0.0))
+            adhoc = Decimal(str((contract.adhoc_allowance if contract else 0.0) or 0.0))
+            ot_hrs = Decimal(str(data["overtime_hours"]))
+            ot_pay = overtime_amount(
+                basic,
+                ot_hrs,
+                dearness_monthly=dearness,
+                adhoc_monthly=adhoc,
+                divisor_hours=OT_DIVISOR_HOURS,
+            )
+            hourly_rate = (
+                round(float((basic + dearness + adhoc) / OT_DIVISOR_HOURS * Decimal("2")), 2)
+                if basic > 0
+                else 0.0
+            )
+            rows.append(
+                {
+                    "serial": idx,
+                    **data,
+                    "basic_wage": float(basic),
+                    "hourly_ot_rate": hourly_rate,
+                    "overtime_pay": float(ot_pay),
+                    "divisor_hours": int(OT_DIVISOR_HOURS),
+                    "statutory_form": "Form 10 (BLR 2015 r.102 / BLA 2006 s.108)",
+                }
+            )
+        return rows
+
 
 class FixWorkOrderAvailabilityExt(models.Model):
     """P08-M02-T03: the M02 -> M55 stub CLOSED in the live assignment path.
@@ -548,6 +729,32 @@ class FixWorkOrderAvailabilityExt(models.Model):
                     "M55 availability: %s is on approved leave for %s"
                     % (rec.technician_id.name, day)
                 )
+            rejected_punch = self.env["fix.attendance.record"].search(
+                [
+                    ("employee_id", "=", rec.technician_id.id),
+                    ("check_in", ">=", fields.Datetime.to_datetime(day)),
+                    ("check_in", "<", fields.Datetime.to_datetime(day + timedelta(days=1))),
+                    ("approval_state", "=", "rejected"),
+                ],
+                limit=1,
+            )
+            if rejected_punch:
+                raise UserError(
+                    "M55 availability: %s has a rejected geofence clock-in for %s"
+                    % (rec.technician_id.name, day)
+                )
+            publish(
+                self.env,
+                "attendance.availability.verified",
+                "fix.work.order",
+                rec.id,
+                {
+                    "technician_id": rec.technician_id.id,
+                    "technician": rec.technician_id.name,
+                    "date": str(day),
+                    "roster_slot_id": slot.id,
+                },
+            )
         return True
 
     def write(self, vals):

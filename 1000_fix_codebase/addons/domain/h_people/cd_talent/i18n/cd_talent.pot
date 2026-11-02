@@ -9,12 +9,23 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_offer__state__accepted
+msgid "Accepted"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__applied
 msgid "Applied"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__assessor_id
+msgid "Assessor"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__cancelled
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__state__cancelled
 msgid "Cancelled"
 msgstr ""
 
@@ -22,6 +33,10 @@ msgstr ""
 #: model:ir.actions.act_window,name:cd_talent.action_fix_candidate
 #: model:ir.model,name:cd_talent.model_fix_candidate
 #: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__candidate_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__candidate_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_check__candidate_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_interview__candidate_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_offer__candidate_id
 #: model:ir.ui.menu,name:cd_talent.menu_fix_candidate
 #: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
 msgid "Candidate"
@@ -33,8 +48,18 @@ msgid "Candidate Full Name"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__result__clear
+msgid "Clear"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__closed
 msgid "Closed"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__competency_code
+msgid "Competency Tested (code)"
 msgstr ""
 
 #. module: cd_talent
@@ -44,6 +69,7 @@ msgstr ""
 
 #. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__completed
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__state__done
 msgid "Completed"
 msgstr ""
 
@@ -53,20 +79,51 @@ msgid "Created Employee Record"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_first90__milestone__day_30
+msgid "Day 30"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_first90__milestone__day_60
+msgid "Day 60"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_first90__milestone__day_90
+msgid "Day 90"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_offer__state__declined
+msgid "Declined"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__department_id
 #: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__department_id
 msgid "Department"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__result__discrepancy
+msgid "Discrepancy"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__draft
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__draft
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_offer__state__draft
 msgid "Draft"
 msgstr ""
 
 #. module: cd_talent
 #: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_job_requisition_form
 msgid "e.g. Senior Cleanroom Technician"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__check_type__education
+msgid "Education Verification"
 msgstr ""
 
 #. module: cd_talent
@@ -87,8 +144,43 @@ msgid "Employment Contract Executed"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__check_type__employment
+msgid "Employment History"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__enforce_hiring_gates
+msgid "Enforce Pre-Hire PCC & Assessment Gates"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_offer__state__expired
+msgid "Expired"
+msgstr ""
+
+#. module: cd_talent
 #: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
 msgid "Extend Offer"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__result__failed
+msgid "Failed"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__is_field_role
+msgid "Field / In-Home Service Role (Requires PCC & Assessment)"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_interview__competency_code
+msgid "Focus Competency Code"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_offer__gross_salary
+msgid "Gross Monthly"
 msgstr ""
 
 #. module: cd_talent
@@ -103,6 +195,11 @@ msgid "Hired"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__employee_id
+msgid "Hired Employee Record"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_onboarding_plan__state__in_progress
 msgid "In Progress"
 msgstr ""
@@ -111,6 +208,16 @@ msgstr ""
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__interview
 #: model_terms:ir.ui.view,arch_db:cd_talent.view_fix_candidate_form
 msgid "Interview"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_interview__interviewer_id
+msgid "Interviewer"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_offer__state__issued
+msgid "Issued"
 msgstr ""
 
 #. module: cd_talent
@@ -134,6 +241,7 @@ msgstr ""
 
 #. module: cd_talent
 #: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__joined_date
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_offer__joining_date
 msgid "Joining Date"
 msgstr ""
 
@@ -158,8 +266,28 @@ msgid "NID / Identity Verified"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__check_type__nid
+msgid "NID Verification"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__recommendation__no
+msgid "No"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__offered
 msgid "Offered"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_first90__on_track
+msgid "On Track"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_first90__plan_id
+msgid "Onboarding Plan"
 msgstr ""
 
 #. module: cd_talent
@@ -180,13 +308,29 @@ msgid "Operating Unit"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__passed
+msgid "Passed"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__bank_details_captured
 msgid "Payroll & BEFTN Bank Details Captured"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__result__pending
+msgid "Pending"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__check_type__police
+msgid "Police Clearance"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__position_id
 #: model:ir.model.fields,field_description:cd_talent.field_fix_onboarding_plan__position_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_offer__position_id
 msgid "Position"
 msgstr ""
 
@@ -196,13 +340,54 @@ msgid "PPE & Workshop Safety Kit Issued"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_first90__rating
+msgid "Rating (1-5)"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_check__check_type__reference
+msgid "Reference"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_check__reference_contact
+msgid "Reference Contact"
+msgstr ""
+
+#. module: cd_talent
 #: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__rejected
 msgid "Rejected"
 msgstr ""
 
 #. module: cd_talent
 #: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__requisition_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__requisition_id
 msgid "Requisition"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_first90__reviewer_id
+msgid "Reviewing Manager"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_interview__round_no
+msgid "Round"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__state__scheduled
+msgid "Scheduled"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_assessment__score
+msgid "Score %"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_talent_interview__score
+msgid "Score (1-5)"
 msgstr ""
 
 #. module: cd_talent
@@ -226,5 +411,20 @@ msgid "Statutory & IT Onboarding Checklist"
 msgstr ""
 
 #. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__recommendation__strong_no
+msgid "Strong No"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__recommendation__strong_yes
+msgid "Strong Yes"
+msgstr ""
+
+#. module: cd_talent
 msgid "Talent Acquisition & Onboarding"
+msgstr ""
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_talent_interview__recommendation__yes
+msgid "Yes"
 msgstr ""

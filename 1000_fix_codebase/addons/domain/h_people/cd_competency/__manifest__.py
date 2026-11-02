@@ -32,7 +32,9 @@ degrades to M61, accepted AR-006 5.4):
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
+        "data/competency_ops_sequences.xml",
         "views/fix_competency_views.xml",
     ],
     "installable": True,

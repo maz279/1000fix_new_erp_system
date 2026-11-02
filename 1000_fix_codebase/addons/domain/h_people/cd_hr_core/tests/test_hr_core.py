@@ -97,5 +97,40 @@ class TestKpi090LeaverDeprovisioning(unittest.TestCase):
         self.assertNotIn('"deprovisioned"', src)
 
 
+class TestWave2And4HrCoreCompliance(unittest.TestCase):
+    def test_psr_ita2023_fields_and_form7_15day_clock(self):
+        for field_name in (
+            "psr_status",
+            "psr_tax_year",
+            "psr_verified_on",
+            "psr_qr_payload",
+            "form7_last_event_date",
+            "form7_endorsed_on",
+            "form7_update_due_date",
+            "form7_update_overdue",
+        ):
+            self.assertTrue(hasattr(HrEmployeeCdCoreExt, field_name))
+        src = inspect.getsource(HrEmployeeCdCoreExt._compute_form7_clock)
+        self.assertIn("timedelta(days=15)", src)
+
+    def test_statutory_form6_form6a_form7_generators(self):
+        self.assertTrue(hasattr(HrEmployeeCdCoreExt, "action_generate_form7_service_book"))
+        self.assertTrue(hasattr(HrEmployeeCdCoreExt, "action_generate_form6_appointment"))
+        self.assertTrue(hasattr(HrEmployeeCdCoreExt, "action_export_form6a_register"))
+
+    def test_transfer_custody_gate_and_employee_moved_event(self):
+        from odoo.addons.cd_hr_core.models.fix_hr_ops import FixHrExit, FixHrTransfer
+
+        src_gate = inspect.getsource(FixHrTransfer._check_custody_gate)
+        self.assertIn("open_jobs_audited", src_gate)
+        self.assertIn("toolkit_returned", src_gate)
+        self.assertIn("spare_parts_reconciled", src_gate)
+        src_apply = inspect.getsource(FixHrTransfer.action_apply)
+        self.assertIn("employee.moved", src_apply)
+        self.assertIn("form7_last_event_date", src_apply)
+        src_exit = inspect.getsource(FixHrExit.action_clear)
+        self.assertIn("asset_return_receipt_no", src_exit)
+
+
 if __name__ == "__main__":
     unittest.main()

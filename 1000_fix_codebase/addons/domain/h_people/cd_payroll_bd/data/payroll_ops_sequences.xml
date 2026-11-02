@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_payroll_bonus_run" model="ir.sequence">
+            <field name="name">Festival Bonus Run</field>
+            <field name="code">fix.payroll.bonus.run</field>
+            <field name="prefix">BON/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_payroll_certificate" model="ir.sequence">
+            <field name="name">Payroll Certificate</field>
+            <field name="code">fix.payroll.certificate</field>
+            <field name="prefix">CERT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_payroll_return" model="ir.sequence">
+            <field name="name">Withholding Return</field>
+            <field name="code">fix.payroll.return</field>
+            <field name="prefix">PWR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_payroll_offcycle" model="ir.sequence">
+            <field name="name">Off-Cycle Payment</field>
+            <field name="code">fix.payroll.offcycle</field>
+            <field name="prefix">OFC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

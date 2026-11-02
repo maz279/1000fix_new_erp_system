@@ -92,5 +92,37 @@ class TestSeparationAndRetrenchment(unittest.TestCase):
         self.assertIn("retrenchment_compensation", src)
 
 
+class TestWave2And4PayrollStatutory(unittest.TestCase):
+    def test_contract_allowances_on_payslip(self):
+        for f in (
+            "house_rent",
+            "medical_allowance",
+            "conveyance_allowance",
+            "technical_allowance",
+            "other_allowance",
+            "dearness_allowance",
+            "adhoc_allowance",
+        ):
+            self.assertTrue(hasattr(FixPayslip, f))
+
+    def test_wppf_allocation_80_10_10_split(self):
+        from odoo.addons.cd_payroll_bd.models.fix_payroll_ops import FixWppfAllocation
+
+        src = inspect.getsource(FixWppfAllocation._compute_wppf_split)
+        self.assertIn("0.05", src)
+        self.assertIn("0.80", src)
+        self.assertIn("0.10", src)
+        self.assertIn("2.0 / 3.0", src)
+
+    def test_certificate_and_withholding_return_reconciliation(self):
+        from odoo.addons.cd_payroll_bd.models.fix_payroll_ops import (
+            FixPayrollCertificate,
+            FixWithholdingReturn,
+        )
+
+        self.assertTrue(hasattr(FixPayrollCertificate, "action_compute_from_payslips"))
+        self.assertTrue(hasattr(FixWithholdingReturn, "action_reconcile_payslips"))
+
+
 if __name__ == "__main__":
     unittest.main()

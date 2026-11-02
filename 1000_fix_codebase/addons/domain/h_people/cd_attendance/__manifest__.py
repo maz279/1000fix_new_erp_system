@@ -36,7 +36,9 @@ CD-M55-01 (P08-M02) — Wave 5 attendance:
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
+        "data/wfm_sequences.xml",
         "views/fix_attendance_views.xml",
     ],
     "installable": True,

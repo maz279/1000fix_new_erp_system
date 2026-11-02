@@ -430,21 +430,80 @@ def test_retrenchment_rejects_negative_notice() -> None:
 
 
 # ---------------------------------------------------------------------------
-# Overtime - 2x basic hourly (basic / 30 / 8)
+# Overtime - 2x ordinary hourly rate over 208-hour divisor (BLA s.108 / BLR 2015)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
     ("basic", "hours", "expected"),
     [
-        (D("30000"), D("10"), D("2500.00")),  # 125/h x 2 x 10
-        (D("30000"), D("1.5"), D("375.00")),
+        (D("20800"), D("10"), D("2000.00")),  # 100/h x 2 x 10
+        (D("20800"), D("1.5"), D("300.00")),
+        (D("30000"), D("10"), D("2884.62")),  # (30000/208) x 2 x 10
+        (D("30000"), D("2"), D("576.92")),  # (30000/208) x 2 x 2
         (D("30000"), D("0"), D("0.00")),
-        (D("10000"), D("1"), D("83.33")),  # 41.666.../h x 2
+        (D("10000"), D("1"), D("96.15")),  # (10000/208) x 2
     ],
 )
 def test_overtime_double_basic_hourly(basic: Decimal, hours: Decimal, expected: Decimal) -> None:
     assert pe.overtime_amount(basic, hours) == expected
+
+
+def test_overtime_divisor_constant_is_208() -> None:
+    assert D("208") == pe.OT_DIVISOR_HOURS
+    assert pe.OT_BASE_COMPONENTS == ("basic", "dearness", "ad_hoc")
+
+
+def test_overtime_includes_dearness_and_adhoc_and_custom_divisor() -> None:
+    # Base = 16,000 basic + 3,000 DA + 1,800 ad-hoc = 20,800 -> 100/h @ 208 divisor
+    assert pe.overtime_amount(
+        D("16000"), D("10"), dearness_monthly=D("3000"), adhoc_monthly=D("1800")
+    ) == D("2000.00")
+    # Custom divisor parameter changes result without code change
+    assert pe.overtime_amount(D("30000"), D("10"), divisor_hours=D("240")) == D("2500.00")
+    with pytest.raises(ValueError, match="divisor hours must be positive"):
+        pe.overtime_amount(D("20800"), D("1"), divisor_hours=D("0"))
+
+
+def test_ita_2023_consolidated_salary_exemption() -> None:
+    assert D("450000") == pe.SALARY_EXEMPTION_CEILING
+    # Below crossover (1,350,000): 1/3 of employment income binds
+    assert pe.salary_exemption(D("900000")) == D("300000.00")
+    assert pe.salary_exemption(D("1350000")) == D("450000.00")
+    # Above crossover: ceiling of 450,000 binds
+    assert pe.salary_exemption(D("1800000")) == D("450000.00")
+    # Parameterised ceiling override
+    assert pe.salary_exemption(D("1800000"), ceiling=D("500000")) == D("500000.00")
+    assert pe.salary_exemption(D("0")) == D("0.00")
+    with pytest.raises(ValueError, match="ceiling cannot be negative"):
+        pe.salary_exemption(D("900000"), ceiling=D("-1"))
+
+
+def test_payslip_contract_allowances_and_ita2023_exemption() -> None:
+    # RAP-M56-01 golden test: basic 40,000 + HR 12,000 + med 4,000 + conv 2,500 = 58,500 gross
+    slip = pe.compute_payslip(
+        pe.PayslipInput(
+            employee_ref="E-ALLOW-01",
+            basic_monthly=D("40000"),
+            house_rent=D("12000"),
+            medical_allowance=D("4000"),
+            conveyance_allowance=D("2500"),
+            pf_employee_pct=D("10"),
+            pf_employer_pct=D("10"),
+        )
+    )
+    assert slip.basic == D("40000.00")
+    assert slip.allowances_total == D("18500.00")
+    assert slip.gross == D("58500.00")
+    assert slip.pf_employee == D("4000.00")
+    # Annual employment income after PF = (58,500 - 4,000) x 12 = 654,000
+    # ITA 2023 Para 27 exemption = min(654,000 / 3, 450,000) = 218,000
+    # Annual taxable = 654,000 - 218,000 = 436,000 -> (436,000 - 375,000) @ 10% = 6,100/yr = 508.33/mo
+    assert slip.annual_exemption == D("218000.00")
+    assert slip.tax_annual_projection == D("6100.00")
+    assert slip.tax_month == D("508.33")
+    assert slip.net == D("53991.67")
+    assert sum(amount for _, amount in slip.lines) == slip.net
 
 
 def test_overtime_rejects_negative_hours() -> None:
@@ -472,28 +531,28 @@ def test_payslip_below_threshold_full_breakdown() -> None:
     slip = pe.compute_payslip(
         pe.PayslipInput(
             employee_ref="E-001",
-            basic_monthly=D("30000"),
+            basic_monthly=D("20800"),
             ot_hours=D("10"),
             incentive=D("1500"),
             pf_employee_pct=D("10"),
             pf_employer_pct=D("10"),
         )
     )
-    assert slip.basic == D("30000.00")
-    assert slip.overtime == D("2500.00")
+    assert slip.basic == D("20800.00")
+    assert slip.overtime == D("2000.00")
     assert slip.incentive == D("1500.00")
-    assert slip.gross == D("34000.00")
-    assert slip.pf_employee == D("3000.00")
-    assert slip.pf_employer == D("3000.00")
-    # (34,000 - 3,000) x 12 = 372,000 -> under the 375,000 threshold
+    assert slip.gross == D("24300.00")
+    assert slip.pf_employee == D("2080.00")
+    assert slip.pf_employer == D("2080.00")
+    # (24,300 - 2,080) x 12 = 266,640 -> under the 375,000 threshold
     assert slip.tax_annual_projection == D("0.00")
     assert slip.tax_month == D("0.00")
-    assert slip.net == D("31000.00")
+    assert slip.net == D("22220.00")
     assert slip.lines == [
-        ("basic", D("30000.00")),
-        ("overtime", D("2500.00")),
+        ("basic", D("20800.00")),
+        ("overtime", D("2000.00")),
         ("incentive", D("1500.00")),
-        ("pf_employee", D("-3000.00")),
+        ("pf_employee", D("-2080.00")),
         ("tax_withheld", D("-0.00")),
     ]
     assert sum(amount for _, amount in slip.lines) == slip.net
@@ -503,10 +562,14 @@ def test_payslip_annualised_tax_withheld_monthly() -> None:
     slip = pe.compute_payslip(
         pe.PayslipInput(employee_ref="E-002", basic_monthly=D("60000"), pf_employee_pct=D("10"))
     )
-    # (60,000 - 6,000) x 12 = 648,000 -> 27,300/yr -> 2,275/mo
-    assert slip.tax_annual_projection == D("27300.00")
-    assert slip.tax_month == D("2275.00")
-    assert slip.net == D("51725.00")
+    # (60,000 - 6,000) x 12 = 648,000 employment income
+    #   Para 27 exemption min(648,000/3, 450,000) = 216,000  (due on a
+    #   basic-only salary exactly as on one carrying allowances)
+    #   taxable 432,000 -> (432,000 - 375,000) x 10% = 5,700/yr -> 475/mo
+    assert slip.annual_exemption == D("216000.00")
+    assert slip.tax_annual_projection == D("5700.00")
+    assert slip.tax_month == D("475.00")
+    assert slip.net == D("53525.00")
     assert sum(amount for _, amount in slip.lines) == slip.net
 
 
@@ -516,9 +579,14 @@ def test_payslip_ytd_taxable_outside_the_slip_is_included() -> None:
             employee_ref="E-003", basic_monthly=D("30000"), annual_taxable_other=D("300000")
         )
     )
-    # 360,000 + 300,000 = 660,000 -> 28,500
-    assert slip.tax_annual_projection == D("28500.00")
-    assert slip.tax_month == D("2375.00")
+    # Employment income 360,000 -> Para 27 exemption min(120,000, 450,000).
+    # The exemption reaches employment income only: the 300,000 carried in
+    # `annual_taxable_other` is not employment income, so it is taxed whole.
+    #   (360,000 - 120,000) + 300,000 = 540,000 taxable
+    #   (540,000 - 375,000) x 10% = 16,500/yr -> 1,375/mo
+    assert slip.annual_exemption == D("120000.00")
+    assert slip.tax_annual_projection == D("16500.00")
+    assert slip.tax_month == D("1375.00")
 
 
 def test_payslip_category_dependents_rebate_and_location() -> None:
@@ -533,22 +601,34 @@ def test_payslip_category_dependents_rebate_and_location() -> None:
             allowable_investment=D("150000"),
         )
     )
-    # 864,000 taxable; threshold 450,000; slab 47,100; rebate 22,500 -> 24,600
-    assert slip.tax_annual_projection == D("24600.00")
-    assert slip.tax_month == D("2050.00")
-    assert slip.net == D("69950.00")
+    # 864,000 employment income; Para 27 exemption min(288,000, 450,000)
+    #   taxable 576,000; threshold 400,000 (female_senior) + 50,000 (one
+    #   disabled dependent) = 450,000 -> (576,000 - 450,000) x 10% = 12,600
+    #   s.78 rebate min(3% x 576,000 = 17,280, 15% x 150,000 = 22,500) = 17,280
+    #   12,600 - 17,280 -> 0, but s.163 makes the Dhaka city minimum a FLOOR
+    #   on a taxpayer who is inside the charge -> 5,000/yr -> 416.67/mo
+    assert slip.annual_exemption == D("288000.00")
+    assert slip.tax_annual_projection == D("5000.00")
+    assert slip.tax_month == D("416.67")
+    assert slip.net == D("71583.33")
 
 
 def test_payslip_minimum_tax_spread_over_twelve_months() -> None:
     slip = pe.compute_payslip(
         pe.PayslipInput(
-            employee_ref="E-005", basic_monthly=D("32000"), tax_location="dhaka_chattogram_city"
+            employee_ref="E-005", basic_monthly=D("47500"), tax_location="dhaka_chattogram_city"
         )
     )
-    # 384,000 -> slab 900 -> Dhaka minimum 5,000 -> 416.67/mo
+    # 570,000 employment income; Para 27 exemption min(190,000, 450,000)
+    #   taxable 380,000 -> slab (380,000 - 375,000) x 10% = 500
+    #   -> lifted to the Dhaka city minimum 5,000 -> 416.67/mo
+    # The basic is set above the exemption-adjusted threshold on purpose: at
+    # 32,000 the Para 27 exemption now takes the payee out of the charge
+    # altogether, and the minimum tax would never be reached.
+    assert slip.annual_exemption == D("190000.00")
     assert slip.tax_annual_projection == D("5000.00")
     assert slip.tax_month == D("416.67")
-    assert slip.net == D("31583.33")
+    assert slip.net == D("47083.33")
     assert sum(amount for _, amount in slip.lines) == slip.net
 
 
@@ -569,3 +649,53 @@ def test_payslip_rejects_negative_basic() -> None:
 def test_payslip_propagates_tax_input_errors() -> None:
     with pytest.raises(ValueError, match="unknown taxpayer category"):
         pe.compute_payslip(pe.PayslipInput("E-008", D("30000"), taxpayer_category="nobody"))
+
+
+# --- ITA 2023 Para 27 / s.163 (A09 zero-trust re-audit 2026-10-30) -----------
+
+
+def test_para27_exemption_is_due_on_a_basic_only_salary() -> None:
+    """Para 27 exempts a share of *income from employment*. It is not a
+    re-wrapping of the repealed ITO 1984 itemised allowance reliefs, so it is
+    not conditional on allowances being paid. Gating it on `allowances > 0`
+    over-withheld tax from every employee paid a consolidated basic."""
+    slip = pe.compute_payslip(pe.PayslipInput(employee_ref="E-P27", basic_monthly=D("40000")))
+    # 480,000 employment income -> exempt min(160,000, 450,000) = 160,000
+    # -> taxable 320,000, below the 375,000 threshold -> no tax at all
+    assert slip.annual_exemption == D("160000.00")
+    assert slip.tax_annual_projection == D("0.00")
+    assert slip.net == D("40000.00")
+
+
+def test_para27_exemption_reaches_employment_income_only() -> None:
+    slip = pe.compute_payslip(
+        pe.PayslipInput(
+            employee_ref="E-P27b", basic_monthly=D("30000"), annual_taxable_other=D("300000")
+        )
+    )
+    # exemption on the 360,000 of employment income, not on the 300,000 of
+    # other income that Para 27 does not reach
+    assert slip.annual_exemption == D("120000.00")
+
+
+def test_para27_exemption_can_be_switched_off_per_payee() -> None:
+    slip = pe.compute_payslip(
+        pe.PayslipInput(employee_ref="E-P27c", basic_monthly=D("40000"), exemption_ceiling=D("0"))
+    )
+    assert slip.annual_exemption == D("0.00")
+    assert slip.tax_annual_projection == D("10500.00")
+
+
+def test_minimum_tax_floor_survives_a_rebate_that_wipes_out_the_slab_tax() -> None:
+    """s.163: the location minimum is a FLOOR on tax payable. Deciding
+    chargeability on the post-rebate figure let a large s.78 rebate remove the
+    minimum tax altogether."""
+    # slab tax on 400,000 is 2,500; the rebate on a 1,000,000 investment is
+    # capped at 3% of taxable = 12,000, which exceeds it
+    assert pe.income_tax(
+        D("400000"), location="dhaka_chattogram_city", allowable_investment=D("1000000")
+    ) == D("5000.00")
+    # ...and a taxpayer genuinely below the threshold still owes nothing
+    assert pe.income_tax(
+        D("300000"), location="dhaka_chattogram_city", allowable_investment=D("1000000")
+    ) == D("0.00")

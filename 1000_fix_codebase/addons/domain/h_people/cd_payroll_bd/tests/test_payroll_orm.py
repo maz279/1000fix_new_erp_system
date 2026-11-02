@@ -5,7 +5,7 @@
 # s.173 minimum tax, 2x overtime on basic/30/8, 10% + 10% PF) and from the
 # Labour (Amendment) Act 2026 separation bands; the working is in comments.
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest import mock
 
@@ -151,30 +151,64 @@ def _move_lines(move):
 
 
 def test_payslip_untaxed_with_overtime(odoo_env):
-    # basic 30,000; OT 2h: hourly 30,000/30/8 = 125 -> 2 x 125 x 2h = 500
-    # gross 30,500; PF 10% of basic = 3,000 each wing
-    # annual taxable (30,500 - 3,000) x 12 = 330,000 < 375,000 -> no tax
+    # basic 30,000; OT 2h: hourly 30,000/208 = 144.2307... -> 2 x hourly x 2h = 576.92
+    # gross 30,576.92; PF 10% of basic = 3,000 each wing
+    # annual taxable (30,576.92 - 3,000) x 12 = 330,923.04 < 375,000 -> no tax
     period = _period(odoo_env)
     slip = _slip(odoo_env, period, _employee(odoo_env, "Karim"), 30000.0, ot_hours=2.0)
-    assert slip.overtime == 500.00
-    assert slip.gross == 30500.00
+    assert slip.overtime == 576.92
+    assert slip.gross == 30576.92
     assert (slip.pf_employee, slip.pf_employer) == (3000.00, 3000.00)
     assert slip.tax_withheld == 0.00
-    assert slip.net == 27500.00
+    assert slip.net == 27576.92
+
+
+def test_payslip_contract_allowances_and_ita2023_exemption(odoo_env):
+    """RAP-M56-01 & RAP-M56-03: contract with basic 40,000 + HR 12,000 + med 4,000 + conv 2,500
+    -> gross 58,500; ITA 2023 Para 27 exemption min(employment_income/3, 450,000)."""
+    env = odoo_env
+    emp = _employee(env, "Tariq Allowance")
+    _contract(env, emp, 40000.0).write(
+        {
+            "house_rent": 12000.0,
+            "medical_allowance": 4000.0,
+            "conveyance_allowance": 2500.0,
+        }
+    )
+    _locked_attendance(env)
+    period = _period(env, name="2026-01-ALLOW")
+    period.action_verify_attendance_locked()
+    period.action_calculate()
+    slip = period.payslip_ids.filtered(lambda s: s.employee_id == emp)
+    assert len(slip) == 1
+    assert slip.basic == 40000.0
+    assert slip.house_rent == 12000.0
+    assert slip.medical_allowance == 4000.0
+    assert slip.conveyance_allowance == 2500.0
+    assert slip.allowances_total == 18500.0
+    assert slip.gross == 58500.0
+    assert slip.annual_exemption == 218000.0
+    assert slip.tax_withheld == 508.33
+    assert slip.net == 53991.67
 
 
 def test_payslip_general_slab_tax(odoo_env):
-    # basic 60,000: annual (60,000 - 6,000) x 12 = 648,000; 648,000 - 375,000
-    # = 273,000 in the 10% band = 27,300 (> 5,000 minimum) -> 2,275.00 / month
+    # basic 60,000: employment income (60,000 - 6,000) x 12 = 648,000;
+    # ITA 2023 Para 27 exemption min(216,000, 450,000) = 216,000 (due on a
+    # basic-only salary too); taxable 432,000; (432,000 - 375,000) = 57,000
+    # in the 10% band = 5,700 (> 5,000 minimum) -> 475.00 / month
     slip = _slip(odoo_env, _period(odoo_env), _employee(odoo_env, "Nasrin"), 60000.0)
-    assert slip.tax_withheld == 2275.00
-    assert slip.net == 51725.00  # 60,000 - 6,000 - 2,275
+    assert slip.annual_exemption == 216000.0
+    assert slip.tax_withheld == 475.00
+    assert slip.net == 53525.00  # 60,000 - 6,000 - 475
 
 
 def test_payslip_category_and_investment_rebate(odoo_env):
-    # female/senior threshold 400,000: 648,000 - 400,000 = 248,000 @10% = 24,800
-    # s.78 rebate = min(3% x 648,000 = 19,440; 15% x 100,000 = 15,000; 1M) = 15,000
-    # 24,800 - 15,000 = 9,800 (> 5,000 minimum) -> 9,800 / 12 = 816.67
+    # employment income 648,000; Para 27 exemption 216,000 -> taxable 432,000
+    # female/senior threshold 400,000: 432,000 - 400,000 = 32,000 @10% = 3,200
+    # s.78 rebate = min(3% x 432,000 = 12,960; 15% x 100,000 = 15,000; 1M) = 12,960
+    # 3,200 - 12,960 -> 0, but s.163 keeps the Dhaka minimum as a FLOOR on a
+    # taxpayer inside the charge -> 5,000 / 12 = 416.67
     slip = _slip(
         odoo_env,
         _period(odoo_env),
@@ -183,13 +217,14 @@ def test_payslip_category_and_investment_rebate(odoo_env):
         taxpayer_category="female_senior",
         investment_allowance=100000.0,
     )
-    assert slip.tax_withheld == 816.67
-    assert slip.net == 53183.33  # 60,000 - 6,000 - 816.67
+    assert slip.tax_withheld == 416.67
+    assert slip.net == 53583.33  # 60,000 - 6,000 - 416.67
 
 
 def test_payslip_disabled_child_raises_threshold(odoo_env):
-    # 375,000 + 50,000 = 425,000; 648,000 - 425,000 = 223,000 @10% = 22,300
-    # -> 1,858.33 / month
+    # taxable 432,000 after the Para 27 exemption; threshold 375,000 + 50,000
+    # = 425,000; (432,000 - 425,000) = 7,000 @10% = 700 -> lifted to the Dhaka
+    # minimum 5,000 -> 416.67 / month
     slip = _slip(
         odoo_env,
         _period(odoo_env),
@@ -197,15 +232,20 @@ def test_payslip_disabled_child_raises_threshold(odoo_env):
         60000.0,
         has_disabled_child=True,
     )
-    assert slip.tax_withheld == 1858.33
-    assert slip.net == 52141.67
+    assert slip.tax_withheld == 416.67
+    assert slip.net == 53583.33
 
 
 @pytest.mark.parametrize(
     ("location", "monthly_tax", "net"),
     [
-        # annual (30,000 - 3,000) x 12 + 76,000 YTD = 400,000; 25,000 over the
-        # threshold @10% = 2,500 -> raised to the s.173 minimum for the area
+        # employment income (30,000 - 3,000) x 12 = 324,000, less the Para 27
+        # exemption min(108,000, 450,000) -> 216,000, plus 176,000 of
+        # non-employment YTD income = 392,000 taxable; 17,000 over the
+        # threshold @10% = 1,700 -> raised to the s.163 minimum for the area.
+        # (The YTD figure is 176,000 rather than 76,000 so the payee is still
+        # inside the charge once Para 27 is applied; below the threshold no
+        # minimum tax is due at all and the floor would never be exercised.)
         ("non_city_corporation", 250.00, 26750.00),  # 3,000 / 12
         ("other_city_corporation", 333.33, 26666.67),  # 4,000 / 12
         ("dhaka_chattogram", 416.67, 26583.33),  # 5,000 / 12
@@ -217,7 +257,7 @@ def test_payslip_minimum_tax_by_location(odoo_env, location, monthly_tax, net):
         _period(odoo_env),
         _employee(odoo_env, "Rupa"),
         30000.0,
-        annual_taxable_other=76000.0,
+        annual_taxable_other=176000.0,
         minimum_tax_location=location,
     )
     assert slip.tax_withheld == monthly_tax
@@ -234,7 +274,7 @@ def test_payslip_empty_category_and_location_fall_back(odoo_env):
         taxpayer_category=False,
         minimum_tax_location=False,
     )
-    assert slip.tax_withheld == 2275.00
+    assert slip.tax_withheld == 475.00
 
 
 # ---------------------------------------------------------------------------
@@ -316,14 +356,18 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     assert not manual.exists()  # a recalculation replaces earlier slips
     slips = {s.employee_id: s for s in period.payslip_ids}
     assert set(slips) == {karim, nasrin}  # no draft contract, no other company
-    assert (slips[karim].ot_hours, slips[karim].overtime, slips[karim].net) == (2.0, 500.0, 27500.0)
-    assert slips[nasrin].net == 51725.00
-    # totals: gross 30,500 + 60,000; tax 0 + 2,275; PF (3,000 + 6,000) x 2
+    assert (slips[karim].ot_hours, slips[karim].overtime, slips[karim].net) == (
+        2.0,
+        576.92,
+        27576.92,
+    )
+    assert slips[nasrin].net == 53525.00
+    # totals: gross 30,576.92 + 60,000; tax 0 + 475; PF (3,000 + 6,000) x 2
     assert period.slip_count == 2
-    assert period.gross_total == 90500.00
-    assert period.tax_total == 2275.00
+    assert period.gross_total == 90576.92
+    assert period.tax_total == 475.00
     assert period.pf_total == 18000.00
-    assert period.net_total == 79225.00
+    assert period.net_total == 81101.92
 
     # Maker-checker: the calculator may not approve their own run
     with pytest.raises(UserError, match="Maker-Checker SoD violation"), env.cr.savepoint():
@@ -332,7 +376,7 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     period.calculator_id = checker
     period.action_approve()
     assert period.state == "approved"
-    assert _events(env, "payroll.approved", period.id) == [{"period": "2026-01", "net": 79225.0}]
+    assert _events(env, "payroll.approved", period.id) == [{"period": "2026-01", "net": 81101.92}]
 
     # Pay: no company originating account -> refused (no assumed account).
     # The savepoint plays the request transaction a UserError rolls back.
@@ -359,7 +403,7 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     assert period.state == "paid"
     # Fri 2 + Sat 3 are the weekend -> settles Sunday 4 October
     assert batch.settlement_date == date(2026, 10, 4)
-    assert (batch.employee_count, batch.total_amount) == (2, 79225.00)
+    assert (batch.employee_count, batch.total_amount) == (2, 81101.92)
     assert (batch.company_account_no, batch.company_routing_no) == (
         COMPANY_ACCOUNT,
         COMPANY_ROUTING,
@@ -367,9 +411,9 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     lines = batch.file_content.split("\r\n")
     assert [line[:1] for line in lines] == ["1", "5", "6", "6", "8", "9", ""]
     assert all(len(line) == 128 for line in lines[:-1])
-    # 27,500.00 + 51,725.00 = 7,922,500 paisa in the batch and file controls
-    assert lines[4][32:44] == "000007922500"
-    assert lines[5][43:55] == "000007922500"
+    # 27,576.92 + 51,725.00 = 7,930,192 paisa in the batch and file controls
+    assert lines[4][32:44] == "000008110192"
+    assert lines[5][43:55] == "000008110192"
     assert _events(env, "payroll.beftn_submitted", period.id) == [
         {"period": "2026-01", "batch_id": batch.id, "settlement": "2026-10-04"}
     ]
@@ -381,18 +425,17 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     assert move.company_id == payroll_co.company
     assert move.journal_id == payroll_co.company.payroll_journal_id
     assert (move.ref, move.date) == ("Payroll GL Posting - 2026-01", PERIOD_END)
-    # Dr basic 30,000 + 60,000; overtime 500; employer PF 3,000 + 6,000
-    # Cr net 27,500 + 51,725; TDS 0 + 2,275; PF (3,000 + 6,000) x 2
-    # (no incentive this month: no incentive line)
+    # Dr basic 30,000 + 60,000; overtime 576.92; employer PF 3,000 + 6,000
+    # Cr net 27,576.92 + 53,525; TDS 0 + 475; PF (3,000 + 6,000) x 2
     assert _move_lines(move) == [
-        ("210100", "Net salary payable - 2026-01", 0.0, 79225.0),
-        ("210200", "Income tax withheld (TDS) - 2026-01", 0.0, 2275.0),
+        ("210100", "Net salary payable - 2026-01", 0.0, 81101.92),
+        ("210200", "Income tax withheld (TDS) - 2026-01", 0.0, 475.0),
         ("210300", "Provident fund payable - 2026-01", 0.0, 18000.0),
         ("610100", "Basic salary - 2026-01", 90000.0, 0.0),
-        ("610100", "Overtime - 2026-01", 500.0, 0.0),
+        ("610100", "Overtime - 2026-01", 576.92, 0.0),
         ("610200", "Employer PF contribution - 2026-01", 9000.0, 0.0),
     ]
-    assert sum(move.line_ids.mapped("debit")) == sum(move.line_ids.mapped("credit")) == 99500.0
+    assert sum(move.line_ids.mapped("debit")) == sum(move.line_ids.mapped("credit")) == 99576.92
     # every line carries the company operating unit (AS-03 dimension)
     dimensions = env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
     assert len(dimensions) == 6
@@ -400,12 +443,12 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     assert _events(env, "payroll.posted", period.id) == [
         {
             "period": "2026-01",
-            "gross": 90500.0,
-            "net": 79225.0,
-            "tax": 2275.0,
+            "gross": 90576.92,
+            "net": 81101.92,
+            "tax": 475.0,
             "pf": 18000.0,
-            "total_debit": 99500.0,
-            "total_credit": 99500.0,
+            "total_debit": 99576.92,
+            "total_credit": 99576.92,
         }
     ]
     # idempotent: a posted period is never posted twice
@@ -864,3 +907,66 @@ def test_separation_and_retrenchment_need_a_contract(odoo_env):
         odoo_env.cr.savepoint(),
     ):
         slip.action_compute_retrenchment(date(2026, 3, 14))
+
+
+# --- WPPF (BLA 2006 Ch. XV) — A09 zero-trust re-audit 2026-10-30 ------------
+# The S1 statutory allocation had no behavioural test: its only coverage was
+# inspect.getsource(FixWppfAllocation._compute_wppf_split) + a substring check.
+
+
+def test_wppf_year_end_run_splits_80_10_10_and_gates_on_the_challan(odoo_env):
+    env = odoo_env
+    alloc = env["fix.wppf.allocation"].create(
+        {
+            "name": "WPPF 2025-2026",
+            "fiscal_year": "2025-2026",
+            "net_profit": 10_000_000.0,
+            "eligible_workers_count": 100,
+            "fiscal_year_end_date": date(2026, 6, 30),
+        }
+    )
+    alloc.action_calculate()
+    assert alloc.state == "calculated"
+    # 5% of 10,000,000 = 500,000 pool
+    assert alloc.total_wppf_pool == 500000.00
+    # 80 : 10 : 10, the foundation taking the residual so the split is exact
+    assert alloc.participatory_fund_amount == 400000.00
+    assert alloc.welfare_fund_amount == 50000.00
+    assert alloc.welfare_foundation_amount == 50000.00
+    assert (
+        alloc.participatory_fund_amount
+        + alloc.welfare_fund_amount
+        + alloc.welfare_foundation_amount
+    ) == alloc.total_wppf_pool
+    # s.242: two thirds distributed in cash, one third invested
+    assert alloc.equal_distribution_pool == 266666.67
+    assert alloc.investment_pool_share == 133333.33
+    assert (
+        alloc.equal_distribution_pool + alloc.investment_pool_share
+    ) == alloc.participatory_fund_amount
+    # equal per-worker share of the cash pool
+    assert alloc.per_worker_equal_share == 2666.67
+    # s.234: transferred within nine months of the year end
+    assert alloc.distribution_due_date == date(2026, 6, 30) + timedelta(days=270)
+
+    # Trustee resolution gates approval
+    with pytest.raises(UserError, match="Board of Trustees resolution"), env.cr.savepoint():
+        alloc.action_approve()
+    alloc.trustee_board_resolution_ref = "BOT/2026/11"
+    alloc.action_approve()
+    assert alloc.state == "approved"
+
+    # the BWWF 10% deposit challan gates posting
+    with pytest.raises(UserError, match="challan"), env.cr.savepoint():
+        alloc.action_post()
+    alloc.bwwf_challan_ref = "BWWF/CH/2026/0007"
+    alloc.action_post()
+    assert alloc.state == "posted"
+
+
+def test_wppf_refuses_a_non_positive_net_profit(odoo_env):
+    alloc = odoo_env["fix.wppf.allocation"].create(
+        {"name": "WPPF loss year", "fiscal_year": "2025-2026", "net_profit": 0.0}
+    )
+    with pytest.raises(UserError, match="Net profit must be positive"):
+        alloc.action_calculate()

@@ -9,8 +9,38 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__investment_pool_share
+msgid "1/3 Investment Unit Pool (BLA s.242)"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
 msgid "128-Byte ASCII File Preview (Bangladesh Bank Standard)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__equal_distribution_pool
+msgid "2/3 Cash Distribution Pool (BLA s.242)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__adhoc_allowance
+msgid "Ad-hoc / Interim Allowance"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__adjustment
+msgid "Adjustment"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__allowances_total
+msgid "Allowances Total"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__amount
+msgid "Annual Figure"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -28,13 +58,25 @@ msgid "Approve (Maker-Checker)"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__approved
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__approved
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__approved
 msgid "Approved"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__arrear
+msgid "Arrear"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__attendance_locked
 msgid "Attendance Locked"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__net_profit
+msgid "Audited Net Profit (BLA s.234)"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -48,8 +90,18 @@ msgid "Bank Name"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__basic_pct
+msgid "Basic % of Gross"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__basic
 msgid "Basic (Monthly)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__basis__basic
+msgid "Basic Salary"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -85,6 +137,21 @@ msgid "BEFTN Disbursement Banking"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__trustee_board_resolution_ref
+msgid "Board of Trustees Resolution Ref"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__bwwf_challan_ref
+msgid "BWWF 10% Deposit Challan Ref"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__welfare_foundation_amount
+msgid "BWWF Government Foundation (10%)"
+msgstr ""
+
+#. module: cd_payroll_bd
 msgid "Calculate"
 msgstr ""
 
@@ -95,12 +162,18 @@ msgstr ""
 
 #. module: cd_payroll_bd
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__calculated
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__calculated
 msgid "Calculated"
 msgstr ""
 
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__calculator_id
 msgid "Calculated By"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__cancelled
+msgid "Cancelled"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -117,6 +190,21 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__company_routing_no
 msgid "Company Routing No (9 digits)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__completed_years
+msgid "Completed Years of Service"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__conveyance_allowance
+msgid "Conveyance Allowance"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__dearness_allowance
+msgid "Dearness Allowance"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -140,8 +228,23 @@ msgid "Disbursement Account"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__posted
+msgid "Distributed & Posted"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__draft
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_return__state__draft
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__draft
 msgid "Draft"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__durga_puja
+msgid "Durga Puja"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -155,6 +258,23 @@ msgid "Earnings & Compensation (উপার্জন)"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__eid_ul_adha
+msgid "Eid-ul-Adha"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__eid_ul_fitr
+msgid "Eid-ul-Fitr"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__eligible_workers_count
+msgid "Eligible Beneficiaries Count (BLA s.240)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__employee_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__employee_id
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__employee_id
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
 msgid "Employee"
@@ -168,6 +288,16 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_pf_expense_account_id
 msgid "Employer PF Contribution Expense Account"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__employment
+msgid "Employment Certificate"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__per_worker_equal_share
+msgid "Equal Per-Worker Cash Share"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -186,8 +316,29 @@ msgid "File Name"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_return__state__filed
+msgid "Filed"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__settlement
+msgid "Final Settlement Part"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
 msgid "Financial Summary (BDT)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__fiscal_year
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__fiscal_year
+msgid "Fiscal Year"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__fiscal_year_end_date
+msgid "Fiscal Year Close Date"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -206,8 +357,28 @@ msgid "GL Entry"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__grade
+msgid "Grade / Band"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gratuity_amount
+msgid "Gratuity (BLA s.27)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__gratuity_applicable
+msgid "Gratuity Applicable"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gross
 msgid "Gross"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__basis__gross
+msgid "Gross Salary"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -218,6 +389,16 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__has_disabled_child
 msgid "Has Disabled Child"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__house_rent_pct
+msgid "House Rent %"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__house_rent
+msgid "House Rent Allowance"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -241,8 +422,28 @@ msgid "Income Tax Withheld"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__state__issued
+msgid "Issued"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__annual_exemption
+msgid "ITA 2023 Para 27 Annual Exemption"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__ita_exemption_ceiling
+msgid "ITA 2023 Para 27 Exemption Ceiling (BDT)"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_company_form_payroll_accounting
 msgid "Journal"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__leave_encashment_amount
+msgid "Leave Encashment"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -253,6 +454,31 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_beftn_batch_form
 msgid "Mark Settled"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__medical_fixed
+msgid "Medical (fixed)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__medical_allowance
+msgid "Medical Allowance"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__multiplier
+msgid "Multiplier (months)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__acknowledgement
+msgid "NBR Acknowledgement"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__tax_zone
+msgid "NBR Tax Zone / Circle"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -276,10 +502,26 @@ msgid "Non-City / Rural"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__notice_pay_amount
+msgid "Notice Pay in Lieu (BLA s.26)"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__operating_unit_id
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__operating_unit_id
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__operating_unit_id
 msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__festival__other
+msgid "Other"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__other_allowance
+msgid "Other Allowance"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -298,8 +540,15 @@ msgid "Overtime Pay"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_bonus_run__state__paid
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__state__paid
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__paid
 msgid "Paid"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__participatory_fund_amount
+msgid "Participatory Fund (80%)"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -350,6 +599,12 @@ msgid "Payslips"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_end
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__period_end
+msgid "Period End"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
 msgid "Period Reference"
 msgstr ""
@@ -357,6 +612,12 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
 msgid "Period Schedule"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_start
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__period_start
+msgid "Period Start"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -399,6 +660,11 @@ msgid "Posted"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__pf_applicable
+msgid "Provident Fund Applicable"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_pf_payable_account_id
 msgid "Provident Fund Payable Account"
 msgstr ""
@@ -414,6 +680,16 @@ msgid "Regenerate 128-Byte File"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__resignation_compensation_amount
+msgid "Resignation Compensation (BLA s.27)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__retrenchment_compensation
+msgid "Retrenchment Compensation (BLA s.20)"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__routing_no
 msgid "Routing No (9 digits)"
 msgstr ""
@@ -421,6 +697,16 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__payroll_salary_expense_account_id
 msgid "Salary & Wage Expense Account"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__advance
+msgid "Salary Advance"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__salary
+msgid "Salary Certificate"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -439,8 +725,18 @@ msgid "Slips"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_res_company__ot_divisor_hours
+msgid "Statutory Overtime Divisor Hours"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payslip_form
 msgid "Statutory Tax & Rebate Settings"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__distribution_due_date
+msgid "Statutory Transfer Deadline (9 Months, s.234)"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -449,8 +745,18 @@ msgid "Submitted"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_certificate__certificate_type__tax
+msgid "Tax Deduction Certificate"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__minimum_tax_location
 msgid "Tax Location"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__total_tax
+msgid "Tax Withheld"
 msgstr ""
 
 #. module: cd_payroll_bd
@@ -464,13 +770,84 @@ msgid "Taxpayer Category"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__technical_allowance
+msgid "Technical Skill / OEM Allowance"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__total_wppf_pool
+msgid "Total 5% WPPF Pool"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_allowances
+msgid "Total Allowances"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__total_amount
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__total_amount
 msgid "Total Amount"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_basic
+msgid "Total Basic Salary"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_gross
+msgid "Total Gross Salary"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_tax_withheld
+msgid "Total Income Tax Withheld (TDS)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__total_pf_deducted
+msgid "Total Provident Fund Contributed"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_structure__transport_fixed
+msgid "Transport (fixed)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__challan_date
+msgid "Treasury Challan Date"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_return__challan_number
+msgid "Treasury Challan No"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_certificate__challan_refs
+msgid "Treasury Challan References"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_wppf_allocation__state__approved
+msgid "Trustee Approved"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__unused_leave_days
+msgid "Unused Earned Leave (days)"
 msgstr ""
 
 #. module: cd_payroll_bd
 #: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
 msgid "Verify Attendance Lock"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__welfare_fund_amount
+msgid "Welfare Fund (10%)"
 msgstr ""
 
 #. module: cd_payroll_bd

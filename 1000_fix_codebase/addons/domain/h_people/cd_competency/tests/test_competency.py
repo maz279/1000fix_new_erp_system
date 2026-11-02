@@ -44,6 +44,17 @@ class TestDispatchEligibility(unittest.TestCase):
         src = inspect.getsource(FixCertification.dispatch_eligibility)
         self.assertIn("device_type", src)
 
+    def test_brand_tier_and_fail_closed_dispatch_gate(self):
+        from odoo.addons.cd_competency.models.fix_competency import FixDeviceCategory
+        from odoo.addons.cd_competency.models.fix_competency_ops import FixAuditEvidence
+
+        self.assertEqual(FixDeviceCategory._name, "fix.device.category")
+        src = inspect.getsource(FixCertification.dispatch_eligibility)
+        self.assertIn("fail_closed", src)
+        self.assertIn("repair_tier", src)
+        self.assertIn("brand_id", src)
+        self.assertTrue(hasattr(FixAuditEvidence, "action_compile_iso_dossier"))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -253,8 +253,9 @@ class TestRetrenchmentCompensation(unittest.TestCase):
 
 class TestOvertime(unittest.TestCase):
     def test_double_rate(self):
-        # hourly = 30000/30/8 = 125; OT 10h -> 125*2*10 = 2,500
-        self.assertEqual(overtime_amount(Decimal("30000"), Decimal("10")), Decimal("2500.00"))
+        # hourly = 20800/208 = 100; OT 10h -> 100*2*10 = 2,000
+        self.assertEqual(overtime_amount(Decimal("20800"), Decimal("10")), Decimal("2000.00"))
+        self.assertEqual(overtime_amount(Decimal("30000"), Decimal("10")), Decimal("2884.62"))
 
     def test_zero_hours(self):
         self.assertEqual(overtime_amount(Decimal("30000"), Decimal("0")), Decimal("0.00"))
@@ -389,20 +390,20 @@ class TestPayslipPath(unittest.TestCase):
         slip = compute_payslip(
             PayslipInput(
                 employee_ref="E-001",
-                basic_monthly=Decimal("30000"),
+                basic_monthly=Decimal("20800"),
                 ot_hours=Decimal("10"),
                 incentive=Decimal("1500"),
                 pf_employee_pct=Decimal("10"),
                 pf_employer_pct=Decimal("10"),
             )
         )
-        self.assertEqual(slip.overtime, Decimal("2500.00"))
-        self.assertEqual(slip.gross, Decimal("34000.00"))
-        self.assertEqual(slip.pf_employee, Decimal("3000.00"))
-        self.assertEqual(slip.pf_employer, Decimal("3000.00"))
-        # annualised taxable: (34000-3000)*12 = 372,000 -> below 375k: no tax
+        self.assertEqual(slip.overtime, Decimal("2000.00"))
+        self.assertEqual(slip.gross, Decimal("24300.00"))
+        self.assertEqual(slip.pf_employee, Decimal("2080.00"))
+        self.assertEqual(slip.pf_employer, Decimal("2080.00"))
+        # annualised taxable: (24300-2080)*12 = 266,640 -> below 375k: no tax
         self.assertEqual(slip.tax_month, Decimal("0.00"))
-        self.assertEqual(slip.net, Decimal("31000.00"))
+        self.assertEqual(slip.net, Decimal("22220.00"))
         self.assertEqual(sum(amount for _, amount in slip.lines), slip.net)
 
     def test_tax_kicks_in_above_threshold(self):
@@ -411,10 +412,13 @@ class TestPayslipPath(unittest.TestCase):
                 employee_ref="E-002", basic_monthly=Decimal("60000"), pf_employee_pct=Decimal("10")
             )
         )
-        # taxable annual = (60000-6000)*12 = 648,000 -> tax = 27,300/yr = 2,275/mo
-        self.assertEqual(slip.tax_annual_projection, Decimal("27300.00"))
-        self.assertEqual(slip.tax_month, Decimal("2275.00"))
-        self.assertEqual(slip.net, Decimal("51725.00"))
+        # employment income = (60000-6000)*12 = 648,000
+        # ITA 2023 Para 27 exemption = min(216,000, 450,000) = 216,000
+        # taxable 432,000 -> (432,000-375,000) @10% = 5,700/yr = 475/mo
+        self.assertEqual(slip.annual_exemption, Decimal("216000.00"))
+        self.assertEqual(slip.tax_annual_projection, Decimal("5700.00"))
+        self.assertEqual(slip.tax_month, Decimal("475.00"))
+        self.assertEqual(slip.net, Decimal("53525.00"))
 
     def test_ytd_other_income_is_taxed(self):
         slip = compute_payslip(
@@ -424,7 +428,9 @@ class TestPayslipPath(unittest.TestCase):
                 annual_taxable_other=Decimal("300000"),
             )
         )
-        self.assertEqual(slip.tax_annual_projection, Decimal("28500.00"))
+        # Para 27 reaches employment income (360,000 -> exempt 120,000) only;
+        # the 300,000 of other income is taxed whole -> 540,000 taxable
+        self.assertEqual(slip.tax_annual_projection, Decimal("16500.00"))
 
     def test_negative_basic_raises(self):
         with self.assertRaises(ValueError):
@@ -442,15 +448,17 @@ class TestPayslipPath(unittest.TestCase):
                 allowable_investment=Decimal("150000"),
             )
         )
-        # Taxable monthly: 80k - 8k = 72k; Annual: 864,000
+        # Employment income: (80k - 8k) * 12 = 864,000
+        # Para 27 exemption: min(288,000, 450,000) -> taxable 576,000
         # Threshold: 400k (female_senior) + 50k (1 disabled child) = 450,000
-        # Remaining: 414,000 -> 300k@10% (30k) + 114k@15% (17.1k) = 47,100
-        # Rebate: min(864k*0.03=25,920, 150k*0.15=22,500, 1,000,000) = 22,500
-        # Net annual tax: 47,100 - 22,500 = 24,600 (exceeds min tax 5,000)
-        # Monthly tax: 24,600 / 12 = 2,050.00
-        self.assertEqual(slip.tax_annual_projection, Decimal("24600.00"))
-        self.assertEqual(slip.tax_month, Decimal("2050.00"))
-        self.assertEqual(slip.net, Decimal("69950.00"))
+        # Remaining: 126,000 @10% = 12,600
+        # Rebate: min(576k*0.03=17,280, 150k*0.15=22,500, 1,000,000) = 17,280
+        # 12,600 - 17,280 -> 0, but s.163 keeps the Dhaka minimum as a floor
+        # on a taxpayer inside the charge: 5,000/yr -> 416.67/mo
+        self.assertEqual(slip.annual_exemption, Decimal("288000.00"))
+        self.assertEqual(slip.tax_annual_projection, Decimal("5000.00"))
+        self.assertEqual(slip.tax_month, Decimal("416.67"))
+        self.assertEqual(slip.net, Decimal("71583.33"))
 
 
 if __name__ == "__main__":

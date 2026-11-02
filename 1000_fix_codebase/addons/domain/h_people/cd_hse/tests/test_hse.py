@@ -91,6 +91,18 @@ class TestHse(unittest.TestCase):
                 hasattr(model, "operating_unit_id"), f"Missing operating_unit_id on {model._name}"
             )
 
+    def test_bla_s80_two_working_day_clock_and_s90_append_only_register(self):
+        from odoo.addons.cd_hse.models.fix_hse_ops import FixHseLoneWorker
+
+        for f in ("accident_datetime", "notice_due", "notice_form", "dife_notice_ref"):
+            self.assertTrue(hasattr(FixHseIncident, f))
+        src_close = inspect.getsource(FixHseIncident.action_close)
+        self.assertIn("dife_notice_ref", src_close)
+        src_write = inspect.getsource(FixStatutoryAccidentRegister.write)
+        self.assertIn("append-only", src_write)
+        src_lw = inspect.getsource(FixHseLoneWorker.action_escalate)
+        self.assertIn("hse.loneworker.escalated", src_lw)
+
 
 if __name__ == "__main__":
     unittest.main()

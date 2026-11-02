@@ -19,6 +19,33 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_hse_drill_company" model="ir.rule">
+        <field name="name">fix.hse.drill: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_drill"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_drill_operating_unit" model="ir.rule">
+        <field name="name">fix.hse.drill: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_hse_drill"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_hazard_company" model="ir.rule">
+        <field name="name">fix.hse.hazard: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_hazard"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_hazard_operating_unit" model="ir.rule">
+        <field name="name">fix.hse.hazard: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_hse_hazard"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_health_company" model="ir.rule">
+        <field name="name">fix.hse.health: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_health"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_hse_incident_company" model="ir.rule">
         <field name="name">fix.hse.incident: allowed companies</field>
         <field name="model_id" ref="model_fix_hse_incident"/>
@@ -29,6 +56,27 @@
         <field name="model_id" ref="model_fix_hse_incident"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_jsa_company" model="ir.rule">
+        <field name="name">fix.hse.jsa: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_jsa"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_loneworker_company" model="ir.rule">
+        <field name="name">fix.hse.loneworker: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_loneworker"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_loneworker_operating_unit" model="ir.rule">
+        <field name="name">fix.hse.loneworker: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_hse_loneworker"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_hse_roadcheck_company" model="ir.rule">
+        <field name="name">fix.hse.roadcheck: allowed companies</field>
+        <field name="model_id" ref="model_fix_hse_roadcheck"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_ppe_register_company" model="ir.rule">
         <field name="name">fix.ppe.register: allowed companies</field>

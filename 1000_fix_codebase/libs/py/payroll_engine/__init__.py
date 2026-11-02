@@ -92,6 +92,9 @@ RESIGNATION_BANDS = [  # (min completed years, days of wages per year)
     (10, 30),
 ]
 STANDARD_DAY_HOURS = Decimal("8")
+OT_DIVISOR_HOURS = Decimal("208")  # BLR 2015 formula: 48h x 52 / 12 = 208 hours/month
+OT_BASE_COMPONENTS = ("basic", "dearness", "ad_hoc")  # BLA 2006 s.108
+SALARY_EXEMPTION_CEILING = Decimal("450000")  # ITA 2023 Sixth Schedule Part 1 Para 27
 
 # --- Bangladesh public holidays (fixed-date, 2026-2028) for BEFTN settlement ---
 FIXED_HOLIDAYS = {(2, 21), (3, 26), (4, 14), (5, 1), (8, 15), (12, 16), (12, 25)}
@@ -165,13 +168,20 @@ def income_tax(
         tax += band * rate
         remaining -= band
 
+    # Whether the taxpayer is inside the charge at all is decided by the slab
+    # tax, BEFORE any rebate: s.163 makes the location minimum a FLOOR on the
+    # tax payable, so a s.78 rebate reduces liability only down to that floor
+    # and never below it. Testing `tax > 0` after the rebate instead let a
+    # large rebate wipe out the minimum tax altogether.
+    charged = tax > 0
+
     # Apply investment tax rebate (Section 78)
-    if tax > 0 and allowable_investment > 0:
+    if charged and allowable_investment > 0:
         rebate = investment_tax_rebate(annual_taxable, allowable_investment)
         tax = max(tax - rebate, Decimal("0"))
 
     # Apply minimum tax if tax is payable and location is specified
-    if tax > 0 and location:
+    if charged and location:
         if location not in MINIMUM_TAX_LOCATIONS:
             raise ValueError(f"unknown tax location '{location}'")
         min_tax = MINIMUM_TAX_LOCATIONS[location]
@@ -246,11 +256,35 @@ def retrenchment_compensation(
     return q2(service_comp + notice_pay)
 
 
-def overtime_amount(basic_monthly: Decimal, ot_hours: Decimal) -> Decimal:
-    """Overtime per BLA 2006: 2x the basic hourly rate."""
+def salary_exemption(
+    annual_employment_income: Decimal,
+    ceiling: Decimal = SALARY_EXEMPTION_CEILING,
+) -> Decimal:
+    """ITA 2023 Sixth Schedule Part 1 Para 27 consolidated salary exemption:
+    lower of one-third of annual employment income or the statutory ceiling
+    (default BDT 450,000, parameterised for Finance Act updates)."""
+    if ceiling < 0:
+        raise ValueError("exemption ceiling cannot be negative")
+    if annual_employment_income <= 0 or ceiling == 0:
+        return Decimal("0.00")
+    return q2(min(annual_employment_income / Decimal(3), ceiling))
+
+
+def overtime_amount(
+    basic_monthly: Decimal,
+    ot_hours: Decimal,
+    dearness_monthly: Decimal = Decimal("0"),
+    adhoc_monthly: Decimal = Decimal("0"),
+    divisor_hours: Decimal = OT_DIVISOR_HOURS,
+) -> Decimal:
+    """Overtime per BLA 2006 s.108 & BLR 2015: 2x ordinary hourly rate over 208-hour divisor.
+    Ordinary rate base = basic + dearness allowance + ad-hoc/interim wage."""
     if ot_hours < 0:
         raise ValueError("overtime hours cannot be negative")
-    hourly = basic_monthly / Decimal(30) / STANDARD_DAY_HOURS
+    if divisor_hours <= 0:
+        raise ValueError("overtime divisor hours must be positive")
+    base = basic_monthly + dearness_monthly + adhoc_monthly
+    hourly = base / divisor_hours
     return q2(hourly * Decimal(2) * ot_hours)
 
 
@@ -263,6 +297,13 @@ class PayslipInput:
     attendance_hours: Decimal = Decimal("0")
     ot_hours: Decimal = Decimal("0")
     incentive: Decimal = Decimal("0")  # from M57's engine
+    house_rent: Decimal = Decimal("0")
+    medical_allowance: Decimal = Decimal("0")
+    conveyance_allowance: Decimal = Decimal("0")
+    technical_allowance: Decimal = Decimal("0")
+    other_allowance: Decimal = Decimal("0")
+    dearness_allowance: Decimal = Decimal("0")
+    adhoc_allowance: Decimal = Decimal("0")
     pf_employee_pct: Decimal = Decimal("0")
     pf_employer_pct: Decimal = Decimal("0")
     annual_taxable_other: Decimal = Decimal("0")  # YTD taxable outside this slip
@@ -271,6 +312,8 @@ class PayslipInput:
     disabled_dependents: int = 0
     tax_location: str | None = None
     allowable_investment: Decimal = Decimal("0")
+    ot_divisor_hours: Decimal = OT_DIVISOR_HOURS
+    exemption_ceiling: Decimal | None = None
 
 
 @dataclass
@@ -284,18 +327,51 @@ class PayslipResult:
     tax_month: Decimal
     tax_annual_projection: Decimal
     net: Decimal
+    allowances_total: Decimal = Decimal("0.00")
+    annual_exemption: Decimal = Decimal("0.00")
     lines: list[tuple[str, Decimal]] = field(default_factory=list)
 
 
 def compute_payslip(inp: PayslipInput) -> PayslipResult:
-    """The monthly calculation path: OT -> gross -> PF on basic -> tax on the
-    annualised taxable (slabs with category, rebate, minimum tax) -> net."""
+    """The monthly calculation path: OT -> allowances -> gross -> PF on basic ->
+    ITA 2023 Para 27 exemption -> tax on annualised taxable -> net."""
     if inp.basic_monthly < 0:
         raise ValueError("basic cannot be negative")
-    ot = overtime_amount(inp.basic_monthly, inp.ot_hours)
-    gross = q2(inp.basic_monthly + ot + inp.incentive)
+    ot = overtime_amount(
+        inp.basic_monthly,
+        inp.ot_hours,
+        dearness_monthly=inp.dearness_allowance,
+        adhoc_monthly=inp.adhoc_allowance,
+        divisor_hours=inp.ot_divisor_hours,
+    )
+    allowances = q2(
+        inp.house_rent
+        + inp.medical_allowance
+        + inp.conveyance_allowance
+        + inp.technical_allowance
+        + inp.other_allowance
+        + inp.dearness_allowance
+        + inp.adhoc_allowance
+    )
+    gross = q2(inp.basic_monthly + allowances + ot + inp.incentive)
     pf = provident_fund(inp.basic_monthly, inp.pf_employee_pct, inp.pf_employer_pct)
-    annual_taxable = (gross - pf["employee"]) * Decimal(12) + inp.annual_taxable_other
+
+    # ITA 2023 Sixth Schedule Part 1 Para 27 exempts the lower of one-third of
+    # *income from employment* or the ceiling. It is a consolidated exemption on
+    # the employment income itself, NOT a re-wrapping of the repealed ITO 1984
+    # itemised house-rent/medical/conveyance reliefs: it is therefore due to a
+    # basic-only employee exactly as it is to one who receives allowances, and
+    # it is computed on the employment income alone (`annual_taxable_other`
+    # carries non-employment income, which Para 27 does not reach).
+    # Set `exemption_ceiling=0` to switch the exemption off for a payee.
+    employment_income_annual = (gross - pf["employee"]) * Decimal(12)
+    annual_employment_income = employment_income_annual + inp.annual_taxable_other
+    ceiling = (
+        inp.exemption_ceiling if inp.exemption_ceiling is not None else SALARY_EXEMPTION_CEILING
+    )
+    exempt_annual = salary_exemption(max(employment_income_annual, Decimal(0)), ceiling=ceiling)
+
+    annual_taxable = annual_employment_income - exempt_annual
     annual_tax = income_tax(
         max(annual_taxable, Decimal(0)),
         category=inp.taxpayer_category,
@@ -307,11 +383,17 @@ def compute_payslip(inp: PayslipInput) -> PayslipResult:
     net = q2(gross - pf["employee"] - tax_month)
     lines = [
         ("basic", q2(inp.basic_monthly)),
-        ("overtime", ot),
-        ("incentive", q2(inp.incentive)),
-        ("pf_employee", -pf["employee"]),
-        ("tax_withheld", -tax_month),
     ]
+    if allowances != Decimal("0.00"):
+        lines.append(("allowances", allowances))
+    lines.extend(
+        [
+            ("overtime", ot),
+            ("incentive", q2(inp.incentive)),
+            ("pf_employee", -pf["employee"]),
+            ("tax_withheld", -tax_month),
+        ]
+    )
     return PayslipResult(
         gross=gross,
         basic=q2(inp.basic_monthly),
@@ -322,5 +404,7 @@ def compute_payslip(inp: PayslipInput) -> PayslipResult:
         tax_month=tax_month,
         tax_annual_projection=annual_tax,
         net=net,
+        allowances_total=allowances,
+        annual_exemption=exempt_annual,
         lines=lines,
     )

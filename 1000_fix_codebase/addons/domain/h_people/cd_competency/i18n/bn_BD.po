@@ -6,9 +6,51 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_device_category__active
+#: model:ir.model.fields,field_description:cd_competency.field_fix_learning_path__active
 #: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__status__active
 msgid "Active"
 msgstr "সক্রিয়"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency_assessment__assessor_id
+msgid "Assessor"
+msgstr "মূল্যায়নকারী"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__attachment_note
+msgid "Attachment / Location"
+msgstr "সংযুক্তি / অবস্থান"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__evidence_file
+msgid "Audit Evidence Scan"
+msgstr "নিরীক্ষা প্রমাণের স্ক্যান"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__brand_id
+msgid "Audited OEM Brand"
+msgstr "নিরীক্ষিত ওইএম ব্র্যান্ড"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__employee_id
+msgid "Audited Technician / Staff"
+msgstr "নিরীক্ষিত টেকনিশিয়ান / কর্মী"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__notes
+msgid "Auditor Notes"
+msgstr "নিরীক্ষকের মন্তব্য"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__certificate_filename
+msgid "Certificate Filename"
+msgstr "সনদ ফাইলের নাম"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__certificate_file
+msgid "Certificate Scan"
+msgstr "সনদের স্ক্যান"
 
 #. module: cd_competency
 #: model:ir.model,name:cd_competency.model_fix_certification
@@ -27,6 +69,16 @@ msgid "Certifications"
 msgstr "সার্টিফিকেশনসমূহ"
 
 #. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__brand_id
+msgid "Certified OEM Brand"
+msgstr "সনদপ্রাপ্ত ওইএম ব্র্যান্ড"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__repair_tier
+msgid "Certified Repair Tier"
+msgstr "সনদপ্রাপ্ত মেরামত স্তর"
+
+#. module: cd_competency
 #: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__competency_id
 msgid "Certifies Towards"
 msgstr "যে সার্টিফিকেশনের দিকে"
@@ -40,6 +92,7 @@ msgstr "দক্ষতাসমূহ"
 #. module: cd_competency
 #: model:ir.model,name:cd_competency.model_fix_competency
 #: model:ir.model.fields,field_description:cd_competency.field_fix_certification__competency_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency_assessment__competency_id
 msgid "Competency"
 msgstr "দক্ষতা"
 
@@ -47,6 +100,11 @@ msgstr "দক্ষতা"
 #: model:ir.model.fields,field_description:cd_competency.field_fix_competency__name_bn
 msgid "Competency (Bengali)"
 msgstr "দক্ষতা (বাংলা)"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__dossier_summary
+msgid "Compiled ISO 9001 Cl. 7.2 Dossier"
+msgstr "সংকলিত আইএসও ৯০০১ ধারা ৭.২ নথি"
 
 #. module: cd_competency
 #: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__content_ref
@@ -57,6 +115,17 @@ msgstr "কনটেন্ট প্যাক"
 #: model:ir.model.fields,field_description:cd_competency.field_fix_training_course__name_bn
 msgid "Course (Bengali)"
 msgstr "কোর্স (বাংলা)"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_learning_path__course_ids
+msgid "Courses in Path"
+msgstr "পথভুক্ত কোর্সসমূহ"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_certification__device_category_id
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__device_category_id
+msgid "Device Category"
+msgstr "ডিভাইস শ্রেণি"
 
 #. module: cd_competency
 #: model:ir.model.fields,field_description:cd_competency.field_fix_competency__device_type
@@ -74,6 +143,12 @@ msgid "Enrollments"
 msgstr "ভর্তিসমূহ"
 
 #. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__evidence_filename
+msgid "Evidence Filename"
+msgstr "প্রমাণ ফাইলের নাম"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__reference
 #: model:ir.model.fields,field_description:cd_competency.field_fix_certification__evidence_ref
 msgid "Evidence Reference"
 msgstr "প্রমাণের রেফারেন্স"
@@ -94,9 +169,35 @@ msgid "Failed"
 msgstr "অনুত্তীর্ণ"
 
 #. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_ojt_record__competency_id
+msgid "Focus Competency"
+msgstr "মূল দক্ষতা"
+
+#. module: cd_competency
 #: model_terms:ir.ui.view,arch_db:cd_competency.view_fix_certification_form
 msgid "Grant"
 msgstr "প্রদান"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_ojt_record__hours
+msgid "Hours"
+msgstr "ঘণ্টা"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_ojt_record__mentor_id
+msgid "Mentor"
+msgstr "পরামর্শক"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__repair_tier
+#: model:ir.model.fields,field_description:cd_competency.field_fix_device_category__repair_tier_floor
+msgid "Minimum Repair Tier"
+msgstr "সর্বনিম্ন মেরামত স্তর"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency__brand_id
+msgid "OEM Brand Scope"
+msgstr "ওইএম ব্র্যান্ডের পরিধি"
 
 #. module: cd_competency
 #: model:ir.model.fields,field_description:cd_competency.field_fix_certification__operating_unit_id
@@ -108,9 +209,35 @@ msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
 
 #. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_device_category__parent_id
+msgid "Parent Category"
+msgstr "মূল শ্রেণি"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency_assessment__passed
 #: model:ir.model.fields.selection,name:cd_competency.selection__fix_training_enrollment__state__passed
 msgid "Passed"
 msgstr "উত্তীর্ণ"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_competency_assessment__score
+msgid "Score %"
+msgstr "নম্বর %"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_audit_evidence__standard_ref
+msgid "Standard Clause / Brand Requirement"
+msgstr "মানদণ্ডের ধারা / ব্র্যান্ডের শর্ত"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_learning_path__competency_ids
+msgid "Target Competencies"
+msgstr "লক্ষ্য দক্ষতাসমূহ"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_learning_path__target_role
+msgid "Target Role"
+msgstr "লক্ষ্য পদ"
 
 #. module: cd_competency
 #: model:ir.ui.menu,name:cd_competency.menu_fix_training
@@ -131,3 +258,115 @@ msgstr "প্রশিক্ষণ ভর্তি"
 #: model:ir.model.fields,field_description:cd_competency.field_fix_work_order__certification_waiver_reason
 msgid "Waiver Justification"
 msgstr "মওকুফের যৌক্তিকতা"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__state__accepted
+msgid "Accepted"
+msgstr "গৃহীত"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__evidence_type__brand_audit
+msgid "Brand Audit"
+msgstr "ব্র্যান্ড নিরীক্ষা"
+
+#. module: cd_competency
+#: model:ir.model.fields,field_description:cd_competency.field_fix_device_category__name_bn
+msgid "Category Name (Bengali)"
+msgstr "শ্রেণির নাম (বাংলা)"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_ojt_record__outcome__competent
+msgid "Declared Competent"
+msgstr "দক্ষ হিসেবে ঘোষিত"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_ojt_record__outcome__discontinued
+msgid "Discontinued"
+msgstr "বন্ধ করা হয়েছে"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_ojt_record__outcome__extended
+msgid "Extended"
+msgstr "বর্ধিত"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__evidence_type__iso_9001
+msgid "ISO 9001:2015"
+msgstr "আইএসও ৯০০১:২০১৫"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__evidence_type__internal_audit
+msgid "Internal Audit"
+msgstr "অভ্যন্তরীণ নিরীক্ষা"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency_assessment__level__l1
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_learning_path__min_level__l1
+msgid "L1 - Aware"
+msgstr "এল১ - পরিচিত"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__repair_tier__l1
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency__repair_tier__l1
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_device_category__repair_tier_floor__l1
+msgid "L1 - Modular Replacement"
+msgstr "এল১ - মডিউল প্রতিস্থাপন"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency_assessment__level__l2
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_learning_path__min_level__l2
+msgid "L2 - Assisted"
+msgstr "এল২ - সহায়তাসহ"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__repair_tier__l2
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency__repair_tier__l2
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_device_category__repair_tier_floor__l2
+msgid "L2 - Sub-Assembly Diagnostics"
+msgstr "এল২ - সাব-অ্যাসেম্বলি নির্ণয়"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__repair_tier__l3
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency__repair_tier__l3
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_device_category__repair_tier_floor__l3
+msgid "L3 - Component / BGA Micro-Soldering"
+msgstr "এল৩ - কম্পোনেন্ট / বিজিএ মাইক্রো-সোল্ডারিং"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency_assessment__level__l3
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_learning_path__min_level__l3
+msgid "L3 - Independent"
+msgstr "এল৩ - স্বাধীনভাবে"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency_assessment__level__l4
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_learning_path__min_level__l4
+msgid "L4 - Expert / Trainer"
+msgstr "এল৪ - বিশেষজ্ঞ / প্রশিক্ষক"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_certification__repair_tier__l4
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_competency__repair_tier__l4
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_device_category__repair_tier_floor__l4
+msgid "L4 - Schematic & Firmware Engineering"
+msgstr "এল৪ - স্কিম্যাটিক ও ফার্মওয়্যার ইঞ্জিনিয়ারিং"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_ojt_record__outcome__ongoing
+msgid "Ongoing"
+msgstr "চলমান রয়েছে"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__evidence_type__skills_audit
+msgid "Skills Audit"
+msgstr "দক্ষতা নিরীক্ষা"
+
+#. module: cd_competency
+#: model:ir.model.fields.selection,name:cd_competency.selection__fix_audit_evidence__state__submitted
+msgid "Submitted"
+msgstr "দাখিলকৃত"

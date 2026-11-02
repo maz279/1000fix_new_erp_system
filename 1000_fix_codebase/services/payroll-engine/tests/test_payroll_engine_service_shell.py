@@ -113,9 +113,9 @@ def test_payslip_through_the_shell_equals_the_kernel(shell: ModuleType) -> None:
     via_kernel = kernel.compute_payslip(slip_input(kernel))
     assert via_shell == via_kernel
     assert isinstance(via_shell, kernel.PayslipResult)
-    # OT 4h at 2 x (80,000/30/8) = 2,666.67; gross 85,166.67
-    assert via_shell.overtime == Decimal("2666.67")
-    assert via_shell.gross == Decimal("85166.67")
+    # OT 4h at 2 x (80,000/208) = 3,076.92; gross 85,576.92
+    assert via_shell.overtime == Decimal("3076.92")
+    assert via_shell.gross == Decimal("85576.92")
     assert sum(amount for _, amount in via_shell.lines) == via_shell.net
 
 
@@ -137,7 +137,7 @@ def test_statutory_helpers_through_the_shell(shell: ModuleType) -> None:
     assert shell.retrenchment_compensation(
         Decimal("30000"), date(2022, 1, 1), date(2026, 1, 1)
     ) == Decimal("240000.00")
-    assert shell.overtime_amount(Decimal("30000"), Decimal("10")) == Decimal("2500.00")
+    assert shell.overtime_amount(Decimal("30000"), Decimal("10")) == Decimal("2884.62")
     assert shell.q2(Decimal("0.125")) == Decimal("0.13")
     assert shell.is_working_day(date(2026, 10, 2)) is False
     assert shell.beftn_settlement_date(datetime(2026, 10, 1, 16, 0)) == date(2026, 10, 4)

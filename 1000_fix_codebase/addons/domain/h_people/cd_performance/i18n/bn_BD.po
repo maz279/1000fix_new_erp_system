@@ -6,14 +6,34 @@ msgstr ""
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__rework_30d_rate
+msgid "30-Day Rework Rate (0-1)"
+msgstr "৩০ দিনের পুনঃকাজের হার (০-১)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_goal__actual_value
+msgid "Actual"
+msgstr "প্রকৃত"
+
+#. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__amount
 msgid "Amount"
 msgstr "পরিমাণ"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__payslip_ref_id
+msgid "Applied Payslip ID"
+msgstr "প্রয়োগকৃত বেতন স্লিপের আইডি"
+
+#. module: cd_performance
 #: model:ir.model.fields.selection,name:cd_performance.selection__fix_incentive_run__state__applied
 msgid "Applied to Payroll"
 msgstr "পেরোলে প্রয়োগকৃত"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__applied_to_payslip
+msgid "Applied to Payslip"
+msgstr "বেতন স্লিপে প্রয়োগকৃত"
 
 #. module: cd_performance
 #: model_terms:ir.ui.view,arch_db:cd_performance.view_fix_incentive_run_form
@@ -26,6 +46,16 @@ msgid "Band Base"
 msgstr "ব্যান্ড ভিত্তি"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_review__calibrated_rating
+msgid "Calibrated Rating (1-5)"
+msgstr "সমন্বিত রেটিং (১-৫)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_goal__parent_goal_id
+msgid "Cascaded From"
+msgstr "যে লক্ষ্য থেকে বিন্যস্ত"
+
+#. module: cd_performance
 #: model:ir.ui.menu,name:cd_performance.menu_fix_compensation
 msgid "Compensation"
 msgstr "ক্ষতিপূরণ"
@@ -34,6 +64,16 @@ msgstr "ক্ষতিপূরণ"
 #: model:ir.model,name:cd_performance.model_fix_compensation_band
 msgid "Compensation Band"
 msgstr "ক্ষতিপূরণ ব্যান্ড"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__salvage_target
+msgid "Component Salvage Target (BDT)"
+msgstr "যন্ত্রাংশ উদ্ধারের লক্ষ্যমাত্রা (টাকা)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__salvage_value
+msgid "Component Salvage Value (BDT)"
+msgstr "যন্ত্রাংশ উদ্ধারের মূল্য (টাকা)"
 
 #. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__score
@@ -57,6 +97,9 @@ msgstr "সিএসএটি (স্বাভাবিকীকৃত ০-১)"
 
 #. module: cd_performance
 #: model:ir.model.fields.selection,name:cd_performance.selection__fix_incentive_run__state__draft
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_goal__state__draft
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__state__draft
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_review__state__draft
 msgid "Draft"
 msgstr "খসড়া"
 
@@ -86,12 +129,37 @@ msgid "Incentives"
 msgstr "প্রণোদনাসমূহ"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_succession_plan__incumbent_id
+msgid "Incumbent"
+msgstr "বর্তমান পদধারী"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_succession_plan__position_name
+msgid "Key Position"
+msgstr "গুরুত্বপূর্ণ পদ"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_review__manager_rating
+msgid "Manager Rating (1-5)"
+msgstr "ব্যবস্থাপকের রেটিং (১-৫)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_pip__mentor_id
+msgid "Mentor"
+msgstr "পরামর্শক"
+
+#. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__operating_unit_id
 #: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_line__operating_unit_id
 #: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__operating_unit_id
 #: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__operating_unit_id
 msgid "Operating Unit"
 msgstr "পরিচালন ইউনিট"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_recognition__prize_amount
+msgid "Prize"
+msgstr "পুরস্কার"
 
 #. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_compensation_band__range_max
@@ -109,9 +177,29 @@ msgid "Range Min"
 msgstr "সর্বনিম্ন পরিসর"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_succession_plan__successor_id
+msgid "Ready Successor"
+msgstr "প্রস্তুত উত্তরসূরি"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_review__reviewer_id
+msgid "Reviewer"
+msgstr "পর্যালোচক"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__rework_penalty_applied
+msgid "Rework Clawback Penalty"
+msgstr "পুনঃকাজজনিত কর্তন"
+
+#. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__rework_rate
 msgid "Rework Rate (0-1)"
 msgstr "পুনঃকাজের হার (০-১)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__salvage_ratio
+msgid "Salvage Achievement (0-1)"
+msgstr "উদ্ধার অর্জন (০-১)"
 
 #. module: cd_performance
 #: model:ir.ui.menu,name:cd_performance.menu_fix_scorecard
@@ -119,9 +207,19 @@ msgid "Scorecards"
 msgstr "স্কোরকার্ডসমূহ"
 
 #. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_review__self_rating
+msgid "Self Rating (1-5)"
+msgstr "স্ব-মূল্যায়ন রেটিং (১-৫)"
+
+#. module: cd_performance
 #: model:ir.model.fields,field_description:cd_performance.field_fix_performance_scorecard__sla_hit
 msgid "SLA Hit Rate (0-1)"
 msgstr "এসএলএ হিট হার (০-১)"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_goal__target_value
+msgid "Target"
+msgstr "লক্ষ্যমাত্রা"
 
 #. module: cd_performance
 #: model:ir.model,name:cd_performance.model_fix_performance_scorecard
@@ -132,3 +230,115 @@ msgstr "টেকনিশিয়ান স্কোরকার্ড"
 #: model:ir.model.fields,field_description:cd_performance.field_fix_incentive_run__total
 msgid "Total"
 msgstr "মোট"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_goal__unit
+msgid "Unit"
+msgstr "একক"
+
+#. module: cd_performance
+#: model:ir.model.fields,field_description:cd_performance.field_fix_performance_goal__weight
+msgid "Weight %"
+msgstr "ভার %"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__readiness__1_2_years
+msgid "1-2 Years"
+msgstr "১-২ বছর"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__readiness__2_3_years
+msgid "2-3 Years"
+msgstr "২-৩ বছর"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_goal__state__achieved
+msgid "Achieved"
+msgstr "অর্জিত"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_goal__state__active
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_review__state__calibrated
+msgid "Calibrated"
+msgstr "সমন্বিত"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__state__closed
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_review__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_recognition__award_type__monthly
+msgid "Employee of the Month"
+msgstr "মাসের শ্রেষ্ঠ কর্মী"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__outcome__exit
+msgid "Exit"
+msgstr "প্রস্থান"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__outcome__extended
+msgid "Extended"
+msgstr "বর্ধিত"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__risk__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_pip__outcome__improved
+msgid "Improved"
+msgstr "উন্নত"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__risk__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_review__state__manager_review
+msgid "Manager Review"
+msgstr "ব্যবস্থাপকের পর্যালোচনা"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__risk__medium
+msgid "Medium"
+msgstr "মধ্যম"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_goal__state__missed
+msgid "Missed"
+msgstr "বাদ পড়েছে"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_recognition__award_type__quarterly
+msgid "Quarterly Excellence"
+msgstr "ত্রৈমাসিক উৎকর্ষ"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_succession_plan__readiness__ready_now
+msgid "Ready Now"
+msgstr "এখনই প্রস্তুত"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_review__state__self_review
+msgid "Self Review"
+msgstr "স্ব-পর্যালোচনা"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_recognition__award_type__spot
+msgid "Spot Award"
+msgstr "তাৎক্ষণিক পুরস্কার"
+
+#. module: cd_performance
+#: model:ir.model.fields.selection,name:cd_performance.selection__fix_performance_recognition__award_type__values
+msgid "Values Champion"
+msgstr "মূল্যবোধের অগ্রদূত"

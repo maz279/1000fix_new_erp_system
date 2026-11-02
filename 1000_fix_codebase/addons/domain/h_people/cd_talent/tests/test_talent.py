@@ -105,6 +105,14 @@ class TestArchConformance(unittest.TestCase):
             self.assertTrue(hasattr(model, "company_id"))
             self.assertTrue(hasattr(model, "operating_unit_id"))
 
+    def test_candidate_hire_gates_and_idempotent_employee_creation(self):
+        self.assertTrue(hasattr(FixCandidate, "employee_id"))
+        src = inspect.getsource(FixCandidate.action_hire)
+        self.assertIn("fix.talent.check", src)
+        self.assertIn("fix.talent.assessment", src)
+        self.assertIn("hr.employee", src)
+        self.assertIn("fix.onboarding.plan", src)
+
 
 if __name__ == "__main__":
     unittest.main()

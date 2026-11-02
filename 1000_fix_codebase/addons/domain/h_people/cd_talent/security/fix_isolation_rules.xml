@@ -41,4 +41,29 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_talent_assessment_company" model="ir.rule">
+        <field name="name">fix.talent.assessment: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_assessment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_check_company" model="ir.rule">
+        <field name="name">fix.talent.check: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_check"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_first90_company" model="ir.rule">
+        <field name="name">fix.talent.first90: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_first90"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_interview_company" model="ir.rule">
+        <field name="name">fix.talent.interview: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_interview"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_talent_offer_company" model="ir.rule">
+        <field name="name">fix.talent.offer: allowed companies</field>
+        <field name="model_id" ref="model_fix_talent_offer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

@@ -78,6 +78,11 @@ msgid "Compliant"
 msgstr "কমপ্লায়েন্ট"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__phone
+msgid "Contact Number"
+msgstr "যোগাযোগ নম্বর"
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__daily_limit_exceeded
 msgid "Daily Limit Exceeded (>10h)"
 msgstr "দৈনিক সীমা অতিক্রান্ত (>১০ ঘণ্টা)"
@@ -151,6 +156,11 @@ msgstr "নিজ জোনের জিওফেন্সের ভেতরে
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__ip_address
 msgid "IP Address / Hostname"
 msgstr "IP ঠিকানা / হোস্টনেম"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__week_start
+msgid "ISO Week Start"
+msgstr "আইএসও সপ্তাহের শুরু"
 
 #. module: cd_attendance
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__last_sync_at
@@ -231,6 +241,7 @@ msgstr "অনলাইন"
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__operating_unit_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__operating_unit_id
@@ -283,6 +294,11 @@ msgid "Rest Interval Violation (<11h)"
 msgstr "বিশ্রাম বিরতি লঙ্ঘন (<১১ ঘণ্টা)"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__rest_day_hours
+msgid "Rest-Day Worked Hours"
+msgstr "সাপ্তাহিক ছুটির দিনে কাজের ঘণ্টা"
+
+#. module: cd_attendance
 msgid "Roster"
 msgstr "রোস্টার"
 
@@ -298,6 +314,7 @@ msgid "Roster Slot"
 msgstr "রোস্টার স্লট"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__shift_id
 #: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__shift_id
 msgid "Shift"
 msgstr "শিফট"
@@ -314,14 +331,44 @@ msgid "Shift Templates"
 msgstr "শিফট টেমপ্লেটসমূহ"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_oncall__allowance
+msgid "Standby Allowance"
+msgstr "স্ট্যান্ডবাই ভাতা"
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_biometric_device__status__syncing
 msgid "Syncing"
 msgstr "সিঙ্ক চলছে"
 
 #. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__tentative
+msgid "Tentative (sighting-dependent)"
+msgstr "সাময়িক (চাঁদ দেখার উপর নির্ভরশীল)"
+
+#. module: cd_attendance
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__compliance_status__weekly_limit_exceeded
 msgid "Weekly Limit Exceeded (>60h)"
 msgstr "সাপ্তাহিক সীমা অতিক্রান্ত (>৬০ ঘণ্টা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_limit_exceeded
+msgid "Weekly OT Cap Exceeded"
+msgstr "সাপ্তাহিক ওভারটাইম সীমা অতিক্রান্ত"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_ot_hours
+msgid "Weekly Overtime Hours"
+msgstr "সাপ্তাহিক অতিরিক্ত কর্মঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__is_rest_day
+msgid "Weekly Rest Day Call-In"
+msgstr "সাপ্তাহিক ছুটির দিনে কাজে ডাকা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__weekly_worked_hours
+msgid "Weekly Worked Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা"
 
 #. module: cd_attendance
 #: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
@@ -332,3 +379,49 @@ msgstr "কর্মসময় ও কমপ্লায়েন্স (BLA �
 #: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__geofence_result__no_geofence
 msgid "Zone Without Geofence"
 msgstr "জিওফেন্সবিহীন জোন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_biometric_device__active
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__company
+msgid "Company Day"
+msgstr "কোম্পানি দিবস"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_hr_holiday__name_bn
+msgid "Holiday (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__moon
+msgid "Moon-Dependent (subject to sighting)"
+msgstr "চাঁদ দেখার উপর নির্ভরশীল"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_oncall__state__planned
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__public
+msgid "Public Holiday"
+msgstr "সরকারি ছুটি"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_hr_holiday__holiday_type__religious
+msgid "Religious"
+msgstr "ধর্মীয়"
