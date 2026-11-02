@@ -1,6 +1,6 @@
 {
   "test": "R07-M01-T03: Dual-Write Outbox Publisher Parity Verification (EP-05)",
-  "timestamp_utc": "2026-10-22T16:23:18Z",
+  "timestamp_utc": "2026-11-02T01:22:32Z",
   "results": {
     "measurement_scope": "in-process: libs/py/fix_events.DualWriteEventBus on in-memory Redis/Kafka stand-ins; no live Redis or broker",
     "total_events_dual_written": 1000,
@@ -64,9 +64,9 @@
     "total_discrepancies": 0,
     "in_process_microbenchmark": {
       "note": "in-memory stand-ins; not Redis or Kafka latency",
-      "throughput_events_per_sec": 36328.5,
-      "avg_redis_stub_latency_ms": 0.00368,
-      "avg_kafka_stub_latency_ms": 0.00756
+      "throughput_events_per_sec": 21275.0,
+      "avg_redis_stub_latency_ms": 0.00647,
+      "avg_kafka_stub_latency_ms": 0.01263
     },
     "infra_probe": {
       "redis_reachable": true,
@@ -79,18 +79,7 @@
         "127.0.0.1:9095 accepted a TCP connection"
       ]
     },
-    "live_window": {
-      "run_id": "6737344c",
-      "events": 250,
-      "redis_read_back": 250,
-      "kafka_read_back": 250,
-      "only_redis": 0,
-      "only_kafka": 0,
-      "payload_digest_mismatches": 0,
-      "causal_id_mismatches": 0,
-      "emit_throughput_per_sec": 107.8,
-      "measurement_scope": "live: Redis Streams + 3-broker Kafka (run-scoped family)"
-    },
+    "live_window": null,
     "checks": [
       {
         "check": "family_parity_and_counts",
@@ -134,11 +123,11 @@
       },
       {
         "check": "live_redis_and_kafka_dual_write",
-        "status": "PASS",
-        "detail": "LIVE run 6737344c: 250 events dual-written for real (Redis XADD on 6380 + acks=all produce on the 3-broker cluster); read back 250 Redis / 250 Kafka records; only-redis=0, only-kafka=0, payload-digest mismatches=0, causal-id mismatches=0; emit throughput 108/s; Redis streams deleted after read-back (run-scoped Kafka topic retained as audit trail)"
+        "status": "FAIL",
+        "detail": "live window raised ModuleNotFoundError: No module named 'kafka'"
       }
     ],
-    "verdict": "PASS"
+    "verdict": "FAIL"
   },
-  "verdict": "PASS"
+  "verdict": "FAIL"
 }

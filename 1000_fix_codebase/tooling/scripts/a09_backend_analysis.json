@@ -1,0 +1,1590 @@
+{
+  "M21": {
+    "addon": "cd_hr_core",
+    "models_count": 9,
+    "models": [
+      {
+        "file": "fix_hr_core.py",
+        "class": "HrEmployeeCdCoreExt",
+        "model": null,
+        "inherit": "hr.employee",
+        "fields_count": 9,
+        "fields": [
+          "employee_code",
+          "position_id",
+          "contract_count",
+          "operating_unit_id",
+          "keycloak_deprovision_status",
+          "left_at",
+          "keycloak_deprovisioned_at",
+          "keycloak_deprovision_confirmed_by",
+          "keycloak_deprovision_hours"
+        ],
+        "methods": [
+          "_compute_contract_count",
+          "_compute_keycloak_deprovision_hours",
+          "_emit_leaver",
+          "action_confirm_keycloak_deprovisioned",
+          "consume_identity_lifecycle_event",
+          "_apply_identity_provisioning",
+          "drain_identity_lifecycle_events",
+          "measure_kpi_090_orphaned_accounts",
+          "write"
+        ]
+      },
+      {
+        "file": "fix_hr_core.py",
+        "class": "FixOrgPosition",
+        "model": "fix.org.position",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 6,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "parent_id",
+          "employee_ids",
+          "grade"
+        ],
+        "methods": [
+          "_check_hierarchy"
+        ]
+      },
+      {
+        "file": "fix_hr_core.py",
+        "class": "FixEmploymentContract",
+        "model": "fix.employment.contract",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 17,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "employee_id",
+          "contract_type",
+          "joining_date",
+          "probation_end",
+          "weekly_hours",
+          "basic_monthly",
+          "currency_id",
+          "state",
+          "identity_document_note"
+        ],
+        "methods": [
+          "_compute_name",
+          "action_activate",
+          "action_terminate",
+          "action_request_legal_signoff",
+          "action_approve_legal_signoff",
+          "action_generate_contract_document",
+          "_validate_statutory"
+        ]
+      },
+      {
+        "file": "fix_hr_core.py",
+        "class": "FixLeaveType",
+        "model": "fix.leave.type",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 14,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "code",
+          "name",
+          "name_bn",
+          "entitlement_days",
+          "encashable",
+          "maternity",
+          "is_statutory",
+          "carry_forward_limit",
+          "labour_act_section",
+          "legal_citation"
+        ],
+        "methods": [
+          "action_validate_statutory"
+        ]
+      },
+      {
+        "file": "fix_hr_core.py",
+        "class": "FixLeaveRequest",
+        "model": "fix.leave.request",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 9,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "employee_id",
+          "leave_type_id",
+          "date_from",
+          "date_to",
+          "days",
+          "reason",
+          "state"
+        ],
+        "methods": [
+          "_compute_days",
+          "action_approve"
+        ]
+      },
+      {
+        "file": "fix_hr_ops.py",
+        "class": "FixHrTransfer",
+        "model": "fix.hr.transfer",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "movement_type",
+          "effective_date",
+          "from_position_id",
+          "to_position_id",
+          "from_operating_unit_id",
+          "to_operating_unit_id",
+          "reason",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_approve",
+          "action_apply",
+          "action_cancel"
+        ]
+      },
+      {
+        "file": "fix_hr_ops.py",
+        "class": "FixHrExit",
+        "model": "fix.hr.exit",
+        "inherit": null,
+        "fields_count": 14,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "exit_type",
+          "notice_date",
+          "last_working_day",
+          "reason",
+          "clearance_it",
+          "clearance_finance",
+          "clearance_hr",
+          "clearance_assets",
+          "settlement_amount"
+        ],
+        "methods": [
+          "create",
+          "_all_cleared",
+          "action_clear",
+          "action_settle",
+          "action_cancel"
+        ]
+      },
+      {
+        "file": "fix_hr_ops.py",
+        "class": "FixHrDocument",
+        "model": "fix.hr.document",
+        "inherit": null,
+        "fields_count": 8,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "doc_type",
+          "reference",
+          "issued_on",
+          "acknowledged",
+          "notes"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_hr_ops.py",
+        "class": "FixHrDependant",
+        "model": "fix.hr.dependant",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "company_id",
+          "employee_id",
+          "name",
+          "relation",
+          "date_of_birth",
+          "nid",
+          "is_nominee",
+          "nominee_pct",
+          "_pct_range"
+        ],
+        "methods": []
+      }
+    ],
+    "views": [
+      "fix_hr_core_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M55": {
+    "addon": "cd_attendance",
+    "models_count": 8,
+    "models": [
+      {
+        "file": "fix_attendance.py",
+        "class": "FixShiftTemplate",
+        "model": "fix.shift.template",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 5,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "start_hour",
+          "end_hour"
+        ],
+        "methods": [
+          "_check_hours"
+        ]
+      },
+      {
+        "file": "fix_attendance.py",
+        "class": "FixRosterSlot",
+        "model": "fix.roster.slot",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "employee_id",
+          "date",
+          "shift_id",
+          "branch_id",
+          "on_leave",
+          "display_label"
+        ],
+        "methods": [
+          "_compute_label"
+        ]
+      },
+      {
+        "file": "fix_attendance.py",
+        "class": "FixBiometricDevice",
+        "model": "fix.biometric.device",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 12,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "device_id",
+          "name",
+          "model_type",
+          "branch_id",
+          "ip_address",
+          "location_desc",
+          "active",
+          "last_sync_at",
+          "status",
+          "_device_id_uniq"
+        ],
+        "methods": [
+          "action_ingest_punch"
+        ]
+      },
+      {
+        "file": "fix_attendance.py",
+        "class": "FixAttendanceRecord",
+        "model": "fix.attendance.record",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 21,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "employee_id",
+          "check_in",
+          "check_out",
+          "source",
+          "device_ref",
+          "geo_lat",
+          "geo_long",
+          "accuracy_m",
+          "geofence_result",
+          "approval_state"
+        ],
+        "methods": [
+          "_compute_hours",
+          "_compute_compliance",
+          "_compute_label",
+          "create",
+          "write",
+          "unlink",
+          "_check_approver",
+          "_decide",
+          "action_approve",
+          "action_reject",
+          "pending_in_period",
+          "action_checkout"
+        ]
+      },
+      {
+        "file": "fix_attendance.py",
+        "class": "FixAttendanceLock",
+        "model": "fix.attendance.lock",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 6,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "period_start",
+          "period_end",
+          "state"
+        ],
+        "methods": [
+          "action_lock",
+          "action_unlock"
+        ]
+      },
+      {
+        "file": "fix_attendance.py",
+        "class": "FixWorkOrderAvailabilityExt",
+        "model": null,
+        "inherit": "fix.work.order",
+        "fields_count": 1,
+        "fields": [
+          "operating_unit_id"
+        ],
+        "methods": [
+          "action_check_technician_availability",
+          "write"
+        ]
+      },
+      {
+        "file": "fix_wfm_ops.py",
+        "class": "FixHrHoliday",
+        "model": "fix.hr.holiday",
+        "inherit": null,
+        "fields_count": 7,
+        "fields": [
+          "name",
+          "company_id",
+          "date",
+          "holiday_type",
+          "tentative",
+          "notes",
+          "_date_name"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_wfm_ops.py",
+        "class": "FixHrOncall",
+        "model": "fix.hr.oncall",
+        "inherit": null,
+        "fields_count": 12,
+        "fields": [
+          "name",
+          "company_id",
+          "operating_unit_id",
+          "employee_id",
+          "shift_id",
+          "date_from",
+          "date_to",
+          "currency_id",
+          "allowance",
+          "phone",
+          "state",
+          "_dates_ordered"
+        ],
+        "methods": [
+          "create",
+          "action_start",
+          "action_complete",
+          "action_cancel"
+        ]
+      }
+    ],
+    "views": [
+      "fix_attendance_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M56": {
+    "addon": "cd_payroll_bd",
+    "models_count": 9,
+    "models": [
+      {
+        "file": "fix_payroll.py",
+        "class": "FixPayrollPeriod",
+        "model": "fix.payroll.period",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 18,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "period_start",
+          "period_end",
+          "state",
+          "calculator_id",
+          "payslip_ids",
+          "slip_count",
+          "net_total",
+          "gross_total",
+          "tax_total"
+        ],
+        "methods": [
+          "_compute_counts",
+          "action_verify_attendance_locked",
+          "action_calculate",
+          "action_approve",
+          "action_pay",
+          "action_post"
+        ]
+      },
+      {
+        "file": "fix_payroll.py",
+        "class": "FixPayslip",
+        "model": "fix.payslip",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 24,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "period_id",
+          "employee_id",
+          "currency_id",
+          "basic",
+          "ot_hours",
+          "incentive",
+          "pf_employee_pct",
+          "pf_employer_pct",
+          "annual_taxable_other",
+          "taxpayer_category"
+        ],
+        "methods": [
+          "_compute_slip",
+          "action_compute_separation",
+          "action_compute_retrenchment"
+        ]
+      },
+      {
+        "file": "fix_payroll.py",
+        "class": "FixBeftnBatch",
+        "model": "fix.beftn.batch",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 13,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "period_id",
+          "submitted_at",
+          "settlement_date",
+          "employee_count",
+          "total_amount",
+          "currency_id",
+          "company_account_no",
+          "company_routing_no",
+          "file_content",
+          "file_name"
+        ],
+        "methods": [
+          "action_generate_beftn_file",
+          "action_settle"
+        ]
+      },
+      {
+        "file": "fix_payroll.py",
+        "class": "ResCompanyPayrollAccounting",
+        "model": null,
+        "inherit": "res.company",
+        "fields_count": 6,
+        "fields": [
+          "payroll_journal_id",
+          "payroll_salary_expense_account_id",
+          "payroll_pf_expense_account_id",
+          "payroll_net_payable_account_id",
+          "payroll_tax_payable_account_id",
+          "payroll_pf_payable_account_id"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_payroll_ops.py",
+        "class": "FixPayrollStructure",
+        "model": "fix.payroll.structure",
+        "inherit": null,
+        "fields_count": 12,
+        "fields": [
+          "name",
+          "company_id",
+          "grade",
+          "basic_pct",
+          "house_rent_pct",
+          "transport_fixed",
+          "medical_fixed",
+          "currency_id",
+          "pf_applicable",
+          "gratuity_applicable",
+          "active",
+          "_basic_house_range"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_payroll_ops.py",
+        "class": "FixFestivalBonusRun",
+        "model": "fix.payroll.bonus.run",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "operating_unit_id",
+          "festival",
+          "bonus_date",
+          "basis",
+          "multiplier",
+          "employee_count",
+          "currency_id",
+          "total_amount",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_approve",
+          "action_pay"
+        ]
+      },
+      {
+        "file": "fix_payroll_ops.py",
+        "class": "FixPayrollCertificate",
+        "model": "fix.payroll.certificate",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "certificate_type",
+          "fiscal_year",
+          "issued_on",
+          "amount",
+          "currency_id",
+          "reference"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_payroll_ops.py",
+        "class": "FixWithholdingReturn",
+        "model": "fix.payroll.return",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "period",
+          "employee_count",
+          "currency_id",
+          "total_tax",
+          "filed_on",
+          "acknowledgement",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_file"
+        ]
+      },
+      {
+        "file": "fix_payroll_ops.py",
+        "class": "FixOffcyclePayment",
+        "model": "fix.payroll.offcycle",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "payment_type",
+          "payment_date",
+          "currency_id",
+          "amount",
+          "reason",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_approve",
+          "action_pay"
+        ]
+      }
+    ],
+    "views": [
+      "fix_payroll_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M57": {
+    "addon": "cd_performance",
+    "models_count": 9,
+    "models": [
+      {
+        "file": "fix_performance.py",
+        "class": "FixPerformanceScorecard",
+        "model": "fix.performance.scorecard",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 9,
+        "fields": [
+          "company_id",
+          "employee_id",
+          "period",
+          "first_time_fix",
+          "sla_hit",
+          "csat",
+          "rework_rate",
+          "score",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "_compute_score",
+          "action_publish"
+        ]
+      },
+      {
+        "file": "fix_performance.py",
+        "class": "FixIncentiveRun",
+        "model": "fix.incentive.run",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "period",
+          "band_base",
+          "currency_id",
+          "state",
+          "line_ids",
+          "total",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "_compute_total",
+          "action_compute",
+          "action_apply"
+        ]
+      },
+      {
+        "file": "fix_performance.py",
+        "class": "FixIncentiveLine",
+        "model": "fix.incentive.line",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 7,
+        "fields": [
+          "company_id",
+          "run_id",
+          "scorecard_id",
+          "employee_id",
+          "amount",
+          "currency_id",
+          "operating_unit_id"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_performance.py",
+        "class": "FixCompensationBand",
+        "model": "fix.compensation.band",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "name",
+          "grade",
+          "range_min",
+          "range_mid",
+          "range_max",
+          "currency_id",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "_check_range"
+        ]
+      },
+      {
+        "file": "fix_performance_ops.py",
+        "class": "FixPerfGoal",
+        "model": "fix.performance.goal",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "parent_goal_id",
+          "period",
+          "weight",
+          "target_value",
+          "actual_value",
+          "unit",
+          "state",
+          "_weight_range"
+        ],
+        "methods": [
+          "action_activate",
+          "action_close"
+        ]
+      },
+      {
+        "file": "fix_performance_ops.py",
+        "class": "FixPerfReview",
+        "model": "fix.performance.review",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "reviewer_id",
+          "period",
+          "self_rating",
+          "manager_rating",
+          "calibrated_rating",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_manager_review",
+          "action_calibrate",
+          "action_close"
+        ]
+      },
+      {
+        "file": "fix_performance_ops.py",
+        "class": "FixPerfPip",
+        "model": "fix.performance.pip",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "mentor_id",
+          "start_date",
+          "end_date",
+          "reason",
+          "outcome",
+          "state",
+          "_dates_ordered"
+        ],
+        "methods": [
+          "create",
+          "action_start",
+          "action_close"
+        ]
+      },
+      {
+        "file": "fix_performance_ops.py",
+        "class": "FixPerfRecognition",
+        "model": "fix.performance.recognition",
+        "inherit": null,
+        "fields_count": 8,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "award_type",
+          "awarded_on",
+          "citation",
+          "currency_id",
+          "prize_amount"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_performance_ops.py",
+        "class": "FixSuccessionPlan",
+        "model": "fix.succession.plan",
+        "inherit": null,
+        "fields_count": 7,
+        "fields": [
+          "company_id",
+          "position_name",
+          "incumbent_id",
+          "successor_id",
+          "readiness",
+          "risk",
+          "notes"
+        ],
+        "methods": []
+      }
+    ],
+    "views": [
+      "fix_performance_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M22": {
+    "addon": "cd_competency",
+    "models_count": 9,
+    "models": [
+      {
+        "file": "fix_competency.py",
+        "class": "FixCompetency",
+        "model": "fix.competency",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 7,
+        "fields": [
+          "company_id",
+          "code",
+          "name",
+          "name_bn",
+          "device_type",
+          "required_for_dispatch",
+          "operating_unit_id"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_competency.py",
+        "class": "FixCertification",
+        "model": "fix.certification",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "employee_id",
+          "competency_id",
+          "issued_on",
+          "expires_on",
+          "evidence_ref",
+          "status",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "_compute_status",
+          "action_grant",
+          "action_mark_expired",
+          "dispatch_eligibility"
+        ]
+      },
+      {
+        "file": "fix_competency.py",
+        "class": "FixTrainingCourse",
+        "model": "fix.training.course",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "code",
+          "name",
+          "name_bn",
+          "content_ref",
+          "competency_id",
+          "enrollment_ids",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "action_enroll"
+        ]
+      },
+      {
+        "file": "fix_competency.py",
+        "class": "FixTrainingEnrollment",
+        "model": "fix.training.enrollment",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 6,
+        "fields": [
+          "company_id",
+          "course_id",
+          "employee_id",
+          "state",
+          "completed_on",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "action_pass"
+        ]
+      },
+      {
+        "file": "fix_competency.py",
+        "class": "FixWorkOrderEligibilityExt",
+        "model": null,
+        "inherit": "fix.work.order",
+        "fields_count": 3,
+        "fields": [
+          "certification_waiver",
+          "certification_waiver_reason",
+          "operating_unit_id"
+        ],
+        "methods": [
+          "action_check_certification",
+          "create",
+          "write"
+        ]
+      },
+      {
+        "file": "fix_competency_ops.py",
+        "class": "FixCompetencyAssessment",
+        "model": "fix.competency.assessment",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "competency_id",
+          "assessed_on",
+          "assessor_id",
+          "level",
+          "score",
+          "passed",
+          "notes",
+          "_score_range"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_competency_ops.py",
+        "class": "FixLearningPath",
+        "model": "fix.learning.path",
+        "inherit": null,
+        "fields_count": 7,
+        "fields": [
+          "name",
+          "company_id",
+          "target_role",
+          "competency_ids",
+          "course_ids",
+          "min_level",
+          "active"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_competency_ops.py",
+        "class": "FixOjtRecord",
+        "model": "fix.ojt.record",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "mentor_id",
+          "competency_id",
+          "date_from",
+          "date_to",
+          "hours",
+          "outcome",
+          "notes"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_competency_ops.py",
+        "class": "FixAuditEvidence",
+        "model": "fix.audit.evidence",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "evidence_type",
+          "standard_ref",
+          "collected_on",
+          "reference",
+          "attachment_note",
+          "valid_until",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_submit",
+          "action_accept"
+        ]
+      }
+    ],
+    "views": [
+      "fix_competency_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M58": {
+    "addon": "cd_talent",
+    "models_count": 8,
+    "models": [
+      {
+        "file": "fix_talent.py",
+        "class": "FixJobRequisition",
+        "model": "fix.job.requisition",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 7,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "department_id",
+          "position_id",
+          "openings",
+          "state"
+        ],
+        "methods": [
+          "action_open",
+          "action_hired"
+        ]
+      },
+      {
+        "file": "fix_talent.py",
+        "class": "FixCandidate",
+        "model": "fix.candidate",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 7,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "email",
+          "phone",
+          "requisition_id",
+          "state"
+        ],
+        "methods": [
+          "action_screen",
+          "action_interview",
+          "action_offer",
+          "action_hire"
+        ]
+      },
+      {
+        "file": "fix_talent.py",
+        "class": "FixOnboardingPlan",
+        "model": "fix.onboarding.plan",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 16,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "candidate_id",
+          "requisition_id",
+          "employee_id",
+          "position_id",
+          "department_id",
+          "joined_date",
+          "nid_verified",
+          "contract_signed",
+          "it_assets_allocated"
+        ],
+        "methods": [
+          "action_start",
+          "action_complete"
+        ]
+      },
+      {
+        "file": "fix_talent_ops.py",
+        "class": "FixTalentInterview",
+        "model": "fix.talent.interview",
+        "inherit": null,
+        "fields_count": 13,
+        "fields": [
+          "name",
+          "company_id",
+          "candidate_id",
+          "requisition_id",
+          "interviewer_id",
+          "scheduled_on",
+          "round_no",
+          "competency_code",
+          "score",
+          "recommendation",
+          "notes",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_done"
+        ]
+      },
+      {
+        "file": "fix_talent_ops.py",
+        "class": "FixTalentAssessment",
+        "model": "fix.talent.assessment",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "candidate_id",
+          "competency_code",
+          "assessor_id",
+          "assessed_on",
+          "score",
+          "passed",
+          "notes",
+          "_score_range"
+        ],
+        "methods": [
+          "create"
+        ]
+      },
+      {
+        "file": "fix_talent_ops.py",
+        "class": "FixTalentCheck",
+        "model": "fix.talent.check",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "candidate_id",
+          "check_type",
+          "requested_on",
+          "completed_on",
+          "result",
+          "reference_contact",
+          "notes"
+        ],
+        "methods": [
+          "create",
+          "action_clear"
+        ]
+      },
+      {
+        "file": "fix_talent_ops.py",
+        "class": "FixTalentOffer",
+        "model": "fix.talent.offer",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "candidate_id",
+          "requisition_id",
+          "position_id",
+          "currency_id",
+          "gross_salary",
+          "issued_on",
+          "valid_until",
+          "joining_date",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_issue",
+          "action_accept",
+          "action_decline"
+        ]
+      },
+      {
+        "file": "fix_talent_ops.py",
+        "class": "FixTalentFirst90",
+        "model": "fix.talent.first90",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "plan_id",
+          "check_date",
+          "milestone",
+          "rating",
+          "on_track",
+          "notes",
+          "_rating_range"
+        ],
+        "methods": [
+          "create"
+        ]
+      }
+    ],
+    "views": [
+      "cd_talent_views.xml"
+    ],
+    "has_acl": true
+  },
+  "M59": {
+    "addon": "cd_hse",
+    "models_count": 12,
+    "models": [
+      {
+        "file": "fix_hse.py",
+        "class": "FixHseIncident",
+        "model": "fix.hse.incident",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 13,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "incident_type",
+          "severity",
+          "branch_id",
+          "employee_id",
+          "injured_employee_id",
+          "description",
+          "corrective_action",
+          "statutory_record_id",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_investigate",
+          "action_close"
+        ]
+      },
+      {
+        "file": "fix_hse.py",
+        "class": "FixSafetyInspection",
+        "model": "fix.safety.inspection",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 15,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "branch_id",
+          "inspected_on",
+          "inspector_id",
+          "fire_extinguisher_ok",
+          "emergency_exit_ok",
+          "first_aid_ok",
+          "electrical_ok",
+          "esd_grounding_ok",
+          "fume_extraction_ok"
+        ],
+        "methods": [
+          "action_complete"
+        ]
+      },
+      {
+        "file": "fix_hse.py",
+        "class": "FixSafetyCommittee",
+        "model": "fix.safety.committee",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 14,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "branch_id",
+          "formation_date",
+          "chairperson_id",
+          "secretary_id",
+          "member_count",
+          "meeting_frequency",
+          "last_meeting_date",
+          "next_meeting_date",
+          "recent_minutes"
+        ],
+        "methods": [
+          "action_record_meeting"
+        ]
+      },
+      {
+        "file": "fix_hse.py",
+        "class": "FixStatutoryAccidentRegister",
+        "model": "fix.statutory.accident.register",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 13,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "incident_id",
+          "employee_id",
+          "accident_date",
+          "nature_of_injury",
+          "affected_body_part",
+          "lost_work_days",
+          "dife_notified",
+          "dife_notification_date",
+          "statutory_compensation_bdt"
+        ],
+        "methods": [
+          "action_notify_dife"
+        ]
+      },
+      {
+        "file": "fix_hse.py",
+        "class": "FixPpeRegister",
+        "model": "fix.ppe.register",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 8,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "item_type",
+          "regulatory_standard",
+          "stock_quantity",
+          "min_required_quantity",
+          "state"
+        ],
+        "methods": [
+          "check_replenishment"
+        ]
+      },
+      {
+        "file": "fix_hse.py",
+        "class": "FixHazardousSubstanceRegister",
+        "model": "fix.hazardous.substance.register",
+        "inherit": [
+          "mail.thread",
+          "mail.activity.mixin"
+        ],
+        "fields_count": 10,
+        "fields": [
+          "company_id",
+          "operating_unit_id",
+          "name",
+          "un_number",
+          "storage_location",
+          "max_allowable_litres",
+          "current_stock_litres",
+          "msds_on_file",
+          "fire_suppression_type",
+          "state"
+        ],
+        "methods": []
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseHazard",
+        "model": "fix.hse.hazard",
+        "inherit": null,
+        "fields_count": 12,
+        "fields": [
+          "name",
+          "company_id",
+          "operating_unit_id",
+          "branch_id",
+          "hazard_type",
+          "likelihood",
+          "severity",
+          "risk_score",
+          "controls",
+          "residual_risk",
+          "state",
+          "_score_range"
+        ],
+        "methods": [
+          "_compute_risk",
+          "action_control",
+          "action_close"
+        ]
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseJsa",
+        "model": "fix.hse.jsa",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "job_type",
+          "steps",
+          "hazards",
+          "controls",
+          "ppe_required",
+          "approved_by_id",
+          "approved_on",
+          "state"
+        ],
+        "methods": [
+          "action_approve"
+        ]
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseLoneWorker",
+        "model": "fix.hse.loneworker",
+        "inherit": null,
+        "fields_count": 9,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "checkin_time",
+          "expected_end",
+          "location",
+          "buddy_id",
+          "state",
+          "notes"
+        ],
+        "methods": [
+          "create",
+          "action_checkout",
+          "action_escalate"
+        ]
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseRoadCheck",
+        "model": "fix.hse.roadcheck",
+        "inherit": null,
+        "fields_count": 11,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "vehicle_ref",
+          "checked_on",
+          "tyres_ok",
+          "brakes_ok",
+          "lights_ok",
+          "documents_ok",
+          "defects",
+          "passed"
+        ],
+        "methods": [
+          "_compute_passed",
+          "create"
+        ]
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseDrill",
+        "model": "fix.hse.drill",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "branch_id",
+          "drill_type",
+          "scheduled_on",
+          "completed_on",
+          "participants",
+          "duration_min",
+          "findings",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_complete"
+        ]
+      },
+      {
+        "file": "fix_hse_ops.py",
+        "class": "FixHseHealth",
+        "model": "fix.hse.health",
+        "inherit": null,
+        "fields_count": 10,
+        "fields": [
+          "name",
+          "company_id",
+          "employee_id",
+          "record_type",
+          "record_date",
+          "valid_until",
+          "fitness",
+          "restrictions",
+          "clinician",
+          "state"
+        ],
+        "methods": [
+          "create",
+          "action_close"
+        ]
+      }
+    ],
+    "views": [
+      "cd_hse_views.xml"
+    ],
+    "has_acl": true
+  }
+}

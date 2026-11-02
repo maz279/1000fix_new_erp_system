@@ -13,11 +13,6 @@
       "status": "planned"
     },
     {
-      "event_type": "consent.withdrawn",
-      "filename": "consent_withdrawn.json",
-      "status": "planned"
-    },
-    {
       "event_type": "consignment.pickup_dispatched",
       "filename": "consignment_pickup_dispatched.json",
       "status": "planned"

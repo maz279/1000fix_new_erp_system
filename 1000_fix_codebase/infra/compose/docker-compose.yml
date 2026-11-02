@@ -321,6 +321,7 @@ services:
     environment:
       FIX_ENV: local
       FIX_ACTIVE_WAVE: W1
+      FIX_NOTIFICATION_DISPATCHER_HOST: "0.0.0.0"
       FIX_EMAIL_API_URL: http://mailpit:8025/api/v1/send
       FIX_NOVU_API_URL: http://novu:3000
     ports: ["127.0.0.1:8110:8110"]

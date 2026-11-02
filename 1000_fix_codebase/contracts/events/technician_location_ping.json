@@ -41,13 +41,13 @@
       ],
       "properties": {
         "technician_id": {
-          "description": "Type not statically derivable from `technician_id` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+          "description": "Type not statically derivable from `technician_id` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:157)."
         },
         "latitude": {
-          "description": "Type not statically derivable from `lat` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+          "description": "Type not statically derivable from `lat` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:157)."
         },
         "longitude": {
-          "description": "Type not statically derivable from `lon` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:134)."
+          "description": "Type not statically derivable from `lon` (addons/domain/a_service_delivery/cd_field_service/models/fix_technician_location.py:157)."
         },
         "speed_kmh": {
           "type": "number"

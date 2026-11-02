@@ -1,24 +1,16 @@
 {
   "test": "R07-M01-T05: Kafka DLQ Routing and Time-Travel Event Replay (EP-06)",
-  "timestamp_utc": "2026-10-22T17:07:49Z",
+  "timestamp_utc": "2026-11-02T01:22:32Z",
   "results": {
     "measurement_scope": "in-process: libs/py/fix_events InMemoryBus + EventReplayEngine on an in-memory log; no live broker",
-    "live_window": {
-      "run_id": "8178a4f6",
-      "healthy": 60,
-      "processed_with_dlq": 61,
-      "dlq_records": 1,
-      "redrive_consumed": 62,
-      "reconsume_after_redrive": 0,
-      "measurement_scope": "live: 3-broker Kafka (run-scoped topic + DLQ)"
-    },
+    "live_window": null,
     "time_travel_replay": {
       "topic": "fix.events.vat",
-      "anchor_timestamp": 1792688862.787319,
+      "anchor_timestamp": 1793582552.563201,
       "pre_anchor_events": 25,
       "total_emitted_after_anchor": 500,
       "total_replayed": 500,
-      "in_process_duration_ms": 0.194,
+      "in_process_duration_ms": 1.011,
       "partition_starting_offsets": {
         "0": 7,
         "1": 11,
@@ -67,11 +59,11 @@
       },
       {
         "check": "live_cluster_replay_and_dlq",
-        "status": "PASS",
-        "detail": "LIVE run 8178a4f6: 60 healthy + 1 poison produced (acks=all); group 'dwdlq8178a4f6-g' processed 61 with the poison dead-lettered (DLQ read back: 1 record(s), dlq_reason header present: True); re-drive re-published the poison with its ORIGINAL event_id; fresh group consumed 62 records; same-group re-consume returned 0 (committed offsets make the redrive idempotent)"
+        "status": "FAIL",
+        "detail": "raised ModuleNotFoundError: No module named 'kafka'"
       }
     ],
-    "verdict": "PASS"
+    "verdict": "FAIL"
   },
-  "verdict": "PASS"
+  "verdict": "FAIL"
 }

@@ -53,10 +53,10 @@
           "type": "integer"
         },
         "gl_debit_account": {
-          "description": "Type not statically derivable from `deferred.code` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:589)."
+          "description": "Type not statically derivable from `deferred.code` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:691)."
         },
         "gl_credit_account": {
-          "description": "Type not statically derivable from `revenue.code` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:589)."
+          "description": "Type not statically derivable from `revenue.code` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:691)."
         }
       },
       "additionalProperties": false

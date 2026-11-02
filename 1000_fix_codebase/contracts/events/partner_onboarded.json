@@ -33,7 +33,9 @@
       "type": "object",
       "required": [
         "partner",
-        "type"
+        "type",
+        "tin",
+        "trade_license"
       ],
       "properties": {
         "partner": {
@@ -41,6 +43,18 @@
         },
         "type": {
           "type": "string"
+        },
+        "tin": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "trade_license": {
+          "type": [
+            "string",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

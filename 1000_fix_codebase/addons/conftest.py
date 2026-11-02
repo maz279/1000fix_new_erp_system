@@ -179,13 +179,29 @@ def _discard_env(env) -> None:
     pending write made the flushing invalidate_all() raise and skip the
     rollback, leaking an open transaction whose row locks stalled every other
     live-ORM run on fix_test (R01 re-audit 2026-10-22). The rollback and the
-    close happen whatever fails.
+    close happen whatever fails, and the registry caches are cleared last so
+    no `ormcache` entry survives the transaction that filled it.
     """
     cr = env.cr
+    registry = env.registry
     try:
         env.invalidate_all(flush=False)
     finally:
         try:
             cr.rollback()
         finally:
-            cr.close()
+            try:
+                cr.close()
+            finally:
+                # Registry `ormcache` entries outlive the cursor, so a rolled-back
+                # test could still poison every later test in the process. The
+                # harness neutralises `cr.commit`, which is also what normally
+                # signals cache invalidation, so nothing cleared them: a fixture
+                # that linked its private company to the superuser left that
+                # company's id in `res.users._get_company_ids` (ormcached on
+                # `self.id`), and the next suite resolved `env.companies` to a
+                # company the rollback had already removed — MissingError on
+                # res.company in an unrelated module, only when the suites ran
+                # together. Odoo's own TransactionCase clears the caches on every
+                # test cleanup (odoo/tests/common.py); this does the same.
+                registry.clear_all_caches()

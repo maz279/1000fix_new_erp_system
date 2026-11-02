@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "consent.withdrawn",
-  "description": "Event emitted when a customer revokes previously granted consent",
+  "title": "msp.alert_escalated",
+  "description": "Published by cd_msp_contract through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -18,7 +18,7 @@
     },
     "event_type": {
       "type": "string",
-      "const": "consent.withdrawn"
+      "const": "msp.alert_escalated"
     },
     "timestamp": {
       "type": "string",
@@ -27,27 +27,28 @@
     },
     "producer": {
       "type": "string",
-      "default": "cd_party_master"
+      "default": "cd_msp_contract"
     },
     "payload": {
       "type": "object",
       "required": [
-        "party_id",
-        "purpose_code",
-        "withdrawn_at"
+        "asset",
+        "severity"
       ],
       "properties": {
-        "party_id": {
-          "type": "integer"
-        },
-        "purpose_code": {
+        "asset": {
           "type": "string"
         },
-        "withdrawn_at": {
-          "type": "string",
-          "format": "date-time"
+        "severity": {
+          "type": "string"
         }
-      }
+      },
+      "additionalProperties": false
     }
-  }
+  },
+  "x-owner-module": "cd_msp_contract",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp_engines.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

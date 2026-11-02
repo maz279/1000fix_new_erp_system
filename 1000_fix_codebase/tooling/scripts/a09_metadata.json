@@ -1,0 +1,1193 @@
+{
+  "M21": {
+    "id": "M21",
+    "area": "A09",
+    "en": "Core HR & Lifecycle",
+    "bn": "মানবসম্পদ",
+    "icon": "👥",
+    "rail": "people",
+    "desc": "Hire-to-retire, Labour Act documents (appointment letter, ID card, service book), org structure, ESS/MSS.",
+    "groups": [
+      {
+        "en": "Employee Master",
+        "screens": [
+          {
+            "id": "M21-directory",
+            "en": "Directory",
+            "bn": "কর্মী তালিকা",
+            "t": "g"
+          },
+          {
+            "id": "M21-employee",
+            "en": "Employee Record",
+            "bn": "কর্মী নথি",
+            "t": "f"
+          },
+          {
+            "id": "M21-orgchart",
+            "en": "Org Chart",
+            "bn": "সংগঠন চার্ট",
+            "t": "x"
+          },
+          {
+            "id": "M21-positions",
+            "en": "Positions & Jobs",
+            "bn": "পদ",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Lifecycle",
+        "screens": [
+          {
+            "id": "M21-hire",
+            "en": "Hire / Onboard",
+            "bn": "নিয়োগ",
+            "t": "c"
+          },
+          {
+            "id": "M21-transfer",
+            "en": "Transfer / Promote",
+            "bn": "স্থানান্তর ও পদোন্নতি",
+            "t": "g"
+          },
+          {
+            "id": "M21-exit",
+            "en": "Exit & Settlement",
+            "bn": "প্রস্থান",
+            "t": "c"
+          },
+          {
+            "id": "M21-movement",
+            "en": "Movement History",
+            "bn": "চলাচলের ইতিহাস",
+            "t": "r"
+          }
+        ]
+      },
+      {
+        "en": "Documents",
+        "screens": [
+          {
+            "id": "M21-appointment",
+            "en": "Appointment Letters",
+            "bn": "নিয়োগপত্র",
+            "t": "g"
+          },
+          {
+            "id": "M21-servicebook",
+            "en": "Service Books",
+            "bn": "সার্ভিস বুক",
+            "t": "g"
+          },
+          {
+            "id": "M21-nominees",
+            "en": "Dependants & Nominees",
+            "bn": "মনোনীত ব্যক্তি",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Self-Service",
+        "screens": [
+          {
+            "id": "M21-ess",
+            "en": "ESS / MSS",
+            "bn": "স্ব-সেবা",
+            "t": "d"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Headcount & Movement",
+      "Attrition Analysis",
+      "Probation Conversion",
+      "Establishment Register",
+      "Org Distribution"
+    ],
+    "forms": [
+      "Employee",
+      "Transfer",
+      "Promotion",
+      "Exit Clearance"
+    ],
+    "cross": [
+      "M29 JML provisioning",
+      "M56 payroll feed",
+      "M22 certification register",
+      "M55 shifts"
+    ],
+    "freg": {
+      "src": 70,
+      "sub": [
+        [
+          "1",
+          "Employee Master",
+          12
+        ],
+        [
+          "2",
+          "Employment Contracts",
+          7
+        ],
+        [
+          "3",
+          "Org Structure",
+          9
+        ],
+        [
+          "4",
+          "Lifecycle Events",
+          12
+        ],
+        [
+          "5",
+          "Statutory Documents",
+          7
+        ],
+        [
+          "6",
+          "Dependants & Nominees",
+          5
+        ],
+        [
+          "7",
+          "ESS / MSS",
+          9
+        ],
+        [
+          "8",
+          "Exit Process",
+          9
+        ]
+      ]
+    },
+    "kpis": [
+      "Headcount",
+      "Attrition YTD",
+      "Technicians",
+      "Open Positions",
+      "Probation Ending (30d)",
+      "Service Books Complete"
+    ]
+  },
+  "M55": {
+    "id": "M55",
+    "area": "A09",
+    "en": "Time, Attendance & Scheduling",
+    "bn": "সময় ও শিফট",
+    "icon": "⏰",
+    "rail": "people",
+    "desc": "Biometric + geofenced mobile capture, moon-dependent holidays, rosters, availability published to dispatch.",
+    "groups": [
+      {
+        "en": "Capture",
+        "screens": [
+          {
+            "id": "M55-daily",
+            "en": "Daily Attendance",
+            "bn": "দৈনিক উপস্থিতি",
+            "t": "g"
+          },
+          {
+            "id": "M55-devices",
+            "en": "Biometric Devices",
+            "bn": "বায়োমেট্রিক",
+            "t": "g"
+          },
+          {
+            "id": "M55-geofence",
+            "en": "Geofenced Clock-In",
+            "bn": "জিওফেন্স",
+            "t": "g"
+          },
+          {
+            "id": "M55-exc",
+            "en": "Exception Regularisation",
+            "bn": "ব্যতিক্রম নিয়মিতকরণ",
+            "t": "c"
+          }
+        ]
+      },
+      {
+        "en": "Working Time",
+        "screens": [
+          {
+            "id": "M55-rules",
+            "en": "Rules & Overtime",
+            "bn": "নিয়ম ও অতিরিক্ত সময়",
+            "t": "g"
+          },
+          {
+            "id": "M55-holidays",
+            "en": "Holidays (moon-dependent)",
+            "bn": "ছুটির দিনপঞ্জি",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Leave",
+        "screens": [
+          {
+            "id": "M55-leave",
+            "en": "Leave Requests",
+            "bn": "ছুটির আবেদন",
+            "t": "g"
+          },
+          {
+            "id": "M55-balances",
+            "en": "Balances",
+            "bn": "ব্যালান্স",
+            "t": "r"
+          },
+          {
+            "id": "M55-calendar",
+            "en": "Calendar",
+            "bn": "ক্যালেন্ডার",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Scheduling",
+        "screens": [
+          {
+            "id": "M55-shifts",
+            "en": "Shift Patterns",
+            "bn": "শিফট",
+            "t": "g"
+          },
+          {
+            "id": "M55-rosters",
+            "en": "Rosters & Publication",
+            "bn": "রোস্টার",
+            "t": "c"
+          },
+          {
+            "id": "M55-oncall",
+            "en": "On-Call / Standby",
+            "bn": "অন-কল",
+            "t": "g"
+          },
+          {
+            "id": "M55-availability",
+            "en": "Availability → Dispatch",
+            "bn": "প্রাপ্যতা",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Attendance Summary",
+      "Overtime Analysis",
+      "Leave Utilisation",
+      "Roster vs Actual",
+      "Coverage Gaps"
+    ],
+    "forms": [
+      "Leave Request",
+      "Roster",
+      "Shift Pattern",
+      "Exception Regularisation"
+    ],
+    "cross": [
+      "M02 dispatch availability",
+      "M56 payroll hours",
+      "M27 contact-centre WFM",
+      "M21 employees"
+    ],
+    "freg": {
+      "src": 74,
+      "sub": [
+        [
+          "1",
+          "Capture (4 modes)",
+          12
+        ],
+        [
+          "2",
+          "Working Time & OT",
+          9
+        ],
+        [
+          "3",
+          "Leave",
+          10
+        ],
+        [
+          "4",
+          "Holidays",
+          5
+        ],
+        [
+          "5",
+          "Shifts & Rosters",
+          13
+        ],
+        [
+          "6",
+          "On-Call",
+          6
+        ],
+        [
+          "7",
+          "Availability Publication",
+          7
+        ],
+        [
+          "8",
+          "Verification & Lock",
+          6
+        ],
+        [
+          "9",
+          "Timesheets",
+          6
+        ]
+      ]
+    },
+    "kpis": [
+      "Attendance Today",
+      "Exceptions Pending",
+      "Overtime Pre-Approved",
+      "Roster Coverage",
+      "Leave Pending",
+      "Geofence Clock-Ins"
+    ]
+  },
+  "M56": {
+    "id": "M56",
+    "area": "A09",
+    "en": "Payroll & Statutory",
+    "bn": "বেতন ও সুবিধা",
+    "icon": "💵",
+    "rail": "people",
+    "desc": "BD gross-to-net engine, tax slabs AY26-27, PF, gratuity ≥30 days/yr, festival bonus, BEFTN bank files.",
+    "groups": [
+      {
+        "en": "Payroll Engine",
+        "screens": [
+          {
+            "id": "M56-runs",
+            "en": "Payroll Runs",
+            "bn": "বেতন রান",
+            "t": "c"
+          },
+          {
+            "id": "M56-structures",
+            "en": "Salary Structures",
+            "bn": "বেতন কাঠামো",
+            "t": "g"
+          },
+          {
+            "id": "M56-payslips",
+            "en": "Payslips",
+            "bn": "বেতন পত্র",
+            "t": "g"
+          },
+          {
+            "id": "M56-offcycle",
+            "en": "Off-Cycle Payments",
+            "bn": "অফ-সাইকেল",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Statutory",
+        "screens": [
+          {
+            "id": "M56-tax",
+            "en": "Income Tax (AY 2026-27)",
+            "bn": "আয়কর",
+            "t": "g"
+          },
+          {
+            "id": "M56-pf",
+            "en": "Provident Fund",
+            "bn": "প্রভিডেন্ট ফান্ড",
+            "t": "g"
+          },
+          {
+            "id": "M56-gratuity",
+            "en": "Gratuity & Encashment",
+            "bn": "গ্র্যাচুইটি",
+            "t": "g"
+          },
+          {
+            "id": "M56-bonus",
+            "en": "Festival Bonus",
+            "bn": "উৎসব বোনাস",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Disbursement",
+        "screens": [
+          {
+            "id": "M56-beftn",
+            "en": "BEFTN Bank Files",
+            "bn": "বিইএফটিএন",
+            "t": "g"
+          },
+          {
+            "id": "M56-certificates",
+            "en": "Certificates & Tax Statements",
+            "bn": "সনদ",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Compliance",
+        "screens": [
+          {
+            "id": "M56-returns",
+            "en": "Withholding Returns (Quarterly)",
+            "bn": "উৎসে কর রিটার্ন",
+            "t": "c"
+          },
+          {
+            "id": "M56-settlement",
+            "en": "Final Settlements",
+            "bn": "চূড়ান্ত নিষ্পত্তি",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Salary Register",
+      "Payroll Cost Allocation",
+      "Tax Deduction Summary",
+      "PF & Gratuity Provisions",
+      "Payroll Variance"
+    ],
+    "forms": [
+      "Salary Structure",
+      "Payroll Run",
+      "Bonus Run",
+      "Final Settlement"
+    ],
+    "cross": [
+      "M55 attendance input",
+      "M19 GL posting",
+      "M50 BEFTN execution",
+      "M57 incentive feed"
+    ],
+    "freg": {
+      "src": 82,
+      "sub": [
+        [
+          "1",
+          "Gross-to-Net Engine",
+          14
+        ],
+        [
+          "2",
+          "BD Income Tax",
+          12
+        ],
+        [
+          "3",
+          "Provident Fund",
+          7
+        ],
+        [
+          "4",
+          "Gratuity",
+          7
+        ],
+        [
+          "5",
+          "Bonus & Encashment",
+          7
+        ],
+        [
+          "6",
+          "Loans & Advances",
+          6
+        ],
+        [
+          "7",
+          "Runs & Off-Cycle",
+          9
+        ],
+        [
+          "8",
+          "BEFTN & Payslips",
+          8
+        ],
+        [
+          "9",
+          "Returns & Certificates",
+          7
+        ],
+        [
+          "10",
+          "Final Settlement",
+          5
+        ]
+      ]
+    },
+    "kpis": [
+      "Payroll Cycle",
+      "Gross Payroll",
+      "Run Duration",
+      "Corrections",
+      "Tax Withheld MTD",
+      "Festival Bonus Accrued"
+    ]
+  },
+  "M57": {
+    "id": "M57",
+    "area": "A09",
+    "en": "Performance & Incentives",
+    "bn": "পারফরম্যান্স ও প্রণোদনা",
+    "icon": "🏆",
+    "rail": "people",
+    "desc": "Goal cascades, KPI attribution to payroll, technician incentive schemes, calibration, recognition.",
+    "groups": [
+      {
+        "en": "Performance",
+        "screens": [
+          {
+            "id": "M57-goals",
+            "en": "Goal Cascades",
+            "bn": "লক্ষ্য স্তর",
+            "t": "g"
+          },
+          {
+            "id": "M57-kpis",
+            "en": "KPI Definitions",
+            "bn": "কেপিআই",
+            "t": "g"
+          },
+          {
+            "id": "M57-reviews",
+            "en": "Review Cycles",
+            "bn": "পর্যালোচনা চক্র",
+            "t": "c"
+          },
+          {
+            "id": "M57-calibration",
+            "en": "Calibration",
+            "bn": "ক্যালিব্রেশন",
+            "t": "g"
+          },
+          {
+            "id": "M57-pips",
+            "en": "PIPs",
+            "bn": "কর্ম উন্নয়ন পরিকল্পনা",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Incentives",
+        "screens": [
+          {
+            "id": "M57-schemes",
+            "en": "Incentive Schemes",
+            "bn": "প্রণোদনা কর্মসূচি",
+            "t": "g"
+          },
+          {
+            "id": "M57-calc",
+            "en": "Calculation Runs",
+            "bn": "হিসাব রান",
+            "t": "c"
+          },
+          {
+            "id": "M57-recognition",
+            "en": "Recognition",
+            "bn": "স্বীকৃতি",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Compensation",
+        "screens": [
+          {
+            "id": "M57-comp",
+            "en": "Compensation Review",
+            "bn": "বেতন পর্যালোচনা",
+            "t": "c"
+          },
+          {
+            "id": "M57-succession",
+            "en": "Succession",
+            "bn": "উত্তরসূরি",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Rating Distribution",
+      "Incentive Payout by Scheme",
+      "Technician Scorecards",
+      "Calibration Summary",
+      "PIP Outcomes"
+    ],
+    "forms": [
+      "Goal",
+      "Review",
+      "Incentive Scheme",
+      "Recognition"
+    ],
+    "cross": [
+      "M25 KPI dashboards",
+      "M56 payroll publication",
+      "M34 customer ratings",
+      "M22 technician skills"
+    ],
+    "freg": {
+      "src": 58,
+      "sub": [
+        [
+          "1",
+          "Goals & KPIs",
+          11
+        ],
+        [
+          "2",
+          "Review Cycles",
+          10
+        ],
+        [
+          "3",
+          "Multi-Source Feedback",
+          6
+        ],
+        [
+          "4",
+          "Rating & Calibration",
+          8
+        ],
+        [
+          "5",
+          "Incentive Design & Calculation",
+          12
+        ],
+        [
+          "6",
+          "Recognition",
+          4
+        ],
+        [
+          "7",
+          "Compensation Review",
+          7
+        ]
+      ]
+    },
+    "kpis": [
+      "Reviews On Track",
+      "Incentive Pool MTD",
+      "Goal Coverage",
+      "Calibration Sessions",
+      "PIPs Active",
+      "Incentive Accuracy"
+    ]
+  },
+  "M22": {
+    "id": "M22",
+    "area": "A09",
+    "en": "Learning & Certification",
+    "bn": "প্রশিক্ষণ ও সার্টিফিকেশন",
+    "icon": "🎓",
+    "rail": "people",
+    "desc": "Competency framework, brand certification register with expiry, hard block on expired certification at dispatch.",
+    "groups": [
+      {
+        "en": "Competency",
+        "screens": [
+          {
+            "id": "M22-framework",
+            "en": "Competency Framework",
+            "bn": "দক্ষতা কাঠামো",
+            "t": "g"
+          },
+          {
+            "id": "M22-matrix",
+            "en": "Skill Matrix",
+            "bn": "দক্ষতা ম্যাট্রিক্স",
+            "t": "d"
+          },
+          {
+            "id": "M22-assessments",
+            "en": "Assessments",
+            "bn": "মূল্যায়ন",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Certifications",
+        "screens": [
+          {
+            "id": "M22-register",
+            "en": "Certification Register",
+            "bn": "সার্টিফিকেশন রেজিস্টার",
+            "t": "g"
+          },
+          {
+            "id": "M22-expiry",
+            "en": "Validity & Renewal",
+            "bn": "মেয়াদ ও নবায়ন",
+            "t": "c"
+          },
+          {
+            "id": "M22-eligibility",
+            "en": "Dispatch Eligibility (hard block)",
+            "bn": "ডিসপ্যাচ যোগ্যতা",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Training",
+        "screens": [
+          {
+            "id": "M22-catalogue",
+            "en": "Course Catalogue",
+            "bn": "কোর্স তালিকা",
+            "t": "g"
+          },
+          {
+            "id": "M22-paths",
+            "en": "Learning Paths",
+            "bn": "শেখার পথ",
+            "t": "g"
+          },
+          {
+            "id": "M22-schedule",
+            "en": "Schedule & Attendance",
+            "bn": "সূচি ও উপস্থিতি",
+            "t": "g"
+          },
+          {
+            "id": "M22-ojt",
+            "en": "OJT & Mentoring",
+            "bn": "কর্মস্থল প্রশিক্ষণ",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Evidence",
+        "screens": [
+          {
+            "id": "M22-iso",
+            "en": "ISO / Brand Audit Evidence",
+            "bn": "আইএসও প্রমাণ",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Certification Coverage by Brand",
+      "Expiry Forecast",
+      "Training Effectiveness",
+      "Skill-Gap Heatmap",
+      "Audit Evidence Pack"
+    ],
+    "forms": [
+      "Certification",
+      "Course",
+      "Learning Path",
+      "Assessment"
+    ],
+    "cross": [
+      "M02 assignment gate",
+      "M31 L3 routing",
+      "M23 ISO 7.2",
+      "M21 employees"
+    ],
+    "freg": {
+      "src": 52,
+      "sub": [
+        [
+          "1",
+          "Competency Framework",
+          8
+        ],
+        [
+          "2",
+          "Skill Matrix & Assessment",
+          10
+        ],
+        [
+          "3",
+          "Certification Register",
+          12
+        ],
+        [
+          "4",
+          "Training Delivery",
+          12
+        ],
+        [
+          "5",
+          "OJT & Mentoring",
+          5
+        ],
+        [
+          "6",
+          "Evidence & Analytics",
+          5
+        ]
+      ]
+    },
+    "kpis": [
+      "Certified Technicians",
+      "Expiring (30d)",
+      "Expired Working",
+      "Training Hours /tech",
+      "Brand Certifications",
+      "Assessment Pass Rate"
+    ]
+  },
+  "M58": {
+    "id": "M58",
+    "area": "A09",
+    "en": "Talent Acquisition",
+    "bn": "নিয়োগ",
+    "icon": "🧲",
+    "rail": "people",
+    "desc": "Requisitions vs budget, structured interviews, practical technician assessments, pre-boarding, PDPA erasure.",
+    "groups": [
+      {
+        "en": "Requisitions",
+        "screens": [
+          {
+            "id": "M58-reqs",
+            "en": "Requisitions",
+            "bn": "নিয়োগ অনুরোধ",
+            "t": "g"
+          },
+          {
+            "id": "M58-approval",
+            "en": "Approval vs Budget",
+            "bn": "বাজেট অনুমোদন",
+            "t": "c"
+          }
+        ]
+      },
+      {
+        "en": "Sourcing",
+        "screens": [
+          {
+            "id": "M58-postings",
+            "en": "Job Postings",
+            "bn": "চাকরির বিজ্ঞপ্তি",
+            "t": "g"
+          },
+          {
+            "id": "M58-candidates",
+            "en": "Candidate Pipeline",
+            "bn": "প্রার্থী",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Selection",
+        "screens": [
+          {
+            "id": "M58-interviews",
+            "en": "Structured Interviews",
+            "bn": "সাক্ষাৎকার",
+            "t": "g"
+          },
+          {
+            "id": "M58-practical",
+            "en": "Practical Assessments",
+            "bn": "ব্যবহারিক মূল্যায়ন",
+            "t": "c"
+          },
+          {
+            "id": "M58-checks",
+            "en": "Reference & Background",
+            "bn": "রেফারেন্স",
+            "t": "g"
+          },
+          {
+            "id": "M58-offers",
+            "en": "Offers",
+            "bn": "প্রস্তাব",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Onboarding",
+        "screens": [
+          {
+            "id": "M58-preboard",
+            "en": "Pre-Boarding",
+            "bn": "প্রি-বোর্ডিং",
+            "t": "c"
+          },
+          {
+            "id": "M58-first90",
+            "en": "First-90-Days",
+            "bn": "প্রথম ৯০ দিন",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Funnel & Conversion",
+      "Time-to-Fill by Role",
+      "Source Effectiveness",
+      "First-90 Retention",
+      "Practical Assessment Results"
+    ],
+    "forms": [
+      "Requisition",
+      "Candidate",
+      "Interview Evaluation",
+      "Offer"
+    ],
+    "cross": [
+      "M21 handover",
+      "M29 account provisioning",
+      "M22 onboarding training",
+      "M57 workforce planning"
+    ],
+    "freg": {
+      "src": 50,
+      "sub": [
+        [
+          "1",
+          "Workforce Planning & Requisition",
+          9
+        ],
+        [
+          "2",
+          "Sourcing",
+          7
+        ],
+        [
+          "3",
+          "Screening",
+          6
+        ],
+        [
+          "4",
+          "Interviews & Assessments",
+          11
+        ],
+        [
+          "5",
+          "Checks & Offers",
+          7
+        ],
+        [
+          "6",
+          "Pre-Boarding",
+          4
+        ],
+        [
+          "7",
+          "Onboarding Orchestration",
+          6
+        ]
+      ]
+    },
+    "kpis": [
+      "Open Requisitions",
+      "Time-to-Fill",
+      "Pipeline",
+      "Offer Accept Rate",
+      "Referral Share",
+      "First-90 Retention"
+    ]
+  },
+  "M59": {
+    "id": "M59",
+    "area": "A09",
+    "en": "Health, Safety & Wellbeing",
+    "bn": "স্বাস্থ্য ও নিরাপত্তা",
+    "icon": "🦺",
+    "rail": "people",
+    "desc": "Hazard register, lone-worker safety, battery/electrical hazards, statutory accident clock, safety committee.",
+    "groups": [
+      {
+        "en": "Risk",
+        "screens": [
+          {
+            "id": "M59-hazards",
+            "en": "Hazard Register",
+            "bn": "ঝুঁকি রেজিস্টার",
+            "t": "g"
+          },
+          {
+            "id": "M59-jsa",
+            "en": "JSA & Safe Procedures",
+            "bn": "কাজের নিরাপত্তা বিশ্লেষণ",
+            "t": "g"
+          },
+          {
+            "id": "M59-ppe",
+            "en": "PPE Issue Register",
+            "bn": "পিপিই",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Incidents",
+        "screens": [
+          {
+            "id": "M59-report",
+            "en": "Incident & Near-Miss Reporting",
+            "bn": "ঘটনা রিপোর্ট",
+            "t": "f"
+          },
+          {
+            "id": "M59-investigate",
+            "en": "Investigation & RCA",
+            "bn": "তদন্ত",
+            "t": "c"
+          },
+          {
+            "id": "M59-statutory",
+            "en": "Statutory Notification Clock",
+            "bn": "আইনি ঘড়ি",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Field Safety",
+        "screens": [
+          {
+            "id": "M59-loneworker",
+            "en": "Lone-Worker & Emergency",
+            "bn": "একাকী কর্মী",
+            "t": "g"
+          },
+          {
+            "id": "M59-road",
+            "en": "Road & Vehicle Safety",
+            "bn": "সড়ক নিরাপত্তা",
+            "t": "g"
+          },
+          {
+            "id": "M59-battery",
+            "en": "Battery / Electrical / Chemical",
+            "bn": "ব্যাটারি ঝুঁকি",
+            "t": "g"
+          }
+        ]
+      },
+      {
+        "en": "Programme",
+        "screens": [
+          {
+            "id": "M59-drills",
+            "en": "Drills & Training",
+            "bn": "মহড়া",
+            "t": "g"
+          },
+          {
+            "id": "M59-committee",
+            "en": "Safety Committee",
+            "bn": "নিরাপত্তা কমিটি",
+            "t": "g"
+          },
+          {
+            "id": "M59-wellbeing",
+            "en": "Occupational Health",
+            "bn": "পেশাগত স্বাস্থ্য",
+            "t": "g"
+          }
+        ]
+      }
+    ],
+    "reports": [
+      "Incident Statistics",
+      "Leading Indicators",
+      "Statutory Compliance",
+      "PPE Compliance",
+      "Drill Calendar Coverage"
+    ],
+    "forms": [
+      "Incident Report",
+      "JSA",
+      "PPE Issue",
+      "Return-to-Work"
+    ],
+    "cross": [
+      "M02 lone-worker check-ins",
+      "M46 vehicle safety",
+      "M47 site safety",
+      "M22 safety training"
+    ],
+    "freg": {
+      "src": 60,
+      "sub": [
+        [
+          "1",
+          "Hazard Register & Risk",
+          9
+        ],
+        [
+          "2",
+          "Procedures & Permits",
+          7
+        ],
+        [
+          "3",
+          "Incident Management",
+          13
+        ],
+        [
+          "4",
+          "Statutory Notification",
+          5
+        ],
+        [
+          "5",
+          "PPE",
+          5
+        ],
+        [
+          "6",
+          "Field & Road Safety",
+          8
+        ],
+        [
+          "7",
+          "Training & Drills",
+          6
+        ],
+        [
+          "8",
+          "Health & Wellbeing",
+          7
+        ]
+      ]
+    },
+    "kpis": [
+      "Recordable Incidents YTD",
+      "Lost-Time Injuries",
+      "Near-Miss Reports MTD",
+      "Statutory Clock (FIFO)",
+      "PPE Compliance",
+      "Drills Completed"
+    ]
+  }
+}

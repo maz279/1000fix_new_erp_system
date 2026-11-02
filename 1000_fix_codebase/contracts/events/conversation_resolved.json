@@ -33,7 +33,9 @@
       "type": "object",
       "required": [
         "by_ai",
-        "intent"
+        "intent",
+        "disposition",
+        "fcr"
       ],
       "properties": {
         "by_ai": {
@@ -44,6 +46,16 @@
             "string",
             "boolean"
           ]
+        },
+        "disposition": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "fcr": {
+          "type": "boolean"
         }
       },
       "additionalProperties": false

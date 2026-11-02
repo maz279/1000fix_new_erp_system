@@ -42,7 +42,7 @@
           "type": "string"
         },
         "variance": {
-          "type": "number"
+          "description": "Type not statically derivable from `rec.variance` (addons/domain/a_service_delivery/cd_front_desk/models/fix_token_queue.py:139 via _emit() at addons/domain/a_service_delivery/cd_front_desk/models/fix_cash_shift.py:208)."
         },
         "currency": {
           "type": [

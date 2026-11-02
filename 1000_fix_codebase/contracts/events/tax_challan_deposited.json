@@ -45,7 +45,7 @@
           "type": "string"
         },
         "amount": {
-          "description": "Type not statically derivable from `money(ch.amount)` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_compliance.py:370)."
+          "description": "Type not statically derivable from `money(ch.amount)` (addons/domain/g_finance/cd_tax_engine_bd/models/fix_tax_compliance.py:489)."
         },
         "period": {
           "type": [

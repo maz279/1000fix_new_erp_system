@@ -1,0 +1,204 @@
+{
+  "M21": {
+    "title": "Core HR & Lifecycle",
+    "title_bn": "মানবসম্পদ",
+    "desc": "Hire-to-retire, Labour Act documents (appointment letter, ID card, service book), org structure, ESS/MSS.",
+    "groups": [
+      "Employee Master",
+      "Lifecycle",
+      "Documents",
+      "Self-Service"
+    ],
+    "screens_count": 25,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "headcount_movement",
+      "attrition_analysis",
+      "probation_conversion",
+      "establishment_register",
+      "org_distribution"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  },
+  "M55": {
+    "title": "Time, Attendance & Scheduling",
+    "title_bn": "সময় ও শিফট",
+    "desc": "Biometric + geofenced mobile capture, moon-dependent holidays, rosters, availability published to dispatch.",
+    "groups": [
+      "Capture",
+      "Working Time",
+      "Leave",
+      "Scheduling"
+    ],
+    "screens_count": 27,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "attendance_summary",
+      "overtime_analysis",
+      "leave_utilisation",
+      "roster_vs_actual",
+      "coverage_gaps"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  },
+  "M56": {
+    "title": "Payroll & Statutory",
+    "title_bn": "বেতন ও সুবিধা",
+    "desc": "BD gross-to-net engine, tax slabs AY26-27, PF, gratuity ≥30 days/yr, festival bonus, BEFTN bank files.",
+    "groups": [
+      "Payroll Engine",
+      "Statutory",
+      "Disbursement",
+      "Compliance"
+    ],
+    "screens_count": 24,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "salary_register",
+      "payroll_cost_allocation",
+      "tax_deduction_summary",
+      "pf_gratuity_provisions",
+      "payroll_variance"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  },
+  "M57": {
+    "title": "Performance & Incentives",
+    "title_bn": "পারফরম্যান্স ও প্রণোদনা",
+    "desc": "Goal cascades, KPI attribution to payroll, technician incentive schemes, calibration, recognition.",
+    "groups": [
+      "Performance",
+      "Incentives",
+      "Compensation"
+    ],
+    "screens_count": 22,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "rating_distribution",
+      "incentive_payout",
+      "technician_scorecards",
+      "calibration_summary",
+      "pip_outcomes"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 3 functional groups)"
+    ]
+  },
+  "M22": {
+    "title": "Learning & Certification",
+    "title_bn": "প্রশিক্ষণ ও সার্টিফিকেশন",
+    "desc": "Competency framework, brand certification register with expiry, hard block on expired certification at dispatch.",
+    "groups": [
+      "Competency",
+      "Certifications",
+      "Training",
+      "Evidence"
+    ],
+    "screens_count": 24,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "certification_coverage",
+      "expiry_forecast",
+      "training_effectiveness",
+      "skill_gap_heatmap",
+      "audit_evidence_pack"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  },
+  "M58": {
+    "title": "Talent Acquisition",
+    "title_bn": "নিয়োগ",
+    "desc": "Requisitions vs budget, structured interviews, practical technician assessments, pre-boarding, PDPA erasure.",
+    "groups": [
+      "Requisitions",
+      "Sourcing",
+      "Selection",
+      "Onboarding"
+    ],
+    "screens_count": 24,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "funnel_conversion",
+      "time_to_fill",
+      "source_effectiveness",
+      "first90_retention",
+      "practical_results"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  },
+  "M59": {
+    "title": "Health, Safety & Wellbeing",
+    "title_bn": "স্বাস্থ্য ও নিরাপত্তা",
+    "desc": "Hazard register, lone-worker safety, battery/electrical hazards, statutory accident clock, safety committee.",
+    "groups": [
+      "Risk",
+      "Incidents",
+      "Field Safety",
+      "Programme"
+    ],
+    "screens_count": 31,
+    "forms_count": 0,
+    "forms": [],
+    "reports_count": 5,
+    "reports_py": [
+      "incident_statistics",
+      "leading_indicators",
+      "statutory_compliance",
+      "ppe_compliance",
+      "drill_coverage"
+    ],
+    "deficiencies": [
+      "No Quick-Find search fields configured for grids",
+      "No multi-dimensional facet/filter chips (e.g. Branch, Date Range, Category, Type)",
+      "Reports hardcoded with 'period: false', preventing custom date-range selection",
+      "No grid-level Export to Excel/CSV command bar buttons configured",
+      "Incomplete in-workspace forms (0 forms for 4 functional groups)"
+    ]
+  }
+}

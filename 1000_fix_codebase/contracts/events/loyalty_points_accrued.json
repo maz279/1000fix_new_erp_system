@@ -50,7 +50,7 @@
           "type": "integer"
         },
         "balance_after": {
-          "type": "integer"
+          "description": "Type not statically derivable from `new_balance` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_ledger.py:237)."
         },
         "type": {
           "type": "string"

@@ -36,7 +36,7 @@
       ],
       "properties": {
         "grade": {
-          "description": "Type not statically derivable from `grade` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:92)."
+          "description": "Type not statically derivable from `grade` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:98)."
         }
       },
       "additionalProperties": false
