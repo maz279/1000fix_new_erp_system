@@ -27,8 +27,10 @@ P05 W3 slice (roadmap P06-M09-T01/T02/T03):
         "cd_ap_ext",
     ],
     "data": [
+        "security/fix_isolation_rules.xml",
         "security/fix_vendor_portal_security.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/fix_vendor_portal_views.xml",
     ],
     "installable": True,

@@ -2,3 +2,9 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_requisition,fix.requisition,model_fix_requisition,base.group_user,1,1,1,0
 access_fix_purchase_order,fix.purchase.order,model_fix_purchase_order,base.group_user,1,1,1,0
 access_fix_purchase_order_line,fix.purchase.order.line,model_fix_purchase_order_line,base.group_user,1,1,1,1
+access_fix_procurement_rfq,fix.procurement.rfq,model_fix_procurement_rfq,base.group_user,1,1,1,0
+access_fix_procurement_bid,fix.procurement.bid,model_fix_procurement_bid,base.group_user,1,1,1,0
+access_fix_procurement_award,fix.procurement.award,model_fix_procurement_award,base.group_user,1,1,1,0
+access_fix_procurement_blanket,fix.procurement.blanket,model_fix_procurement_blanket,base.group_user,1,1,1,0
+access_fix_procurement_expedite,fix.procurement.expedite,model_fix_procurement_expedite,base.group_user,1,1,1,0
+access_fix_procurement_inspection,fix.procurement.inspection,model_fix_procurement_inspection,base.group_user,1,1,1,0

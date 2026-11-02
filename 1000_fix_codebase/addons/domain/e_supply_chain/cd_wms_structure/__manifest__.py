@@ -16,10 +16,16 @@ completion; this slice gives consignments and procurement destinations.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Warehouse",
-    "depends": ["base", "mail", "cd_entity_config", "cd_requisition"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_requisition",
+    ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/fix_wms_views.xml",
     ],
     "installable": True,

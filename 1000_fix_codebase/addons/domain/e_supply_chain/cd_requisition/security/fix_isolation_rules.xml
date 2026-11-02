@@ -8,6 +8,26 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_procurement_award_company" model="ir.rule">
+        <field name="name">fix.procurement.award: allowed companies</field>
+        <field name="model_id" ref="model_fix_procurement_award"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_procurement_blanket_company" model="ir.rule">
+        <field name="name">fix.procurement.blanket: allowed companies</field>
+        <field name="model_id" ref="model_fix_procurement_blanket"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_procurement_inspection_company" model="ir.rule">
+        <field name="name">fix.procurement.inspection: allowed companies</field>
+        <field name="model_id" ref="model_fix_procurement_inspection"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_procurement_rfq_company" model="ir.rule">
+        <field name="name">fix.procurement.rfq: allowed companies</field>
+        <field name="model_id" ref="model_fix_procurement_rfq"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_purchase_order_company" model="ir.rule">
         <field name="name">fix.purchase.order: allowed companies</field>
         <field name="model_id" ref="model_fix_purchase_order"/>

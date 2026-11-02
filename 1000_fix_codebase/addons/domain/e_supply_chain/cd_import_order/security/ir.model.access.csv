@@ -1,2 +1,12 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_import_order,fix.import.order,model_fix_import_order,base.group_user,1,1,1,0
+access_fix_import_proforma,fix.import.proforma,model_fix_import_proforma,base.group_user,1,1,1,0
+access_fix_import_lc,fix.import.lc,model_fix_import_lc,base.group_user,1,1,1,0
+access_fix_import_lca,fix.import.lca,model_fix_import_lca,base.group_user,1,1,1,0
+access_fix_import_hs,fix.import.hs,model_fix_import_hs,base.group_user,1,1,1,0
+access_fix_import_irc,fix.import.irc,model_fix_import_irc,base.group_user,1,1,1,0
+access_fix_import_shipdoc,fix.import.shipdoc,model_fix_import_shipdoc,base.group_user,1,1,1,0
+access_fix_import_arrival,fix.import.arrival,model_fix_import_arrival,base.group_user,1,1,1,0
+access_fix_import_boe,fix.import.boe,model_fix_import_boe,base.group_user,1,1,1,0
+access_fix_import_boe_line,fix.import.boe.line,model_fix_import_boe_line,base.group_user,1,1,1,1
+access_fix_import_landed,fix.import.landed,model_fix_import_landed,base.group_user,1,1,1,0

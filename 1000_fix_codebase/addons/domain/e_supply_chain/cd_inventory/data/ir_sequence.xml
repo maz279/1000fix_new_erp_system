@@ -33,5 +33,47 @@
             <field name="padding">6</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_stock_receipt" model="ir.sequence">
+            <field name="name">Goods Receipt</field>
+            <field name="code">fix.stock.receipt</field>
+            <field name="prefix">GRN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_transfer" model="ir.sequence">
+            <field name="name">Stock Transfer</field>
+            <field name="code">fix.stock.transfer</field>
+            <field name="prefix">TRF/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_count" model="ir.sequence">
+            <field name="name">Stock Count</field>
+            <field name="code">fix.stock.count</field>
+            <field name="prefix">CNT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_van_recon" model="ir.sequence">
+            <field name="name">Van Stock Reconciliation</field>
+            <field name="code">fix.stock.van.recon</field>
+            <field name="prefix">VRC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_quarantine" model="ir.sequence">
+            <field name="name">Stock Quarantine</field>
+            <field name="code">fix.stock.quarantine</field>
+            <field name="prefix">QRN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_stock_rtv" model="ir.sequence">
+            <field name="name">Return to Vendor</field>
+            <field name="code">fix.stock.rtv</field>
+            <field name="prefix">RTV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

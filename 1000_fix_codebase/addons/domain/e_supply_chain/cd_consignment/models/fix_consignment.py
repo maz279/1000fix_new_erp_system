@@ -69,6 +69,160 @@ class FixConsignment(models.Model):
     chain_broken = fields.Boolean(compute="_compute_chain", store=True, string="Chain Broken")
     custody_summary = fields.Char(compute="_compute_chain", store=True)
 
+    # --- A02 Enterprise Data Capture, Volumetric Weight & Tamper-Evident Security Seal (FLAW-03.2, FLAW-03.3) ---
+    courier_partner_id = fields.Many2one(
+        "fix.courier.partner",
+        string="3PL Courier Partner",
+        tracking=True,
+    )
+    vehicle_registration = fields.Char(
+        string="Dispatch Vehicle / Bike Reg No.",
+        tracking=True,
+    )
+    declared_value_bdt = fields.Float(
+        string="Declared Insured Asset Value (BDT)",
+        default=0.0,
+        tracking=True,
+    )
+    packaging_type = fields.Selection(
+        [
+            ("esd_antistatic_box", "ESD Anti-Static Shielded Box"),
+            ("pelican_hard_case", "Shockproof Pelican / Flight Case"),
+            ("bubble_carton", "Double-Wall Bubble Carton"),
+            ("tamper_polybag", "Serialized Tamper-Evident Security Pouch"),
+        ],
+        string="Protective Packaging Specification",
+        default="esd_antistatic_box",
+        tracking=True,
+    )
+    rto_flag = fields.Boolean(
+        string="Return-to-Origin (RTO) Triggered",
+        default=False,
+        tracking=True,
+    )
+    # FLAW-03.2: Volumetric Weight & Freight Surcharge
+    length_cm = fields.Float(string="Carton Length (cm)", default=0.0)
+    width_cm = fields.Float(string="Carton Width (cm)", default=0.0)
+    height_cm = fields.Float(string="Carton Height (cm)", default=0.0)
+    actual_weight_kg = fields.Float(string="Actual Scale Weight (kg)", default=0.0)
+    volumetric_divisor = fields.Float(
+        string="Volumetric Divisor (cm³/kg)",
+        default=5000.0,
+        help="FLAW-03.2: Standard volumetric divisor (L x W x H / 5000).",
+    )
+    volumetric_weight_kg = fields.Float(
+        string="Volumetric Weight (kg)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+    )
+    chargeable_weight_kg = fields.Float(
+        string="Chargeable Weight (kg)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+    )
+    base_freight_bdt = fields.Float(
+        string="Base Freight Charge (BDT)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+    )
+    volumetric_surcharge_bdt = fields.Float(
+        string="Volumetric Weight Surcharge (BDT)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+    )
+    insurance_fee_bdt = fields.Float(
+        string="Transit Insurance Fee (BDT)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+    )
+    # FLAW-03.3: Tamper-Evident Security Bag & Hub Weight Variance
+    security_bag_barcode = fields.Char(
+        string="Tamper-Evident Security Bag Barcode",
+        tracking=True,
+    )
+    outbound_seal_number = fields.Char(
+        string="Outbound Security Seal Number",
+        tracking=True,
+        help="FLAW-03.3: Serialized tamper-evident seal affixed at origin dispatch.",
+    )
+    inbound_seal_number = fields.Char(
+        string="Inbound Hub Verified Seal Number",
+        tracking=True,
+        help="FLAW-03.3: Seal number scanned upon arrival at destination hub/branch.",
+    )
+    seal_status = fields.Selection(
+        [
+            ("intact", "Sealed / Pending Hub Verification"),
+            ("verified", "Seal Verified Match"),
+            ("tampered_mismatch", "TAMPER ALERT — Seal Mismatch / Broken"),
+        ],
+        string="Security Seal Integrity Status",
+        default="intact",
+        tracking=True,
+    )
+    dispatch_weight_g = fields.Float(
+        string="Origin Dispatch Scale Weight (g)",
+        default=0.0,
+        tracking=True,
+    )
+    receive_weight_g = fields.Float(
+        string="Hub Receive Scale Weight (g)",
+        default=0.0,
+        tracking=True,
+    )
+    weight_variance_g = fields.Float(
+        string="Scale Weight Variance (g)",
+        compute="_compute_volumetric_and_seal",
+        store=True,
+        help="FLAW-03.3: Absolute difference between origin dispatch weight and hub receive weight (tolerance ±20g).",
+    )
+    shockwatch_triggered = fields.Boolean(
+        string="ShockWatch / Tilt Indicator Tripped",
+        default=False,
+        tracking=True,
+    )
+    recipient_name = fields.Char(string="Verified Recipient Name")
+    recipient_nid_last4 = fields.Char(string="Recipient NID / Phone Last 4 Digits")
+    waybill_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Signed Consignment Waybill / Manifest (PDF)",
+    )
+
+    @api.depends(
+        "length_cm",
+        "width_cm",
+        "height_cm",
+        "actual_weight_kg",
+        "volumetric_divisor",
+        "courier_partner_id.base_rate",
+        "courier_partner_id.per_kg_rate",
+        "declared_value_bdt",
+        "dispatch_weight_g",
+        "receive_weight_g",
+    )
+    def _compute_volumetric_and_seal(self):
+        for rec in self:
+            divisor = rec.volumetric_divisor or 5000.0
+            vol_kg = 0.0
+            if rec.length_cm > 0 and rec.width_cm > 0 and rec.height_cm > 0:
+                vol_kg = round((rec.length_cm * rec.width_cm * rec.height_cm) / divisor, 3)
+            actual_kg = rec.actual_weight_kg or 0.0
+            chargeable_kg = round(max(actual_kg, vol_kg), 3)
+            rec.volumetric_weight_kg = vol_kg
+            rec.chargeable_weight_kg = chargeable_kg
+
+            base_rate = rec.courier_partner_id.base_rate if rec.courier_partner_id else 80.0
+            per_kg = rec.courier_partner_id.per_kg_rate if rec.courier_partner_id else 40.0
+            rec.base_freight_bdt = round(base_rate + actual_kg * per_kg, 2)
+            excess_vol_kg = max(0.0, vol_kg - actual_kg)
+            rec.volumetric_surcharge_bdt = round(excess_vol_kg * per_kg, 2)
+            rec.insurance_fee_bdt = round((rec.declared_value_bdt or 0.0) * 0.01, 2)
+
+            if rec.dispatch_weight_g > 0 and rec.receive_weight_g > 0:
+                rec.weight_variance_g = round(abs(rec.receive_weight_g - rec.dispatch_weight_g), 2)
+            else:
+                rec.weight_variance_g = 0.0
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:

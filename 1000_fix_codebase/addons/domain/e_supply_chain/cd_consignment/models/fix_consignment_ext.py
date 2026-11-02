@@ -114,6 +114,61 @@ class FixConsignmentExt(models.Model):
                 )
         return super().action_report_lost()
 
+    def action_verify_hub_intake(self, inbound_seal=None, receive_weight_g=None):
+        """FLAW-03.3: Verify tamper-evident security seal match and scale weight
+        variance (±20g tolerance) upon hub/branch arrival."""
+        Scan = self.env["fix.custody.scan"]
+        for consignment in self:
+            if inbound_seal is not None:
+                consignment.inbound_seal_number = inbound_seal
+            if receive_weight_g is not None:
+                consignment.receive_weight_g = float(receive_weight_g)
+
+            if consignment.outbound_seal_number:
+                if not consignment.inbound_seal_number:
+                    raise UserError(
+                        f"FLAW-03.3 Security Seal Gate: Consignment {consignment.name} requires "
+                        "an Inbound Security Seal scan to verify against Outbound Seal "
+                        f"'{consignment.outbound_seal_number}'."
+                    )
+                if (
+                    consignment.inbound_seal_number.strip()
+                    != consignment.outbound_seal_number.strip()
+                ):
+                    consignment.seal_status = "tampered_mismatch"
+                    raise UserError(
+                        f"FLAW-03.3 Tamper Alert: Inbound seal '{consignment.inbound_seal_number}' "
+                        f"does not match outbound seal '{consignment.outbound_seal_number}' on {consignment.name}!"
+                    )
+                consignment.seal_status = "verified"
+
+            if consignment.dispatch_weight_g > 0 and consignment.receive_weight_g > 0:
+                variance = abs(consignment.receive_weight_g - consignment.dispatch_weight_g)
+                if variance > 20.0:
+                    consignment.seal_status = "tampered_mismatch"
+                    raise UserError(
+                        f"FLAW-03.3 Weight Variance Gate: Consignment {consignment.name} scale weight "
+                        f"variance is {variance:.1f}g (exceeds ±20.0g security tolerance)."
+                    )
+
+            existing_hub = consignment.custody_ids.filtered(lambda s: s.step == "hub_scan")
+            if not existing_hub:
+                Scan.create(
+                    {
+                        "consignment_id": consignment.id,
+                        "step": "hub_scan",
+                        "location_branch_id": consignment.dest_branch_id.id
+                        if consignment.dest_branch_id
+                        else False,
+                        "device_serial": consignment.service_order_id.device_serial
+                        if consignment.service_order_id
+                        else "",
+                    }
+                )
+            consignment.message_post(
+                body=f"Hub intake security seal ({consignment.inbound_seal_number or 'N/A'}) and scale weight verified."
+            )
+
 
 class FixServiceOrderConsignmentBridge(models.Model):
     _inherit = "fix.service.order"

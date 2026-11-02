@@ -11,5 +11,47 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_procurement_rfq" model="ir.sequence">
+            <field name="name">RFQ Event</field>
+            <field name="code">fix.procurement.rfq</field>
+            <field name="prefix">RFQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_bid" model="ir.sequence">
+            <field name="name">Supplier Bid</field>
+            <field name="code">fix.procurement.bid</field>
+            <field name="prefix">BID/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_award" model="ir.sequence">
+            <field name="name">Award Decision</field>
+            <field name="code">fix.procurement.award</field>
+            <field name="prefix">AWRD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_blanket" model="ir.sequence">
+            <field name="name">Blanket Agreement</field>
+            <field name="code">fix.procurement.blanket</field>
+            <field name="prefix">BLKT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_expedite" model="ir.sequence">
+            <field name="name">Expediting Case</field>
+            <field name="code">fix.procurement.expedite</field>
+            <field name="prefix">EXPD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_procurement_inspection" model="ir.sequence">
+            <field name="name">Goods Inspection</field>
+            <field name="code">fix.procurement.inspection</field>
+            <field name="prefix">INSP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

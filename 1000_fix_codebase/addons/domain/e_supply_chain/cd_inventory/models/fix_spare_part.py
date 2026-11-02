@@ -81,6 +81,16 @@ class FixSparePart(models.Model):
     min_qty = fields.Float(string="Minimum Reorder Point", default=5.0)
     max_qty = fields.Float(string="Target Max Stock", default=25.0)
     safety_stock = fields.Float(string="Safety Buffer Stock", default=3.0)
+    criticality = fields.Selection(
+        [
+            ("low", "Low — substitute available"),
+            ("medium", "Medium — affects cycle time"),
+            ("high", "High — blocks repair"),
+            ("critical", "Critical — no substitute, SLA risk"),
+        ],
+        default="medium",
+        help="Used by the ABC/XYZ/criticality view: critical parts always stock at safety level",
+    )
 
     active = fields.Boolean(default=True)
     legacy_reference = fields.Char(

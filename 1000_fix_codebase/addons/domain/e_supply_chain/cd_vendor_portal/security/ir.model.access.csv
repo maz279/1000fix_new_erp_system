@@ -1,3 +1,13 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_po_portal_vendor,fix.purchase.order.vendor,cd_requisition.model_fix_purchase_order,group_fix_vendor_portal,1,0,0,0
 access_fix_vendor_invoice_portal,fix.vendor.invoice.vendor,cd_ap_ext.model_fix_vendor_invoice,group_fix_vendor_portal,1,0,0,0
+access_fix_supplier,fix.supplier,model_fix_supplier,base.group_user,1,1,1,0
+access_fix_supplier_document,fix.supplier.document,model_fix_supplier_document,base.group_user,1,1,1,0
+access_fix_supplier_qualification,fix.supplier.qualification,model_fix_supplier_qualification,base.group_user,1,1,1,0
+access_fix_supplier_activation,fix.supplier.activation,model_fix_supplier_activation,base.group_user,1,1,1,0
+access_fix_supplier_requalification,fix.supplier.requalification,model_fix_supplier_requalification,base.group_user,1,1,1,0
+access_fix_supplier_performance,fix.supplier.performance,model_fix_supplier_performance,base.group_user,1,1,1,0
+access_fix_supplier_car,fix.supplier.car,model_fix_supplier_car,base.group_user,1,1,1,0
+access_fix_supplier_review,fix.supplier.review,model_fix_supplier_review,base.group_user,1,1,1,0
+access_fix_supplier_risk,fix.supplier.risk,model_fix_supplier_risk,base.group_user,1,1,1,0
+access_fix_supplier_screening,fix.supplier.screening,model_fix_supplier_screening,base.group_user,1,1,1,0

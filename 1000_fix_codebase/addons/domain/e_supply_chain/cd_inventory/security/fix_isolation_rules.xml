@@ -63,6 +63,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_stock_count_company" model="ir.rule">
+        <field name="name">fix.stock.count: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_count"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_count_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.count: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_count"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_stock_location_company" model="ir.rule">
         <field name="name">fix.stock.location: allowed companies</field>
         <field name="model_id" ref="model_fix_stock_location"/>
@@ -73,5 +84,93 @@
         <field name="model_id" ref="model_fix_stock_location"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_lot_company" model="ir.rule">
+        <field name="name">fix.stock.lot: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_lot"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_onhand_company" model="ir.rule">
+        <field name="name">fix.stock.onhand: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_onhand"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_onhand_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.onhand: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_onhand"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_quarantine_company" model="ir.rule">
+        <field name="name">fix.stock.quarantine: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_quarantine"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_receipt_company" model="ir.rule">
+        <field name="name">fix.stock.receipt: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_receipt"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_receipt_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.receipt: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_receipt"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_rtv_company" model="ir.rule">
+        <field name="name">fix.stock.rtv: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_rtv"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_transfer_company" model="ir.rule">
+        <field name="name">fix.stock.transfer: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_transfer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_transfer_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.transfer: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_transfer"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_van_recon_company" model="ir.rule">
+        <field name="name">fix.stock.van.recon: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_van_recon"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_carton_company" model="ir.rule">
+        <field name="name">fix.wms.carton: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_carton"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_dock_company" model="ir.rule">
+        <field name="name">fix.wms.dock: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_dock"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_floor_count_company" model="ir.rule">
+        <field name="name">fix.wms.floor.count: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_floor_count"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_putaway_company" model="ir.rule">
+        <field name="name">fix.wms.putaway: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_putaway"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_stage_company" model="ir.rule">
+        <field name="name">fix.wms.stage: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_stage"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_task_company" model="ir.rule">
+        <field name="name">fix.wms.task: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_task"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_wave_company" model="ir.rule">
+        <field name="name">fix.wms.wave: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_wave"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

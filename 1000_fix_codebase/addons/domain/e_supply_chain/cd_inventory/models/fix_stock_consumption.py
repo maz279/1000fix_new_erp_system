@@ -119,8 +119,11 @@ class FixStockConsumption(models.Model):
                 f"Insufficient stock for {part.part_number}: {part.qty_available} available, {self.quantity} requested."
             )
 
-        # Deduct stock
+        # Deduct stock (the aggregate and the per-location ledger stay in step)
         part.sudo().write({"qty_available": part.qty_available - self.quantity})
+        self.env["fix.stock.onhand"]._apply(
+            part, self.location_id, "owned", -self.quantity, must_exist=False
+        )
 
         now_utc = fields.Datetime.now()
         self.write(
@@ -186,6 +189,9 @@ class FixStockConsumption(models.Model):
 
         part = self.product_id
         part.sudo().write({"qty_available": part.qty_available + self.quantity})
+        self.env["fix.stock.onhand"]._apply(
+            part, self.location_id, "owned", self.quantity, must_exist=False
+        )
 
         now_utc = fields.Datetime.now()
         self.write(

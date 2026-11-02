@@ -28,6 +28,8 @@ CD-M03-01/02: the logistics core.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/damage_claim_sequences.xml",
+        "data/courier_sequences.xml",
         "data/ir_sequence.xml",
         "views/fix_consignment_views.xml",
     ],

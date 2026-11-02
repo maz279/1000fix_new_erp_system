@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_demand_forecast" model="ir.sequence">
+            <field name="name">Demand Forecast</field>
+            <field name="code">fix.demand.forecast</field>
+            <field name="prefix">DFC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_policy" model="ir.sequence">
+            <field name="name">Demand Policy</field>
+            <field name="code">fix.demand.policy</field>
+            <field name="prefix">DPOL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_review" model="ir.sequence">
+            <field name="name">Demand Review Cycle</field>
+            <field name="code">fix.demand.review</field>
+            <field name="prefix">DRVW/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_rebalance" model="ir.sequence">
+            <field name="name">Rebalance Proposal</field>
+            <field name="code">fix.demand.rebalance</field>
+            <field name="prefix">DRBL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_demand_scenario" model="ir.sequence">
+            <field name="name">What-If Scenario</field>
+            <field name="code">fix.demand.scenario</field>
+            <field name="prefix">DSCN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>
