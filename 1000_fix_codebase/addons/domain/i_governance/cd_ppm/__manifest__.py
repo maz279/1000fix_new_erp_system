@@ -13,6 +13,7 @@ CD-M67-01 (P10) — Project, Program & Portfolio Management.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ppm_ops_sequences.xml",
         "views/cd_ppm_views.xml",
     ],
     "installable": True,

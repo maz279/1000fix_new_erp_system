@@ -1,6 +1,6 @@
 # fix_grc — M60: Governance, Risk, Compliance & Assurance (P09-M08 & R07-M05).
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -53,6 +53,47 @@ class FixRiskRegister(models.Model):
         required=True,
     )
     risk_score = fields.Integer(string="Inherent Risk Score", compute="_compute_score", store=True)
+    # --- residual risk (after the controls) ---------------------------------
+    # GRC practice: inherent risk is what the register scores before controls;
+    # residual risk is what remains once the linked controls operate, and a
+    # residual above appetite needs an explicit, named acceptance.
+    residual_likelihood = fields.Selection(
+        [(str(i), str(i)) for i in range(1, 6)],
+        string="Residual likelihood",
+        help="1-5 after the linked controls are applied.",
+    )
+    residual_impact = fields.Selection(
+        [(str(i), str(i)) for i in range(1, 6)],
+        string="Residual impact",
+    )
+    residual_score = fields.Integer(compute="_compute_residual", store=True)
+    residual_band = fields.Selection(
+        [("low", "Low"), ("medium", "Medium"), ("high", "High")],
+        compute="_compute_residual",
+        store=True,
+    )
+    residual_accepted_by_id = fields.Many2one("hr.employee", string="Residual accepted by")
+    residual_accepted_on = fields.Date(string="Residual accepted on")
+
+    @api.depends("residual_likelihood", "residual_impact")
+    def _compute_residual(self):
+        for rec in self:
+            lk = int(rec.residual_likelihood or 0)
+            im = int(rec.residual_impact or 0)
+            rec.residual_score = lk * im
+            score = rec.residual_score
+            rec.residual_band = (
+                ("high" if score >= 15 else "medium" if score >= 8 else "low") if score else False
+            )
+
+    @api.constrains("residual_score", "residual_accepted_by_id")
+    def _check_residual_acceptance(self):
+        for rec in self:
+            if rec.residual_band == "high" and not rec.residual_accepted_by_id:
+                raise ValidationError(
+                    "A HIGH residual risk needs a named acceptance (residual accepted by)."
+                )
+
     mitigation = fields.Text(string="Mitigation & Treatment Strategy")
     control_ids = fields.One2many("fix.control", "risk_id", string="Mitigating Controls")
     owner_id = fields.Many2one("hr.employee", string="Risk Owner")

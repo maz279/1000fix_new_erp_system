@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_event_subscription" model="ir.sequence">
+            <field name="name">Event Subscription</field>
+            <field name="code">fix.event.subscription</field>
+            <field name="prefix">SUB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_sync_conflict" model="ir.sequence">
+            <field name="name">Sync Conflict</field>
+            <field name="code">fix.sync.conflict</field>
+            <field name="prefix">SYC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

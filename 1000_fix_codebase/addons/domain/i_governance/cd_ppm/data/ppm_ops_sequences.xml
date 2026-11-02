@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_project_billing" model="ir.sequence">
+            <field name="name">Milestone Billing</field>
+            <field name="code">fix.project.billing</field>
+            <field name="prefix">BILL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_project_risk" model="ir.sequence">
+            <field name="name">Project Risk</field>
+            <field name="code">fix.project.risk</field>
+            <field name="prefix">RISK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

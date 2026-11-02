@@ -1,6 +1,6 @@
 # fix_qms — M23: NCR, CAPA, internal audit; the stub closures (P08-M06).
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -39,6 +39,29 @@ class FixNcr(models.Model):
     )
     description = fields.Text(required=True)
     root_cause = fields.Text()
+    # ISO 9001 8.7.1: what was done with the nonconforming output, and 8.7.2:
+    # the record of it. A concession (use-as-is) needs an authorised approver.
+    disposition = fields.Selection(
+        [
+            ("rework", "Rework to conform"),
+            ("repair", "Repair (concession to repair)"),
+            ("replace", "Replace"),
+            ("return", "Return to customer / supplier"),
+            ("scrap", "Scrap / destroy"),
+            ("use_as_is", "Use as is (concession by authority)"),
+            ("pending", "Not yet dispositioned"),
+        ],
+        default="pending",
+        required=True,
+        tracking=True,
+        help="ISO 9001 8.7.1: the action taken on the nonconforming output.",
+    )
+    disposition_note = fields.Text()
+    concession_approved_by_id = fields.Many2one(
+        "hr.employee",
+        string="Concession approved by",
+        help="Required for 'Use as is': ISO 9001 8.7.1 requires an authorised concession.",
+    )
     state = fields.Selection(
         [
             ("new", "New"),
@@ -52,6 +75,36 @@ class FixNcr(models.Model):
         tracking=True,
     )
     capa_id = fields.One2many("fix.capa", "ncr_id", string="CAPA")
+
+    @api.constrains("disposition", "concession_approved_by_id", "disposition_note")
+    def _check_disposition(self):
+        for rec in self:
+            if rec.disposition == "use_as_is" and not rec.concession_approved_by_id:
+                raise ValidationError(
+                    "A 'use as is' disposition needs the authorising employee "
+                    "(ISO 9001 8.7.1 concession)."
+                )
+            if (
+                rec.disposition not in ("pending", "use_as_is")
+                and not (rec.disposition_note or "").strip()
+            ):
+                raise ValidationError(
+                    "Record what was done for the %s disposition (ISO 9001 8.7.2)."
+                    % rec.disposition
+                )
+
+    def action_dispose(self, disposition, note="", approved_by=None):
+        """Record the disposition of the nonconforming output."""
+        for rec in self:
+            if rec.state == "closed":
+                raise UserError("A closed NCR cannot be re-dispositioned")
+            rec.write(
+                {
+                    "disposition": disposition,
+                    "disposition_note": note or rec.disposition_note,
+                    "concession_approved_by_id": approved_by or rec.concession_approved_by_id.id,
+                }
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -150,6 +203,29 @@ class FixCapa(models.Model):
         tracking=True,
     )
     verification_note = fields.Text()
+    # ISO 9001 10.2.1(d): the corrective action's effectiveness must be reviewed;
+    # 10.2.2 requires the results retained as documented information.
+    effectiveness_result = fields.Selection(
+        [
+            ("pending", "Not yet verified"),
+            ("effective", "Effective"),
+            ("not_effective", "Not effective — reopen"),
+        ],
+        default="pending",
+        required=True,
+        tracking=True,
+    )
+    verified_on = fields.Date()
+    verified_by_id = fields.Many2one("hr.employee", string="Verified by")
+
+    @api.constrains("effectiveness_result", "verification_note")
+    def _check_effectiveness(self):
+        for rec in self:
+            if rec.effectiveness_result != "pending" and not (rec.verification_note or "").strip():
+                raise ValidationError(
+                    "The effectiveness verdict needs the verification evidence in the note "
+                    "(ISO 9001 10.2.2)."
+                )
 
     def action_implement(self):
         for rec in self:
@@ -157,11 +233,19 @@ class FixCapa(models.Model):
                 raise UserError("A MAJOR/CRITICAL CAPA requires a PREVENTIVE action")
             rec.state = "implemented"
 
-    def action_verify(self, note):
+    def action_verify(self, note, effective=True, verifier=None):
         for rec in self:
             if rec.state != "implemented":
                 raise UserError("Verify only after implementation")
-            rec.write({"state": "verified", "verification_note": note})
+            rec.write(
+                {
+                    "state": "verified",
+                    "verification_note": note,
+                    "effectiveness_result": "effective" if effective else "not_effective",
+                    "verified_on": fields.Date.context_today(rec),
+                    "verified_by_id": verifier or rec.verified_by_id.id,
+                }
+            )
             publish(self.env, "capa.verified", "fix.capa", rec.id, {"ncr": rec.ncr_id.name})
 
     def action_close(self):

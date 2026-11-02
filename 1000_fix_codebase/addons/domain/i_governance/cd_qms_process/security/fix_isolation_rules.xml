@@ -41,4 +41,39 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_qms_certification_company" model="ir.rule">
+        <field name="name">fix.qms.certification: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_certification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_checklist_company" model="ir.rule">
+        <field name="name">fix.qms.checklist: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_checklist"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_copq_company" model="ir.rule">
+        <field name="name">fix.qms.copq: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_copq"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_gate_company" model="ir.rule">
+        <field name="name">fix.qms.gate: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_gate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_policy_company" model="ir.rule">
+        <field name="name">fix.qms.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_process_company" model="ir.rule">
+        <field name="name">fix.qms.process: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_process"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_qms_review_company" model="ir.rule">
+        <field name="name">fix.qms.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_qms_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

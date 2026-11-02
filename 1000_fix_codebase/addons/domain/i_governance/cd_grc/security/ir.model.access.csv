@@ -4,3 +4,11 @@ access_fix_control,fix.control,model_fix_control,base.group_user,1,1,1,0
 access_fix_compliance_framework,fix.compliance.framework,model_fix_compliance_framework,base.group_user,1,1,1,0
 access_fix_compliance_obligation,fix.compliance.obligation,model_fix_compliance_obligation,base.group_user,1,1,1,0
 access_fix_audit_finding,fix.audit.finding,model_fix_audit_finding,base.group_user,1,1,1,0
+access_fix_grc_control_test,fix.grc.control.test,model_fix_grc_control_test,base.group_user,1,1,1,0
+access_fix_grc_sod,fix.grc.sod.rule,model_fix_grc_sod_rule,base.group_user,1,1,1,0
+access_fix_grc_authority,fix.grc.authority,model_fix_grc_authority,base.group_user,1,1,1,0
+access_fix_grc_licence,fix.grc.licence,model_fix_grc_licence,base.group_user,1,1,1,0
+access_fix_grc_policy,fix.grc.policy,model_fix_grc_policy,base.group_user,1,1,1,0
+access_fix_grc_legal,fix.grc.legal,model_fix_grc_legal,base.group_user,1,1,1,0
+access_fix_grc_pdpa,fix.grc.pdpa,model_fix_grc_pdpa,base.group_user,1,1,1,0
+access_fix_grc_whistle,fix.grc.whistle,model_fix_grc_whistle,base.group_user,1,1,1,0

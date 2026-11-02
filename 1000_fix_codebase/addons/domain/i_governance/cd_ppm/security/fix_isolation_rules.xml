@@ -19,6 +19,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_project_billing_company" model="ir.rule">
+        <field name="name">fix.project.billing: allowed companies</field>
+        <field name="model_id" ref="model_fix_project_billing"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_project_milestone_company" model="ir.rule">
         <field name="name">fix.project.milestone: allowed companies</field>
         <field name="model_id" ref="model_fix_project_milestone"/>
@@ -30,6 +35,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_project_risk_company" model="ir.rule">
+        <field name="name">fix.project.risk: allowed companies</field>
+        <field name="model_id" ref="model_fix_project_risk"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_project_task_company" model="ir.rule">
         <field name="name">fix.project.task: allowed companies</field>
         <field name="model_id" ref="model_fix_project_task"/>
@@ -40,5 +50,10 @@
         <field name="model_id" ref="model_fix_project_task"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_project_template_company" model="ir.rule">
+        <field name="name">fix.project.template: allowed companies</field>
+        <field name="model_id" ref="model_fix_project_template"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

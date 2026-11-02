@@ -37,6 +37,7 @@ management-system patterns:
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/qms_ops_sequences.xml",
         "views/fix_qms_views.xml",
     ],
     "installable": True,

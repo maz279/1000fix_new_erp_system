@@ -13,10 +13,22 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Internal IT Service Management",
-    "depends": ["base", "mail", "cd_entity_config", "cd_msp_contract", "cd_event_outbox"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_msp_contract",
+        "cd_event_outbox",
+        # fix.project (cd_ppm) is referenced by this module's models; without the
+        # dependency the relation can load against a missing model (FF-46).
+        "cd_ppm",
+    ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/itsm_catalogue_sequences.xml",
+        "data/integration_sequences.xml",
+        "data/itsm_ops_sequences.xml",
         "views/cd_itsm_views.xml",
     ],
     "installable": True,

@@ -8,6 +8,71 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_api_consumer_company" model="ir.rule">
+        <field name="name">fix.api.consumer: allowed companies</field>
+        <field name="model_id" ref="model_fix_api_consumer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_api_endpoint_company" model="ir.rule">
+        <field name="name">fix.api.endpoint: allowed companies</field>
+        <field name="model_id" ref="model_fix_api_endpoint"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_connector_company" model="ir.rule">
+        <field name="name">fix.connector: allowed companies</field>
+        <field name="model_id" ref="model_fix_connector"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_connector_credential_company" model="ir.rule">
+        <field name="name">fix.connector.credential: allowed companies</field>
+        <field name="model_id" ref="model_fix_connector_credential"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_event_dlq_company" model="ir.rule">
+        <field name="name">fix.event.dlq: allowed companies</field>
+        <field name="model_id" ref="model_fix_event_dlq"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_event_schema_company" model="ir.rule">
+        <field name="name">fix.event.schema: allowed companies</field>
+        <field name="model_id" ref="model_fix_event_schema"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_event_topic_company" model="ir.rule">
+        <field name="name">fix.event.topic: allowed companies</field>
+        <field name="model_id" ref="model_fix_event_topic"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_asset_company" model="ir.rule">
+        <field name="name">fix.itsm.asset: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_asset"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_catalogue_company" model="ir.rule">
+        <field name="name">fix.itsm.catalogue: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_catalogue"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_change_company" model="ir.rule">
+        <field name="name">fix.itsm.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_ci_company" model="ir.rule">
+        <field name="name">fix.itsm.ci: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_ci"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_licence_company" model="ir.rule">
+        <field name="name">fix.itsm.licence: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_licence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_itsm_problem_company" model="ir.rule">
+        <field name="name">fix.itsm.problem: allowed companies</field>
+        <field name="model_id" ref="model_fix_itsm_problem"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_itsm_ticket_company" model="ir.rule">
         <field name="name">fix.itsm.ticket: allowed companies</field>
         <field name="model_id" ref="model_fix_itsm_ticket"/>
@@ -18,5 +83,15 @@
         <field name="model_id" ref="model_fix_itsm_ticket"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_project_gate_company" model="ir.rule">
+        <field name="name">fix.project.gate: allowed companies</field>
+        <field name="model_id" ref="model_fix_project_gate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_sync_conflict_company" model="ir.rule">
+        <field name="name">fix.sync.conflict: allowed companies</field>
+        <field name="model_id" ref="model_fix_sync_conflict"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

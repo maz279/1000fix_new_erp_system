@@ -52,6 +52,46 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_grc_authority_company" model="ir.rule">
+        <field name="name">fix.grc.authority: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_authority"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_control_test_company" model="ir.rule">
+        <field name="name">fix.grc.control.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_control_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_legal_company" model="ir.rule">
+        <field name="name">fix.grc.legal: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_legal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_licence_company" model="ir.rule">
+        <field name="name">fix.grc.licence: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_licence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_pdpa_company" model="ir.rule">
+        <field name="name">fix.grc.pdpa: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_pdpa"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_policy_company" model="ir.rule">
+        <field name="name">fix.grc.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_sod_rule_company" model="ir.rule">
+        <field name="name">fix.grc.sod.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_sod_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_grc_whistle_company" model="ir.rule">
+        <field name="name">fix.grc.whistle: allowed companies</field>
+        <field name="model_id" ref="model_fix_grc_whistle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_risk_register_company" model="ir.rule">
         <field name="name">fix.risk.register: allowed companies</field>
         <field name="model_id" ref="model_fix_risk_register"/>

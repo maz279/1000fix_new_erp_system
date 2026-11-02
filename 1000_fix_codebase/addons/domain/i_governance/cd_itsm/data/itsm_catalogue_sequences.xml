@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_itsm_problem" model="ir.sequence">
+            <field name="name">IT Problem</field>
+            <field name="code">fix.itsm.problem</field>
+            <field name="prefix">PRB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>
