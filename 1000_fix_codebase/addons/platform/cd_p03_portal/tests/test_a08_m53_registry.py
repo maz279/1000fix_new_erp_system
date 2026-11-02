@@ -59,7 +59,20 @@ def registry(tmp_path_factory):
 def test_every_registry_screen_has_a_real_screen(registry):
     ids = [s["id"] for g in registry["module"]["groups"] for s in g["screens"]]
     assert len(ids) == len(set(ids))
-    assert set(ids) == set(registry["screens"]), "screens without an in-workspace entry"
+    # Every nav screen renders (no dead nav entries)…
+    assert set(ids) <= set(registry["screens"]), "screens without an in-workspace entry"
+    # …and every non-nav SCREENS entry is a reachable D365 surface: a
+    # model_form with a back-target grid, or a pack routed from a report
+    # chip (the A08 form/report sweeps added these deliberately).
+    routed = set(registry["routes"].values())
+    orphans = [
+        sid
+        for sid, cfg in registry["screens"].items()
+        if sid not in set(ids)
+        and not (cfg.get("kind") == "model_form" and cfg.get("back"))
+        and sid not in routed
+    ]
+    assert not orphans, f"orphan screens unreachable from nav or chips: {orphans}"
     for group in registry["module"]["groups"]:
         for s in group["screens"]:
             assert s.get("bn"), s["id"]

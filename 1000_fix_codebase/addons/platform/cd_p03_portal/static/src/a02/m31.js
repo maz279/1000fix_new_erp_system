@@ -93,7 +93,170 @@ export const SCREENS = {
     stateField: 'state' },
   'M31-costing': { kind: 'table_report', module: 'M31', report: 'cost_per_repair', period: false },
   'M31-throughput': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
-  'M31-methods': { kind: 'table_report', module: 'M31', report: 'rework_loops', period: false }
+  'M31-methods': { kind: 'table_report', module: 'M31', report: 'rework_loops', period: false },
+
+  /* ===== service data-entry forms (registry names) ===== */
+  'M31-form-job': {
+    kind: 'model_form',
+    model: 'fix.workshop.job',
+    title: "Repair Order",
+    back: 'M31-jobs',
+    status: { field: 'state', labels: { draft: "Draft", in_repair: "In Repair", burn_in: "Burn-In", qc: "QC", completed: "Completed", cancelled: "Cancelled" } },
+    tabs: [
+      { id: 'job', label: '1. Depot Job & Bench', bn: '১. ওয়ার্কশপ জব ও বেঞ্চ', icon: '🔧', badge: '7' },
+      { id: 'soldering', label: '2. Schematic & IPC Rework', bn: '২. স্কিম্যাটিক ও মাইক্রো-সোল্ডারিং', icon: '🔍', badge: '7' },
+      { id: 'burnin', label: '3. 240-Min Burn-In Gate', bn: '৩. ২৪০-মিনিট বার্ন-ইন যাচাই', icon: '🔥', badge: '6' },
+      { id: 'labor', label: '4. SAM Labor Efficiency', bn: '৪. শ্রম দক্ষতা ও কস্টিং', icon: '⏱️', badge: '6' },
+      { id: 'qc', label: '5. Quality & Evidence Pack', bn: '৫. কিউসি ও প্রমাণক', icon: '🛡️', badge: '6' }
+    ],
+    sections: [
+      { tab: 'job', title: "Workshop Repair Job & Bench Routing", note: "A bench repair job. Parts and labour totals roll up from the job lines.",
+        fields: [
+          { name: 'name', required: true, label: "Job Reference", readonly: true },
+          { name: 'order_id', label: "Service Order Reference" },
+          { name: 'workshop_id', required: true, label: "Depot / Workshop Facility" },
+          { name: 'repair_level', required: true, label: "Repair Capability Level (L1/L2/L3)" },
+          { name: 'bench_id', label: "Assigned Workbench (ESD Compliant Today)" },
+          { name: 'technician_id', label: "Assigned Depot Technician" },
+          { name: 'priority', required: true, label: "Repair Priority Tier" },
+          { name: 'device_serial', label: "Device Serial / IMEI" }
+        ] },
+      { tab: 'soldering', title: "IPC-7711/7721 Micro-Soldering & Component Diagnostics (FLAW-31.2 / HS-05)",
+        note: "DC power rail measurements, boardview schematics, and IPC visual inspection verification.",
+        fields: [
+          { name: 'schematic_designators', label: "Schematic / Boardview IC Designators (e.g. U7000)" },
+          { name: 'reflow_profile_name', label: "BGA Reflow Profile Curve" },
+          { name: 'flux_solder_spec', label: "Solder Alloy & Flux Spec Lot" },
+          { name: 'dc_power_rail_readings', label: "DC Power Rail Pre/Post Diode Readings", type: "text" },
+          { name: 'ipc_class_target', label: "IPC-7711/7721 Class Standard" },
+          { name: 'ipc_visual_inspection_passed', label: "Microscope 10x-40x Solder Joint Inspection Passed" },
+          { name: 'pre_rework_photo_attachment_id', label: "Pre-Rework Microscope Photo" }
+        ] },
+      { tab: 'burnin', title: "Continuous 240-Minute Stress / Burn-In Gate (FLAW-31.3)",
+        note: "L2/L3 repairs require >= 240 minutes (4 hours) continuous burn-in with 0 thermal crashes before QC.",
+        fields: [
+          { name: 'burn_in_duration_hours', label: "Target Burn-In Duration (Hours)" },
+          { name: 'burn_in_actual_minutes', label: "Actual Logged Burn-In Minutes (>= 240m)" },
+          { name: 'thermal_crash_count', label: "Thermal Crashes Observed (Must be 0)" },
+          { name: 'burn_in_temp_celsius', label: "Chamber Ambient Temp (°C)" },
+          { name: 'burn_in_started_at', label: "Burn-In Started At", readonly: true },
+          { name: 'burn_in_completed_at', label: "Burn-In Completed At", readonly: true },
+          { name: 'burn_in_passed', label: "Burn-In Interlock Passed", readonly: true }
+        ] },
+      { tab: 'labor', title: "Standard Allowed Minutes (SAM) & Cost Accounting",
+        fields: [
+          { name: 'sam_standard_minutes', label: "Standard Allowed Minutes (SAM)" },
+          { name: 'actual_logged_minutes', label: "Actual Logged Bench Minutes" },
+          { name: 'labor_efficiency_pct', label: "Labor Productivity Efficiency (%)", readonly: true },
+          { name: 'parts_total', label: "Spare Parts Total (BDT)", readonly: true },
+          { name: 'labour_total', label: "Labour Cost Allocation (BDT)" },
+          { name: 'total_repair_cost', label: "Total Direct Repair Cost (BDT)", readonly: true },
+          { name: 'dofa_writeoff_tier', label: "DOFA Scrap / BER Write-Off Tier" }
+        ] },
+      { tab: 'qc', title: "Independent Quality Control & Post-Rework Photos",
+        fields: [
+          { name: 'qc_passed', label: "Independent QC Inspection Passed", readonly: true },
+          { name: 'qc_inspector_id', label: "Independent QC Inspector" },
+          { name: 'qc_notes', label: "QC Inspection Findings", type: "text" },
+          { name: 'post_rework_photo_attachment_id', label: "Post-Rework Finished Board Photo" },
+          { name: 'is_rework', label: "Internal Rework Loop Active", readonly: true },
+          { name: 'state', required: true, label: "Repair Job State" }
+        ] }
+    ]
+  },
+  'M31-form-bench': {
+    kind: 'model_form',
+    model: 'fix.workshop.bench',
+    title: "Bench Allocation",
+    back: 'M31-benches',
+    status: { field: 'state', labels: { available: "Available", occupied: "Occupied", maintenance: "Maintenance", retired: "Retired" } },
+    tabs: [
+      { id: 'bench', label: '1. Bench Specification', bn: '১. বেঞ্চ পরিচিতি', icon: '🪑', badge: '7' },
+      { id: 'esd', label: '2. Daily ESD Verification Interlock', bn: '২. দৈনিক ইএসডি ইন্টারলক', icon: '⚡', badge: '6' }
+    ],
+    sections: [
+      { tab: 'bench', title: "Physical Repair Bench & Routing Capability", note: "A physical bench with its repair level, tools, and concurrent job capacity.",
+        fields: [
+          { name: 'workshop_id', required: true, label: "Workshop Facility" },
+          { name: 'code', required: true, label: "Bench Identification Code" },
+          { name: 'name', required: true, label: "Bench Name" },
+          { name: 'name_bn', label: "নাম (বাংলা)" },
+          { name: 'repair_level', required: true, label: "Repair Level Capability (L1/L2/L3)" },
+          { name: 'technician_id', label: "Assigned Primary Technician" },
+          { name: 'max_concurrent_jobs', label: "Maximum Concurrent Job Capacity" },
+          { name: 'state', required: true, label: "Current Bench State" }
+        ] },
+      { tab: 'esd', title: "Daily ESD Mat & Wrist-Strap Telemetry Interlock (FLAW-31.2)",
+        note: "ANSI/ESD S20.20 requires wrist strap < 35 MΩ and mat worksurface < 1000 MΩ logged daily.",
+        fields: [
+          { name: 'is_esd_safe', label: "ESD Protection Certified Station" },
+          { name: 'wrist_strap_mohm', required: true, label: "Wrist Strap Resistance (< 35.0 MΩ)" },
+          { name: 'worksurface_rtg_mohm', required: true, label: "Worksurface RTG Resistance (< 1000.0 MΩ)" },
+          { name: 'esd_last_verified_date', required: true, label: "Daily ESD Verification Date" },
+          { name: 'esd_compliant_today', label: "ESD Verification Compliant Today", readonly: true },
+          { name: 'calibration_expiry_date', label: "Oscilloscope / DMM Calibration Expiry" },
+          { name: 'calibration_cert_attachment_id', label: "Daily Calibration & ESD Log Sheet" }
+        ] }
+    ]
+  },
+  'M31-form-evidence': {
+    kind: 'model_form',
+    model: 'fix.workshop.evidence',
+    title: "Test Protocol Result",
+    back: 'M31-evidence',
+    tabs: [
+      { id: 'evidence', label: '1. Test Evidence Spec', bn: '১. প্রমাণক তথ্য', icon: '📎', badge: '6' },
+      { id: 'document', label: '2. Governed Document File', bn: '২. গভর্নড ফাইল ও টিয়ার', icon: '📄', badge: '4' }
+    ],
+    sections: [
+      { tab: 'evidence', title: "Diagnostic / Rework Evidence Item", note: "Governed evidence captured against a workshop job.",
+        fields: [
+          { name: 'job_id', required: true, label: "Target Workshop Job" },
+          { name: 'name', required: true, label: "Evidence Title" },
+          { name: 'evidence_type', required: true, label: "Evidence Category" },
+          { name: 'captured_at', required: true, label: "Captured Timestamp" },
+          { name: 'captured_by_id', label: "Captured By Technician" },
+          { name: 'description', label: "Evidence Observations / Engineering Notes", type: "text" }
+        ] },
+      { tab: 'document', title: "cd_document_core Unified Storage Link (AS-01)",
+        fields: [
+          { name: 'document_id', required: true, label: "Governed Document Record" },
+          { name: 'attachment_id', label: "Underlying Binary File Attachment", readonly: true },
+          { name: 'isolation_tier', label: "Data Residency Isolation Tier", readonly: true }
+        ] }
+    ]
+  },
+  'M31-form-workshop': {
+    kind: 'model_form',
+    model: 'fix.workshop',
+    title: "Workshop Transfer",
+    back: 'M31-workshops',
+    tabs: [
+      { id: 'facility', label: '1. Facility Profile', bn: '১. ফ্যাসিলিটি পরিচিতি', icon: '🏢', badge: '7' },
+      { id: 'iso', label: '2. ISO 9001 EPA Certification', bn: '২. আইএসও ৯০০১ ও ইপিএ সনদ', icon: '📜', badge: '5' }
+    ],
+    sections: [
+      { tab: 'facility', title: "Depot Facility Master & Capacity", note: "Depot classification, branch association, and technician capacity.",
+        fields: [
+          { name: 'code', required: true, label: "Workshop Facility Code" },
+          { name: 'name', required: true, label: "Workshop Name" },
+          { name: 'name_bn', required: true, label: "নাম (বাংলা)" },
+          { name: 'workshop_type', required: true, label: "Depot Classification (Central/Regional/Express)" },
+          { name: 'branch_id', label: "Associated Physical Branch Hub" },
+          { name: 'manager_id', label: "Workshop Depot Manager" },
+          { name: 'active', label: "Active Facility" }
+        ] },
+      { tab: 'iso', title: "ISO 9001:2015 & EPA ESD Protected Area Standards",
+        fields: [
+          { name: 'is_esd_certified', label: "EPA (ESD Protected Area) Certified" },
+          { name: 'iso_9001_cert_number', label: "ISO 9001:2015 Certificate Number" },
+          { name: 'fume_extraction_active', label: "HEPA / Solder Fume Extraction Active" },
+          { name: 'power_backup_kva', label: "Online UPS / Diesel Generator (kVA)" },
+          { name: 'facility_cert_attachment_id', label: "ISO / EPA Audit Certificate PDF" }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -114,3 +277,23 @@ export const FORM_MODELS = {};
 /* the module's "+ New" surface: no generic create — jobs start from the
  * service-order hand-over or the bench queue. */
 export const CREATE = {};
+
+
+export const FORM_CHIPS = {
+  'M31:Repair Order': 'M31-form-job',
+  'M31:Bench Allocation': 'M31-form-bench',
+  'M31:Test Protocol Result': 'M31-form-evidence',
+  'M31:Workshop Transfer': 'M31-form-workshop',
+  'M31:__by_model__': {
+    'fix.workshop.job': 'M31-form-job',
+    'fix.workshop.bench': 'M31-form-bench',
+    'fix.workshop.evidence': 'M31-form-evidence',
+    'fix.workshop': 'M31-form-workshop',
+  },
+  'M31:__by_screen__': {
+    'M31-jobs': 'M31-form-job',
+    'M31-benches': 'M31-form-bench',
+    'M31-evidence': 'M31-form-evidence',
+    'M31-workshops': 'M31-form-workshop',
+  }
+};

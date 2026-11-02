@@ -1,0 +1,260 @@
+# A09 · M58 Talent Acquisition — surfaces, packs and KPIs over requisitions,
+# candidates, interviews, practical assessments, checks, offers and first-90
+# reviews.
+
+SURFACES = {
+    "fix.job.requisition": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_open", "action_hired"},
+    },
+    "fix.candidate": {
+        "order": "id desc",
+        "limit": 500,
+        "actions": {"action_screen", "action_interview", "action_offer", "action_hire"},
+    },
+    "fix.talent.interview": {
+        "order": "scheduled_on desc, id desc",
+        "limit": 400,
+        "actions": {"action_done"},
+    },
+    "fix.talent.assessment": {"order": "assessed_on desc, id desc", "limit": 400, "actions": set()},
+    "fix.talent.check": {"order": "id desc", "limit": 400, "actions": {"action_clear"}},
+    "fix.talent.offer": {
+        "order": "issued_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_issue", "action_accept", "action_decline"},
+    },
+    "fix.onboarding.plan": {
+        "order": "joined_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_start", "action_complete"},
+    },
+    "fix.talent.first90": {"order": "check_date desc, id desc", "limit": 300, "actions": set()},
+}
+
+
+def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
+    return {
+        "title": title,
+        "cols": cols,
+        "labels": labels,
+        "rows": rows,
+        "totals": totals,
+        "notes": notes,
+        "empty": empty,
+    }
+
+
+def funnel_conversion(env, date_from=None, date_to=None, **params):
+    """Funnel & conversion: candidates by pipeline stage."""
+    candidates = env["fix.candidate"].sudo().search([])
+    stages = [
+        ("applied", "Applied"),
+        ("screening", "Screening"),
+        ("interview", "Interview"),
+        ("offered", "Offered"),
+        ("hired", "Hired"),
+        ("rejected", "Rejected"),
+    ]
+    counts = {k: len(candidates.filtered(lambda c, kk=k: c.state == kk)) for k, _ in stages}
+    base = counts["applied"] or len(candidates) or 1
+    rows = [
+        {"stage": label, "candidates": counts[key], "share": round(counts[key] / base * 100.0, 1)}
+        for key, label in stages
+    ]
+    return _pack(
+        "Funnel & Conversion — %d candidates" % len(candidates),
+        ["stage", "candidates", "share"],
+        {"stage": "Stage", "candidates": "Candidates", "share": "% of Applied"},
+        rows,
+        [
+            "Shares are over the applied pool; a stage further down with more people than a "
+            "stage above it means candidates skipped a step (shown as measured)."
+        ],
+        totals={"stage": "Total", "candidates": len(candidates)},
+        empty="No candidates recorded.",
+    )
+
+
+def time_to_fill(env, date_from=None, date_to=None, **params):
+    """Time to fill by requisition, from opened to first hire."""
+    reqs = env["fix.job.requisition"].sudo().search([])
+    candidates = env["fix.candidate"].sudo().search([("state", "=", "hired")])
+    rows = []
+    for req in reqs:
+        hired = candidates.filtered(lambda c, r=req.id: c.requisition_id.id == r)
+        opened = req.create_date.date() if req.create_date else None
+        first_hire = min(hired.mapped("create_date"), default=None) if hired else None
+        days = (first_hire.date() - opened).days if (opened and first_hire) else None
+        rows.append(
+            {
+                "requisition": req.name,
+                "openings": req.openings,
+                "hired": len(hired),
+                "state": dict(req._fields["state"].selection).get(req.state, req.state),
+                "days_to_fill": days if days is not None else "Not filled",
+            }
+        )
+    rows.sort(key=lambda r: (r["days_to_fill"] == "Not filled", r["days_to_fill"]))
+    return _pack(
+        "Time-to-Fill by Role",
+        ["requisition", "openings", "hired", "state", "days_to_fill"],
+        {
+            "requisition": "Requisition",
+            "openings": "Openings",
+            "hired": "Hired",
+            "state": "State",
+            "days_to_fill": "Days to Fill",
+        },
+        rows,
+        [
+            "Days to fill is from the requisition's creation to the first hired candidate; "
+            "unfilled requisitions say so instead of showing a number."
+        ],
+        empty="No requisitions recorded.",
+    )
+
+
+def source_effectiveness(env, date_from=None, date_to=None, **params):
+    """Source effectiveness: applications and hires by channel (from the
+    candidate's requisition)."""
+    candidates = env["fix.candidate"].sudo().search([])
+    groups = {}
+    for cand in candidates:
+        key = "Direct / Referral"
+        g = groups.setdefault(key, {"applied": 0, "hired": 0})
+        g["applied"] += 1
+        if cand.state == "hired":
+            g["hired"] += 1
+    rows = [
+        {
+            "source": k,
+            "applied": v["applied"],
+            "hired": v["hired"],
+            "conversion": round(v["hired"] / v["applied"] * 100.0, 1) if v["applied"] else 0.0,
+        }
+        for k, v in groups.items()
+    ]
+    return _pack(
+        "Source Effectiveness",
+        ["source", "applied", "hired", "conversion"],
+        {"source": "Source", "applied": "Applied", "hired": "Hired", "conversion": "Hire Rate %"},
+        rows,
+        [
+            "Candidate carries no source/channel field, so all applications are reported under "
+            "one honest bucket; adding a channel would be a model change."
+        ],
+        totals={
+            "source": "Total",
+            "applied": sum(r["applied"] for r in rows),
+            "hired": sum(r["hired"] for r in rows),
+        },
+        empty="No candidates recorded.",
+    )
+
+
+def first90_retention(env, date_from=None, date_to=None, **params):
+    """First-90 retention: reviews and whether the hire is on track."""
+    reviews = env["fix.talent.first90"].sudo().search([])
+    rows = []
+    for rev in reviews:
+        rows.append(
+            {
+                "employee": rev.employee_id.name,
+                "milestone": dict(rev._fields["milestone"].selection).get(rev.milestone),
+                "check_date": str(rev.check_date),
+                "rating": rev.rating or 0.0,
+                "on_track": "Yes" if rev.on_track else "No",
+            }
+        )
+    rows.sort(key=lambda r: r["check_date"], reverse=True)
+    on_track = len([r for r in rows if r["on_track"] == "Yes"])
+    return _pack(
+        "First-90 Retention — %d of %d on track" % (on_track, len(rows)),
+        ["employee", "milestone", "check_date", "rating", "on_track"],
+        {
+            "employee": "Employee",
+            "milestone": "Milestone",
+            "check_date": "Check Date",
+            "rating": "Rating",
+            "on_track": "On Track",
+        },
+        rows,
+        [
+            "A hire with no review recorded is not counted as retained or lost — only recorded "
+            "reviews appear."
+        ],
+        empty="No first-90 reviews recorded.",
+    )
+
+
+def practical_results(env, date_from=None, date_to=None, **params):
+    """Practical assessment results per candidate."""
+    assessments = env["fix.talent.assessment"].sudo().search([])
+    rows = []
+    for a in assessments:
+        rows.append(
+            {
+                "candidate": a.candidate_id.name,
+                "competency": a.competency_code or "—",
+                "assessed_on": str(a.assessed_on),
+                "score": round(a.score or 0.0, 1),
+                "passed": "Yes" if a.passed else "No",
+                "assessor": a.assessor_id.name if a.assessor_id else "—",
+            }
+        )
+    rows.sort(key=lambda r: -r["score"])
+    passed = len([r for r in rows if r["passed"] == "Yes"])
+    return _pack(
+        "Practical Assessment Results — %d of %d passed" % (passed, len(rows)),
+        ["candidate", "competency", "assessed_on", "score", "passed", "assessor"],
+        {
+            "candidate": "Candidate",
+            "competency": "Competency",
+            "assessed_on": "Assessed",
+            "score": "Score %",
+            "passed": "Passed",
+            "assessor": "Assessor",
+        },
+        rows,
+        ["Score is the recorded 0–100 percentage; passed is the assessor's recorded result."],
+        empty="No practical assessments recorded.",
+    )
+
+
+REPORTS = {
+    "funnel_conversion": funnel_conversion,
+    "time_to_fill": time_to_fill,
+    "source_effectiveness": source_effectiveness,
+    "first90_retention": first90_retention,
+    "practical_results": practical_results,
+}
+
+
+def kpis(env):
+    reqs = env["fix.job.requisition"].sudo().search([])
+    candidates = env["fix.candidate"].sudo().search([])
+    offers = env["fix.talent.offer"].sudo().search([])
+    hired = candidates.filtered(lambda c: c.state == "hired")
+    accepted = offers.filtered(lambda o: o.state == "accepted")
+    issued = offers.filtered(lambda o: o.state in ("issued", "accepted", "declined"))
+    reviews = env["fix.talent.first90"].sudo().search([])
+    on_track = len(reviews.filtered(lambda r: r.on_track))
+    # Real time-to-fill: average days from requisition creation to its first hire.
+    fill_days = []
+    for req in reqs:
+        req_hired = hired.filtered(lambda c, r=req.id: c.requisition_id.id == r)
+        if req_hired and req.create_date:
+            first = min(req_hired.mapped("create_date"))
+            fill_days.append((first.date() - req.create_date.date()).days)
+    return {
+        "open_requisitions": len(reqs.filtered(lambda r: r.state == "open")),
+        "time_to_fill": round(sum(fill_days) / len(fill_days), 1) if fill_days else None,
+        "pipeline": len(
+            candidates.filtered(lambda c: c.state in ("applied", "screening", "interview"))
+        ),
+        "offer_accept_rate": round(len(accepted) / len(issued) * 100.0, 1) if issued else 0.0,
+        "referral_share": None,  # no candidate channel field exists
+        "first90_retention": round(on_track / len(reviews) * 100.0, 1) if reviews else 0.0,
+    }

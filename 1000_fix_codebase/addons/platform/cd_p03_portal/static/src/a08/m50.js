@@ -78,11 +78,11 @@ const PAYMENT_ACTIONS = [
 /* in-workspace data screens (checked before any stock Odoo view) */
 export const SCREENS = {
   // ---- Cash
-  'M50-position': { kind: 'model_list', model: 'fix.cash.position',
+  'M50-position': { kind: 'model_list', create: false, model: 'fix.cash.position',
     cols: ['as_of','bank_balance','drawer_float_total','petty_cash_total','cash_in_transit_total','pending_payments','total_position'],
     actions: [{m:'action_take_snapshot',l:'Take Snapshot'}] },
   'M50-branchcash': { kind: 'table_report', module: 'M50', report: 'branch_cash' },
-  'M50-ridercod': { kind: 'model_list', model: 'fix.cod.settlement',
+  'M50-ridercod': { kind: 'model_list', create: false, model: 'fix.cod.settlement',
     cols: ['name','rider_id','settlement_date','order_count','expected_amount','remitted_amount','variance','state'],
     stateField: 'state',
     actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute'}] },
@@ -156,6 +156,218 @@ export const SCREENS = {
   'M50-rpt-gateway': { kind: 'table_report', module: 'M50', report: 'gateway_recon' },
   'M50-rpt-cod': { kind: 'table_report', module: 'M50', report: 'cod_report' },
   'M50-rpt-charges': { kind: 'table_report', module: 'M50', report: 'bank_charges' },
+
+
+  /* ===== A08 master-data forms (D365 in-workspace) ===== */
+  'M50-form-fund': {
+    kind: 'model_form',
+    model: 'fix.imprest.fund',
+    title: "Imprest Fund",
+    back: 'M50-petty',
+    status: { field: 'state', labels: { active: "Active", suspended: "Suspended", closed: "Closed" } },
+    sections: [
+      { title: "Fund",
+        note: "An imprest (petty cash) fund per branch and custodian; the limit caps the float and the voucher limit caps a single payment.",
+        fields: [
+          { name: 'name', required: true, label: "Fund Name" },
+          { name: 'branch_id', required: true, label: "Branch" },
+          { name: 'custodian_id', required: true, label: "Custodian" },
+          { name: 'imprest_limit', required: true, label: "Imprest Limit" },
+          { name: 'voucher_limit', label: "Voucher Limit" },
+          { name: 'account_id', required: true, label: "Imprest Account" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-voucher': {
+    kind: 'model_form',
+    model: 'fix.imprest.voucher',
+    title: "Imprest Voucher",
+    back: 'M50-petty-vouchers',
+    status: { field: 'state', labels: { draft: "Draft", submitted: "Submitted", approved: "Approved", posted: "Posted" } },
+    sections: [
+      { title: "Voucher",
+        note: "A petty-cash payment against the fund; the expense account and amount post to the GL on approval.",
+        fields: [
+          { name: 'fund_id', required: true, label: "Fund" },
+          { name: 'voucher_date', required: true, label: "Voucher Date" },
+          { name: 'description', required: true, label: "Description" },
+          { name: 'payee', label: "Payee" },
+          { name: 'expense_account_id', required: true, label: "Expense Account" },
+          { name: 'amount', required: true, label: "Amount" },
+          { name: 'receipt_ref', label: "Receipt Ref" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-count': {
+    kind: 'model_form',
+    model: 'fix.imprest.count',
+    title: "Imprest Count",
+    back: 'M50-petty-counts',
+    status: { field: 'state', labels: { draft: "Draft", posted: "Posted" } },
+    sections: [
+      { title: "Count",
+        note: "A cash count on a date; the variance to the book balance is computed by the model, not typed.",
+        fields: [
+          { name: 'fund_id', required: true, label: "Fund" },
+          { name: 'count_date', required: true, label: "Count Date" },
+          { name: 'counted_by_id', label: "Counted By" },
+          { name: 'counted_amount', required: true, label: "Counted Amount" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-journal': {
+    kind: 'model_form',
+    model: 'account.journal',
+    title: "Bank / Cash Account",
+    back: 'M50-accounts',
+    sections: [
+      { title: "Account",
+        note: "A bank or cash journal. The treasury fields (routing number, branch, treasury role, signatories) drive the payment files.",
+        fields: [
+          { name: 'name', required: true, label: "Journal Name" },
+          { name: 'code', required: true, label: "Short Code" },
+          { name: 'type', required: true, label: "Type" },
+          { name: 'currency_id', label: "Currency" },
+          { name: 'bank_acc_number', label: "Bank Account Number" },
+          { name: 'bank_id', label: "Bank" },
+          { name: 'fix_routing_number', label: "Routing Number" },
+          { name: 'fix_branch_name', label: "Bank Branch" },
+          { name: 'fix_treasury_role', label: "Treasury Role" },
+          { name: 'fix_signatories', label: "Signatories" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+  'M50-form-stmtline': {
+    kind: 'model_form',
+    model: 'fix.bank.statement.line',
+    title: "Statement Line",
+    back: 'M50-recon',
+    status: { field: 'match_state', labels: { unmatched: "Unmatched", matched: "Matched", exception: "Exception" } },
+    sections: [
+      { title: "Statement Line",
+        note: "One line of an imported bank statement; matching links it to a payment, deposit, cheque or gateway settlement.",
+        fields: [
+          { name: 'journal_id', label: "Journal" },
+          { name: 'date', required: true, label: "Value Date" },
+          { name: 'amount', required: true, label: "Amount" },
+          { name: 'reference', label: "Reference" },
+          { name: 'narration', label: "Narration" },
+          { name: 'match_state', required: true, label: "Match State" }
+        ] }
+    ]
+  },
+  'M50-form-cheque': {
+    kind: 'model_form',
+    model: 'fix.cheque',
+    title: "Cheque",
+    back: 'M50-cheques',
+    status: { field: 'state', labels: { received: "Received", deposited: "Deposited", cleared: "Cleared", bounced: "Bounced" } },
+    sections: [
+      { title: "Cheque",
+        note: "Post-dated cheques are held (is_pdc) until their date; a bounce records the reason and increments the count.",
+        fields: [
+          { name: 'direction', required: true, label: "Direction" },
+          { name: 'cheque_no', required: true, label: "Cheque No" },
+          { name: 'drawee_bank', label: "Drawee Bank" },
+          { name: 'partner_id', label: "Partner" },
+          { name: 'payee_name', label: "Payee Name" },
+          { name: 'amount', required: true, label: "Amount" },
+          { name: 'cheque_date', required: true, label: "Cheque Date" },
+          { name: 'received_date', required: true, label: "Received Date" },
+          { name: 'is_pdc', label: "Post-Dated" },
+          { name: 'journal_id', label: "Journal" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-gateway': {
+    kind: 'model_form',
+    model: 'fix.gateway.settlement',
+    title: "Gateway Settlement",
+    back: 'M50-gateway',
+    status: { field: 'state', labels: { imported: "Imported", reconciled: "Reconciled", exception: "Exception" } },
+    sections: [
+      { title: "Settlement",
+        note: "A provider settlement batch (gross, fee, VAT, net). The report hash pins the source file that was reconciled.",
+        fields: [
+          { name: 'provider', required: true, label: "Provider" },
+          { name: 'provider_batch_ref', label: "Batch Reference" },
+          { name: 'settlement_date', required: true, label: "Settlement Date" },
+          { name: 'journal_id', required: true, label: "Journal" },
+          { name: 'total_gross', label: "Gross" },
+          { name: 'total_fee', label: "Fee" },
+          { name: 'total_fee_vat', label: "Fee VAT" },
+          { name: 'total_net', label: "Net" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-forecast': {
+    kind: 'model_form',
+    model: 'fix.cash.forecast.item',
+    title: "Recurring Cash Item",
+    back: 'M50-recurring',
+    sections: [
+      { title: "Recurring Item",
+        note: "A standing inflow/outflow for the rolling cash forecast: direction, category, amount and frequency.",
+        fields: [
+          { name: 'name', required: true, label: "Item Name" },
+          { name: 'direction', required: true, label: "Direction" },
+          { name: 'category', required: true, label: "Category" },
+          { name: 'amount', required: true, label: "Amount" },
+          { name: 'frequency', required: true, label: "Frequency" },
+          { name: 'start_date', required: true, label: "Start Date" },
+          { name: 'end_date', label: "End Date" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+  'M50-form-facility': {
+    kind: 'model_form',
+    model: 'fix.bank.facility',
+    title: "Bank Facility",
+    back: 'M50-facilities',
+    status: { field: 'state', labels: { draft: "Draft", active: "Active", closed: "Closed" } },
+    sections: [
+      { title: "Facility",
+        note: "A sanctioned credit line: limit, interest, tenor and repayment frequency. Utilised/available are computed from drawdowns.",
+        fields: [
+          { name: 'name', required: true, label: "Facility Name" },
+          { name: 'lender_id', required: true, label: "Lender" },
+          { name: 'facility_type', required: true, label: "Facility Type" },
+          { name: 'sanction_ref', label: "Sanction Ref" },
+          { name: 'sanction_date', label: "Sanction Date" },
+          { name: 'expiry_date', label: "Expiry Date" },
+          { name: 'limit_amount', required: true, label: "Limit Amount" },
+          { name: 'interest_rate', label: "Interest Rate %" },
+          { name: 'tenor_months', label: "Tenor (months)" },
+          { name: 'repayment_frequency', label: "Repayment Frequency" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M50-form-covenant': {
+    kind: 'model_form',
+    model: 'fix.facility.covenant',
+    title: "Facility Covenant",
+    back: 'M50-covenants',
+    sections: [
+      { title: "Covenant",
+        note: "A financial covenant on a facility: the metric, operator and threshold; last value/result come from the last test.",
+        fields: [
+          { name: 'facility_id', required: true, label: "Facility" },
+          { name: 'name', required: true, label: "Covenant" },
+          { name: 'metric', required: true, label: "Metric" },
+          { name: 'operator', required: true, label: "Operator" },
+          { name: 'threshold', required: true, label: "Threshold" }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -176,7 +388,147 @@ export const FORM_MODELS = {
   'M50:Imprest Top-Up': 'fix.imprest.topup',
 };
 
+/* ============ D365 IN-WORKSPACE FORM SCREENS (M50 re-audit v2) ========
+ * The registry's four data-entry chips open Dynamics-365 record forms in
+ * the workspace — never an Odoo dialog. Merged into SCREENS (the meta
+ * merger reads that export). */
+Object.assign(SCREENS, {
+  'M50-form-import': {
+    kind: 'model_form',
+    model: 'fix.bank.statement.import',
+    title: 'Bank Statement Import',
+    back: 'M50-statements',
+    status: { field: 'state', labels: {
+      draft: 'Draft', imported: 'Imported', error: 'Error' } },
+    sections: [
+      { title: 'Statement Import', note: 'Pick the bank journal and the file format; the statement file itself is attached after the record is created (the import action parses it and creates the statement lines).',
+        fields: [
+          { name: 'journal_id', required: true, label: 'Bank Journal' },
+          { name: 'format_type', required: true, label: 'Format' },
+          { name: 'filename', label: 'File Name' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M50-form-instruction': {
+    kind: 'model_form',
+    model: 'fix.payment.execution',
+    title: 'Payment Instruction',
+    back: 'M50-beftn',
+    status: { field: 'state', labels: {
+      draft: 'Draft', released: 'Released to Bank', confirmed: 'Confirmed by Bank',
+      failed: 'Failed', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Instruction', note: 'Payment runs release their lines here as individual instructions on the chosen rail; a manual instruction records the same data for one-off payments.',
+        fields: [
+          { name: 'payee', required: true, label: 'Payee' },
+          { name: 'partner_id', label: 'Payee Partner' },
+          { name: 'partner_bank_id', label: 'Payee Bank Account' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'method', required: true, label: 'Method' },
+          { name: 'rail', label: 'Rail' },
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M50-form-deposit': {
+    kind: 'model_form',
+    model: 'fix.cash.deposit',
+    title: 'Cash Deposit',
+    back: 'M50-cit',
+    status: { field: 'state', labels: {
+      recorded: 'Recorded', in_transit: 'In Transit', deposited: 'Deposited',
+      confirmed: 'Confirmed by Bank' } },
+    sections: [
+      { title: 'Cash-in-Transit', note: 'The branch cash day is deposited under a slip number; carrier tracks who moved the cash.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'business_date', required: true, label: 'Cash Day' },
+          { name: 'journal_id', required: true, label: 'Bank Journal' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'slip_no', label: 'Deposit Slip No' },
+          { name: 'carrier', label: 'Carrier' },
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M50-form-topup': {
+    kind: 'model_form',
+    model: 'fix.imprest.topup',
+    title: 'Imprest Top-Up',
+    back: 'M50-petty-topups',
+    status: { field: 'state', labels: {
+      draft: 'Draft', approved: 'Approved', disbursed: 'Disbursed' } },
+    sections: [
+      { title: 'Top-Up', note: 'Replenishes the petty-cash (imprest) fund back to its limit; the fund is selected and the amount is drawn from the bank journal.',
+        fields: [
+          { name: 'fund_id', required: true, label: 'Imprest Fund' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'journal_id', required: true, label: 'Bank Journal' },
+          { name: 'topup_date', required: true, label: 'Top-Up Date' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  }
+});
+
+export const FORM_CHIPS = {
+  'M50:Imprest Fund': 'M50-form-fund',
+  'M50:Imprest Voucher': 'M50-form-voucher',
+  'M50:Imprest Count': 'M50-form-count',
+  'M50:Bank / Cash Account': 'M50-form-journal',
+  'M50:Statement Line': 'M50-form-stmtline',
+  'M50:Cheque': 'M50-form-cheque',
+  'M50:Gateway Settlement': 'M50-form-gateway',
+  'M50:Recurring Cash Item': 'M50-form-forecast',
+  'M50:Bank Facility': 'M50-form-facility',
+  'M50:Facility Covenant': 'M50-form-covenant',
+  'M50:Bank Statement Import': 'M50-form-import',
+  'M50:Payment Instruction': 'M50-form-instruction',
+  'M50:Cash Deposit': 'M50-form-deposit',
+  'M50:Imprest Top-Up': 'M50-form-topup',
+  'M50:__by_model__': {
+    'fix.imprest.fund': 'M50-form-fund',
+    'fix.imprest.voucher': 'M50-form-voucher',
+    'fix.imprest.count': 'M50-form-count',
+    'account.journal': 'M50-form-journal',
+    'fix.bank.statement.line': 'M50-form-stmtline',
+    'fix.cheque': 'M50-form-cheque',
+    'fix.gateway.settlement': 'M50-form-gateway',
+    'fix.cash.forecast.item': 'M50-form-forecast',
+    'fix.bank.facility': 'M50-form-facility',
+    'fix.facility.covenant': 'M50-form-covenant',
+    'fix.bank.statement.import': 'M50-form-import',
+    'fix.payment.execution': 'M50-form-instruction',
+    'fix.cash.deposit': 'M50-form-deposit',
+    'fix.imprest.topup': 'M50-form-topup'
+  },
+  'M50:__by_screen__': {
+    'M50-petty': 'M50-form-fund',
+    'M50-petty-vouchers': 'M50-form-voucher',
+    'M50-petty-counts': 'M50-form-count',
+    'M50-accounts': 'M50-form-journal',
+    'M50-recon': 'M50-form-stmtline',
+    'M50-cheques': 'M50-form-cheque',
+    'M50-gateway': 'M50-form-gateway',
+    'M50-recurring': 'M50-form-forecast',
+    'M50-facilities': 'M50-form-facility',
+    'M50-covenants': 'M50-form-covenant',
+    'M50-statements': 'M50-form-import',
+    'M50-beftn': 'M50-form-instruction',
+    'M50-mfs': 'M50-form-instruction',
+    'M50-cit': 'M50-form-deposit',
+    'M50-petty-topups': 'M50-form-topup'
+  }
+};
+
 /* the module's "+ New" surface */
 export const CREATE = {
-  M50: { model: 'fix.payment.execution', label: 'Payment Instruction' },
+  M50: { screen: 'M50-form-instruction', model: 'fix.payment.execution', label: 'Payment Instruction' },
 };

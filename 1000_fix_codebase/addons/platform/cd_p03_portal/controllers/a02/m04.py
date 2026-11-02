@@ -20,7 +20,12 @@ SURFACES = {
     "fix.cash.shift": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_close_shift", "action_confirm_closed", "action_reconcile"},
+        "actions": {
+            "action_close_shift",
+            "action_submit_blind_count",
+            "action_confirm_closed",
+            "action_reconcile",
+        },
     },
     "fix.counter.sale": {
         "order": "id desc",

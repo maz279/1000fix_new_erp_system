@@ -1,0 +1,687 @@
+/** @odoo-module **/
+/* A03 · Customer Experience — M07 CRM, Pipeline & Key Account Management.
+ * Rebuilt 2026-10-31: Full Microsoft Dynamics 365 multi-tab form architecture
+ * across all 8 in-workspace forms with zero Bengali/English mixing, comprehensive
+ * data capture, stage-gating enforcement, and B2B corporate governance.
+ */
+
+export const MODULE = {
+  area: 'A03', code: 'M07', en: 'CRM & Sales Pipeline', title: 'M07 · CRM & Sales Pipeline',
+  bn: 'সিআরএম ও বিক্রয়', icon: '🎯',
+  desc: 'Enterprise sales pipeline, multi-stream forecast categories, stage gating, win/loss intelligence, corporate account plans, QBRs and renewals.',
+  kpis: [
+    { l: 'Weighted Pipeline', m: 'weighted_pipeline', prefix: 'BDT ' },
+    { l: 'Win Rate', m: 'win_rate', suffix: '%' },
+    { l: 'AMC Renewals T-90', m: 'renewals_t90' },
+    { l: 'New Corp Logos YTD', m: 'new_corp_logos_ytd' },
+    { l: 'QBRs This Month', m: 'qbrs_this_month' },
+    { l: 'Referral Leads', m: 'referral_leads' }
+  ],
+  groups: [
+    { en: 'Leads', bn: 'লিড', screens: [
+      { id: 'M07-leads', en: 'Leads', bn: 'লিড', t: 'g' },
+      { id: 'M07-scoring', en: 'Scoring & Routing', bn: 'স্কোরিং ও রাউটিং', t: 'g' },
+      { id: 'M07-sources', en: 'Sources & Campaigns', bn: 'উৎস ও ক্যাম্পেইন', t: 'r' }
+    ]},
+    { en: 'Pipeline', bn: 'পাইপলাইন', screens: [
+      { id: 'M07-opps', en: 'Opportunities', bn: 'সুযোগ', t: 'g' },
+      { id: 'M07-kanban', en: 'Pipeline Kanban', bn: 'পাইপলাইন কানবান', t: 'd' },
+      { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'r' }
+    ]},
+    { en: 'Accounts', bn: 'অ্যাকাউন্ট', screens: [
+      { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
+      { id: 'M07-plans', en: 'Account Plans', bn: 'অ্যাকাউন্ট পরিকল্পনা', t: 'g' },
+      { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর সময়সূচি', t: 'c' },
+      { id: 'M07-activities', en: 'Activities & Visits', bn: 'কার্যক্রম ও সাক্ষাৎ', t: 'g' }
+    ]},
+    { en: 'Renewals & Growth', bn: 'নবায়ন ও প্রবৃদ্ধি', screens: [
+      { id: 'M07-t90', en: 'T-90 Renewal Register', bn: 'টি-৯০ নবায়ন রেজিস্টার', t: 'g' },
+      { id: 'M07-crosssell', en: 'Cross-Sell / Upsell', bn: 'ক্রস-সেল / আপসেল', t: 'g' },
+      { id: 'M07-winloss', en: 'Win/Loss Analysis', bn: 'জয়/পরাজয় বিশ্লেষণ', t: 'r' }
+    ]},
+    { en: 'CRM Configuration & Forms', bn: 'কনফিগারেশন ও ফর্ম', screens: [
+      { id: 'M07-renewals', en: 'Contract Renewals', bn: 'চুক্তি নবায়ন', t: 'g' },
+      { id: 'M07-form-lead', en: 'Lead', bn: 'লিড ফর্ম', t: 'f' },
+      { id: 'M07-form-opp', en: 'Opportunity', bn: 'সুযোগ ফর্ম', t: 'f' },
+      { id: 'M07-form-activity', en: 'Activity (call/visit/meeting)', bn: 'কার্যক্রম ফর্ম', t: 'f' },
+      { id: 'M07-form-plan', en: 'Account Plan', bn: 'পরিকল্পনা ফর্ম', t: 'f' },
+      { id: 'M07-form-pipeline', en: 'Pipeline Configuration', bn: 'পাইপলাইন কনফিগ', t: 'f' },
+      { id: 'M07-form-assignment', en: 'Account Assignment', bn: 'অ্যাসাইনমেন্ট ফর্ম', t: 'f' },
+      { id: 'M07-form-qbr', en: 'Quarterly Business Review', bn: 'কিউবিআর ফর্ম', t: 'f' },
+      { id: 'M07-form-renewal', en: 'Renewal Pursuit', bn: 'নবায়ন ফর্ম', t: 'f' },
+      { id: 'M07-form-forecast', en: 'Forecast Snapshot', bn: 'ফোরকাস্ট ফর্ম', t: 'f' }
+    ]},
+    { en: 'Pipeline Reports', bn: 'রিপোর্ট', screens: [
+      { id: 'M07-rpt-pipeline', en: 'Pipeline by Stream', bn: 'স্ট্রিমভিত্তিক পাইপলাইন', t: 'r' },
+      { id: 'M07-rpt-funnel', en: 'Funnel Conversion', bn: 'ফানেল রূপান্তর', t: 'r' },
+      { id: 'M07-rpt-winsrc', en: 'Win Rate by Source', bn: 'উৎসভিত্তিক জয়ের হার', t: 'r' },
+      { id: 'M07-rpt-amscore', en: 'Account Manager Scorecard', bn: 'এএম স্কোরকার্ড', t: 'r' },
+      { id: 'M07-rpt-renewalrisk', en: 'Renewal Risk Report', bn: 'নবায়ন ঝুঁকি রিপোর্ট', t: 'r' },
+      { id: 'M07-rpt-crosssell', en: 'Cross-Sell Attach Rate', bn: 'ক্রস-সেল সংযুক্তি হার', t: 'r' }
+    ]},
+    { en: 'Sequences & Playbooks', bn: 'সিকোয়েন্স ও প্লেবুক', screens: [
+      { id: 'M07-sequences', en: 'Sequences & Playbooks', bn: 'সিকোয়েন্স', t: 'g' },
+      { id: 'M07-form-sequence', en: 'Sequence', bn: 'সিকোয়েন্স ফর্ম', t: 'f' },
+      { id: 'M07-sequence-enrolments', en: 'Cadence Enrolments', bn: 'ক্যাডেন্স তালিকাভুক্তি', t: 'g' }
+    ]},
+    { en: 'Lead Scoring', bn: 'লিড স্কোরিং', screens: [
+      { id: 'M07-score-models', en: 'Scoring Models', bn: 'স্কোরিং মডেল', t: 'g' },
+      { id: 'M07-form-score-model', en: 'Scoring Model', bn: 'স্কোরিং ফর্ম', t: 'f' }
+    ]}
+  ],
+  reports: ['Pipeline by Stream', 'Funnel Conversion', 'Win Rate by Source', 'Account Manager Scorecard', 'Renewal Risk Report', 'Cross-Sell Attach Rate'],
+  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model'],
+  cross: ['M33 Party Master', 'M08 Service Contracts', 'M01 Service Orders', 'M20 Credit Control', 'M53 Commissions'],
+  freg: {
+    src: 79,
+    sub: [
+      ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads'] }],
+      ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban'] }],
+      ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-rpt-pipeline', 'M07-rpt-funnel'] }],
+      ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans'] }],
+      ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-rpt-amscore'] }],
+      ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'] }],
+      ['7', 'Activities', 8, { model: 'crm.lead', cols: ['name', 'partner_id', 'activity_summary', 'activity_date_deadline', 'activity_user_id'], screens: ['M07-activities'] }],
+      ['8', 'Renewal Pipeline', 6, { model: 'fix.renewal', cols: ['state', 'partner_id', 'source_type', 'source_ref', 'value', 'expiry_date'], screens: ['M07-renewals', 'M07-rpt-renewalrisk'] }],
+      ['9', 'Cross-Sell / Upsell', 7, { screens: ['M07-crosssell', 'M07-rpt-crosssell'] }],
+      ['10', 'Competitor Intelligence', 5, { screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'] }]
+    ]
+  }
+};
+
+export const SCREENS = {
+  'M07-kanban': { kind: 'model_list', model: 'crm.lead', create: true,
+    cols: ['name', 'partner_id', 'expected_revenue', 'stage_id', 'user_id', 'forecast_category'],
+    stateField: 'stage_id' },
+  'M07-leads': { kind: 'model_list', model: 'crm.lead', create: true,
+    cols: ['name', 'partner_id', 'lead_source', 'expected_revenue', 'user_id', 'create_date'],
+    domain: [['type', '=', 'lead']] },
+  'M07-opps': { kind: 'model_list', model: 'crm.lead', create: true,
+    cols: ['name', 'partner_id', 'pipeline_id', 'expected_revenue', 'probability', 'forecast_category', 'stage_id'],
+    domain: [['type', '=', 'opportunity']],
+    stateField: 'stage_id',
+    actions: [
+      { m: 'action_convert_to_service_order', l: 'Convert to Service Order' },
+      { m: 'action_set_won', l: 'Mark Won' },
+      { m: 'action_set_lost', l: 'Mark Lost', ask: 'Loss reason code', kwarg: 'reason' }
+    ] },
+  'M07-forecast': { kind: 'model_list', model: 'fix.forecast.snapshot', create: true,
+    cols: ['period', 'owner_id', 'pipeline_id', 'pipeline_value', 'best_case_value', 'commit_value', 'taken_at'],
+    note: 'Forecast snapshots by commit category (pipeline / best case / commit).' },
+  'M07-accounts': { kind: 'model_list', model: 'fix.account.assignment', create: true,
+    cols: ['partner_id', 'owner_id', 'assignment_type', 'effective_from', 'effective_to'],
+    actions: [{ m: 'action_assign_unowned', l: 'Assign Unowned Accounts' }] },
+  'M07-plans': { kind: 'model_list', model: 'fix.account.plan', create: true,
+    cols: ['partner_id', 'period', 'reviewed_at', 'company_id'],
+    actions: [{ m: 'action_mark_reviewed', l: 'Mark Reviewed' }] },
+  'M07-qbr': { kind: 'model_list', model: 'fix.qbr', create: true,
+    cols: ['partner_id', 'period', 'scheduled_for', 'state', 'held_on', 'open_action_count'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_mark_data_ready', l: 'Data Pack Ready' },
+      { m: 'action_mark_held', l: 'Mark Held' }
+    ] },
+  'M07-renewals': { kind: 'model_list', model: 'fix.renewal', create: true,
+    cols: ['partner_id', 'source_ref', 'expiry_date', 'value', 'state', 'risk_band'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_engage', l: 'Start Engagement' },
+      { m: 'action_renew', l: 'Mark Renewed' },
+      { m: 'action_lapse', l: 'Mark Lapsed' }
+    ] },
+  'M07-winloss': { kind: 'table_report', module: 'M07', report: 'winloss_summary', title: 'Win/Loss Analysis', period: true },
+  'M07-activities': { kind: 'model_list', model: 'crm.lead', create: false,
+    cols: ['name', 'partner_id', 'activity_summary', 'activity_type_id', 'activity_date_deadline', 'activity_user_id'],
+    domain: [['type', 'in', ['lead', 'opportunity']]],
+    note: 'Calls, visits and meetings scheduled on leads — mail.activity is deliberately not served company-wide (per-user private); this grid reads the lead\'s next-activity snapshot fields.' },
+  'M07-scoring': { kind: 'model_list', model: 'fix.pipeline', create: true,
+    cols: ['code', 'name', 'revenue_stream', 'default_probability', 'active'],
+    note: 'Pipeline scoring & routing streams that gate opportunity stages by revenue stream.' },
+  'M07-sources': { kind: 'table_report', module: 'M07', report: 'win_rate_by_source', title: 'Sources & Campaigns', period: true },
+  'M07-t90': { kind: 'table_report', module: 'M07', report: 'renewal_risk', title: 'T-90 Renewal Register', period: true },
+  'M07-crosssell': { kind: 'table_report', module: 'M07', report: 'crosssell_attach', title: 'Cross-Sell / Upsell', period: true },
+
+  /* Built-in reports */
+  'M07-rpt-pipeline': { kind: 'table_report', module: 'M07', report: 'pipeline_by_stream', title: 'Pipeline by Stream', period: false },
+  'M07-rpt-funnel': { kind: 'table_report', module: 'M07', report: 'funnel_conversion', title: 'Funnel Conversion', period: false },
+  'M07-rpt-winsrc': { kind: 'table_report', module: 'M07', report: 'win_rate_by_source', title: 'Win Rate by Source', period: false },
+  'M07-rpt-amscore': { kind: 'table_report', module: 'M07', report: 'am_scorecard', title: 'Account Manager Scorecard', period: false },
+  'M07-rpt-renewalrisk': { kind: 'table_report', module: 'M07', report: 'renewal_risk', title: 'Renewal Risk Report', period: false },
+  'M07-rpt-crosssell': { kind: 'table_report', module: 'M07', report: 'crosssell_attach', title: 'Cross-Sell Attach Rate', period: false },
+
+  /* ==================================================================
+   * D365 IN-WORKSPACE RECORD FORMS (Dynamics 365 Multi-Tab Forms)
+   * ================================================================== */
+  'M07-form-lead': {
+    lines: {
+      field: 'calendar_event_ids',
+      title: 'Meetings on this Lead',
+      note: 'Calls, visits and meetings scheduled against the lead.',
+      fields: [
+        { name: 'name', label: 'Subject', required: true },
+        { name: 'start', label: 'Start' },
+        { name: 'stop', label: 'End' },
+        { name: 'user_id', label: 'Organiser' },
+        { name: 'location', label: 'Location' }
+      ]
+    }, kind: 'model_form', model: 'crm.lead',
+    title: 'Lead', back: 'M07-leads',
+    tabs: [
+      { id: 'general', label: '1. Lead Profile', bn: '১. লিড প্রোফাইল', icon: '🎯', badge: '5' },
+      { id: 'firmographics', label: '2. B2B Account & Firmographics', bn: '২. অ্যাকাউন্ট বিবরণ', icon: '🏢', badge: '3' },
+      { id: 'commercials', label: '3. Pursuit & Expected Commercials', bn: '৩. বাণিজ্যিক সম্ভাবনা', icon: '💰', badge: '4' },
+      { id: 'qualification', label: '4. Kernel Match & Conversion', bn: '৪. কার্নেল ম্যাচ ও রূপান্তর', icon: '✅', badge: '1' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Lead Identification', fields: [
+        { name: 'name', required: true, label: 'Lead Title / Subject' },
+        { name: 'type', value: 'lead', readonly: true, label: 'Lead Classification' },
+        { name: 'partner_id', label: 'Linked Customer / Party' },
+        { name: 'lead_source', label: 'Inbound Acquisition Source' },
+        { name: 'user_id', label: 'Assigned Sales Representative' },
+      ]},
+      { tab: 'firmographics', title: 'Contact Person & Firmographics', fields: [
+        { name: 'contact_name', label: 'Primary Contact Person' },
+        { name: 'email_from', label: 'Contact Email' },
+        { name: 'phone', label: 'Telephone Number' },
+      ]},
+      { tab: 'commercials', title: 'Expected Commercials & Expansion', fields: [
+        { name: 'expected_revenue', label: 'Expected Revenue (BDT)' },
+        { name: 'probability', label: 'Closing Probability %' },
+        { name: 'date_deadline', label: 'Target Closing Date' },
+        { name: 'is_cross_sell', label: 'Cross-Sell / Installed Base Expansion' },
+      ]},
+      { tab: 'qualification', title: 'M33 Party Kernel Matching Law',
+        note: 'A lead converts to an opportunity only after a party match against the M33 kernel (BRU-CRM-02) — never create a duplicate party master from an incoming lead.',
+        fields: [] }
+    ] },
+
+  'M07-form-opp': {
+    lines: {
+      field: 'calendar_event_ids',
+      title: 'Meetings on this Opportunity',
+      note: 'Calls, visits and meetings scheduled against the opportunity.',
+      fields: [
+        { name: 'name', label: 'Subject', required: true },
+        { name: 'start', label: 'Start' },
+        { name: 'stop', label: 'End' },
+        { name: 'user_id', label: 'Organiser' },
+        { name: 'location', label: 'Location' }
+      ]
+    }, kind: 'model_form', model: 'crm.lead',
+    title: 'Commercial Opportunity & B2B KAM', back: 'M07-opps',
+    tabs: [
+      { id: 'general', label: '1. Opportunity Header', bn: '১. সুযোগের শিরোনাম', icon: '💼', badge: '6' },
+      { id: 'b2b_profile', label: '2. B2B Client Profile', bn: '২. ক্লায়েন্ট প্রোফাইল', icon: '🏢', badge: '5' },
+      { id: 'scope', label: '3. Technical Scope & SLA', bn: '৩. পরিসর ও এসএলএ', icon: '🛠️', badge: '3' },
+      { id: 'commercial', label: '4. Commercials & Forecasting', bn: '৪. বাণিজ্যিক শর্ত', icon: '💰', badge: '6' },
+      { id: 'competition', label: '5. Competitor Intelligence', bn: '৫. প্রতিযোগী তথ্য', icon: '⚔️', badge: '5' },
+      { id: 'stage', label: '6. Stage Gating & Duration', bn: '৬. পর্যায় গেটিং', icon: '📊', badge: '3' },
+      { id: 'docs', label: '7. Contracts, PO & Evidence', bn: '৭. চুক্তি ও নথি', icon: '📎', badge: '4' },
+      { id: 'audit', label: '8. System Audit Trail', bn: '৮. সিস্টেম অডিট', icon: '⏱️', badge: '4' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Opportunity Overview & Corporate Account', fields: [
+        { name: 'name', required: true, label: 'Deal Title / Opportunity Name' },
+        { name: 'partner_id', required: true, label: 'Key Account / Corporate Customer' },
+        { name: 'user_id', required: true, label: 'Assigned Key Account Manager' },
+        { name: 'team_id', label: 'Commercial Sales Team' },
+        { name: 'stage_id', label: 'Current Sales Stage' },
+        { name: 'company_id', label: 'Operating Legal Entity' },
+      ]},
+      { tab: 'b2b_profile', title: 'Key Decision Maker & Corporate Contact', fields: [
+        { name: 'contact_name', label: 'Primary Contact / Decision Maker' },
+        { name: 'email_from', label: 'Official Business Email' },
+        { name: 'phone', label: 'Telephone Number' },
+        { name: 'phone_sanitized', label: 'Sanitized Mobile Number', readonly: true },
+        { name: 'city', label: 'Corporate Office Location / City' },
+      ]},
+      { tab: 'scope', title: 'Scope of Service & Order Conversion', fields: [
+        { name: 'description', label: 'Service Scope / Requirements', type: 'text' },
+        { name: 'is_cross_sell', label: 'Cross-Sell / Expansion Engagement' },
+        { name: 'converted_service_order_id', label: 'Converted Service Order Link', readonly: true },
+      ]},
+      { tab: 'commercial', title: 'Commercial Value & Forecast Classification', fields: [
+        { name: 'expected_revenue', required: true, label: 'Expected Deal Value (BDT)' },
+        { name: 'probability', label: 'Closing Probability %' },
+        { name: 'date_deadline', label: 'Target Closing Date' },
+        { name: 'forecast_category', required: true, label: 'Forecast Category (Commit/Best Case/Pipeline)' },
+        { name: 'lead_source', label: 'Lead Source Acquisition Channel' },
+        { name: 'automated_probability', label: 'Automated ML Probability %', readonly: true },
+      ]},
+      { tab: 'competition', title: 'Competitor Intelligence & Structured Loss Analysis', fields: [
+        { name: 'competitor', label: 'Primary Winning Competitor' },
+        { name: 'competitor_price_bdt', label: 'Competitor Bid Value (BDT)' },
+        { name: 'loss_reason_category', label: 'Primary Loss Reason Category' },
+        { name: 'lost_reason_code', label: 'Detailed Loss Reason Code' },
+        { name: 'lost_reason_id', label: 'Formal Loss Reason Reference' },
+      ]},
+      { tab: 'stage', title: 'Stage Gating & Advancement Criteria',
+        note: 'Stage transitions to Proposal and Won require confirmed entry criteria and credit clearance under DOFA governance.',
+        fields: [
+          { name: 'criteria_confirmed', label: 'Stage Entry Criteria Formally Confirmed' },
+          { name: 'date_last_stage_update', label: 'Last Stage Advancement Date', readonly: true },
+          { name: 'duration_tracking', label: 'Stage Dwell Time Tracking (JSON)', readonly: true },
+        ]},
+      { tab: 'docs', title: 'Corporate Contracts, Purchase Orders & Evidence',
+        note: 'REQ-07.1: marking Won requires a verified signed contract or PO captured here, and no receivable more than 60 days overdue. Signed MSAs, SLA schedules and tender documents attach to this record; the checksummed repository (fix.document, M24) is the estate-wide contract archive — a direct opportunity→document relation is a declared platform gap.',
+        fields: [
+        { name: 'contract_ref', label: 'Contract / Purchase Order Reference' },
+        { name: 'contract_verified', label: 'Contract / PO Verification Status' },
+        { name: 'rate_card_approved', label: 'Approved Commercial Rate Card' },
+        { name: 'company_currency', label: 'Transaction Currency', readonly: true },
+      ]},
+      { tab: 'audit', title: 'System Governance & Lifecycle Timestamps', fields: [
+        { name: 'create_date', label: 'Opportunity Created Timestamp', readonly: true },
+        { name: 'date_closed', label: 'Opportunity Final Closed Date', readonly: true },
+        { name: 'active', label: 'Active Pipeline Status' },
+        { name: 'write_date', label: 'Last System Modification Timestamp', readonly: true },
+      ]}
+    ] },
+
+  'M07-form-plan': { kind: 'model_form', model: 'fix.account.plan',
+    title: 'Account Plan', back: 'M07-plans',
+    tabs: [
+      { id: 'overview', label: '1. Account Plan Scope', bn: '১. অ্যাকাউন্ট প্ল্যান পরিধি', icon: '📋', badge: '3' },
+      { id: 'strategy', label: '2. Objectives & Whitespace', bn: '২. উদ্দেশ্য ও সুযোগ', icon: '🎯', badge: '2' },
+      { id: 'risks', label: '3. Risk Controls & Planned Actions', bn: '৩. ঝুঁকি ও কর্মপরিকল্পনা', icon: '🛡️', badge: '2' },
+      { id: 'governance', label: '4. Institutional Governance', bn: '৪. প্রাতিষ্ঠানিক মেমোরি', icon: '🏛️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'overview', title: 'Account & Planning Period', fields: [
+        { name: 'partner_id', required: true, label: 'Key Account' },
+        { name: 'period', required: true, placeholder: '2026 or 2026-Q4', label: 'Planning Period' },
+        { name: 'reviewed_at', readonly: true, label: 'Last Executive Review Timestamp' },
+      ]},
+      { tab: 'strategy', title: 'Strategic Objectives & Revenue Whitespace', fields: [
+        { name: 'objectives', label: 'Strategic Objectives', type: 'text' },
+        { name: 'whitespace_json', label: 'Service Whitespace Opportunities (JSON)', type: 'text' },
+      ]},
+      { tab: 'risks', title: 'Account Risks & Planned Mitigations', fields: [
+        { name: 'risks', label: 'Identified Account Risks', type: 'text' },
+        { name: 'actions', label: 'Planned Strategic Actions', type: 'text' },
+      ]},
+      { tab: 'governance', title: 'Institutional Memory & Continuity Policy',
+        note: 'An account plan survives the account manager departure — it is the institutional memory of the corporate relationship (FR-CRM-028). Mark Reviewed from the Account Plans screen.',
+        fields: [] }
+    ] },
+
+  'M07-form-pipeline': { kind: 'model_form', model: 'fix.pipeline',
+    title: 'Pipeline Configuration', back: 'M07-kanban',
+    tabs: [
+      { id: 'definition', label: '1. Pipeline Configuration', bn: '১. পাইপলাইন কনফিগারেশন', icon: '⚙️', badge: '5' },
+      { id: 'stages', label: '2. Stage Progression & Probability', bn: '২. পর্যায় ও সম্ভাবনা', icon: '📊', badge: '1' },
+      { id: 'rules', label: '3. Stage Entry Gating Rules', bn: '৩. স্টেজ গেটিং রুলস', icon: '🔒', badge: '1' }
+    ],
+    sections: [
+      { tab: 'definition', title: 'Pipeline Definition', fields: [
+        { name: 'code', required: true, label: 'Pipeline Code' },
+        { name: 'name', required: true, label: 'Pipeline Name' },
+        { name: 'revenue_stream', required: true, label: 'Revenue Stream Category' },
+        { name: 'default_probability', label: 'Default Stage Probability %' },
+        { name: 'active', label: 'Active Status' },
+      ]},
+      { tab: 'stages', title: 'Configured Stages Model (JSON T-02)', fields: [
+        { name: 'stages_json', label: 'Stages & Entry Criteria (JSON)' },
+      ]},
+      { tab: 'rules', title: 'Dynamic Revenue Stream Gating Rules',
+        note: 'Adding a pipeline for a new revenue stream requires no code release — stages_json carries entry criteria and probabilities; gated stages refuse advancement without confirmed criteria (BRU-CRM-03).',
+        fields: [] }
+    ] },
+
+  'M07-form-assignment': { kind: 'model_form', model: 'fix.account.assignment',
+    title: 'Account Assignment', back: 'M07-accounts',
+    tabs: [
+      { id: 'ownership', label: '1. Key Account Ownership', bn: '১. অ্যাকাউন্ট মালিকানা', icon: '👤', badge: '3' },
+      { id: 'validity', label: '2. Effective Validity Period', bn: '২. কার্যকর সময়কাল', icon: '📅', badge: '2' },
+      { id: 'coverage', label: '3. Enterprise Coverage Rules', bn: '৩. কভারেজ নিয়মাবলী', icon: '🛡️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'ownership', title: 'Key Account Ownership (BRU-CRM-08)', fields: [
+        { name: 'partner_id', required: true, label: 'Key Account' },
+        { name: 'owner_id', required: true, label: 'Assigned Account Manager' },
+        { name: 'assignment_type', required: true, label: 'Assignment Type (Primary / Specialist / Overlay)' },
+      ]},
+      { tab: 'validity', title: 'Effective Assignment Window', fields: [
+        { name: 'effective_from', required: true, label: 'Assignment Effective Date' },
+        { name: 'effective_to', label: 'Valid Until (Empty = Indefinite)' },
+      ]},
+      { tab: 'coverage', title: 'Corporate Coverage Safety Net Rule',
+        note: 'Every corporate, dealer, and government account must have a named owner at all times — the safety net (action_assign_unowned) automatically back-fills any unowned enterprise accounts.',
+        fields: [] }
+    ] },
+
+  'M07-form-qbr': {
+    lines: {
+      field: 'action_ids',
+      title: 'Agreed Actions',
+      note: 'What the QBR committed to, who owns it and when it is due.',
+      fields: [
+        { name: 'description', label: 'Action', required: true },
+        { name: 'owner_internal', label: 'Owner (internal)' },
+        { name: 'owner_party', label: 'Owner (client side)' },
+        { name: 'due_date', label: 'Due' },
+        { name: 'state', label: 'State' },
+        { name: 'overdue', label: 'Overdue' }
+      ]
+    }, kind: 'model_form', model: 'fix.qbr',
+    title: 'Quarterly Business Review (QBR)', back: 'M07-qbr',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'schedule', label: '1. Review Schedule & Account', bn: '১. কিউবিআর সময়সূচি', icon: '📅', badge: '4' },
+      { id: 'meeting', label: '2. Attendees & Decisions', bn: '২. উপস্থিতি ও সিদ্ধান্ত', icon: '📝', badge: '3' },
+      { id: 'docs', label: '3. Presentation Pack Reference', bn: '৩. উপস্থাপনা ও নথি', icon: '📎', badge: '2' },
+      { id: 'governance', label: '4. SLA Integration & W4 Seam', bn: '৪. এসএলএ ও গভর্নেন্স', icon: '⚖️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'schedule', title: 'Quarterly Review Schedule', fields: [
+        { name: 'partner_id', required: true, label: 'Corporate Key Account' },
+        { name: 'period', required: true, placeholder: '2026-Q4', label: 'Review Quarter' },
+        { name: 'scheduled_for', required: true, label: 'Scheduled Meeting Date' },
+        { name: 'state', readonly: true, label: 'QBR Execution State' },
+      ]},
+      { tab: 'meeting', title: 'Executive Attendees & Meeting Minutes', fields: [
+        { name: 'attendees', label: 'Executive Attendees (Client & 1000FiX)', type: 'text' },
+        { name: 'decisions', label: 'Discussion, Decisions & Agreed Actions', type: 'text' },
+        { name: 'held_on', readonly: true, label: 'Actual Meeting Date' },
+      ]},
+      { tab: 'docs', title: 'QBR Presentation Pack Reference', fields: [
+        { name: 'document_ref', label: 'Presentation Pack / Document Reference' },
+      ]},
+      { tab: 'governance', title: 'Executive SLA Governance Mandate',
+        note: 'Key Accounts classified as Strategic or Enterprise must have a formal QBR held at least once every 90 days. Marking a QBR as Held mandates attendees list, decision minutes, and presentation pack link (FLAW-07.3 / REQ-07.4).',
+        fields: [] }
+    ] },
+
+  'M07-form-renewal': { kind: 'model_form', model: 'fix.renewal',
+    title: 'Contract Renewal Pursuit', back: 'M07-renewals',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'contract', label: '1. Renewal Target & Contract', bn: '১. চুক্তি ও নবায়ন লক্ষ্য', icon: '📄', badge: '4' },
+      { id: 'commercials', label: '2. Commercials & Churn Risk', bn: '২. বাণিজ্যিক ও চূর্ণ ঝুঁকি', icon: '💰', badge: '3' },
+      { id: 'history', label: '3. Renewal History & Escalations', bn: '৩. ইতিহাস ও এসকেলেশন', icon: '⏳', badge: '2' },
+      { id: 'governance', label: '4. Retention Governance & SLA', bn: '৪. রিটেনশন গভর্নেন্স', icon: '🛡️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'contract', title: 'Contract & Account Information', fields: [
+        { name: 'partner_id', required: true, label: 'Corporate Account' },
+        { name: 'source_ref', label: 'Source Contract / AMC Reference' },
+        { name: 'expiry_date', required: true, label: 'Contract Expiration Date' },
+        { name: 'state', readonly: true, label: 'Renewal Pursuit State' },
+      ]},
+      { tab: 'commercials', title: 'Renewal Value & Churn Risk Level', fields: [
+        { name: 'value', label: 'Projected Renewal Contract Value (BDT)' },
+        { name: 'risk_band', label: 'Account Churn Risk Band' },
+        { name: 'lead_time_days', label: 'Engagement Lead Time (Days Before Expiry)' },
+      ]},
+      { tab: 'history', title: 'Engagement Timeline', fields: [
+        { name: 'auto_created', readonly: true, label: 'Auto-Created From Contract Expiry Engine' },
+        { name: 'owner_id', label: 'Renewal Owner (KAM)' },
+      ]},
+      { tab: 'governance', title: 'Automated Renewal Alerts Policy',
+        note: 'The system triggers automated renewal reminders at T-90, T-60, and T-30 calendar days prior to contract expiration. High-risk accounts require immediate KAM escalation (REQ-07.5).',
+        fields: [] }
+    ] },
+
+  'M07-form-forecast': { kind: 'model_form', model: 'fix.forecast.snapshot',
+    title: 'Forecast Snapshot', back: 'M07-forecast',
+    tabs: [
+      { id: 'scope', label: '1. Period & Pipeline Scope', bn: '১. পূর্বাভাসের সময়কাল', icon: '📆', badge: '4' },
+      { id: 'categories', label: '2. Forecast Categories Breakdown', bn: '২. ক্যাটাগরি বিশ্লেষণ', icon: '📊', badge: '3' },
+      { id: 'adjustments', label: '3. Attainment & Manager Adjustments', bn: '৩. ম্যানেজার সমন্বয়', icon: '📈', badge: '3' },
+      { id: 'audit', label: '4. Snapshot Lock & Audit', bn: '৪. স্ন্যাপশট অডিট ট্রেইল', icon: '⚙️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Snapshot Scope & Revenue Stream', fields: [
+        { name: 'period', required: true, placeholder: '2026-Q4 or 2026-10', label: 'Forecast Period' },
+        { name: 'owner_id', required: true, label: 'Forecast Owner' },
+        { name: 'pipeline_id', required: true, label: 'Revenue Stream Pipeline' },
+        { name: 'taken_at', readonly: true, label: 'Snapshot Timestamp' },
+      ]},
+      { tab: 'categories', title: 'Forecast Category Value Totals', fields: [
+        { name: 'commit_value', readonly: true, label: 'Commit Category Value (BDT)' },
+        { name: 'best_case_value', readonly: true, label: 'Best Case Value (BDT)' },
+        { name: 'pipeline_value', readonly: true, label: 'Pipeline Category Value (BDT)' },
+      ]},
+      { tab: 'adjustments', title: 'Executive Management Adjustments', fields: [
+        { name: 'manager_adjustment', label: 'Manager Judgement Adjustment (BDT)' },
+        { name: 'adjustment_reason', label: 'Adjustment Rationale / Justification', type: 'text' },
+        { name: 'adjusted_by', readonly: true, label: 'Adjusted By' },
+      ]},
+      { tab: 'audit', title: 'Immutable Forecast Governance Law',
+        note: 'Forecast snapshots freeze the pipeline state at a moment in time (FR-CRM-022) — they are never retroactively recalculated. Manager adjustments preserve the original rep rollup alongside.',
+        fields: [] }
+    ] },
+
+  'M07-form-activity': {
+    lines: {
+      field: 'calendar_event_ids',
+      title: 'Scheduled Calls, Visits & Meetings',
+      note: 'The activity records this screen exists to manage.',
+      fields: [
+        { name: 'name', label: 'Subject', required: true },
+        { name: 'start', label: 'Start' },
+        { name: 'stop', label: 'End' },
+        { name: 'user_id', label: 'Organiser' },
+        { name: 'location', label: 'Location' }
+      ]
+    }, kind: 'model_form', model: 'crm.lead',
+    title: 'Activity (call/visit/meeting)', back: 'M07-activities',
+    status: { field: 'activity_type_id' },
+    tabs: [
+      { id: 'general', label: '1. Lead & Activity', bn: '১. লিড ও কার্যক্রম', icon: '📅', badge: '4' },
+      { id: 'schedule', label: '2. Next Activity Schedule', bn: '২. পরবর্তী কার্যক্রম সময়সূচি', icon: '⏰', badge: '3' },
+      { id: 'docs', label: '3. Notes & Evidence', bn: '৩. নোট ও প্রমাণ', icon: '📑', badge: '2' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Lead the activity belongs to', fields: [
+        { name: 'name', required: true, label: 'Lead / Opportunity Reference' },
+        { name: 'partner_id', label: 'Customer / Prospect' },
+        { name: 'user_id', label: 'Assigned Salesperson' },
+        { name: 'type', label: 'Record Type (lead / opportunity)', readonly: true },
+      ]},
+      { tab: 'schedule', title: 'Next call / visit / meeting', fields: [
+        { name: 'activity_summary', label: 'Activity Summary (call / visit / meeting)' },
+        { name: 'activity_type_id', label: 'Activity Category' },
+        { name: 'activity_date_deadline', required: true, label: 'Due Date' },
+      ]},
+      { tab: 'docs', title: 'Visit Notes & Follow-up Evidence',
+        note: 'Scheduling writes the lead\'s next-activity fields (mail.activity substrate). Formal QBR minutes live on the QBR record\'s Documents tab.',
+        fields: [
+          { name: 'description', label: 'Detailed Activity Notes / Visit Minutes', type: 'text' },
+        ]}
+    ] },
+  /* ==================================================================
+   * A03 GAP-CLOSURE BUILD - new surfaces for this module
+   * Every cols list was validated against the model's real fields
+   * before generation: /p03/model/records drops unknown columns
+   * silently, so a typo would read as missing data rather than as
+   * a bug.
+   * ================================================================== */
+  'M07-sequences': { kind: 'model_list', model: 'fix.crm.sequence', create: true,
+    cols: ['name', 'code', 'sequence_kind', 'applies_to', 'state', 'first_touch_sla_hours', 'step_count', 'active_enrolments', 'sla_breaches'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_activate', l: 'Activate' },
+      { m: 'action_pause', l: 'Pause' }
+    ],
+    note: 'Cadences and playbooks run on the same engine as M35 journeys.' },
+  'M07-form-sequence': {
+    lines: {
+      field: 'step_ids',
+      title: 'Cadence Steps',
+      note: 'A manual step raises an activity and the member waits on this step until the seller closes it.',
+      fields: [
+        { name: 'sequence', label: 'Order' },
+        { name: 'name', label: 'Step', required: true },
+        { name: 'step_type', label: 'Type', required: true },
+        { name: 'wait_minutes', label: 'Wait Before (min)' },
+        { name: 'due_in_days', label: 'Activity Due In (days)' },
+        { name: 'instructions', label: 'Instruction' },
+        { name: 'email_subject', label: 'E-mail Subject' },
+        { name: 'active', label: 'Active' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.crm.sequence',
+    title: 'Sequence / Playbook', back: 'M07-sequences',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', paused: 'Paused' } },
+    tabs: [
+      { id: 'identity', label: '1. Cadence', bn: '১. ক্যাডেন্স', icon: '📅' },
+      { id: 'sla', label: '2. First-Touch Promise', bn: '২. প্রথম যোগাযোগ', icon: '⏱️' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Cadence Identity',
+        note: 'D365 ships sequences and playbooks as two features on one mechanism. So do we: the engine treats them identically.',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'sequence_kind', label: 'Kind', required: true },
+        { name: 'applies_to', label: 'Applies To', required: true },
+        { name: 'state', label: 'State', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'sla',
+        title: 'First-Touch SLA',
+        note: 'A first-touch promise nobody is told about breaking is not a promise, so breaches are published to the outbox.',
+        fields: [
+        { name: 'first_touch_sla_hours', label: 'First Touch Within (hours)' },
+        { name: 'active_enrolments', label: 'Active Enrolments' },
+        { name: 'sla_breaches', label: 'Breaches' }
+        ]
+      }
+    ]
+  },
+  'M07-sequence-enrolments': { kind: 'model_list', model: 'fix.crm.sequence.enrolment', create: false,
+    cols: ['next_action_at', 'sequence_id', 'lead_id', 'owner_id', 'current_step_id', 'state', 'first_touch_due_at', 'first_touch_at', 'first_touch_breached'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_pause_member', l: 'Pause' },
+      { m: 'action_resume_member', l: 'Resume' }
+    ],
+    note: 'The first-touch promise, measured. A breach is published, not just coloured in.' },
+  'M07-score-models': { kind: 'model_list', model: 'fix.crm.score.model', create: true,
+    cols: ['sequence', 'name', 'code', 'basis', 'applies_to', 'state', 'm26_model_ref', 'active'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_activate', l: 'Activate' }
+    ],
+    note: 'A heuristic is not a prediction, and the basis column never hides which one produced a score.' },
+  'M07-form-score-model': {
+    lines: {
+      field: 'factor_ids',
+      title: 'Scoring Factors',
+      note: 'Every contribution is inspectable, and a negative weight is how a risk factor is expressed.',
+      fields: [
+        { name: 'sequence', label: 'Order' },
+        { name: 'name', label: 'Factor', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'factor', label: 'Measures', required: true },
+        { name: 'weight', label: 'Points', required: true },
+        { name: 'threshold_value', label: 'Threshold / Values' },
+        { name: 'active', label: 'Active' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.crm.score.model',
+    title: 'Lead Scoring Model', back: 'M07-score-models',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    tabs: [
+      { id: 'identity', label: '1. Model', bn: '১. মডেল', icon: '🎯' },
+      { id: 'basis', label: '2. Basis', bn: '২. ভিত্তি', icon: '🔬' }
+    ],
+    sections: [
+      {
+        tab: 'identity',
+        title: 'Model Identity',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'applies_to', label: 'Applies To', required: true },
+        { name: 'sequence', label: 'Priority' },
+        { name: 'state', label: 'State', required: true },
+        { name: 'active', label: 'Active' }
+        ]
+      },
+      {
+        tab: 'basis',
+        title: 'Heuristic Or Prediction',
+        note: 'A heuristic is NOT a prediction, and the score records which it was. A seller who believes a number came from a trained model will drop a lead it scored low and nobody will measure whether they should have.',
+        fields: [
+        { name: 'basis', label: 'Basis', required: true },
+        { name: 'm26_model_ref', label: 'M26 Model Reference' }
+        ]
+      }
+    ]
+  },
+};
+
+export const REPORT_ROUTES = {
+  'M07:Pipeline by Stream': 'M07-rpt-pipeline',
+  'M07:Funnel Conversion': 'M07-rpt-funnel',
+  'M07:Win Rate by Source': 'M07-rpt-winsrc',
+  'M07:Account Manager Scorecard': 'M07-rpt-amscore',
+  'M07:Renewal Risk Report': 'M07-rpt-renewalrisk',
+  'M07:Cross-Sell Attach Rate': 'M07-rpt-crosssell'
+};
+
+export const FORM_CHIPS = {
+  'M07:Sequence / Playbook': 'M07-form-sequence',
+  'M07:Lead Scoring Model': 'M07-form-score-model',
+  'M07:Lead': 'M07-form-lead',
+  'M07:Opportunity': 'M07-form-opp',
+  'M07:Activity (call/visit/meeting)': 'M07-form-activity',
+  'M07:Account Plan': 'M07-form-plan',
+  'M07:Pipeline Configuration': 'M07-form-pipeline',
+  'M07:Account Assignment': 'M07-form-assignment',
+  'M07:Quarterly Business Review': 'M07-form-qbr',
+  'M07:Renewal Pursuit': 'M07-form-renewal',
+  'M07:Forecast Snapshot': 'M07-form-forecast',
+  'M07:__by_model__': {
+    'fix.crm.sequence': 'M07-form-sequence',
+    'fix.crm.score.model': 'M07-form-score-model',
+    'crm.lead': 'M07-form-opp',
+    'fix.account.plan': 'M07-form-plan',
+    'fix.pipeline': 'M07-form-pipeline',
+    'fix.account.assignment': 'M07-form-assignment',
+    'fix.qbr': 'M07-form-qbr',
+    'fix.renewal': 'M07-form-renewal',
+    'fix.forecast.snapshot': 'M07-form-forecast'
+  },
+  'M07:__by_screen__': {
+    'M07-sequences': 'M07-form-sequence',
+    'M07-score-models': 'M07-form-score-model',
+    'M07-kanban': 'M07-form-opp',
+    'M07-leads': 'M07-form-lead',
+    'M07-opps': 'M07-form-opp',
+    'M07-form-opp': 'M07-form-opp',
+    'M07-form-lead': 'M07-form-lead',
+    'M07-activities': 'M07-form-activity',
+    'M07-accounts': 'M07-form-plan',
+    'M07-plans': 'M07-form-plan',
+    'M07-qbr': 'M07-form-qbr',
+    'M07-renewals': 'M07-form-renewal',
+    'M07-scoring': 'M07-form-pipeline',
+    'M07-forecast': 'M07-form-forecast'
+  }
+};
+
+export const FORM_MODELS = {
+  'M07:Lead Scoring Model': 'fix.crm.score.model',
+  'M07:Sequence / Playbook': 'fix.crm.sequence',
+  'M07:Lead': 'crm.lead',
+  'M07:Opportunity': 'crm.lead',
+  'M07:Activity (call/visit/meeting)': 'crm.lead',
+  'M07:Account Plan': 'fix.account.plan',
+  'M07:Pipeline Configuration': 'fix.pipeline',
+  'M07:Account Assignment': 'fix.account.assignment',
+  'M07:Quarterly Business Review': 'fix.qbr',
+  'M07:Renewal Pursuit': 'fix.renewal',
+  'M07:Forecast Snapshot': 'fix.forecast.snapshot'
+};
+
+export const CREATE = {
+  M07: { screen: 'M07-form-opp', model: 'crm.lead', label: 'Opportunity' }
+};

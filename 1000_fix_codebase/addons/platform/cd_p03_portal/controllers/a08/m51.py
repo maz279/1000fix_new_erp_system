@@ -4,7 +4,7 @@
 # user's own read access on the model (accounting/payroll groups apply).
 # Only ARGUMENT-FREE workflow methods are listed: the workspace calls an
 # action on the selected row without parameters.
-from datetime import date
+from datetime import date, timedelta
 
 from odoo import fields
 
@@ -279,8 +279,294 @@ def note_register(env, date_from=None, date_to=None, **params):
     }
 
 
+def vat_return_draft(env, date_from=None, date_to=None, **params):
+    """Mushak 9.1 return draft: one row per VAT return with its computation."""
+    rows = []
+    for ret in env["fix.vat.return"].sudo().search([]):
+        rows.append(
+            {
+                "period": ret.period,
+                "taxable": _num(ret.total_taxable),
+                "output_vat": _num(ret.output_vat),
+                "input_vat": _num(ret.input_vat),
+                "net_payable": _num(ret.net_payable),
+                "nil": "Yes" if ret.nil_return else "No",
+                "due": str(ret.due_date or "—"),
+                "state": dict(ret._fields["state"].selection).get(ret.state, ret.state),
+            }
+        )
+    rows.sort(key=lambda r: r["period"], reverse=True)
+    return {
+        "title": "Mushak 9.1 Return Draft — computed per VAT period",
+        "cols": [
+            "period",
+            "taxable",
+            "output_vat",
+            "input_vat",
+            "net_payable",
+            "nil",
+            "due",
+            "state",
+        ],
+        "labels": {
+            "period": "Period",
+            "taxable": "Taxable Value",
+            "output_vat": "Output VAT",
+            "input_vat": "Input VAT",
+            "net_payable": "Net Payable",
+            "nil": "Nil Return",
+            "due": "Due Date",
+            "state": "State",
+        },
+        "rows": rows,
+        "totals": {
+            "period": "Total",
+            "taxable": _num(sum(r["taxable"] for r in rows)),
+            "output_vat": _num(sum(r["output_vat"] for r in rows)),
+            "input_vat": _num(sum(r["input_vat"] for r in rows)),
+            "net_payable": _num(sum(r["net_payable"] for r in rows)),
+        },
+        "notes": "The draft is the ledger's computation per period; filing evidence lives on the "
+        "Filing Evidence screen.",
+        "empty": "No VAT returns recorded.",
+    }
+
+
+def vat_reconciliation(env, date_from=None, date_to=None, **params):
+    """VAT reconciliation: the return's output/input VAT vs the source
+    registers (Mushak sales records and input credits) for the same period."""
+    returns = env["fix.vat.return"].sudo().search([])
+    mushak = env["fix.mushak.register"].sudo().search([])
+    credits = env["fix.input.vat.credit"].sudo().search([])
+    rows = []
+    for ret in returns:
+        period = ret.period
+        sales_vat = sum(
+            m.vat_amount
+            for m in mushak
+            if m.invoice_date
+            and "%02d-%s" % (m.invoice_date.month, str(m.invoice_date.year)[2:]) == period
+        )
+        credit_vat = sum(
+            c.signed_vat
+            for c in credits
+            if c.invoice_date
+            and "%02d-%s" % (c.invoice_date.month, str(c.invoice_date.year)[2:]) == period
+        )
+        rows.append(
+            {
+                "period": period,
+                "sales_records_vat": _num(sales_vat),
+                "return_output_vat": _num(ret.output_vat),
+                "output_variance": _num(ret.output_vat - sales_vat),
+                "credit_register_vat": _num(credit_vat),
+                "return_input_vat": _num(ret.input_vat),
+                "input_variance": _num(ret.input_vat - credit_vat),
+            }
+        )
+    rows.sort(key=lambda r: r["period"], reverse=True)
+    mismatches = len(
+        [r for r in rows if abs(r["output_variance"]) > 0.05 or abs(r["input_variance"]) > 0.05]
+    )
+    return {
+        "title": "VAT Reconciliation — return vs source registers per period",
+        "cols": [
+            "period",
+            "sales_records_vat",
+            "return_output_vat",
+            "output_variance",
+            "credit_register_vat",
+            "return_input_vat",
+            "input_variance",
+        ],
+        "labels": {
+            "period": "Period",
+            "sales_records_vat": "Mushak Sales VAT",
+            "return_output_vat": "Return Output VAT",
+            "output_variance": "Output Variance",
+            "credit_register_vat": "Input Credit Register",
+            "return_input_vat": "Return Input VAT",
+            "input_variance": "Input Variance",
+        },
+        "rows": rows,
+        "notes": [
+            "Output VAT per Mushak 6.2/6.3 sales records and input VAT per the credit "
+            "register, compared with the filed return. %d period(s) with a variance." % mismatches
+        ],
+        "empty": "No VAT returns recorded.",
+    }
+
+
+def tds_annual_summary(env, date_from=None, date_to=None, **params):
+    """TDS annual summary: the fiscal year's withholding grouped by statutory
+    section, with deposited vs outstanding."""
+    today = _today(env)
+    fy_start = today.replace(month=7, day=1)
+    if today.month < 7:
+        fy_start = fy_start.replace(year=fy_start.year - 1)
+    fy_end = fy_start.replace(year=fy_start.year + 1) - timedelta(days=1)
+    lines = (
+        env["fix.withholding.line"]
+        .sudo()
+        .search(
+            [
+                ("tax_kind", "=", "tds"),
+                ("document_date", ">=", fy_start),
+                ("document_date", "<=", fy_end),
+                ("state", "!=", "cancelled"),
+            ]
+        )
+    )
+    groups = {}
+    for line in lines:
+        key = line.section or "Unclassified"
+        g = groups.setdefault(
+            key, {"base": 0.0, "amount": 0.0, "deposited": 0.0, "deductees": set()}
+        )
+        g["base"] += float(line.base_amount or 0.0)
+        g["amount"] += float(line.amount or 0.0)
+        if line.state in ("deposited", "certified"):
+            g["deposited"] += float(line.amount or 0.0)
+        if line.partner_id:
+            g["deductees"].add(line.partner_id.id)
+    rows = [
+        {
+            "section": k,
+            "base": _num(v["base"]),
+            "withheld": _num(v["amount"]),
+            "deposited": _num(v["deposited"]),
+            "outstanding": _num(v["amount"] - v["deposited"]),
+            "deductees": len(v["deductees"]),
+        }
+        for k, v in sorted(groups.items())
+    ]
+    return {
+        "title": "TDS Annual Summary — FY %s-%s by statutory section"
+        % (fy_start.year, fy_end.year),
+        "cols": ["section", "base", "withheld", "deposited", "outstanding", "deductees"],
+        "labels": {
+            "section": "ITA Section",
+            "base": "Base",
+            "withheld": "Withheld",
+            "deposited": "Deposited",
+            "outstanding": "Outstanding",
+            "deductees": "Deductees",
+        },
+        "rows": rows,
+        "totals": {
+            "section": "Total",
+            "base": _num(sum(r["base"] for r in rows)),
+            "withheld": _num(sum(r["withheld"] for r in rows)),
+            "deposited": _num(sum(r["deposited"] for r in rows)),
+            "outstanding": _num(sum(r["outstanding"] for r in rows)),
+        },
+        "notes": "Bangladesh fiscal year (July-June); deposited = challan-linked or certified lines.",
+        "empty": "No TDS withholding this fiscal year.",
+    }
+
+
+def vds_deduction_register(env, date_from=None, date_to=None, **params):
+    """VDS deduction register: every VDS line with its challan and state."""
+    domain = [("tax_kind", "=", "vds")]
+    if date_from:
+        domain.append(("document_date", ">=", date_from))
+    if date_to:
+        domain.append(("document_date", "<=", date_to))
+    lines = env["fix.withholding.line"].sudo().search(domain)
+    rows = []
+    for line in lines:
+        rows.append(
+            {
+                "date": str(line.document_date),
+                "vendor": line.partner_id.display_name if line.partner_id else "—",
+                "bin": line.partner_bin or "—",
+                "base": _num(line.base_amount),
+                "rate": _num(line.rate),
+                "amount": _num(line.amount),
+                "source": line.source_ref or "—",
+                "challan": line.challan_no or "—",
+                "state": dict(line._fields["state"].selection).get(line.state, line.state),
+            }
+        )
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return {
+        "title": "VDS Deduction Register (Mushak 6.6)",
+        "cols": ["date", "vendor", "bin", "base", "rate", "amount", "source", "challan", "state"],
+        "labels": {
+            "date": "Date",
+            "vendor": "Vendor",
+            "bin": "Vendor BIN",
+            "base": "Base",
+            "rate": "Rate %",
+            "amount": "VDS",
+            "source": "Source Document",
+            "challan": "Challan No",
+            "state": "State",
+        },
+        "rows": rows,
+        "totals": {
+            "date": "Total",
+            "base": _num(sum(r["base"] for r in rows)),
+            "amount": _num(sum(r["amount"] for r in rows)),
+        },
+        "notes": "VAT withheld at source on supplier bills, with the A-Challan deposit reference.",
+        "empty": "No VDS deductions recorded.",
+    }
+
+
+def sd_at_liability(env, date_from=None, date_to=None, **params):
+    """SD and AT liability from the assessed Bill of Entry duty cascade (M44).
+    Import assessments are the only place the platform holds SD/AT amounts, so
+    this pack reports them rather than inventing a domestic SD/AT estimate."""
+    boes = env["fix.import.boe"].sudo().search([("state", "!=", "draft")])
+    rows = []
+    for boe in boes:
+        rows.append(
+            {
+                "boe": boe.boe_no,
+                "assessed_on": str(boe.assessed_on or "-"),
+                "currency": boe.currency_id.name if boe.currency_id else "-",
+                "cd": round(boe.cd_amount or 0.0, 2),
+                "rd": round(boe.rd_amount or 0.0, 2),
+                "sd": round(boe.sd_amount or 0.0, 2),
+                "at": round(boe.at_amount or 0.0, 2),
+                "vat": round(boe.vat_amount or 0.0, 2),
+                "total": round(boe.total_tax or 0.0, 2),
+            }
+        )
+    sd_total = round(sum(r["sd"] for r in rows), 2)
+    at_total = round(sum(r["at"] for r in rows), 2)
+    return {
+        "title": "SD & AT Liability - %d assessed Bill of Entry record(s)" % len(rows),
+        "cols": ["boe", "assessed_on", "currency", "cd", "rd", "sd", "at", "vat", "total"],
+        "labels": {
+            "boe": "Bill of Entry",
+            "assessed_on": "Assessed On",
+            "currency": "Currency",
+            "cd": "CD",
+            "rd": "RD",
+            "sd": "SD",
+            "at": "AT",
+            "vat": "VAT",
+            "total": "Total Duty & Tax",
+        },
+        "rows": rows,
+        "totals": {"boe": "Total", "sd": sd_total, "at": at_total},
+        "notes": [
+            "Scope note: SD and AT are recorded on the import duty cascade (M44 Bill of Entry). "
+            "Domestic SD/AT lines are not captured in this build, so none are estimated here."
+        ],
+        "empty": "No assessed Bill of Entry records.",
+    }
+
+
 REPORTS = {
+    "sd_at_liability": sd_at_liability,
     "statutory_calendar": statutory_calendar,
     "mushak_610": mushak_610,
     "note_register": note_register,
+    "vat_return_draft": vat_return_draft,
+    "vat_reconciliation": vat_reconciliation,
+    "tds_annual_summary": tds_annual_summary,
+    "vds_deduction_register": vds_deduction_register,
 }

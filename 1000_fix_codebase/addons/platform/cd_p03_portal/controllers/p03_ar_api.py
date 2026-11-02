@@ -209,6 +209,10 @@ class P03ArApiController(http.Controller):
                 for r in rows
             ],
             "methods": [m[0] for m in env["fix.ar.receipt"]._fields["method"].selection],
+            "branches": [
+                {"id": b.id, "name": b.name}
+                for b in env["fix.branch"].search([("active", "=", True)], order="name", limit=300)
+            ],
         }
 
     @http.route("/p03/ar/open-items", type="jsonrpc", auth="user", readonly=True)
@@ -298,7 +302,12 @@ class P03ArApiController(http.Controller):
     def ar_dunning(self, **kw):
         _require_internal(request.env)
         env = request.env
-        rows = env["fix.dunning"].search([], order="create_date desc", limit=200)
+        # The worklist is the ACTIVE ladder: a dunning row whose invoice is
+        # settled/credited is history (the effectiveness report keeps it),
+        # not something a collector should chase with a ৳0 balance.
+        rows = env["fix.dunning"].search(
+            [("invoice_id.state", "=", "issued")], order="create_date desc", limit=200
+        )
         return {
             "rows": [
                 {
@@ -566,24 +575,26 @@ class P03ArApiController(http.Controller):
         reference=None,
         receipt_date=None,
         nid=None,
+        branch_id=None,
         **kw,
     ):
         _require_internal(request.env)
         env = request.env
         try:
             with env.cr.savepoint():
-                receipt = env["fix.ar.receipt"].create(
-                    {
-                        "customer_id": int(customer_id),
-                        "amount": round(float(amount or 0.0), 2),
-                        "method": method or "cash",
-                        "reference": reference or "",
-                        "nid_captured": nid or "",
-                        "receipt_date": datetime.date.fromisoformat(str(receipt_date)[:10])
-                        if receipt_date
-                        else datetime.date.today(),
-                    }
-                )
+                vals = {
+                    "customer_id": int(customer_id),
+                    "amount": round(float(amount or 0.0), 2),
+                    "method": method or "cash",
+                    "reference": reference or "",
+                    "nid_captured": nid or "",
+                    "receipt_date": datetime.date.fromisoformat(str(receipt_date)[:10])
+                    if receipt_date
+                    else datetime.date.today(),
+                }
+                if branch_id:
+                    vals["branch_id"] = int(branch_id)
+                receipt = env["fix.ar.receipt"].create(vals)
                 return {"success": True, "receipt_id": receipt.id, "name": receipt.name}
         except UserError as exc:
             return {"success": False, "error": _user_error(exc)}

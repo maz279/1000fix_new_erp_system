@@ -10,7 +10,26 @@
 # lines or the models' own records — nothing is invented.
 import datetime
 
+
+def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
+    """Table-report payload shared by the M19/M20 packs."""
+    return {
+        "title": title,
+        "cols": cols,
+        "labels": labels,
+        "rows": rows,
+        "totals": totals,
+        "notes": notes,
+        "empty": empty,
+    }
+
+
 SURFACES = {
+    "fix.fx.revaluation": {
+        "order": "rate_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_compute", "action_post"},
+    },
     "fix.chart.loader": {
         "order": "id desc",
         "limit": 50,
@@ -55,6 +74,17 @@ SURFACES = {
         "limit": 200,
         "actions": set(),
     },
+    # Allocation rules: the D365 form edits header + targets in one save (the
+    # model refuses a rule with no targets, and targets must total 100%).
+    "fix.allocation.rule": {
+        "order": "name",
+        "limit": 200,
+        "actions": {"action_run"},
+    },
+    "fix.chart.account": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.fiscal.period.bridge": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.journal.dimension": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.period.close": {"order": "id desc", "limit": 400, "actions": set()},
 }
 
 
@@ -239,7 +269,69 @@ def close_sla(env, date_from=None, date_to=None, **_params):
     }
 
 
+def fx_revaluation(env, date_from=None, date_to=None, **params):
+    """Open foreign-currency balances at their closing rate (IAS 21). The gain or
+    loss is measured per journal item: booked base vs the same foreign balance at
+    the closing rate. Zero when the company holds no open FX balance."""
+    runs = env["fix.fx.revaluation"].sudo().search([], order="rate_date desc, id desc", limit=1)
+    rows = []
+    if not runs:
+        return _pack(
+            "FX Revaluation - no run recorded",
+            ["deal", "partner", "currency", "foreign", "booked", "restated", "gain_loss"],
+            {
+                "deal": "Document",
+                "partner": "Partner",
+                "currency": "Currency",
+                "foreign": "Foreign balance",
+                "booked": "Booked (BDT)",
+                "restated": "Restated (BDT)",
+                "gain_loss": "Gain / (loss)",
+            },
+            rows,
+            [
+                "No revaluation run exists yet. Open a run, compute it at the closing rate "
+                "and post the unrealized difference."
+            ],
+            empty="No FX revaluation run.",
+        )
+    run = runs[0]
+    for line in run.line_ids:
+        rows.append(
+            {
+                "deal": line.move_line_id.move_id.name if line.move_line_id else "-",
+                "partner": line.partner_id.name or "-",
+                "currency": line.foreign_currency_id.name or "-",
+                "foreign": round(line.foreign_balance, 2),
+                "booked": round(line.old_base, 2),
+                "restated": round(line.new_base, 2),
+                "gain_loss": round(line.gain_loss, 2),
+            }
+        )
+    return _pack(
+        "FX Revaluation %s - %s (%s)" % (run.name, run.state, run.rate_date),
+        ["deal", "partner", "currency", "foreign", "booked", "restated", "gain_loss"],
+        {
+            "deal": "Document",
+            "partner": "Partner",
+            "currency": "Currency",
+            "foreign": "Foreign balance",
+            "booked": "Booked (BDT)",
+            "restated": "Restated (BDT)",
+            "gain_loss": "Gain / (loss)",
+        },
+        rows,
+        [
+            "Restated at the closing rate effective on the run date; the gain or loss is "
+            "unrealized until the balance settles (IAS 21.23)."
+        ],
+        totals={"deal": "Net", "gain_loss": round(sum(r["gain_loss"] for r in rows), 2)},
+        empty="No open foreign-currency balance.",
+    )
+
+
 REPORTS = {
+    "fx_revaluation": fx_revaluation,
     "ic_balances": ic_balances,
     "close_sla": close_sla,
 }

@@ -82,7 +82,7 @@ export const SCREENS = {
   'M49-categories': { kind: 'model_list', model: 'fix.asset.category',
     cols: ['code','name','useful_life_months','salvage_percent','tax_rate_code','journal_id','asset_account_id','expense_account_id'] },
   // Depreciation
-  'M49-dep': { kind: 'model_list', model: 'fix.asset.depreciation.run',
+  'M49-dep': { kind: 'model_list', create: false, model: 'fix.asset.depreciation.run',
     cols: ['name','book','period_start','operating_unit_id','asset_count','total_amount','state'],
     stateField: 'state', actions: [{m:'action_compute',l:'Compute'},{m:'action_post',l:'Post'}] },
   'M49-dualbook': { kind: 'table_report', module: 'M49', report: 'dual_book' },
@@ -113,6 +113,112 @@ export const SCREENS = {
     cols: ['lease_id','sequence','period_start','opening','payment','interest','principal','closing','depreciation','state'],
     stateField: 'state', create: false, actions: [{m:'action_post',l:'Post Month'}] },
   'M49-lease-summary': { kind: 'table_report', module: 'M49', report: 'lease_summary' },
+
+
+  /* ===== A08 master-data forms (D365 in-workspace) ===== */
+  'M49-form-budget': {
+    kind: 'model_form',
+    model: 'fix.capex.budget',
+    title: "Capex Budget",
+    back: 'M49-budget',
+    status: { field: 'state', labels: { draft: "Draft", approved: "Approved", locked: "Locked" } },
+    sections: [
+      { title: "Budget",
+        note: "A capex budget per fiscal year and asset category; committed/actual/available are computed from the requests raised against it.",
+        fields: [
+          { name: 'name', required: true, label: "Budget Name" },
+          { name: 'fiscal_year', label: "Fiscal Year" },
+          { name: 'date_from', required: true, label: "From" },
+          { name: 'date_to', required: true, label: "To" },
+          { name: 'category_id', label: "Asset Category" },
+          { name: 'amount', required: true, label: "Budget Amount" },
+          { name: 'prepared_by_id', label: "Prepared By" },
+          { name: 'approved_by_id', label: "Approved By" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M49-form-cwip': {
+    kind: 'model_form',
+    model: 'fix.cwip.entry',
+    title: "CWIP Entry",
+    back: 'M49-cwip',
+    status: { field: 'state', labels: { draft: "Draft", capitalised: "Capitalised", cancelled: "Cancelled" } },
+    sections: [
+      { title: "Work in Progress",
+        note: "Construction-work-in-progress accumulates here until the asset is capitalised; the useful life and salvage move onto the fixed asset.",
+        fields: [
+          { name: 'name', required: true, label: "CWIP Reference" },
+          { name: 'capex_request_id', label: "Capex Request" },
+          { name: 'category_id', label: "Asset Category" },
+          { name: 'amount', required: true, label: "Amount" },
+          { name: 'life_months', label: "Useful Life (months)" },
+          { name: 'salvage', label: "Salvage Value" },
+          { name: 'state', required: true, label: "State" }
+        ] },
+      { title: "Description",
+        fields: [
+          { name: 'description', type: 'text', label: "Description" }
+        ] }
+    ]
+  },
+  'M49-form-category': {
+    kind: 'model_form',
+    model: 'fix.asset.category',
+    title: "Asset Category",
+    back: 'M49-categories',
+    sections: [
+      { title: "Category",
+        note: "The category carries the default useful life, salvage percentage and every GL account the depreciation engine posts to.",
+        fields: [
+          { name: 'name', required: true, label: "Category Name" },
+          { name: 'code', required: true, label: "Category Code" },
+          { name: 'useful_life_months', required: true, label: "Useful Life (months)" },
+          { name: 'salvage_percent', label: "Salvage %" },
+          { name: 'tax_rate_code', label: "Tax Rate Code" },
+          { name: 'journal_id', label: "Journal" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+  'M49-form-taxrate': {
+    kind: 'model_form',
+    model: 'fix.asset.tax.rate',
+    title: "Asset Tax Rate",
+    back: 'M49-taxrates',
+    sections: [
+      { title: "Tax Rate",
+        note: "Depreciation tax rates are dated: a rate applies only inside its from/to window.",
+        fields: [
+          { name: 'code', required: true, label: "Rate Code" },
+          { name: 'name', required: true, label: "Rate Name" },
+          { name: 'rate_percent', required: true, label: "Rate %" },
+          { name: 'date_from', required: true, label: "From" },
+          { name: 'date_to', label: "To" },
+          { name: 'legal_reference', label: "Legal Reference" },
+          { name: 'verified', label: "Verified" }
+        ] }
+    ]
+  },
+  'M49-form-verify': {
+    kind: 'model_form',
+    model: 'fix.asset.verification.campaign',
+    title: "Verification Campaign",
+    back: 'M49-verify',
+    status: { field: 'state', labels: { draft: "Draft", in_progress: "In Progress", closed: "Closed" } },
+    sections: [
+      { title: "Campaign",
+        note: "A physical verification campaign; expected count is the register population, the found/missing/misplaced counts are recorded as the count progresses.",
+        fields: [
+          { name: 'name', required: true, label: "Campaign Name" },
+          { name: 'date', required: true, label: "Date" },
+          { name: 'responsible_id', label: "Responsible" },
+          { name: 'expected_count', label: "Expected Count" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -135,7 +241,178 @@ export const FORM_MODELS = {
   'M49:Lease Contract': 'fix.lease',
 };
 
+/* ============ D365 IN-WORKSPACE FORM SCREENS (M49 re-audit v2) ========
+ * The registry's four data-entry chips + the two extra entry surfaces open
+ * Dynamics-365 record forms in the workspace — never an Odoo dialog. */
+Object.assign(SCREENS, {
+  'M49-form-capex': {
+    kind: 'model_form',
+    model: 'fix.capex.request',
+    title: 'Capex Request',
+    back: 'M49-requests',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Request', note: 'The request needs a budget line and an amount; approval posts the budget commitment, and the approved request is what an asset capitalisation links back to.',
+        fields: [
+          { name: 'title', required: true, label: 'Title' },
+          { name: 'request_date', required: true, label: 'Request Date' },
+          { name: 'requested_by_id', label: 'Requested By' },
+          { name: 'category_id', label: 'Asset Category' },
+          { name: 'budget_id', label: 'Capex Budget' },
+          { name: 'amount', required: true, label: 'Requested Amount' },
+          { name: 'life_months', label: 'Useful Life (Months)' },
+          { name: 'operating_unit_id', label: 'Branch' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M49-form-asset': {
+    kind: 'model_form',
+    model: 'fix.fixed.asset',
+    title: 'Asset Capitalisation',
+    back: 'M49-register',
+    status: { field: 'state', labels: {
+      draft: 'Draft', active: 'Active', disposed: 'Disposed' } },
+    sections: [
+      { title: 'Capitalised Asset', note: 'Gross, salvage, life and acquisition date drive the straight-line schedule; the draft becomes active once depreciation starts. Category and code must be unique per company.',
+        fields: [
+          { name: 'name', required: true, label: 'Asset Name' },
+          { name: 'code', label: 'Asset Code' },
+          { name: 'category_id', label: 'Asset Category' },
+          { name: 'custodian_id', label: 'Custodian' },
+          { name: 'operating_unit_id', label: 'Branch' },
+          { name: 'gross', required: true, label: 'Gross' },
+          { name: 'salvage', label: 'Salvage Value' },
+          { name: 'life_months', required: true, label: 'Useful Life (Months)' },
+          { name: 'purchase_date', required: true, label: 'Acquisition Date' },
+          { name: 'depreciation_start', label: 'Depreciation Start' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M49-form-transfer': {
+    kind: 'model_form',
+    model: 'fix.asset.transfer',
+    title: 'Asset Transfer',
+    back: 'M49-transfer',
+    status: { field: 'state', labels: {
+      draft: 'Draft', done: 'Done', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Transfer', note: 'Branch or custodian transfer of one asset; confirming it moves the asset\'s current location and custodian.',
+        fields: [
+          { name: 'asset_id', required: true, label: 'Asset' },
+          { name: 'date', required: true, label: 'Transfer Date' },
+          { name: 'operating_unit_id', label: 'To Branch' },
+          { name: 'to_custodian_id', label: 'To Custodian' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M49-form-disposal': {
+    kind: 'model_form',
+    model: 'fix.asset.disposal',
+    title: 'Asset Disposal',
+    back: 'M49-disposal',
+    status: { field: 'state', labels: {
+      draft: 'Draft', posted: 'Posted', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Disposal', note: 'Sale, scrap or write-off. Posting derecognises the asset and books the gain or loss against the carrying amount.',
+        fields: [
+          { name: 'asset_id', required: true, label: 'Asset' },
+          { name: 'kind', required: true, label: 'Disposal Kind' },
+          { name: 'date', required: true, label: 'Disposal Date' },
+          { name: 'partner_id', label: 'Buyer' },
+          { name: 'proceeds', label: 'Proceeds' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M49-form-revaluation': {
+    kind: 'model_form',
+    model: 'fix.asset.revaluation',
+    title: 'Revaluation / Impairment',
+    back: 'M49-impairment',
+    status: { field: 'state', labels: {
+      draft: 'Draft', posted: 'Posted', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Adjustment', note: 'IAS 16 revaluation, IAS 36 impairment or its reversal. The carrying amount before and the deltas are computed by the engine on posting.',
+        fields: [
+          { name: 'asset_id', required: true, label: 'Asset' },
+          { name: 'kind', required: true, label: 'Adjustment Kind' },
+          { name: 'date', required: true, label: 'Date' },
+          { name: 'new_value', required: true, label: 'New Value' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M49-form-lease': {
+    kind: 'model_form',
+    model: 'fix.lease',
+    title: 'Lease Contract',
+    back: 'M49-leases',
+    sections: [
+      { title: 'IFRS 16 Lease', note: 'Commencement date, term and payment generate the right-of-use asset and the lease liability schedule; term changes are constrained by the model.',
+        fields: [
+          { name: 'name', required: true, label: 'Lease' },
+          { name: 'partner_id', label: 'Lessor' },
+          { name: 'category_id', label: 'Asset Category' },
+          { name: 'commencement_date', required: true, label: 'Commencement Date' },
+          { name: 'term_months', required: true, label: 'Lease Term (Months)' },
+          { name: 'payment_amount', label: 'Payment Amount' },
+          { name: 'payment_timing', label: 'Payment Timing' },
+          { name: 'operating_unit_id', label: 'Branch' }
+        ] }
+    ]
+  }
+});
+
+export const FORM_CHIPS = {
+  'M49:Capex Budget': 'M49-form-budget',
+  'M49:CWIP Entry': 'M49-form-cwip',
+  'M49:Asset Category': 'M49-form-category',
+  'M49:Asset Tax Rate': 'M49-form-taxrate',
+  'M49:Verification Campaign': 'M49-form-verify',
+  'M49:Capex Request': 'M49-form-capex',
+  'M49:Asset Capitalisation': 'M49-form-asset',
+  'M49:Transfer': 'M49-form-transfer',
+  'M49:Disposal': 'M49-form-disposal',
+  'M49:Revaluation / Impairment': 'M49-form-revaluation',
+  'M49:Lease Contract': 'M49-form-lease',
+  'M49:__by_model__': {
+    'fix.capex.budget': 'M49-form-budget',
+    'fix.cwip.entry': 'M49-form-cwip',
+    'fix.asset.category': 'M49-form-category',
+    'fix.asset.tax.rate': 'M49-form-taxrate',
+    'fix.asset.verification.campaign': 'M49-form-verify',
+    'fix.capex.request': 'M49-form-capex',
+    'fix.fixed.asset': 'M49-form-asset',
+    'fix.asset.transfer': 'M49-form-transfer',
+    'fix.asset.disposal': 'M49-form-disposal',
+    'fix.asset.revaluation': 'M49-form-revaluation',
+    'fix.lease': 'M49-form-lease'
+  },
+  'M49:__by_screen__': {
+    'M49-budget': 'M49-form-budget',
+    'M49-cwip': 'M49-form-cwip',
+    'M49-categories': 'M49-form-category',
+    'M49-taxrates': 'M49-form-taxrate',
+    'M49-verify': 'M49-form-verify',
+    'M49-requests': 'M49-form-capex',
+    'M49-register': 'M49-form-asset',
+    'M49-transfer': 'M49-form-transfer',
+    'M49-disposal': 'M49-form-disposal',
+    'M49-impairment': 'M49-form-revaluation',
+    'M49-leases': 'M49-form-lease'
+  }
+};
+
 /* the module's "+ New" surface */
 export const CREATE = {
-  M49: { model: 'fix.fixed.asset', label: 'Fixed Asset' },
+  M49: { screen: 'M49-form-capex', model: 'fix.capex.request', label: 'Capex Request' },
 };

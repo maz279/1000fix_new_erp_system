@@ -54,7 +54,9 @@ def test_every_surface_is_declared_by_exactly_one_module():
 
 
 def test_undeclared_model_is_refused(odoo_env, call):
-    res = call(odoo_env, "model_records", model="res.users", cols=["login"])
+    # res.users/res.partner ARE served (M29 user directory, M33 parties);
+    # res.company is a real model no workspace screen declares — refusal.
+    res = call(odoo_env, "model_records", model="res.company", cols=["name"])
     assert res == {"error": "Model not served by the workspace screens"}
 
 

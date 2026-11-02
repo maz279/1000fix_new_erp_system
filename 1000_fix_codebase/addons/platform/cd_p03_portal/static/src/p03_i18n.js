@@ -77,6 +77,9 @@ export const P03_STATES = {
 /* English literal → Bangla. Untranslated keys fall back to English. */
 export const P03_BN = {
   // ---- common words / table headers ----
+  "Team Chat (Discuss) — opens in a new tab": "টিম চ্যাট (Discuss) — নতুন ট্যাবে খোলে",
+  "Team Chat": "টিম চ্যাট",
+  "Team Chat opened in a new tab (Discuss)": "টিম চ্যাট নতুন ট্যাবে খোলা হয়েছে (Discuss)",
   "Customer": "গ্রাহক",
   "State": "অবস্থা",
   "Cancel": "বাতিল",
@@ -1527,4 +1530,74 @@ Object.assign(P03_BN, {
   "Weekly Executive Business Review": "সাপ্তাহিক নির্বাহী বিজনেস রিভিউ",
   "Configure Power BI Sync": "পাওয়ার বিআই সিঙ্ক কনফিগার করুন",
   "BI Sync Config": "বিআই সিঙ্ক কনফিগ",
+});
+
+/* A11 · M26 AI/ML Services (model registry, inference run surfaces, KPIs). */
+Object.assign(P03_BN, {
+  "Models Live": "চালু মডেল",
+  "Models Planned": "পরিকল্পিত মডেল",
+  "Inferences (7d)": "ইনফারেন্স (৭ দিন)",
+  "Avg Latency (ms)": "গড় লেটেন্সি (ms)",
+  "Predictive Alerts": "প্রেডিক্টিভ অ্যালার্ট",
+  "Model Registry (honest catalog)": "মডেল রেজিস্ট্রি (সৎ তালিকা)",
+  "Inference Run Log": "ইনফারেন্স রান লগ",
+  "Run ML Model Inference": "এমএল মডেল ইনফারেন্স চালান",
+  "ML Inference Run": "এমএল ইনফারেন্স রান",
+  "AI Models": "এআই মডেল",
+});
+
+/* A02 · M05 Remote Support & MSP — journey literal. */
+Object.assign(P03_BN, {
+  "MSP alert to resolution journey": "এমএসপি অ্যালার্ট থেকে সমাধান যাত্রা",
+});
+
+/* A02 · M05 iteration 2 — the compliance engines' screen/action labels. */
+Object.assign(P03_BN, {
+  "Start Session": "সেশন শুরু করুন",
+  "End Session": "সেশন শেষ করুন",
+  "Acknowledge": "স্বীকার করুন",
+  "Create Ticket": "টিকেট তৈরি করুন",
+  "Resolve": "সমাধান করুন",
+  "Escalate": "এসকেলেট করুন",
+  "Resolution note": "সমাধানের নোট",
+  "Log Execution": "নির্বাহন লগ করুন",
+  "Asset agent ID (blank = first in scope)": "অ্যাসেট এজেন্ট আইডি (খালি = সীমার প্রথমটি)",
+  "Mark Installed": "ইনস্টল চিহ্নিত করুন",
+  "Defer 7 Days": "৭ দিন স্থগিত",
+  "Mark Failed": "ব্যর্থ চিহ্নিত করুন",
+  "Failure note": "ব্যর্থতার নোট",
+  "Open Window": "উইন্ডো খুলুন",
+  "Close Window": "উইন্ডো বন্ধ করুন",
+  "Close": "বন্ধ করুন",
+  "Reject": "প্রত্যাখ্যান করুন",
+  "Mark Implemented": "বাস্তবায়ন চিহ্নিত করুন",
+  "Rejection reason": "প্রত্যাখ্যানের কারণ",
+  "Implementation note": "বাস্তবায়নের নোট",
+  "Closing note": "সমাপনী নোট",
+  "MSP Contract": "এমএসপি চুক্তি",
+});
+
+/* A02 · M06 Data Services & Recovery — iteration-2 screens & actions. */
+Object.assign(P03_BN, {
+  "Take Custody": "কাস্টডি নিন",
+  "Custody handler name": "কাস্টডি গ্রহণকারীর নাম",
+  "Start Recovery": "রিকভারি শুরু করুন",
+  "Mark Recovered": "উদ্ধারকৃত চিহ্নিত করুন",
+  "Secure Handover": "নিরাপদ হস্তান্তর",
+  "Handover handler name": "হস্তান্তরকারীর নাম",
+  "Purge (Verified Cert)": "পার্জ (যাচাইকৃত সনদ)",
+  "Z4 Access (TOTP)": "Z4 অ্যাক্সেস (TOTP)",
+  "6-digit authenticator code (SC-002)": "৬-সংখ্যার অথেন্টিকেটর কোড (SC-002)",
+  "Finish Attempt": "প্রচেষ্টা সমাপ্ত করুন",
+  "Move Media": "মিডিয়া সরান",
+  "Break Seal": "সিল খুলুন",
+  "Return to Customer": "গ্রাহককে ফেরত দিন",
+  "Mark Used": "ব্যবহৃত চিহ্নিত করুন",
+  "Complete Evaluation": "মূল্যায়ন সম্পূর্ণ করুন",
+  "Send Quote": "কোটেশন পাঠান",
+  "Accept": "গ্রহণ করুন",
+  "Decline": "প্রত্যাখ্যান করুন",
+  "Log Restore Test": "রিস্টোর টেস্ট লগ করুন",
+  "Verify Evidence": "প্রমাণ যাচাই করুন",
+  "Recovery Case": "রিকভারি কেস",
 });

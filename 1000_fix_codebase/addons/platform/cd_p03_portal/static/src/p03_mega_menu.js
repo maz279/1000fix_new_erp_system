@@ -147,6 +147,29 @@ export class P03MegaMenu extends Component {
             return;
         }
 
+        // M05 MSP: registry ids deep-link into the workspace screens. Without
+        // this, m05-tickets matched the "ticket" substring rule below and
+        // left the shell for the M01 service-order backend list.
+        if (mId === "M05") {
+            const screenMap = {
+                "m05-sessions": "M05-sessions",
+                "m05-console": "M05-console",
+                "m05-estate": "M05-estate",
+                "m05-health": "M05-health",
+                "m05-alerts": "M05-alerts",
+                "m05-tickets": "M05-tickets",
+                "m05-oncall": "M05-oncall",
+                "m05-runbooks": "M05-runbooks",
+                "m05-patching": "M05-patching",
+                "m05-windows": "M05-windows",
+                "m05-problem": "M05-problem",
+                "m05-sla": "M05-sla",
+                "m05-reviews": "M05-reviews",
+            };
+            this._openWorkspaceScreen(screenMap[sId] || "M05-alerts", mId);
+            return;
+        }
+
         if (mId === "M01" || sId.includes("order") || sId.includes("ticket")) {
             const isNew = sId.includes("create") || sId.includes("intake") || sId.includes("new");
             this.action.doAction("cd_service_order.action_fix_service_order", {

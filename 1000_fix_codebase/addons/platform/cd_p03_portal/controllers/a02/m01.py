@@ -30,6 +30,7 @@ SURFACES = {
             "action_submit_qc",
             "action_ready",
             "action_deliver",
+            "action_mark_settled",
             "action_close",
             "action_cancel",
             "action_resume_order",
@@ -52,6 +53,7 @@ SURFACES = {
             "action_send",
             "action_approve",
             "action_manager_approve",
+            "action_dofa_approve",
             "action_reject",
             "action_revise",
         },
@@ -68,6 +70,7 @@ SURFACES = {
             "action_call",
             "action_serving",
             "action_complete",
+            "action_evaluate_wait_sla",
             # M04 queue extensions (defined in cd_front_desk's ext file)
             "action_no_show",
             "action_cancel",
@@ -100,12 +103,29 @@ SURFACES = {
     "fix.warranty": {
         "order": "id desc",
         "limit": 200,
-        "actions": set(),
+        # verified_by/verified_at shipped readonly with nothing to set them,
+        # and 'pending' had no exit (A04 audit, 2026-11-01).
+        "actions": {"action_verify", "action_void"},
     },
     "fix.device.history": {
         "order": "id desc",
         "limit": 200,
         "actions": set(),
+    },
+    # --- added by the A03 gap-closure build -------------------
+    # Each of these is bound by a workspace screen below; an
+    # unservable surface is what test_a03_registry_coverage exists
+    # to catch, and a surface no screen opens is dead weight it
+    # also catches.
+    "fix.sla.item": {
+        "order": "policy_id, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.sla.kpi.instance": {
+        "order": "started_at desc, id desc",
+        "limit": 300,
+        "actions": {"cancel", "pause", "resume", "succeed"},
     },
 }
 
@@ -179,13 +199,21 @@ def kpis(env):
         [*company_domain, ("state", "in", _OPEN_STATES), ("is_rework", "=", True)]
     )
 
-    # intake speed: the walk-in intake model carries no timer yet — honest null
+    # intake speed: average intake duration in minutes from walk-in intake records
+    avg_minutes = None
+    Walkin = env.get("fix.walkin.intake")
+    if Walkin is not None:
+        timed = Walkin.sudo().search([*company_domain, ("intake_duration_seconds", ">", 0)])
+        if timed:
+            durations = timed.mapped("intake_duration_seconds")
+            avg_minutes = round(sum(durations) / (len(durations) * 60.0), 1)
+
     return {
         "open_orders": open_orders,
         "sla_at_risk": at_risk,
         "tat_under_24h": round(100.0 * tat_24 / tat_total, 1) if tat_total else None,
         "estimate_conversion": round(100.0 * approved / decided, 1) if decided else None,
-        "intake_minutes": None,
+        "intake_minutes": avg_minutes,
         "rework_rate": round(100.0 * rework_open / open_orders, 1) if open_orders else None,
     }
 
@@ -197,34 +225,55 @@ def _fmt_day(value):
     return str(value)[:10] if value else ""
 
 
-def channel_intake_report(env, date_from=None, date_to=None, **params):
-    """Daily Intake by Channel: real orders grouped by service_type, day."""
+def channel_intake_report(env, date_from=None, date_to=None, channel=None, group_by=None, **params):
+    """Daily Intake by Channel: real orders grouped by service_type and day.
+
+    Professional-report filters (UX-001): channel scope + day/week/month
+    granularity, declared in the payload so the workspace renders them —
+    exports carry the same filter values (the export is the screen).
+    """
     domain = [("company_id", "in", env.companies.ids)]
     if date_from:
         domain.append(("create_date", ">=", date_from))
     if date_to:
         domain.append(("create_date", "<=", date_to + " 23:59:59"))
+    if channel and channel != "All":
+        domain.append(("service_type", "=", channel))
+
+    granularity = group_by if group_by in ("day", "week", "month") else "day"
     rows = []
     grouped = _orders(env)._read_group(
         [*domain, ("service_type", "!=", False)],
-        ["service_type", "create_date:day"],
+        ["service_type", "create_date:%s" % granularity],
         ["__count"],
     )
-    for service_type, day, count in grouped:
+    for service_type, bucket, count in grouped:
         rows.append(
             {
-                "day": day if isinstance(day, str) else _fmt_day(day),
+                "day": bucket if isinstance(bucket, str) else _fmt_day(bucket),
                 "service_type": service_type,
                 "orders": count,
             }
         )
     rows.sort(key=lambda r: (r["day"], r["service_type"]))
+    channels = sorted({r["service_type"] for r in rows})
     return {
         "title": "Daily Intake by Channel",
         "cols": ["day", "service_type", "orders"],
-        "labels": {"day": "Day", "service_type": "Channel", "orders": "Orders"},
+        "labels": {
+            "day": {"day": "Day", "week": "Week", "month": "Month"}[granularity],
+            "service_type": "Channel",
+            "orders": "Orders",
+        },
         "rows": rows,
-        "notes": ["Live reads of fix.service.order, grouped by intake channel and day."],
+        "totals": {"service_type": "Total", "orders": sum(r["orders"] for r in rows)},
+        "filters": [
+            {"key": "channel", "label": "Channel", "options": ["All", *channels]},
+            {"key": "group_by", "label": "Group by", "options": ["day", "week", "month"]},
+        ],
+        "notes": [
+            "Live reads of fix.service.order, grouped by intake channel and %s." % granularity
+        ],
     }
 
 

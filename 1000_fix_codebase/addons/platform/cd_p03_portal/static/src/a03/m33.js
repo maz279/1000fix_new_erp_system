@@ -1,0 +1,799 @@
+/** @odoo-module **/
+/* A03 · Customer Experience — M33 Customer & Party Master.
+ * This fragment mirrors the CANONICAL registry M33 exactly: 7 groups,
+ * 20 screens, 6 KPIs, 6 reports, 7 forms, freg src 100 in 12 subs.
+ * (Was 5 groups / 15 screens / 5 forms before the A03 gap-closure build of
+ * 2026-11-02 added the S8 'Duplicate Detection Jobs' group and its form.)
+ *
+ * Upgraded 2026-10-31: Full Microsoft Dynamics 365 multi-tab layout across
+ * all 14 in-workspace forms with zero Bengali/English mixing, comprehensive
+ * data capture, and strict compliance with Bangladesh PDPA & statutory rules.
+ */
+
+export const MODULE = {
+  area: 'A03', code: 'M33', en: 'Customer & Party Master', title: 'M33 · Customer & Party Master',
+  bn: 'গ্রাহক মাস্টার', icon: '🪪',
+  desc: 'Single golden record for every party — roles, hierarchies, OTP verification, consent, segments, credit.',
+  kpis: [
+    { l: 'Active Customers', m: 'active_customers' },
+    { l: 'Duplicate Rate', m: 'duplicate_rate', suffix: '%' },
+    { l: 'Golden Coverage', m: 'golden_coverage', suffix: '%' },
+    { l: 'Consent Current', m: 'consent_current', suffix: '%' },
+    { l: 'Credit Holds', m: 'credit_holds' },
+    { l: 'New Today', m: 'new_today' }
+  ],
+  groups: [
+    { en: 'Record Coverage', screens: [
+      { id: 'M33-dedup-rule', en: "Dedup Rule", bn: "ডুপ্লিকেট রুল", t: 'g' },
+      { id: 'M33-transparency-notice', en: "Transparency Notice", bn: "স্বচ্ছতা নোটিশ", t: 'g' }
+    ]},
+    { en: 'Party Records', screens: [
+      { id: 'M33-directory', en: 'Party Directory', bn: 'পার্টি ডিরেক্টরি', t: 'g' },
+      { id: 'M33-form-party', en: 'Party Master Record', bn: 'পার্টি রেকর্ড ফর্ম', t: 'f' },
+      { id: 'M33-party', en: 'Party Record (roles)', bn: 'পার্টি রোল', t: 'g' },
+      { id: 'M33-360', en: 'Customer 360', bn: 'কাস্টমার ৩৬০', t: 'x' },
+      { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' }
+    ]},
+    { en: 'Identity & Verification', screens: [
+      { id: 'M33-identity', en: 'Identity Documents (NID/BIN)', bn: 'পরিচয়পত্র', t: 'g' },
+      { id: 'M33-otp', en: 'OTP Verification Log', bn: 'ওটিপি যাচাই', t: 'g' },
+      { id: 'M33-approval', en: 'Registration Approvals', bn: 'নিবন্ধন অনুমোদন', t: 'c' }
+    ]},
+    { en: 'Data Quality', screens: [
+      { id: 'M33-dedupe', en: 'Duplicate Detection', bn: 'সদৃশ শনাক্তকরণ', t: 'g' },
+      { id: 'M33-merge', en: 'Supervised Merge', bn: 'মার্জ তত্ত্বাবধান', t: 'c' },
+      { id: 'M33-quality', en: 'Quality Scoring', bn: 'গুণগত স্কোর', t: 'r' }
+    ]},
+    { en: 'Consent & Rights', screens: [
+      { id: 'M33-consent', en: 'Consent Register', bn: 'সম্মতি রেজিস্টার', t: 'g' },
+      { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'c' }
+    ]},
+    { en: 'Segments & Credit', screens: [
+      { id: 'M33-segments', en: 'Segments', bn: 'সেগমেন্ট', t: 'g' },
+      { id: 'M33-credit', en: 'Credit Profiles & Holds', bn: 'ক্রেডিট প্রোফাইল', t: 'g' },
+      { id: 'M33-status', en: 'Party Status Lifecycle', bn: 'পার্টি স্ট্যাটাস', t: 'g' }
+    ]},
+    { en: 'Duplicate Detection Jobs (S8)', bn: 'ডুপ্লিকেট সনাক্তকরণ জব', screens: [
+      { id: 'M33-dedup-jobs', en: 'Detection Jobs', bn: 'সনাক্তকরণ জব', t: 'g' },
+      { id: 'M33-form-dedup-job', en: 'Detection Job', bn: 'জব ফর্ম', t: 'f' }
+    ]}
+  ],
+  reports: ['Customer Growth by District', 'Data Quality Scorecard', 'Duplicate Merge Audit', 'Consent Coverage Report', 'Credit Exposure by Segment', 'Corporate Hierarchy Map'],
+  forms: ['Party Master', 'Party (multi-role)', 'Address with GPS', 'Identity Document', 'Credit Profile', 'Merge Request', 'Duplicate Detection Job'],
+  cross: ['Every module reads party', 'M07 CRM accounts', 'M20 credit control', 'P01 self-service profile', 'M29 record isolation'],
+  freg: {
+    src: 100,
+    sub: [
+      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'] }],
+      ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party'] }],
+      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'] }],
+      ['4', 'Addresses (BD structure + GPS)', 7, { model: 'res.partner', cols: ['name', 'street', 'city', 'country_id', 'phone'], screens: ['M33-directory'] }],
+      ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-otp'] }],
+      ['6', 'Registration Approval', 6, { model: 'fix.registration.approval', cols: ['partner_id', 'party_class', 'lm_state', 'admin_state', 'requested_at', 'lm_decided_by'], screens: ['M33-approval'] }],
+      ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'] }],
+      ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'] }],
+      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-rpt-consentcov'] }],
+      ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'] }],
+      ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'] }],
+      ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'active'], screens: ['M33-status', 'M33-rpt-growth'] }]
+    ]
+  }
+};
+
+/* In-workspace data screens over the whitelisted party models — every one
+ * of the 15 registry screens is a live surface. */
+export const SCREENS = {
+  'M33-form-transparency': {
+    kind: 'model_form',
+    model: 'fix.transparency.notice',
+    title: "Transparency Notice",
+    back: 'M33-transparency-notice',
+    tabs: [
+      { id: 'general', label: '1. Notice Profile', bn: '১. বিজ্ঞপ্তির পরিধি', icon: '📜', badge: '2' },
+      { id: 'content', label: '2. Bilingual Disclosure Text', bn: '২. নোটিশ বিবরণ', icon: '📝', badge: '2' },
+      { id: 'compliance', label: '3. PDPA & Regulatory Audit', bn: '৩. পিডিপিএ অডিট', icon: '⚖️', badge: '2' }
+    ],
+    sections: [
+      { tab: 'general', title: "Notice Version & Status",
+        note: "A PDPA transparency notice version. Consent records point at the notice version they were granted under, so a notice is versioned, never edited in place.",
+        fields: [
+          { name: 'version', required: true, label: "Version Code" },
+          { name: 'active', label: "Active Status" }
+        ] },
+      { tab: 'content', title: "Bilingual Statutory Disclosures",
+        fields: [
+          { name: 'text_en', label: "Disclosure Text (English)", type: 'text' },
+          { name: 'text_bn', label: "Disclosure Text (Bengali)", type: 'text' }
+        ] },
+      { tab: 'compliance', title: "PDPA Governance & Revision Policy",
+        note: "Under the Personal Data Protection Act (PDPA), any material change to personal data collection requires issuing a new notice version. Existing consent records remain anchored to their capture version.",
+        fields: [] }
+    ]
+  },
+
+  /* --- Party Records --- */
+  'M33-directory': { kind: 'model_list', model: 'res.partner', create: true,
+    cols: ['name', 'name_bn', 'preferred_language', 'party_status', 'phone', 'email', 'write_date'],
+    stateField: 'party_status' },
+  /* THE design rule made visible: one partner, many roles (never masters) */
+  'M33-party': { kind: 'model_list', model: 'fix.party.role', create: true,
+    cols: ['partner_id', 'role_type', 'role_status', 'since', 'company_id'],
+    stateField: 'role_status' },
+  'M33-360': { kind: 'table_report', module: 'M33', report: 'party_360', period: false },
+  'M33-hierarchy': { kind: 'model_list', model: 'fix.party.hierarchy', create: true,
+    cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'] },
+
+  /* --- Identity & Verification --- */
+  'M33-identity': { kind: 'model_list', model: 'fix.identity.document',
+    cols: ['partner_id', 'document_type', 'checksum_valid', 'verification_status', 'expiry_date'],
+    stateField: 'verification_status' },
+  'M33-otp': { kind: 'model_list', model: 'fix.otp.log', create: false,
+    cols: ['requested_at', 'partner_id', 'channel', 'destination_masked', 'state', 'verified_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_mark_verified', l: 'Mark Verified', ask: 'Channel reference (optional)', kwarg: 'channel_ref' },
+      { m: 'action_expire', l: 'Expire' }
+    ] },
+  'M33-approval': { kind: 'model_list', model: 'fix.registration.approval', create: true,
+    cols: ['requested_at', 'partner_id', 'party_class', 'lm_state', 'admin_state'],
+    actions: [
+      { m: 'action_lm_approve', l: 'Line Manager Approve' },
+      { m: 'action_admin_approve', l: '1000FiX Admin Approve' },
+      { m: 'action_reject', l: 'Reject', ask: 'Rejection reason', kwarg: 'reason' }
+    ] },
+
+  /* --- Data Quality --- */
+  'M33-dedupe': { kind: 'model_list', model: 'fix.party.duplicate', create: true,
+    cols: ['score', 'party_a', 'party_b', 'state', 'reviewed_by', 'decision'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_review', l: 'Start Review' },
+      { m: 'action_confirm', l: 'Confirm Duplicate (opens merge)' },
+      { m: 'action_dismiss', l: 'Dismiss', ask: 'Why is this NOT a duplicate?', kwarg: 'reason' }
+    ] },
+  'M33-merge': { kind: 'model_list', model: 'fix.party.merge', create: true,
+    cols: ['requested_at', 'survivor_id', 'victim_id', 'state', 'executed_by', 'reversible_until'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_execute', l: 'Execute Merge' },
+      { m: 'action_reverse', l: 'Reverse (inside window)' }
+    ] },
+  'M33-quality': { kind: 'model_list', model: 'fix.party.quality', create: false,
+    cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'evaluated_at'],
+    actions: [{ m: 'action_recompute', l: 'Recompute Score' }] },
+
+  /* --- Consent & Rights --- */
+  'M33-consent': { kind: 'model_list', model: 'fix.consent', create: true,
+    cols: ['partner_id', 'purpose', 'channel', 'state', 'date_granted', 'notice_version_id', 'proof'],
+    stateField: 'state',
+    actions: [{ m: 'action_withdraw', l: 'Withdraw (append-only)' }] },
+  'M33-dsr': { kind: 'model_list', model: 'fix.rights.request', create: true,
+    cols: ['received_at', 'partner_id', 'request_type', 'statutory_due', 'state', 'evidence_ref'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_verify', l: 'Verify Identity' },
+      { m: 'action_start', l: 'Start Work' },
+      { m: 'action_fulfil', l: 'Fulfil', ask: 'Evidence reference (export/notice ID)', kwarg: 'evidence' },
+      { m: 'action_reject', l: 'Reject', ask: 'Stated basis (statutory override)', kwarg: 'reason' }
+    ] },
+
+  /* --- Segments & Credit --- */
+  'M33-segments': { kind: 'model_list', model: 'fix.segment', create: true,
+    cols: ['code', 'name', 'name_bn', 'member_count', 'evaluation_mode', 'active'],
+    actions: [
+      { m: 'action_add_members', l: 'Add Members', ask: 'Partner ids (comma-separated)', kwarg: 'partner_ids' },
+      { m: 'action_remove_member', l: 'Remove Member', ask: 'Partner id', kwarg: 'partner_id' }
+    ] },
+  /* The credit model of record is cd_billing_engine's (M20, FR-ARB-030/031);
+   * M33 surfaces it (spec §3.3) — fields are the billing engine's own. */
+  'M33-credit': { kind: 'model_list', model: 'fix.credit.profile', create: true,
+    cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'exposure', 'over_limit'],
+    actions: [
+      { m: 'action_toggle_hold', l: 'Toggle Credit Hold', ask: 'Hold reason (placing)', kwarg: 'reason' }
+    ] },
+  'M33-status': { kind: 'model_list', model: 'res.partner', create: false,
+    cols: ['name', 'party_status', 'status_reason', 'status_since', 'write_date'],
+    stateField: 'party_status',
+    domain: [['party_status', '!=', false]] },
+/* the registry's six built-in reports as in-workspace table reports */
+  'M33-rpt-growth': { kind: 'table_report', module: 'M33', report: 'customer_growth_by_district', title: 'Customer Growth by District', period: true },
+  'M33-rpt-scorecard': { kind: 'table_report', module: 'M33', report: 'data_quality_scorecard', title: 'Data Quality Scorecard', period: false },
+  'M33-rpt-mergeaudit': { kind: 'table_report', module: 'M33', report: 'duplicate_merge_audit', title: 'Duplicate Merge Audit', period: false },
+  'M33-rpt-consentcov': { kind: 'table_report', module: 'M33', report: 'consent_coverage', title: 'Consent Coverage Report', period: false },
+  'M33-rpt-creditexp': { kind: 'table_report', module: 'M33', report: 'credit_exposure_by_segment', title: 'Credit Exposure by Segment', period: false },
+  'M33-rpt-hiermap': { kind: 'table_report', module: 'M33', report: 'corporate_hierarchy_map', title: 'Corporate Hierarchy Map', period: false },
+
+  /* ==================================================================
+   * D365 IN-WORKSPACE RECORD FORMS (Dynamics 365 7-Tab Master Forms)
+   * Rendered inside the workspace shell: command bar, record header with
+   * status pill, tab bar, section cards, labelled field grid.
+   * ================================================================== */
+  'M33-form-party': {
+    lines: {
+      field: 'child_ids',
+      title: 'Contacts at this Party',
+      note: 'The individuals and sites that belong to this party.',
+      fields: [
+        { name: 'name', label: 'Contact', required: true },
+        { name: 'function', label: 'Job Position' },
+        { name: 'email', label: 'Email' },
+        { name: 'phone', label: 'Phone' },
+        { name: 'type', label: 'Address Type' }
+      ]
+    }, kind: 'model_form', model: 'res.partner',
+    title: 'Customer & Party Master', back: 'M33-directory',
+    status: { field: 'party_status' },
+    tabs: [
+      { id: 'general', label: '1. General Profile', bn: '১. সাধারণ প্রোফাইল', icon: '👤', badge: '7' },
+      { id: 'identity', label: '2. Statutory Identity & Tax', bn: '২. স্ট্যাটুটরি পরিচয়', icon: '🏛️', badge: '5' },
+      { id: 'address', label: '3. BD Geo-Address & Location', bn: '৩. ভূগোল-ঠিকানা', icon: '📍', badge: '7' },
+      { id: 'contact', label: '4. Communications & Contacts', bn: '৪. যোগাযোগ', icon: '📞', badge: '5' },
+      { id: 'roles', label: '5. Multi-Role & Classification', bn: '৫. বহু-রোল', icon: '🏷️', badge: '4' },
+      { id: 'credit', label: '6. Credit & Financial Terms', bn: '৬. ক্রেডিট ও আর্থিক', icon: '💳', badge: '4' },
+      { id: 'consent', label: '7. Consent & PDPA Privacy', bn: '৭. সম্মতি ও গোপনীয়তা', icon: '🛡️', badge: '2' },
+      { id: 'hierarchy', label: '8. Corporate Account Hierarchy', bn: '৮. অ্যাকাউন্ট শ্রেণিবিন্যাস', icon: '🏢', badge: '3' },
+      { id: 'docs', label: '9. KYC Verification Repository', bn: '৯. ভেরিফিকেশন নথি', icon: '📑', badge: '2' },
+      { id: 'audit', label: '10. Lifecycle & Audit Trail', bn: '১০. জীবনচক্র ও অডিট', icon: '⏱️', badge: '5' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Party Identity & Legal Entity', fields: [
+        { name: 'name', required: true, label: 'Legal / Trade Name' },
+        { name: 'name_bn', label: 'Bengali Legal Name (Bangla)' },
+        { name: 'ref', label: 'Party Reference Code' },
+        { name: 'is_company', label: 'Corporate Entity Flag' },
+        { name: 'company_type', label: 'Company Structure Type' },
+        { name: 'preferred_language', label: 'Preferred Communication Language' },
+        { name: 'company_id', label: 'Primary Operating Unit / Company' },
+      ]},
+      { tab: 'identity', title: 'Statutory Registration & National Identifiers', fields: [
+        { name: 'vat', label: 'Tax Identification Number (e-TIN / BIN / VAT)' },
+        { name: 'company_registry', label: 'Registrar / Trade License Number' },
+        { name: 'barcode', label: 'Smart Identification Barcode' },
+        { name: 'commercial_partner_id', label: 'Commercial Entity Master Ref', readonly: true },
+        { name: 'application_statistics', label: 'Application Verification Code', readonly: true },
+      ]},
+      { tab: 'address', title: 'Bangladesh Statutory Geographic Address', fields: [
+        { name: 'street', label: 'Holding / Building / Street Address' },
+        { name: 'street2', label: 'Road / Area / Sector (Line 2)' },
+        { name: 'city', label: 'Thana / Upazila / City' },
+        { name: 'state_id', label: 'District / Administrative Division' },
+        { name: 'zip', label: 'Postal Code' },
+        { name: 'country_id', label: 'Country' },
+        { name: 'contact_address_inline', label: 'Full Normalized Geographic Address', readonly: true },
+      ]},
+      { tab: 'contact', title: 'Primary Communications & Digital Endpoints', fields: [
+        { name: 'phone_sanitized', label: 'Normalized Mobile Number (E.164)', readonly: true },
+        { name: 'phone', label: 'Hotline / Office Phone' },
+        { name: 'email', label: 'Official Business Email' },
+        { name: 'email_normalized', label: 'Standardized Normalized Email', readonly: true },
+        { name: 'website', label: 'Corporate Portal / Website' },
+      ]},
+      { tab: 'roles', title: 'Commercial Classification & Assigned Relationship',
+        note: 'Unified Party Architecture: A single party record projects multiple functional roles across sales, vendor, counter and corporate tiers.',
+        fields: [
+          { name: 'customer_rank', label: 'Customer Hierarchy Rank' },
+          { name: 'user_id', label: 'Dedicated Account Manager / Salesperson' },
+          { name: 'category_id', label: 'Customer Segment & Category Tags' },
+          { name: 'bank_ids', label: 'Associated Bank Accounts' },
+        ]},
+      { tab: 'credit', title: 'Commercial Credit Exposure & Payment Terms', fields: [
+        { name: 'credit_limit', label: 'Approved Credit Limit (BDT)' },
+        { name: 'property_payment_term_id', label: 'Default Commercial Payment Terms' },
+        { name: 'credit', label: 'Total Current Receivables (BDT)', readonly: true },
+        { name: 'days_sales_outstanding', label: 'Days Sales Outstanding (DSO)', readonly: true },
+      ]},
+      { tab: 'consent', title: 'Data Privacy & Consent Register Compliance',
+        note: 'Customer privacy preferences governing SMS, push notifications, and telephone outreach under Bangladesh Telecom & PDPA regulations.',
+        fields: [
+          { name: 'consent_ids', label: 'Statutory Consent Records', readonly: true },
+          { name: 'active', label: 'Active Operational Status' },
+        ]},
+      { tab: 'hierarchy', title: 'Parent Corporate Account & Branch Consolidation', fields: [
+        { name: 'parent_id', label: 'Parent Corporate Account (Holding Company)' },
+        { name: 'child_ids', label: 'Subsidiaries & Branch Office Locations', readonly: true },
+        { name: 'commercial_company_name', label: 'Consolidated Commercial Name', readonly: true },
+      ]},
+      { tab: 'docs', title: 'Cryptographic Document Repository & KYC Verification',
+        note: 'Scanned copies of National ID (Smart NID), Municipal Trade License, e-TIN certificate, and Bank Solvency verification records.',
+        fields: [
+          { name: 'identity_document_ids', label: 'Verified KYC Identity Documents', readonly: true },
+          { name: 'approval_ids', label: 'Registration Approval History', readonly: true },
+        ]},
+      { tab: 'audit', title: 'Party Lifecycle Governance & System Timestamps', fields: [
+        { name: 'party_status', label: 'Party Lifecycle Governance Status' },
+        { name: 'status_reason', label: 'Status Reason / Audit Justification' },
+        { name: 'status_since', label: 'Status Effective Date', readonly: true },
+        { name: 'create_date', label: 'Initial Registration Timestamp', readonly: true },
+        { name: 'write_date', label: 'Last System Modification Timestamp', readonly: true },
+      ]}
+    ] },
+
+  'M33-form-role': { kind: 'model_form', model: 'fix.party.role',
+    title: 'Party Role', back: 'M33-party',
+    status: { field: 'role_status' },
+    tabs: [
+      { id: 'general', label: '1. Role Definition', bn: '১. ভূমিকার বিবরণ', icon: '🏷️', badge: '4' },
+      { id: 'scope', label: '2. Company & Scope', bn: '২. কোম্পানি ও পরিধি', icon: '🏢', badge: '2' },
+      { id: 'lifecycle', label: '3. Lifecycle & Validity', bn: '৩. মেয়াদ ও অবস্থা', icon: '⏳', badge: '2' },
+      { id: 'audit', label: '4. Kernel Design Rule', bn: '৪. কার্নেল নকশা নিয়ম', icon: '⚙️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Role Assignment', fields: [
+        { name: 'partner_id', required: true, label: 'The ONE Party' },
+        { name: 'role_type', required: true, label: 'Role Type' },
+        { name: 'role_status', required: true, label: 'Role Status' },
+        { name: 'since', readonly: true, label: 'Active Since' },
+      ]},
+      { tab: 'scope', title: 'Operating Scope', fields: [
+        { name: 'company_id', label: 'Company' },
+        { name: 'operating_unit_id', label: 'Operating Unit' },
+      ]},
+      { tab: 'lifecycle', title: 'Validity & Authority', fields: [
+        { name: 'role_status', label: 'Status' },
+      ]},
+      { tab: 'audit', title: 'The Architectural Design Rule',
+        note: 'A party with three roles has THREE role records pointing at the SAME party — never three separate master records. Duplicate masters are the failure this kernel exists to prevent.',
+        fields: [] }
+    ] },
+
+  'M33-form-address': { kind: 'model_form', model: 'fix.bd.address',
+    title: 'Address with GPS', back: 'M33-directory',
+    tabs: [
+      { id: 'owner', label: '1. Owner & Purpose', bn: '১. স্বত্বাধিকারী ও উদ্দেশ্য', icon: '👤', badge: '3' },
+      { id: 'geo', label: '2. Administrative Hierarchy', bn: '২. প্রশাসনিক স্তর (বিভাগ/জেলা)', icon: '🗺️', badge: '8' },
+      { id: 'street', label: '3. Street & House Details', bn: '৩. রাস্তা ও বাড়ির বিবরণ', icon: '🏠', badge: '2' },
+      { id: 'gps', label: '4. GPS & Geolocation', bn: '৪. জিপিএস ও অবস্থান', icon: '📍', badge: '3' }
+    ],
+    sections: [
+      { tab: 'owner', title: 'Owner & Purpose', fields: [
+        { name: 'party_id', label: 'Party' },
+        { name: 'address_tag', label: 'Address Tag / Label' },
+        { name: 'landmark', label: 'Prominent Landmark' },
+      ]},
+      { tab: 'geo', title: 'Bangladesh Administrative Structure (BN-007 §4)', fields: [
+        { name: 'division', required: true, label: 'Division' },
+        { name: 'division_bn', label: 'Division (Bengali)' },
+        { name: 'district', required: true, label: 'District' },
+        { name: 'district_bn', label: 'District (Bengali)' },
+        { name: 'upazila', label: 'Upazila / Thana' },
+        { name: 'upazila_bn', label: 'Upazila / Thana (Bengali)' },
+        { name: 'union_or_ward', label: 'Union / Ward' },
+        { name: 'postcode', label: 'Postcode (4 digits)' },
+      ]},
+      { tab: 'street', title: 'Street & House Numbering', fields: [
+        { name: 'street', label: 'Street / Road' },
+        { name: 'house', label: 'House / Building / Flat' },
+      ]},
+      { tab: 'gps', title: 'GPS Geolocation & Dispatch Coordinates (FR-CPM-016)',
+        note: 'BN-007 §4: the address renders house → road → upazila → district → postcode — the inverse of the Western order. Field dispatch relies on precision GPS coordinates and the landmark.',
+        fields: [
+          { name: 'latitude', label: 'GPS Latitude' },
+          { name: 'longitude', label: 'GPS Longitude' },
+        ]}
+    ] },
+
+  'M33-form-identity': { kind: 'model_form', model: 'fix.identity.document',
+    title: 'Identity Document', back: 'M33-identity',
+    status: { field: 'verification_status' },
+    tabs: [
+      { id: 'document', label: '1. Document Details', bn: '১. পরিচয়পত্র হেডার', icon: '🪪', badge: '4' },
+      { id: 'verification', label: '2. Verification Status', bn: '২. যাচাইকরণ ও অবস্থা', icon: '✅', badge: '6' },
+      { id: 'residency', label: '3. Z4 Residency Classification', bn: '৩. ডেটা রেসিডেন্সি (Z4)', icon: '🔒', badge: '1' },
+      { id: 'docs', label: '4. Scans & Evidence', bn: '৪. নথির স্ক্যান কপি', icon: '📎', badge: '2' }
+    ],
+    sections: [
+      { tab: 'document', title: 'Document Header', fields: [
+        { name: 'partner_id', required: true, label: 'Party' },
+        { name: 'document_type', required: true, label: 'Document Type' },
+        { name: 'document_number', label: 'Document Number' },
+        { name: 'is_primary', label: 'Primary Document' },
+      ]},
+      { tab: 'verification', title: 'Verification Audit', fields: [
+        { name: 'verification_status', readonly: true, label: 'Verification Status' },
+        { name: 'checksum_valid', readonly: true, label: 'Checksum Valid' },
+        { name: 'expiry_date', label: 'Document Expiry Date' },
+        { name: 'issuing_country', label: 'Issuing Country' },
+        { name: 'verified_by', readonly: true, label: 'Verified By' },
+        { name: 'verified_at', readonly: true, label: 'Verified Timestamp' },
+      ]},
+      { tab: 'residency', title: 'Residency Classification (PDPA Z4)',
+        note: 'RESIDENCY-CLASSIFIED: The document number routes through the residency service to the Bangladesh-resident store (Z4); the regional database holds only the pointer — the value never appears in caches, logs, or exports (FR-CPM-021, NFR-086/099).',
+        fields: [] },
+      { tab: 'docs', title: 'Scanned Document Attachment',
+        note: 'Attach front and back scanned copy of the statutory identity document. SHA-256 cryptographic verification checksum is generated automatically upon upload.',
+        fields: [] }
+    ] },
+
+  'M33-form-credit': { kind: 'model_form', model: 'fix.credit.profile',
+    title: 'Credit Profile', back: 'M33-credit',
+    status: { field: 'credit_hold', labels: { true: 'On Hold', false: 'Active' } },
+    tabs: [
+      { id: 'terms', label: '1. Credit Limit & Terms', bn: '১. ক্রেডিট সীমা ও শর্ত', icon: '💳', badge: '3' },
+      { id: 'hold', label: '2. Credit Hold & Exposure', bn: '২. ক্রেডিট হোল্ড ও এক্সপোজার', icon: '🛑', badge: '4' },
+      { id: 'enforcement', label: '3. Enforcement Governance', bn: '৩. কার্যকরীকরণ নিয়ম', icon: '⚖️', badge: '1' },
+      { id: 'audit', label: '4. Review & Audit Trail', bn: '৪. রিভিউ ট্রেইল', icon: '⚙️', badge: '2' }
+    ],
+    sections: [
+      { tab: 'terms', title: 'Customer Credit Terms', fields: [
+        { name: 'customer_id', required: true, label: 'Customer' },
+        { name: 'credit_limit', label: 'Credit Limit (BDT)' },
+        { name: 'payment_terms_days', required: true, label: 'Payment Terms (Days)' },
+      ]},
+      { tab: 'hold', title: 'Hold & Real-Time Exposure', fields: [
+        { name: 'credit_hold', readonly: true, label: 'Credit Hold Placed' },
+        { name: 'hold_reason', label: 'Credit Hold Reason' },
+        { name: 'exposure', readonly: true, label: 'Total Current Exposure (BDT)' },
+        { name: 'over_limit', readonly: true, label: 'Over Credit Limit' },
+      ]},
+      { tab: 'enforcement', title: 'Enforcement Governance',
+        note: 'M33 holds the limit and the hold status; M20 enforces it at order intake and invoice generation time (spec §3.3). Placing or releasing a hold is executed via the Toggle Hold action on the Credit Profiles screen with mandatory reason.',
+        fields: [] },
+      { tab: 'audit', title: 'DOFA Approval & Credit Review',
+        note: 'Credit limit assignments exceeding BDT 500,000 require Head of Commercial DOFA authorization. Audit trail captures all limit revisions and hold toggle timestamps.',
+        fields: [] }
+    ] },
+
+  'M33-form-merge': { kind: 'model_form', model: 'fix.party.merge',
+    title: 'Merge Request', back: 'M33-merge',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'records', label: '1. Merge Pair Records', bn: '১. মার্জ রেকর্ডস', icon: '🔀', badge: '2' },
+      { id: 'execution', label: '2. Execution & Timing', bn: '২. সম্পাদন ও রিভার্সাল', icon: '⏳', badge: '5' },
+      { id: 'decisions', label: '3. Field Decisions Audit', bn: '৩. ক্ষেত্রভিত্তিক সিদ্ধান্ত', icon: '📋', badge: '1' },
+      { id: 'governance', label: '4. Data Steward Governance', bn: '৪. সুশাসন নিয়মাবলী', icon: '⚖️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'records', title: 'Merge Candidate Pair', fields: [
+        { name: 'survivor_id', required: true, label: 'Survivor (Golden Record)' },
+        { name: 'victim_id', required: true, label: 'Victim (Tombstoned)' },
+      ]},
+      { tab: 'execution', title: 'Merge Execution Status', fields: [
+        { name: 'state', readonly: true, label: 'Merge State' },
+        { name: 'requested_at', readonly: true, label: 'Requested Timestamp' },
+        { name: 'executed_by', readonly: true, label: 'Executed By' },
+        { name: 'executed_at', readonly: true, label: 'Executed Timestamp' },
+        { name: 'reversible_until', readonly: true, label: 'Reversible Until' },
+      ]},
+      { tab: 'decisions', title: 'Move Audit & Attribute Reconciliation', fields: [
+        { name: 'attribute_decisions', label: 'What Moved / What Was Skipped', readonly: true },
+      ]},
+      { tab: 'governance', title: 'Data Steward Governance Law',
+        note: 'Automated merge is strictly prohibited (BRU-CPM-04). Execution is a human data-steward action, refused when the steward created either record (SOD-15); the victim is tombstoned, never deleted, and every downstream module re-points on party.merged.',
+        fields: [] }
+    ] },
+
+  'M33-form-consent': { kind: 'model_form', model: 'fix.consent',
+    title: 'Consent Record', back: 'M33-consent',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'consent', label: '1. Consent Scope', bn: '১. সম্মতির পরিধি', icon: '📜', badge: '4' },
+      { id: 'evidence', label: '2. Proof Reference & Notice', bn: '২. প্রমাণক রেফারেন্স', icon: '🔐', badge: '5' },
+      { id: 'lifecycle', label: '3. Lifecycle & Withdrawal', bn: '৩. প্রত্যাহার ও মেয়াদ', icon: '⏳', badge: '2' },
+      { id: 'pdpa', label: '4. PDPA Legal Mandate', bn: '৪. পিডিপিএ বিধান', icon: '⚖️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'consent', title: 'Consent Definition', fields: [
+        { name: 'partner_id', required: true, label: 'Party' },
+        { name: 'purpose', required: true, label: 'Processing Purpose' },
+        { name: 'channel', required: true, label: 'Communication Channel' },
+        { name: 'state', required: true, label: 'Consent State' },
+      ]},
+      { tab: 'evidence', title: 'Evidence & Transparency Notice Link', fields: [
+        { name: 'notice_version_id', label: 'Transparency Notice Version' },
+        { name: 'proof', label: 'Proof Reference / OTP Token' },
+        { name: 'source', label: 'Capture Channel / Portal' },
+        { name: 'date_granted', readonly: true, label: 'Date Granted' },
+        { name: 'date_withdrawn', readonly: true, label: 'Date Withdrawn' },
+      ]},
+      { tab: 'lifecycle', title: 'Withdrawal & Append-Only Log',
+        note: 'Under the Bangladesh PDPA, a customer can withdraw consent at any time. Withdrawal does not erase historical audit trails; it appends a withdrawal event superseding the grant.',
+        fields: [] },
+      { tab: 'pdpa', title: 'Statutory PDPA Consent Requirements',
+        note: 'A granted consent requires BOTH its cryptographic proof reference and the transparency notice version presented at the time of capture (BRU-CPM-08).',
+        fields: [] }
+    ] },
+
+  'M33-form-dsr': { kind: 'model_form', model: 'fix.rights.request',
+    title: 'Data-Subject Request', back: 'M33-dsr',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'request', label: '1. Request Scope', bn: '১. অনুরোধের বিবরণ', icon: '📝', badge: '4' },
+      { id: 'decision', label: '2. Decision & Evidence Ref', bn: '২. সিদ্ধান্ত ও প্রমাণক', icon: '✅', badge: '6' },
+      { id: 'sla', label: '3. Statutory Clock & SLA', bn: '৩. সংবিধিবদ্ধ সময়সীমা', icon: '⏱️', badge: '1' },
+      { id: 'audit', label: '4. Governance Action', bn: '৪. সুশাসন পদক্ষেপ', icon: '⚙️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'request', title: 'Data Subject Request Definition', fields: [
+        { name: 'partner_id', required: true, label: 'Party' },
+        { name: 'request_type', required: true, label: 'Request Type (Access/Rectification/Erasure)' },
+        { name: 'received_at', readonly: true, label: 'Received Timestamp' },
+        { name: 'statutory_due', readonly: true, label: 'Statutory Due Date (30 Days)' },
+      ]},
+      { tab: 'decision', title: 'Decision & Fulfillment Evidence', fields: [
+        { name: 'identity_verified', readonly: true, label: 'Identity Verified' },
+        { name: 'evidence_ref', label: 'Evidence Reference / Export Link' },
+        { name: 'fulfilled_at', readonly: true, label: 'Fulfilled Timestamp' },
+        { name: 'notified_at', label: 'Party Notified Timestamp' },
+        { name: 'decision', label: 'Decision Summary' },
+        { name: 'rejected_reason', label: 'Rejection Legal Basis' },
+      ]},
+      { tab: 'sla', title: 'PDPA 30-Day Statutory Clock',
+        note: 'Bangladesh PDPA mandates that data subject requests must be fulfilled or legally refused within 30 calendar days of verified identity receipt.',
+        fields: [] },
+      { tab: 'audit', title: 'Data Protection Officer (DPO) Action',
+        note: 'Verification and fulfillment actions must be authenticated by the designated Data Protection Officer. Rectification requests must issue notifications to all integrated services.',
+        fields: [] }
+    ] },
+
+  'M33-form-segment': {
+    lines: {
+      field: 'membership_ids',
+      title: 'Segment Members',
+      note: 'Who is in this segment, and when they entered or left it.',
+      fields: [
+        { name: 'partner_id', label: 'Party', required: true },
+        { name: 'entered_at', label: 'Entered' },
+        { name: 'exited_at', label: 'Exited' }
+      ]
+    }, kind: 'model_form', model: 'fix.segment',
+    title: 'Customer Segment', back: 'M33-segments',
+    tabs: [
+      { id: 'definition', label: '1. Segment Definition', bn: '১. সেগমেন্ট সংজ্ঞা', icon: '🎯', badge: '5' },
+      { id: 'criteria', label: '2. Dynamic Domain Query', bn: '২. ডোমেন মানদণ্ড', icon: '🔍', badge: '1' },
+      { id: 'membership', label: '3. Membership & Publishing', bn: '৩. সদস্যপদ ও ইভেন্ট', icon: '👥', badge: '1' }
+    ],
+    sections: [
+      { tab: 'definition', title: 'Segment Profile & Evaluation Mode', fields: [
+        { name: 'code', required: true, label: 'Segment Code' },
+        { name: 'name', required: true, label: 'Segment Name' },
+        { name: 'name_bn', label: 'Segment Name (Bengali)' },
+        { name: 'evaluation_mode', label: 'Evaluation Mode (Manual / Dynamic)' },
+        { name: 'active', label: 'Active Status' },
+      ]},
+      { tab: 'criteria', title: 'Query Filtering Criteria (JSON)', fields: [
+        { name: 'criteria_json', label: 'Criteria (JSON Domain Rule)' },
+      ]},
+      { tab: 'membership', title: 'Audience Publishing & Sync',
+        note: 'Membership changes publish event segment.membership_changed. Downstream campaigns (M35) and notification dispatchers subscribe to audience rosters.',
+        fields: [] }
+    ] },
+
+  'M33-form-hierarchy': { kind: 'model_form', model: 'fix.party.hierarchy',
+    title: 'Account Hierarchy Link', back: 'M33-hierarchy',
+    tabs: [
+      { id: 'edge', label: '1. Relationship Link', bn: '১. সম্পর্ক লিংক', icon: '🏢', badge: '3' },
+      { id: 'validity', label: '2. Validity Window', bn: '২. সময়কাল', icon: '📅', badge: '2' },
+      { id: 'governance', label: '3. Corporate Group Governance', bn: '৩. কর্পোরেট গ্রুপ নিয়ম', icon: '⚖️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'edge', title: 'Corporate / Household Edge Link', fields: [
+        { name: 'parent_id', required: true, label: 'Parent Corporate Entity' },
+        { name: 'child_id', required: true, label: 'Child Entity / Branch' },
+        { name: 'relation_type', required: true, label: 'Relationship Type' },
+      ]},
+      { tab: 'validity', title: 'Validity Window', fields: [
+        { name: 'date_from', required: true, label: 'Effective Date From' },
+        { name: 'date_to', label: 'Valid Until (Empty = Indefinite)' },
+      ]},
+      { tab: 'governance', title: 'Hierarchy Governance & Dedup Isolation',
+        note: 'One party relates to another for an explicit corporate or household reason. Inactive relations retain historical date_to stamps and are never deleted, ensuring dedup merges never orphan relationships.',
+        fields: [] }
+    ] },
+
+  'M33-form-approval': { kind: 'model_form', model: 'fix.registration.approval',
+    title: 'Registration Approval', back: 'M33-approval',
+    status: { field: 'admin_state', labels: { approved: 'Fully Approved', pending: 'In Chain', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'applicant', label: '1. Application Header', bn: '১. আবেদন হেডার', icon: '📝', badge: '3' },
+      { id: 'tier1', label: '2. Tier 1 Client Manager', bn: '২. স্তর ১ ক্লায়েন্ট ম্যানেজার', icon: '👤', badge: '3' },
+      { id: 'tier2', label: '3. Tier 2 1000FiX Admin', bn: '৩. স্তর ২ ১০০০ফিক্স অ্যাডমিন', icon: '🛡️', badge: '4' },
+      { id: 'rules', label: '4. Two-Tier Governance Rules', bn: '৪. দ্বি-স্তরীয় সুশাসন', icon: '⚖️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'applicant', title: 'Registration Application Header', fields: [
+        { name: 'partner_id', required: true, label: 'Party' },
+        { name: 'party_class', required: true, label: 'Party Classification' },
+        { name: 'requested_at', readonly: true, label: 'Requested Timestamp' },
+      ]},
+      { tab: 'tier1', title: 'Tier 1 — Client Line Manager Sign-off', fields: [
+        { name: 'lm_state', readonly: true, label: 'Line Manager Decision' },
+        { name: 'lm_decided_by', readonly: true, label: 'Line Manager Approver' },
+        { name: 'lm_decided_at', readonly: true, label: 'Decision Timestamp' },
+      ]},
+      { tab: 'tier2', title: 'Tier 2 — 1000FiX Corporate Administrator', fields: [
+        { name: 'admin_state', readonly: true, label: 'Admin Decision' },
+        { name: 'admin_decided_by', readonly: true, label: 'Admin Approver' },
+        { name: 'admin_decided_at', readonly: true, label: 'Admin Decision Timestamp' },
+        { name: 'reason', label: 'Approval / Rejection Justification' },
+      ]},
+      { tab: 'rules', title: 'Mandatory Two-Tier Dual Sign-off Rule',
+        note: 'Dealer, corporate, and government accounts can only transact after BOTH the client organization line manager and 1000FiX corporate administrator formally approve (BRU-CRM-02 / BRU-CPM-02).',
+        fields: [] }
+    ] },
+
+  'M33-form-duplicate': { kind: 'model_form', model: 'fix.party.duplicate',
+    title: 'Duplicate Candidate', back: 'M33-dedupe',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'candidate', label: '1. Candidate Pair', bn: '১. প্রার্থী যুগল', icon: '👥', badge: '3' },
+      { id: 'factors', label: '2. Match Scoring Factors', bn: '২. ম্যাচ ফ্যাক্টর ও স্কোর', icon: '📊', badge: '1' },
+      { id: 'stewardship', label: '3. Steward Review & Action', bn: '৩. স্টুয়ার্ড পর্যালোচনা', icon: '⚖️', badge: '3' },
+      { id: 'governance', label: '4. Supervised Merge Rules', bn: '৪. তত্ত্বাবধানে মার্জ নিয়ম', icon: '🛡️', badge: '1' }
+    ],
+    sections: [
+      { tab: 'candidate', title: 'Candidate Pair', fields: [
+        { name: 'party_a', required: true, label: 'Party A' },
+        { name: 'party_b', required: true, label: 'Party B' },
+        { name: 'score', label: 'Composite Match Score (0–100)' },
+      ]},
+      { tab: 'factors', title: 'Matching Weight Factors (JSON)', fields: [
+        { name: 'factors', label: 'Factors (JSON)', placeholder: '{"phone": "exact", "name": "fuzzy"}' },
+      ]},
+      { tab: 'stewardship', title: 'Data Steward Triage & Resolution', fields: [
+        { name: 'state', readonly: true, label: 'Triage State' },
+        { name: 'reviewed_by', readonly: true, label: 'Reviewed By' },
+        { name: 'decision', label: 'Steward Decision Note' },
+      ]},
+      { tab: 'governance', title: 'Zero Automated Merge Policy',
+        note: 'Confirming a duplicate candidate merely opens a supervised merge request. Automated algorithmic merges are prohibited to eliminate accidental entity corruption.',
+        fields: [] }
+    ] },
+
+  /* ===== triage coverage screens ===== */
+  'M33-dedup-rule': { kind: 'model_list', model: 'fix.dedup.rule',
+    cols: ['name', 'active', 'company_id', 'model_id', 'match_fields', 'scope', 'threshold'] },
+  'M33-transparency-notice': { kind: 'model_list', model: 'fix.transparency.notice',
+    cols: ['active', 'company_id', 'version', 'purpose_set', 'published_at', 'retired_at'] },
+
+  'M33-form-dedup-rule': {
+    kind: 'model_form',
+    model: 'fix.dedup.rule',
+    title: "Dedup Rule",
+    back: 'M33-dedup-rule',
+    tabs: [
+      { id: 'rule', label: '1. Rule Definition', bn: '১. নিয়মের বিবরণ', icon: '📐', badge: '3' },
+      { id: 'scope', label: '2. Model & Target Fields', bn: '২. মডেল ও লক্ষ্য ক্ষেত্র', icon: '🎯', badge: '2' },
+      { id: 'threshold', label: '3. Scoring & Thresholds', bn: '৩. থ্রেশহোল্ড ও স্কোর', icon: '⚙️', badge: '2' }
+    ],
+    sections: [
+      { tab: 'rule', title: "Rule Definition & Identification", fields: [
+        { name: 'name', required: true, label: "Rule Name" },
+        { name: 'company_id', required: true, label: "Company" },
+        { name: 'active', label: "Active Status" }
+      ] },
+      { tab: 'scope', title: "Target Scope & Model Selection", fields: [
+        { name: 'model_id', required: true, label: "Target Model" },
+        { name: 'scope', required: true, label: "Evaluation Scope" }
+      ] },
+      { tab: 'threshold', title: "Field Match Normalization & Thresholds",
+        note: "Defines normalized field weights (phone, NID, legal name) and minimum similarity threshold before raising duplicate candidate alerts.",
+        fields: [
+          { name: 'match_fields', required: true, label: "Match Fields (JSON)" },
+          { name: 'threshold', label: "Fuzzy Match Threshold Score" }
+        ] }
+    ]
+  },
+
+  /* ==================================================================
+   * A03 GAP-CLOSURE BUILD - new surfaces for this module
+   * Every cols list was validated against the model's real fields
+   * before generation: /p03/model/records drops unknown columns
+   * silently, so a typo would read as missing data rather than as
+   * a bug.
+   * ================================================================== */
+  'M33-dedup-jobs': { kind: 'model_list', model: 'fix.dedup.job', create: true,
+    cols: ['started_at', 'name', 'state', 'scheduled', 'records_scanned', 'candidates_found', 'candidates_new', 'finished_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_run', l: 'Run Sweep' }
+    ],
+    note: 'Layer (c) of the three-layer duplicate model, and a prerequisite for adding any new uniqueness key to live data.' },
+  'M33-form-dedup-job': {
+    kind: 'model_form', model: 'fix.dedup.job',
+    title: 'Duplicate Detection Job', back: 'M33-dedup-jobs',
+    status: { field: 'state', labels: { draft: 'Draft', running: 'Running', done: 'Completed', failed: 'Failed' } },
+    tabs: [
+      { id: 'job', label: '1. Job', bn: '১. জব', icon: '🔍' },
+      { id: 'result', label: '2. Result', bn: '২. ফলাফল', icon: '📊' }
+    ],
+    sections: [
+      {
+        tab: 'job',
+        title: 'What To Sweep',
+        note: 'These are the SAME rules that warn at data entry — one definition of \'duplicate\', two moments it is applied.',
+        fields: [
+        { name: 'name', label: 'Job Name', required: true },
+        { name: 'rule_ids', label: 'Rules To Run' },
+        { name: 'scheduled', label: 'Created By The Nightly Cron' },
+        { name: 'state', label: 'State', required: true }
+        ]
+      },
+      {
+        tab: 'result',
+        title: 'What It Found',
+        note: 'A uniqueness key cannot be added while stored data violates it, so this layer must run and its merges be worked before any new constraint reaches live data.',
+        fields: [
+        { name: 'started_at', label: 'Started' },
+        { name: 'finished_at', label: 'Finished' },
+        { name: 'records_scanned', label: 'Records Scanned' },
+        { name: 'blocks_compared', label: 'Blocks Compared' },
+        { name: 'candidates_found', label: 'Pairs Matched' },
+        { name: 'candidates_new', label: 'New Candidates' },
+        { name: 'summary', label: 'Per-Rule Summary' },
+        { name: 'error_text', label: 'Error' }
+        ]
+      }
+    ]
+  },
+};
+
+/* built-in report chips -> the computed report screen that shows them */
+export const REPORT_ROUTES = {
+  'M33:Customer Growth by District': 'M33-rpt-growth',
+  'M33:Data Quality Scorecard': 'M33-rpt-scorecard',
+  'M33:Duplicate Merge Audit': 'M33-rpt-mergeaudit',
+  'M33:Consent Coverage Report': 'M33-rpt-consentcov',
+  'M33:Credit Exposure by Segment': 'M33-rpt-creditexp',
+  'M33:Corporate Hierarchy Map': 'M33-rpt-hiermap'
+};
+
+/* data-entry form chips -> the module's IN-WORKSPACE D365 form screens. */
+export const FORM_CHIPS = {
+  'M33:Duplicate Detection Job': 'M33-form-dedup-job',
+  'M33:Party Master': 'M33-form-party',
+  'M33:Party (multi-role)': 'M33-form-role',
+  'M33:Address with GPS': 'M33-form-address',
+  'M33:Identity Document': 'M33-form-identity',
+  'M33:Credit Profile': 'M33-form-credit',
+  'M33:Merge Request': 'M33-form-merge',
+  'M33:__by_model__': {
+    'fix.dedup.job': 'M33-form-dedup-job',
+    'fix.transparency.notice': 'M33-form-transparency',
+    'fix.dedup.rule': 'M33-form-dedup-rule',
+    'res.partner': 'M33-form-party',
+    'fix.party.role': 'M33-form-role',
+    'fix.bd.address': 'M33-form-address',
+    'fix.identity.document': 'M33-form-identity',
+    'fix.credit.profile': 'M33-form-credit',
+    'fix.party.merge': 'M33-form-merge',
+    'fix.consent': 'M33-form-consent',
+    'fix.rights.request': 'M33-form-dsr',
+    'fix.segment': 'M33-form-segment',
+    'fix.party.hierarchy': 'M33-form-hierarchy',
+    'fix.registration.approval': 'M33-form-approval',
+    'fix.party.duplicate': 'M33-form-duplicate'
+  },
+  'M33:__by_screen__': {
+    'M33-dedup-jobs': 'M33-form-dedup-job',
+    'M33-directory': 'M33-form-party',
+    'M33-party': 'M33-form-party',
+    'M33-form-party': 'M33-form-party',
+    'M33-hierarchy': 'M33-form-hierarchy',
+    'M33-identity': 'M33-form-identity',
+    'M33-approval': 'M33-form-approval',
+    'M33-dedupe': 'M33-form-duplicate',
+    'M33-merge': 'M33-form-merge',
+    'M33-consent': 'M33-form-consent',
+    'M33-dsr': 'M33-form-dsr',
+    'M33-segments': 'M33-form-segment',
+    'M33-credit': 'M33-form-credit',
+    'M33-dedup-rule': 'M33-form-dedup-rule',
+    'M33-transparency-notice': 'M33-form-transparency'
+  }
+};
+
+/* the models behind each chip (kept for the last-resort dialog fallback) */
+export const FORM_MODELS = {
+  'M33:Duplicate Detection Job': 'fix.dedup.job',
+  'M33:Party Master': 'res.partner',
+  'M33:Party (multi-role)': 'fix.party.role',
+  'M33:Address with GPS': 'fix.bd.address',
+  'M33:Identity Document': 'fix.identity.document',
+  'M33:Credit Profile': 'fix.credit.profile',
+  'M33:Merge Request': 'fix.party.merge'
+};
+
+/* the module's "+ New" surface: the party itself is the anchor record. */
+export const CREATE = {
+  M33: { screen: 'M33-form-party', model: 'res.partner', label: 'Party' }
+};

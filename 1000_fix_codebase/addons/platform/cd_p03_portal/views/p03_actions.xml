@@ -2,10 +2,18 @@
 <!-- P03 actions — the workspace client action (A2) + role centers (A1). -->
 <odoo>
 
-    <!-- The P03 workspace: registry-driven, one per back-office session -->
+    <!-- The P03 workspace: registry-driven, one per back-office session.
+         Path "operations" gives the D365 workspace its canonical backend
+         URL /odoo/operations (admin's home action — /odoo and login land
+         there). Odoo's Discuss app (mail.action_discuss) keeps its stock
+         record exactly as mail ships it: it serves the Team Chat at
+         /odoo/discuss, restyled to the estate's D365/Fluent identity by
+         the cd_d365_chrome module — never overridden here, so mail's own
+         XML can never collide on the unique path constraint. -->
     <record id="action_p03_workspace" model="ir.actions.client">
         <field name="name">Operations Workspace</field>
         <field name="tag">p03_workspace</field>
+        <field name="path">operations</field>
     </record>
 
     <menuitem id="menu_p03_home" name="P03 Workspace"
@@ -19,12 +27,6 @@
     <record id="base.user_root" model="res.users">
         <field name="action_id" ref="action_p03_workspace"/>
     </record>
-
-    <!-- Odoo's Discuss app (mail.action_discuss / mail.menu_root_discuss) is
-         left as Odoo ships it: overriding it here replaced internal chat with
-         the workspace. The workspace has its own menu (menu_p03_home) and is
-         the users' home action above; migrations/19.0.1.0.1 restores Discuss
-         on databases that carried the old override. -->
 
     <!-- The four persona role centers (registry personas: super/ops/
          finance/branch) — each opens the workspace pre-scoped. Dedicated

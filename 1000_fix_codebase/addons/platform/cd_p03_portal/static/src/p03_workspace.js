@@ -14,8 +14,8 @@ import { registry } from "@web/core/registry";
 import { useService } from "@web/core/utils/hooks";
 import { rpc } from "@web/core/network/rpc";
 import { user } from "@web/core/user";
-import { Component, onWillStart, onWillUnmount, useState, markup } from "@odoo/owl";
-import { P03_AREAS, P03_MODULES, P03_ROLES, generateGridData, P03_LIVE_SCREENS, P03_MODULE_CREATE, P03_FORM_MODELS, P03_DATA_SCREENS } from "./p03_modules_meta";
+import { Component, onWillStart, onWillUnmount, onMounted, useState, markup } from "@odoo/owl";
+import { P03_AREAS, P03_MODULES, P03_ROLES, generateGridData, P03_LIVE_SCREENS, P03_MODULE_CREATE, P03_FORM_MODELS, P03_FORM_CHIPS, P03_DATA_SCREENS } from "./p03_modules_meta";
 import { P03_BN, P03_STATES } from "./p03_i18n";
 import { P03_REPORT_ROUTES } from "./p03_modules_meta";
 
@@ -273,8 +273,19 @@ export class P03Workspace extends Component {
 
             // Live backend caches
             stats: null,
-            recentOrders: []
+            recentOrders: [],
+
+            // Universal RECORD TAB pane (user directive 2026-10-29: a record
+            // opens in its OWN tab, never inline below the grid). Holds
+            // { tabId, kind, id, title, subtitle, loading, data, error, ... }.
+            recView: null,
         });
+
+        // Per-tab record payload cache: switching between record tabs is
+        // instant and in-progress data is not refetched (ServiceNow/xmatix
+        // session-tab guidance — state preservation on return).
+        this._recCache = {};
+        this._REC_TAB_CAP = 16;
 
         this.bpfStages = [
             { id: 1, name: "Received", state: "intake" },
@@ -317,10 +328,13 @@ export class P03Workspace extends Component {
             if (!mid) {
                 return;
             }
+            // Set the module BEFORE the screen: openScreen alone leaves the
+            // breadcrumb and the module rail on whatever was last open, so a
+            // deep-linked screen showed another module's context entirely
+            // (A04 audit, 2026-10-31 — the P01 portal embed uses this path).
+            this.openModule(mid);
             if (data.s && typeof data.s === "string" && data.s.length <= 64) {
                 this.openScreen(data.s);
-            } else {
-                this.openModule(mid);
             }
             if (ev.source && ev.source.postMessage) {
                 ev.source.postMessage(
@@ -332,7 +346,21 @@ export class P03Workspace extends Component {
         window.addEventListener("message", this._onPortalMessage);
         this._initLang();
         window.addEventListener("message", this._onEmbedLocale);
+        onMounted(() => {
+            // A11y: suppress keyboard trap on hidden Odoo stock navbar
+            const nav = document.querySelector(".o_navbar");
+            if (nav) {
+                nav.setAttribute("aria-hidden", "true");
+                nav.setAttribute("inert", "");
+            }
+        });
+
         onWillUnmount(() => {
+            const nav = document.querySelector(".o_navbar");
+            if (nav) {
+                nav.removeAttribute("aria-hidden");
+                nav.removeAttribute("inert");
+            }
             window.removeEventListener("message", this._onPortalMessage);
             if (this._onEmbedLocale) window.removeEventListener("message", this._onEmbedLocale);
         });
@@ -657,7 +685,15 @@ export class P03Workspace extends Component {
     kpiValue(kpi) {
         if (kpi.m && this.state.financeKpis && this.state.financeKpis[kpi.m] != null) {
             const v = this.state.financeKpis[kpi.m];
-            return typeof v === "number" && !Number.isInteger(v) ? v.toLocaleString("en-BD", { maximumFractionDigits: 0 }) : String(v);
+            // BN-007 South-Asian grouping, same as the grids (lakh/crore) —
+            // a KPI and its report must not disagree on digit grouping
+            const num = typeof v === "number"
+                ? v.toLocaleString("en-IN", { maximumFractionDigits: 2 })
+                : String(v);
+            // `suffix` declares the unit on the fragment's KPI (%, ৳, h…) —
+            // a bare number on a rate tile reads as a count (audit D2);
+            // `prefix` does the same for money (৳ 65,700).
+            return (kpi.prefix || "") + num + (kpi.suffix || "");
         }
         return "—";
     }
@@ -694,21 +730,57 @@ export class P03Workspace extends Component {
                 this.openScreen("M20-invoice");
                 return;
             }
+            if (create.screen && P03_DATA_SCREENS[create.screen]) {
+                const cfg = P03_DATA_SCREENS[create.screen];
+                this.openFormScreen(
+                    create.screen,
+                    { sc: { en: cfg.title || create.label, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+                    cfg
+                );
+                return;
+            }
+            if (this.openModuleFormForModel(create.model)) {
+                return;
+            }
             this.openModelForm(create.model, create.label);
             return;
         }
         this.openNewForm();
     }
 
-    /* Open a REAL Odoo form view for a model (finance data-entry forms). */
+    /* Open a REAL Odoo form view for a model — LAST-RESORT fallback only.
+     * D365 screen convention (user directive 2026-10-27): data-entry chips
+     * open the module's in-workspace D365 form screen (P03_FORM_CHIPS →
+     * P03_DATA_SCREENS model_form). A dialog is used only when the module
+     * declares no form screen for the target model. */
     openModelForm(resModel, label) {
         this.actionService.doAction({
             type: "ir.actions.act_window",
             name: label || "New Record",
             res_model: resModel,
             views: [[false, "form"]],
-            target: "current",
+            target: "new",
         });
+    }
+
+    /* Open the in-workspace D365 form for a model when the active module
+     * declares one. Screen-specific overrides win (e.g. the Leads grid
+     * creates a lead, the Opportunities grid an opportunity), then the
+     * model map. Returns true when it opened. */
+    openModuleFormForModel(model, recordId) {
+        const mid = this.state.activeModuleId;
+        const chips = P03_FORM_CHIPS || {};
+        const byScreen = chips[`${mid}:__by_screen__`] || {};
+        const byModel = chips[`${mid}:__by_model__`] || {};
+        const gl = this.state.gl;
+        const screenId = gl && gl.screenId;
+        const formScreen = (screenId && byScreen[screenId]) || byModel[model];
+        if (formScreen && P03_DATA_SCREENS[formScreen]) {
+            const cfg = { ...P03_DATA_SCREENS[formScreen], recordId: recordId || null };
+            this.openFormScreen(formScreen, this.state.activeScreen ? { sc: this.state.activeScreen, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } } : null, cfg);
+            return true;
+        }
+        return false;
     }
 
     /* Data-entry form chips: A08 modules open their real model form; other
@@ -724,18 +796,24 @@ export class P03Workspace extends Component {
                 this.openScreen("M20-invoice");
                 return;
             }
-            if (/receipt/i.test(formLabel)) {
-                this.openScreen("M20-receipts");
-                return;
-            }
-            if (/payment link/i.test(formLabel)) {
-                this.openScreen("M20-links");
-                return;
-            }
-            if (/credit note|refund/i.test(formLabel)) {
-                this.openScreen("M20-refunds");
-                return;
-            }
+            // Receipt / Credit Note / Refund / Payment Link / VDS now have
+            // their own D365 form screens (P03_FORM_CHIPS) — the old
+            // list-routing shortcuts are gone (D17: a form chip must never
+            // land on a list).
+        }
+        // D365 form screen wins FIRST: a chip with an in-workspace form
+        // routes even when the module declares no FORM_MODELS entry (M01's
+        // Estimate/QC chips hit this — the check used to sit inside the
+        // `mapped` branch and never ran; audit D-M01-3).
+        const chipScreen = (P03_FORM_CHIPS && P03_FORM_CHIPS[`${mid}:${formLabel}`]) || null;
+        if (chipScreen && P03_DATA_SCREENS[chipScreen]) {
+            const cfg = P03_DATA_SCREENS[chipScreen];
+            this.openFormScreen(
+                chipScreen,
+                { sc: { en: cfg.title || formLabel, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+                cfg
+            );
+            return;
         }
         const mapped = P03_FORM_MODELS[`${mid}:${formLabel}`];
         if (mapped) {
@@ -749,10 +827,140 @@ export class P03Workspace extends Component {
         const create = P03_MODULE_CREATE[mid];
         if (create) {
             // Module has a live create surface — use it rather than nothing.
+            if (create.screen && P03_DATA_SCREENS[create.screen]) {
+                const cfg = P03_DATA_SCREENS[create.screen];
+                this.openFormScreen(
+                    create.screen,
+                    { sc: { en: cfg.title || create.label, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+                    cfg
+                );
+                return;
+            }
+            if (this.openModuleFormForModel(create.model)) {
+                return;
+            }
             this.openModelForm(create.model, create.label);
             return;
         }
         this.openNewForm();
+    }
+
+    /* Report exports: the download hits the SAME pack function the screen
+     * renders — the export cannot drift from what the user sees. xlsx is
+     * the presentation artefact (brand header, meta, totals); csv is raw.
+     */
+    exportReport(format) {
+        const gl = this.state.gl;
+        const cfg = gl && gl.reportCfg;
+        if (!cfg) return;
+        const params = new URLSearchParams({ module: cfg.module, report: cfg.report, format });
+        if (cfg.period !== false) {
+            params.set("date_from", gl.stmtFrom);
+            params.set("date_to", gl.stmtTo);
+        }
+        Object.entries(cfg.params || {}).forEach(([k, v]) => params.set(k, v));
+        Object.entries(gl.reportFilters || {}).forEach(([k, v]) => {
+            if (v && v !== "All") params.set(k, v);
+        });
+        window.open(`/p03/model/report/export?${params.toString()}`, "_blank");
+    }
+
+    /* Print-ready PDF document: a self-contained page (brand header,
+     * report meta, repeating table head, totals, notes, footer) — the
+     * browser's Save-as-PDF produces the professional artefact; the app
+     * chrome never leaks into the document. */
+    printReportPdf() {
+        const html = this._reportPrintHtml();
+        if (!html) { this.showToast(this.t("Print preparation failed")); return; }
+        this._reportPrintFrame(html);
+    }
+
+    /* Write the print document into a hidden iframe and print THAT — no
+     * popup blocker can stop it, and it works inside the portal embed. */
+    _reportPrintFrame(docHtml) {
+        const frame = document.createElement("iframe");
+        frame.setAttribute("aria-hidden", "true");
+        frame.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+        document.body.appendChild(frame);
+        frame.contentDocument.open();
+        frame.contentDocument.write(docHtml);
+        frame.contentDocument.close();
+        frame.contentWindow.addEventListener("afterprint", () => setTimeout(() => frame.remove(), 60000));
+        setTimeout(() => {
+            frame.contentWindow.focus();
+            frame.contentWindow.print();
+        }, 150);
+    }
+
+    _reportPrintHtml() {
+        const gl = this.state.gl;
+        const cfg = gl && gl.reportCfg;
+        const data = gl && gl.data;
+        if (!cfg || !data || data.error) return null;
+        const labels = data.labels || {};
+        const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        const fmt = (v) => (typeof v === "number" ? v.toLocaleString() : esc(v));
+        const filtersMeta = Object.entries(gl.reportFilters || {})
+            .filter(([, v]) => v && v !== "All")
+            .map(([k, v]) => `${esc(k)}: ${esc(v)}`)
+            .join(" · ");
+        const period = cfg.period !== false ? `${esc(gl.stmtFrom || "…")} → ${esc(gl.stmtTo || "…")}` : "";
+        const cols = data.cols || [];
+        const totals = data.totals || {};
+        const landscape = cols.length > 6 ? "@page { size: A4 landscape; margin: 14mm 12mm; }" : "@page { size: A4; margin: 16mm 14mm; }";
+        return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(data.title || "Report")}</title>
+<style>
+${landscape}
+body { font-family: Inter, "Segoe UI", "Noto Sans Bengali", sans-serif; color: #242424; margin: 0; }
+.doc-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #0E7A6E; padding-bottom: 8px; margin-bottom: 12px; }
+.brand { font-size: 18px; font-weight: 700; color: #0E7A6E; }
+.brand small { display: block; font-size: 10px; font-weight: 400; color: #616161; }
+h1 { font-size: 15px; margin: 0 0 2px; }
+.meta { font-size: 10px; color: #616161; margin-bottom: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 11px; }
+thead { display: table-header-group; }
+th { background: #0E7A6E; color: #fff; text-align: left; padding: 5px 8px; font-weight: 600; }
+td { padding: 4px 8px; border-bottom: 1px solid #E0E0E0; }
+tbody tr:nth-child(even) td { background: #F5F5F5; }
+tr { break-inside: avoid; }
+td.num, th.num { text-align: right; }
+tfoot td, tr.totals td { font-weight: 700; border-top: 2px solid #0E7A6E; border-bottom: none; }
+.notes { font-size: 9px; color: #616161; margin-top: 10px; }
+.foot { margin-top: 14px; padding-top: 6px; border-top: 1px solid #E0E0E0; font-size: 9px; color: #616161; display: flex; justify-content: space-between; }
+</style></head><body>
+<div class="doc-head">
+  <div class="brand">1000 FiX ERP<small>1000 FiX Services Ltd. — ISO 9001:2015 · Hotline 16743</small></div>
+  <div style="text-align:right; font-size:10px; color:#616161;">${new Date().toLocaleString()}</div>
+</div>
+<h1>${esc(data.title || "")}</h1>
+<div class="meta">${period ? "Period: " + period : ""}${filtersMeta ? (period ? " · " : "") + filtersMeta : ""} · Generated by ${esc(this.userService.name || "")}</div>
+<table><thead><tr>${cols.map((c) => `<th>${esc(labels[c] || c)}</th>`).join("")}</tr></thead>
+<tbody>${(data.rows || []).map((r) => `<tr>${cols.map((c) => `<td class="${typeof r[c] === "number" ? "num" : ""}">${fmt(r[c])}</td>`).join("")}</tr>`).join("")}</tbody>
+${Object.keys(totals).length ? `<tfoot><tr>${cols.map((c) => `<td class="${typeof totals[c] === "number" ? "num" : ""}">${fmt(totals[c])}</td>`).join("")}</tr></tfoot>` : ""}
+</table>
+${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• " + esc(n)).join("<br/>")}</div>` : ""}
+<div class="foot"><span>1000 FiX Services Ltd. — confidential internal report</span><span>${(data.rows || []).length} rows</span></div>
+</body></html>`;
+    }
+
+    /* M32 assistant playground — runs the REAL classifier (/p03/assistant/
+     * classify), not a canned demo. */
+    assistantSet(text) {
+        if (this.state.gl) this.state.gl.assistantText = text;
+    }
+
+    async assistantAsk() {
+        const gl = this.state.gl;
+        if (!gl || gl.assistantBusy) return;
+        gl.assistantBusy = true;
+        try {
+            const res = await this.rpc("/p03/assistant/classify", { text: gl.assistantText || "" });
+            gl.assistantResult = res && !res.error ? res : { error: (res && res.error) || "The assistant did not answer." };
+        } catch (e) {
+            gl.assistantResult = { error: this.t("Connection lost — press ↻ Refresh to reload this screen.") };
+        }
+        gl.assistantBusy = false;
+        this.render(true);
     }
 
     /* ================================================================
@@ -780,6 +988,8 @@ export class P03Workspace extends Component {
             hitM: hit ? hit.m : null,
             modelCfg: config.model ? config : null,
             reportCfg: config.kind === "table_report" ? config : null,
+            reportFilters: {},
+            cfg: config,
             kind: config.kind,
             report: config.report || null,
             title: hit ? hit.sc.en : "GL",
@@ -818,6 +1028,9 @@ export class P03Workspace extends Component {
             arTo: new Date().toISOString().slice(0, 10),
             asOfDate: new Date().toISOString().slice(0, 10),
             snapDetail: null,        // captured snapshot rows
+            assistantText: "",
+            assistantResult: null,
+            assistantBusy: false,
             prompt: null,            // generic reason prompt {title,label,action,id,value}
             mlState: "__all",        // model_list state filter
             mlSelected: null,        // model_list selected row
@@ -834,7 +1047,7 @@ export class P03Workspace extends Component {
             fsBusy: null,            // field order id with an action in flight
         };
         this.state.viewMode = "gl";
-        this.ensureTab(`gl-${screenId}`, `${hit && hit.sc.t === "f" ? "▤" : "⛁"} ${this.state.gl.title}`, "⛁", "gl", { screenId });
+        this.ensureTab(`gl-${screenId}`, this.state.gl.title, hit && hit.sc.t === "f" ? "▤" : "⛁", "gl", { screenId });
         this.loadGlData();
     }
 
@@ -843,6 +1056,13 @@ export class P03Workspace extends Component {
         const gl = this.state.gl;
         if (!gl) return "";
         return (gl.hitSc && this.tBilingual(gl.hitSc)) || gl.title || "";
+    }
+
+    /* Heading icon: the owning module's, not a fixed finance glyph — this
+     * view now renders every area's in-workspace screens, not just M19's. */
+    get glModuleIcon() {
+        const gl = this.state.gl;
+        return (gl && gl.hitM && gl.hitM.icon) || "⛁";
     }
 
     get glModuleTitle() {
@@ -968,18 +1188,35 @@ export class P03Workspace extends Component {
                     params.date_from = gl.stmtFrom;
                     params.date_to = gl.stmtTo;
                 }
+                // pack-declared filters (channel, group-by, …) ride the same
+                // params — exports and screen stay one query
+                Object.entries(gl.reportFilters || {}).forEach(([k, v]) => {
+                    if (v && v !== "All") params[k] = v;
+                });
                 const res = await this.rpc("/p03/model/report", {
                     module: cfg.module, report: cfg.report, params,
                 });
                 gl.data = res.error ? { error: res.error } : res;
             } else if (gl.kind === "model_list") {
-                const res = await this.rpc("/p03/model/records", {
+                // one silent retry — a restart in flight must not leave the
+                // screen parked on an error banner (audit D8: five of the
+                // user's PDFs captured exactly that state)
+                const fetchRows = () => this.rpc("/p03/model/records", {
                     model: gl.modelCfg.model,
                     cols: gl.modelCfg.cols,
                     domain: gl.modelCfg.domain || [],
                     state_field: gl.modelCfg.stateField || null,
                     state_filter: gl.mlState || "__all",
+                    // bilingual headers: field labels follow the UI language
+                    lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
                 });
+                let res;
+                try {
+                    res = await fetchRows();
+                } catch (e1) {
+                    await new Promise((r) => setTimeout(r, 1200));
+                    res = await fetchRows();
+                }
                 gl.data = res.error ? { error: res.error } : res;
             } else if (gl.kind === "so_list") {
                 const res = await this.rpc("/p03/orders/list", {
@@ -1024,6 +1261,30 @@ export class P03Workspace extends Component {
                     unassigned: unassigned.rows || [],
                     active: active.rows || [],
                 };
+            } else if (gl.kind === "bi_role") {
+                // M25 role dashboards: one measured payload per role from
+                // /p03/bi/role. Money tiles are pre-formatted here so the
+                // template never calls Number/String (QWeb has no globals).
+                const role = (gl.cfg && gl.cfg.role) || "ceo";
+                const res = await this.rpc("/p03/bi/role", { role });
+                if (!res || res.error) {
+                    gl.data = { error: (res && res.error) || "Dashboard unavailable", groups: [], notes: [] };
+                } else {
+                    gl.data = {
+                        title: res.title || "",
+                        as_of: res.as_of || "",
+                        notes: res.notes || [],
+                        groups: (res.groups || []).map((g) => ({
+                            title: g.title,
+                            kpis: (g.kpis || []).map((k) => ({
+                                l: k.l,
+                                v: k.money
+                                    ? this.fmtBDT(k.v)
+                                    : k.v === null || k.v === undefined ? "—" : String(k.v),
+                            })),
+                        })),
+                    };
+                }
             } else if (gl.kind === "bi_exec") {
                 // M25 executive C-Suite KPI dashboard: one live payload from
                 // /p03/bi/exec (real order/estimate/invoice aggregates). The
@@ -1061,7 +1322,7 @@ export class P03Workspace extends Component {
                 });
             }
         } catch (e) {
-            gl.error = "Could not reach the GL endpoint — try Refresh.";
+            gl.error = "Connection lost — press ↻ Refresh to reload this screen.";
             console.warn("GL screen load failed:", e);
         }
         gl.loading = false;
@@ -1359,7 +1620,89 @@ export class P03Workspace extends Component {
     get mlRows() {
         const gl = this.state.gl;
         if (!gl || !gl.data || gl.data.error) return [];
-        return gl.data.rows || [];
+        let rows = gl.data.rows || [];
+
+        // 1. D365 Quick-Find Search Filter across all visible columns
+        if (gl.mlSearch && gl.mlSearch.trim()) {
+            const q = gl.mlSearch.toLowerCase().trim();
+            rows = rows.filter((r) => {
+                const cols = gl.modelCfg.cols || Object.keys(r);
+                return cols.some((col) => {
+                    const val = r[col];
+                    if (val == null) return false;
+                    if (typeof val === "object") {
+                        const s = val.label || val.name || "";
+                        return String(s).toLowerCase().includes(q);
+                    }
+                    return String(val).toLowerCase().includes(q);
+                });
+            });
+        }
+
+        // 2. D365 Column Header Sorting
+        if (gl.mlSortCol) {
+            const col = gl.mlSortCol;
+            const asc = gl.mlSortAsc !== false ? 1 : -1;
+            rows = [...rows].sort((a, b) => {
+                let va = a[col], vb = b[col];
+                if (va && typeof va === "object") va = va.label || va.name || "";
+                if (vb && typeof vb === "object") vb = vb.label || vb.name || "";
+                if (va == null && vb == null) return 0;
+                if (va == null) return 1;
+                if (vb == null) return -1;
+                if (typeof va === "number" && typeof vb === "number") return (va - vb) * asc;
+                return String(va).localeCompare(String(vb)) * asc;
+            });
+        }
+
+        return rows;
+    }
+
+    mlToggleSort(col) {
+        const gl = this.state.gl;
+        if (gl.mlSortCol === col) {
+            gl.mlSortAsc = !gl.mlSortAsc;
+        } else {
+            gl.mlSortCol = col;
+            gl.mlSortAsc = true;
+        }
+    }
+
+    mlOnSearchInput(ev) {
+        this.state.gl.mlSearch = ev.target.value;
+    }
+
+    mlClearSearch() {
+        this.state.gl.mlSearch = "";
+    }
+
+    mlExportCsv() {
+        const gl = this.state.gl;
+        if (!gl || !gl.data || !gl.modelCfg) return;
+        const cols = gl.modelCfg.cols || [];
+        const labels = gl.data.labels || {};
+        const rows = this.mlRows;
+        
+        const headerRow = cols.map(c => `"${(labels[c] || c).replace(/"/g, '""')}"`).join(",");
+        const dataRows = rows.map(r => {
+            return cols.map(c => {
+                const cellText = this.mlCell(r, c);
+                return `"${String(cellText).replace(/"/g, '""')}"`;
+            }).join(",");
+        });
+        
+        const csvContent = "\uFEFF" + [headerRow, ...dataRows].join("\r\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        const filename = `${gl.modelCfg.model || "records"}_export_${new Date().toISOString().slice(0, 10)}.csv`;
+        link.setAttribute("href", url);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        this.showToast(this.t(`Exported ${rows.length} records to CSV`));
     }
 
     get mlStates() {
@@ -1368,7 +1711,12 @@ export class P03Workspace extends Component {
         const seen = new Map();
         for (const r of this.mlRows) {
             const v = r[gl.modelCfg.stateField];
+            // selection → its label; boolean → Yes/No (a raw "false" pill
+            // leaked into the Identity filter strip — audit D4b)
             if (v && v.key != null && !seen.has(v.key)) seen.set(v.key, v.label);
+            else if (typeof v === "boolean" && !seen.has(String(v))) {
+                seen.set(String(v), v ? this.t("Yes") : this.t("No"));
+            }
         }
         return [...seen.entries()].map(([key, label]) => ({ key, label }));
     }
@@ -1380,14 +1728,23 @@ export class P03Workspace extends Component {
 
     mlCell(row, field) {
         const v = row[field];
-        if (v == null) return "—";
+        if (v == null || v === "") return "—";
         if (typeof v === "object") {
             if (v.label != null) return v.label;          // selection
             if (v.name != null) return v.name;            // many2one
             return String(v);
         }
-        if (typeof v === "boolean") return v ? "✓" : "—";
-        if (typeof v === "number" && Math.abs(v) >= 1000) return fmtBDT(v);
+        // booleans show their verdict — a bare False must never leak the
+        // literal "false" into a cell (audit D4, from the user's PDF)
+        if (typeof v === "boolean") return v ? "✓" : "✗";
+        // format by the field's own type: money always carries ৳ (even below
+        // 1,000), integer counts never do; the magnitude heuristic remains
+        // only for payloads that predate the `kinds` metadata.
+        const kind = this.state.gl && this.state.gl.data && this.state.gl.data.kinds
+            ? this.state.gl.data.kinds[field] : null;
+        if (kind === "monetary") return fmtBDT(v);
+        if (kind === "integer") return fmtNum(v);
+        if (typeof v === "number" && Math.abs(v) >= 1000) return fmtNum(v);
         return String(v);
     }
 
@@ -1397,30 +1754,521 @@ export class P03Workspace extends Component {
     }
 
     mlSelect(row) {
-        this.state.gl.mlSelected = this.state.gl.mlSelected === row ? null : row;
+        const gl = this.state.gl;
+        if (!row) return;
+        // The row's actions (mlAction) read gl.mlSelected — keep it pointing
+        // at this row so the same workflow methods serve the record pane.
+        gl.mlSelected = row;
+        const label = row.name || row.reference || row.reference_no || `#${row.id}`;
+        this.openRecordTab({
+            kind: "model_record",
+            id: row.id,
+            icon: (this.state.activeModule && this.state.activeModule.icon) || "▤",
+            title: String(label),
+            subtitle: (gl && gl.modelCfg && gl.modelCfg.model) || "",
+            screenId: gl ? gl.screenId : null,
+            moduleId: this.state.activeModuleId,
+            row,
+        });
     }
 
-    /* The model's own Odoo form, in a dialog over the workspace: every field
-     * rule, constraint and ACL of the backend applies; the list reloads on
-     * close. */
+    /* The record's D365 in-workspace form when the module declares one,
+     * else the model's Odoo form in a dialog (last resort). The list
+     * reloads on close. */
     mlOpenForm(resId) {
         const gl = this.state.gl;
-        this.actionService.doAction(
-            {
-                type: "ir.actions.act_window",
-                name: (this.state.activeScreen && this.state.activeScreen.en) || "",
-                res_model: gl.modelCfg.model,
-                res_id: resId || false,
-                views: [[false, "form"]],
-                target: "new",
-                context: gl.modelCfg.context || {},
-            },
-            { onClose: () => this.loadGlData() }
-        );
+        if (this.openModuleFormForModel(gl.modelCfg.model, resId || null)) return;
+        // No declared D365 form for this model: keep the record IN the
+        // workspace as a record tab (never an Odoo dialog — the estate rule
+        // is that every record surface renders inside the shell).
+        const row = resId ? ((gl.data && gl.data.rows) || []).find((r) => r.id === resId) : null;
+        if (resId) {
+            this.openRecordTab({
+                kind: "model_record",
+                id: resId,
+                icon: (this.state.activeModule && this.state.activeModule.icon) || "▤",
+                title: String((row && (row.name || row.reference || row.reference_no)) || `#${resId}`),
+                subtitle: (gl.modelCfg && gl.modelCfg.model) || "",
+                screenId: gl.screenId,
+                moduleId: this.state.activeModuleId,
+                row,
+            });
+            return;
+        }
+        this.showToast(this.t("This model has no in-workspace form yet — the record opens read-only in its tab."));
+    }
+
+    mlRefresh() {
+        this.loadGlData();
     }
 
     mlNew() {
         this.mlOpenForm(false);
+    }
+
+    /* ================================================================
+     * D365 IN-WORKSPACE FORM SCREENS (user directive 2026-10-27).
+     *
+     * Schema-driven record forms rendered INSIDE the workspace shell in the
+     * Dynamics-365 layout — command bar, record header with a status pill,
+     * section cards, labelled field grid. NEVER an Odoo dialog: the user
+     * must not see Odoo chrome, Odoo field styling or chatter tables.
+     * Schema comes from the module fragment (FORM_SCREENS); field metadata
+     * and choices from /p03/model/form; saving posts /p03/model/write
+     * (savepoint + the caller's own ACL).
+     * ================================================================ */
+    get formTabs() {
+        const gl = this.state.gl;
+        return (gl && gl.formCfg && gl.formCfg.tabs) || [];
+    }
+
+    get formActiveTab() {
+        const gl = this.state.gl;
+        if (!gl || !gl.form) return "";
+        if (gl.form.activeTab) return gl.form.activeTab;
+        const tabs = this.formTabs;
+        return (tabs.length && tabs[0].id) || "";
+    }
+
+    formSetTab(tabId) {
+        const gl = this.state.gl;
+        if (!gl || !gl.form) return;
+        gl.form.activeTab = tabId;
+        this.render(true);
+    }
+
+    get formSections() {
+        const gl = this.state.gl;
+        const all = (gl && gl.formCfg && gl.formCfg.sections) || [];
+        const tabs = this.formTabs;
+        if (!tabs || !tabs.length) {
+            return all;
+        }
+        const active = this.formActiveTab;
+        return all.filter((s) => !s.tab || s.tab === active);
+    }
+
+    get formStatusText() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !gl.formCfg) return "";
+        const status = gl.formCfg.status;
+        if (!status) return "";
+        const raw = gl.form.values ? gl.form.values[status.field] : undefined;
+        if (status.labels) {
+            const key = raw === true ? "true" : raw === false ? "false" : String(raw ?? "");
+            if (status.labels[key] !== undefined) return this.t(status.labels[key]);
+        }
+        return raw === true ? this.t("Yes") : raw === false ? this.t("No") : String(raw ?? "");
+    }
+
+    formFieldValue(name) {
+        const gl = this.state.gl;
+        const v = gl && gl.form ? gl.form.values[name] : undefined;
+        return v === undefined || v === null ? "" : v;
+    }
+
+    /* name -> field metadata (from /p03/model/form) for the template. */
+    get formFieldsMeta() {
+        const gl = this.state.gl;
+        const map = {};
+        ((gl && gl.data && gl.data.fields) || []).forEach((f) => {
+            map[f.name] = f;
+        });
+        return map;
+    }
+
+    /* The raw key/id for <select> binding (never an object). */
+    formSelectValue(name) {
+        const raw = this.formFieldValue(name);
+        if (raw && typeof raw === "object") return raw.id;
+        return raw;
+    }
+
+    /* Display text for read-only D365 fields. */
+    formDisplay(name) {
+        const meta = this.formFieldsMeta[name];
+        const raw = this.formFieldValue(name);
+        if (name === "name" && !raw) return "[Auto-Generated on Save]";
+        if (name === "state" && !raw) return "Draft (New)";
+        if (!meta) return raw === "" || raw === null || raw === undefined ? "—" : String(raw);
+        if (meta.type === "many2one") return raw && raw.label ? raw.label : "—";
+        if (meta.type === "selection") {
+            const hit = (meta.choices || []).find((c) => c.key === raw);
+            return hit ? this.t(hit.label) : raw === "" || raw === null || raw === undefined ? "—" : String(raw);
+        }
+        if (meta.type === "boolean") return raw ? this.t("Yes") : this.t("No");
+        if (meta.type === "monetary") return raw === "" || raw === null || raw === undefined ? "—" : String(raw);
+        return raw === "" || raw === null || raw === undefined ? "—" : String(raw);
+    }
+
+    /* Helper for rendering binary / base64 image data */
+    formImageSrc(name) {
+        const v = this.formFieldValue(name);
+        if (!v) return "";
+        if (typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))) return v;
+        if (typeof v === "string" && v.startsWith("PD94bWw")) return `data:image/svg+xml;base64,${v}`;
+        return `data:image/png;base64,${v}`;
+    }
+
+    /* Handler for binary photo / file upload in D365 forms */
+    formHandleImageUpload(name, ev) {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            this.formSet(name, base64);
+            this.render(true);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    /* Helper for physical document download URL (data: URI) */
+    formFileDownloadHref(name) {
+        const v = this.formFieldValue(name);
+        if (!v) return "#";
+        if (typeof v === "string" && (v.startsWith("data:") || v.startsWith("http"))) return v;
+        if (typeof v === "string" && v.startsWith("JVBERi")) return `data:application/pdf;base64,${v}`;
+        if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `data:image/png;base64,${v}`;
+        if (typeof v === "string" && v.startsWith("/9j/")) return `data:image/jpeg;base64,${v}`;
+        return `data:application/octet-stream;base64,${v}`;
+    }
+
+    /* Helper for displaying physical document filename */
+    formFileName(name) {
+        const directFn = this.formFieldValue(name + "_filename") ||
+                         this.formFieldValue(name.replace(/_file$/, "") + "_filename") ||
+                         this.formFieldValue(name.replace(/_file$/, "") + "_name") ||
+                         this.formFieldValue("file_name");
+        if (directFn) return directFn;
+        const v = this.formFieldValue(name);
+        if (!v) return "";
+        if (typeof v === "string" && v.startsWith("JVBERi")) return `${name}.pdf`;
+        if (typeof v === "string" && v.startsWith("iVBORw0KGgo")) return `${name}.png`;
+        if (typeof v === "string" && v.startsWith("/9j/")) return `${name}.jpg`;
+        return `${name}.bin`;
+    }
+
+    /* Handler for physical document upload (PDF, PNG, JPG, DOCX) */
+    formHandleFileUpload(name, ev) {
+        const file = ev.target.files && ev.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+            this.formSet(name, base64);
+            const fnCandidates = [
+                name + "_filename",
+                name.replace(/_file$/, "") + "_filename",
+                name.replace(/_file$/, "") + "_name",
+                "file_name"
+            ];
+            for (const fnField of fnCandidates) {
+                if (this.state.formDraft && fnField in this.state.formDraft) {
+                    this.formSet(fnField, file.name);
+                    break;
+                }
+            }
+            if (this.state.formDraft && "file_size" in this.state.formDraft) {
+                this.formSet("file_size", file.size);
+            }
+            if (this.state.formDraft && "file_mimetype" in this.state.formDraft) {
+                this.formSet("file_mimetype", file.type || "application/octet-stream");
+            }
+            this.render(true);
+        };
+        reader.readAsDataURL(file);
+    }
+
+    /* Handler for clearing uploaded document and its metadata */
+    formClearFile(name) {
+        this.formSet(name, false);
+        const fnCandidates = [
+            name + "_filename",
+            name.replace(/_file$/, "") + "_filename",
+            name.replace(/_file$/, "") + "_name",
+            "file_name"
+        ];
+        for (const fnField of fnCandidates) {
+            if (this.state.formDraft && fnField in this.state.formDraft) {
+                this.formSet(fnField, "");
+                break;
+            }
+        }
+        if (this.state.formDraft && "file_size" in this.state.formDraft) {
+            this.formSet("file_size", 0);
+        }
+        if (this.state.formDraft && "file_mimetype" in this.state.formDraft) {
+            this.formSet("file_mimetype", "");
+        }
+        this.render(true);
+    }
+
+    openFormScreen(screenId, hit, cfg) {
+        const recordId = cfg.recordId || null;
+        const activeTab = (cfg.tabs && cfg.tabs.length && cfg.tabs[0].id) || "";
+        this.state.gl = {
+            screenId,
+            hitSc: hit ? hit.sc : null,
+            hitM: hit ? hit.m : null,
+            kind: "model_form",
+            formCfg: cfg,
+            title: (hit && hit.sc && hit.sc.en) || cfg.title || "Record",
+            moduleTitle: hit ? hit.m.title : "",
+            data: null,
+            loading: true,
+            error: null,
+            mlSelected: null,
+            mlState: "__all",
+            form: { recordId, values: {}, busy: false, error: null,
+                    activeTab, lineMeta: [], lineValues: [], lineRemoved: [] },
+        };
+        this.state.viewMode = "gl";
+        // Record tabs, not screen tabs: editing record B must never overwrite
+        // record A's tab. A NEW record keeps the screen-scoped tab (one draft
+        // tab per form), an EXISTING record gets its own closable tab.
+        const tabId = recordId ? `form-${screenId}-${recordId}` : `gl-${screenId}`;
+        const payload = recordId ? { screenId, recordId } : { screenId };
+        this._formCache = this._formCache || {};
+        this._formCache[tabId] = { screenId, hit, cfg };
+        this.ensureTab(
+            tabId,
+            `${this.state.gl.title}${recordId ? ` #${recordId}` : ""}`,
+            hit && hit.sc.t === "f" ? "▤" : "⛁",
+            "gl",
+            payload
+        );
+        this.loadFormData();
+    }
+
+    async loadFormData() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        gl.loading = true;
+        gl.form.error = null;
+        gl.form.unavailable = false;
+        try {
+            const res = await this.rpc("/p03/model/form", {
+                model: gl.formCfg.model,
+                fields: gl.formCfg.sections.flatMap((s) => s.fields),
+                record_id: gl.form.recordId || false,
+                // bilingual labels: field/selection text follows the UI language
+                lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+                lines: gl.formCfg.lines || false,
+            });
+            gl.data = res;
+            gl.form.lineMeta = (res.lines && res.lines.fields) || [];
+            gl.form.lineValues = ((res.lines && res.lines.rows) || []).map((r) => ({ ...r }));
+            gl.form.lineRemoved = [];
+            if (res.error) {
+                // the form could not be LOADED at all (model not served by
+                // the workspace registry, or ACL-denied). Distinct from a
+                // failed save, which must keep the command bar.
+                gl.form.error = res.error;
+                gl.form.unavailable = true;
+            } else if (res.record) {
+                gl.form.values = { ...res.record };
+            } else {
+                gl.form.values = {};
+                for (const section of gl.formCfg.sections) {
+                    for (const field of section.fields) {
+                        if (field.value !== undefined) gl.form.values[field.name] = field.value;
+                    }
+                }
+                // a brand-new record with a required child grid starts with
+                // one blank target so the form is usable without hunting
+                if (gl.formCfg.lines && !gl.form.lineValues.length) this.formAddLine();
+            }
+        } catch (e) {
+            gl.data = null;
+            gl.form.error = this.t("Could not load the form — try again");
+            gl.form.unavailable = true;
+        }
+        gl.loading = false;
+        this.render(true);
+    }
+
+    formSet(name, value) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        // QWeb handlers pass strings: coerce to the model type here (JS
+        // scope), never in the template (String/Number are not template
+        // globals — the 2026-10-27 "ctx.String is not a function" lesson).
+        const meta = this.formFieldsMeta[name] || {};
+        if (meta.type === "many2one") {
+            value = value === "" || value === false || value === null ? false : Number(value);
+        } else if (meta.type === "boolean") {
+            value = !!value;
+        } else if (meta.type === "monetary" || meta.type === "float" || meta.type === "integer") {
+            value = value === "" || value === false ? false : Number(value);
+        }
+        gl.form.values[name] = value;
+        if (gl.formCfg.status && gl.formCfg.status.field === name) this.render(true);
+    }
+
+    /* ---- declared one2many child grid (allocation targets, JE template
+     * lines): the header alone is refused by the models' own constraints
+     * ("rule has no targets", "template is not balanced"), so the D365 form
+     * edits header + lines in ONE save. ---- */
+    get formLineCfg() {
+        const gl = this.state.gl;
+        return (gl && gl.formCfg && gl.formCfg.lines) || null;
+    }
+
+    get formLineFields() {
+        const gl = this.state.gl;
+        return (gl && gl.form && gl.form.lineMeta) || [];
+    }
+
+    get formLineRows() {
+        const gl = this.state.gl;
+        return (gl && gl.form && gl.form.lineValues) || [];
+    }
+
+    formLineMeta(name) {
+        return this.formLineFields.find((f) => f.name === name) || {};
+    }
+
+    formLineValue(rowIndex, name) {
+        const row = this.formLineRows[rowIndex] || {};
+        const v = row[name];
+        return v === undefined || v === null ? "" : v;
+    }
+
+    formLineSelectValue(rowIndex, name) {
+        const raw = this.formLineValue(rowIndex, name);
+        if (raw && typeof raw === "object") return raw.id;
+        return raw;
+    }
+
+    formLineSet(rowIndex, name, value) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        const rows = gl.form.lineValues;
+        if (!rows[rowIndex]) return;
+        const meta = this.formLineMeta(name);
+        if (meta.type === "many2one") {
+            value = value === "" || value === false || value === null ? false : Number(value);
+        } else if (meta.type === "boolean") {
+            value = !!value;
+        } else if (meta.type === "monetary" || meta.type === "float" || meta.type === "integer") {
+            value = value === "" || value === false ? false : Number(value);
+        }
+        rows[rowIndex][name] = value;
+        if (this.formLineCfg && this.formLineCfg.total) this.render(true);
+    }
+
+    formAddLine() {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || !this.formLineCfg) return;
+        const row = {};
+        if (this.formLineCfg.defaults) Object.assign(row, this.formLineCfg.defaults);
+        gl.form.lineValues.push(row);
+        this.render(true);
+    }
+
+    formRemoveLine(rowIndex) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form") return;
+        const row = gl.form.lineValues[rowIndex];
+        if (row && row.id) gl.form.lineRemoved.push(row.id);
+        gl.form.lineValues.splice(rowIndex, 1);
+        this.render(true);
+    }
+
+    /* Running total for the cfg.lines.total chip (e.g. shares must hit 100%). */
+    get formLineTotal() {
+        const cfg = this.formLineCfg;
+        const gl = this.state.gl;
+        if (!cfg || !cfg.total || !gl || !gl.form) return null;
+        const sum = (gl.form.lineValues || []).reduce(
+            (acc, row) => acc + (Number(row[cfg.total.field]) || 0),
+            0
+        );
+        return Math.round(sum * 100) / 100;
+    }
+
+    /* Debit-minus-credit for a balanced line grid (recurring JE templates). */
+    get formLineBalance() {
+        const cfg = this.formLineCfg;
+        const gl = this.state.gl;
+        if (!cfg || !cfg.balance || !gl || !gl.form) return null;
+        const [dr, cr] = cfg.balance.fields;
+        const sum = (gl.form.lineValues || []).reduce(
+            (acc, row) => acc + (Number(row[dr]) || 0) - (Number(row[cr]) || 0),
+            0
+        );
+        return Math.round(sum * 100) / 100;
+    }
+
+    async formSave(close) {
+        const gl = this.state.gl;
+        if (!gl || gl.kind !== "model_form" || gl.form.busy) return;
+        gl.form.busy = true;
+        gl.form.error = null;
+        const values = {};
+        for (const section of gl.formCfg.sections) {
+            for (const field of section.fields) {
+                const v = gl.form.values[field.name];
+                if (v !== undefined && v !== null && v !== "") values[field.name] = v;
+            }
+        }
+        let lines = null;
+        const lineCfg = this.formLineCfg;
+        if (lineCfg) {
+            const rows = [];
+            for (const row of gl.form.lineValues || []) {
+                const vals = {};
+                for (const field of lineCfg.fields || []) {
+                    const v = row[field.name];
+                    if (v !== undefined && v !== null && v !== "") vals[field.name] = v;
+                }
+                if (Object.keys(vals).length) rows.push({ id: row.id || null, values: vals });
+            }
+            lines = { field: lineCfg.field, rows, removed: gl.form.lineRemoved || [] };
+        }
+        try {
+            const res = await this.rpc("/p03/model/write", {
+                model: gl.formCfg.model,
+                record_id: gl.form.recordId || false,
+                values,
+                lines,
+            });
+            if (res.error) {
+                gl.form.error = res.error;
+                gl.form.busy = false;
+                this.render(true);
+                return;
+            }
+            this.showToast(this.t("Saved ✓"));
+            gl.form.busy = false;
+            if (close) {
+                this.formBackToList();
+            } else {
+                gl.form.recordId = res.id;
+                this.loadFormData();
+            }
+        } catch (e) {
+            gl.form.error = this.t("The save failed — server-side rules are enforced");
+            gl.form.busy = false;
+            this.render(true);
+        }
+    }
+
+    formBackToList() {
+        const gl = this.state.gl;
+        const back = gl && gl.formCfg && gl.formCfg.back;
+        if (back && P03_DATA_SCREENS[back]) {
+            this.openScreen(back);
+        } else if (back) {
+            this.openScreen(back);
+        } else {
+            this.showToast(this.t("Saved — returning"));
+            this.state.viewMode = "workspace";
+            this.render(true);
+        }
     }
 
     async mlAction(method, label) {
@@ -1429,9 +2277,11 @@ export class P03Workspace extends Component {
         if (!row) { this.showToast("Select a row first"); return; }
         const cfg = (gl.modelCfg.actions || []).find((a) => a.m === method) || {};
         if (cfg.ask) {
-            // needs a typed value (e.g. the customer's POD OTP) — the generic
-            // prompt modal collects it, then the action runs with kwargs
-            gl.prompt = { title: label, label: cfg.ask, value: "", _ml: { row, method, label } };
+            // needs a typed value (e.g. the customer's POD OTP at hand-over,
+            // or an MSP resolution note) — the generic prompt modal collects
+            // it, then the action runs with kwargs. `kwarg` names the value's
+            // parameter on the server method (default: otp).
+            gl.prompt = { title: label, label: cfg.ask, value: "", _ml: { row, method, label, kwarg: cfg.kwarg || "otp" } };
             return;
         }
         const res = await this._arCall("/p03/model/action", {
@@ -1469,13 +2319,16 @@ export class P03Workspace extends Component {
 
     async glOpenJe(moveId) {
         const gl = this.state.gl;
-        gl.jeDetail = { loading: true };
-        try {
-            const res = await this.rpc("/p03/gl/je", { move_id: moveId });
-            gl.jeDetail = res.success ? res : { error: res.error };
-        } catch (e) {
-            gl.jeDetail = { error: "Could not load the entry" };
-        }
+        const row = ((gl && gl.data && (gl.data.rows || gl.data.moves)) || []).find((r) => r.id === moveId || r.move_id === moveId) || {};
+        this.openRecordTab({
+            kind: "journal_entry",
+            id: moveId,
+            icon: "📘",
+            title: row.name || this.t("Journal entry"),
+            subtitle: row.journal || "",
+            screenId: gl ? gl.screenId : null,
+            moduleId: this.state.activeModuleId,
+        });
     }
 
     glBackToJournals() {
@@ -1697,13 +2550,16 @@ export class P03Workspace extends Component {
 
     async arOpenInvoice(invoiceId) {
         const gl = this.state.gl;
-        gl.arDetail = { loading: true };
-        try {
-            const res = await this.rpc("/p03/ar/invoice", { invoice_id: invoiceId });
-            gl.arDetail = res.invoice ? res : { error: "Not found" };
-        } catch (e) {
-            gl.arDetail = { error: "Could not load the invoice" };
-        }
+        const row = ((gl && gl.data && gl.data.rows) || []).find((r) => r.id === invoiceId) || {};
+        this.openRecordTab({
+            kind: "ar_invoice",
+            id: invoiceId,
+            icon: "🧾",
+            title: row.name || this.t("Invoice"),
+            subtitle: row.customer || "",
+            screenId: gl ? gl.screenId : null,
+            moduleId: this.state.activeModuleId,
+        });
     }
 
     arBackToInvoices() {
@@ -1805,15 +2661,20 @@ export class P03Workspace extends Component {
             suppress_dunning: ["/p03/ar/dunning/suppress", { dunning_id: p.id, reason: p.value }, "Dunning suppressed"],
             resolve_dispute: ["/p03/ar/dispute/resolve", { dispute_id: p.id, note: p.value }, "Dispute resolved"],
         };
-        // model_list "ask" actions (e.g. the customer's POD OTP at hand-over)
+        // model_list "ask" actions (e.g. the customer's POD OTP at hand-over,
+        // or an MSP resolution note) — the kwarg names the server parameter
         if (p._ml) {
-            const { row, method, label } = p._ml;
+            const { row, method, label, kwarg } = p._ml;
             const res = await this._arCall(
                 "/p03/model/action",
-                { model: this.state.gl.modelCfg.model, ids: [row.id], method, kwargs: { otp: p.value } },
+                { model: this.state.gl.modelCfg.model, ids: [row.id], method, kwargs: { [kwarg || "otp"]: p.value } },
                 label + " ✓"
             );
-            if (res.success) { this.loadGlData(); this.state.gl.mlSelected = null; }
+            if (res.success) {
+                this.loadGlData();
+                this.state.gl.mlSelected = null;
+                if (this.state.viewMode === "record_view") this.refreshRecordTab();
+            }
             return;
         }
         const call = endpoints[p.action];
@@ -1821,7 +2682,7 @@ export class P03Workspace extends Component {
         const res = await this._arCall(call[0], call[1], call[2]);
         if (res.success) {
             this.loadGlData();
-            if (this.state.gl.arDetail) this.arOpenInvoice(this.state.gl.arDetail.invoice.id);
+            if (this.state.viewMode === "record_view") this.refreshRecordTab();
         }
     }
 
@@ -1845,6 +2706,7 @@ export class P03Workspace extends Component {
             amount: null,
             method: "cash",
             reference: "",
+            branch_id: null,
             nid: "",
         };
     }
@@ -2203,6 +3065,15 @@ export class P03Workspace extends Component {
         this.state.activeTab = "home";
     }
 
+    /* Team chat: the native Odoo Discuss app, addressed by action xmlid so
+     * the link survives any path Odoo's mail module re-asserts on upgrade.
+     * Opened in a new tab — never a doAction, which would swap the D365
+     * shell away. */
+    openChat() {
+        window.open("/odoo/action-mail.action_discuss", "_blank", "noopener");
+        this.showToast(this.t("Team Chat opened in a new tab (Discuss)"));
+    }
+
     openModule(mid) {
         const mod = P03_MODULES[mid] || P03_MODULES.M01;
         this.state.activeModuleId = mid;
@@ -2213,14 +3084,25 @@ export class P03Workspace extends Component {
         this.state.megaMenuOpen = false;
         // A08 modules fetch REAL KPI aggregates (metric keys on the kpis);
         // A02 modules have their own service KPI endpoint (same shape);
-        // A11 · M25 serves its own BI KPI payload.
+        // A11 · M25/M26 serve their own KPI payloads.
         if ((mod.kpis || []).some(k => k.m)) {
             const kpiRoute = mid === "M02" ? "/p03/field/kpis"
                 : (mid === "M31" ? "/p03/workshop/kpis"
                 : (mid === "M03" ? "/p03/logistics/kpis"
                 : (mid === "M04" ? "/p03/branch/kpis"
+                : (mid === "M05" ? "/p03/msp/kpis"
+                : (mid === "M06" ? "/p03/data/kpis"
+                : (mid === "M29" ? "/p03/security/kpis"
+                : (mid === "M28" ? "/p03/platform/kpis"
+                : (mid === "M62" ? "/p03/dataops/kpis"
+                : (mid === "M63" ? "/p03/workflow/kpis"
                 : (mid === "M25" ? "/p03/bi/kpis"
-                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis")))));
+                : (mid === "M26" ? "/p03/ml/kpis"
+                : (mod.area === "A05" ? "/p03/circular/kpis"
+                : (mod.area === "A09" ? "/p03/people/kpis"
+                : (mod.area === "A07" ? "/p03/asset/kpis"
+                : (mod.area === "A06" ? "/p03/supply/kpis"
+                : (mod.area === "A02" ? "/p03/service/kpis" : "/p03/finance/kpis"))))))))))))))));
             this.rpc(kpiRoute, { module: mid })
                 .then((res) => {
                     if (this.state.activeModuleId === mid && res && res[mid]) {
@@ -2234,12 +3116,20 @@ export class P03Workspace extends Component {
     openFreg(mid, fnIndex) {
         const mod = P03_MODULES[mid] || P03_MODULES.M01;
         const sub = (mod.freg && mod.freg.sub[fnIndex]) || ["1", "General Capability", 8];
-        const grid = generateGridData(`FREG-${mid}-${fnIndex}`, sub[1], mod.en);
+        // A sub-module may declare what actually implements it:
+        //   ['6', 'Kits & Bundles', 4, { model, screens, reports, forms }]
+        // Without that 4th element this panel used to borrow the MODULE's
+        // first six screens — identical for every sub-module, so sub-module 6
+        // listed Brand and Typed Taxonomy and nothing about kits.
+        const map = sub[3] || null;
 
-        const mappedScreens = [];
+        const all = [];
         mod.groups.forEach(g => {
-            g.screens.forEach(s => mappedScreens.push({ ...s, groupEn: g.en }));
+            g.screens.forEach(s => all.push({ ...s, groupEn: g.en }));
         });
+        const screens = map && map.screens
+            ? map.screens.map(id => all.find(s => s.id === id)).filter(Boolean)
+            : [];
 
         this.state.activeFreg = {
             mid,
@@ -2248,13 +3138,62 @@ export class P03Workspace extends Component {
             subModuleTitle: sub[1],
             functionCount: sub[2],
             module: mod,
-            screens: mappedScreens.slice(0, 6),
-            reports: mod.reports.slice(0, 4),
-            forms: mod.forms.slice(0, 3),
-            gridData: grid
+            model: (map && map.model) || null,
+            mapped: !!map,
+            screens,
+            reports: (map && map.reports) || [],
+            forms: (map && map.forms) || [],
+            loading: !!(map && map.model),
+            gridData: { cols: [], rows: [] }
         };
         this.state.viewMode = "freg";
         this.ensureTab(`freg-${mid}-${fnIndex}`, `⌘ ${sub[1]}`, "⌘", "freg", { mid, fnIndex });
+        if (map && map.model) this.loadFregRecords(map);
+    }
+
+    /* The sub-module's OWN live records, from the same whitelisted endpoint
+     * every other live screen uses. The table this replaces was built by
+     * generateGridData(), whose every return path ended `rows: []` — it chose
+     * column headers by keyword and never carried data, in any module. */
+    async loadFregRecords(map) {
+        const fr = this.state.activeFreg;
+        try {
+            const res = await this.rpc("/p03/model/records", {
+                model: map.model,
+                cols: map.cols || [],
+                lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
+            });
+            if (!this.state.activeFreg || this.state.activeFreg !== fr) return;
+            if (!res || res.error) {
+                fr.gridData = { cols: [], rows: [], error: (res && res.error) || "unavailable" };
+            } else {
+                const labels = res.labels || {};
+                const cols = (res.rows && res.rows.length)
+                    ? Object.keys(res.rows[0]).filter(k => k !== "id")
+                    : (map.cols || []);
+                fr.gridData = {
+                    cols: cols.map(c => labels[c] || c),
+                    rows: (res.rows || []).map(r => {
+                        const row = cols.map(c => {
+                            const v = r[c];
+                            if (v === null || v === undefined || v === false) return "—";
+                            if (typeof v === "object") return v.label || v.name || v.key || "—";
+                            return v;
+                        });
+                        // the record id rides as a non-enumerated property so
+                        // the grid still renders only cells, exactly as the
+                        // order grids carry `row.orderId`
+                        Object.defineProperty(row, "recId", { value: r.id, enumerable: false });
+                        return row;
+                    }),
+                    total: res.total || (res.rows || []).length,
+                };
+            }
+        } catch (e) {
+            fr.gridData = { cols: [], rows: [], error: this.t("Could not load records") };
+        }
+        fr.loading = false;
+        this.render(true);
     }
 
     openScreen(screenId, customGroupEn) {
@@ -2275,7 +3214,15 @@ export class P03Workspace extends Component {
 
         if (!hit) {
             const mod = this.state.activeModule;
-            hit = { mid: this.state.activeModuleId, m: mod, g: mod.groups[0], sc: mod.groups[0].screens[0] };
+            // Non-registry screens (report/form routes like M33-rpt-growth)
+            // must NOT inherit the module's FIRST screen's title — that made
+            // every built-in report render as "Party Directory" (user PDF,
+            // audit D14). Synthesize the hit from the data-screen config.
+            const ds = P03_DATA_SCREENS[screenId];
+            const fallbackSc = ds
+                ? { id: screenId, en: ds.title || ds.report || screenId, bn: ds.title_bn || ds.title || ds.report || screenId, t: ds.kind === "model_form" ? "f" : "r" }
+                : mod.groups[0].screens[0];
+            hit = { mid: this.state.activeModuleId, m: mod, g: mod.groups[0], sc: fallbackSc };
         }
 
         // In-workspace D365 screens (M19 GL pilot): render INSIDE the shell
@@ -2283,6 +3230,13 @@ export class P03Workspace extends Component {
         // so these screens never leave the workspace for a stock Odoo view.
         const dataScreen = P03_DATA_SCREENS[screenId];
         if (dataScreen) {
+            // D365 in-workspace record forms (user directive 2026-10-27):
+            // schema-driven form screens render inside the shell, never as
+            // an Odoo dialog.
+            if (dataScreen.kind === "model_form") {
+                this.openFormScreen(screenId, hit, dataScreen);
+                return;
+            }
             this.openGlScreen(screenId, hit, dataScreen);
             return;
         }
@@ -2365,6 +3319,34 @@ export class P03Workspace extends Component {
         this.ensureTab(`screen-${hit.sc.id}`, `${glyph} ${hit.sc.en}`, glyph, this.state.viewMode, { screenId: hit.sc.id });
     }
 
+    /* Open a record from the SUB-MODULE records grid.
+     *
+     * Not `openRecord` - that one is hard-wired to service orders
+     * (`/p03/order/get`), so clicking a kit, a rate card or a referral there
+     * sent its NAME as an order id and raised "Oops! Something went wrong"
+     * (reported 2026-11-01 with a screenshot of M37 / Kits & Bundles).
+     *
+     * Routes through the module's declared form for the sub-module's model,
+     * which is the same path a normal list row takes. */
+    openFregRecord(row) {
+        const fr = this.state.activeFreg;
+        if (!fr || !fr.model) return;
+        const recId = (row && row.recId) || null;
+        // open the sub-module's own screen first so the form has its context
+        const target = (fr.screens && fr.screens[0] && fr.screens[0].id) || null;
+        if (target) this.openScreen(target);
+        if (!recId) return;
+        if (this.openModuleFormForModel(fr.model, recId)) return;
+        this.openRecordTab({
+            kind: "model_record",
+            id: recId,
+            icon: (this.state.activeModule && this.state.activeModule.icon) || "▤",
+            title: String((row && row[0]) || ("#" + recId)),
+            subtitle: fr.model,
+            moduleId: this.state.activeModuleId,
+        });
+    }
+
     /* --- Master-detail record: REAL backend fetch --- */
     async openRecord(orderRow) {
         const orderId = orderRow && orderRow.id ? orderRow.id : orderRow;
@@ -2435,6 +3417,31 @@ export class P03Workspace extends Component {
     }
 
     openNewForm() {
+        const mid = this.state.activeModuleId || "M01";
+        const create = P03_MODULE_CREATE[mid];
+        if (create && create.screen && P03_DATA_SCREENS[create.screen]) {
+            const cfg = P03_DATA_SCREENS[create.screen];
+            this.openFormScreen(
+                create.screen,
+                { sc: { en: cfg.title || create.label, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
+                cfg
+            );
+            return;
+        }
+        if (create && create.model) {
+            if (this.openModuleFormForModel(create.model)) {
+                return;
+            }
+        }
+        if (P03_DATA_SCREENS["M01-form-order"]) {
+            const cfg = P03_DATA_SCREENS["M01-form-order"];
+            this.openFormScreen(
+                "M01-form-order",
+                { sc: { en: cfg.title || "New Service Order", t: "f" }, m: { title: "M01 · Service Requests & Orders" } },
+                cfg
+            );
+            return;
+        }
         this.state.formData = this.blankForm();
         this.state.formModalOpen = true;
         this.state.modalStep = 1;
@@ -2448,10 +3455,142 @@ export class P03Workspace extends Component {
         this.state.modalStep = step;
     }
 
+    /* =================================================================
+     * UNIVERSAL RECORD TABS (user directive 2026-10-29).
+     *
+     * Every record surface — M20 invoices, M19 journal entries, every
+     * module's model_list rows — opens the record in its OWN closable tab
+     * in the workspace tabstrip instead of expanding a panel below the
+     * grid. One engine serves M01–M67:
+     *   - smart reuse: reopening a record focuses its existing tab;
+     *   - per-tab payload cache: switching back is instant, no refetch;
+     *   - cap + eviction: >16 tabs evicts the oldest record tab
+     *     (session-tab guidance: a tab bar must stay a map, not a pile).
+     * ================================================================= */
+    async openRecordTab(desc) {
+        const tabId = `rec-${desc.kind}-${desc.id}`;
+        const icon = desc.icon || "▤";
+        // the tabstrip renders tab.icon in its own slot — the title carries
+        // only the record name
+        this.ensureTab(tabId, desc.title || String(desc.id), icon, "record_view", desc);
+        this.state.viewMode = "record_view";
+        const cached = this._recCache[tabId];
+        if (cached) {
+            this.state.recView = cached;
+            return;
+        }
+        this.state.recView = { ...desc, tabId, loading: true, data: null, error: null };
+        try {
+            const data = await this._fetchRecordData(desc);
+            const error = (data && data.error) || null;
+            const view = { ...desc, tabId, loading: false, data: error ? null : data, error };
+            this.state.recView = view;
+            if (!error) this._recCache[tabId] = view;
+        } catch (e) {
+            this.state.recView = { ...desc, tabId, loading: false, data: null, error: this.t("Could not load the record") };
+        }
+    }
+
+    async _fetchRecordData(desc) {
+        if (desc.kind === "ar_invoice") {
+            return await this.rpc("/p03/ar/invoice", { invoice_id: desc.id });
+        }
+        if (desc.kind === "journal_entry") {
+            return await this.rpc("/p03/gl/je", { move_id: desc.id });
+        }
+        if (desc.kind === "model_record") {
+            // the row is already the server payload; the pane renders its
+            // declared columns and the same workflow actions as the grid
+            return { row: desc.row || {} };
+        }
+        return null;
+    }
+
+    /* Re-render a record tab after an action (issue, post, approve…) —
+     * drops the cache entry and refetches. */
+    async refreshRecordTab() {
+        const rv = this.state.recView;
+        if (!rv || !rv.tabId) return;
+        delete this._recCache[rv.tabId];
+        const desc = { kind: rv.kind, id: rv.id, title: rv.title, subtitle: rv.subtitle, icon: rv.icon, row: rv.row, screenId: rv.screenId, moduleId: rv.moduleId };
+        this.state.recView = { ...desc, tabId: rv.tabId, loading: true };
+        const data = await this._fetchRecordData(desc);
+        const error = (data && data.error) || null;
+        const view = { ...desc, tabId: rv.tabId, loading: false, data: error ? null : data, error };
+        this.state.recView = view;
+        if (!error) this._recCache[rv.tabId] = view;
+        // the source grid must show the new state next time it is opened
+        if (this.state.gl && this.state.gl.kind !== "model_form") {
+            const stale = Object.keys(this._recCache).filter((k) => k !== rv.tabId);
+            stale.forEach((k) => delete this._recCache[k]);
+        }
+    }
+
+    /* Run a record action, then refresh both the pane and the source grid. */
+    async recAction(fn) {
+        try {
+            await fn();
+        } finally {
+            await this.refreshRecordTab();
+            if (this.state.gl && typeof this.loadGlData === "function" && this.state.gl.screenId) {
+                this.loadGlData();
+            }
+        }
+    }
+
+    closeRecordTab() {
+        const rv = this.state.recView;
+        if (!rv) return;
+        this.closeTab(rv.tabId);
+    }
+
+    /* Back-link from the record pane to the grid it came from. */
+    goBackToScreen() {
+        const rv = this.state.recView;
+        if (rv && rv.screenId) this.openScreen(rv.screenId);
+    }
+
+    /* The declared workflow actions for a model_list row, filtered to the
+     * row's current state exactly as the grid action bar does. */
+    recActionsFor(row) {
+        const gl = this.state.gl;
+        const cfg = (gl && gl.modelCfg && gl.modelCfg.actions) || [];
+        if (!row) return [];
+        return cfg.filter((a) => !a.states || a.states.includes(row.state));
+    }
+
+    /* [label, value] pairs for the record pane, from the screen's declared
+     * columns and the row payload (server labels win). */
+    recFieldPairs(row) {
+        const gl = this.state.gl;
+        if (!row) return [];
+        const cfg = gl && gl.modelCfg;
+        const cols = (cfg && cfg.cols) || Object.keys(row).filter((k) => k !== "id").slice(0, 24);
+        const labels = (gl && gl.data && gl.data.labels) || {};
+        return cols.map((c) => [labels[c] || c, this.mlCell(row, c)]);
+    }
+
     ensureTab(tabId, title, icon, mode, payload = {}) {
+        // The strip renders `icon` in its own span, so a title that also
+        // starts with it would show the glyph twice ("⛁ ⛁ Dedup Rule").
+        if (icon && typeof title === "string" && title.startsWith(`${icon} `)) {
+            title = title.slice(icon.length + 1);
+        }
         const existing = this.state.openTabs.find(t => t.id === tabId);
         if (!existing) {
             this.state.openTabs.push({ id: tabId, title, icon, mode, payload });
+            // Cap: evict the OLDEST record tab once past the limit — the
+            // tabstrip must stay navigable (home and screens are kept).
+            const cap = this._REC_TAB_CAP || 16;
+            if (this.state.openTabs.length > cap) {
+                const victim = this.state.openTabs.find(
+                    (t) => t.mode === "record_view" && t.id !== tabId && t.id !== this.state.activeTab
+                );
+                if (victim) {
+                    this.state.openTabs = this.state.openTabs.filter((t) => t.id !== victim.id);
+                    delete this._recCache[victim.id];
+                }
+            }
         }
         this.state.activeTab = tabId;
     }
@@ -2467,7 +3606,30 @@ export class P03Workspace extends Component {
         } else if (tab.mode === "screen" && tab.payload?.screenId) {
             this.openScreen(tab.payload.screenId);
         } else if (tab.mode === "gl" && tab.payload?.screenId) {
+            // record forms restore with their OWN recordId — a per-record tab
+            // must never reload into the wrong record
+            if (tab.payload.recordId) {
+                const dataScreen = P03_DATA_SCREENS[tab.payload.screenId];
+                if (dataScreen) {
+                    const cached = this._formCache && this._formCache[tab.id];
+                    const hit = (cached && cached.hit) || {
+                        sc: { en: dataScreen.title || tab.payload.screenId, t: "f" },
+                        m: { title: (this.state.activeModule && this.state.activeModule.title) || "" },
+                    };
+                    this.openFormScreen(tab.payload.screenId, hit, { ...dataScreen, recordId: tab.payload.recordId });
+                    return;
+                }
+            }
             this.openScreen(tab.payload.screenId);
+        } else if (tab.mode === "record_view") {
+            // restore the cached record payload; refetch only when evicted
+            const cached = this._recCache[tab.id];
+            if (cached) {
+                this.state.viewMode = "record_view";
+                this.state.recView = cached;
+            } else {
+                this.openRecordTab(tab.payload || {});
+            }
         } else if (tab.mode === "record" && tab.payload?.orderId) {
             this.openRecord(tab.payload.orderId);
         } else if (tab.mode === "dispatch_console") {
@@ -2485,6 +3647,7 @@ export class P03Workspace extends Component {
     closeTab(tabId, ev) {
         if (ev) ev.stopPropagation();
         if (tabId === "home") return; // Keep home tab permanent
+        if (this._recCache) delete this._recCache[tabId];
         this.state.openTabs = this.state.openTabs.filter(t => t.id !== tabId);
         if (this.state.activeTab === tabId) {
             const last = this.state.openTabs[this.state.openTabs.length - 1];

@@ -830,19 +830,45 @@ class P03ServiceOrderApiController(http.Controller):
                 }
             )
 
-        technicians = []
-        tech_domain = (
-            [*employee_scope, ("job_title", "ilike", "technician")]
-            if env["hr.employee"]
-            .sudo()
-            .search_count([*employee_scope, ("job_title", "ilike", "technician")])
-            else employee_scope
+        # Who is a field technician? The people who actually do the work, not a
+        # job-title string match: anyone with a GPS location record, anyone
+        # assigned to a field order, and anyone titled "technician" — unioned.
+        # (Titles are free text: only one employee carried the word, while five
+        # carried field orders, so the map hid the working technicians.)
+        Location = (
+            env["fix.technician.location"].sudo() if "fix.technician.location" in env else None
         )
+        FieldOrder = env["fix.field.order"].sudo() if "fix.field.order" in env else None
+        tech_ids = set()
+        if Location is not None:
+            tech_ids |= {t for t in Location.search([]).mapped("technician_id").ids if t}
+        if FieldOrder is not None:
+            # plain search/mapped: mail.thread's read_group wrapper rejects the
+            # aggregate spec on this model, and the volume is small
+            tech_ids |= set(
+                FieldOrder.search([("technician_id", "!=", False)]).mapped("technician_id").ids
+            )
+        titled = (
+            env["hr.employee"]
+            .sudo()
+            .search([*employee_scope, ("job_title", "ilike", "technician")])
+        )
+        tech_ids |= set(titled.ids)
         techs_raw = (
             env["hr.employee"]
             .sudo()
-            .search_read(tech_domain, ["name", "job_title", "work_phone"], limit=20)
+            .search_read(
+                [("id", "in", list(tech_ids))], ["name", "job_title", "work_phone"], limit=60
+            )
+            if tech_ids
+            else []
         )
+        latest_gps = {}
+        if Location is not None:
+            for loc in Location.search([], order="timestamp desc", limit=200):
+                if loc.technician_id and loc.technician_id.id not in latest_gps:
+                    latest_gps[loc.technician_id.id] = loc
+        technicians = []
         for t in techs_raw:
             att = None
             if "fix.attendance.record" in env:
@@ -858,9 +884,11 @@ class P03ServiceOrderApiController(http.Controller):
                     .search([("employee_id", "=", t["id"])], order="check_in desc", limit=1)
                 )
             on_duty = bool(att and not getattr(att, "check_out", True))
-            # Real GPS from attendance only — no invented positions.
-            t_lat = getattr(att, "geo_lat", None) or None
-            t_lng = getattr(att, "geo_long", None) or None
+            # Real GPS only: the technician's own location row first, then the
+            # attendance clock-in position. Nothing is invented.
+            gps = latest_gps.get(t["id"])
+            t_lat = getattr(gps, "latitude", None) or getattr(att, "geo_lat", None) or None
+            t_lng = getattr(gps, "longitude", None) or getattr(att, "geo_long", None) or None
             active_wos = (
                 env["fix.work.order"]
                 .sudo()
@@ -872,6 +900,14 @@ class P03ServiceOrderApiController(http.Controller):
                     ]
                 )
             )
+            active_field = 0
+            if FieldOrder is not None:
+                active_field = FieldOrder.search_count(
+                    [
+                        ("technician_id", "=", t["id"]),
+                        ("state", "not in", ["completed", "cancelled"]),
+                    ]
+                )
             technicians.append(
                 {
                     "id": t["id"],
@@ -881,7 +917,7 @@ class P03ServiceOrderApiController(http.Controller):
                     "on_duty": on_duty,
                     "lat": round(t_lat, 4) if t_lat else None,
                     "lng": round(t_lng, 4) if t_lng else None,
-                    "active_wos": active_wos,
+                    "active_wos": active_wos + active_field,
                 }
             )
 

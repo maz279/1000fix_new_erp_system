@@ -28,6 +28,8 @@
             <div class="fx-tellme" role="search" t-on-click="openTellMe" style="cursor: pointer;">
                 <span class="tm-ico">🔍</span>
                 <input type="text"
+                       id="p03_global_tellme"
+                       name="global_search"
                        t-att-placeholder='t("Tell me what you want to do (Alt+Q)…")'
                        aria-label="Global Tell-Me Search"
                        t-att-value="state.moduleSearchQuery"
@@ -39,6 +41,9 @@
 
             <!-- Header Utility Actions -->
             <div class="tb-actions">
+                <button class="tb-icon-btn" t-att-title='t("Team Chat (Discuss) — opens in a new tab")' t-att-aria-label='t("Team Chat")' t-on-click="openChat">
+                    <span>💬</span>
+                </button>
                 <button class="tb-icon-btn" t-att-title='t("System Notifications (chatter — per-record)")' t-att-aria-label='t("Notifications")' t-on-click="() => this.showToast('Notifications live on each record chatter — open a record to view.')">
                     <span>🔔</span>
                 </button>
@@ -74,7 +79,13 @@
                         <span>⇄</span>
                     </button>
                     <div class="rail-search" t-if="state.navExpanded">
-                        <input type="text" t-att-placeholder='t("Filter modules…")' t-att-aria-label='t("Filter modules")' t-on-input="onModuleSearch" t-att-value="state.moduleSearchQuery"/>
+                        <input type="text"
+                               id="p03_filter_modules"
+                               name="module_filter"
+                               t-att-placeholder='t("Filter modules…")'
+                               t-att-aria-label='t("Filter modules")'
+                               t-on-input="onModuleSearch"
+                               t-att-value="state.moduleSearchQuery"/>
                     </div>
                 </div>
 
@@ -143,6 +154,196 @@
                 <div class="fx-canvas">
 
                     <!-- ========================================================
+                         VIEW R: UNIVERSAL RECORD TAB (user directive 2026-10-29)
+                         One record = one tab. M20 invoices, M19 journal entries
+                         and every module's model_list record render HERE, in
+                         D365 record-page chrome — never inline below a grid.
+                         ======================================================== -->
+                    <t t-if="state.viewMode === 'record_view' &amp;&amp; state.recView">
+                        <div class="pg-head">
+                            <div>
+                                <div class="crumbs">
+                                    <a href="#" t-on-click="() => this.goBackToScreen()" style="color: var(--primary);"><t t-esc="state.recView.moduleId || 'Workspace'"/></a>
+                                    › <t t-esc="state.recView.screenId || ''"/>
+                                </div>
+                                <h1 style="display: flex; align-items: center; gap: 8px;">
+                                    <span><t t-esc="state.recView.icon || '▤'"/></span>
+                                    <span><t t-esc="state.recView.title || state.recView.id"/></span>
+                                    <span t-if="state.recView.subtitle" style="font-size: 14px; font-weight: 400; color: var(--ink-500);">— <t t-esc="state.recView.subtitle"/></span>
+                                </h1>
+                                <p class="pg-sub"><t t-esc='t("Opened as its own record tab · live from the Odoo backend")'/></p>
+                            </div>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                <button class="btn" t-on-click="() => this.closeRecordTab()"><t t-esc='t("✕ Close tab")'/></button>
+                                <button class="btn" t-on-click="() => this.refreshRecordTab()"><t t-esc='t("↻ Refresh")'/></button>
+                            </div>
+                        </div>
+
+                        <div t-if="state.recView.loading" class="fx-card" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc='t("Loading the record…")'/></div>
+                        <div t-if="state.recView.error" class="fx-card" style="padding: 32px; text-align: center; color: var(--status-error);"><t t-esc="state.recView.error"/></div>
+
+                        <!-- R.1 · M20 CUSTOMER INVOICE -->
+                        <t t-if="!state.recView.loading &amp;&amp; !state.recView.error &amp;&amp; state.recView.kind === 'ar_invoice' &amp;&amp; state.recView.data &amp;&amp; state.recView.data.invoice">
+                            <div class="gl-layout">
+                                <div class="gl-main fx-card">
+                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 8px;">
+                                        <div>
+                                            <h2 style="margin: 0;"><t t-esc="state.recView.data.invoice.name || 'Draft AR invoice'"/></h2>
+                                            <p style="font-size: 12px; color: var(--ink-500); margin: 4px 0 10px;">
+                                                <t t-esc='t("Mushak")'/> <b><t t-esc="state.recView.data.invoice.mushak || '—'"/></b>
+                                                <t t-esc='t("· source")'/> <t t-esc="state.recView.data.invoice.source"/>
+                                                <t t-esc='t("· terms")'/> <t t-esc="state.recView.data.invoice.terms_days"/>d
+                                                · <t t-esc="state.recView.data.invoice.days_past_due"/><t t-esc='t("d past due · GL move")'/>
+                                                <b><t t-esc="state.recView.data.invoice.gl_move || '—'"/></b>
+                                            </p>
+                                        </div>
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                            <button class="btn btn-sm btn-primary" t-if="state.recView.data.invoice.state === 'draft'" t-on-click="() => this.recAction(() => this.arIssueDraft(state.recView.data.invoice.id))"><t t-esc='t("Issue (Mushak + number + GL)")'/></button>
+                                            <button class="btn btn-sm" t-if="['draft', 'issued'].includes(state.recView.data.invoice.state)" t-on-click="() => this.glPrompt('Cancel invoice', 'Cancellation reason (FR-ARB-011)', 'cancel_invoice', state.recView.data.invoice.id)"><t t-esc='t("Cancel")'/></button>
+                                            <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.glPrompt('Write off residual', 'Write-off reason (authority matrix)', 'writeoff_invoice', state.recView.data.invoice.id)"><t t-esc='t("Write off")'/></button>
+                                            <button class="btn btn-sm btn-primary" t-if="state.recView.data.invoice.state === 'issued' &amp;&amp; Math.abs(state.recView.data.invoice.residual || 0) &lt; 0.005" t-on-click="() => this.recAction(() => this.arRegisterPaid(state.recView.data.invoice.id))"><t t-esc='t("Register Paid")'/></button>
+                                            <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arOpenNoteForm(state.recView.data.invoice.id)"><t t-esc='t("+ Credit note")'/></button>
+                                            <button class="btn btn-sm" t-if="state.recView.data.invoice.state === 'issued'" t-on-click="() => this.arCreateLink(state.recView.data.invoice.id)"><t t-esc='t("Payment link")'/></button>
+                                        </div>
+                                    </div>
+                                    <div class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead><tr><th><t t-esc='t("Line")'/></th><th style="text-align: right;"><t t-esc='t("Taxable")'/></th><th style="text-align: right;"><t t-esc='t("VAT")'/></th><th style="text-align: right;"><t t-esc='t("Total")'/></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.recView.data.lines" t-as="line" t-key="line_index"><td><t t-esc="line.description"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.taxable)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.vat)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.total)"/></td></tr>
+                                                <tr><td><b><t t-esc='t("Totals")'/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.taxable)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.vat)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.recView.data.invoice.total)"/></b></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
+                                        <div>
+                                            <h4 style="margin: 4px 0;"><t t-esc='t("Receipt allocations (evidence)")'/></h4>
+                                            <t t-if="(state.recView.data.allocations || []).length">
+                                                <t t-foreach="state.recView.data.allocations" t-as="al" t-key="al_index"><div style="font-size: 12px; padding: 3px 0;">✓ <t t-esc="al.receipt"/> · <t t-esc="fmtBDT(al.amount)"/> <span class="chip ok"><t t-esc="al.date"/></span></div></t>
+                                            </t>
+                                            <p t-else="" style="font-size: 12px; color: var(--ink-300);"><t t-esc='t("No receipts allocated yet.")'/></p>
+                                        </div>
+                                        <div>
+                                            <h4 style="margin: 4px 0;"><t t-esc='t("Credit notes &amp; disputes")'/></h4>
+                                            <t t-foreach="state.recView.data.credit_notes || []" t-as="cn" t-key="cn_index"><div style="font-size: 12px; padding: 3px 0;">· <t t-esc="cn.name"/> <t t-esc="fmtBDT(cn.amount)"/> — <t t-esc="cn.state"/></div></t>
+                                            <t t-foreach="state.recView.data.disputes || []" t-as="dp" t-key="dp_index"><div style="font-size: 12px; padding: 3px 0;">⚖ <t t-esc="dp.reason || 'dispute'"/> <t t-esc="fmtBDT(dp.amount)"/> — <t t-esc="dp.state"/></div></t>
+                                        </div>
+                                    </div>
+                                    <div t-if="state.gl.arNoteForm" class="fx-card" style="margin-top: 12px;">
+                                        <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
+                                            <div class="fld"><label><t t-esc='t("Credit amount")'/></label><input type="number" step="0.01" t-att-value="state.gl.arNoteForm.amount" t-on-input="(ev) => this.arNoteFormSet('amount', ev.target.value)"/></div>
+                                            <div class="fld"><label><t t-esc='t("Reason")'/></label>
+                                                <select t-on-change="(ev) => this.arNoteFormSet('reason', ev.target.value)">
+                                                    <option value="goodwill"><t t-esc='t("Goodwill")'/></option><option value="service_failure"><t t-esc='t("Service failure")'/></option><option value="pricing_error"><t t-esc='t("Pricing error")'/></option><option value="warranty"><t t-esc='t("Warranty re-work")'/></option><option value="return"><t t-esc='t("Return")'/></option>
+                                                </select>
+                                            </div>
+                                            <button class="btn btn-primary btn-sm" t-on-click="() => this.recAction(() => this.arCreateNote())"><t t-esc='t("Create &amp; submit")'/></button>
+                                            <button class="btn btn-sm" t-on-click="() => this.state.gl.arNoteForm = null"><t t-esc='t("Cancel")'/></button>
+                                        </div>
+                                        <p style="font-size: 11px; color: var(--ink-500);"><t t-esc='t("Above BDT 25,000 a manager approves (05-04 §7); issuing applies the credit and posts the pro-rata VAT mirror.")'/></p>
+                                    </div>
+                                </div>
+                                <aside class="gl-factbox">
+                                    <h4><t t-esc='t("Invoice")'/></h4>
+                                    <div class="fb-sec">
+                                        <p style="font-size: 12px;"><b><t t-esc='t("Customer")'/></b><br/><t t-esc="state.recView.data.invoice.customer"/></p>
+                                        <p style="font-size: 12px;"><b><t t-esc='t("Date")'/></b><br/><t t-esc="state.recView.data.invoice.date"/> → <t t-esc="state.recView.data.invoice.due_date"/></p>
+                                        <p style="font-size: 12px;"><b><t t-esc='t("Residual")'/></b><br/><t t-esc="fmtBDT(state.recView.data.invoice.residual)"/></p>
+                                        <p style="font-size: 12px;"><b><t t-esc='t("State")'/></b><br/><span class="chip" t-att-class="{'ok': state.recView.data.invoice.state === 'paid', 'warn': state.recView.data.invoice.state === 'draft'}"><t t-esc="tState(state.recView.data.invoice.state)"/></span></p>
+                                    </div>
+                                </aside>
+                            </div>
+                        </t>
+
+                        <!-- R.2 · M19 JOURNAL ENTRY -->
+                        <div t-if="!state.recView.loading &amp;&amp; !state.recView.error &amp;&amp; state.recView.kind === 'journal_entry' &amp;&amp; state.recView.data &amp;&amp; state.recView.data.move" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                                    <div>
+                                        <h2 style="margin: 0;"><t t-esc="state.recView.data.move.name"/> — <t t-esc="fmtBDT(state.recView.data.move.amount)"/></h2>
+                                        <p style="margin: 4px 0 0; color: var(--ink-500);"><t t-esc="state.recView.data.move.date"/> · <t t-esc="state.recView.data.move.journal"/> · <t t-esc="state.recView.data.move.ref || 'no reference'"/></p>
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <span t-if="state.recView.data.move.state === 'posted'" class="chip ok">posted</span>
+                                        <t t-if="state.recView.data.move.state === 'draft'">
+                                            <span class="chip warn"><t t-esc='t("awaiting review")'/></span>
+                                            <button class="btn btn-primary" t-on-click="() => this.recAction(() => this.glApproveJe(state.recView.data.move.id))"><t t-esc='t("Approve &amp; Post")'/></button>
+                                        </t>
+                                    </div>
+                                </div>
+                                <div class="tbl-wrap">
+                                    <table class="fx-table">
+                                        <thead><tr><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Label")'/></th><th style="text-align: right;"><t t-esc='t("Debit")'/></th><th style="text-align: right;"><t t-esc='t("Credit")'/></th><th><t t-esc='t("Dimensions")'/></th></tr></thead>
+                                        <tbody>
+                                            <tr t-foreach="state.recView.data.lines" t-as="line" t-key="line.id" t-att-class="{'alt': line_index % 2}">
+                                                <td><t t-esc="line.account"/></td>
+                                                <td><t t-esc="line.label"/></td>
+                                                <td style="text-align: right;"><t t-esc="line.debit ? fmtBDT(line.debit) : ''"/></td>
+                                                <td style="text-align: right;"><t t-esc="line.credit ? fmtBDT(line.credit) : ''"/></td>
+                                                <td>
+                                                    <span t-if="line.dimension">
+                                                        <t t-foreach="Object.entries(line.dimension).filter((d) => d[1])" t-as="dim" t-key="dim[0]">
+                                                            <span class="chip" style="margin-right: 4px;"><t t-esc="dim[0]"/>: <t t-esc="dim[1]"/></span>
+                                                        </t>
+                                                    </span>
+                                                    <span t-if="!line.dimension" style="color: var(--ink-300);">—</span>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p t-if="state.recView.data.log" style="margin: 12px 0 0; color: var(--ink-500); font-size: 12px;">
+                                    <t t-esc='t("Posting log — source:")'/> <b><t t-esc="state.recView.data.log.source"/></b> <t t-esc='t("· requested by")'/> <b><t t-esc="state.recView.data.log.requested_by"/></b><t t-if="state.recView.data.log.posted_by"> <t t-esc='t("· posted by")'/> <b><t t-esc="state.recView.data.log.posted_by"/></b> at <t t-esc="state.recView.data.log.posted_at"/></t> <t t-esc='t("· immutable audit trail (FR-FIN-042)")'/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- R.3 · GENERIC MODEL RECORD (every module's model_list) -->
+                        <div t-if="!state.recView.loading &amp;&amp; !state.recView.error &amp;&amp; state.recView.kind === 'model_record' &amp;&amp; state.recView.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;">
+                                    <h3 style="margin: 0;">#<t t-esc="state.recView.data.row.id"/> <span style="font-weight: 400; color: var(--ink-500); font-size: 13px;" t-esc="state.recView.subtitle"/></h3>
+                                    <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                        <button class="btn btn-sm btn-primary" t-on-click="() => this.mlOpenForm(state.recView.data.row.id)"><t t-esc='t("Open full record")'/></button>
+                                        <t t-foreach="this.recActionsFor(state.recView.data.row) || []" t-as="act" t-key="act.m">
+                                            <button class="btn btn-sm" t-on-click="() => this.recAction(() => this.mlAction(act.m, act.l))"><t t-esc="act.l"/></button>
+                                        </t>
+                                    </div>
+                                </div>
+                                <div class="tbl-wrap">
+                                    <table class="fx-table">
+                                        <tbody>
+                                            <t t-foreach="this.recFieldPairs(state.recView.data.row)" t-as="pair" t-key="pair[0]">
+                                                <tr t-att-class="{'alt': pair_index % 2}">
+                                                    <td style="width: 32%; color: var(--ink-500);"><t t-esc="pair[0]"/></td>
+                                                    <td><b><t t-esc="pair[1]"/></b></td>
+                                                </tr>
+                                            </t>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Record Summary")'/></h4>
+                                <div class="fb-sec">
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--ink-900); margin-bottom: 4px;">
+                                        <t t-esc="state.recView.data.row.name || state.recView.data.row.reference || state.recView.data.row.reference_no || ('#' + state.recView.data.row.id)"/>
+                                    </div>
+                                    <div style="font-size: 11px; color: var(--ink-500); margin-bottom: 8px;">
+                                        ID #<t t-esc="state.recView.data.row.id"/> · <t t-esc="state.recView.subtitle"/>
+                                    </div>
+                                    <div t-if="state.recView.data.row.state" style="margin-bottom: 10px;">
+                                        <span class="chip"><t t-esc="state.recView.data.row.state"/></span>
+                                    </div>
+                                    <button class="btn btn-sm btn-primary" style="width: 100%; margin-top: 8px;" t-on-click="() => this.mlOpenForm(state.recView.data.row.id)">
+                                        <t t-esc='t("Open Full Form")'/>
+                                    </button>
+                                </div>
+                            </aside>
+                        </div>
+                    </t>
+
+                    <!-- ========================================================
                          VIEW A: ROLE CENTER EXECUTIVE DASHBOARD (HOME)
                          ======================================================== -->
                     <t t-if="state.viewMode === 'home'">
@@ -154,7 +355,7 @@
                                 <p class="pg-sub"><t t-if="state.stats" t-esc="state.stats.company.name"/> · P03 Operations Workspace · live data from the Odoo backend</p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Service Order</button>
+                                <button class="btn btn-primary" t-on-click="onModuleNew">+ New Service Order</button>
                                 <button class="btn" t-on-click="openDispatchConsole">🗺 Dispatch &amp; Map</button>
                                 <button class="btn" t-on-click="openBranchConsole">🏢 Branch Console</button>
                                 <button class="btn" t-on-click="openWorkshopConsole">🔧 Workshop Console</button>
@@ -299,9 +500,9 @@
                                     <b>J03</b> Pick &amp; drop logistics round trip
                                     <span>6 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M05-claims')" style="cursor: pointer;">
-                                    <b>J04</b> <t t-esc='t("Brand warranty claim reimbursement")'/>
-                                    <span>6 steps</span>
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M05-alerts')" style="cursor: pointer;">
+                                    <b>J06</b> <t t-esc='t("MSP alert to resolution journey")'/>
+                                    <span>4 steps</span>
                                 </div>
                                 <div class="journey-chip" t-on-click="() => this.openScreen('M06-contracts')" style="cursor: pointer;">
                                     <b>J05</b> <t t-esc='t("Corporate AMC preventive maintenance")'/>
@@ -359,7 +560,7 @@
                         <div class="fx-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                                 <h3>Function Register — Sub-modules &amp; Capabilities</h3>
-                                <span class="chip"><t t-esc="state.activeModule.freg.src"/> <t t-esc='t("functions total")'/></span>
+                                <span class="chip"><t t-esc="state.activeModule.freg.src"/> <t t-esc='t("functions catalogued")'/> · <t t-esc="state.activeModule.freg.sub.length"/> <t t-esc='t("sub-modules mapped to screens")'/></span>
                             </div>
                             <div class="freg-grid">
                                 <t t-foreach="state.activeModule.freg.sub" t-as="sub" t-key="sub[0]">
@@ -459,7 +660,10 @@
                         <!-- Implementing Screens & Operations Grid -->
                         <div class="fx-card">
                             <h3><t t-esc='t("Screens Executing this Sub-Module")'/></h3>
-                            <div class="groups-grid">
+                            <div t-if="!state.activeFreg.screens.length" style="padding:14px 2px; color:var(--ink-300);">
+                                <t t-esc='t("No screens are mapped to this sub-module yet. This panel used to list the module\u2019s first six screens here, which were the same for every sub-module.")'/>
+                            </div>
+                            <div t-else="" class="groups-grid">
                                 <div class="group-block">
                                     <h4><t t-esc='t("Directly Implementing")'/></h4>
                                     <t t-foreach="state.activeFreg.screens" t-as="sc" t-key="sc.id">
@@ -490,13 +694,30 @@
                             </div>
                         </div>
 
-                        <!-- Sample / Real Records Table -->
+                        <!-- Live records of the sub-module's own model.
+                             Was "Sample &amp; Live Database Records" over a table
+                             that could never have rows (A04 audit, 2026-11-01). -->
                         <div class="fx-card">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-                                <h3>Sample &amp; Live Database Records</h3>
-                                <span class="chip"><t t-esc='t("records wire with each porting phase")'/></span>
+                                <h3><t t-esc='t("Live Database Records")'/></h3>
+                                <span t-if="state.activeFreg.model" class="chip">
+                                    <t t-esc="state.activeFreg.model"/>
+                                    <t t-if="state.activeFreg.gridData.total"> · <t t-esc="state.activeFreg.gridData.total"/></t>
+                                </span>
                             </div>
-                            <div class="tbl-wrap">
+                            <div t-if="state.activeFreg.loading" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc='t("Loading live records…")'/>
+                            </div>
+                            <div t-elif="!state.activeFreg.model" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc='t("No live data surface is mapped to this sub-module yet. The screens above are the ones that implement it.")'/>
+                            </div>
+                            <div t-elif="state.activeFreg.gridData.error" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc="state.activeFreg.gridData.error"/>
+                            </div>
+                            <div t-elif="!state.activeFreg.gridData.rows.length" style="padding:18px; color:var(--ink-300);">
+                                <t t-esc='t("No records yet in")'/> <code t-esc="state.activeFreg.model"/>.
+                            </div>
+                            <div t-else="" class="tbl-wrap">
                                 <table class="fx-table">
                                     <thead>
                                         <tr>
@@ -507,11 +728,11 @@
                                     </thead>
                                     <tbody>
                                         <t t-foreach="state.activeFreg.gridData.rows" t-as="row" t-key="row_index">
-                                            <tr t-att-class="{'alt': row_index % 2 === 1}" t-on-click="() => this.openRecord(row[0])" style="cursor: pointer;">
+                                            <tr t-att-class="{'alt': row_index % 2 === 1}" t-on-click="() => this.openFregRecord(row)" style="cursor: pointer;">
                                                 <t t-foreach="row" t-as="cell" t-key="cell_index">
                                                     <td>
                                                         <t t-if="cell_index === 0">
-                                                            <button class="id-chip" t-on-click="() => this.openRecord(cell)" t-att-title="'View Record ' + cell">
+                                                            <button class="id-chip" t-on-click.stop="() => this.openFregRecord(row)" t-att-title="'Open ' + cell">
                                                                 <t t-esc="cell"/>
                                                             </button>
                                                         </t>
@@ -1217,6 +1438,7 @@
                             </div>
                             <div class="pg-actions">
                                 <button class="btn btn-primary" t-on-click="() => this.openRecord(state.activeRecord.order_id)"><t t-esc='t("↻ Refresh")'/></button>
+                                <button class="btn" t-on-click="() => this.openModuleFormForModel('fix.service.order', state.activeRecord.order_id)" title="Edit this order in Dynamics 365 form">✎ Edit Order</button>
                                 <button class="btn" t-on-click="openJobCardModal"><t t-esc='t("🖶 Print Job Card")'/></button>
                                 <button class="btn" t-on-click="openDispatchModal"><t t-esc='t("⚡ AI Dispatch")'/></button>
                                 <button class="btn" t-on-click="openInventoryModal"><t t-esc='t("📦 Reserve Parts")'/></button>
@@ -1248,11 +1470,11 @@
                             <div class="record-main-col">
                                 <!-- Tabs: Overview, Lines, Attachments, Audit -->
                                 <div class="fx-card">
-                                    <div class="record-tab-header">
-                                        <button class="rtab" t-att-class="{'active': state.recordActiveTab === 'overview'}" t-on-click="() => state.recordActiveTab = 'overview'"><t t-esc='t("Overview")'/></button>
-                                        <button class="rtab" t-att-class="{'active': state.recordActiveTab === 'lines'}" t-on-click="() => state.recordActiveTab = 'lines'">Lines &amp; Parts</button>
-                                        <button class="rtab" t-att-class="{'active': state.recordActiveTab === 'attachments'}" t-on-click="() => state.recordActiveTab = 'attachments'"><t t-esc='t("Attachments (")'/><t t-esc="state.recordAttachments.length"/>)</button>
-                                        <button class="rtab" t-att-class="{'active': state.recordActiveTab === 'audit'}" t-on-click="() => state.recordActiveTab = 'audit'"><t t-esc='t("Audit Trail")'/></button>
+                                    <div class="record-tab-header" role="tablist" aria-label="Service Order Record Details">
+                                        <button class="rtab" role="tab" id="tab-overview" aria-controls="panel-overview" t-att-aria-selected="state.recordActiveTab === 'overview' ? 'true' : 'false'" t-att-class="{'active': state.recordActiveTab === 'overview'}" t-on-click="() => state.recordActiveTab = 'overview'"><t t-esc='t("Overview")'/></button>
+                                        <button class="rtab" role="tab" id="tab-lines" aria-controls="panel-lines" t-att-aria-selected="state.recordActiveTab === 'lines' ? 'true' : 'false'" t-att-class="{'active': state.recordActiveTab === 'lines'}" t-on-click="() => state.recordActiveTab = 'lines'">Lines &amp; Parts</button>
+                                        <button class="rtab" role="tab" id="tab-attachments" aria-controls="panel-attachments" t-att-aria-selected="state.recordActiveTab === 'attachments' ? 'true' : 'false'" t-att-class="{'active': state.recordActiveTab === 'attachments'}" t-on-click="() => state.recordActiveTab = 'attachments'"><t t-esc='t("Attachments (")'/><t t-esc="state.recordAttachments.length"/>)</button>
+                                        <button class="rtab" role="tab" id="tab-audit" aria-controls="panel-audit" t-att-aria-selected="state.recordActiveTab === 'audit' ? 'true' : 'false'" t-att-class="{'active': state.recordActiveTab === 'audit'}" t-on-click="() => state.recordActiveTab = 'audit'"><t t-esc='t("Audit Trail")'/></button>
                                     </div>
 
                                     <!-- Overview Tab Fields -->
@@ -1507,7 +1729,7 @@
                                     <span class="fb-lbl"><t t-esc='t("CROSS-MODULE LINKS")'/></span>
                                     <div class="fb-links">
                                         <button class="screen-link" t-on-click="() => this.openScreen('M02-wo')">⇄ M02 Field Work Order</button>
-                                        <button class="screen-link" t-on-click="() => this.openScreen('M05-claims')">⇄ M09 Brand Claim</button>
+                                        <button class="screen-link" t-on-click="() => this.openScreen('M05-alerts')">⇄ M05 MSP Alerts</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M15-reserved')">⇄ M15 Reserved Parts</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M20-invoices')">⇄ M20 Mushak 6.3 Invoice</button>
                                     </div>
@@ -1536,7 +1758,7 @@
                         <div class="pg-head">
                             <div>
                                 <div class="crumbs"><t t-esc='t("Home ›")'/> <t t-esc="glModuleTitle"/> › <t t-esc="glTitle"/></div>
-                                <h1><span style="margin-right: 8px;">💰</span><t t-esc="glTitle"/></h1>
+                                <h1><span style="margin-right: 8px;" t-esc="glModuleIcon"/><t t-esc="glTitle"/></h1>
                                 <p class="pg-sub"><t t-esc='t("Live from the Odoo backend")'/></p>
                             </div>
                             <div class="pg-actions">
@@ -1610,7 +1832,7 @@
 
                         <!-- ============ JOURNALS ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'journals' &amp;&amp; state.gl.data">
-                            <div class="fx-card" t-if="!state.gl.jeDetail">
+                            <div class="fx-card">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
                                     <h3><t t-esc='t("Journal Entries —")'/> <t t-esc="state.gl.data.count"/> entries</h3>
                                     <div class="view-pills">
@@ -1636,50 +1858,6 @@
                                             <tr t-if="!state.gl.data.rows.length"><td colspan="7" style="text-align: center; color: var(--ink-300);"><t t-esc='t("No journal entries match. Create one from the Journal Entry screen.")'/></td></tr>
                                         </tbody>
                                     </table>
-                                </div>
-                            </div>
-                            <div class="fx-card" t-if="state.gl.jeDetail">
-                                <div t-if="state.gl.jeDetail.loading" style="padding: 32px; text-align: center; color: var(--ink-300);"><t t-esc='t("Loading the entry…")'/></div>
-                                <div t-if="state.gl.jeDetail.error" style="padding: 32px; text-align: center;"><t t-esc="state.gl.jeDetail.error"/></div>
-                                <div t-if="state.gl.jeDetail.move">
-                                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;">
-                                        <div>
-                                            <h3 style="margin: 0;"><t t-esc='t("Entry")'/> <t t-esc="state.gl.jeDetail.move.name"/> — <t t-esc="fmtBDT(state.gl.jeDetail.move.amount)"/></h3>
-                                            <p style="margin: 4px 0 0; color: var(--ink-500);"><t t-esc="state.gl.jeDetail.move.date"/> · <t t-esc="state.gl.jeDetail.move.journal"/> · <t t-esc="state.gl.jeDetail.move.ref || 'no reference'"/></p>
-                                        </div>
-                                        <div style="display: flex; gap: 8px;">
-                                            <span t-if="state.gl.jeDetail.move.state === 'posted'" class="chip ok">posted</span>
-                                            <t t-if="state.gl.jeDetail.move.state === 'draft'">
-                                                <span class="chip warn"><t t-esc='t("awaiting review")'/></span>
-                                                <button class="btn btn-primary" t-on-click="() => this.glApproveJe(state.gl.jeDetail.move.id)">Approve &amp; Post</button>
-                                            </t>
-                                            <button class="btn" t-on-click="glBackToJournals"><t t-esc='t("← Back to journals")'/></button>
-                                        </div>
-                                    </div>
-                                    <div class="tbl-wrap">
-                                        <table class="fx-table">
-                                            <thead><tr><th><t t-esc='t("Account")'/></th><th><t t-esc='t("Label")'/></th><th style="text-align: right;"><t t-esc='t("Debit")'/></th><th style="text-align: right;"><t t-esc='t("Credit")'/></th><th><t t-esc='t("Dimensions")'/></th></tr></thead>
-                                            <tbody>
-                                                <tr t-foreach="state.gl.jeDetail.lines" t-as="line" t-key="line.id" t-att-class="{'alt': line_index % 2}">
-                                                    <td><t t-esc="line.account"/></td>
-                                                    <td><t t-esc="line.label"/></td>
-                                                    <td style="text-align: right;"><t t-esc="line.debit ? fmtBDT(line.debit) : ''"/></td>
-                                                    <td style="text-align: right;"><t t-esc="line.credit ? fmtBDT(line.credit) : ''"/></td>
-                                                    <td>
-                                                        <span t-if="line.dimension">
-                                                            <t t-foreach="Object.entries(line.dimension).filter((d) => d[1])" t-as="dim" t-key="dim[0]">
-                                                                <span class="chip" style="margin-right: 4px;"><t t-esc="dim[0]"/>: <t t-esc="dim[1]"/></span>
-                                                            </t>
-                                                        </span>
-                                                        <span t-if="!line.dimension" style="color: var(--ink-300);">—</span>
-                                                    </td>
-                                                </tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <p t-if="state.gl.jeDetail.log" style="margin: 12px 0 0; color: var(--ink-500); font-size: 12px;">
-                                        <t t-esc='t("Posting log — source:")'/> <b><t t-esc="state.gl.jeDetail.log.source"/></b> <t t-esc='t("· requested by")'/> <b><t t-esc="state.gl.jeDetail.log.requested_by"/></b><t t-if="state.gl.jeDetail.log.posted_by"> <t t-esc='t("· posted by")'/> <b><t t-esc="state.gl.jeDetail.log.posted_by"/></b> at <t t-esc="state.gl.jeDetail.log.posted_at"/></t> <t t-esc='t("· immutable audit trail (FR-FIN-042)")'/>
-                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -2095,70 +2273,17 @@
                                         </tbody>
                                     </table>
                                 </div>
-                                <div t-if="state.gl.arDetail" class="fx-card" style="margin-top: 14px;">
-                                    <div t-if="state.gl.arDetail.loading" style="padding: 24px; text-align: center; color: var(--ink-300);"><t t-esc='t("Loading the invoice…")'/></div>
-                                    <div t-if="state.gl.arDetail.error" style="padding: 24px; text-align: center;"><t t-esc="state.gl.arDetail.error"/></div>
-                                    <div t-if="state.gl.arDetail.invoice">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                                            <h3><t t-esc="state.gl.arDetail.invoice.name || 'Draft AR invoice'"/> — <t t-esc="state.gl.arDetail.invoice.customer"/></h3>
-                                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                                                <button class="btn btn-sm" t-on-click="() => this.arBackToInvoices()"><t t-esc='t("✕ Close")'/></button>
-                                                <button class="btn btn-sm btn-primary" t-if="state.gl.arDetail.invoice.state === 'draft'" t-on-click="() => this.arIssueDraft(state.gl.arDetail.invoice.id)"><t t-esc='t("Issue (Mushak + number + GL)")'/></button>
-                                                <button class="btn btn-sm" t-if="['draft', 'issued'].includes(state.gl.arDetail.invoice.state)" t-on-click="() => this.glPrompt('Cancel invoice', 'Cancellation reason (FR-ARB-011)', 'cancel_invoice', state.gl.arDetail.invoice.id)"><t t-esc='t("Cancel")'/></button>
-                                                <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.glPrompt('Write off residual', 'Write-off reason (authority matrix)', 'writeoff_invoice', state.gl.arDetail.invoice.id)"><t t-esc='t("Write off")'/></button>
-                                                <button class="btn btn-sm btn-primary" t-if="state.gl.arDetail.invoice.state === 'issued' &amp;&amp; Math.abs(state.gl.arDetail.invoice.residual || 0) &lt; 0.005" t-on-click="() => this.arRegisterPaid(state.gl.arDetail.invoice.id)"><t t-esc='t("Register Paid")'/></button>
-                                                <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.arOpenNoteForm(state.gl.arDetail.invoice.id)"><t t-esc='t("+ Credit note")'/></button>
-                                                <button class="btn btn-sm" t-if="state.gl.arDetail.invoice.state === 'issued'" t-on-click="() => this.arCreateLink(state.gl.arDetail.invoice.id)"><t t-esc='t("Payment link")'/></button>
-                                            </div>
-                                        </div>
-                                        <p style="font-size: 12px; color: var(--ink-500); margin: 4px 0 10px;">
-                                            <t t-esc='t("Mushak")'/> <b><t t-esc="state.gl.arDetail.invoice.mushak || '—'"/></b> <t t-esc='t("· source")'/> <t t-esc="state.gl.arDetail.invoice.source"/> <t t-esc='t("· terms")'/> <t t-esc="state.gl.arDetail.invoice.terms_days"/>d · <t t-esc="state.gl.arDetail.invoice.days_past_due"/><t t-esc='t("d past due · GL move")'/> <b><t t-esc="state.gl.arDetail.invoice.gl_move || '—'"/></b> <t t-if="state.gl.arDetail.invoice.gl_note" t-esc="state.gl.arDetail.invoice.gl_note"/>
-                                        </p>
-                                        <div class="tbl-wrap">
-                                            <table class="fx-table">
-                                                <thead><tr><th><t t-esc='t("Line")'/></th><th style="text-align: right;"><t t-esc='t("Taxable")'/></th><th style="text-align: right;"><t t-esc='t("VAT")'/></th><th style="text-align: right;"><t t-esc='t("Total")'/></th></tr></thead>
-                                                <tbody>
-                                                    <tr t-foreach="state.gl.arDetail.lines" t-as="line" t-key="line_index"><td><t t-esc="line.description"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.taxable)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.vat)"/></td><td style="text-align: right;"><t t-esc="fmtBDT(line.total)"/></td></tr>
-                                                    <tr><td><b><t t-esc='t("Totals")'/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.gl.arDetail.invoice.taxable)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.gl.arDetail.invoice.vat)"/></b></td><td style="text-align: right;"><b><t t-esc="fmtBDT(state.gl.arDetail.invoice.total)"/></b></td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px;">
-                                            <div>
-                                                <h4 style="margin: 4px 0;"><t t-esc='t("Receipt allocations (evidence)")'/></h4>
-                                                <t t-foreach="state.gl.arDetail.allocations" t-as="a" t-key="a_index"><div style="font-size: 12px;">· <t t-esc="a.receipt"/> — <b><t t-esc="fmtBDT(a.amount)"/></b> (<t t-esc="a.date"/>)</div></t>
-                                                <p t-if="!state.gl.arDetail.allocations.length" style="font-size: 12px; color: var(--ink-300);"><t t-esc='t("No receipts allocated yet.")'/></p>
-                                            </div>
-                                            <div>
-                                                <h4 style="margin: 4px 0;">Credit notes &amp; disputes</h4>
-                                                <t t-foreach="state.gl.arDetail.credit_notes" t-as="n" t-key="n_index"><div style="font-size: 12px;"><t t-esc='t("· CN")'/> <t t-esc="fmtBDT(n.amount)"/> (<t t-esc="n.reason"/>) — <t t-esc="n.state"/></div></t>
-                                                <t t-foreach="state.gl.arDetail.disputes" t-as="d" t-key="d_index"><div style="font-size: 12px;"><t t-esc='t("⚖ disputed")'/> <b><t t-esc="fmtBDT(d.amount)"/></b> — <t t-esc="tState(d.state)"/></div></t>
-                                                <p t-if="!state.gl.arDetail.credit_notes.length &amp;&amp; !state.gl.arDetail.disputes.length" style="font-size: 12px; color: var(--ink-300);"><t t-esc='t("None.")'/></p>
-                                            </div>
-                                        </div>
-                                        <div t-if="state.gl.arNoteForm" class="fx-card" style="margin-top: 12px;">
-                                            <div style="display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap;">
-                                                <div class="fld"><label><t t-esc='t("Credit amount")'/></label><input type="number" step="0.01" t-att-value="state.gl.arNoteForm.amount" t-on-input="(ev) => this.arNoteFormSet('amount', ev.target.value)"/></div>
-                                                <div class="fld"><label><t t-esc='t("Reason")'/></label>
-                                                    <select t-on-change="(ev) => this.arNoteFormSet('reason', ev.target.value)">
-                                                        <option value="goodwill"><t t-esc='t("Goodwill")'/></option><option value="service_failure"><t t-esc='t("Service failure")'/></option><option value="pricing_error"><t t-esc='t("Pricing error")'/></option><option value="warranty"><t t-esc='t("Warranty re-work")'/></option><option value="return"><t t-esc='t("Return")'/></option>
-                                                    </select>
-                                                </div>
-                                                <button class="btn btn-primary btn-sm" t-on-click="() => this.arCreateNote()">Create &amp; submit</button>
-                                                <button class="btn btn-sm" t-on-click="() => this.state.gl.arNoteForm = null"><t t-esc='t("Cancel")'/></button>
-                                            </div>
-                                            <p style="font-size: 11px; color: var(--ink-500);"><t t-esc='t("Above BDT 25,000 a manager approves (05-04 §7); issuing applies the credit and posts the pro-rata VAT mirror.")'/></p>
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
-                            
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("FR-ARB-020")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Every invoice opens in its own record tab — the Mushak number, GL move, allocations and credit notes travel with the record, not the grid.")'/></p></div>
+                            </aside>
                         </div>
 
                         <!-- ============ M20 · MANUAL INVOICE EDITOR (FR-ARB-010) ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'ar_editor' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <h3><t t-esc='t("Manual Invoice — the exception path (FR-ARB-010)")'/></h3>
+                                <h3><t t-esc='t("Invoice Workbench — Mushak 6.3 (manual entry is the exception path, FR-ARB-010)")'/></h3>
                                 <p style="font-size: 12px; color: var(--ink-500);"><t t-esc='t("Reason code mandatory · saved as DRAFT · Issue draws the gapless number, writes Mushak 6.3 and posts the GL — all server-side enforced.")'/></p>
                                 <div style="display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0;">
                                     <div class="fld"><label><t t-esc='t("Customer")'/></label>
@@ -2324,6 +2449,12 @@
                                             </select>
                                         </div>
                                         <div class="fld"><label><t t-esc='t("Reference (TrxID/cheque)")'/></label><input type="text" t-on-input="(ev) => this.arReceiptFormSet('reference', ev.target.value)"/></div>
+                                        <div class="fld"><label><t t-esc='t("Branch")'/></label>
+                                            <select t-on-change="(ev) => this.arReceiptFormSet('branch_id', ev.target.value)">
+                                                <option value=""><t t-esc='t("— pick —")'/></option>
+                                                <option t-foreach="state.gl.data.branches || []" t-as="b" t-key="b.id" t-att-value="b.id"><t t-esc="b.name"/></option>
+                                            </select>
+                                        </div>
                                         <div class="fld"><label>NID (cash &gt; 50k)</label><input type="text" t-on-input="(ev) => this.arReceiptFormSet('nid', ev.target.value)"/></div>
                                         <button class="btn btn-primary btn-sm" t-on-click="() => this.arReceiptCreate()"><t t-esc='t("Capture")'/></button>
                                         <button class="btn btn-sm" t-on-click="() => this.state.gl.receiptForm = null"><t t-esc='t("Cancel")'/></button>
@@ -2677,16 +2808,41 @@
                         <!-- ============ GENERIC TABLE REPORT (A08 per-module REPORTS) ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'table_report' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <div t-if="state.gl.reportCfg.period !== false" style="display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-bottom: 12px;">
-                                    <label class="fld"><span><t t-esc='t("From")'/></span>
+                                <div style="display: flex; gap: 8px; align-items: end; flex-wrap: wrap; margin-bottom: 12px;">
+                                    <label class="fld" t-if="state.gl.reportCfg.period !== false"><span><t t-esc='t("From")'/></span>
                                         <input type="date" t-att-value="state.gl.stmtFrom" t-on-change="(ev) => { state.gl.stmtFrom = ev.target.value; }"/></label>
-                                    <label class="fld"><span><t t-esc='t("To")'/></span>
+                                    <label class="fld" t-if="state.gl.reportCfg.period !== false"><span><t t-esc='t("To")'/></span>
                                         <input type="date" t-att-value="state.gl.stmtTo" t-on-change="(ev) => { state.gl.stmtTo = ev.target.value; }"/></label>
+                                    <t t-foreach="state.gl.data.filters || []" t-as="flt" t-key="flt.key">
+                                        <label class="fld"><span><t t-esc="t(flt.label || flt.key)"/></span>
+                                            <select t-att-value="state.gl.reportFilters[flt.key] || flt.options[0]"
+                                                    t-on-change="(ev) => { state.gl.reportFilters[flt.key] = ev.target.value; }">
+                                                <t t-foreach="flt.options" t-as="opt" t-key="opt_index">
+                                                    <option t-att-selected="(state.gl.reportFilters[flt.key] || flt.options[0]) === opt ? 'selected' : undefined"><t t-esc="opt"/></option>
+                                                </t>
+                                            </select>
+                                        </label>
+                                    </t>
                                     <button class="btn btn-sm btn-primary" t-on-click="() => this.loadGlData()"><t t-esc='t("Run")'/></button>
                                 </div>
                                 <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
                                 <div t-if="!state.gl.data.error">
-                                    <h3 t-if="state.gl.data.title"><t t-esc="t(state.gl.data.title)"/></h3>
+                                    <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;">
+                                        <h3 t-if="state.gl.data.title"><t t-esc="t(state.gl.data.title)"/>
+                                            <span style="font-weight: 400; color: var(--ink-500); font-size: 12px; margin-left: 8px;"><t t-esc="state.gl.data.rows.length"/> <t t-esc='t("rows")'/></span>
+                                        </h3>
+                                        <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                            <button class="btn btn-sm" t-on-click="() => this.exportReport('csv')" title="Raw data — spreadsheet-ready">
+                                                <t t-esc='t("⬇ CSV")'/>
+                                            </button>
+                                            <button class="btn btn-sm" t-on-click="() => this.exportReport('xlsx')" title="Formatted workbook with header, meta and totals">
+                                                <t t-esc='t("⬇ Excel")'/>
+                                            </button>
+                                            <button class="btn btn-sm" t-on-click="() => this.printReportPdf()" title="Print-ready document (Save as PDF)">
+                                                <t t-esc='t("🖨 PDF")'/>
+                                            </button>
+                                        </div>
+                                    </div>
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
                                             <thead>
@@ -2718,13 +2874,66 @@
                             </div>
                         </div>
 
-                        <!-- ============ GENERIC MODEL LIST (A08 completion) ============ -->
+                        <!-- ============ GENERIC MODEL LIST (D365 Grid Standard) ============ -->
                         <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'model_list' &amp;&amp; state.gl.data" class="gl-layout">
                             <div class="gl-main fx-card">
-                                <div t-if="state.gl.data.error" style="padding: 40px; text-align: center; color: var(--ink-300);"><t t-esc="state.gl.data.error"/></div>
+                                <div t-if="state.gl.data.error" class="p03-surface-unavailable" role="alert" style="padding: 32px 28px; max-width: 760px; margin: 0 auto;">
+                                    <div style="display:flex; align-items:flex-start; gap:14px;">
+                                        <span aria-hidden="true" style="font-size:28px; line-height:1;">⚠️</span>
+                                        <div style="flex:1;">
+                                            <h2 style="margin:0 0 6px; font-size:17px; font-weight:600;"><t t-esc='t("This screen is not available right now")'/></h2>
+                                            <p style="margin:0 0 4px; color: var(--ink-200);"><t t-esc="state.gl.data.error"/></p>
+                                            <p t-if="state.gl.modelCfg &amp;&amp; state.gl.modelCfg.model" style="margin:0 0 16px; color: var(--ink-300); font-size:12px;"><t t-esc='t("Data source")'/>: <code t-esc="state.gl.modelCfg.model"/></p>
+                                            <p style="margin:0 0 18px; color: var(--ink-300); font-size:12px;"><t t-esc='t("Nothing you entered has been lost. If this screen worked before, the server is most likely running an earlier build and needs a restart — please tell your administrator.")'/></p>
+                                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                                <button class="btn btn-primary btn-sm" t-on-click="() => this.openModule(state.activeModuleId)"><t t-esc='t("Back to")'/> <t t-esc="(state.activeModule &amp;&amp; state.activeModule.en) || ''"/></button>
+                                                <button class="btn btn-sm" t-on-click="() => this.refreshGlScreen()">↻ <t t-esc='t("Try again")'/></button>
+                                                <button class="btn btn-sm" t-on-click="() => this.toggleMegaMenu()"><t t-esc='t("All modules")'/></button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                                 <div t-if="!state.gl.data.error">
+                                    <!-- Dynamics 365 Command Bar -->
+                                    <div class="d365-cmdbar" style="display: flex; gap: 8px; align-items: center; padding: 6px 10px; background: var(--surface-100, #f8fafc); border-radius: 6px; margin-bottom: 12px; border: 1px solid var(--border-color, #e2e8f0); flex-wrap: wrap;">
+                                        <button t-if="state.gl.modelCfg.create !== false" class="btn btn-primary btn-sm" t-on-click="() => this.mlNew()" title="Create new record">
+                                            <span style="margin-right: 4px; font-weight: 700;">+</span> <t t-esc='t("New")'/>
+                                        </button>
+                                        <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
+                                            <button class="btn btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
+                                        </t>
+                                        <button class="btn btn-sm" t-on-click="() => this.mlExportCsv()" title="Export current rows to CSV">
+                                            <span style="margin-right: 4px;">⤓</span> <t t-esc='t("Export CSV")'/>
+                                        </button>
+                                        <button class="btn btn-sm" t-on-click="() => this.mlRefresh()" title="Refresh records from Odoo">
+                                            <span style="margin-right: 4px;">↻</span> <t t-esc='t("Refresh")'/>
+                                        </button>
+
+                                        <!-- D365 Real-Time Quick Find Search Box -->
+                                        <div style="margin-left: auto; display: flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--border-color, #cbd5e1); border-radius: 4px; padding: 2px 8px;">
+                                            <span style="color: var(--ink-400); font-size: 13px;">🔍</span>
+                                            <input type="text"
+                                                   style="border: none; outline: none; background: transparent; font-size: 12px; padding: 3px 0; min-width: 170px; color: var(--ink-900);"
+                                                   placeholder="Quick find..."
+                                                   t-att-value="state.gl.mlSearch"
+                                                   t-on-input="(ev) => this.mlOnSearchInput(ev)"/>
+                                            <button t-if="state.gl.mlSearch"
+                                                    style="border: none; background: transparent; padding: 0 2px; color: var(--ink-400); cursor: pointer; font-size: 11px;"
+                                                    t-on-click="() => this.mlClearSearch()"
+                                                    title="Clear search">✕</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Status / Filter Pills & Record Counter -->
                                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
-                                        <h3><t t-esc="state.gl.data.count"/> <t t-esc='t("records · live from Odoo")'/></h3>
+                                        <div style="font-size: 13px; font-weight: 500; color: var(--ink-700);">
+                                            <span t-esc="mlRows.length"/> <t t-esc='t(mlRows.length === 1 ? "record" : "records")'/>
+                                            <t t-if="state.gl.data.total &amp;&amp; state.gl.data.total > mlRows.length">
+                                                (of <span t-esc="state.gl.data.total"/> total)
+                                            </t>
+                                            <span style="color: var(--ink-400); font-size: 12px; margin-left: 4px;">· live from Odoo</span>
+                                            <span t-if="state.gl.mlSearch" class="chip" style="margin-left: 6px; font-size: 11px; padding: 2px 6px;">Filtered</span>
+                                        </div>
                                         <div style="display: flex; gap: 6px; flex-wrap: wrap;" t-if="mlStates.length">
                                             <button class="btn btn-sm" t-att-class="{'btn-primary': state.gl.mlState === '__all'}" t-on-click="() => this.mlSetState('__all')"><t t-esc='t("All")'/></button>
                                             <t t-foreach="mlStates" t-as="st" t-key="st.key">
@@ -2732,18 +2941,27 @@
                                             </t>
                                         </div>
                                     </div>
-                                    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;">
-                                        <button t-if="state.gl.modelCfg.create !== false" class="btn btn-sm" t-on-click="() => this.mlNew()"><t t-esc='t("+ New")'/></button>
-                                        <t t-foreach="state.gl.modelCfg.actions || []" t-as="act" t-key="act.m">
-                                            <button class="btn btn-primary btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
-                                        </t>
-                                    </div>
+
+                                    <!-- D365 Interactive Table with Clickable Sort Headers -->
                                     <div class="tbl-wrap">
                                         <table class="fx-table">
                                             <thead>
                                                 <tr>
                                                     <t t-foreach="state.gl.modelCfg.cols" t-as="col" t-key="col">
-                                                        <th><t t-esc="state.gl.data.labels[col] || col"/></th>
+                                                        <th style="cursor: pointer; user-select: none;"
+                                                            t-on-click="() => this.mlToggleSort(col)"
+                                                            t-att-title="'Sort by ' + (state.gl.data.labels[col] || col)">
+                                                            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                                                                <span><t t-esc="state.gl.data.labels[col] || col"/></span>
+                                                                <span style="font-size: 10px; color: var(--ink-400);">
+                                                                    <t t-if="state.gl.mlSortCol === col">
+                                                                        <t t-if="state.gl.mlSortAsc">▲</t>
+                                                                        <t t-else="">▼</t>
+                                                                    </t>
+                                                                    <t t-else="">⇅</t>
+                                                                </span>
+                                                            </div>
+                                                        </th>
                                                     </t>
                                                 </tr>
                                             </thead>
@@ -2758,35 +2976,342 @@
                                                         </td>
                                                     </t>
                                                 </tr>
-                                                <tr t-if="!mlRows.length"><td t-att-colspan="state.gl.modelCfg.cols.length" style="text-align: center; color: var(--ink-300);"><t t-esc='state.gl.modelCfg.create !== false ? t("No records yet — use + New to create the first one.") : t("No records yet.")'/></td></tr>
+                                                <tr t-if="!mlRows.length"><td t-att-colspan="state.gl.modelCfg.cols.length" style="text-align: center; color: var(--ink-300); padding: 24px;"><t t-esc='state.gl.mlSearch ? t("No matching records found for search.") : (state.gl.modelCfg.create !== false ? t("No records yet — use + New to create the first one.") : t("No records yet."))'/></td></tr>
                                             </tbody>
                                         </table>
                                     </div>
-                                    <div t-if="state.gl.mlSelected" class="fx-card" style="margin-top: 14px;">
-                                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-                                            <h3><t t-esc='t("Record detail")'/> #<t t-esc="state.gl.mlSelected.id"/></h3>
-                                            <div style="display: flex; gap: 6px;">
-                                                <button class="btn btn-sm btn-primary" t-on-click="() => this.mlOpenForm(state.gl.mlSelected.id)"><t t-esc='t("Open full record")'/></button>
-                                                <button class="btn btn-sm" t-on-click="() => this.mlSelect(state.gl.mlSelected)">✕ <t t-esc='t("Close")'/></button>
-                                            </div>
+                                </div>
+                            </div>
+                            <!-- D365 FactBox Aside -->
+                            <aside class="gl-factbox">
+                                <t t-if="state.gl.mlSelected">
+                                    <h4><t t-esc='t("Record Summary")'/></h4>
+                                    <div class="fb-sec">
+                                        <div style="font-size: 14px; font-weight: 600; color: var(--ink-900); margin-bottom: 4px;">
+                                            <t t-esc="state.gl.mlSelected.name || state.gl.mlSelected.reference || state.gl.mlSelected.reference_no || ('#' + state.gl.mlSelected.id)"/>
                                         </div>
-                                        <div class="tbl-wrap">
-                                            <table class="fx-table">
-                                                <tbody>
-                                                    <tr t-foreach="state.gl.modelCfg.cols" t-as="col" t-key="col">
-                                                        <td style="width: 30%; color: var(--ink-500);"><t t-esc="state.gl.data.labels[col] || col"/></td>
-                                                        <td><b><t t-esc="mlCell(state.gl.mlSelected, col)"/></b></td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
+                                        <div style="font-size: 11px; color: var(--ink-500); margin-bottom: 8px;">
+                                            ID #<t t-esc="state.gl.mlSelected.id"/> · <t t-esc="state.gl.modelCfg.model"/>
+                                        </div>
+                                        <div t-if="state.gl.mlSelected.state" style="margin-bottom: 10px;">
+                                            <span class="chip"><t t-esc="state.gl.mlSelected.state"/></span>
+                                        </div>
+                                        <button class="btn btn-sm btn-primary" style="width: 100%; margin-top: 8px;" t-on-click="() => this.mlOpenForm(state.gl.mlSelected.id)">
+                                            <t t-esc='t("Open Full Form")'/>
+                                        </button>
+                                    </div>
+                                    <div class="fb-sec" t-if="state.gl.modelCfg.actions &amp;&amp; state.gl.modelCfg.actions.length">
+                                        <h5><t t-esc='t("Actions")'/></h5>
+                                        <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px;">
+                                            <t t-foreach="state.gl.modelCfg.actions" t-as="act" t-key="act.m">
+                                                <button class="btn btn-sm" t-on-click="() => this.mlAction(act.m, act.l)"><t t-esc="t(act.l)"/></button>
+                                            </t>
+                                        </div>
+                                    </div>
+                                </t>
+                                <t t-else="">
+                                    <!-- Help text must describe THIS screen.
+                                         The old block was unconditional and
+                                         told every user to "filter by state
+                                         pills" - absent on 234 of 660 list
+                                         screens - and to "click any row to
+                                         open the D365 in-workspace form",
+                                         which a row click does not do: it
+                                         opens the record pane, and the form
+                                         is the Open Full Form button. The
+                                         pill sentence is keyed on the SAME
+                                         expression as the pill strip so the
+                                         two cannot drift (audit 2026-11-01). -->
+                                    <h4><t t-esc='t("Screen Overview")'/></h4>
+                                    <div class="fb-sec">
+                                        <p style="font-size: 12px;">
+                                            <t t-esc='t("Live records from Odoo.") + " "'/>
+                                            <t t-esc='t("Click a column header to sort, or type in Quick Find to filter as you type.") + " "'/>
+                                            <t t-if="mlStates.length"><t t-esc='t("The pills above the table filter by status.")'/></t>
+                                        </p>
+                                    </div>
+                                    <div class="fb-sec">
+                                        <p style="font-size: 11px; color: var(--ink-500);">
+                                            <t t-esc='t("Click a row to inspect it here, then use Open Full Form for the full record.") + " "'/>
+                                            <t t-esc='t("Export CSV and Refresh are on the command bar.")'/>
+                                        </p>
+                                    </div>
+                                </t>
+                            </aside>
+                        </div>
+
+                        <!-- ============ D365 IN-WORKSPACE RECORD FORM (model_form) ============
+                             User directive 2026-10-27: record forms render INSIDE the
+                             workspace with Dynamics-365 chrome — command bar, record
+                             header with status pill, section cards, labelled field grid.
+                             Never an Odoo dialog (no Odoo chrome, no chatter tables). -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'model_form'" class="gl-layout d365-form">
+                            <div class="gl-main fx-card">
+                                <!-- An unservable form must not show Save/Cancel over an empty body:
+                                     that reads as a form you can fill in and submit, and it cannot be.
+                                     Keyed on `form.unavailable` (set only on the LOAD path), never on
+                                     `form.error`, which a failed SAVE also sets - hiding the command
+                                     bar then would take the Save button away mid-correction. -->
+                                <div t-if="state.gl.form &amp;&amp; state.gl.form.unavailable" class="p03-surface-unavailable" role="alert" style="padding: 32px 28px; max-width: 760px; margin: 0 auto;">
+                                    <div style="display:flex; align-items:flex-start; gap:14px;">
+                                        <span aria-hidden="true" style="font-size:28px; line-height:1;">⚠️</span>
+                                        <div style="flex:1;">
+                                            <h2 style="margin:0 0 6px; font-size:17px; font-weight:600;"><t t-esc='t("This form is not available right now")'/></h2>
+                                            <p style="margin:0 0 4px; color: var(--ink-200);"><t t-esc="state.gl.form.error"/></p>
+                                            <p style="margin:0 0 18px; color: var(--ink-300); font-size:12px;"><t t-esc='t("Nothing you entered has been lost. If this screen worked before, the server is most likely running an earlier build and needs a restart — please tell your administrator.")'/></p>
+                                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                                <button class="btn btn-primary btn-sm" t-on-click="() => this.openModule(state.activeModuleId)"><t t-esc='t("Back to")'/> <t t-esc="(state.activeModule &amp;&amp; state.activeModule.en) || ''"/></button>
+                                                <button class="btn btn-sm" t-on-click="() => this.refreshGlScreen()">↻ <t t-esc='t("Try again")'/></button>
+                                                <button class="btn btn-sm" t-on-click="() => this.toggleMegaMenu()"><t t-esc='t("All modules")'/></button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
+                                <div t-if="!(state.gl.form &amp;&amp; state.gl.form.unavailable)" class="d365-cmdbar">
+                                    <button class="btn btn-primary" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(false)">
+                                        <t t-esc='t("Save")'/>
+                                    </button>
+                                    <button class="btn" t-att-disabled="state.gl.form.busy" t-on-click="() => this.formSave(true)">
+                                        <t t-esc='t("Save &amp; Close")'/>
+                                    </button>
+                                    <button class="btn" t-on-click="() => this.formBackToList()">
+                                        <t t-esc='t("Cancel")'/>
+                                    </button>
+                                    <span t-if="formStatusText" class="d365-status" t-esc="formStatusText"/>
+                                </div>
+
+                                <div class="d365-formhead">
+                                    <div class="d365-formtitle" t-esc="state.gl.title"/>
+                                    <div class="d365-formcrumb">
+                                        <t t-if="state.gl.moduleTitle" t-esc="state.gl.moduleTitle"/>
+                                        <span t-if="state.gl.moduleTitle"> › </span>
+                                        <t t-esc="state.gl.title"/>
+                                    </div>
+                                </div>
+
+                                <div t-if="state.gl.form.error" class="d365-formerror" t-esc="state.gl.form.error"/>
+
+                                <!-- Dynamics 365 Multi-Tab Strip -->
+                                <div t-if="formTabs.length" class="d365-formtabs" role="tablist" aria-label="Form Tabs">
+                                    <t t-foreach="formTabs" t-as="tab" t-key="tab.id">
+                                        <button type="button"
+                                                t-att-class="'d365-formtab-btn' + (formActiveTab === tab.id ? ' active' : '')"
+                                                role="tab"
+                                                t-att-aria-selected="formActiveTab === tab.id ? 'true' : 'false'"
+                                                t-att-id="'tab_' + tab.id"
+                                                t-att-aria-controls="'tabpanel_' + tab.id"
+                                                t-att-tabindex="formActiveTab === tab.id ? 0 : -1"
+                                                t-on-click="() => this.formSetTab(tab.id)">
+                                            <span t-if="tab.icon" class="d365-tab-icon" t-esc="tab.icon"/>
+                                            <span class="d365-tab-label" t-esc="state.lang === 'bn' &amp;&amp; tab.bn ? tab.bn : t(tab.label)"/>
+                                            <span t-if="tab.badge" class="d365-tab-badge" t-esc="tab.badge"/>
+                                        </button>
+                                    </t>
+                                </div>
+
+                                <div class="d365-tabpanel"
+                                     role="tabpanel"
+                                     t-att-id="formActiveTab ? ('tabpanel_' + formActiveTab) : undefined"
+                                     t-att-aria-labelledby="formActiveTab ? ('tab_' + formActiveTab) : undefined">
+                                    <t t-foreach="formSections" t-as="section" t-key="section.title">
+                                    <div class="d365-section">
+                                        <div class="d365-sectiontitle" t-esc="t(section.title)"/>
+                                        <div class="d365-fields">
+                                            <t t-foreach="section.fields" t-as="field" t-key="field.name">
+                                                <t t-set="fm" t-value="formFieldsMeta[field.name] || field"/>
+                                                <t t-set="fldId" t-value="'d365_fld_' + field.name + '_' + (state.gl.form.recordId || 'new')"/>
+                                                <div t-att-class="'d365-field' + ((fm.type === 'text' || fm.type === 'binary' || fm.type === 'image' || fm.type === 'file') ? ' d365-field-wide' : '')">
+                                                    <label class="d365-label" t-att-for="fldId">
+                                                        <t t-esc="t(fm.label || field.name)"/>
+                                                        <span t-if="fm.required" class="d365-req">*</span>
+                                                    </label>
+                                                    <!-- read-only values render as D365 locked text -->
+                                                    <div t-if="fm.readonly" class="d365-ro" t-att-id="fldId" t-esc="formDisplay(field.name)"/>
+                                                    <!-- selection -->
+                                                    <select t-elif="fm.type === 'selection'" class="d365-input"
+                                                            t-att-id="fldId" t-att-name="field.name"
+                                                            t-on-change="(ev) => this.formSet(field.name, ev.target.value)">
+                                                        <option value=""></option>
+                                                        <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.key">
+                                                            <option t-att-value="opt.key" t-att-selected="formSelectValue(field.name) == opt.key" t-esc="t(opt.label)"/>
+                                                        </t>
+                                                    </select>
+                                                    <!-- many2one -->
+                                                    <select t-elif="fm.type === 'many2one'" class="d365-input"
+                                                            t-att-id="fldId" t-att-name="field.name"
+                                                            t-on-change="(ev) => this.formSet(field.name, ev.target.value)">
+                                                        <option value=""></option>
+                                                        <t t-foreach="fm.choices || []" t-as="opt" t-key="opt.id">
+                                                            <option t-att-value="opt.id" t-att-selected="formSelectValue(field.name) == opt.id" t-esc="opt.label"/>
+                                                        </t>
+                                                    </select>
+                                                    <!-- boolean -->
+                                                    <label t-elif="fm.type === 'boolean'" class="d365-check">
+                                                        <input type="checkbox"
+                                                               t-att-id="fldId" t-att-name="field.name"
+                                                               t-att-checked="!!formFieldValue(field.name)"
+                                                               t-on-change="(ev) => this.formSet(field.name, ev.target.checked)"/>
+                                                        <span><t t-esc="formFieldValue(field.name) ? t('Yes') : t('No')"/></span>
+                                                    </label>
+                                                    <!-- long text -->
+                                                    <textarea t-elif="fm.type === 'text'" class="d365-input d365-textarea" rows="3"
+                                                              t-att-id="fldId" t-att-name="field.name"
+                                                              t-esc="formFieldValue(field.name)"
+                                                              t-on-input="(ev) => this.formSet(field.name, ev.target.value)"/>
+                                                    <!-- date -->
+                                                    <input t-elif="fm.type === 'date'" type="date" class="d365-input"
+                                                           t-att-id="fldId" t-att-name="field.name"
+                                                           t-att-value="formFieldValue(field.name)"
+                                                           t-on-input="(ev) => this.formSet(field.name, ev.target.value)"/>
+                                                    <!-- datetime -->
+                                                    <input t-elif="fm.type === 'datetime'" type="datetime-local" class="d365-input"
+                                                           t-att-id="fldId" t-att-name="field.name"
+                                                           t-att-value="formFieldValue(field.name)"
+                                                           t-on-input="(ev) => this.formSet(field.name, ev.target.value)"/>
+                                                    <!-- numbers -->
+                                                    <input t-elif="fm.type === 'monetary' || fm.type === 'float' || fm.type === 'integer'" type="number" step="any" class="d365-input"
+                                                           t-att-id="fldId" t-att-name="field.name"
+                                                           t-att-value="formFieldValue(field.name)"
+                                                           t-on-input="(ev) => this.formSet(field.name, ev.target.value)"/>
+                                                    <!-- photo / avatar image -->
+                                                    <div t-elif="fm.type === 'image' || (fm.type === 'binary' &amp;&amp; field.name === 'image_1920')" class="d365-image-field">
+                                                        <div class="d365-avatar-box">
+                                                            <img t-if="formFieldValue(field.name)"
+                                                                 t-att-src="formImageSrc(field.name)"
+                                                                 alt="Photo Preview" class="d365-avatar-img"/>
+                                                            <div t-else="" class="d365-avatar-placeholder">
+                                                                <span class="d365-avatar-icon">👤</span>
+                                                                <span class="d365-avatar-note"><t t-esc='t("No Photo")'/></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="d365-avatar-actions">
+                                                            <label class="btn btn-sm d365-file-btn" t-att-for="'file_' + fldId">
+                                                                <span>📷 <t t-esc='t("Choose Photo")'/></span>
+                                                                <input type="file" accept="image/*" class="d365-file-input"
+                                                                       t-att-id="'file_' + fldId"
+                                                                       t-on-change="(ev) => this.formHandleImageUpload(field.name, ev)"/>
+                                                            </label>
+                                                            <button t-if="formFieldValue(field.name)" type="button" class="btn btn-sm"
+                                                                    t-on-click="() => this.formSet(field.name, false)">
+                                                                <span>🗑 <t t-esc='t("Clear")'/></span>
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <!-- physical document file upload -->
+                                                    <div t-elif="fm.type === 'binary' || fm.type === 'file'" class="d365-doc-field">
+                                                        <div class="d365-doc-card">
+                                                            <div class="d365-doc-info">
+                                                                <span class="d365-doc-icon">📄</span>
+                                                                <div class="d365-doc-details">
+                                                                    <span t-if="formFieldValue(field.name)" class="d365-doc-name" t-esc="formFileName(field.name)"/>
+                                                                    <span t-else="" class="d365-doc-name empty"><t t-esc='t("No Document Uploaded")'/></span>
+                                                                    <span class="d365-doc-hint"><t t-esc='t("Supports PDF, JPG, PNG, DOCX (Max 10MB)")'/></span>
+                                                                </div>
+                                                                <span t-if="formFieldValue(field.name)" class="d365-doc-badge attached"><t t-esc='t("Attached")'/></span>
+                                                                <span t-else="" class="d365-doc-badge missing"><t t-esc='t("Missing")'/></span>
+                                                            </div>
+                                                            <div class="d365-doc-actions">
+                                                                <a t-if="formFieldValue(field.name)" t-att-href="formFileDownloadHref(field.name)"
+                                                                   t-att-download="formFileName(field.name)" target="_blank" class="btn btn-sm btn-outline-primary d365-doc-action-btn">
+                                                                    <span>⬇️ <t t-esc='t("Download / View")'/></span>
+                                                                </a>
+                                                                <label class="btn btn-sm d365-file-btn d365-doc-upload-btn" t-att-for="'doc_file_' + fldId">
+                                                                    <span t-if="formFieldValue(field.name)">🔄 <t t-esc='t("Replace Document")'/></span>
+                                                                    <span t-else="">📁 <t t-esc='t("Upload Physical Document")'/></span>
+                                                                    <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="d365-file-input"
+                                                                           t-att-id="'doc_file_' + fldId"
+                                                                           t-on-change="(ev) => this.formHandleFileUpload(field.name, ev)"/>
+                                                                </label>
+                                                                <button t-if="formFieldValue(field.name)" type="button" class="btn btn-sm btn-outline-danger"
+                                                                        t-on-click="() => this.formClearFile(field.name)">
+                                                                    <span>🗑 <t t-esc='t("Clear")'/></span>
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <!-- default: char -->
+                                                    <input t-else="" type="text" class="d365-input"
+                                                           t-att-id="fldId" t-att-name="field.name"
+                                                           t-att-value="formFieldValue(field.name)"
+                                                           t-on-input="(ev) => this.formSet(field.name, ev.target.value)"/>
+                                                </div>
+                                            </t>
+                                        </div>
+                                        <div t-if="section.note" class="d365-note" t-esc="t(section.note)"/>
+                                    </div>
+                                </t>
+
+                                </div>
+
+                                <!-- ============ child grid (declared one2many) ============
+                                     Allocation targets / recurring-journal lines: the
+                                     model refuses a header without lines, so the header
+                                     and its lines save in ONE D365 form. -->
+                                <div t-if="formLineCfg" class="d365-section d365-lines-card">
+                                    <div class="d365-sectiontitle">
+                                        <t t-esc="t(formLineCfg.title || 'Lines')"/>
+                                    </div>
+                                    <table class="d365-lines">
+                                        <thead>
+                                            <tr>
+                                                <t t-foreach="formLineFields" t-as="lf" t-key="lf.name">
+                                                    <th><t t-esc="t(lf.label)"/><span t-if="lf.required" class="d365-req">*</span></th>
+                                                </t>
+                                                <th style="width: 40px;"></th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr t-foreach="formLineRows" t-as="row" t-key="row_index">
+                                                <td t-foreach="formLineFields" t-as="lf" t-key="lf.name">
+                                                    <t t-set="lineId" t-value="'d365_line_' + row_index + '_' + lf.name"/>
+                                                    <select t-if="lf.type === 'selection' || lf.type === 'many2one'" class="d365-input"
+                                                            t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                            t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)">
+                                                        <option value=""></option>
+                                                        <t t-foreach="lf.choices || []" t-as="opt" t-key="opt.key || opt.id">
+                                                            <option t-att-value="opt.key !== undefined ? opt.key : opt.id"
+                                                                    t-att-selected="formLineSelectValue(row_index, lf.name) == (opt.key !== undefined ? opt.key : opt.id)"
+                                                                    t-esc="t(opt.label)"/>
+                                                        </t>
+                                                    </select>
+                                                    <input t-elif="lf.type === 'boolean'" type="checkbox" class="d365-checkbox"
+                                                           t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                           t-att-checked="!!formLineValue(row_index, lf.name)"
+                                                           t-on-change="(ev) => this.formLineSet(row_index, lf.name, ev.target.checked)"/>
+                                                    <input t-elif="lf.type === 'monetary' || lf.type === 'float' || lf.type === 'integer'" type="number" step="any" class="d365-input"
+                                                           t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                           t-att-value="formLineValue(row_index, lf.name)"
+                                                           t-on-input="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)"/>
+                                                    <input t-else="" type="text" class="d365-input"
+                                                           t-att-id="lineId" t-att-aria-label="t(lf.label)"
+                                                           t-att-value="formLineValue(row_index, lf.name)"
+                                                           t-on-input="(ev) => this.formLineSet(row_index, lf.name, ev.target.value)"/>
+                                                </td>
+                                                <td>
+                                                    <button class="btn d365-line-remove" title="Remove line"
+                                                            t-on-click="() => this.formRemoveLine(row_index)">✕</button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                    <div class="d365-lines-bar">
+                                        <button class="btn" t-on-click="() => this.formAddLine()">
+                                            <t t-esc='t("+ Add line")'/>
+                                        </button>
+                                        <span t-if="formLineCfg.total" t-att-class="'d365-line-total' + (formLineTotal == formLineCfg.total.target ? ' ok' : '')">
+                                            <t t-esc="t(formLineCfg.total.label)"/>:
+                                            <t t-esc="formLineTotal"/>
+                                            <t t-if="formLineCfg.total.target"> / <t t-esc="formLineCfg.total.target"/></t>
+                                        </span>
+                                        <span t-if="formLineCfg.balance" t-att-class="'d365-line-total' + (formLineBalance == 0 ? ' ok' : '')">
+                                            <t t-esc="t(formLineCfg.balance.label)"/>:
+                                            <t t-esc="formLineBalance"/>
+                                        </span>
+                                    </div>
+                                    <div t-if="formLineCfg.note" class="d365-note" t-esc="t(formLineCfg.note)"/>
+                                </div>
                             </div>
-                            <aside class="gl-factbox">
-                                <h4><t t-esc='t("How this screen works")'/></h4>
-                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Rows are live records straight from the Odoo model. Action buttons call the same server-side workflow methods the back-office forms use — rules and states are enforced there, not here.")'/></p></div>
-                            </aside>
+
                         </div>
 
                         <!-- ============ M01 · SERVICE ORDER LIST (so_list) ============ -->
@@ -2932,7 +3457,7 @@
                                         <div class="kpi"><span class="kpi-l"><t t-esc='t("SLA At-Risk")'/></span><span class="kpi-v"><t t-esc="state.gl.data.stats.sla_at_risk ?? '—'"/></span></div>
                                     </div>
                                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
-                                        <button class="btn btn-primary" t-on-click="() => this.openNewForm()"><t t-esc='t("+ New Service Order")'/></button>
+                                        <button class="btn btn-primary" t-on-click="() => this.onModuleNew()"><t t-esc='t("+ New Service Order")'/></button>
                                     </div>
                                     <h3><t t-esc='t("Channel mix — last 30 days")'/></h3>
                                     <div class="tbl-wrap" style="margin-bottom: 14px;">
@@ -2969,6 +3494,137 @@
                                 <h4><t t-esc='t("The 3-minute intake")'/></h4>
                                 <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Every channel lands in the same order book: the + New Service Order form captures device, fault and channel in one pass; the front desk walk-in flow mirrors it at the counter.")'/></p></div>
                             </aside>
+                        </div>
+
+                        <!-- ============ M25 · BI EXECUTIVE DASHBOARD (bi_exec) ============ -->
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'assistant_play'" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <h3><t t-esc='t("Assistant Playground — Bengali / English transactional NLU")'/></h3>
+                                <p style="color: var(--ink-500); font-size: 12px;"><t t-esc='t("Type a customer utterance. The reply comes from the SAME classifier the hotline assistant runs: intent match, confidence, grounding and the handoff decision.")'/></p>
+                                <div style="display: flex; gap: 8px; margin: 12px 0; flex-wrap: wrap;">
+                                    <textarea class="d365-input" rows="3" style="flex: 1; min-width: 260px;"
+                                              t-att-placeholder='t("e.g. আমার সার্ভিস অর্ডারের বর্তমান অবস্থা কী?")'
+                                              t-esc="state.gl.assistantText || ''"
+                                              t-on-input="(ev) => this.assistantSet(ev.target.value)"/>
+                                    <button class="btn btn-primary" t-att-disabled="state.gl.assistantBusy"
+                                            t-on-click="() => this.assistantAsk()">
+                                        <t t-esc='t("Classify ▸")'/>
+                                    </button>
+                                </div>
+                                <div t-if="state.gl.assistantResult">
+                                    <div t-if="state.gl.assistantResult.error" class="d365-formerror" t-esc="state.gl.assistantResult.error"/>
+                                    <div t-else="" class="kpi-row" style="margin-bottom: 12px;">
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Intent")'/></span><span class="kpi-v" t-esc="state.gl.assistantResult.intent || '—'"/></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Confidence")'/></span><span class="kpi-v" t-esc="state.gl.assistantResult.confidence"/></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Handoff")'/></span><span class="kpi-v" t-esc="state.gl.assistantResult.requires_handoff ? t('Yes') : t('No')"/></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Grounding")'/></span><span class="kpi-v" t-esc="state.gl.assistantResult.grounding || '—'"/></div>
+                                    </div>
+                                    <div t-if="!state.gl.assistantResult.error" class="d365-section">
+                                        <div class="d365-sectiontitle"><t t-esc='t("Suggested reply — Bengali")'/></div>
+                                        <p t-esc="state.gl.assistantResult.response_bn || '—'"/>
+                                        <div class="d365-sectiontitle" style="margin-top: 10px;"><t t-esc='t("Suggested reply — English")'/></div>
+                                        <p t-esc="state.gl.assistantResult.response_en || '—'"/>
+                                        <div t-if="state.gl.assistantResult.handoff_reason" class="d365-note">
+                                            <t t-esc='t("Handoff reason")'/>: <t t-esc="state.gl.assistantResult.handoff_reason"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Assistant Playground")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Bilingual NLU engine for conversational customer service, status tracking, and intent classification.")'/></p></div>
+                            </aside>
+                        </div>
+
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'bi_role' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.data.error" class="empty"><t t-esc="state.gl.data.error"/></div>
+                                <div t-else="">
+                                    <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px;">
+                                        <h3><t t-esc="state.gl.data.title"/></h3>
+                                        <span class="chip"><t t-esc='t("As of")'/> <t t-esc="state.gl.data.as_of"/></span>
+                                    </div>
+                                    <t t-foreach="state.gl.data.groups" t-as="bgrp" t-key="bgrp.title">
+                                        <div class="fx-card" style="margin-bottom: 14px;">
+                                            <h4><t t-esc="bgrp.title"/></h4>
+                                            <div class="kpi-row">
+                                                <t t-foreach="bgrp.kpis" t-as="bk" t-key="bk.l">
+                                                    <div class="kpi">
+                                                        <span class="kpi-l"><t t-esc="t(bk.l)"/></span>
+                                                        <span class="kpi-v"><t t-esc="bk.v"/></span>
+                                                        <span class="kpi-d"><t t-esc='t("Live from Odoo")'/></span>
+                                                    </div>
+                                                </t>
+                                            </div>
+                                        </div>
+                                    </t>
+                                    <ul t-if="state.gl.data.notes.length" style="font-size: 12px; color: var(--ink-500); margin-top: 4px;">
+                                        <li t-foreach="state.gl.data.notes" t-as="bn" t-key="bn_index"><t t-esc="t(bn)"/></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            <aside class="gl-factbox">
+                                <h4><t t-esc='t("Executive Overview")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Live business metrics and key performance indicators aggregated from operational transactions across all divisions.")'/></p></div>
+                            </aside>
+                        </div>
+
+                        <div t-if="!state.gl.loading &amp;&amp; state.gl.kind === 'bi_exec' &amp;&amp; state.gl.data" class="gl-layout">
+                            <div class="gl-main fx-card">
+                                <div t-if="state.gl.data.error" class="empty"><t t-esc="state.gl.data.error"/></div>
+                                <div t-else="">
+                                    <div class="kpi-row" style="margin-bottom: 14px;">
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("BI Data Freshness (min)")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.bi_data_freshness ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Open Orders")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.open_orders ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("In Repair Now")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.in_repair ?? '—'"/></span></div>
+                                        <div class="kpi kpi-ok"><span class="kpi-l"><t t-esc='t("Delivered MTD")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.delivered_mtd ?? '—'"/></span></div>
+                                        <div class="kpi kpi-ok"><span class="kpi-l"><t t-esc='t("Revenue MTD (approved ৳)")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.revenue_mtd ?? '—'"/></span></div>
+                                        <div class="kpi"><span class="kpi-l"><t t-esc='t("Invoices Issued MTD")'/></span><span class="kpi-v"><t t-esc="state.gl.data.kpis.invoiced_mtd ?? '—'"/></span></div>
+                                    </div>
+                                    <h3><t t-esc='t("Orders — 12-Month Trend (live)")'/></h3>
+                                    <div class="tbl-wrap" style="margin-bottom: 14px;">
+                                        <table class="fx-table">
+                                            <thead><tr><th><t t-esc='t("Month")'/></th><th><t t-esc='t("Orders")'/></th><th></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.data.trend" t-as="pt" t-key="pt.label" t-att-class="{'alt': pt_index % 2}">
+                                                    <td><t t-esc="pt.label"/></td>
+                                                    <td><t t-esc="pt.orders"/></td>
+                                                    <td style="width: 45%;"><div t-att-style="'height:10px;width:' + pt.pct + '%;background:linear-gradient(90deg,var(--fix-color-chart-6,#0ea5e9),var(--fix-color-chart-3,#6366f1));border-radius:6px;'"/></td>
+                                                </tr>
+                                                <tr t-if="!state.gl.data.trend.length"><td colspan="3"><t t-esc='t("No orders in the last 12 months")'/></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <h3><t t-esc='t("Intake Channel Mix — 30 Days (live)")'/></h3>
+                                    <div class="tbl-wrap" style="margin-bottom: 14px;">
+                                        <table class="fx-table">
+                                            <thead><tr><th><t t-esc='t("Channel")'/></th><th><t t-esc='t("Orders (30d)")'/></th><th></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.data.channels" t-as="ch" t-key="ch.label" t-att-class="{'alt': ch_index % 2}">
+                                                    <td><span class="chip"><t t-esc="ch.label"/></span></td>
+                                                    <td><t t-esc="ch.count"/></td>
+                                                    <td style="width: 45%;"><div t-att-style="'height:10px;width:' + ch.pct + '%;background:linear-gradient(90deg,var(--fix-color-chart-7,#22c55e),var(--fix-color-chart-2,#84cc16));border-radius:6px;'"/></td>
+                                                </tr>
+                                                <tr t-if="!state.gl.data.channels.length"><td colspan="3"><t t-esc='t("No intake in the last 30 days")'/></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <h3><t t-esc='t("Top Branches by Open Workload")'/></h3>
+                                    <div class="tbl-wrap">
+                                        <table class="fx-table">
+                                            <thead><tr><th>#</th><th><t t-esc='t("Branch")'/></th><th><t t-esc='t("Open Orders")'/></th></tr></thead>
+                                            <tbody>
+                                                <tr t-foreach="state.gl.data.branches" t-as="br" t-key="br.branch" t-att-class="{'alt': br_index % 2}">
+                                                    <td><t t-esc="br_index + 1"/></td>
+                                                    <td><t t-esc="br.branch"/></td>
+                                                    <td><t t-esc="br.open"/></td>
+                                                </tr>
+                                                <tr t-if="!state.gl.data.branches.length"><td colspan="3"><t t-esc='t("No open orders")'/></td></tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <!-- ============ M02 · FIELD DISPATCH BOARD (fs_board) ============ -->
@@ -3107,8 +3763,8 @@
                                 </div>
                             </div>
                             <aside class="gl-factbox">
-                                <h4><t t-esc='t("Honest scope")'/></h4>
-                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Crews are measured from work orders, not a crew master — the crew-scheduling engine is a later phase.")'/></p></div>
+                                <h4><t t-esc='t("Crew Allocation")'/></h4>
+                                <div class="fb-sec"><p style="font-size: 12px;"><t t-esc='t("Multi-technician work order assignments and coordinated field service operations.")'/></p></div>
                             </aside>
                         </div>
 
@@ -3215,13 +3871,24 @@
                                     </select>
                                 </label>
                                 <label class="fld">
-                                    <span><t t-esc='t("Intake Channel / Type (model enum)")'/></span>
+                                    <span><t t-esc='t("Intake Channel (FR-SRM-001: 12 channels)")'/></span>
                                     <select t-model="state.formData.service_type">
-                                        <option value="walk_in"><t t-esc='t("Walk-in")'/></option>
+                                        <option value="walk_in"><t t-esc='t("Walk-in Counter")'/></option>
                                         <option value="collection"><t t-esc='t("Collection / Delivery")'/></option>
                                         <option value="onsite"><t t-esc='t("On-site")'/></option>
                                         <option value="mail_in"><t t-esc='t("Mail-in")'/></option>
                                         <option value="corporate"><t t-esc='t("Corporate / Bulk")'/></option>
+                                        <option value="web_portal"><t t-esc='t("Web Portal (P01)")'/></option>
+                                        <option value="mobile_app"><t t-esc='t("Customer Mobile App (P04)")'/></option>
+                                        <option value="whatsapp"><t t-esc='t("WhatsApp (M27)")'/></option>
+                                        <option value="ai_assistant"><t t-esc='t("AI Assistant (M32)")'/></option>
+                                        <option value="hotline"><t t-esc='t("Hotline 16743")'/></option>
+                                        <option value="email"><t t-esc='t("Email Intake")'/></option>
+                                        <option value="b2b_bulk"><t t-esc='t("B2B Portal Bulk Upload")'/></option>
+                                        <option value="marketplace"><t t-esc='t("Marketplace (M12)")'/></option>
+                                        <option value="partner_referral"><t t-esc='t("Partner Referral (M40)")'/></option>
+                                        <option value="msp_alert"><t t-esc='t("MSP Alert (M05)")'/></option>
+                                        <option value="pm_schedule"><t t-esc='t("Contract Preventive Schedule (M08)")'/></option>
                                     </select>
                                 </label>
                             </div>

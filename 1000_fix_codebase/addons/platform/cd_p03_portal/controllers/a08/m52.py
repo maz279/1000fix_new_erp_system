@@ -56,6 +56,8 @@ SURFACES = {
     "fix.expense.rate": {"order": "rate_type, date_from desc", "limit": 200, "actions": set()},
     "fix.expense.policy": {"order": "category_id", "limit": 200, "actions": set()},
     "fix.vendor.tax.profile": {"order": "partner_id", "limit": 300, "actions": set()},
+    "fix.expense.category": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.expense.grade": {"order": "id desc", "limit": 400, "actions": set()},
 }
 
 
@@ -96,6 +98,27 @@ def kpis(env):
         )
     except Exception:
         out["payment_runs_open"] = None
+    try:
+        # Duplicate catches YTD: bills this year that share a vendor+reference
+        # or a vendor+amount+date with another live bill (the same detection
+        # basis as the Duplicate Prevention Log).
+        year_start = _today(env).replace(month=1, day=1)
+        bills = env["fix.vendor.invoice"].search(
+            [("approval_state", "!=", "rejected"), ("invoice_date", ">=", year_start)]
+        )
+        by_ref, by_amount = defaultdict(list), defaultdict(list)
+        for bill in bills:
+            vendor = bill.vendor_id.commercial_partner_id.id
+            by_ref[(vendor, (bill.invoice_ref or "").strip().lower())].append(bill)
+            by_amount[(vendor, bill.invoice_date, round(bill.gross_amount, 2))].append(bill)
+        caught = set()
+        for groups in (by_ref, by_amount):
+            for group in groups.values():
+                if len(group) >= 2:
+                    caught.update(b.id for b in group)
+        out["duplicate_catches_ytd"] = len(caught)
+    except Exception:
+        out["duplicate_catches_ytd"] = None
     return out
 
 
@@ -345,9 +368,147 @@ def duplicate_bills(env, date_from=None, date_to=None, **params):
     }
 
 
+def tds_register(env, date_from=None, date_to=None, **params):
+    """TDS/VDS deduction register: every withholding line raised on vendor
+    documents, with the challan and certificate state."""
+    domain = [("tax_kind", "in", ("tds", "vds"))]
+    if date_from:
+        domain.append(("document_date", ">=", date_from))
+    if date_to:
+        domain.append(("document_date", "<=", date_to))
+    lines = env["fix.withholding.line"].sudo().search(domain)
+    rows = []
+    for line in lines:
+        rows.append(
+            {
+                "date": str(line.document_date),
+                "kind": dict(line._fields["tax_kind"].selection).get(line.tax_kind, line.tax_kind),
+                "vendor": line.partner_id.display_name if line.partner_id else "—",
+                "section": line.section or "—",
+                "base": _num(line.base_amount),
+                "rate": _num(line.rate),
+                "amount": _num(line.amount),
+                "source": line.source_ref or "—",
+                "challan": line.challan_no or "—",
+                "state": dict(line._fields["state"].selection).get(line.state, line.state),
+            }
+        )
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    return {
+        "title": "TDS / VDS Deduction Register",
+        "cols": [
+            "date",
+            "kind",
+            "vendor",
+            "section",
+            "base",
+            "rate",
+            "amount",
+            "source",
+            "challan",
+            "state",
+        ],
+        "labels": {
+            "date": "Date",
+            "kind": "Kind",
+            "vendor": "Vendor",
+            "section": "Section",
+            "base": "Base",
+            "rate": "Rate %",
+            "amount": "Amount",
+            "source": "Source Document",
+            "challan": "Challan No",
+            "state": "Certificate",
+        },
+        "rows": rows,
+        "totals": {
+            "date": "Total",
+            "base": _num(sum(r["base"] for r in rows)),
+            "amount": _num(sum(r["amount"] for r in rows)),
+        },
+        "notes": [
+            "Every TDS/VDS line raised at source on vendor documents, with the "
+            "deposit challan and the certificate lifecycle."
+        ],
+        "empty": "No TDS/VDS deductions recorded.",
+    }
+
+
+def payment_run_summary(env, date_from=None, date_to=None, **params):
+    """Payment run summary: one row per run with bill counts, deductions and
+    the net released to the bank, on the rails actually used."""
+    runs = env["fix.payment.run"].sudo().search([])
+    rows = []
+    for run in runs:
+        lines = run.line_ids
+        rows.append(
+            {
+                "run": run.name,
+                "payment_date": str(run.payment_date),
+                "rail": dict(run._fields["rail"].selection).get(run.rail, run.rail),
+                "bills": run.bill_count if "bill_count" in run._fields else len(lines),
+                "gross": _num(sum(lines.mapped("gross_amount")))
+                if lines
+                else _num(run.total_amount),
+                "tds": _num(run.total_tds),
+                "vds": _num(run.total_vds),
+                "net": _num(run.total_amount),
+                "prepared": run.prepared_by.name if run.prepared_by else "—",
+                "approved": run.approved_by.name if run.approved_by else "—",
+                "state": dict(run._fields["state"].selection).get(run.state, run.state),
+            }
+        )
+    rows.sort(key=lambda r: r["payment_date"], reverse=True)
+    return {
+        "title": "Payment Run Summary",
+        "cols": [
+            "run",
+            "payment_date",
+            "rail",
+            "bills",
+            "gross",
+            "tds",
+            "vds",
+            "net",
+            "prepared",
+            "approved",
+            "state",
+        ],
+        "labels": {
+            "run": "Run",
+            "payment_date": "Payment Date",
+            "rail": "Rail",
+            "bills": "Bills",
+            "gross": "Gross",
+            "tds": "TDS",
+            "vds": "VDS",
+            "net": "Net Released",
+            "prepared": "Prepared By",
+            "approved": "Approved By",
+            "state": "State",
+        },
+        "rows": rows,
+        "totals": {
+            "run": "Total",
+            "bills": sum(r["bills"] for r in rows),
+            "gross": _num(sum(r["gross"] for r in rows)),
+            "tds": _num(sum(r["tds"] for r in rows)),
+            "vds": _num(sum(r["vds"] for r in rows)),
+            "net": _num(sum(r["net"] for r in rows)),
+        },
+        "notes": [
+            "One row per payment run; the net is what was released to the bank "
+            "after TDS/VDS deductions."
+        ],
+        "empty": "No payment runs recorded.",
+    }
+
+
 REPORTS = {
     "ap_ageing": ap_ageing,
     "grni_accruals": grni_accruals,
     "expense_by_category": expense_by_category,
     "duplicate_bills": duplicate_bills,
+    "tds_register": tds_register,
+    "payment_run_summary": payment_run_summary,
 }

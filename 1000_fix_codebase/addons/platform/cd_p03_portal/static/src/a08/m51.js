@@ -29,12 +29,12 @@ export const MODULE = {
     ]},
     { en: 'Withholding', screens: [
       { id: 'M51-tds', en: 'TDS Register', bn: 'টিডিএস রেজিস্টার', t: 'g' },
-      { id: 'M51-vds', en: 'VDS (Mushak 6.6)', bn: 'ভিডিএস (মুশক ৬.৬)', t: 'g' },
+      { id: 'M51-vds', en: 'VDS (45 Services)', bn: 'ভিডিএস (মুশক ৬.৬)', t: 'g' },
       { id: 'M51-certs', en: 'Certificates', bn: 'সনদ', t: 'g' }
     ]},
     { en: 'Compliance', screens: [
       { id: 'M51-determination', en: 'Tax Determination Service', bn: 'কর নির্ধারণ', t: 'c' },
-      { id: 'M51-mushak610', en: 'Mushak 6.10 High-Value Register', bn: 'মুশক ৬.১০ উচ্চমূল্য রেজিস্টার', t: 'r' },
+      { id: 'M51-nid', en: 'High-Value NID Capture', bn: 'মুশক ৬.১০ উচ্চমূল্য রেজিস্টার', t: 'r' },
       { id: 'M51-notes', en: 'Credit / Debit Note Register', bn: 'ক্রেডিট ও ডেবিট নোট রেজিস্টার', t: 'r' },
       { id: 'M51-calendar', en: 'Statutory Calendar', bn: 'বিধিবদ্ধ ক্যালেন্ডার', t: 'c' },
       { id: 'M51-audit', en: 'Audit Support Pack', bn: 'অডিট সহায়তা', t: 'r' }
@@ -58,6 +58,9 @@ export const MODULE = {
 
 /* in-workspace data screens (checked before any stock Odoo view) */
 export const SCREENS = {
+  'M51-rpt-sdat': { kind: 'table_report', module: 'M51', report: 'sd_at_liability',
+    title: 'SD & AT Liability', period: false },
+
   'M51-mushak61': { kind: 'model_list', model: 'fix.input.vat.credit',
     cols: ['invoice_date','partner_id','supplier_bin','supplier_mushak_no','adjustment_type','taxable_amount','vat_amount','claim_period','state'] },
   'M51-mushak62': { kind: 'model_list', model: 'fix.mushak.register', create: false,
@@ -88,7 +91,7 @@ export const SCREENS = {
     stateField: 'state', actions: [{m:'action_issue',l:'Issue Certificate'}] },
   'M51-determination': { kind: 'model_list', model: 'fix.vat.treatment',
     cols: ['code','name','treatment_type','rate','active'] },
-  'M51-mushak610': { kind: 'table_report', module: 'M51', report: 'mushak_610' },
+  'M51-nid': { kind: 'table_report', module: 'M51', report: 'mushak_610' },
   'M51-notes': { kind: 'table_report', module: 'M51', report: 'note_register' },
   'M51-calendar': { kind: 'table_report', module: 'M51', report: 'statutory_calendar' },
   'M51-audit': { kind: 'model_list', model: 'fix.tax.audit.pack',
@@ -102,18 +105,123 @@ export const SCREENS = {
     cols: ['obligation','name','frequency','due_day','month_offset','roll_to_working_day','date_from','date_to','verify_with_adviser'] },
   'M51-filings': { kind: 'model_list', model: 'fix.statutory.filing',
     cols: ['rule_id','period_key','filed_on','reference'] },
+
+
+  /* ===== A08 master-data forms (D365 in-workspace) ===== */
+  'M51-form-vatreturn': {
+    kind: 'model_form',
+    model: 'fix.vat.return',
+    title: "VAT Return (Mushak 9.1)",
+    back: 'M51-vat91',
+    status: { field: 'state', labels: { draft: "Draft", filed: "Filed", accepted: "Accepted" } },
+    sections: [
+      { title: "Return",
+        note: "One return per period. Output/input VAT, net payable and the VDS credit are computed from the ledger; the subledger variance compares against the subledger.",
+        fields: [
+          { name: 'period', required: true, label: "Period (YYYY-MM)" },
+          { name: 'due_date', label: "Due Date" },
+          { name: 'nil_return', label: "Nil Return" },
+          { name: 'nbr_confirmation', label: "NBR Confirmation" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M51-form-treatment': {
+    kind: 'model_form',
+    model: 'fix.vat.treatment',
+    title: "VAT Treatment",
+    back: 'M51-determination',
+    sections: [
+      { title: "Treatment",
+        note: "The treatment decides how a transaction line is taxed (standard, exempt, zero-rated, truncated base).",
+        fields: [
+          { name: 'code', required: true, label: "Treatment Code" },
+          { name: 'name', required: true, label: "Treatment Name" },
+          { name: 'treatment_type', required: true, label: "Treatment Type" },
+          { name: 'rate', label: "Rate %" },
+          { name: 'truncated_base', label: "Truncated Base %" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+  'M51-form-audit': {
+    kind: 'model_form',
+    model: 'fix.tax.audit.pack',
+    title: "Tax Audit Pack",
+    back: 'M51-audit',
+    status: { field: 'state', labels: { draft: "Draft", generated: "Generated", submitted: "Submitted" } },
+    sections: [
+      { title: "Audit Pack",
+        note: "A generated evidence pack for a date range: file count, SHA-256 of the pack and the integrity status of the manifest.",
+        fields: [
+          { name: 'date_from', required: true, label: "From" },
+          { name: 'date_to', required: true, label: "To" },
+          { name: 'state', required: true, label: "State" }
+        ] }
+    ]
+  },
+  'M51-form-tparam': {
+    kind: 'model_form',
+    model: 'fix.tax.parameter',
+    title: "Tax Parameter",
+    back: 'M51-params',
+    sections: [
+      { title: "Parameter",
+        note: "A dated statutory parameter (rate, threshold, rebate). The adviser-verification flag records whether it was confirmed externally.",
+        fields: [
+          { name: 'key', required: true, label: "Parameter Key" },
+          { name: 'value', required: true, label: "Value" },
+          { name: 'date_from', required: true, label: "From" },
+          { name: 'date_to', label: "To" },
+          { name: 'verify_with_adviser', label: "Verify With Adviser" },
+          { name: 'source_note', label: "Source Note" }
+        ] }
+    ]
+  },
+  'M51-form-duerule': {
+    kind: 'model_form',
+    model: 'fix.statutory.due.rule',
+    title: "Statutory Due Rule",
+    back: 'M51-duerules',
+    sections: [
+      { title: "Due Rule",
+        note: "Computes the due date of a recurring statutory obligation from the period end, the due day and the month offset.",
+        fields: [
+          { name: 'name', required: true, label: "Rule Name" },
+          { name: 'obligation', required: true, label: "Obligation" },
+          { name: 'authority', label: "Authority" },
+          { name: 'frequency', required: true, label: "Frequency" },
+          { name: 'due_day', required: true, label: "Due Day" },
+          { name: 'month_offset', required: true, label: "Month Offset" },
+          { name: 'roll_to_working_day', label: "Roll to Working Day" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
-  "M51:Mushak 9.1 Return Draft": "M51-vat91",
-  "M51:VAT Reconciliation": "M51-vat91",
-  "M51:TDS Annual Summary": "M51-tds",
-  "M51:VDS Deduction Register": "M51-vds",
+  'M51:SD & AT Liability': 'M51-rpt-sdat',
+  'M51:Marketplace VAT Model': 'M51-determination',
+  "M51:Mushak 9.1 Return Draft": "M51-rpt-vatdraft",
+  "M51:VAT Reconciliation": "M51-rpt-vatrecon",
+  "M51:TDS Annual Summary": "M51-rpt-tdsannual",
+  "M51:VDS Deduction Register": "M51-rpt-vds",
   "M51:Mushak 6.10 High-Value Register": "M51-mushak610",
   "M51:Credit / Debit Note Register": "M51-notes",
   "M51:Statutory Compliance Calendar": "M51-calendar",
 };
+
+/* report screens (each chip opens its OWN computed pack) */
+Object.assign(SCREENS, {
+  'M51-rpt-vatdraft': { kind: 'table_report', module: 'M51', report: 'vat_return_draft', title: 'Mushak 9.1 Return Draft', period: false },
+  'M51-rpt-vatrecon': { kind: 'table_report', module: 'M51', report: 'vat_reconciliation', title: 'VAT Reconciliation', period: false },
+  'M51-rpt-tdsannual': { kind: 'table_report', module: 'M51', report: 'tds_annual_summary', title: 'TDS Annual Summary', period: false },
+  'M51-rpt-vds': { kind: 'table_report', module: 'M51', report: 'vds_deduction_register', title: 'VDS Deduction Register', period: false },
+  'M51-mushak610': { kind: 'table_report', module: 'M51', report: 'mushak_610', title: 'Mushak 6.10 High-Value Register', period: true }
+});
 
 /* data-entry form chips -> real model forms */
 export const FORM_MODELS = {
@@ -124,7 +232,146 @@ export const FORM_MODELS = {
   'M51:Tax Rate': 'fix.tax.rate',
 };
 
+/* ============ D365 IN-WORKSPACE FORM SCREENS (M51 re-audit v2) ======== */
+Object.assign(SCREENS, {
+  'M51-form-challan': {
+    kind: 'model_form',
+    model: 'fix.tax.challan',
+    title: 'Challan',
+    back: 'M51-challans',
+    sections: [
+      { title: 'A-Challan Deposit', note: 'The deposit challan settles a withholding or VAT period; the liability total links it to the return it pays.',
+        fields: [
+          { name: 'challan_no', required: true, label: 'Challan No' },
+          { name: 'challan_date', required: true, label: 'Deposit Date' },
+          { name: 'tax_kind', required: true, label: 'Tax Kind' },
+          { name: 'period', label: 'Period (YYYY-MM)' },
+          { name: 'payment_mode', required: true, label: 'Payment Mode' },
+          { name: 'amount', required: true, label: 'Deposited' },
+          { name: 'economic_code', label: 'Economic Code' },
+          { name: 'bank_name', label: 'Bank' },
+          { name: 'bank_branch', label: 'Branch' },
+          { name: 'vat_return_id', label: 'VAT Return (9.1)' }
+        ] }
+    ]
+  },
+
+  'M51-form-tdsreturn': {
+    kind: 'model_form',
+    model: 'fix.tds.return',
+    title: 'TDS Return',
+    back: 'M51-tds',
+    status: { field: 'state', labels: { draft: 'Draft', prepared: 'Prepared', filed: 'Filed' } },
+    sections: [
+      { title: 'Quarterly Return', note: 'The return summarises the quarter\'s withholding; the fiscal year and due date compute from the quarter.',
+        fields: [
+          { name: 'quarter', required: true, label: 'Quarter' },
+          { name: 'total_withheld', label: 'Total Withheld' },
+          { name: 'state', required: true, label: 'State' },
+          { name: 'nbr_acknowledgment', label: 'NBR Acknowledgement' }
+        ] }
+    ]
+  },
+
+  'M51-form-inputcredit': {
+    kind: 'model_form',
+    model: 'fix.input.vat.credit',
+    title: 'Input VAT Adjustment',
+    back: 'M51-input',
+    sections: [
+      { title: 'Input Credit', note: 'Records a supplier Mushak 6.3 input credit or its adjustment (increase / decrease); enlisted suppliers do not support credit.',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Supplier' },
+          { name: 'supplier_mushak_no', label: 'Supplier Mushak 6.3 No' },
+          { name: 'supplier_bin', label: 'Supplier BIN' },
+          { name: 'invoice_date', required: true, label: 'Invoice Date' },
+          { name: 'taxable_amount', label: 'Taxable Value' },
+          { name: 'vat_amount', required: true, label: 'Input VAT' },
+          { name: 'adjustment_type', required: true, label: 'Adjustment Type' },
+          { name: 'source_ref', label: 'Source Document' },
+          { name: 'supplier_enlisted', label: 'Turnover-Enlisted' }
+        ] }
+    ]
+  },
+
+  'M51-form-filing': {
+    kind: 'model_form',
+    model: 'fix.statutory.filing',
+    title: 'Filing Evidence',
+    back: 'M51-filings',
+    sections: [
+      { title: 'Filing', note: 'Evidence that a statutory obligation was met: the calendar rule it discharges and the acknowledgement reference.',
+        fields: [
+          { name: 'rule_id', label: 'Calendar Rule' },
+          { name: 'period_key', required: true, label: 'Period' },
+          { name: 'filed_on', required: true, label: 'Filed On' },
+          { name: 'reference', required: true, label: 'Acknowledgement / Reference' }
+        ] }
+    ]
+  },
+
+  'M51-form-rate': {
+    kind: 'model_form',
+    model: 'fix.tax.rate',
+    title: 'Tax Rate',
+    back: 'M51-rates',
+    sections: [
+      { title: 'Rate Master', note: 'Effective-dated statutory rate by kind and section; non-filer multiplier applies where marked.',
+        fields: [
+          { name: 'tax_kind', required: true, label: 'Tax Kind' },
+          { name: 'code', label: 'Code' },
+          { name: 'name', required: true, label: 'Description' },
+          { name: 'section', label: 'ITA Section / Service Code' },
+          { name: 'rate', required: true, label: 'Rate (%)' },
+          { name: 'payee_type', required: true, label: 'Payee Type' },
+          { name: 'non_filer_applies', label: 'Non-Filer Multiplier Applies' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  }
+});
+
+export const FORM_CHIPS = {
+  'M51:Mushak 6.3 Entry': 'M51-form-vatreturn',
+  'M51:TDS Entry': 'M51-form-tdsreturn',
+  'M51:Tax Adjustment': 'M51-form-inputcredit',
+  'M51:VAT Return (Mushak 9.1)': 'M51-form-vatreturn',
+  'M51:VAT Treatment': 'M51-form-treatment',
+  'M51:Tax Audit Pack': 'M51-form-audit',
+  'M51:Tax Parameter': 'M51-form-tparam',
+  'M51:Statutory Due Rule': 'M51-form-duerule',
+  'M51:Challan': 'M51-form-challan',
+  'M51:TDS Return': 'M51-form-tdsreturn',
+  'M51:Input VAT Adjustment': 'M51-form-inputcredit',
+  'M51:Filing Evidence': 'M51-form-filing',
+  'M51:Tax Rate': 'M51-form-rate',
+  'M51:__by_model__': {
+    'fix.vat.return': 'M51-form-vatreturn',
+    'fix.vat.treatment': 'M51-form-treatment',
+    'fix.tax.audit.pack': 'M51-form-audit',
+    'fix.tax.parameter': 'M51-form-tparam',
+    'fix.statutory.due.rule': 'M51-form-duerule',
+    'fix.tax.challan': 'M51-form-challan',
+    'fix.tds.return': 'M51-form-tdsreturn',
+    'fix.input.vat.credit': 'M51-form-inputcredit',
+    'fix.statutory.filing': 'M51-form-filing',
+    'fix.tax.rate': 'M51-form-rate'
+  },
+  'M51:__by_screen__': {
+    'M51-vat91': 'M51-form-vatreturn',
+    'M51-determination': 'M51-form-treatment',
+    'M51-audit': 'M51-form-audit',
+    'M51-params': 'M51-form-tparam',
+    'M51-duerules': 'M51-form-duerule',
+    'M51-challans': 'M51-form-challan',
+    'M51-tds': 'M51-form-tdsreturn',
+    'M51-input': 'M51-form-inputcredit',
+    'M51-filings': 'M51-form-filing',
+    'M51-rates': 'M51-form-rate'
+  }
+};
+
 /* the module's "+ New" surface */
 export const CREATE = {
-  M51: { model: 'fix.tax.challan', label: 'Challan' },
+  M51: { screen: 'M51-form-challan', model: 'fix.tax.challan', label: 'Challan' },
 };

@@ -19,12 +19,24 @@ SURFACES = {
         "actions": {
             "action_confirm",
             "action_start_transit",
+            "action_verify_hub_intake",
             "action_generate_otp",
             "action_verify_pod",
             "action_deliver",
             "action_return",
             "action_report_lost",
         },
+    },
+    "fix.courier.partner": {"order": "name", "limit": 100, "actions": set()},
+    "fix.courier.booking": {
+        "order": "booked_on desc, id desc",
+        "limit": 400,
+        "actions": {"action_deliver"},
+    },
+    "fix.damage.claim": {
+        "order": "claimed_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject", "action_settle"},
     },
     "fix.custody.scan": {
         "order": "scanned_at desc, id desc",
@@ -158,16 +170,59 @@ def _custody_exception_report(env, **params):
 
 
 def _courier_performance_report(env, **params):
+    """Courier performance from the real booking records: volume, on-time
+    delivery, COD exposure and charges per partner."""
+    bookings = env["fix.courier.booking"].sudo().search([])
+    partners = env["fix.courier.partner"].sudo().search([])
+    rows = []
+    for partner in partners:
+        mine = bookings.filtered(lambda b, p=partner: b.partner_id.id == p.id)
+        delivered = mine.filtered(lambda b: b.state == "delivered")
+        returned = mine.filtered(lambda b: b.state == "returned")
+        closed = delivered | returned
+        on_time = delivered.filtered(
+            lambda b: b.delivered_on and b.booked_on and (b.delivered_on - b.booked_on).days <= 3
+        )
+        rows.append(
+            {
+                "courier": partner.name,
+                "bookings": len(mine),
+                "delivered": len(delivered),
+                "returned": len(returned),
+                "on_time_pct": round(100.0 * len(on_time) / len(closed), 1) if closed else None,
+                "charges": round(sum(mine.mapped("charged_amount")), 2),
+                "cod_open": round(
+                    sum(mine.filtered(lambda b: not b.cod_settled_on).mapped("cod_amount")), 2
+                ),
+            }
+        )
     return {
-        "title": "Courier Performance (Pathao/RedX/Steadfast)",
-        "cols": ["courier", "bookings"],
-        "labels": {"courier": "Courier Partner", "bookings": "Bookings"},
-        "rows": [],
-        "notes": [
-            "No courier partner master exists yet — the courier integration "
-            "(partner accounts, bookings, rate cards) is a later phase; this "
-            "report lights up with it."
+        "title": "Courier Performance - %d booking(s) across %d partner(s)"
+        % (len(bookings), len(partners)),
+        "cols": [
+            "courier",
+            "bookings",
+            "delivered",
+            "returned",
+            "on_time_pct",
+            "charges",
+            "cod_open",
         ],
+        "labels": {
+            "courier": "Courier",
+            "bookings": "Bookings",
+            "delivered": "Delivered",
+            "returned": "Returned",
+            "on_time_pct": "On-time %",
+            "charges": "Charges",
+            "cod_open": "COD not settled",
+        },
+        "rows": rows,
+        "notes": [
+            "On-time = delivered within 3 days of booking, measured from the booking "
+            "and delivery dates. COD not settled is cash the partner still holds."
+        ],
+        "empty": "No courier bookings yet.",
     }
 
 

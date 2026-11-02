@@ -25,7 +25,7 @@ export const MODULE = {
     ]},
     { en: 'Profitability', screens: [
       { id: 'M54-lines', en: 'Business Lines', bn: 'ব্যবসা লাইন', t: 'g' },
-      { id: 'M54-streams', en: 'Business-Line P&L', bn: 'ব্যবসা লাইনের লাভ-ক্ষতি', t: 'r' },
+      { id: 'M54-streams', en: '14 Business-Line P&L', bn: 'ব্যবসা লাইনের লাভ-ক্ষতি', t: 'r' },
       { id: 'M54-branches', en: 'Branch Profitability', bn: 'শাখা লাভজনকতা', t: 'r' },
       { id: 'M54-customers', en: 'Customer Profitability', bn: 'গ্রাহক লাভজনকতা', t: 'r' },
       { id: 'M54-unitecon', en: 'Unit Economics', bn: 'একক অর্থনীতি', t: 'r' }
@@ -91,10 +91,52 @@ export const SCREENS = {
   'M54-boardpacks': { kind: 'model_list', model: 'fix.board.pack',
     cols: ['name','date_from','date_to','assembled_by','issued_by','export_filename','state'],
     stateField: 'state', actions: [{m:'action_assemble',l:'Assemble'},{m:'action_issue',l:'Issue'}] },
+
+
+  /* ===== master-data forms (batch 2) — D365 in-workspace ===== */
+  'M54-form-bline': {
+    kind: 'model_form',
+    model: 'fix.business.line',
+    title: "Business Line",
+    back: 'M54-lines',
+    sections: [
+      { title: "Business Line", note: "A business line used as a costing dimension; postings require it where the COA rule says so.",
+        fields: [
+          { name: 'code', required: true, label: "Code" },
+          { name: 'name', required: true, label: "Name" },
+          { name: 'name_bn', label: "Name (Bengali)" },
+          { name: 'sequence', label: "Sequence" },
+          { name: 'revenue_stream_no', label: "Revenue Stream No." },
+          { name: 'is_profit_centre', label: "Profit Centre" },
+          { name: 'active', label: "Active" }
+        ] }
+    ]
+  },
+  'M54-form-budget': {
+    kind: 'model_form',
+    model: 'fix.budget',
+    title: "Budget",
+    back: 'M54-budgets',
+    sections: [
+      { title: "Budget", note: "A budget per business line and period; variance compares actual postings against it.",
+        fields: [
+          { name: 'company_id', required: true, label: "Company" },
+          { name: 'name', required: true, label: "Name" },
+          { name: 'budget_type', required: true, label: "Budget Type" },
+          { name: 'fiscal_year', required: true, label: "Fiscal Year" },
+          { name: 'currency_id', required: true, label: "Currency" },
+          { name: 'state', required: true, label: "State" },
+          { name: 'version_id', label: "Budget Version" },
+          { name: 'date_from', label: "From" }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
+  'M54:Business-Line P&L (14)': 'M54-streams',
   "M54:Business-Line P&L": "M54-streams",
   "M54:Branch League Table": "M54-branches",
   "M54:Budget vs Actual": "M54-bva",
@@ -114,7 +156,121 @@ export const FORM_MODELS = {
   'M54:Board Pack': 'fix.board.pack',
 };
 
+/* ============ D365 IN-WORKSPACE FORM SCREENS (M54 re-audit v2) ========
+ * The registry's three data-entry chips (and the two extra surfaces the
+ * fragment declares) open Dynamics-365 record forms in the workspace —
+ * never an Odoo dialog. Scenario IS a budget version (version_type
+ * scenario), so both chips open the same form with a told-through note. */
+Object.assign(SCREENS, {
+  'M54-form-version': {
+    kind: 'model_form',
+    model: 'fix.budget.version',
+    title: 'Budget Version',
+    back: 'M54-workflow',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved',
+      rejected: 'Rejected', superseded: 'Superseded' } },
+    sections: [
+      { title: 'Version', note: 'A budget, forecast or scenario version for one fiscal year. A scenario reads against a base version, which is what makes the what-if comparison possible.',
+        fields: [
+          { name: 'name', required: true, label: 'Version Name' },
+          { name: 'version_type', required: true, label: 'Version Type' },
+          { name: 'fiscal_year', required: true, label: 'Fiscal Year' },
+          { name: 'date_from', required: true, label: 'From' },
+          { name: 'date_to', required: true, label: 'To' },
+          { name: 'base_version_id', label: 'Base Version (scenarios)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  },
+
+  'M54-form-pool': {
+    kind: 'model_form',
+    model: 'fix.cost.pool',
+    title: 'Cost Pool / Allocation Rule',
+    back: 'M54-pools',
+    sections: [
+      { title: 'Cost Pool', note: 'The pool collects posted overhead and spreads it to its receivers on the chosen basis; "load into technician rate" includes it in the M54 loaded-cost rate.',
+        fields: [
+          { name: 'code', required: true, label: 'Pool Code' },
+          { name: 'name', required: true, label: 'Pool Name' },
+          { name: 'pool_type', required: true, label: 'Pool Type' },
+          { name: 'receiver_type', required: true, label: 'Receiver' },
+          { name: 'allocation_basis', required: true, label: 'Allocation Basis' },
+          { name: 'target_account_id', label: 'Target Account' },
+          { name: 'clearing_account_id', label: 'Clearing Account' },
+          { name: 'include_in_labour_rate', label: 'Load Into Technician Rate' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ] }
+    ]
+  },
+
+  'M54-form-allocation': {
+    kind: 'model_form',
+    model: 'fix.cost.allocation',
+    title: 'Allocation Cycle',
+    back: 'M54-allocation',
+    sections: [
+      { title: 'Allocation Cycle', note: 'One execution of a pool over a period: direct cost plus the allocated overhead, posted to the receivers\' accounts.',
+        fields: [
+          { name: 'name', required: true, label: 'Cycle Name' },
+          { name: 'pool_id', required: true, label: 'Cost Pool' },
+          { name: 'date_from', label: 'From' },
+          { name: 'date_to', label: 'To' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ] }
+    ]
+  },
+
+  'M54-form-boardpack': {
+    kind: 'model_form',
+    model: 'fix.board.pack',
+    title: 'Board Pack',
+    back: 'M54-boardpacks',
+    status: { field: 'state', labels: {
+      draft: 'Draft', assembled: 'Assembled', issued: 'Issued' } },
+    sections: [
+      { title: 'Board Pack', note: 'Assembling snapshots the period\'s management reports; issuing freezes the pack as the record of what the board saw.',
+        fields: [
+          { name: 'name', required: true, label: 'Pack Name' },
+          { name: 'date_from', required: true, label: 'From' },
+          { name: 'date_to', required: true, label: 'To' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'state', required: true, label: 'State' }
+        ] }
+    ]
+  }
+});
+
+export const FORM_CHIPS = {
+  'M54:Business Line': 'M54-form-bline',
+  'M54:Budget': 'M54-form-budget',
+  'M54:Budget Version': 'M54-form-version',
+  'M54:Allocation Rule': 'M54-form-pool',
+  'M54:Allocation Cycle': 'M54-form-allocation',
+  'M54:Scenario': 'M54-form-version',
+  'M54:Board Pack': 'M54-form-boardpack',
+  'M54:__by_model__': {
+    'fix.business.line': 'M54-form-bline',
+    'fix.budget': 'M54-form-budget',
+    'fix.budget.version': 'M54-form-version',
+    'fix.cost.pool': 'M54-form-pool',
+    'fix.cost.allocation': 'M54-form-allocation',
+    'fix.board.pack': 'M54-form-boardpack'
+  },
+  'M54:__by_screen__': {
+    'M54-lines': 'M54-form-bline',
+    'M54-budgets': 'M54-form-budget',
+    'M54-workflow': 'M54-form-version',
+    'M54-scenario': 'M54-form-version',
+    'M54-pools': 'M54-form-pool',
+    'M54-allocation': 'M54-form-allocation',
+    'M54-boardpacks': 'M54-form-boardpack'
+  }
+};
+
 /* the module's "+ New" surface */
 export const CREATE = {
-  M54: { model: 'fix.budget.version', label: 'Budget Version' },
+  M54: { screen: 'M54-form-version', model: 'fix.budget.version', label: 'Budget Version' },
 };

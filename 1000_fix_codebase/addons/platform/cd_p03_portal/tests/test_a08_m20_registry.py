@@ -82,11 +82,36 @@ def registry(tmp_path_factory):
 def test_bespoke_screens_kept_and_every_screen_is_real(registry):
     ids = [s["id"] for g in registry["module"]["groups"] for s in g["screens"]]
     assert len(ids) == len(set(ids))
-    assert set(ids) == set(registry["screens"])
+    # Every nav screen renders (no dead nav entries)…
+    assert set(ids) <= set(registry["screens"])
+    # …and every non-nav SCREENS entry is a reachable D365 surface: a
+    # model_form with a back-target grid, or a pack routed from a report
+    # chip (the AR form/report sweeps added these deliberately).
+    routed = set(registry["routes"].values())
+    orphans = [
+        sid
+        for sid, cfg in registry["screens"].items()
+        if sid not in set(ids)
+        and not (cfg.get("kind") == "model_form" and cfg.get("back"))
+        and sid not in routed
+    ]
+    assert not orphans, f"orphan screens unreachable from nav or chips: {orphans}"
     for sid, kind in BESPOKE.items():
         assert registry["screens"][sid]["kind"] == kind
+    # the bespoke dunning WORKLIST console keeps M20-dunning; the fix.dunning
+    # register grid is the separate M20-dunning-register screen (the shared
+    # id previously clobbered the ar_dunning kind in the SCREENS map).
     added = set(ids) - set(BESPOKE)
-    assert added == {"M20-vds", "M20-closeout", "M20-vds-register"}
+    assert added == {
+        "M20-vds",
+        "M20-closeout",
+        "M20-vds-register",
+        "M20-ecl",
+        "M20-ar-dispute",
+        "M20-ar-consolidated-bill",
+        "M20-dunning-register",
+        "M20-notes-register",
+    }
     for g in registry["module"]["groups"]:
         for s in g["screens"]:
             assert s.get("bn"), s["id"]

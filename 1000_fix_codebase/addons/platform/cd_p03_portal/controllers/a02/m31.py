@@ -36,7 +36,7 @@ SURFACES = {
     "fix.workshop.bench": {
         "order": "code",
         "limit": 100,
-        "actions": set(),  # assignment flows through the job's engine
+        "actions": {"action_log_daily_esd"},
     },
     "fix.workshop": {
         "order": "code",
@@ -46,7 +46,7 @@ SURFACES = {
     "fix.workshop.part.line": {
         "order": "id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_consume_part", "action_release_reservation"},
     },
     "fix.workshop.evidence": {
         "order": "id desc",

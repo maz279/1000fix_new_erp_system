@@ -13,7 +13,7 @@ import logging
 from odoo import http
 from odoo.http import request
 
-from . import a08
+from . import a03, a04, a08
 from .p03_service_order_api import _require_internal
 
 _logger = logging.getLogger(__name__)
@@ -203,9 +203,10 @@ class P03FinanceApiController(http.Controller):
                 "budgets_count": count("fix.budget", []),
             }
 
-        # Per-module metrics declared in controllers/a08/<module>.py as an
-        # optional kpis(env) -> {metric_key: value or None}.
-        for code, mod in a08.MODULES.items():
+        # Per-module metrics declared in controllers/a08/<module>.py (and,
+        # since the A03 rebuild, controllers/a03/<module>.py) as an optional
+        # kpis(env) -> {metric_key: value or None}.
+        for code, mod in {**a08.MODULES, **a03.MODULES, **a04.MODULES}.items():
             hook = getattr(mod, "kpis", None)
             if hook and module in (None, code):
                 try:

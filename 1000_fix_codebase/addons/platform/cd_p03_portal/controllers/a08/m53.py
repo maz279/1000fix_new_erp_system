@@ -256,9 +256,224 @@ def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
     }
 
 
+def rev_rec_by_stream(env, date_from=None, date_to=None, **params):
+    """Revenue recognition by stream: contracted, recognised to date and the
+    deferred remainder, per revenue stream across all schedules."""
+    schedules = env["fix.revenue.schedule"].sudo().search([])
+    groups = {}
+    for sch in schedules:
+        key = _stream_label(env, sch)
+        g = groups.setdefault(
+            key, {"contracts": 0, "total": 0.0, "recognized": 0.0, "deferred": 0.0}
+        )
+        g["contracts"] += 1
+        g["total"] += float(sch.total_amount or 0.0)
+        g["recognized"] += float(sch.recognized_amount or 0.0)
+        g["deferred"] += float(sch.deferred_balance or 0.0)
+    rows = [
+        {
+            "stream": k,
+            "contracts": v["contracts"],
+            "contracted": round(v["total"], 2),
+            "recognized": round(v["recognized"], 2),
+            "deferred": round(v["deferred"], 2),
+            "pct_recognized": round(v["recognized"] / v["total"] * 100.0, 1) if v["total"] else 0.0,
+        }
+        for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["total"])
+    ]
+    return {
+        "title": "Revenue Recognition by Stream",
+        "cols": ["stream", "contracts", "contracted", "recognized", "deferred", "pct_recognized"],
+        "labels": {
+            "stream": "Revenue Stream",
+            "contracts": "Schedules",
+            "contracted": "Contracted",
+            "recognized": "Recognised to Date",
+            "deferred": "Deferred Balance",
+            "pct_recognized": "% Recognised",
+        },
+        "rows": rows,
+        "totals": {
+            "stream": "Total",
+            "contracts": sum(r["contracts"] for r in rows),
+            "contracted": round(sum(r["contracted"] for r in rows), 2),
+            "recognized": round(sum(r["recognized"] for r in rows), 2),
+            "deferred": round(sum(r["deferred"] for r in rows), 2),
+        },
+        "notes": "Streams are the performance-obligation types (and raw source models for "
+        "non-PO schedules); % recognised is against the contracted amount.",
+        "empty": "No revenue schedules recorded.",
+    }
+
+
+def commission_accrual(env, date_from=None, date_to=None, **params):
+    """Commission accrual: every ledger entry with its scheme rate, TDS and
+    net, and the accrual state."""
+    domain = []
+    if date_from:
+        domain.append(("create_date", ">=", date_from))
+    if date_to:
+        domain.append(("create_date", "<=", date_to))
+    lines = env["fix.commission.ledger"].sudo().search(domain)
+    rows = []
+    for ln in lines:
+        rows.append(
+            {
+                "entry": ln.name,
+                "seller": ln.seller_partner_id.display_name if ln.seller_partner_id else "—",
+                "source": ln.source_ref or "—",
+                "gross": round(float(ln.gross_amount or 0.0), 2),
+                "rate": round(float(ln.commission_rate or 0.0) * 100, 2),
+                "commission": round(float(ln.commission_amount or 0.0), 2),
+                "tds": round(float(ln.tds_amount or 0.0), 2),
+                "net": round(float(ln.net_payable or 0.0), 2),
+                "state": dict(ln._fields["state"].selection).get(ln.state, ln.state),
+            }
+        )
+    return {
+        "title": "Commission Accrual Ledger",
+        "cols": ["entry", "seller", "source", "gross", "rate", "commission", "tds", "net", "state"],
+        "labels": {
+            "entry": "Entry",
+            "seller": "Seller / Partner",
+            "source": "Source Reference",
+            "gross": "Gross Basis",
+            "rate": "Rate %",
+            "commission": "Commission",
+            "tds": "TDS Withheld",
+            "net": "Net Payable",
+            "state": "State",
+        },
+        "rows": rows,
+        "totals": {
+            "entry": "Total",
+            "gross": round(sum(r["gross"] for r in rows), 2),
+            "commission": round(sum(r["commission"] for r in rows), 2),
+            "tds": round(sum(r["tds"] for r in rows), 2),
+            "net": round(sum(r["net"] for r in rows), 2),
+        },
+        "notes": "TDS withheld at source per ITA 2023 section 52 on seller commissions.",
+        "empty": "No commission entries recorded.",
+    }
+
+
+def payout_reconciliation(env, date_from=None, date_to=None, **params):
+    """Payout reconciliation: each rail statement vs the system's payout run,
+    with count and amount match flags and the unmatched remainder."""
+    recs = env["fix.payout.reconciliation"].sudo().search([])
+    rows = []
+    for r in recs:
+        rows.append(
+            {
+                "recon": r.name,
+                "run": r.payout_run_id.name if r.payout_run_id else "—",
+                "rail": r.rail_name or "—",
+                "date": str(r.reconciliation_date or "—"),
+                "system_count": r.system_count,
+                "rail_count": r.rail_count,
+                "count_ok": "✓" if r.count_matched else "✗",
+                "system_amount": round(float(r.system_amount or 0.0), 2),
+                "rail_amount": round(float(r.rail_amount or 0.0), 2),
+                "amount_ok": "✓" if r.amount_matched else "✗",
+                "unmatched": round(float(r.unmatched_amount or 0.0), 2),
+            }
+        )
+    return {
+        "title": "Payout Reconciliation — rail statement vs payout run",
+        "cols": [
+            "recon",
+            "run",
+            "rail",
+            "date",
+            "system_count",
+            "rail_count",
+            "count_ok",
+            "system_amount",
+            "rail_amount",
+            "amount_ok",
+            "unmatched",
+        ],
+        "labels": {
+            "recon": "Reconciliation",
+            "run": "Payout Run",
+            "rail": "Rail",
+            "date": "Date",
+            "system_count": "System Count",
+            "rail_count": "Rail Count",
+            "count_ok": "Counts",
+            "system_amount": "System Amount",
+            "rail_amount": "Rail Amount",
+            "amount_ok": "Amounts",
+            "unmatched": "Unmatched",
+        },
+        "rows": rows,
+        "totals": {
+            "recon": "Total",
+            "system_amount": round(sum(r["system_amount"] for r in rows), 2),
+            "rail_amount": round(sum(r["rail_amount"] for r in rows), 2),
+            "unmatched": round(sum(r["unmatched"] for r in rows), 2),
+        },
+        "notes": "Counts and amounts are matched independently; the unmatched remainder is what "
+        "the rail statement did not settle.",
+        "empty": "No payout reconciliations recorded.",
+    }
+
+
+def clawback_register(env, date_from=None, date_to=None, **params):
+    """Clawback & escrow register: adjustments held against future payouts,
+    with recovery progress."""
+    domain = [("adjustment_type", "in", ("clawback", "escrow"))]
+    if date_from:
+        domain.append(("create_date", ">=", date_from))
+    if date_to:
+        domain.append(("create_date", "<=", date_to))
+    adjustments = env["fix.settlement.adjustment"].sudo().search(domain)
+    rows = []
+    for a in adjustments:
+        rows.append(
+            {
+                "ref": a.name,
+                "type": dict(a._fields["adjustment_type"].selection).get(
+                    a.adjustment_type, a.adjustment_type
+                ),
+                "seller": a.seller_partner_id.display_name if a.seller_partner_id else "—",
+                "amount": round(float(a.amount or 0.0), 2),
+                "recovered": round(float(a.recovered_amount or 0.0), 2),
+                "outstanding": round(float(a.amount or 0.0) - float(a.recovered_amount or 0.0), 2),
+                "state": dict(a._fields["state"].selection).get(a.state, a.state),
+            }
+        )
+    return {
+        "title": "Clawback & Escrow Register",
+        "cols": ["ref", "type", "seller", "amount", "recovered", "outstanding", "state"],
+        "labels": {
+            "ref": "Reference",
+            "type": "Type",
+            "seller": "Seller",
+            "amount": "Amount",
+            "recovered": "Recovered",
+            "outstanding": "Outstanding",
+            "state": "State",
+        },
+        "rows": rows,
+        "totals": {
+            "ref": "Total",
+            "amount": round(sum(r["amount"] for r in rows), 2),
+            "recovered": round(sum(r["recovered"] for r in rows), 2),
+            "outstanding": round(sum(r["outstanding"] for r in rows), 2),
+        },
+        "notes": "Escrow holds freeze disputed amounts; clawbacks recover from future payouts.",
+        "empty": "No clawbacks or escrow holds recorded.",
+    }
+
+
 REPORTS = {
     "contract_balances": contract_balances,
     "deferred_revenue_bridge": deferred_revenue_bridge,
+    "rev_rec_by_stream": rev_rec_by_stream,
+    "commission_accrual": commission_accrual,
+    "payout_reconciliation": payout_reconciliation,
+    "clawback_register": clawback_register,
 }
 
 

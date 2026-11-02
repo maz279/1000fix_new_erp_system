@@ -1068,6 +1068,13 @@ body:has(.p03-workspace-root) .o_action_manager {
         border-bottom: 1px solid var(--stroke);
         vertical-align: middle;
         color: var(--ink-700);
+        // never wrap a cell into a letter-stack (audit D12: the user's PDFs
+        // showed "Draft (unverifie…" / "Compa" mid-word truncation) — cells
+        // stay on one line and the wrapper scrolls horizontally instead.
+        white-space: nowrap;
+        max-width: 240px;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       tbody tr:hover { background: var(--primary-wash); }
@@ -2405,4 +2412,402 @@ body:has(.p03-workspace-root) .o_action_manager {
 @media (max-width: 1100px) {
   .gl-layout { grid-template-columns: 1fr; }
   .gl-factbox { position: static; max-height: none; }
+}
+
+/* ============================================================================
+ * D365 IN-WORKSPACE RECORD FORMS (user directive 2026-10-27)
+ * Dynamics-365 layout: command bar, record header + status pill, section
+ * cards with uppercase titles, labelled field grid. Never Odoo chrome.
+ * ========================================================================= */
+.d365-form {
+  &.gl-layout {
+    grid-template-columns: 1fr;
+    width: 100%;
+  }
+
+  .d365-cmdbar {
+    display: flex; align-items: center; gap: 8px;
+    position: sticky; top: 0; z-index: 20;
+    background: var(--surface, #ffffff);
+    padding: 10px 0; margin-bottom: 6px;
+    border-bottom: 1px solid var(--line, #e5e7eb);
+  }
+  .d365-status {
+    margin-left: auto;
+    font-size: 11px; font-weight: 600;
+    padding: 3px 12px; border-radius: var(--r-pill, 999px);
+    background: var(--brand-150, #ebf8f6);
+    color: var(--brand-60, #0e7a6e);
+    border: 1px solid var(--brand-120, #a5ded7);
+    text-transform: capitalize;
+  }
+  .d365-formhead { padding: 6px 0 14px; }
+
+  /* Dynamics 365 Multi-Tab Strip */
+  .d365-formtabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border-bottom: 2px solid var(--line, #e5e7eb);
+    margin: 4px 0 16px;
+    padding: 0 4px;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    white-space: nowrap;
+  }
+  .d365-formtab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    min-height: 44px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--ink-500, #4b5563);
+    background: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+
+    &:hover {
+      color: var(--ink, #111827);
+      background: var(--surface-2, #f3f4f6);
+    }
+    &.active {
+      color: var(--brand-60, #0e7a6e);
+      font-weight: 700;
+      border-bottom-color: var(--brand-60, #0e7a6e);
+      background: var(--brand-150, #f0fdfa);
+    }
+    &:focus-visible {
+      outline: 2px solid var(--brand-60, #0e7a6e);
+      outline-offset: -2px;
+    }
+  }
+  .d365-tab-icon {
+    font-size: 14px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
+  .d365-tab-label {
+    letter-spacing: 0.01em;
+  }
+  .d365-tab-badge {
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--surface-2, #e5e7eb);
+    color: var(--ink-700, #374151);
+  }
+  .d365-formtab-btn.active .d365-tab-badge {
+    background: #0f766e;
+    color: #ffffff;
+  }
+  .d365-tabpanel {
+    display: block;
+    width: 100%;
+  }
+  .d365-formtitle {
+    font-size: 20px; font-weight: 700; letter-spacing: -0.01em;
+    color: var(--ink, #1f2937);
+  }
+  .d365-formcrumb {
+    font-size: 11px; color: #4b5563; margin-top: 2px;
+  }
+  .d365-formerror {
+    margin: 6px 0 12px; padding: 10px 12px; font-size: 12px;
+    border-radius: 8px;
+    background: #fdecec; color: #9b1c1c; border: 1px solid #f5c2c2;
+  }
+  .d365-section {
+    border: 1px solid var(--line, #e5e7eb);
+    border-radius: 10px;
+    padding: 14px 16px 16px;
+    margin-bottom: 14px;
+    background: var(--surface, #ffffff);
+  }
+  .d365-sectiontitle {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--ink-500, #6b7280);
+    margin-bottom: 12px;
+  }
+  .d365-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px 22px;
+  }
+  .d365-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .d365-field-wide { grid-column: 1 / -1; }
+  .d365-label {
+    font-size: 12.5px; font-weight: 600; color: var(--ink-700, #374151);
+    letter-spacing: 0.01em;
+  }
+  .d365-req { color: #b42318; margin-left: 3px; }
+  .d365-input {
+    height: 32px; font-size: 13px; padding: 0 10px;
+    border: 1px solid var(--line, #d1d5db); border-radius: 6px;
+    background: var(--surface, #ffffff); color: var(--ink, #1f2937);
+    width: 100%; box-sizing: border-box;
+  }
+  .d365-input:focus {
+    outline: none; border-color: var(--brand-60, #0e7a6e);
+    box-shadow: 0 0 0 2px var(--brand-10, #e6f4f1);
+  }
+  .d365-input[disabled] { background: var(--surface-2, #f9fafb); color: var(--ink-300, #9ca3af); }
+  .d365-textarea { height: auto; padding: 8px 10px; resize: vertical; }
+  .d365-ro {
+    min-height: 32px; display: flex; align-items: center;
+    font-size: 13px; color: var(--ink, #1f2937);
+    background: var(--surface-2, #f9fafb);
+    border: 1px solid var(--line, #e5e7eb); border-radius: 6px;
+    padding: 0 10px;
+  }
+  .d365-check { display: flex; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; }
+  .d365-note {
+    margin-top: 12px; padding: 10px 12px; font-size: 12px; line-height: 1.5;
+    border-left: 3px solid var(--brand-90, #2fb0a2);
+    background: var(--brand-150, #ebf8f6); color: var(--ink-700, #374151);
+    border-radius: 0 8px 8px 0;
+  }
+  /* declared one2many child grid (allocation targets, JE template lines) */
+  .d365-lines {
+    width: 100%; border-collapse: collapse; font-size: 12.5px;
+  }
+  .d365-lines th {
+    text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--ink-500, #6b7280);
+    padding: 6px 8px; border-bottom: 1px solid var(--line, #e5e7eb);
+  }
+  .d365-lines td { padding: 4px 8px; vertical-align: middle; }
+  .d365-lines .d365-input { height: 28px; font-size: 12.5px; }
+  .d365-checkbox { width: 16px; height: 16px; }
+  .d365-line-remove {
+    padding: 2px 8px; font-size: 12px; color: #b42318;
+    border: 1px solid #f5c2c2; background: #fdecec; border-radius: 6px;
+  }
+  .d365-lines-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px; margin-top: 10px;
+  }
+  .d365-line-total {
+    font-size: 12.5px; font-weight: 600; color: #b42318;
+  }
+  .d365-line-total.ok { color: var(--brand-60, #0e7a6e); }
+}
+
+/* Dynamics 365 Image & Avatar Upload Field */
+.d365-image-field {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 0;
+
+  .d365-avatar-box {
+    width: 84px;
+    height: 84px;
+    border-radius: var(--radius-md, 6px);
+    border: 1px solid var(--border-default, #e2e8f0);
+    background: var(--surface-subtle, #f8fafc);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    flex-shrink: 0;
+
+    .d365-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .d365-avatar-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: #475569;
+      font-size: 11px;
+      gap: 2px;
+
+      .d365-avatar-icon {
+        font-size: 26px;
+      }
+      .d365-avatar-note {
+        font-weight: 500;
+      }
+    }
+  }
+
+  .d365-avatar-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .d365-file-btn {
+      position: relative;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-card, #ffffff);
+      border: 1px solid var(--border-default, #cbd5e1);
+      padding: 6px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-sm, 4px);
+      min-height: 36px;
+      &:hover {
+        background: var(--surface-hover, #f1f5f9);
+      }
+    }
+
+    .d365-file-input {
+      position: absolute;
+      width: 0.1px;
+      height: 0.1px;
+      opacity: 0;
+      overflow: hidden;
+      z-index: -1;
+    }
+  }
+}
+
+/* Dynamics 365 Physical Document Upload Field */
+.d365-doc-field {
+  width: 100%;
+  padding: 4px 0;
+
+  .d365-doc-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 16px;
+    background: var(--surface-card, #ffffff);
+    border: 1px solid var(--border-default, #e2e8f0);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    flex-wrap: wrap;
+
+    &:hover {
+      border-color: var(--brand-40, #1b8a7a);
+    }
+  }
+
+  .d365-doc-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 240px;
+    flex: 1;
+
+    .d365-doc-icon {
+      font-size: 28px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    .d365-doc-details {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+
+      .d365-doc-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary, #0f172a);
+        word-break: break-all;
+
+        &.empty {
+          color: #64748b;
+          font-style: italic;
+          font-weight: 500;
+        }
+      }
+
+      .d365-doc-hint {
+        font-size: 11px;
+        color: #334155;
+        font-weight: 500;
+      }
+    }
+
+    .d365-doc-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+
+      &.attached {
+        color: #065f46;
+        background: #d1fae5;
+        border: 1px solid #a7f3d0;
+      }
+
+      &.missing {
+        color: #1e293b;
+        background: #e2e8f0;
+        border: 1px solid #cbd5e1;
+      }
+    }
+  }
+
+  .d365-doc-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+
+    .d365-file-btn {
+      position: relative;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-card, #ffffff);
+      border: 1px solid var(--border-default, #cbd5e1);
+      padding: 6px 14px;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: var(--radius-sm, 4px);
+      min-height: 38px;
+      line-height: 1.4;
+
+      &:hover {
+        background: var(--surface-hover, #f1f5f9);
+        border-color: #94a3b8;
+      }
+    }
+
+    .d365-file-input {
+      position: absolute;
+      width: 0.1px;
+      height: 0.1px;
+      opacity: 0;
+      overflow: hidden;
+      z-index: -1;
+    }
+
+    .d365-doc-action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 38px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      text-decoration: none;
+    }
+  }
 }

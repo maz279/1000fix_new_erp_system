@@ -1,0 +1,391 @@
+# A02 · M06 Data Services & Recovery — the surfaces the generic workspace
+# screens read, the workflow methods they may call, the module KPI payload
+# (/p03/data/kpis) and the built-in reports (/p03/model/report). Same
+# contract as a02/m01..m05.
+#
+# Iteration 2 (2026-10-27): the lab engines landed in cd_data_case
+# (specialisms, attempts, sealed media units, cleanroom slots, evaluations,
+# quotations, backup plans & restore tests), so every registry screen, KPI
+# and report below is LIVE over real models. The Z4 step-up access action
+# is whitelisted too: it fails closed without a valid TOTP code (SC-002).
+import logging
+from datetime import date, datetime
+
+from odoo import http
+from odoo.http import request
+
+from ..p03_service_order_api import _require_internal
+
+_logger = logging.getLogger(__name__)
+
+SURFACES = {
+    "fix.data.recovery.case": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_take_custody",
+            "action_log_custody_transfer",
+            "action_start_recovery",
+            "action_recovered",
+            "action_handover",
+            "action_purge",
+            "action_access_recovered_data",
+        },
+    },
+    "fix.data.wipe.certificate": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_verify", "action_mark_failed"},
+    },
+    "fix.z4.access.audit": {
+        "order": "access_time desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.data.recovery.attempt": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_finish"},
+    },
+    "fix.data.media.unit": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_transfer",
+            "action_break_seal",
+            "action_break_seal_with_witness",
+            "action_return",
+        },
+    },
+    "fix.data.cleanroom.slot": {
+        "order": "start_at desc",
+        "limit": 100,
+        "actions": {"action_use", "action_cancel"},
+    },
+    "fix.data.evaluation": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_complete"},
+    },
+    "fix.data.quote": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_send", "action_accept", "action_decline"},
+    },
+    "fix.data.backup.plan": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_log_test"},
+    },
+}
+
+
+def kpis(env):
+    """The M06 module-tile KPI row (registry-canonical metrics), all live."""
+    Case = env["fix.data.recovery.case"].sudo()
+    Cert = env["fix.data.wipe.certificate"].sudo()
+    Slot = env["fix.data.cleanroom.slot"].sudo()
+    Eval = env["fix.data.evaluation"].sudo()
+    domain = [("company_id", "in", env.companies.ids)]
+
+    active_cases = Case.search_count(
+        [*domain, ("state", "not in", ("purged", "closed", "unrecoverable"))]
+    )
+
+    # recovery success: recovered vs decided-unrecoverable
+    recovered = Case.search_count([*domain, ("state", "=", "recovered")])
+    unrecoverable = Case.search_count([*domain, ("state", "=", "unrecoverable")])
+    decided = recovered + unrecoverable
+    recovery_success = round(100.0 * recovered / decided, 1) if decided else None
+
+    now = datetime.now()
+    cleanroom_slots = Slot.search_count(
+        [*domain, ("state", "=", "planned"), ("start_at", ">=", now)]
+    )
+
+    month_start = datetime.combine(date.today().replace(day=1), datetime.min.time())
+    destruction_certs_mtd = Cert.search_count([("create_date", ">=", month_start)])
+
+    # eval turnaround: average hours media-received → verdict
+    evals = Eval.search([("evaluated_at", "!=", False)], limit=200)
+    eval_turnaround = round(sum(e.eval_hours for e in evals) / len(evals), 1) if evals else None
+
+    purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
+
+    return {
+        "active_cases": active_cases,
+        "recovery_success": recovery_success,
+        "cleanroom_slots": cleanroom_slots,
+        "destruction_certs_mtd": destruction_certs_mtd,
+        "eval_turnaround": eval_turnaround,
+        "purge_verifications": purge_verifications,
+    }
+
+
+# ---------------------------------------------------------------- reports
+
+
+def _success_by_specialism(env, **params):
+    Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
+    cases = Case.search([("state", "in", ("recovered", "unrecoverable"))], limit=400)
+    buckets = {}
+    labels = dict(type(Case).specialism.selection)
+    for case in cases:
+        key = case.specialism or "unassigned"
+        b = buckets.setdefault(key, {"recovered": 0, "unrecoverable": 0})
+        b["recovered" if case.state == "recovered" else "unrecoverable"] += 1
+    rows = []
+    for key in sorted(buckets):
+        b = buckets[key]
+        decided = b["recovered"] + b["unrecoverable"]
+        rows.append(
+            {
+                "specialism": labels.get(key, key),
+                "recovered": b["recovered"],
+                "unrecoverable": b["unrecoverable"],
+                "success_pct": round(100.0 * b["recovered"] / decided, 1) if decided else None,
+            }
+        )
+    return {
+        "title": "Recovery Success by Specialism",
+        "cols": ["specialism", "recovered", "unrecoverable", "success_pct"],
+        "labels": {
+            "specialism": "Specialism",
+            "recovered": "Recovered",
+            "unrecoverable": "Unrecoverable",
+            "success_pct": "Success %",
+        },
+        "rows": rows,
+        "notes": ["Decided cases (recovered + unrecoverable) only, live."],
+    }
+
+
+def _case_cycle_time(env, **params):
+    Case = env["fix.data.recovery.case"].sudo()
+    cases = Case.search([("state", "in", ("purged", "closed", "unrecoverable"))], limit=300)
+    rows = []
+    closed_total = purged_total = unrecoverable_total = 0
+    n_closed = n_purged = n_unrecoverable = 0
+    for case in cases:
+        days = None
+        if case.received_at:
+            end = case.write_date or case.received_at
+            days = round((end - case.received_at).total_seconds() / 86400.0, 1)
+        if days is None:
+            continue
+        if case.state == "purged":
+            purged_total += days
+            n_purged += 1
+        elif case.state == "unrecoverable":
+            unrecoverable_total += days
+            n_unrecoverable += 1
+        else:
+            closed_total += days
+            n_closed += 1
+
+    def avg(total, n):
+        return round(total / n, 1) if n else None
+
+    rows = [
+        {
+            "outcome": "Purged (completed journey)",
+            "cases": n_purged,
+            "avg_days": avg(purged_total, n_purged),
+        },
+        {"outcome": "Closed", "cases": n_closed, "avg_days": avg(closed_total, n_closed)},
+        {
+            "outcome": "Unrecoverable",
+            "cases": n_unrecoverable,
+            "avg_days": avg(unrecoverable_total, n_unrecoverable),
+        },
+    ]
+    return {
+        "title": "Case Cycle Time",
+        "cols": ["outcome", "cases", "avg_days"],
+        "labels": {"outcome": "Outcome", "cases": "Cases", "avg_days": "Avg Days"},
+        "rows": rows,
+        "notes": ["Media received → last write, per terminal state."],
+    }
+
+
+def _service_revenue(env, **params):
+    Quote = env["fix.data.quote"].sudo()
+    quotes = Quote.search([("state", "=", "accepted")], limit=300)
+    if not quotes:
+        return {
+            "title": "Data Service Revenue",
+            "cols": ["note"],
+            "labels": {"note": ""},
+            "rows": [
+                {
+                    "note": "No accepted quotations yet — revenue lights up with the first acceptance."
+                }
+            ],
+            "notes": ["Accepted quotations only (no-data-no-fee economics)."],
+        }
+    by_case = {}
+    for q in quotes:
+        by_case.setdefault(q.case_id.name or "—", []).append(q)
+    rows = [
+        {
+            "case": name,
+            "quotes": len(group),
+            "accepted_bdt": round(sum(q.amount for q in group), 2),
+        }
+        for name, group in sorted(by_case.items())
+    ]
+    return {
+        "title": "Data Service Revenue",
+        "cols": ["case", "quotes", "accepted_bdt"],
+        "labels": {"case": "Case", "quotes": "Quotes", "accepted_bdt": "Accepted (BDT)"},
+        "rows": rows,
+        "notes": ["Accepted quotations only (no-data-no-fee economics)."],
+    }
+
+
+def _destruction_audit(env, **params):
+    Case = env["fix.data.recovery.case"].sudo()
+    Cert = env["fix.data.wipe.certificate"].sudo()
+    purged = Case.search([("state", "=", "purged")], limit=200)
+    rows = [
+        {
+            "case": c.name,
+            "customer": c.customer_id.name,
+            "certificate": c.purge_certificate_id.name or "—",
+            "method": c.purge_certificate_id.method or "—",
+            "verification": (c.purge_certificate_id.verification_hash or "")[:16],
+            "verified_at": str(c.purge_certificate_id.verified_at or "—")[:16],
+        }
+        for c in purged
+    ]
+    pending = Cert.search([("sanitization_status", "=", "pending_verification")], limit=100)
+    return {
+        "title": "Destruction & Purge Audit",
+        "cols": ["case", "customer", "certificate", "method", "verification", "verified_at"],
+        "labels": {
+            "case": "Case",
+            "customer": "Customer",
+            "certificate": "Certificate",
+            "method": "Method",
+            "verification": "SHA-256 (first 16)",
+            "verified_at": "Verified At",
+        },
+        "rows": rows,
+        "notes": [
+            "Purged cases with their verified certificates; %s certificate(s) await verification."
+            % len(pending)
+        ],
+    }
+
+
+def _backup_compliance(env, **params):
+    Plan = env["fix.data.backup.plan"].sudo()
+    plans = Plan.search([], limit=300)
+    if not plans:
+        return {
+            "title": "Backup Restore-Test Compliance",
+            "cols": ["note"],
+            "labels": {"note": ""},
+            "rows": [{"note": "No backup plans yet — add one to start the restore-test register."}],
+            "notes": ["Compliant = latest restore test passed and the next test is not overdue."],
+        }
+    rows = [
+        {
+            "plan": p.name,
+            "customer": p.customer_id.name,
+            "type": dict(type(p).plan_type.selection).get(p.plan_type, p.plan_type),
+            "last_test": str(p.last_test_date or "—")[:16],
+            "result": p.last_test_result or "never",
+            "next_due": str(p.next_test_due or "—"),
+            "compliant": "yes" if p.compliant else "NO",
+        }
+        for p in plans
+    ]
+    ok = sum(1 for p in plans if p.compliant)
+    return {
+        "title": "Backup Restore-Test Compliance",
+        "cols": ["plan", "customer", "type", "last_test", "result", "next_due", "compliant"],
+        "labels": {
+            "plan": "Plan",
+            "customer": "Customer",
+            "type": "Type",
+            "last_test": "Last Test",
+            "result": "Result",
+            "next_due": "Next Due",
+            "compliant": "Compliant",
+        },
+        "rows": rows,
+        "notes": [
+            "Compliant = latest restore test passed and the next test is not overdue. %s/%s compliant."
+            % (ok, len(plans))
+        ],
+    }
+
+
+def _recovered_inventory(env, **params):
+    """The recovered-data inventory: what is ACTUALLY stored against each
+    active case (its attachments) — honest, including empty."""
+    Case = env["fix.data.recovery.case"].sudo()
+    Attachment = env["ir.attachment"].sudo()
+    cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
+    rows = []
+    for case in cases:
+        atts = Attachment.search(
+            [("res_model", "=", "fix.data.recovery.case"), ("res_id", "=", case.id)],
+            limit=50,
+        )
+        if atts:
+            for att in atts:
+                rows.append(
+                    {
+                        "case": case.name,
+                        "customer": case.customer_id.name,
+                        "file": att.name,
+                        "size_kb": round(att.file_size / 1024.0, 1),
+                        "zone": case.residency_zone,
+                    }
+                )
+        else:
+            rows.append(
+                {
+                    "case": case.name,
+                    "customer": case.customer_id.name,
+                    "file": "— nothing stored on record —",
+                    "size_kb": 0.0,
+                    "zone": case.residency_zone,
+                }
+            )
+    return {
+        "title": "Recovered-Data Inventory (Z4)",
+        "cols": ["case", "customer", "file", "size_kb", "zone"],
+        "labels": {
+            "case": "Case",
+            "customer": "Customer",
+            "file": "Stored File",
+            "size_kb": "KB",
+            "zone": "Zone",
+        },
+        "rows": rows,
+        "notes": ["Exactly what the case's attachment register holds — nothing invented."],
+    }
+
+
+REPORTS = {
+    "recovery_success_by_specialism": _success_by_specialism,
+    "case_cycle_time": _case_cycle_time,
+    "data_service_revenue": _service_revenue,
+    "destruction_purge_audit": _destruction_audit,
+    "backup_restore_compliance": _backup_compliance,
+    "recovered_inventory": _recovered_inventory,
+}
+
+
+class P03M06Controller(http.Controller):
+    @http.route("/p03/data/kpis", type="jsonrpc", auth="user", readonly=True)
+    def data_kpis(self, **kw):
+        _require_internal(request.env)
+        try:
+            return {"M06": kpis(request.env)}
+        except Exception:
+            _logger.exception("p03 data_kpis failed")
+            return {"error": "KPI computation failed"}
