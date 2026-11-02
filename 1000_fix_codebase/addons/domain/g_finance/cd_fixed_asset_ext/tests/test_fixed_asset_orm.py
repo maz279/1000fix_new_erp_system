@@ -41,8 +41,13 @@ def _asset(env, **vals):
     return env["fix.fixed.asset"].create(base)
 
 
-def _this_month():
-    return fields.Date.today().replace(day=1)
+# context_today, not Date.today(): the product dates these records with
+# fields.Date.context_today, and Bangladesh runs UTC+6 — between 18:00
+# UTC and midnight the two disagree, and on the 1st they disagree by a
+# MONTH (found 2026-11-01).
+def _this_month(env=None):
+    today = fields.Date.context_today(env.user) if env else fields.Date.today()
+    return today.replace(day=1)
 
 
 class TestFixedAsset:
@@ -100,7 +105,7 @@ class TestFixedAsset:
         line = asset.depreciation_line_ids
         assert (line.book, line.period_start, line.amount, line.state) == (
             "book",
-            _this_month(),
+            _this_month(env),
             2000.0,
             "posted",
         )

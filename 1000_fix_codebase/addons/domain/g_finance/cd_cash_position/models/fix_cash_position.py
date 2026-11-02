@@ -169,6 +169,26 @@ class FixPaymentExecution(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.payment.execution") or "PEX"
                 )
+            if not vals.get("source_model"):
+                # A manual instruction (the workspace form) has no source
+                # document; give it a unique trace key so the (source_model,
+                # source_id) uniqueness and the event idempotency contract
+                # stay intact — manual rows never replay.
+                vals["source_model"] = "manual"
+                vals["source_id"] = int(fields.Datetime.now().timestamp()) % 1000000000 + (
+                    (len(vals_list) and vals_list.index(vals)) or 0
+                )
+            if not vals.get("operating_unit_id"):
+                # the form's OU picker can arrive empty; treasury executes
+                # company-wide — fall back to the company's first OU
+                company = (
+                    self.env["res.company"].browse(vals.get("company_id"))
+                    if vals.get("company_id")
+                    else self.env.company
+                )
+                vals["operating_unit_id"] = (
+                    self.env["operating.unit"].search([("company_id", "=", company.id)], limit=1).id
+                )
             if vals.get("source_model") in SELF_POSTING_SOURCES:
                 vals.setdefault("source_posts_gl", True)
         return super().create(vals_list)

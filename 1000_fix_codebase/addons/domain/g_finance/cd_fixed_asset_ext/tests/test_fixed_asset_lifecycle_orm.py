@@ -359,7 +359,8 @@ class TestLease:
         assert lease.liability_balance == lines[0].closing
 
     def test_post_due_posts_up_to_this_month(self, m49):
-        today = fields.Date.today()
+        # see the note on context_today in test_fixed_asset_orm.py
+        today = fields.Date.context_today(m49["env"].user) if "env" in m49 else fields.Date.today()
         lease = self._lease(m49, commencement_date=date(today.year, today.month, 1), term_months=6)
         lease.action_activate()
         lease.action_post_due()

@@ -30,6 +30,7 @@ suspense balance must be zero before a period can close.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/fx_revaluation_sequences.xml",
         "views/fix_gl_ext_views.xml",
         "views/fix_gl_engine_views.xml",
         "data/fix_gl_cron.xml",

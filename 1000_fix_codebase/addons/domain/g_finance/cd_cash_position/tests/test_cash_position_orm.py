@@ -106,6 +106,21 @@ class TestPaymentExecutionSeam:
                 _request(model, source_id, {"amount": 1.0})
             )
 
+    def test_a_company_without_an_ou_falls_back_to_its_first_ou(self, odoo_env):
+        """The form's OU picker can arrive empty with a company set; create()
+        must fall back to that company's OU. It referenced a bare `env` and
+        raised NameError on exactly this path."""
+        payment = odoo_env["fix.payment.execution"].create(
+            {
+                "company_id": odoo_env.company.id,
+                "payee": "vendor:ou-fallback",
+                "amount": 10.0,
+                "method": "mobile_fs",
+            }
+        )
+        assert payment.operating_unit_id
+        assert payment.operating_unit_id.company_id == odoo_env.company
+
     def test_execute_once(self, odoo_env):
         payment = odoo_env["fix.payment.execution"].create(
             {

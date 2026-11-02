@@ -226,6 +226,15 @@ class FixExpenseClaim(models.Model):
             else:
                 claim.amount = claim.amount or 0.0  # no lines: the typed amount stands
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A claim created together with its lines in ONE request (the
+        # workspace form's path) can have its stored amount computed before
+        # the one2many lands; re-derive from the now-attached lines.
+        claims = super().create(vals_list)
+        claims.filtered(lambda c: c.line_ids)._compute_amount()
+        return claims
+
     def write(self, vals):
         # employees keep self-service write on their drafts; approval fields
         # are set by the accounting workflow only (A08 rule 5)
@@ -284,6 +293,12 @@ class FixExpenseClaim(models.Model):
         for claim in self:
             if claim.state not in ("draft", "rejected"):
                 raise UserError("Claim is already %s" % claim.state)
+            # A claim created together with its lines in one request (the
+            # workspace form saves header + lines together) can still carry
+            # the pre-lines compute result; lines are the single source of
+            # the claimed amount.
+            if claim.line_ids:
+                claim.amount = _q(sum(claim.line_ids.mapped("amount")))
             if (claim.amount or 0.0) <= 0:
                 raise UserError("A claim must carry a positive amount")
             breaches = claim._policy_breaches()

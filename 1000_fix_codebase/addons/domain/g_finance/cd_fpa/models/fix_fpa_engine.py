@@ -7,7 +7,8 @@
 # Nothing is stored or seeded; where a source record is missing the row
 # says so (an honest gap) instead of inventing a number.
 from collections import defaultdict
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
@@ -170,11 +171,24 @@ class FixFpaEngine(models.AbstractModel):
     def _has(self, model):
         return model in self.env
 
-    @staticmethod
-    def _dt_bounds(date_from, date_to):
+    def _dt_bounds(self, date_from, date_to):
+        """Half-open UTC bounds for a window given as the USER's calendar dates.
+
+        Stored timestamps (`create_date`, work-order finish stamps) are UTC,
+        while the window arrives as the user's local dates. Combining those
+        dates with `time.min` and comparing them directly dropped the first
+        `utcoffset` hours of every local day: for Asia/Dhaka (+06) nothing
+        created between local 00:00 and 05:59 counted in that day's window, and
+        every such record was reported against the previous day instead. It is
+        the same defect, and the same fix, as
+        `cd_p03_portal/controllers/p03_service_order_api.py::_day_start_utc`.
+        """
+        tz = ZoneInfo(self.env.context.get("tz") or self.env.user.tz or "UTC")
+        start = datetime.combine(date_from, time.min, tzinfo=tz)
+        end = datetime.combine(date_to + timedelta(days=1), time.min, tzinfo=tz)
         return (
-            datetime.combine(date_from, time.min),
-            datetime.combine(date_to + timedelta(days=1), time.min),
+            start.astimezone(UTC).replace(tzinfo=None),
+            end.astimezone(UTC).replace(tzinfo=None),
         )
 
     @api.model

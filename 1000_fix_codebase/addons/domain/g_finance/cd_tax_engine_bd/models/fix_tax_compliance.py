@@ -138,11 +138,51 @@ class FixWithholdingLine(models.Model):
     )
     base_amount = fields.Monetary(string="Base", currency_field="currency_id", required=True)
     rate = fields.Float(string="Statutory Rate (%)", digits=(6, 3), required=True)
-    multiplier = fields.Float(
-        string="Multiplier", digits=(6, 3), default=1.0, help="Non-filer multiplier applied"
+    # ITA 2023: three independent defaults each raise the withholding rate by 50%
+    # (s.142 proof-of-submission of return, s.143/163 no TIN, and the non-bank
+    # payment rule). They are recorded separately so the certificate can state
+    # which default raised the rate.
+    psr_received = fields.Boolean(
+        string="PSR on file",
+        default=True,
+        help="Proof of Submission of Return held on the document date (s.142). "
+        "Missing PSR raises the rate by 50%.",
+    )
+    paid_by_bank = fields.Boolean(
+        string="Paid through bank",
+        default=True,
+        help="Payment made by bank transfer/cheque. A cash payment raises the rate by 50%.",
+    )
+    payee_has_tin = fields.Boolean(
+        string="Payee has TIN",
+        compute="_compute_payee_has_tin",
+        store=True,
+        help="Derived from the deductee TIN (s.143/163).",
     )
     non_filer = fields.Boolean(
-        string="Non-filer", help="No valid proof of return submission on the document date"
+        string="Non-filer", help="Kept for the older rows: equivalent to missing PSR."
+    )
+    defaults_count = fields.Integer(
+        string="Statutory defaults",
+        compute="_compute_uplift",
+        store=True,
+        help="Number of independent defaults applied to this deduction.",
+    )
+    multiplier = fields.Float(
+        string="Multiplier",
+        digits=(6, 3),
+        default=1.0,
+        help="1.5 per default (PSR missing / cash payment / no TIN), per ITA 2023. "
+        "Defaulted from the flags on create; a document may state a higher one.",
+    )
+    effective_rate = fields.Float(
+        string="Effective rate (%)", digits=(6, 3), compute="_compute_uplift", store=True
+    )
+    expected_amount = fields.Monetary(
+        string="Expected deduction",
+        currency_field="currency_id",
+        compute="_compute_uplift",
+        store=True,
     )
     amount = fields.Monetary(string="Deducted", currency_field="currency_id", required=True)
     source_ref = fields.Char(string="Source Document", index=True)
@@ -165,6 +205,97 @@ class FixWithholdingLine(models.Model):
     certificate_id = fields.Many2one(
         "fix.withholding.certificate", string="Certificate", readonly=True, copy=False
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if "multiplier" not in vals:
+                defaults = 0
+                if vals.get("psr_received") is False or vals.get("non_filer"):
+                    defaults += 1
+                if vals.get("paid_by_bank") is False:
+                    defaults += 1
+                if not (vals.get("partner_tin") or "").strip():
+                    defaults += 1
+                vals["multiplier"] = round(1.5**defaults, 3)
+        return super().create(vals_list)
+
+    @api.depends("partner_tin")
+    def _compute_payee_has_tin(self):
+        for line in self:
+            line.payee_has_tin = bool((line.partner_tin or "").strip())
+
+    @api.depends(
+        "rate",
+        "base_amount",
+        "multiplier",
+        "psr_received",
+        "paid_by_bank",
+        "partner_tin",
+        "non_filer",
+    )
+    def _compute_uplift(self):
+        """ITA 2023: each of the three defaults multiplies the statutory rate by 1.5.
+        The components stay visible so the certificate and the register can state
+        exactly which default applied."""
+        for line in self:
+            defaults = 0
+            if not line.psr_received or line.non_filer:
+                defaults += 1
+            if not line.paid_by_bank:
+                defaults += 1
+            if not (line.partner_tin or "").strip():
+                defaults += 1
+            line.defaults_count = defaults
+            line.effective_rate = round((line.rate or 0.0) * (line.multiplier or 1.0), 3)
+            line.expected_amount = round((line.base_amount or 0.0) * line.effective_rate / 100.0, 2)
+            shortfall = round(line.expected_amount - (line.amount or 0.0), 2)
+            line.statutory_shortfall = shortfall if shortfall > 0.5 else 0.0
+
+    statutory_shortfall = fields.Monetary(
+        string="Statutory shortfall",
+        currency_field="currency_id",
+        compute="_compute_uplift",
+        store=True,
+        help="Expected deduction minus the amount actually withheld. A positive value is "
+        "under-withholding the company remains liable for.",
+    )
+
+    @api.constrains("amount", "expected_amount", "multiplier", "defaults_count")
+    def _check_statutory_amount(self):
+        """New deductions must equal base x effective rate and may not use a multiplier
+        below 1.5 per recorded default. Historical rows that breach the floor are NOT
+        refused here (that would block an upgrade); they carry a statutory_shortfall and
+        the register reports them for remediation."""
+        for line in self:
+            if line.state == "cancelled":
+                continue
+            if line.env.context.get("statutory_remediation"):
+                continue
+            minimum = round(1.5 ** (line.defaults_count or 0), 3)
+            if (line.multiplier or 1.0) < minimum - 1e-6:
+                continue  # legacy row: surfaced as a shortfall, fixed by the action
+            if abs((line.amount or 0.0) - (line.expected_amount or 0.0)) > 0.51:
+                raise ValidationError(
+                    "Deducted %.2f but the statutory amount is %.2f "
+                    "(rate %.3f%% x multiplier %.3f). Correct the amount or the flags."
+                    % (
+                        line.amount or 0.0,
+                        line.expected_amount or 0.0,
+                        line.effective_rate or 0.0,
+                        line.multiplier or 1.0,
+                    )
+                )
+
+    def action_apply_statutory_uplift(self):
+        """Remediate a legacy under-withheld row: set the multiplier to the statutory
+        minimum for its recorded defaults and recompute the withheld amount."""
+        for line in self:
+            minimum = round(1.5 ** (line.defaults_count or 0), 3)
+            amount = round((line.base_amount or 0.0) * (line.rate or 0.0) * minimum / 100.0, 2)
+            line.with_context(statutory_remediation=True).write(
+                {"multiplier": minimum, "amount": amount}
+            )
 
     @api.depends("document_date")
     def _compute_period(self):

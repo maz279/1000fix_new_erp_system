@@ -391,7 +391,7 @@ class TestPayoutRun:
         lines = {line.name.split(":")[0]: line for line in move.line_ids}
         # discharge the seller liability 15,050.45 = net 14,410.45 + TDS 640.00
         assert _money(lines["Discharge Seller Liability"].debit) == D("15050.45")
-        assert _money(lines["Statutory TDS Withheld (ITA 2023 §52)"].credit) == D("640.00")
+        assert _money(lines["Statutory TDS Withheld (ITA 2023 s.140)"].credit) == D("640.00")
         assert _money(lines["Net Disbursed Funds via api"].credit) == D("14410.45")
         assert _events(book.env, "payout.executed", run.id) == [
             {

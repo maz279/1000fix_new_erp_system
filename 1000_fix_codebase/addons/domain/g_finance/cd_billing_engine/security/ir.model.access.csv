@@ -50,3 +50,5 @@ access_fix_ar_payment_link_account_manager,fix.ar.payment.link.account.manager,m
 access_fix_vds_certificate_received_account_readonly,fix.vds.certificate.received.account.readonly,model_fix_vds_certificate_received,account.group_account_readonly,1,0,0,0
 access_fix_vds_certificate_received_account_user,fix.vds.certificate.received.account.user,model_fix_vds_certificate_received,account.group_account_user,1,1,1,0
 access_fix_vds_certificate_received_account_manager,fix.vds.certificate.received.account.manager,model_fix_vds_certificate_received,account.group_account_manager,1,1,1,0
+access_fix_ar_impairment,fix.ar.impairment,model_fix_ar_impairment,base.group_user,1,1,1,0
+access_fix_ar_impairment_line,fix.ar.impairment.line,model_fix_ar_impairment_line,base.group_user,1,1,1,0

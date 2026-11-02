@@ -416,25 +416,55 @@ class FixArReceipt(models.Model):
                 raise UserError(
                     "Confirm refused: internal adjustments need an explicit clearing account"
                 )
+            # The chart may require the branch dimension on the cash/channel
+            # account (COA-03). Resolve a real branch before posting: the
+            # receipt's own, else the branch of the customer's latest issued
+            # invoice in THIS company — never a branch from another company.
+            if not rec.branch_id:
+                invoice_branch = (
+                    rec.env["fix.ar.invoice"]
+                    .search(
+                        [
+                            ("customer_id", "=", rec.customer_id.id),
+                            ("company_id", "=", rec.company_id.id),
+                            ("branch_id", "!=", False),
+                        ],
+                        order="invoice_date desc, id desc",
+                        limit=1,
+                    )
+                    .branch_id
+                )
+                if invoice_branch:
+                    rec.branch_id = invoice_branch
             ar = _ar_account(rec.env, rec.company_id, "ar")
             note = None
             move = None
             if ar:
-                move, note = _post_ar_move(
-                    rec.env,
-                    rec.company_id,
-                    rec.receipt_date,
-                    "RCT %s — %s (%s)" % (rec.name, rec.customer_id.name, rec.method),
-                    [
-                        (account.id, "Receipt via %s" % rec.method, rec.amount, 0.0, False),
-                        (ar.id, "AR applied", 0.0, rec.amount, rec.customer_id.id),
-                    ],
-                    {
-                        0: rec.env["fix.ar.invoice"]._ar_posting_dims(rec.branch_id.id),
-                        1: rec.env["fix.ar.invoice"]._ar_posting_dims(rec.branch_id.id),
-                    },
-                    source="receipt",
-                )
+                try:
+                    move, note = _post_ar_move(
+                        rec.env,
+                        rec.company_id,
+                        rec.receipt_date,
+                        "RCT %s — %s (%s)" % (rec.name, rec.customer_id.name, rec.method),
+                        [
+                            (account.id, "Receipt via %s" % rec.method, rec.amount, 0.0, False),
+                            (ar.id, "AR applied", 0.0, rec.amount, rec.customer_id.id),
+                        ],
+                        {
+                            0: rec.env["fix.ar.invoice"]._ar_posting_dims(rec.branch_id.id),
+                            1: rec.env["fix.ar.invoice"]._ar_posting_dims(rec.branch_id.id),
+                        },
+                        source="receipt",
+                    )
+                except UserError as exc:
+                    msg = str(exc)
+                    if "branch" in msg.lower() and "dimension" in msg.lower():
+                        raise UserError(
+                            "Set the Branch on receipt %s before confirming — the GL account "
+                            "'%s' requires the branch dimension (COA-03)."
+                            % (rec.name, account.display_name)
+                        ) from exc
+                    raise
             else:
                 note = "GL not posted: AR control account unconfigured"
             rec.write(

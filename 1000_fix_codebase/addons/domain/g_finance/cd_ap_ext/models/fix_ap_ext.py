@@ -520,18 +520,30 @@ class FixVendorInvoice(models.Model):
             key = (line.tds_rate_id, line.tds_multiplier)
             groups[key][0] += line.line_total
             groups[key][1] += line.tds_amount
-        for (rate, multiplier), (base, amount) in groups.items():
+        for (rate, multiplier), (base, _amount) in groups.items():
+            # ITA 2023: a missing TIN is a 50% default on top of the non-filer
+            # uplift, so the withheld amount is recomputed from the flags rather
+            # than trusting the line-level multiplier alone.
+            defaults = 1 if multiplier > 1 else 0
+            has_tin = bool((profile.tin or "").strip())
+            if not has_tin:
+                defaults += 1
+            statutory = round(1.5**defaults, 3)
+            base_q = _q(base)
+            withheld = _q(base_q * (rate.rate or 0.0) * statutory / 100.0)
             vals.append(
                 {
                     **common,
                     "tax_kind": "tds",
                     "rate_id": rate.id,
                     "section": rate.section,
-                    "base_amount": _q(base),
+                    "base_amount": base_q,
                     "rate": rate.rate,
-                    "multiplier": multiplier,
+                    "multiplier": statutory,
                     "non_filer": multiplier > 1,
-                    "amount": _q(amount),
+                    "psr_received": multiplier <= 1,
+                    "paid_by_bank": True,
+                    "amount": withheld,
                 }
             )
         if self.vds_amount:

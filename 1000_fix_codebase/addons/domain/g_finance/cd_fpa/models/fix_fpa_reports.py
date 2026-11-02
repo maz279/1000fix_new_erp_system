@@ -633,7 +633,13 @@ class FixFpaEngineReports(models.AbstractModel):
     @api.model
     def report_rolling_forecast(self, date_from=None, date_to=None, **_kw):
         d_from, d_to = as_window(date_from, date_to)
-        today = fields.Date.today()
+        # context_today, not Date.today(): the window the caller passes is in
+        # the user's calendar, and Bangladesh runs UTC+6. Between 18:00 UTC
+        # and midnight UTC the two disagree, and on the first of the month
+        # they disagree by a MONTH — the current month then failed to match
+        # its own row and fell through to the run-rate basis
+        # (found 2026-11-01 while certifying A04).
+        today = fields.Date.context_today(self)
         current = today.replace(day=1)
         months = month_starts(d_from, d_to, cap=24)
         # actuals per month (revenue / cost) from the posted GL

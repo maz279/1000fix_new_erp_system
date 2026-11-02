@@ -8,7 +8,7 @@ from __future__ import annotations
 import base64
 import itertools
 import uuid
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from types import SimpleNamespace
 
@@ -543,3 +543,57 @@ def test_board_pack_assembles_a_csv_and_is_issued_by_another_manager(fpa):
     assert pack.state == "issued"
     with pytest.raises(UserError, match="frozen"), env.cr.savepoint():
         pack.write({"name": "changed"})
+
+
+# ------------------------------------------------- report windows are UTC-correct
+
+
+@pytest.mark.parametrize(
+    "tz, expected_start, expected_end",
+    [
+        # Asia/Dhaka is UTC+06: the local day begins at 18:00 UTC the day before.
+        ("Asia/Dhaka", datetime(2026, 10, 30, 18, 0), datetime(2026, 10, 31, 18, 0)),
+        # A zone behind UTC shifts the other way (EDT, UTC-04 on this date).
+        ("America/New_York", datetime(2026, 10, 31, 4, 0), datetime(2026, 11, 1, 4, 0)),
+        # A UTC user is unaffected: midnight to midnight.
+        ("UTC", datetime(2026, 10, 31, 0, 0), datetime(2026, 11, 1, 0, 0)),
+    ],
+)
+def test_report_windows_convert_the_users_local_dates_to_utc(
+    odoo_env, tz, expected_start, expected_end
+):
+    """A report window is a span of the USER's calendar days, but `create_date`
+    and the work-order stamps it is compared against are stored in UTC.
+
+    Before this was fixed the engine combined the local dates with `time.min`
+    and compared the naive result directly, so the first `utcoffset` hours of
+    every local day fell outside that day's window: for Asia/Dhaka every record
+    created between local 00:00 and 05:59 was counted against the previous day.
+    It surfaced as four M54 FP&A report tests that passed by day and failed
+    between 00:00 and 06:00 Dhaka time, and it mis-stated every daily figure
+    those reports produce.
+    """
+    env = odoo_env
+    env.user.write({"tz": tz})
+    # clear any `tz` the test context carries, so the user's setting is what
+    # decides here; the context's precedence is asserted separately below
+    engine = env["fix.fpa.engine"].with_context(tz=False)
+
+    start, end = engine._dt_bounds(date(2026, 10, 31), date(2026, 10, 31))
+
+    assert start == expected_start
+    assert end == expected_end
+    # the window is exactly one local day long, and half-open
+    assert (end - start).total_seconds() == 24 * 3600
+
+
+def test_report_windows_follow_the_context_timezone_over_the_user_setting(odoo_env):
+    """`tz` in the context wins, matching `_day_start_utc` in the P03 API."""
+    env = odoo_env
+    env.user.write({"tz": "UTC"})
+    engine = env["fix.fpa.engine"].with_context(tz="Asia/Dhaka")
+
+    start, end = engine._dt_bounds(date(2026, 10, 31), date(2026, 10, 31))
+
+    assert start == datetime(2026, 10, 30, 18, 0)
+    assert end == datetime(2026, 10, 31, 18, 0)

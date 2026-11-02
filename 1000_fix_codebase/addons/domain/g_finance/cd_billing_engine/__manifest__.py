@@ -35,6 +35,7 @@ CD-M20-01: the M20 accounts-receivable core.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ar_impairment_sequences.xml",
         "security/fix_vds_rules.xml",
         "data/ir_sequence_data.xml",
         "data/fix_ar_cron.xml",

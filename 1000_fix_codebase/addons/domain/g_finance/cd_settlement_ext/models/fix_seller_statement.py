@@ -1,4 +1,4 @@
-# fix_seller_statement.py — Bilingual seller statement with ITA 2023 §52 withholding certification.
+# fix_seller_statement.py — Bilingual seller statement with ITA 2023 s.140 withholding certification.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -6,7 +6,7 @@ from libs.py.fix_events import publish
 
 
 class FixSellerStatement(models.Model):
-    """Bilingual Seller Statement carrying statutory Income Tax Act 2023 §52 withholding certification.
+    """Bilingual Seller Statement carrying statutory Income Tax Act 2023 s.140 withholding certification.
     Complying with DE-17 & P10-M02-T06."""
 
     _name = "fix.seller.statement"
@@ -40,7 +40,7 @@ class FixSellerStatement(models.Model):
         string="Platform Commission / প্ল্যাটফর্ম কমিশন", currency_field="currency_id", required=True
     )
     tds_withheld = fields.Monetary(
-        string="TDS Withheld (ITA 2023 §52) / উৎসে কর কর্তন (ধারা ৫২)",
+        string="TDS Withheld (ITA 2023 s.140) / উৎসে কর কর্তন (ধারা ১৪০)",
         currency_field="currency_id",
         required=True,
     )
@@ -64,7 +64,7 @@ class FixSellerStatement(models.Model):
     statutory_note = fields.Char(
         string="Statutory Certification / সংবিধিবদ্ধ প্রত্যয়ন",
         default="Certified that tax has been deducted at source under Section 52 of the Income Tax Act 2023. / "
-        "প্রত্যয়ন করা যাচ্ছে যে, আয়কর আইন ২০২৩ এর ধারা ৫২ মোতাবেক উৎসে কর কর্তন করা হয়েছে।",
+        "প্রত্যয়ন করা যাচ্ছে যে, আয়কর আইন ২০২৩ এর ধারা ১৪০ মোতাবেক উৎসে কর কর্তন করা হয়েছে।",
         readonly=True,
     )
 

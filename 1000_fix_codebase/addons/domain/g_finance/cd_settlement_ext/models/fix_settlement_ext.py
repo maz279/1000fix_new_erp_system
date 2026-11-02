@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import base64
 import uuid
+from datetime import datetime, time, timedelta
 from decimal import Decimal
 
+import pytz
 from odoo import api, fields, models
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import AccessError, UserError
@@ -26,7 +28,7 @@ SETTLEMENT_ACCOUNTS = {
     "clearing": ("101000", "Customer Payment Clearing / Disbursement Bank"),
     "commission_revenue": ("400100", "Marketplace Commission Revenue"),
     "seller_payable": ("200200", "Marketplace Seller Payable"),
-    "tds_payable": ("210100", "TDS Withheld Liability (ITA 2023 §52)"),
+    "tds_payable": ("210100", "TDS Withheld Liability (ITA 2023 s.140)"),
     # A08 M53 roles with NO default code: the chart has no semantically
     # certain account for them, so the system parameter must name one.
     "partner_commission_expense": (None, "Partner / Referral Commission Expense"),
@@ -129,7 +131,16 @@ class FixCommissionLedger(models.Model):
         compute="_compute_commission",
         store=True,
     )
-    tds_amount = fields.Monetary(string="TDS Withheld (ITA 2023 §52)", currency_field="currency_id")
+    tds_amount = fields.Monetary(
+        string="TDS Withheld (ITA 2023 s.140)", currency_field="currency_id"
+    )
+    psr_verified = fields.Boolean(
+        string="Proof of Submission of Return (PSR) Verified",
+        default=False,
+        tracking=True,
+        help="Statutory Proof of Submission of Return verified under ITA 2023 s.264/265",
+    )
+    psr_slip_number = fields.Char(string="PSR Acknowledgement Slip Number", tracking=True)
     net_payable = fields.Monetary(
         string="Net Payable to Seller",
         currency_field="currency_id",
@@ -168,6 +179,116 @@ class FixCommissionLedger(models.Model):
         tracking=True,
         help="Held by an active escrow (open marketplace dispute): never collected into a payout",
     )
+
+    # FLAW-12.2: the statutory-style buyer dispute window. `escrow_hold` above
+    # is the DISPUTE flag — it only bites once a dispute is actually raised.
+    # Before this, a marketplace commission accrued and could be collected into
+    # a payout the same day, so a buyer who disputed on day 2 was arguing about
+    # money already disbursed (A04 audit, 2026-10-31).
+    ESCROW_WINDOW_DAYS = 7
+
+    escrow_release_date = fields.Date(
+        string="Escrow Releases On",
+        compute="_compute_escrow_release",
+        store=True,
+        help="Marketplace commissions are collectable only after the buyer "
+        "dispute window has elapsed. Partner/referral commissions carry no "
+        "buyer window and are released immediately.",
+    )
+    escrow_window_elapsed = fields.Boolean(
+        string="Dispute Window Elapsed",
+        compute="_compute_escrow_window_elapsed",
+        search="_search_escrow_window_elapsed",
+        help="True once the escrow window has passed, so the row may be paid.",
+    )
+
+    # Two fields, two computes - deliberately NOT one shared method.
+    #
+    # They were written as one, and Odoo warned about it: "inconsistent 'store'
+    # for computed fields, accessing escrow_window_elapsed may recompute and
+    # update escrow_release_date". That is not a style nit. `escrow_release_date`
+    # is stored and `escrow_window_elapsed` is not, so merely READING the
+    # boolean ran the shared compute and WROTE the date column - and every P03
+    # list endpoint (/p03/model/records, /p03/model/form, /p03/model/report) is
+    # declared `readonly=True`, where a write raises. Any A04 screen showing a
+    # commission-ledger row would have hit it.
+    #
+    # They also have different natures: the release DATE is a fixed fact of the
+    # row (accrual + 7 days), so it stores; whether the window has ELAPSED
+    # depends on what day it is now, so it must never be stored - a stored copy
+    # would be frozen at its last recompute and silently authorise a payout.
+    @api.depends("create_date", "source_type")
+    def _compute_escrow_release(self):
+        for rec in self:
+            if rec.source_type != "marketplace" or not rec.create_date:
+                rec.escrow_release_date = False
+                continue
+            accrued_on = fields.Date.to_date(rec.create_date)
+            rec.escrow_release_date = accrued_on + timedelta(days=rec.ESCROW_WINDOW_DAYS)
+
+    @api.depends("create_date", "source_type")
+    def _compute_escrow_window_elapsed(self):
+        """Whether the buyer dispute window has passed.
+
+        Computed from `create_date` - the accrual fact - and NOT from the
+        stored `escrow_release_date`. Depending on the stored column would make
+        this read a cached projection that goes stale whenever the accrual
+        timestamp is corrected out of band, and a stale "window elapsed" is the
+        one error that must not happen here: it authorises a payout whose
+        dispute window is still open.
+
+        context_today, not UTC today: Bangladesh is UTC+6, so for the first six
+        hours of each local day UTC is still on the previous date - and on the
+        1st of a month, in the previous MONTH - so a payout that was in fact due
+        read as still held.
+        """
+        for rec in self:
+            if rec.source_type != "marketplace" or not rec.create_date:
+                rec.escrow_window_elapsed = True
+                continue
+            accrued_on = fields.Date.to_date(rec.create_date)
+            release_on = accrued_on + timedelta(days=rec.ESCROW_WINDOW_DAYS)
+            rec.escrow_window_elapsed = release_on <= fields.Date.context_today(rec)
+
+    def _escrow_cutoff_utc(self):
+        """The UTC instant before which an accrual's window has elapsed.
+
+        A row is released once its LOCAL accrual date plus the window is on or
+        before the local today, i.e. once
+            local_date(create_date) <= context_today - ESCROW_WINDOW_DAYS
+        The latest UTC instant satisfying that is local midnight at the end of
+        that cutoff date, converted back to UTC. Bangladesh is UTC+6, so the
+        two differ by six hours every day and by a calendar month on the 1st.
+        """
+        cutoff_date = fields.Date.context_today(self) - timedelta(days=self.ESCROW_WINDOW_DAYS)
+        tz = pytz.timezone(self.env.user.tz or "UTC")
+        local_end = tz.localize(datetime.combine(cutoff_date + timedelta(days=1), time.min))
+        return local_end.astimezone(pytz.utc).replace(tzinfo=None)
+
+    def _search_escrow_window_elapsed(self, operator, value):
+        """Lets action_collect_accrued filter on the window in one query.
+
+        Derived from `create_date`, the accrual fact - NOT from the stored
+        `escrow_release_date`. Both this and `_compute_escrow_window_elapsed`
+        now read the same source, so the query and the flag agree by
+        construction instead of having to be kept in step.
+
+        They did not used to. The search read the stored projection, which can
+        drift if an accrual timestamp is ever corrected out of band, and a
+        drifted projection in a DOMAIN selects rows for payment while their
+        dispute window is still open. That hazard was patched with a second
+        Python guard in `action_collect_accrued`; removing the hazard is
+        better than guarding it, and it leaves exactly one enforcing layer,
+        whose removal a mutation check can actually observe
+        (A04 audit, 2026-11-01).
+        """
+        if operator not in ("=", "!="):
+            raise UserError("escrow_window_elapsed supports = and != only")
+        elapsed = value if operator == "=" else not value
+        cutoff = self._escrow_cutoff_utc()
+        if elapsed:
+            return ["|", ("source_type", "!=", "marketplace"), ("create_date", "<", cutoff)]
+        return [("source_type", "=", "marketplace"), ("create_date", ">=", cutoff)]
 
     # Four reconciliation keys required by LP-02 (IN-007 §5.1, §10.2)
     payment_id = fields.Char(string="Payment ID", copy=False, index=True)
@@ -211,7 +332,11 @@ class FixCommissionLedger(models.Model):
         for rec, vals in zip(records, vals_list, strict=True):
             # the scheme's effective-dated TDS rate, unless a figure was given
             if rec.scheme_id and "tds_amount" not in vals:
-                rec.tds_amount = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
+                base_tds = rec.scheme_id.tds_on(rec.commission_amount, rec.gross_amount)
+                # ITA 2023 s.142/264/265: 50% penalty rate uplift if PSR is unverified
+                if not rec.psr_verified:
+                    base_tds = round(base_tds * 1.50, 2)
+                rec.tds_amount = base_tds
         return records
 
     def write(self, vals):
@@ -594,9 +719,16 @@ class FixPayoutRun(models.Model):
                     ("company_id", "=", run.company_id.id),
                     ("state", "=", "accrued"),
                     ("escrow_hold", "=", False),
+                    # FLAW-12.2: the buyer dispute window must have elapsed.
+                    ("escrow_window_elapsed", "=", True),
                     ("id", "not in", busy.ids),
                 ]
             )
+            # No Python re-confirm here, deliberately. The domain above and
+            # `escrow_window_elapsed` are both derived from `create_date`, so
+            # they cannot disagree, and a second guard would only make the
+            # first one's removal invisible to a mutation check. One enforcing
+            # layer, and it is tested (A04 audit, 2026-11-01).
             if not rows and not run.commission_ids:
                 raise UserError(
                     "No accrued commissions are free to pay — accrue commissions to the GL first"
@@ -986,7 +1118,7 @@ class FixPayoutRun(models.Model):
             company = rec.company_id
             journal = _configured_journal(self.env, company)
             # Account codes per SETTLEMENT_ACCOUNTS: seller payable 200200,
-            # TDS 210100 (ITA 2023 §52), disbursement bank 101000.
+            # TDS 210100 (ITA 2023 s.140), disbursement bank 101000.
             tds_payable = _configured_account(self.env, company, "tds_payable")
             disbursement_bank = _configured_account(self.env, company, "clearing")
 
@@ -1043,7 +1175,7 @@ class FixPayoutRun(models.Model):
                         0,
                         0,
                         {
-                            "name": f"Statutory TDS Withheld (ITA 2023 §52): {rec.name}",
+                            "name": f"Statutory TDS Withheld (ITA 2023 s.140): {rec.name}",
                             "account_id": tds_payable.id,
                             "debit": 0.0,
                             "credit": tds_withheld,

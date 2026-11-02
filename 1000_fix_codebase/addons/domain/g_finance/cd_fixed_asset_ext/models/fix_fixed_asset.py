@@ -165,7 +165,12 @@ class FixFixedAsset(models.Model):
     @api.depends("category_id")
     def _compute_category_label(self):
         for rec in self:
-            rec.category = rec.category_id.name if rec.category_id else rec.category
+            # The label column is required: an asset entered without a
+            # category (the workspace form allows it) still gets the honest
+            # "Uncategorised" instead of a NOT NULL refusal.
+            rec.category = (
+                rec.category_id.name if rec.category_id else (rec.category or "Uncategorised")
+            )
 
     @api.depends("purchase_date")
     def _compute_depreciation_start(self):

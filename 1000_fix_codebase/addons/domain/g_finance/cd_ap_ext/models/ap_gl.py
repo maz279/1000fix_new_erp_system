@@ -7,7 +7,6 @@
 # guessed account. Tax roles (input VAT, TDS/VDS payable) are the tax
 # engine's, so the AP posting and the VAT sub-ledger reconciliation agree.
 from odoo import fields, models
-from odoo.addons.cd_tax_engine_bd.models.fix_tax_compliance import post_tax_move
 from odoo.addons.cd_tax_engine_bd.models.fix_tax_master import tax_account
 from odoo.exceptions import UserError
 
@@ -94,8 +93,57 @@ def ap_journal(env, company, kind):
     return journal
 
 
+def _ap_posting_dims(env):
+    """Dimensions for every AP-family GL posting (the AR pattern): the
+    configured default cost centre and business line, so COA-003 rules on
+    tax-payable and expense accounts are satisfied. Values come from config
+    params — postings never invent values beyond configured defaults."""
+    param = env["ir.config_parameter"].sudo().get_param
+    return {
+        "cost_centre": param("cd_ap_ext.default_cost_centre")
+        or param("cd_billing_engine.default_cost_centre")
+        or "CORP",
+        "business_line": param("cd_ap_ext.default_business_line")
+        or param("cd_billing_engine.default_business_line")
+        or "RETAIL",
+    }
+
+
 def post_ap_move(env, company, journal, entry_date, ref, lines, operating_unit=None):
-    """Post a balanced AP entry; lines: [(account, label, debit, credit, partner)]."""
-    return post_tax_move(
-        env, company, journal, entry_date, ref, lines, operating_unit, source="ap_subledger"
-    )
+    """Post a balanced AP entry; lines: [(account, label, debit, credit, partner)].
+    Same engine as the tax subledger, plus the AP default cost-centre and
+    business-line dimensions on every line (COA-003)."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+
+    debit = round(sum(line[2] for line in lines), 2)
+    credit = round(sum(line[3] for line in lines), 2)
+    if abs(debit - credit) > 0.005:
+        raise UserError("Unbalanced posting refused (%.2f / %.2f)" % (debit, credit))
+    ou = operating_unit or env["operating.unit"].search([("company_id", "=", company.id)], limit=1)
+    move_vals = {
+        "journal_id": journal.id,
+        "company_id": company.id,
+        "date": entry_date,
+        "ref": ref,
+        "move_type": "entry",
+        "line_ids": [
+            (
+                0,
+                0,
+                {
+                    "account_id": account.id,
+                    "name": label,
+                    "debit": round(dr, 2),
+                    "credit": round(cr, 2),
+                    "partner_id": partner.id if partner else False,
+                },
+            )
+            for account, label, dr, cr, partner in lines
+            if round(dr, 2) or round(cr, 2)
+        ],
+    }
+    line_dims = {"operating_unit_id": ou.id} if ou else {}
+    line_dims.update(_ap_posting_dims(env))
+    dims = {i: dict(line_dims) for i in range(len(move_vals["line_ids"]))}
+    move, _attached = post_with_dimensions(env, move_vals, dims, source="ap_subledger")
+    return move

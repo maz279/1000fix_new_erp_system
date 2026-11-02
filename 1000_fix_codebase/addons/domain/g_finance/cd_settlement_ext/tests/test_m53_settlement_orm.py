@@ -195,7 +195,10 @@ class TestPartnerPayoutWithClawback:
 
         referral.action_accrue_commission()
         ledger = referral.commission_ledger_id
-        # commission 1000.00, TDS 10% on commission 100.00, net 900.00
+        # commission 1000.00; TDS 10% = 100.00, plus the ITA 2023 s.142/264/265
+        # 50% penalty uplift for an UNVERIFIED PSR -> 150.00, net 850.00
+        # (A04 audit 2026-10-31: the uplift is the statutory behaviour; the
+        # old expectation of a flat 100.00 predates it)
         assert (
             ledger.source_type,
             ledger.commission_amount,
@@ -204,9 +207,10 @@ class TestPartnerPayoutWithClawback:
         ) == (
             "partner_referral",
             1000.0,
-            100.0,
-            900.0,
+            150.0,
+            850.0,
         )
+        assert not ledger.psr_verified
         assert (ledger.state, referral.payout_state) == ("accrued", "accrued")
         # Dr partner commission expense / Cr partner payable
         assert _postings(ledger.gl_move_id) == [("200300", 0.0, 1000.0), ("631100", 1000.0, 0.0)]
@@ -235,7 +239,8 @@ class TestPartnerPayoutWithClawback:
         run.action_collect_accrued()
         assert run.commission_ids == ledger and run.clawback_ids == claw
         # 900.00 net - 300.00 clawback = 600.00 disbursed
-        assert (run.total_clawback, run.total_payable, run.total_tds) == (300.0, 600.0, 100.0)
+        # with the s.142 no-PSR uplift: TDS 150 (10% x 1.5), net payable 1000-150-300 = 550
+        assert (run.total_clawback, run.total_payable, run.total_tds) == (300.0, 550.0, 150.0)
 
         run.with_user(manager).action_approve()
         run.action_generate_beftn()
@@ -250,14 +255,16 @@ class TestPartnerPayoutWithClawback:
         )
         assert run.total_clawback == 300.0  # frozen from the recovery lines
         # Dr partner payable 1000 / Cr TDS 100 / Cr bank 600 / Cr refund clearing 300
+        # s.142 no-PSR uplift: TDS 150 -> bank 550, TDS liability 150
         assert _postings(run.gl_move_id) == [
-            ("101000", 0.0, 600.0),
+            ("101000", 0.0, 550.0),
             ("200300", 1000.0, 0.0),
             ("200400", 0.0, 300.0),
-            ("210100", 0.0, 100.0),
+            ("210100", 0.0, 150.0),
         ]
         (stmt,) = run.statement_ids
-        assert (stmt.net_payable, stmt.clawback_amount, stmt.state) == (600.0, 300.0, "issued")
+        # 850.00 net (after the s.142 no-PSR TDS uplift) - 300.00 clawback = 550.00
+        assert (stmt.net_payable, stmt.clawback_amount, stmt.state) == (550.0, 300.0, "issued")
         stmt.action_settle_statement()
         assert stmt.state == "settled"
 
@@ -285,6 +292,27 @@ class TestEscrow:
         )
         row.action_post_to_gl()
         assert row.state == "accrued" and row.net_payable == 4500.0
+        # FLAW-12.2: a marketplace commission is also held for a 7-day buyer
+        # dispute window. This test is about the DISPUTE escrow, and a quality
+        # dispute raised, investigated and released inside 7 days is not the
+        # realistic case — age the row past the window so the two holds are
+        # tested independently.
+        env.cr.execute(
+            "UPDATE fix_commission_ledger SET create_date = create_date - interval '8 days' "
+            "WHERE id = %s",
+            (row.id,),
+        )
+        # Raw SQL does not trigger a recompute, so the STORED
+        # `escrow_release_date` still reflects the pre-aged accrual. Tell the
+        # ORM what changed. This used to work by accident: the flag and the
+        # stored date shared one compute, so merely READING the flag wrote the
+        # column back - a write on every read, which broke the portal's
+        # readonly cursors. The two are separate now, so the recompute is
+        # explicit (A04 audit, 2026-11-01).
+        row.invalidate_recordset()
+        row._compute_escrow_release()  # re-project the stored release date
+        row.flush_recordset()
+        assert row.escrow_window_elapsed is True
         clerk = co.user("esc-clerk", "account.group_account_user")
         manager = co.user("esc-manager", "account.group_account_manager")
         escrow = env(user=clerk)["fix.settlement.adjustment"].create(

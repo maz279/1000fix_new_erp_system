@@ -38,3 +38,5 @@ access_fix_allocation_rule_account_manager,fix.allocation.rule.account.manager,m
 access_fix_allocation_rule_line_account_readonly,fix.allocation.rule.line.account.readonly,model_fix_allocation_rule_line,account.group_account_readonly,1,0,0,0
 access_fix_allocation_rule_line_account_user,fix.allocation.rule.line.account.user,model_fix_allocation_rule_line,account.group_account_user,1,1,1,0
 access_fix_allocation_rule_line_account_manager,fix.allocation.rule.line.account.manager,model_fix_allocation_rule_line,account.group_account_manager,1,1,1,0
+access_fix_fx_revaluation,fix.fx.revaluation,model_fix_fx_revaluation,base.group_user,1,1,1,0
+access_fix_fx_revaluation_line,fix.fx.revaluation.line,model_fix_fx_revaluation_line,base.group_user,1,1,1,0

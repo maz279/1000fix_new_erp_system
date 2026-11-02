@@ -73,7 +73,12 @@ def _deduction(t, kind="tds", amount=500.0, on="2026-09-10", **vals):
             "rate_id": rate.id,
             "section": rate.section,
             "document_date": on,
-            "base_amount": amount * 10,
+            # base must satisfy amount == base x rate, or _check_statutory_amount
+            # refuses the row. Hardcoding `amount * 10` assumed a 10% rate and so
+            # only held for TDS service-general; the VDS rent rate this helper
+            # also serves is 15%, and the row was refused once the module's own
+            # rate data was loaded (re-audit 2026-10-31). Derive it instead.
+            "base_amount": amount * 100.0 / rate.rate,
             "rate": rate.rate,
             "amount": amount,
             "source_ref": "BILL-%s" % on,

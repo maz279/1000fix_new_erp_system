@@ -149,7 +149,7 @@ class Kit:
         return self.env["fix.bank.statement.line"].create(
             {
                 "journal_id": self.bank.id,
-                "date": day or fields.Date.today(),
+                "date": day or fields.Date.context_today(self.env.user),
                 "amount": amount,
                 "reference": reference,
                 "narration": narration,
@@ -162,7 +162,7 @@ class Kit:
                 "operating_unit_id": self.ou.id,
                 "branch_id": self.branch.id,
                 "operator_id": self.employee.id,
-                "shift_date": day or fields.Date.today(),
+                "shift_date": day or fields.Date.context_today(self.env.user),
                 "opening_float": opening,
                 "cash_payments": counted - opening,
                 "closing_counted": counted,
@@ -509,7 +509,8 @@ def test_imprest_cycle(kit):
 
 def test_received_pdc_cheque_and_bounce(kit):
     env = kit.env
-    today = fields.Date.today()
+    # see the note on context_today in test_fixed_asset_orm.py
+    today = fields.Date.context_today(env.user)
     chq = env["fix.cheque"].create(
         {
             "operating_unit_id": kit.ou.id,
