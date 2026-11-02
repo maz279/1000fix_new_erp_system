@@ -18,6 +18,7 @@
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/cd_stream_registry_views.xml",
     ],
     "installable": True,

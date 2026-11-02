@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_ml_model_user,fix.ml.model.user,model_fix_ml_model,base.group_user,1,0,0,0
+access_fix_ml_model_system,fix.ml.model.system,model_fix_ml_model,base.group_system,1,1,1,1
+access_fix_ml_inference_user,fix.ml.inference.run.user,model_fix_ml_inference_run,base.group_user,1,1,1,0
+access_fix_ml_inference_system,fix.ml.inference.run.system,model_fix_ml_inference_run,base.group_system,1,1,1,1
+access_fix_ml_version_user,fix.ml.model.version.user,model_fix_ml_model_version,base.group_user,1,0,0,0
+access_fix_ml_version_system,fix.ml.model.version.system,model_fix_ml_model_version,base.group_system,1,1,1,1
+access_fix_ml_gate_user,fix.ml.evaluation.gate.user,model_fix_ml_evaluation_gate,base.group_user,1,0,0,0
+access_fix_ml_gate_system,fix.ml.evaluation.gate.system,model_fix_ml_evaluation_gate,base.group_system,1,1,1,1
+access_fix_ml_guardrail_user,fix.ml.guardrail.user,model_fix_ml_guardrail,base.group_user,1,0,0,0
+access_fix_ml_guardrail_system,fix.ml.guardrail.system,model_fix_ml_guardrail,base.group_system,1,1,1,1

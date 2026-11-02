@@ -1,0 +1,11 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_bi_sync_config_user,fix.bi.sync.config.user,model_fix_bi_sync_config,base.group_user,1,0,0,0
+access_fix_bi_sync_config_system,fix.bi.sync.config.system,model_fix_bi_sync_config,base.group_system,1,1,1,1
+access_fix_bi_sync_log_user,fix.bi.sync.log.user,model_fix_bi_sync_log,base.group_user,1,0,0,0
+access_fix_bi_sync_log_system,fix.bi.sync.log.system,model_fix_bi_sync_log,base.group_system,1,1,1,1
+access_fix_bi_dashboard_user,fix.bi.dashboard.user,model_fix_bi_dashboard,base.group_user,1,0,0,0
+access_fix_bi_dashboard_system,fix.bi.dashboard.system,model_fix_bi_dashboard,base.group_system,1,1,1,1
+access_fix_bi_schedule_user,fix.bi.distribution.schedule.user,model_fix_bi_distribution_schedule,base.group_user,1,0,0,0
+access_fix_bi_schedule_system,fix.bi.distribution.schedule.system,model_fix_bi_distribution_schedule,base.group_system,1,1,1,1
+access_fix_bi_alert_user,fix.bi.alert.subscription.user,model_fix_bi_alert_subscription,base.group_user,1,0,0,0
+access_fix_bi_alert_system,fix.bi.alert.subscription.system,model_fix_bi_alert_subscription,base.group_system,1,1,1,1

@@ -105,6 +105,8 @@ class FixIotAlert(models.Model):
         [("minor", "Minor"), ("major", "Major")], default="minor", required=True, tracking=True
     )
     message = fields.Char(required=True)
+    acked_on = fields.Datetime(string="Acknowledged On", readonly=True)
+    resolved_on = fields.Datetime(string="Resolved On", readonly=True)
     state = fields.Selection(
         [("new", "New"), ("acked", "Acknowledged"), ("resolved", "Resolved")],
         default="new",
@@ -117,6 +119,18 @@ class FixIotAlert(models.Model):
         for vals in vals_list:
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.iot.alert") or "IOT/New"
         return super().create(vals_list)
+
+    def action_ack(self):
+        for rec in self:
+            if rec.state != "new":
+                raise UserError("Acknowledge a new alert")
+            rec.write({"state": "acked", "acked_on": fields.Datetime.now()})
+
+    def action_resolve(self):
+        for rec in self:
+            if rec.state == "resolved":
+                raise UserError("Alert is already resolved")
+            rec.write({"state": "resolved", "resolved_on": fields.Datetime.now()})
 
 
 class FixPredictiveMaintenance(models.Model):
@@ -149,7 +163,19 @@ class FixPredictiveMaintenance(models.Model):
     estimated_days_to_failure = fields.Integer(
         string="Days to Failure", help="The ML model's estimate; 0 = imminent"
     )
+    model_name = fields.Char(string="Model", help="The M26 model that produced this score")
+    last_evaluated = fields.Datetime(string="Last Evaluated")
+    outcome = fields.Selection(
+        [
+            ("pending", "Pending Verification"),
+            ("confirmed", "Failure Confirmed"),
+            ("false_alarm", "False Alarm"),
+        ],
+        required=True,
+        default="pending",
+    )
     work_order_created = fields.Boolean(default=False, readonly=True)
+    action_ids = fields.One2many("fix.iot.action", "prediction_id", string="Prescriptive Actions")
 
     def action_create_preventive_wo(self):
         """Wire predicted failures into M02 dispatch as preventive work."""

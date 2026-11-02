@@ -36,7 +36,7 @@ def test_unhealthy_transitions_raise_alerts(odoo_env, device):
         "Burn-in rack 3 became degraded",
         "new",
     )
-    assert alert.name == "IOT/New"  # no sequence configured for the code
+    assert alert.name.startswith("IOT/")  # sequenced since the M48 rebuild
     # the event names the ALERT as its aggregate (regression: was the device id)
     assert _events(odoo_env, "iot.alert_raised", "fix.iot.alert", alert.id) == [
         {"device": "IOT-BR-003", "health": "degraded"}

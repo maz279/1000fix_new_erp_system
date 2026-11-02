@@ -19,6 +19,7 @@
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/data_platform_sequences.xml",
         "views/cd_metric_registry_views.xml",
     ],
     "installable": True,

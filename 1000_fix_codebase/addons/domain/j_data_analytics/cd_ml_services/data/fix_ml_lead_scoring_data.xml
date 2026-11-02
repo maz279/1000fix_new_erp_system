@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M26 catalogue entry for the M07 lead-scoring engine (A03 gap-closure).
+
+  `implementation` is rule_based, and that is the honest label: the engine is
+  a deterministic weighted factor model over live lead records, not a fitted
+  statistical one. M07 reports a score from it as basis='m26_model', which is
+  true — it came from this registered engine — while the engine itself never
+  claims to predict.
+
+  What the registry adds over a local heuristic: the weight vector is governed
+  data, every call is a fix.ml.inference.run with measured latency, and the
+  run captures the human's final decision against the engine's suggestion.
+  That override capture is the only ground truth this platform records, and
+  the only route to a measured accuracy figure rather than an asserted one.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ml_model_lead_scoring" model="fix.ml.model">
+            <field name="name">M07 Lead Scoring (explainable factor weights)</field>
+            <field name="code">LEAD_SCORE_V1</field>
+            <field name="kind">lead_scoring</field>
+            <field name="implementation">rule_based</field>
+            <field name="status">production</field>
+            <field name="owning_module">cd_ml_services</field>
+            <field name="notes">Deterministic weighted factor model over live
+crm.lead records. Weights are a starting point for Sales to tune via
+weights_json, not a fitted result. Accuracy is measurable only through the
+inference run's suggested_value / final_value override capture.</field>
+        </record>
+    </data>
+</odoo>

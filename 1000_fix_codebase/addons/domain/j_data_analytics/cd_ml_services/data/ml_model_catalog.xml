@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M26: the honest model catalog — every entry names a REAL engine and its
+     owning addon. The demand-forecast entry records the seam (fix.demand.plan
+     expects an M26 model) and stays 'planned'. -->
+<odoo noupdate="1">
+    <record id="ml_model_dispatch_scoring" model="fix.ml.model">
+        <field name="name">Dispatch Scoring — explainable technician ranking</field>
+        <field name="code">m26.dispatch.scoring</field>
+        <field name="kind">dispatch_scoring</field>
+        <field name="implementation">live_engine</field>
+        <field name="status">production</field>
+        <field name="owning_module">cd_field_service (M02)</field>
+        <field name="notes">Deterministic, explainable ranking: +30 rostered, +25 certification-eligible, +20 home zone, -5 per active job. Reasons ride every line — the dispatcher decides, the model recommends.</field>
+    </record>
+    <record id="ml_model_fault_classifier" model="fix.ml.model">
+        <field name="name">Fault Classification — taxonomy match</field>
+        <field name="code">m26.fault.classifier</field>
+        <field name="kind">fault_classifier</field>
+        <field name="implementation">rule_based</field>
+        <field name="status">production</field>
+        <field name="owning_module">cd_ml_services over cd_service_order (M01 fault taxonomy)</field>
+        <field name="notes">Token-overlap matching of free text against the 26-code fix.fault.code taxonomy (code/name/description). Deterministic and explainable — not a neural classifier.</field>
+    </record>
+    <record id="ml_model_predictive_maintenance" model="fix.ml.model">
+        <field name="name">Predictive Maintenance — equipment failure predictions</field>
+        <field name="code">m26.predictive.maintenance</field>
+        <field name="kind">predictive_maintenance</field>
+        <field name="implementation">live_engine</field>
+        <field name="status">production</field>
+        <field name="owning_module">cd_stream_registry (M48)</field>
+        <field name="notes">Aggregates the live fix.predictive.maintenance predictions (healthy / degrading / failure_predicted with days-to-failure and preventive-WO wiring).</field>
+    </record>
+    <record id="ml_model_tradein_valuation" model="fix.ml.model">
+        <field name="name">Trade-In Valuation — grading engine</field>
+        <field name="code">m26.tradein.valuation</field>
+        <field name="kind">tradein_valuation</field>
+        <field name="implementation">live_engine</field>
+        <field name="status">production</field>
+        <field name="owning_module">cd_tradein (M14)</field>
+        <field name="notes">Aggregates the real trade-in grading/valuation pipeline (action_grade, inventory valuation compute).</field>
+    </record>
+    <record id="ml_model_bi_aggregator" model="fix.ml.model">
+        <field name="name">BI Metric Aggregator — measured snapshots</field>
+        <field name="code">m26.bi.aggregator</field>
+        <field name="kind">bi_aggregator</field>
+        <field name="implementation">live_engine</field>
+        <field name="status">production</field>
+        <field name="owning_module">cd_bi_reporting (M25)</field>
+        <field name="notes">Reads the newest measured BI snapshot (orders/revenue aggregates) and its freshness.</field>
+    </record>
+    <record id="ml_model_demand_forecast" model="fix.ml.model">
+        <field name="name">Demand Forecast — baseline (planned)</field>
+        <field name="code">m26.demand.forecast</field>
+        <field name="kind">demand_forecast</field>
+        <field name="implementation">planned</field>
+        <field name="status">planned</field>
+        <field name="owning_module">seam: cd_demand_plan (M43)</field>
+        <field name="notes">fix.demand.plan.forecast_quantity is documented to receive this model's output. Fails closed until the M15 consumption-history source is wired — no fabricated forecasts.</field>
+    </record>
+</odoo>

@@ -3,3 +3,9 @@ access_fix_iot_device,fix.iot.device,model_fix_iot_device,base.group_user,1,1,1,
 access_fix_iot_telemetry,fix.iot.telemetry,model_fix_iot_telemetry,base.group_user,1,1,1,0
 access_fix_iot_alert,fix.iot.alert,model_fix_iot_alert,base.group_user,1,1,1,0
 access_fix_predictive_maintenance,fix.predictive.maintenance,model_fix_predictive_maintenance,base.group_user,1,1,1,0
+access_fix_iot_stream,fix.iot.stream,model_fix_iot_stream,base.group_user,1,1,1,0
+access_fix_iot_adapter,fix.iot.adapter,model_fix_iot_adapter,base.group_user,1,1,1,0
+access_fix_iot_rule,fix.iot.rule,model_fix_iot_rule,base.group_user,1,1,1,0
+access_fix_iot_downsample,fix.iot.downsample,model_fix_iot_downsample,base.group_user,1,1,1,0
+access_fix_iot_action,fix.iot.action,model_fix_iot_action,base.group_user,1,1,1,0
+access_fix_iot_consent,fix.iot.consent,model_fix_iot_consent,base.group_user,1,1,1,0

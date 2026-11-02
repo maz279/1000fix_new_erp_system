@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_iot_stream" model="ir.sequence">
+            <field name="name">IoT Stream</field>
+            <field name="code">fix.iot.stream</field>
+            <field name="prefix">STRM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_adapter" model="ir.sequence">
+            <field name="name">IoT Protocol Adapter</field>
+            <field name="code">fix.iot.adapter</field>
+            <field name="prefix">IADP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_rule" model="ir.sequence">
+            <field name="name">IoT Alert Rule</field>
+            <field name="code">fix.iot.rule</field>
+            <field name="prefix">IRUL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_downsample" model="ir.sequence">
+            <field name="name">IoT Downsampling Policy</field>
+            <field name="code">fix.iot.downsample</field>
+            <field name="prefix">IDSP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_action" model="ir.sequence">
+            <field name="name">Prescriptive Action</field>
+            <field name="code">fix.iot.action</field>
+            <field name="prefix">IACT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_consent" model="ir.sequence">
+            <field name="name">IoT Consent</field>
+            <field name="code">fix.iot.consent</field>
+            <field name="prefix">ICNS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_alert" model="ir.sequence">
+            <field name="name">IoT Alert</field>
+            <field name="code">fix.iot.alert</field>
+            <field name="prefix">IOT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -1,2 +1,2 @@
 # cd_stream_registry models.
-from . import fix_stream_registry
+from . import fix_iot_ops, fix_stream_registry
