@@ -12,6 +12,7 @@
         "operating_unit",
         "cd_entity_config",
         "cd_service_order",
+        "cd_front_desk",
         "cd_document_core",
         "cd_event_outbox",
         "cd_employee_core",

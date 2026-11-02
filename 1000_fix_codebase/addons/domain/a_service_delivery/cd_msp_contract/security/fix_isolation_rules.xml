@@ -30,6 +30,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_msp_change_record_company" model="ir.rule">
+        <field name="name">fix.msp.change.record: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_change_record"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_change_record_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.change.record: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_change_record"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_msp_contract_company" model="ir.rule">
         <field name="name">fix.msp.contract: allowed companies</field>
         <field name="model_id" ref="model_fix_msp_contract"/>
@@ -41,6 +52,72 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_msp_maintenance_window_company" model="ir.rule">
+        <field name="name">fix.msp.maintenance.window: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_maintenance_window"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_maintenance_window_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.maintenance.window: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_maintenance_window"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_oncall_shift_company" model="ir.rule">
+        <field name="name">fix.msp.oncall.shift: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_oncall_shift"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_oncall_shift_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.oncall.shift: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_oncall_shift"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_patch_policy_company" model="ir.rule">
+        <field name="name">fix.msp.patch.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_patch_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_patch_policy_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.patch.policy: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_patch_policy"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_patch_update_company" model="ir.rule">
+        <field name="name">fix.msp.patch.update: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_patch_update"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_patch_update_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.patch.update: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_patch_update"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_runbook_company" model="ir.rule">
+        <field name="name">fix.msp.runbook: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_runbook"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_runbook_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.runbook: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_runbook"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_runbook_run_company" model="ir.rule">
+        <field name="name">fix.msp.runbook.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_runbook_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_runbook_run_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.runbook.run: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_runbook_run"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_msp_service_report_company" model="ir.rule">
         <field name="name">fix.msp.service.report: allowed companies</field>
         <field name="model_id" ref="model_fix_msp_service_report"/>
@@ -49,6 +126,17 @@
     <record id="rule_fix_msp_service_report_operating_unit" model="ir.rule">
         <field name="name">fix.msp.service.report: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_msp_service_report"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_sla_credit_company" model="ir.rule">
+        <field name="name">fix.msp.sla.credit: allowed companies</field>
+        <field name="model_id" ref="model_fix_msp_sla_credit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_msp_sla_credit_operating_unit" model="ir.rule">
+        <field name="name">fix.msp.sla.credit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_msp_sla_credit"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

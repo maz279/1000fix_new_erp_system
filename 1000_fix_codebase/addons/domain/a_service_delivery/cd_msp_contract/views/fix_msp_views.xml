@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- cd_msp_contract views — M05 (P08-M07). -->
+<!-- cd_msp_contract views — M05 (P08-M07) + iteration-2 engines (runbooks,
+     patching, SLA credits, on-call, maintenance windows, problem & change). -->
 <odoo>
+    <!-- ======================= fix.msp.alert ======================= -->
     <record id="view_fix_msp_alert_list" model="ir.ui.view">
         <field name="name">fix.msp.alert.list</field>
         <field name="model">fix.msp.alert</field>
@@ -12,7 +14,9 @@
                 <field name="severity"/>
                 <field name="message"/>
                 <field name="state"/>
+                <field name="escalated" optional="show"/>
                 <field name="order_id" optional="show"/>
+                <field name="resolved_at" optional="hide"/>
             </list>
         </field>
     </record>
@@ -28,6 +32,11 @@
                     <button name="action_to_ticket" type="object"
                             string="Create Ticket" class="btn-primary"
                             invisible="state not in ('new', 'acked')"/>
+                    <button name="action_resolve" type="object"
+                            string="Resolve" class="btn-primary"
+                            invisible="state == 'resolved'"/>
+                    <button name="action_escalate" type="object"
+                            string="Escalate" invisible="state == 'resolved' or escalated"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -36,10 +45,14 @@
                             <field name="msp_contract_id"/>
                             <field name="asset_id"/>
                             <field name="severity"/>
+                            <field name="escalated" readonly="1"/>
+                            <field name="escalated_at" readonly="1" invisible="not escalated"/>
                         </group>
                         <group>
                             <field name="message"/>
                             <field name="order_id"/>
+                            <field name="resolved_at" readonly="1"/>
+                            <field name="resolution_note"/>
                         </group>
                     </group>
                 </sheet>
@@ -58,6 +71,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ==================== fix.monitored.asset ==================== -->
     <record id="view_fix_monitored_asset_list" model="ir.ui.view">
         <field name="name">fix.monitored.asset.list</field>
         <field name="model">fix.monitored.asset</field>
@@ -67,9 +81,53 @@
                 <field name="hostname"/>
                 <field name="device_id" optional="show"/>
                 <field name="health"/>
+                <field name="health_score" optional="show"/>
+                <field name="open_alert_count" optional="show"/>
                 <field name="last_seen"/>
                 <field name="msp_contract_id"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_monitored_asset_form" model="ir.ui.view">
+        <field name="name">fix.monitored.asset.form</field>
+        <field name="model">fix.monitored.asset</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="agent_id"/>
+                            <field name="hostname"/>
+                            <field name="device_id"/>
+                        </group>
+                        <group>
+                            <field name="health"/>
+                            <field name="health_score"/>
+                            <field name="open_alert_count"/>
+                            <field name="last_seen" readonly="1"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Alerts">
+                            <field name="alert_ids" readonly="1">
+                                <list>
+                                    <field name="create_date" string="Raised"/>
+                                    <field name="severity"/>
+                                    <field name="message"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -79,6 +137,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ====================== fix.msp.contract ===================== -->
     <record id="view_fix_msp_contract_list" model="ir.ui.view">
         <field name="name">fix.msp.contract.list</field>
         <field name="model">fix.msp.contract</field>
@@ -89,6 +148,8 @@
                 <field name="device_count"/>
                 <field name="monitoring_scope"/>
                 <field name="per_device_monthly"/>
+                <field name="monthly_value"/>
+                <field name="sla_target_pct" optional="show"/>
             </list>
         </field>
     </record>
@@ -101,6 +162,9 @@
                 <header>
                     <button name="action_generate_monthly_report" type="object"
                             string="Generate Report" class="btn-primary"/>
+                    <button name="action_compute_sla_credits" type="object"
+                            string="Compute SLA Credits"
+                            help="Draft credits for periods below the SLA target"/>
                 </header>
                 <sheet>
                     <group>
@@ -112,6 +176,8 @@
                         <group>
                             <field name="device_count"/>
                             <field name="per_device_monthly"/>
+                            <field name="monthly_value"/>
+                            <field name="sla_target_pct"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
@@ -121,6 +187,17 @@
                         </page>
                         <page string="Reports">
                             <field name="report_ids"/>
+                        </page>
+                        <page string="SLA Credits">
+                            <field name="credit_ids">
+                                <list>
+                                    <field name="period_label"/>
+                                    <field name="attainment_pct"/>
+                                    <field name="target_pct"/>
+                                    <field name="credit_amount"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>
@@ -139,6 +216,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ===================== fix.remote.session ==================== -->
     <record id="view_fix_remote_session_list" model="ir.ui.view">
         <field name="name">fix.remote.session.list</field>
         <field name="model">fix.remote.session</field>
@@ -150,8 +228,45 @@
                 <field name="technician_id"/>
                 <field name="tool"/>
                 <field name="consent_captured"/>
+                <field name="started"/>
                 <field name="ended_at"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_remote_session_form" model="ir.ui.view">
+        <field name="name">fix.remote.session.form</field>
+        <field name="model">fix.remote.session</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start" type="object" string="Start Session"
+                            class="btn-primary" invisible="started and not ended_at"/>
+                    <button name="action_end" type="object" string="End Session"
+                            invisible="not started or ended_at"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="asset_id"/>
+                            <field name="technician_id"/>
+                            <field name="tool"/>
+                        </group>
+                        <group>
+                            <field name="consent_captured"/>
+                            <field name="started" readonly="1"/>
+                            <field name="started_at"/>
+                            <field name="ended_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -161,6 +276,7 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- =================== fix.msp.service.report ================== -->
     <record id="view_fix_msp_service_report_list" model="ir.ui.view">
         <field name="name">fix.msp.service.report.list</field>
         <field name="model">fix.msp.service.report</field>
@@ -170,8 +286,45 @@
                 <field name="msp_contract_id"/>
                 <field name="alert_count"/>
                 <field name="resolved_count"/>
-                <field name="sla_attainment"/>
+                <field name="sla_attainment_pct" string="SLA Attainment %"/>
             </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_service_report_form" model="ir.ui.view">
+        <field name="name">fix.msp.service.report.form</field>
+        <field name="model">fix.msp.service.report</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_generate_bilingual_report" type="object"
+                            string="Regenerate Bilingual Summary" class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="period_label"/>
+                            <field name="sla_attainment_pct" string="SLA Attainment %"/>
+                        </group>
+                        <group>
+                            <field name="alert_count"/>
+                            <field name="resolved_count"/>
+                        </group>
+                    </group>
+                    <group string="Summary (English)">
+                        <field name="summary_en" nolabel="1"/>
+                    </group>
+                    <group string="সারসংক্ষেপ (Bengali)">
+                        <field name="summary_bn" nolabel="1"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
         </field>
     </record>
 
@@ -181,6 +334,450 @@
         <field name="view_mode">list,form</field>
     </record>
 
+    <!-- ======================= fix.msp.runbook ===================== -->
+    <record id="view_fix_msp_runbook_list" model="ir.ui.view">
+        <field name="name">fix.msp.runbook.list</field>
+        <field name="model">fix.msp.runbook</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="trigger"/>
+                <field name="scope_contract_id" optional="show"/>
+                <field name="auto_run"/>
+                <field name="run_count"/>
+                <field name="last_run_at"/>
+                <field name="active" column_invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_runbook_form" model="ir.ui.view">
+        <field name="name">fix.msp.runbook.form</field>
+        <field name="model">fix.msp.runbook</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_execute" type="object" string="Log Execution"
+                            class="btn-primary"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="trigger"/>
+                            <field name="scope_contract_id"/>
+                        </group>
+                        <group>
+                            <field name="auto_run"/>
+                            <field name="auto_resolve_alert"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                    <field name="script" placeholder="The remediation steps, in order…"/>
+                    <notebook>
+                        <page string="Executions">
+                            <field name="run_ids" readonly="1">
+                                <list>
+                                    <field name="started_at"/>
+                                    <field name="asset_id"/>
+                                    <field name="state"/>
+                                    <field name="output_note"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_runbook" model="ir.actions.act_window">
+        <field name="name">Runbooks</field>
+        <field name="res_model">fix.msp.runbook</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_msp_runbook_run_list" model="ir.ui.view">
+        <field name="name">fix.msp.runbook.run.list</field>
+        <field name="model">fix.msp.runbook.run</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="started_at"/>
+                <field name="runbook_id"/>
+                <field name="asset_id"/>
+                <field name="alert_id" optional="show"/>
+                <field name="state"/>
+                <field name="finished_at"/>
+                <field name="output_note"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_runbook_run" model="ir.actions.act_window">
+        <field name="name">Runbook Executions</field>
+        <field name="res_model">fix.msp.runbook.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== fix.msp.patch.policy =================== -->
+    <record id="view_fix_msp_patch_policy_list" model="ir.ui.view">
+        <field name="name">fix.msp.patch.policy.list</field>
+        <field name="model">fix.msp.patch.policy</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="category"/>
+                <field name="msp_contract_id" optional="show"/>
+                <field name="auto_approve"/>
+                <field name="max_defer_days"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_patch_policy_form" model="ir.ui.view">
+        <field name="name">fix.msp.patch.policy.form</field>
+        <field name="model">fix.msp.patch.policy</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="category"/>
+                            <field name="msp_contract_id"/>
+                        </group>
+                        <group>
+                            <field name="auto_approve"/>
+                            <field name="max_defer_days"/>
+                            <field name="active"/>
+                        </group>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_patch_policy" model="ir.actions.act_window">
+        <field name="name">Patch Policies</field>
+        <field name="res_model">fix.msp.patch.policy</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== fix.msp.patch.update =================== -->
+    <record id="view_fix_msp_patch_update_list" model="ir.ui.view">
+        <field name="name">fix.msp.patch.update.list</field>
+        <field name="model">fix.msp.patch.update</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="identifier" optional="show"/>
+                <field name="title"/>
+                <field name="asset_id"/>
+                <field name="msp_contract_id" optional="show"/>
+                <field name="category"/>
+                <field name="severity"/>
+                <field name="state"/>
+                <field name="installed_at" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_patch_update_form" model="ir.ui.view">
+        <field name="name">fix.msp.patch.update.form</field>
+        <field name="model">fix.msp.patch.update</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve"
+                            invisible="state not in ('missing', 'deferred')"/>
+                    <button name="action_install" type="object" string="Mark Installed"
+                            class="btn-primary" invisible="state == 'installed'"/>
+                    <button name="action_defer" type="object" string="Defer 7 Days"
+                            invisible="state == 'installed'"/>
+                    <button name="action_fail" type="object" string="Mark Failed"
+                            invisible="state == 'installed'"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="missing,approved,installed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="asset_id"/>
+                            <field name="identifier"/>
+                            <field name="title"/>
+                        </group>
+                        <group>
+                            <field name="category"/>
+                            <field name="severity"/>
+                            <field name="approved_date" readonly="1"/>
+                            <field name="installed_at" readonly="1"/>
+                            <field name="deferred_until"/>
+                            <field name="fail_note"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_patch_update" model="ir.actions.act_window">
+        <field name="name">Patch Updates</field>
+        <field name="res_model">fix.msp.patch.update</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ==================== fix.msp.sla.credit ===================== -->
+    <record id="view_fix_msp_sla_credit_list" model="ir.ui.view">
+        <field name="name">fix.msp.sla.credit.list</field>
+        <field name="model">fix.msp.sla.credit</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="msp_contract_id"/>
+                <field name="period_label"/>
+                <field name="attainment_pct"/>
+                <field name="target_pct"/>
+                <field name="breach_count" optional="show"/>
+                <field name="credit_amount" sum="Total"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_sla_credit_form" model="ir.ui.view">
+        <field name="name">fix.msp.sla.credit.form</field>
+        <field name="model">fix.msp.sla.credit</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_apply" type="object" string="Apply to Billing"
+                            invisible="state != 'approved'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="service_report_id"/>
+                            <field name="period_label"/>
+                            <field name="reason"/>
+                        </group>
+                        <group>
+                            <field name="attainment_pct"/>
+                            <field name="target_pct"/>
+                            <field name="breach_count"/>
+                            <field name="credit_amount"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_sla_credit" model="ir.actions.act_window">
+        <field name="name">SLA Credits</field>
+        <field name="res_model">fix.msp.sla.credit</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- =================== fix.msp.oncall.shift ==================== -->
+    <record id="view_fix_msp_oncall_shift_list" model="ir.ui.view">
+        <field name="name">fix.msp.oncall.shift.list</field>
+        <field name="model">fix.msp.oncall.shift</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="technician_id"/>
+                <field name="level"/>
+                <field name="start_at"/>
+                <field name="end_at"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_oncall_shift_form" model="ir.ui.view">
+        <field name="name">fix.msp.oncall.shift.form</field>
+        <field name="model">fix.msp.oncall.shift</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" type="object" string="Activate"
+                            class="btn-primary" invisible="state != 'planned'"/>
+                    <button name="action_close" type="object" string="Close"
+                            invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="technician_id"/>
+                        </group>
+                        <group>
+                            <field name="level"/>
+                            <field name="start_at"/>
+                            <field name="end_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_oncall_shift" model="ir.actions.act_window">
+        <field name="name">On-Call Rota</field>
+        <field name="res_model">fix.msp.oncall.shift</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================ fix.msp.maintenance.window ================ -->
+    <record id="view_fix_msp_maintenance_window_list" model="ir.ui.view">
+        <field name="name">fix.msp.maintenance.window.list</field>
+        <field name="model">fix.msp.maintenance.window</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="msp_contract_id" optional="show"/>
+                <field name="purpose" optional="show"/>
+                <field name="start_at"/>
+                <field name="end_at"/>
+                <field name="suppress_alerts"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_maintenance_window_form" model="ir.ui.view">
+        <field name="name">fix.msp.maintenance.window.form</field>
+        <field name="model">fix.msp.maintenance.window</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_open" type="object" string="Open Window"
+                            class="btn-primary" invisible="state != 'planned'"/>
+                    <button name="action_close" type="object" string="Close Window"
+                            invisible="state != 'active'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="purpose"/>
+                            <field name="msp_contract_id"/>
+                        </group>
+                        <group>
+                            <field name="start_at"/>
+                            <field name="end_at"/>
+                            <field name="suppress_alerts"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_maintenance_window" model="ir.actions.act_window">
+        <field name="name">Maintenance Windows</field>
+        <field name="res_model">fix.msp.maintenance.window</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================== fix.msp.change.record ==================== -->
+    <record id="view_fix_msp_change_list" model="ir.ui.view">
+        <field name="name">fix.msp.change.record.list</field>
+        <field name="model">fix.msp.change.record</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="kind"/>
+                <field name="change_type"/>
+                <field name="risk"/>
+                <field name="msp_contract_id" optional="show"/>
+                <field name="asset_id" optional="show"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_msp_change_form" model="ir.ui.view">
+        <field name="name">fix.msp.change.record.form</field>
+        <field name="model">fix.msp.change.record</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve"
+                            class="btn-primary" invisible="state != 'draft'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state not in ('draft', 'approved')"/>
+                    <button name="action_implement" type="object" string="Mark Implemented"
+                            class="btn-primary" invisible="state != 'approved'"/>
+                    <button name="action_close" type="object" string="Close"
+                            invisible="state not in ('implemented', 'rejected')"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="kind"/>
+                            <field name="change_type" invisible="kind != 'change'"/>
+                            <field name="risk"/>
+                        </group>
+                        <group>
+                            <field name="msp_contract_id"/>
+                            <field name="asset_id"/>
+                            <field name="requested_by"/>
+                            <field name="implemented_at" readonly="1"/>
+                            <field name="resolution_note" readonly="1"/>
+                        </group>
+                    </group>
+                    <field name="description" placeholder="What changes, why, and the rollback plan…"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_msp_change" model="ir.actions.act_window">
+        <field name="name">Problems &amp; Changes</field>
+        <field name="res_model">fix.msp.change.record</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- =========================== menus =========================== -->
     <menuitem id="menu_ws_msp" name="Managed Services"
               parent="cd_entity_config.menu_fix_operations_root" sequence="80"/>
     <menuitem id="menu_fix_msp_alerts" name="Alerts"
@@ -197,4 +794,22 @@
     <menuitem id="menu_fix_msp_reports" name="Monthly Reports"
               parent="menu_ws_msp" action="action_fix_msp_service_report"
               sequence="50"/>
+    <menuitem id="menu_fix_msp_runbooks" name="Runbooks"
+              parent="menu_ws_msp" action="action_fix_msp_runbook" sequence="60"/>
+    <menuitem id="menu_fix_msp_runbook_runs" name="Runbook Executions"
+              parent="menu_ws_msp" action="action_fix_msp_runbook_run" sequence="61"/>
+    <menuitem id="menu_fix_msp_patching" name="Patching"
+              parent="menu_ws_msp" action="action_fix_msp_patch_update"
+              sequence="70"/>
+    <menuitem id="menu_fix_msp_patch_policies" name="Patch Policies"
+              parent="menu_ws_msp" action="action_fix_msp_patch_policy" sequence="71"/>
+    <menuitem id="menu_fix_msp_credits" name="SLA Credits"
+              parent="menu_ws_msp" action="action_fix_msp_sla_credit" sequence="80"/>
+    <menuitem id="menu_fix_msp_oncall" name="On-Call Rota"
+              parent="menu_ws_msp" action="action_fix_msp_oncall_shift" sequence="90"/>
+    <menuitem id="menu_fix_msp_windows" name="Maintenance Windows"
+              parent="menu_ws_msp" action="action_fix_msp_maintenance_window"
+              sequence="100"/>
+    <menuitem id="menu_fix_msp_changes" name="Problems &amp; Changes"
+              parent="menu_ws_msp" action="action_fix_msp_change" sequence="110"/>
 </odoo>

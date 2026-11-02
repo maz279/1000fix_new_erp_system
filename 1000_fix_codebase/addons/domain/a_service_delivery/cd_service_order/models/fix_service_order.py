@@ -110,11 +110,26 @@ class FixServiceOrder(models.Model):
     # Service details
     service_type = fields.Selection(
         [
-            ("walk_in", "Walk-in"),
+            ("walk_in", "Walk-in Counter"),
             ("collection", "Collection/Delivery"),
             ("onsite", "On-site"),
             ("mail_in", "Mail-in"),
             ("corporate", "Corporate/Bulk"),
+            # FR-SRM-001: the twelve spec channels — the digital/assisted
+            # ones arrive via their owning modules (P01 portal, P04 app,
+            # M27 WhatsApp, M32 AI, M12 marketplace, M40 partner, M05 MSP,
+            # M08 preventive); the ORDER carries its true source channel.
+            ("web_portal", "Web Portal (P01)"),
+            ("mobile_app", "Customer Mobile App (P04)"),
+            ("whatsapp", "WhatsApp (M27)"),
+            ("ai_assistant", "AI Assistant (M32)"),
+            ("hotline", "Hotline 16743"),
+            ("email", "Email Intake"),
+            ("b2b_bulk", "B2B Portal Bulk Upload"),
+            ("marketplace", "Marketplace (M12)"),
+            ("partner_referral", "Partner Referral (M40)"),
+            ("msp_alert", "MSP Alert (M05)"),
+            ("pm_schedule", "Contract Preventive Schedule (M08)"),
         ],
         required=True,
         default="walk_in",
@@ -137,6 +152,18 @@ class FixServiceOrder(models.Model):
         required=True,
         tracking=True,
         help="Commercial classification gating order workflow (BRU-SRM-02/03 & W2 business lines)",
+    )
+    warranty_cover_unverified = fields.Boolean(
+        string="Cover Unverified",
+        readonly=True,
+        copy=False,
+        tracking=True,
+        help="Set when this warranty order was accepted on warranty cover "
+        "whose purchase proof nobody has checked. The order still proceeds - "
+        "withdrawing live cover is a commercial decision - but the exposure is "
+        "recorded here so it can be filtered, costed and cleared instead of "
+        "staying invisible (A04 audit 2026-11-01: 53 of 55 live warranties "
+        "were active and unverified).",
     )
     is_rework = fields.Boolean(
         string="Rework",
@@ -316,6 +343,86 @@ class FixServiceOrder(models.Model):
         "fix.service.order.fault", "order_id", string="Fault Diagnosis Lines"
     )
 
+    # --- A02 Enterprise Data Capture Extensions (M01 D365 6-Tab Specification) ---
+    promised_delivery_date = fields.Datetime(
+        string="Promised Delivery Timestamp",
+        tracking=True,
+        help="Target completion & collection timestamp promised to customer at intake.",
+    )
+    passcode_type = fields.Selection(
+        [
+            ("none", "None / Unlocked"),
+            ("pin", "Numeric PIN"),
+            ("pattern", "Android Pattern Grid"),
+            ("alphanumeric", "Alphanumeric Password"),
+            ("biometric_disabled", "Biometric Disabled / Bypass"),
+        ],
+        string="Device Passcode Type",
+        default="none",
+        tracking=True,
+    )
+    passcode_value = fields.Char(
+        string="Diagnostic Passcode / Pattern",
+        help="Encrypted or masked diagnostic unlock code for QC verification.",
+    )
+    cosmetic_condition_notes = fields.Text(
+        string="Cosmetic Condition Matrix",
+        help="4-angle housing, screen, bezel, and port scratch/dent inspection log.",
+    )
+    lci_tripped = fields.Boolean(
+        string="Liquid Contact Indicator (LCI) Tripped",
+        default=False,
+        tracking=True,
+        help="True if internal or SIM-tray liquid contact indicator is red/tripped.",
+    )
+    accessory_bag_barcode = fields.Char(
+        string="Barcoded Accessory Bag ID",
+        tracking=True,
+        help="Sealed barcoded pouch ID holding charger, adapter, stylus, or case.",
+    )
+    sim_memory_removed = fields.Boolean(
+        string="SIM & Memory Card Returned to Customer",
+        default=True,
+        help="Mandatory PDPA & physical security check at intake.",
+    )
+    intake_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="4-Angle Intake Photo Evidence",
+        help="Uploaded composite or primary photo evidence of pre-existing cosmetic state.",
+    )
+
+    # Tab 3: Diagnosis, Faults & Triage Routing
+    symptom_reproducibility = fields.Selection(
+        [
+            ("always", "Consistent / Always Reproducible"),
+            ("intermittent", "Intermittent Fault"),
+            ("thermal_load", "Under Thermal / Heavy Load Only"),
+            ("unverified", "Customer Reported — Unverified at Counter"),
+        ],
+        string="Symptom Reproducibility",
+        default="always",
+    )
+    triage_verdict = fields.Selection(
+        [
+            ("bench_l1", "Branch L1/L2 Quick Repair"),
+            ("depot_l3", "Central L3/L4 Micro-Soldering Depot (M31)"),
+            ("field_onsite", "On-Site Field Engineer Dispatch (M02)"),
+            ("data_recovery", "Cleanroom Forensic Data Recovery (M06)"),
+            ("warranty_swap", "Warranty Whole-Unit Swap"),
+            ("nff", "No Fault Found (NFF)"),
+        ],
+        string="Technical Triage Routing Verdict",
+        default="bench_l1",
+        tracking=True,
+    )
+    diagnostic_engineer_id = fields.Many2one(
+        "hr.employee", string="Diagnostic Engineer", tracking=True
+    )
+    diagnostic_notes = fields.Text(
+        string="Engineering Root-Cause Findings",
+        help="Detailed multimeter, DC power-rail, or board-level diagnostic notes.",
+    )
+
     # SLA (T04: clocks and escalation — computation in services/sla-engine/)
     sla_policy_id = fields.Many2one("fix.sla.policy", string="SLA Policy")
     sla_response_deadline = fields.Datetime(readonly=True)
@@ -323,7 +430,59 @@ class FixServiceOrder(models.Model):
     sla_response_at = fields.Datetime(readonly=True)
     sla_resolution_at = fields.Datetime(readonly=True)
     sla_clock_paused = fields.Boolean(
-        default=False, help="Clock paused during customer hold or parts wait"
+        default=False,
+        tracking=True,
+        help="Clock paused during customer approval hold or parts wait (FLAW-01.3).",
+    )
+    sla_paused_at = fields.Datetime(
+        string="SLA Clock Paused At",
+        readonly=True,
+        copy=False,
+    )
+    sla_total_paused_minutes = fields.Float(
+        string="Cumulative SLA Hold (Minutes)",
+        default=0.0,
+        readonly=True,
+        copy=False,
+        help="Total elapsed customer-wait/hold minutes excluded from net SLA resolution time.",
+    )
+
+    # Tab 6: Settlement, Handover & Repair Warranty (FLAW-01.1)
+    payment_settlement_state = fields.Selection(
+        [
+            ("unpaid", "Unpaid / Settlement Pending"),
+            ("settled", "Invoice Paid & Settled"),
+            ("covered_zero_charge", "Zero-Charge Covered (Warranty / AMC / Goodwill)"),
+            ("credit_approved", "Corporate B2B Credit Approved"),
+        ],
+        string="Financial Settlement Status",
+        default="unpaid",
+        required=True,
+        tracking=True,
+        help="FLAW-01.1: Hard gate before transitioning to Delivered.",
+    )
+    invoice_ref = fields.Char(
+        string="M19 Invoice / Receipt Reference",
+        tracking=True,
+        help="POS Receipt, MFS TrxID, or M19 Tax Invoice reference.",
+    )
+    amount_settled_bdt = fields.Monetary(
+        string="Amount Settled (BDT)",
+        currency_field="currency_id",
+        default=0.0,
+        tracking=True,
+    )
+    delivery_otp_verified = fields.Boolean(
+        string="Handover OTP / Signature Verified",
+        default=False,
+        tracking=True,
+    )
+    recipient_name = fields.Char(string="Collecting Recipient Name")
+    recipient_nid_phone = fields.Char(string="Recipient Phone / NID Reference")
+    service_report_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Signed Service Delivery Report (PDF)",
+        help="Signed customer collection slip and QC certificate.",
     )
 
     # Related records
@@ -372,6 +531,9 @@ class FixServiceOrder(models.Model):
             # so NO write path (action, controller, sync, RPC) reaches Ready
             # without a passed checklist.
             self._check_qc_gate()
+        if new_state == "delivered":
+            # FLAW-01.1: Financial settlement & zero-charge gate before handover
+            self._check_delivery_settlement_gate()
 
     def _check_qc_gate(self) -> None:
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
@@ -387,6 +549,24 @@ class FixServiceOrder(models.Model):
             raise UserError(
                 "Order %s cannot be Ready: %d QC checklist(s) not passed (BRU-SRM-04)"
                 % (self.name, len(failed))
+            )
+
+    def _check_delivery_settlement_gate(self) -> None:
+        """FLAW-01.1: Prevent handover/delivery of chargeable orders when an
+        approved estimate exists with payable balance > 0 and payment is unpaid."""
+        self.ensure_one()
+        zero_charge_categories = {"warranty", "amc", "rework", "goodwill", "recycling"}
+        if self.order_category in zero_charge_categories or self.is_goodwill or self.is_rework:
+            return
+        approved_estimates = self.estimate_ids.filtered(
+            lambda e: e.state == "approved" and e.grand_total > 0
+        )
+        if approved_estimates and self.payment_settlement_state == "unpaid":
+            total_due = sum(approved_estimates.mapped("grand_total"))
+            raise UserError(
+                f"FLAW-01.1 Financial Settlement Gate: Order {self.name} has an approved "
+                f"chargeable estimate of BDT {total_due:.2f} that is still 'unpaid'. "
+                "Settle the invoice or record payment before delivering the device."
             )
 
     def write(self, vals):
@@ -409,26 +589,51 @@ class FixServiceOrder(models.Model):
         self.device_id.add_history(
             "service_order", f"Order {self.name}: {old_state} -> {new_state}", order_id=self.id
         )
+        now = fields.Datetime.now()
+        # FLAW-01.3: Automatic SLA hold clock pausing during customer estimate approval wait
+        hold_states = {"estimate_sent", "awaiting_approval"}
+        if new_state in hold_states and not self.sla_clock_paused:
+            self.sla_clock_paused = True
+            self.sla_paused_at = now
+        elif (
+            old_state in hold_states
+            and new_state not in hold_states
+            and not self.is_deferred_block
+            and self.sla_clock_paused
+        ):
+            if self.sla_paused_at:
+                delta_mins = max(0.0, (now - self.sla_paused_at).total_seconds() / 60.0)
+                self.sla_total_paused_minutes = round(
+                    (self.sla_total_paused_minutes or 0.0) + delta_mins, 2
+                )
+            self.sla_clock_paused = False
+            self.sla_paused_at = False
+
         # SLA clock events
         if new_state == "in_repair" and not self.sla_response_at:
-            self.sla_response_at = fields.Datetime.now()
+            self.sla_response_at = now
         if new_state in ("delivered", "closed") and not self.sla_resolution_at:
-            self.sla_resolution_at = fields.Datetime.now()
+            self.sla_resolution_at = now
 
     def action_start_diagnostic(self):
-        self.state = "diagnostic"
+        for order in self:
+            order.state = "diagnostic"
 
     def action_send_estimate(self):
-        self.state = "estimate_sent"
+        for order in self:
+            order.state = "estimate_sent"
 
     def action_approve(self):
-        self.state = "approved"
+        for order in self:
+            order.state = "approved"
 
     def action_start_repair(self):
-        self.state = "in_repair"
+        for order in self:
+            order.state = "in_repair"
 
     def action_submit_qc(self):
-        self.state = "qc_pending"
+        for order in self:
+            order.state = "qc_pending"
 
     def action_ready(self):
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
@@ -436,16 +641,46 @@ class FixServiceOrder(models.Model):
         _validate_transition (write), so every path shares the one gate."""
         for order in self:
             order._check_qc_gate()
-        self.state = "ready"
+            order.state = "ready"
 
     def action_deliver(self):
-        self.state = "delivered"
+        for order in self:
+            order._check_delivery_settlement_gate()
+            if (
+                order.order_category in ("warranty", "amc", "rework", "goodwill", "recycling")
+                and order.payment_settlement_state == "unpaid"
+            ):
+                order.payment_settlement_state = "covered_zero_charge"
+            order.state = "delivered"
+
+    def action_mark_settled(self, invoice_ref=None, amount_bdt=None):
+        """FLAW-01.1: Record financial invoice settlement before device handover."""
+        for order in self:
+            approved_total = sum(
+                order.estimate_ids.filtered(lambda e: e.state == "approved").mapped("grand_total")
+            )
+            order.write(
+                {
+                    "payment_settlement_state": "settled",
+                    "invoice_ref": invoice_ref or order.invoice_ref or f"INV/{order.name}",
+                    "amount_settled_bdt": (
+                        amount_bdt
+                        if amount_bdt is not None
+                        else (order.amount_settled_bdt or approved_total)
+                    ),
+                }
+            )
+            order.message_post(
+                body=f"Financial settlement recorded: {order.invoice_ref} (BDT {order.amount_settled_bdt:.2f})."
+            )
 
     def action_close(self):
-        self.state = "closed"
+        for order in self:
+            order.state = "closed"
 
     def action_cancel(self):
-        self.state = "cancelled"
+        for order in self:
+            order.state = "cancelled"
 
     def action_issue_repair_warranty(self):
         """M01 Quality & Release: issue OUR repair-service warranty. Allowed
@@ -582,7 +817,7 @@ class FixServiceOrder(models.Model):
         "extended", "unknown"): EVERY warranty order was refused - from the P01
         customer booking and the P04 corporate request alike (R01 re-audit
         2026-10-22)."""
-        request_date = fields.Date.today()
+        request_date = fields.Date.context_today(self)
         for order in self:
             if order.order_category != "warranty":
                 continue
@@ -592,6 +827,25 @@ class FixServiceOrder(models.Model):
                     "BRU-SRM-02: device %s has no active warranty on %s (warranty status "
                     "'%s') — a warranty order needs an ACTIVE warranty at the request date"
                     % (device.display_name, request_date, device.warranty_status or "unknown")
+                )
+            # The gate above honours cover that NOBODY HAS VERIFIED. That is
+            # deliberate (withdrawing live cover is a commercial call), but it
+            # must not be silent: record it on the order so the exposure is
+            # filterable and attributable instead of invisible.
+            unverified = device.unverified_warranty_cover(request_date)
+            order.warranty_cover_unverified = bool(unverified)
+            if unverified:
+                order.message_post(
+                    body=(
+                        "Warranty order accepted on UNVERIFIED cover: no purchase "
+                        "proof has been checked for warranty %s on %s. Raised by %s. "
+                        "Verify the proof (Warranty → Verify) or void the cover."
+                    )
+                    % (
+                        ", ".join(unverified.mapped("display_name")) or "(unnamed)",
+                        device.display_name,
+                        self.env.user.name,
+                    )
                 )
 
     def _flag_rework(self):

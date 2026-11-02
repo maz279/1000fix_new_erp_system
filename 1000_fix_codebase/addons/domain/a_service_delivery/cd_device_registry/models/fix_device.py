@@ -165,15 +165,20 @@ class FixDevice(models.Model):
 
     @api.depends("warranty_id.end_date", "warranty_id.status")
     def _compute_warranty_status(self):
-        from datetime import date
-
-        today = date.today()
+        # `datetime.date.today()` - the DEVELOPER MACHINE's date - decided the
+        # warranty label every user reads, while `is_under_warranty` (the gate
+        # that accepts or refuses the order) decides on the Bangladesh date.
+        # The two disagreed for the first six hours of every Dhaka day: a device
+        # could read "in_warranty" and still be refused a warranty order, with
+        # the refusal quoting the contradictory label back at the user
+        # (A04 audit, 2026-11-01). One date basis, and it is the business's.
         for rec in self:
+            today = fields.Date.context_today(rec)
             # Any running active warranty wins: the old loop stopped at the FIRST
             # active record in iteration order, so an expired-by-date record read
             # before a running one made a covered device "out_of_warranty".
             active = rec.warranty_id.filtered(lambda w: w.status == "active")
-            if any(w.end_date >= today for w in active):
+            if any(w.end_date and w.end_date >= today for w in active):
                 rec.warranty_status = "in_warranty"
             elif active:
                 rec.warranty_status = "out_of_warranty"
@@ -249,17 +254,54 @@ class FixDevice(models.Model):
             }
         )
 
-    def is_under_warranty(self, on_date=None):
+    def is_under_warranty(self, on_date=None, require_verified=False):
         """BRU-SRM-02 / WTY-01: True when an ACTIVE warranty record of this device
         covers ``on_date`` (default: today), start and end dates included.
 
         Decided on the date itself, not on the stored ``warranty_status`` (that
         value is frozen at its last recompute: a warranty that ended since still
-        reads "in_warranty"). Expired, voided and pending records never cover."""
+        reads "in_warranty"). Expired, voided and pending records never cover.
+
+        ``require_verified`` additionally demands that a person has checked the
+        purchase proof (``verification_state == "verified"``). It defaults to
+        False so the gate keeps today's business outcome: unverified cover is
+        still cover, and withdrawing it from live customers is a commercial
+        decision, not an engineering one. The parameter exists so the exposure
+        can be MEASURED - see ``unverified_warranty_cover`` below and
+        ``fix.service.order.warranty_cover_unverified``.
+
+        The default date is ``context_today``, not UTC ``today``: Bangladesh is
+        UTC+6, so for the first six hours of every local day UTC is still on the
+        previous date, and on the 1st of a month it is in the previous MONTH -
+        which silently decided cover on the wrong side of an expiry boundary.
+        """
         self.ensure_one()
-        day = on_date or fields.Date.today()
+        day = on_date or fields.Date.context_today(self)
         return any(
-            w.status == "active" and w.start_date <= day <= w.end_date for w in self.warranty_id
+            w.status == "active"
+            and w.start_date
+            and w.end_date
+            and w.start_date <= day <= w.end_date
+            and (not require_verified or w.verification_state == "verified")
+            for w in self.warranty_id
+        )
+
+    def unverified_warranty_cover(self, on_date=None):
+        """The warranty records covering ``on_date`` that nobody has verified.
+
+        A04 audit 2026-11-01: 53 of 55 live warranty rows were ACTIVE with
+        ``verified_at`` empty, and the warranty gate never looked at that - so
+        53 devices could draw a free warranty repair with no proof on file and
+        nothing in the system recorded the exposure. This makes it queryable.
+        """
+        self.ensure_one()
+        day = on_date or fields.Date.context_today(self)
+        return self.warranty_id.filtered(
+            lambda w: w.status == "active"
+            and w.start_date
+            and w.end_date
+            and w.start_date <= day <= w.end_date
+            and w.verification_state == "unverified"
         )
 
     def get_compatible_parts(self, category=None):

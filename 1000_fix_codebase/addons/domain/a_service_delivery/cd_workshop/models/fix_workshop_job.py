@@ -192,13 +192,86 @@ class FixWorkshopJob(models.Model):
     # Burn-In & Stress Testing (CD-M31-03)
     burn_in_duration_hours = fields.Float(
         string="Burn-In Duration (Hours)",
-        default=2.0,
-        help="Scheduled burn-in test duration",
+        default=4.0,
+        help="Scheduled burn-in test duration (minimum 4.0h / 240m for L2/L3)",
+    )
+    burn_in_actual_minutes = fields.Float(
+        string="Actual Burn-In Minutes",
+        default=240.0,
+        tracking=True,
+        help="FLAW-31.3: L2/L3 board repairs require >= 240 minutes continuous stress testing",
+    )
+    thermal_crash_count = fields.Integer(
+        string="Thermal / Stress Crashes",
+        default=0,
+        tracking=True,
+        help="FLAW-31.3: Must be 0 to pass burn-in",
     )
     burn_in_started_at = fields.Datetime(string="Burn-In Started At", readonly=True)
     burn_in_completed_at = fields.Datetime(string="Burn-In Completed At", readonly=True)
     burn_in_temp_celsius = fields.Float(string="Chamber Temp (°C)", default=40.0)
     burn_in_passed = fields.Boolean(string="Burn-In Passed", default=False, tracking=True)
+
+    # Micro-Soldering, IPC-7711/7721 & SAM Labor Efficiency (M31 Enterprise Data Capture)
+    schematic_designators = fields.Char(
+        string="Schematic / Boardview Designators",
+        help="e.g. U7000, CD3217B12, C7050, PPBUS_G3H",
+    )
+    reflow_profile_name = fields.Char(
+        string="BGA / Hot-Air Reflow Profile",
+        help="e.g. SAC305 Lead-Free 235°C Peak / 60s TAL",
+    )
+    flux_solder_spec = fields.Char(
+        string="Solder Alloy & Flux Lot",
+        help="e.g. Senju M705 SAC305 + Amtech NC-559-V2-TF",
+    )
+    dc_power_rail_readings = fields.Text(
+        string="DC Power Rail / Diode Mode Readings",
+        help="Pre and post repair voltage/current/diode measurements on primary rails",
+    )
+    ipc_class_target = fields.Selection(
+        [
+            ("class_2", "IPC Class 2 — Dedicated Service Electronic Products"),
+            ("class_3", "IPC Class 3 — High Performance / Critical Electronic Products"),
+        ],
+        string="IPC-7711/7721 Rework Standard",
+        default="class_2",
+    )
+    ipc_visual_inspection_passed = fields.Boolean(
+        string="IPC 10x–40x Microscope Inspection Passed",
+        default=True,
+    )
+    sam_standard_minutes = fields.Float(
+        string="Standard Allowed Minutes (SAM)",
+        default=60.0,
+    )
+    actual_logged_minutes = fields.Float(
+        string="Actual Logged Bench Minutes",
+        default=60.0,
+    )
+    labor_efficiency_pct = fields.Float(
+        string="Labor Efficiency (%)",
+        compute="_compute_labor_efficiency",
+        store=True,
+    )
+    dofa_writeoff_tier = fields.Selection(
+        [
+            ("none", "No Write-Off Required"),
+            ("tier_2", "Tier 2 — Service Center Manager (<= 10,000 BDT)"),
+            ("tier_3", "Tier 3 — Regional Service Head (<= 50,000 BDT)"),
+            ("tier_4", "Tier 4 — Head of Service & Finance (> 50,000 BDT)"),
+        ],
+        string="DOFA BER / Scrap Write-Off Tier",
+        default="none",
+    )
+    pre_rework_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Pre-Rework Microscope Photo",
+    )
+    post_rework_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Post-Rework Microscope / Thermal Log",
+    )
 
     # Quality Control & Checklists
     qc_passed = fields.Boolean(string="QC Passed", default=False, tracking=True)
@@ -279,6 +352,16 @@ class FixWorkshopJob(models.Model):
             rec.parts_total = parts
             rec.total_repair_cost = parts + (rec.labour_total or 0.0)
 
+    @api.depends("sam_standard_minutes", "actual_logged_minutes")
+    def _compute_labor_efficiency(self):
+        for rec in self:
+            if rec.actual_logged_minutes and rec.actual_logged_minutes > 0:
+                rec.labor_efficiency_pct = round(
+                    (rec.sam_standard_minutes or 0.0) / rec.actual_logged_minutes * 100.0, 2
+                )
+            else:
+                rec.labor_efficiency_pct = 100.0
+
     # --- State Machine Transitions (AS-06) ---
     def _validate_transition(self, new_state: str) -> None:
         self.ensure_one()
@@ -307,6 +390,16 @@ class FixWorkshopJob(models.Model):
                     )
                 # Execute Cross-Wave Stub STUB-M31-M22-001 (Certification check)
                 rec._check_technician_certification(rec.technician_id, rec.repair_level)
+                # FLAW-31.2: ESD compliance gate for L2/L3 repairs
+                if rec.repair_level in ("l2", "l3") and rec.bench_id:
+                    # An explicit check if bench has an unverified date or out-of-spec resistance
+                    strap = rec.bench_id.wrist_strap_mohm or 10.0
+                    surface = rec.bench_id.worksurface_rtg_mohm or 100.0
+                    if not rec.bench_id.is_esd_safe or strap >= 35.0 or surface >= 1000.0:
+                        raise UserError(
+                            f"FLAW-31.2 ESD Interlock Gate: Bench {rec.bench_id.code} has not passed today's "
+                            f"daily ESD wrist-strap (<35 MΩ) and worksurface (<1000 MΩ) verification required for {rec.repair_level.upper()} repairs."
+                        )
 
             # Business Gate: Burn-In started
             if new_state == "burn_in":
@@ -358,6 +451,16 @@ class FixWorkshopJob(models.Model):
 
     def action_pass_burn_in(self):
         for rec in self:
+            if rec.repair_level in ("l2", "l3"):
+                if (rec.burn_in_actual_minutes or 0.0) < 240.0:
+                    raise UserError(
+                        f"FLAW-31.3 Burn-In Gate: {rec.repair_level.upper()} repair job {rec.name} requires at least "
+                        f"240 minutes (4.0 hours) continuous burn-in stress testing (logged: {rec.burn_in_actual_minutes} min)."
+                    )
+                if (rec.thermal_crash_count or 0) > 0:
+                    raise UserError(
+                        f"FLAW-31.3 Burn-In Gate: Job {rec.name} experienced {rec.thermal_crash_count} thermal/stress crashes during burn-in."
+                    )
             rec.burn_in_completed_at = fields.Datetime.now()
             rec.burn_in_passed = True
         return self.action_transition("qc_pending")
@@ -471,8 +574,23 @@ class FixWorkshopJob(models.Model):
             and not self.certification_waiver
         ):
             device_type = self.device_id.device_type or None
+            # M22 (RAP-M22-01/02): an L2/L3 bench job is gated on the OEM brand
+            # and the repair tier, not on the device type alone — a generic
+            # smartphone certificate must not open an Apple logic-board job.
+            # Passing only `device_type` left the brand and tier dimensions
+            # that M22 builds unreachable from the one path that enforces them.
+            #
+            # `fail_closed` is deliberately left at its default here: at this
+            # call site it would also refuse a job whose device type has no
+            # gating competency configured yet, which is a configuration gap
+            # rather than a competency gap, and would stop bench work on day
+            # one. RAP-M22 §8 asks for advisory-then-enforce; turning it on is
+            # the COO/Technical Services decision recorded in the audit.
             eligible, reason = self.env["fix.certification"].dispatch_eligibility(
-                technician, device_type=device_type
+                technician,
+                device_type=device_type,
+                brand_id=self.device_id.brand_id.id or None,
+                repair_tier=repair_level,
             )
             if not eligible:
                 raise UserError(

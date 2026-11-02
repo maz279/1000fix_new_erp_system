@@ -2,3 +2,6 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_warranty_product,fix.warranty.product,model_fix_warranty_product,base.group_user,1,1,1,0
 access_fix_warranty_claim,fix.warranty.claim,model_fix_warranty_claim,base.group_user,1,1,1,0
 access_fix_warranty_evidence,fix.warranty.evidence,model_fix_warranty_evidence,base.group_user,1,1,1,1
+access_fix_warranty_transfer,fix.warranty.transfer,model_fix_warranty_transfer,base.group_user,1,1,1,1
+access_fix_warranty_recall,fix.warranty.recall,model_fix_warranty_recall,base.group_user,1,1,1,1
+access_fix_claim_appeal,fix.claim.appeal,model_fix_claim_appeal,base.group_user,1,1,1,1

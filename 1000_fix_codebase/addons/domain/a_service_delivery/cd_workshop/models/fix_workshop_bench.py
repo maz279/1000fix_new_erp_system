@@ -122,9 +122,35 @@ class FixWorkshopBench(models.Model):
         default=True,
         help="Verified grounding mat, wrist strap, and ESD dissipation monitoring",
     )
+    wrist_strap_mohm = fields.Float(
+        string="Wrist Strap Resistance (MΩ)",
+        default=10.0,
+        tracking=True,
+        help="FLAW-31.2: ANSI/ESD S20.20 requires < 35.0 MΩ (typical 1.0 - 10.0 MΩ)",
+    )
+    worksurface_rtg_mohm = fields.Float(
+        string="Worksurface Mat Resistance Rtg (MΩ)",
+        default=100.0,
+        tracking=True,
+        help="FLAW-31.2: IEC 61340-5-1 requires < 1000.0 MΩ (< 1x10^9 Ω)",
+    )
+    esd_last_verified_date = fields.Date(
+        string="Daily ESD Log Date",
+        default=fields.Date.context_today,
+        tracking=True,
+    )
+    esd_compliant_today = fields.Boolean(
+        string="Daily ESD Verification Passed",
+        compute="_compute_esd_compliant_today",
+        help="True when wrist strap < 35 MΩ, worksurface < 1000 MΩ, and verified today",
+    )
     calibration_expiry_date = fields.Date(
         string="Calibration Expiry",
         help="Calibration due date for bench multimeter, oscilloscope, and DC power supply",
+    )
+    calibration_cert_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Bench Calibration & ESD Log Sheet",
     )
     equipment_specs = fields.Text(
         string="Station Equipment Specs",
@@ -137,6 +163,42 @@ class FixWorkshopBench(models.Model):
         "UNIQUE (code)",
         "The bench code must be unique across all workshops.",
     )
+
+    @api.depends(
+        "is_esd_safe", "wrist_strap_mohm", "worksurface_rtg_mohm", "esd_last_verified_date"
+    )
+    def _compute_esd_compliant_today(self):
+        today = fields.Date.today()
+        for rec in self:
+            rec.esd_compliant_today = bool(
+                rec.is_esd_safe
+                and 0.1 <= (rec.wrist_strap_mohm or 10.0) < 35.0
+                and 0.1 <= (rec.worksurface_rtg_mohm or 100.0) < 1000.0
+                and rec.esd_last_verified_date == today
+            )
+
+    def action_log_daily_esd(self, wrist_mohm=10.0, surface_mohm=100.0):
+        """Record the daily pre-shift ESD wrist-strap and mat grounding check (FLAW-31.2)."""
+        for rec in self:
+            if wrist_mohm >= 35.0 or wrist_mohm <= 0.0:
+                raise UserError(
+                    f"FLAW-31.2 ESD Interlock: Wrist strap resistance ({wrist_mohm} MΩ) on bench {rec.code} "
+                    f"exceeds ANSI/ESD S20.20 limit (< 35.0 MΩ)."
+                )
+            if surface_mohm >= 1000.0 or surface_mohm <= 0.0:
+                raise UserError(
+                    f"FLAW-31.2 ESD Interlock: Worksurface resistance ({surface_mohm} MΩ) on bench {rec.code} "
+                    f"exceeds IEC 61340-5-1 limit (< 1000.0 MΩ)."
+                )
+            rec.write(
+                {
+                    "wrist_strap_mohm": wrist_mohm,
+                    "worksurface_rtg_mohm": surface_mohm,
+                    "esd_last_verified_date": fields.Date.today(),
+                    "is_esd_safe": True,
+                }
+            )
+        return True
 
     @api.depends("active_job_ids")
     def _compute_job_count(self):

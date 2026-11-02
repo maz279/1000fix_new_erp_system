@@ -19,7 +19,7 @@ CD-M05-01 (P08-M07) — the managed-services business on M08's engine:
   DE-17): uptime, alert volume, SLA attainment, resolutions
 - monthly report generation is calendar-driven (journey 6 nightly)
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.3.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/MSP",

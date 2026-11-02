@@ -42,6 +42,33 @@ class FixQC(models.Model):
     checked_at = fields.Datetime(readonly=True)
     notes = fields.Text()
 
+    # --- A02 Enterprise Data Capture (M01 QC Checklist Multi-Tab Specification) ---
+    visual_inspection_passed = fields.Boolean(
+        string="Cosmetic & Housing Assembly Verified",
+        default=True,
+        tracking=True,
+    )
+    functional_test_passed = fields.Boolean(
+        string="Full Hardware & I/O Functional Test Passed",
+        default=True,
+        tracking=True,
+    )
+    safety_electrical_passed = fields.Boolean(
+        string="Electrical Grounding & Thermal Safety Passed",
+        default=True,
+        tracking=True,
+    )
+    cleaning_sanitization_passed = fields.Boolean(
+        string="Ultrasonic / Isopropyl Sanitization Completed",
+        default=True,
+        tracking=True,
+    )
+    test_report_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Automated Diagnostic & Burn-In Log (PDF)",
+        help="Attached hardware diagnostic report or burn-in telemetry sheet.",
+    )
+
     item_ids = fields.One2many("fix.qc.item", "checklist_id", string="Checklist Items")
     all_passed = fields.Boolean(compute="_compute_all_passed", store=True)
 

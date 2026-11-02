@@ -19,6 +19,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_device_estate_company" model="ir.rule">
+        <field name="name">fix.device.estate: allowed companies</field>
+        <field name="model_id" ref="model_fix_device_estate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_device_part_compatibility_company" model="ir.rule">
         <field name="name">fix.device.part.compatibility: allowed companies</field>
         <field name="model_id" ref="model_fix_device_part_compatibility"/>

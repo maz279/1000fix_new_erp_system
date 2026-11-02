@@ -28,6 +28,7 @@ order against a device, permanently.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/fix_device_views.xml",
     ],
     "installable": True,

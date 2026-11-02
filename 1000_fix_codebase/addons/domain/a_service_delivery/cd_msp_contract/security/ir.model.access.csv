@@ -4,3 +4,11 @@ access_fix_monitored_asset,fix.monitored.asset,model_fix_monitored_asset,base.gr
 access_fix_msp_alert,fix.msp.alert,model_fix_msp_alert,base.group_user,1,1,1,0
 access_fix_remote_session,fix.remote.session,model_fix_remote_session,base.group_user,1,1,1,0
 access_fix_msp_service_report,fix.msp.service.report,model_fix_msp_service_report,base.group_user,1,1,1,0
+access_fix_msp_runbook,fix.msp.runbook,model_fix_msp_runbook,base.group_user,1,1,1,1
+access_fix_msp_runbook_run,fix.msp.runbook.run,model_fix_msp_runbook_run,base.group_user,1,1,1,1
+access_fix_msp_patch_policy,fix.msp.patch.policy,model_fix_msp_patch_policy,base.group_user,1,1,1,1
+access_fix_msp_patch_update,fix.msp.patch.update,model_fix_msp_patch_update,base.group_user,1,1,1,0
+access_fix_msp_sla_credit,fix.msp.sla.credit,model_fix_msp_sla_credit,base.group_user,1,1,1,0
+access_fix_msp_oncall_shift,fix.msp.oncall.shift,model_fix_msp_oncall_shift,base.group_user,1,1,1,0
+access_fix_msp_maintenance_window,fix.msp.maintenance.window,model_fix_msp_maintenance_window,base.group_user,1,1,1,0
+access_fix_msp_change_record,fix.msp.change.record,model_fix_msp_change_record,base.group_user,1,1,1,0

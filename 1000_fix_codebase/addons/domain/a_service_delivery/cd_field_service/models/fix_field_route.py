@@ -125,6 +125,8 @@ class FixFieldRoute(models.Model):
         string="Operating Unit",
         required=True,
         index=True,
+        default=lambda self: self.env.user.default_operating_unit_id
+        or self.env["operating.unit"].sudo().search([], limit=1),
     )
 
     name = fields.Char(
@@ -229,6 +231,22 @@ class FixFieldRoute(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # operating_unit_id is required with no default — resolve it like
+            # the field order does, else EVERY route created from a UI/API
+            # (including the D365 Route Plan form) dies with NotNullViolation
+            # (forensic audit D-M02-3).
+            if not vals.get("operating_unit_id"):
+                ou = (
+                    self.env.user.default_operating_unit_id
+                    or self.env["operating.unit"]
+                    .sudo()
+                    .search(
+                        [("company_id", "=", vals.get("company_id", self.env.company.id))], limit=1
+                    )
+                    or self.env["operating.unit"].sudo().search([], limit=1)
+                )
+                if ou:
+                    vals["operating_unit_id"] = ou.id
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.field.route")
                 vals["name"] = (

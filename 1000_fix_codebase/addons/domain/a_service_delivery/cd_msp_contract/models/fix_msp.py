@@ -132,16 +132,40 @@ class FixMonitoredAsset(models.Model):
         required=True,
     )
 
+    # --- A02 Enterprise Data Capture (M05 Monitored Asset Telemetry Specification) ---
+    ip_address = fields.Char(string="IPv4 / IPv6 Endpoint Address")
+    mac_address = fields.Char(string="Hardware MAC Address")
+    os_version = fields.Char(string="Operating System & Build Version")
+    cpu_utilization_pct = fields.Float(string="CPU Load (%)", default=0.0)
+    ram_utilization_pct = fields.Float(string="Memory Utilization (%)", default=0.0)
+    disk_free_gb = fields.Float(string="Free Storage Capacity (GB)", default=0.0)
+    uptime_hours = fields.Float(string="Continuous Uptime (Hours)", default=0.0)
+    patch_baseline_compliant = fields.Boolean(
+        string="OS & Security Patch Baseline Compliant",
+        default=True,
+    )
+
     @api.model
     def ingest_telemetry(self, agent_id, health, seen_at):
         """The collector's ingestion path (INT-029): last_seen and health
-        update; the FIRST unhealthy transition raises an ALERT."""
+        update; the FIRST unhealthy transition raises an ALERT — unless an
+        ACTIVE maintenance window suppresses alerting for the asset's
+        contract (planned work must not page the on-call)."""
         asset = self.search([("agent_id", "=", agent_id)], limit=1)
         if not asset:
             raise UserError("Unknown RMM agent %s" % agent_id)
         became_unhealthy = health != "healthy" and asset.health == "healthy"
         asset.write({"health": health, "last_seen": seen_at})
         if became_unhealthy:
+            if self.env["fix.msp.maintenance.window"].alerting_suppressed(asset):
+                publish(
+                    self.env,
+                    "msp.alert_suppressed_window",
+                    "fix.monitored.asset",
+                    asset.id,
+                    {"agent": agent_id, "health": health},
+                )
+                return
             alert = self.env["fix.msp.alert"].create(
                 {
                     "msp_contract_id": asset.msp_contract_id.id,
@@ -256,6 +280,32 @@ class FixRemoteSession(models.Model):
     )
     started_at = fields.Datetime(default=fields.Datetime.now, required=True)
     ended_at = fields.Datetime(readonly=True)
+
+    # --- A02 Enterprise Data Capture (M05 Remote Session PDPA Audit Specification) ---
+    session_protocol = fields.Selection(
+        [
+            ("meshcentral_webrtc", "MeshCentral WebRTC TLS 1.3"),
+            ("rustdesk_encrypted", "RustDesk End-to-End Encrypted"),
+            ("ssh_bastion", "Zero-Trust SSH Bastion Tunnel"),
+        ],
+        string="Transport Encryption Protocol",
+        default="meshcentral_webrtc",
+    )
+    consent_token_ref = fields.Char(
+        string="PDPA Client Consent Token / OTP Ref",
+        help="Cryptographic or OTP consent reference captured from endpoint user.",
+    )
+    recording_url = fields.Char(
+        string="Immutable Session Audit Recording URI",
+    )
+    session_summary = fields.Text(
+        string="Remote Remediation Actions Summary",
+    )
+    order_id = fields.Many2one(
+        "fix.service.order",
+        string="Linked Service Order",
+        ondelete="set null",
+    )
 
     def action_start(self):
         for rec in self:

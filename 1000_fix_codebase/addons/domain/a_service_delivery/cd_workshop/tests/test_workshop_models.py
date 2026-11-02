@@ -502,3 +502,53 @@ def test_evidence_is_stored_through_the_document_kernel(ws):
         "Before.jpg",
         job.name,
     )
+
+
+def test_l2_gate_passes_the_brand_and_tier_to_m22(ws):
+    """RAP-M22-01/02: M22 builds a (brand, device category, tier) gate, but the
+    only path that enforces it passed `device_type` alone, leaving the brand
+    and tier dimensions unreachable in production."""
+    import inspect
+
+    from odoo.addons.cd_workshop.models.fix_workshop_job import FixWorkshopJob
+
+    src = inspect.getsource(FixWorkshopJob._check_technician_certification)
+    call = src[src.find("dispatch_eligibility") :]
+    assert "brand_id=" in call
+    assert "repair_tier=" in call
+
+
+def test_l2_gate_refuses_a_technician_certified_for_another_brand(ws):
+    env = ws.env
+    apple = env["fix.brand"].create({"name": "ZtApple", "code": "ZTAP"})
+    other = env["fix.brand"].create({"name": "ZtGeneric", "code": "ZTGN"})
+    model = env["fix.device.model"].create({"name": "ZtPhone", "brand_id": apple.id})
+    device = env["fix.device"].create({"device_model_id": model.id, "serial_number": "SN-ZT-9"})
+    # a dispatch-gating competency scoped to the order's brand
+    apple_comp = env["fix.competency"].create(
+        {
+            "code": "ZT-APPLE",
+            "name": "Apple logic board",
+            "required_for_dispatch": True,
+            "brand_id": apple.id,
+        }
+    )
+    other_comp = env["fix.competency"].create(
+        {
+            "code": "ZT-GEN",
+            "name": "Generic handset",
+            "required_for_dispatch": True,
+            "brand_id": other.id,
+        }
+    )
+    # the technician holds the WRONG brand's certification
+    env["fix.certification"].create({"employee_id": ws.job_tech.id, "competency_id": other_comp.id})
+    job = _job(ws, repair_level="l2", technician_id=ws.job_tech.id, device_id=device.id)
+    job.action_intake()
+    ws.l3.action_assign_job(job)
+    with _refused(env, UserError, "M22 Certification Gate"):
+        job.action_start_repair()
+    # granting the order's brand certification releases the job
+    env["fix.certification"].create({"employee_id": ws.job_tech.id, "competency_id": apple_comp.id})
+    job.action_start_repair()
+    assert job.state == "in_repair"

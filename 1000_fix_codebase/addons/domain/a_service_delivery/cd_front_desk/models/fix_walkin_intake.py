@@ -40,6 +40,104 @@ class FixWalkinIntake(models.Model):
     fault_description = fields.Text(required=True)
     customer_statement = fields.Text(string="Customer Statement (verbatim)")
 
+    # --- A02 Enterprise Data Capture & Barcoded Accessory Bag Custody (FLAW-04.3) ---
+    brand_name = fields.Char(string="Device Brand Name")
+    model_name = fields.Char(string="Device Model Name")
+    symptom_category = fields.Selection(
+        [
+            ("power_boot", "No Power / Boot Loop"),
+            ("display_touch", "Display / Touch Digitizer"),
+            ("liquid_damage", "Liquid Ingress / Corrosion"),
+            ("battery_charging", "Battery / Charging Port"),
+            ("motherboard_logic", "Logic Board / Micro-Component"),
+            ("audio_camera", "Audio / Camera / Sensors"),
+            ("software_os", "OS / Firmware / BitLocker"),
+            ("other", "Other Hardware Symptom"),
+        ],
+        string="Primary Symptom Category",
+        default="power_boot",
+    )
+    reproducibility = fields.Selection(
+        [
+            ("always", "Verified at Counter (Always)"),
+            ("intermittent", "Intermittent / Load Dependent"),
+            ("unverified", "Customer Reported Only"),
+        ],
+        string="Symptom Reproducibility",
+        default="always",
+    )
+    passcode_provided = fields.Boolean(
+        string="Diagnostic Unlock Code Provided",
+        default=False,
+    )
+    cosmetic_condition_matrix = fields.Text(
+        string="4-Angle Cosmetic Condition Matrix",
+        help="Structured condition notes for Screen, Bezel, Back Housing, Ports & Hinge.",
+    )
+    lci_status = fields.Selection(
+        [
+            ("intact", "Intact (White/Clear)"),
+            ("tripped", "Tripped (Red/Pink — Liquid Exposure)"),
+            ("not_visible", "External LCI Not Visible"),
+        ],
+        string="Liquid Contact Indicator (LCI) Status",
+        default="intact",
+        tracking=True,
+    )
+    intake_photo_count = fields.Integer(
+        string="Captured Angle Photos Count",
+        default=4,
+    )
+    intake_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="4-Angle Condition Photo Sheet",
+    )
+    accessory_bag_barcode = fields.Char(
+        string="Barcoded Accessory Bag ID",
+        tracking=True,
+        help="FLAW-04.3: Mandatory barcoded pouch identifier when any accessory is retained.",
+    )
+    has_charger = fields.Boolean(string="Original Charger / Power Brick Retained", default=False)
+    has_battery = fields.Boolean(string="Removable Battery Retained", default=False)
+    has_cable_stylus = fields.Boolean(
+        string="Cable / Stylus / Carrying Case Retained", default=False
+    )
+    sim_memory_removed = fields.Boolean(
+        string="SIM & SD Card Removed & Returned to Customer",
+        default=True,
+    )
+    storage_bin_code = fields.Char(
+        string="Branch Safe-Custody Bin / Shelf Code",
+        tracking=True,
+    )
+    loaner_device_id = fields.Many2one(
+        "fix.device",
+        string="Issued Courtesy Loaner Device",
+    )
+    currency_id = fields.Many2one(
+        "res.currency",
+        string="Currency",
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
+    )
+    diagnostic_fee_bdt = fields.Monetary(
+        string="Upfront Diagnostic Fee (BDT)",
+        currency_field="currency_id",
+        default=0.0,
+    )
+    payment_channel = fields.Selection(
+        [
+            ("cash", "Cash Drawer"),
+            ("bkash", "bKash MFS"),
+            ("nagad", "Nagad MFS"),
+            ("card", "POS Card Terminal"),
+            ("waived", "Waived (Warranty / AMC / VIP)"),
+        ],
+        string="Diagnostic Fee Payment Channel",
+        default="waived",
+    )
+    payment_trx_ref = fields.Char(string="Payment Receipt / MFS TrxID")
+
     # Timing (the 3-minute gate)
     intake_start = fields.Datetime(default=fields.Datetime.now, readonly=True)
     handover_complete = fields.Datetime(readonly=True)
@@ -87,8 +185,23 @@ class FixWalkinIntake(models.Model):
             else:
                 rec.intake_duration_seconds = 0
 
+    def _check_accessory_bag_gate(self):
+        """FLAW-04.3: If any physical accessory is retained at the counter, a
+        barcoded accessory bag ID must be recorded before handover completes."""
+        for rec in self:
+            if (
+                rec.has_charger or rec.has_battery or rec.has_cable_stylus
+            ) and not rec.accessory_bag_barcode:
+                from odoo.exceptions import UserError
+
+                raise UserError(
+                    "FLAW-04.3 Accessory Custody Gate: Retained accessories (charger/battery/cable) "
+                    "require a Barcoded Accessory Bag ID before handover completion."
+                )
+
     def action_complete_handover(self):
         """Complete the handover with customer acknowledgement (T03)."""
+        self._check_accessory_bag_gate()
         for rec in self:
             rec.handover_complete = fields.Datetime.now()
             rec.handover_acknowledged = True
@@ -111,6 +224,11 @@ class FixWalkinIntake(models.Model):
                 "fault_description": self.fault_description,
                 "state": "intake",
                 "operating_unit_id": self.operating_unit_id.id,
+                "accessory_bag_barcode": self.accessory_bag_barcode,
+                "cosmetic_condition_notes": self.cosmetic_condition_matrix,
+                "lci_tripped": self.lci_status == "tripped",
+                "sim_memory_removed": self.sim_memory_removed,
+                "loan_device_id": self.loaner_device_id.id if self.loaner_device_id else False,
             }
         )
         return order

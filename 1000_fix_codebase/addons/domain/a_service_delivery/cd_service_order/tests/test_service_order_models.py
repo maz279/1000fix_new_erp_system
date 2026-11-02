@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from odoo import Command
+from odoo import fields as odoo_fields
 from odoo.addons.cd_service_order.models.fix_service_order import SERVICE_ORDER_STATES
 from odoo.exceptions import UserError, ValidationError
 
@@ -283,14 +284,28 @@ def test_batch_with_a_replayed_key_still_creates_the_other_orders(base):
     assert batch[0].idempotency_key not in (False, "IDEM-SOM-2", "IDEM-SOM-3")
 
 
+def _biz_today(base):
+    """The date the BUSINESS is on, not the date this machine is on.
+
+    Bangladesh is UTC+6. The warranty gate decides cover on
+    `fields.Date.context_today`, so a test that builds its windows from
+    Python's `date.today()` asserts the runner's timezone: for the first six
+    hours of every Dhaka day - and across a month boundary, by a whole month -
+    the two disagree and these tests failed on correct code (A04 audit,
+    2026-11-01).
+    """
+    return odoo_fields.Date.context_today(base.env.user)
+
+
 def _warranted_device(base, serial, status="active", start=-30, end=335):
     device = _device(base, serial)
+    today = _biz_today(base)
     base.env["fix.warranty"].create(
         {
             "device_id": device.id,
             "status": status,
-            "start_date": date.today() + timedelta(days=start),
-            "end_date": date.today() + timedelta(days=end),
+            "start_date": today + timedelta(days=start),
+            "end_date": today + timedelta(days=end),
         }
     )
     return device
@@ -328,7 +343,7 @@ def test_warranty_order_refused_without_cover_on_the_request_date(
     with _refused(base.env, UserError) as err:
         _order(base, device_id=device.id, order_category="warranty")
     assert str(err.value) == (
-        f"BRU-SRM-02: device {device.display_name} has no active warranty on {date.today()} "
+        f"BRU-SRM-02: device {device.display_name} has no active warranty on {_biz_today(base)} "
         f"(warranty status '{status_label}') — a warranty order needs an ACTIVE warranty at "
         "the request date"
     )

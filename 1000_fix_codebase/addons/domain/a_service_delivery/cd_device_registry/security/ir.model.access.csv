@@ -4,3 +4,9 @@ access_fix_warranty,fix.warranty,model_fix_warranty,base.group_user,1,1,1,0
 access_fix_device_ownership,fix.device.ownership,model_fix_device_ownership,base.group_user,1,1,1,0
 access_fix_device_history,fix.device.history,model_fix_device_history,base.group_user,1,0,1,0
 access_fix_device_part_compatibility,fix.device.part.compatibility,model_fix_device_part_compatibility,base.group_user,1,1,1,0
+access_fix_device_estate,fix.device.estate,model_fix_device_estate,base.group_user,1,1,1,0
+access_fix_device_pm,fix.device.pm,model_fix_device_pm,base.group_user,1,1,1,0
+access_fix_device_condition,fix.device.condition,model_fix_device_condition,base.group_user,1,1,1,0
+access_fix_device_identity,fix.device.identity,model_fix_device_identity,base.group_user,1,1,1,0
+access_fix_device_custody,fix.device.custody,model_fix_device_custody,base.group_user,1,1,1,0
+access_fix_device_component,fix.device.component,model_fix_device_component,base.group_user,1,1,1,0

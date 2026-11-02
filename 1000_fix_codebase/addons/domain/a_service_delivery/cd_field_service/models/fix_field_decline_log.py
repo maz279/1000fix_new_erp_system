@@ -69,9 +69,45 @@ class FixFieldDeclineLog(models.Model):
     )
     notes = fields.Text(string="Technician Notes")
 
+    # --- A02 Enterprise Data Capture & DOFA Override Governance ---
+    dofa_override_tier = fields.Selection(
+        [
+            ("none", "No Override Required"),
+            ("tier_1", "Tier 1 — Area Dispatch Coordinator"),
+            ("tier_2", "Tier 2 — Regional Field Operations Manager"),
+        ],
+        string="DOFA Reassignment Override Tier",
+        default="tier_1",
+        tracking=True,
+    )
+    supervisor_id = fields.Many2one(
+        "res.users",
+        string="Reviewing Dispatch Supervisor",
+        tracking=True,
+    )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not vals.get("operating_unit_id"):
+                if vals.get("field_order_id"):
+                    fo = self.env["fix.field.order"].sudo().browse(vals["field_order_id"]).exists()
+                    if fo and fo.operating_unit_id:
+                        vals["operating_unit_id"] = fo.operating_unit_id.id
+                if not vals.get("operating_unit_id"):
+                    user_ou = getattr(self.env.user, "default_operating_unit_id", False)
+                    ou = (
+                        user_ou
+                        or self.env["operating.unit"]
+                        .sudo()
+                        .search(
+                            [("company_id", "=", vals.get("company_id", self.env.company.id))],
+                            limit=1,
+                        )
+                        or self.env["operating.unit"].sudo().search([], limit=1)
+                    )
+                    if ou:
+                        vals["operating_unit_id"] = ou.id
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.field.decline.log")
                 vals["name"] = (
@@ -79,4 +115,12 @@ class FixFieldDeclineLog(models.Model):
                 )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for rec in records:
+            if rec.field_order_id and rec.field_order_id.state in (
+                "pending_dispatch",
+                "dispatched",
+                "accepted",
+            ):
+                rec.field_order_id.write({"state": "declined"})
+        return records

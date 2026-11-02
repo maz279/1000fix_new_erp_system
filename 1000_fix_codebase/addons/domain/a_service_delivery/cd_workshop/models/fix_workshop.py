@@ -118,6 +118,22 @@ class FixWorkshop(models.Model):
         default=True,
         help="ISO 9001 / IEC 61340-5-1 ESD protected area compliance",
     )
+    iso_9001_cert_number = fields.Char(
+        string="ISO 9001:2015 Certificate No.",
+        default="ISO-9001-1000FIX-BD",
+    )
+    fume_extraction_active = fields.Boolean(
+        string="HEPA / Solder Fume Extraction Active",
+        default=True,
+    )
+    power_backup_kva = fields.Float(
+        string="Online UPS / Generator Capacity (kVA)",
+        default=60.0,
+    )
+    facility_cert_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Facility ISO / EPA Audit Certificate",
+    )
     notes = fields.Text(string="Operational Notes")
     active = fields.Boolean(default=True, tracking=True)
 

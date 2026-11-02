@@ -32,6 +32,8 @@ class FixFieldOrder(models.Model):
         string="Operating Unit",
         required=True,
         index=True,
+        default=lambda self: self.env.user.default_operating_unit_id
+        or self.env["operating.unit"].sudo().search([], limit=1),
     )
 
     name = fields.Char(
@@ -186,9 +188,124 @@ class FixFieldOrder(models.Model):
     notes = fields.Text(string="Special Instructions")
     active = fields.Boolean(default=True)
 
+    # --- A02 Enterprise Data Capture, GNSS Anti-Spoofing & On-Site Payment (FLAW-02.1..02.3, HS-08) ---
+    district_name = fields.Char(string="Bangladesh District (64-District Geo)", tracking=True)
+    thana_name = fields.Char(string="Thana / Upazila", tracking=True)
+    is_mock_location = fields.Boolean(
+        string="Mock Location Detected",
+        default=False,
+        tracking=True,
+        help="FLAW-02.2: Hard-blocks on-site arrival check-in when OS mock location is active.",
+    )
+    gnss_hdop = fields.Float(
+        string="GNSS HDOP",
+        default=1.0,
+        help="Horizontal dilution of precision at arrival check-in.",
+    )
+    oem_certification_verified = fields.Boolean(
+        string="OEM Skill & Certification Verified",
+        default=True,
+        tracking=True,
+    )
+    safety_ppe_verified = fields.Boolean(
+        string="HSE / Electrical PPE Checklist Verified",
+        default=True,
+        tracking=True,
+    )
+    lone_worker_checkin_at = fields.Datetime(
+        string="Lone-Worker Safety Heartbeat",
+        tracking=True,
+    )
+    diagnostic_tool_serial = fields.Char(
+        string="Assigned Diagnostic Kit / Multimeter Serial",
+    )
+    work_summary = fields.Text(
+        string="On-Site Engineering Execution Summary",
+    )
+    before_repair_photo_ref = fields.Char(
+        string="Pre-Repair Site Photo Evidence Ref",
+    )
+    after_repair_photo_ref = fields.Char(
+        string="Post-Repair Site Photo Evidence Ref",
+    )
+    currency_id = fields.Many2one(
+        "res.currency",
+        string="Currency",
+        default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+        or self.env.company.currency_id,
+    )
+    onsite_collection_amount = fields.Monetary(
+        string="On-Site Collection Amount (BDT)",
+        currency_field="currency_id",
+        default=0.0,
+        tracking=True,
+        help="FLAW-02.3: Chargeable amount collected on site via MFS or cash.",
+    )
+    onsite_payment_method = fields.Selection(
+        [
+            ("none", "Zero-Charge / Covered by Contract"),
+            ("cash", "Cash Collected On-Site"),
+            ("bkash", "bKash Merchant QR / Payment"),
+            ("nagad", "Nagad Merchant QR / Payment"),
+            ("sslcommerz", "SSLCOMMERZ Payment Link"),
+            ("corporate_credit", "B2B Corporate Credit Billing"),
+        ],
+        string="On-Site Payment Method",
+        default="none",
+        tracking=True,
+    )
+    onsite_payment_trx_id = fields.Char(
+        string="bKash / Nagad / SSLCOMMERZ TrxID",
+        tracking=True,
+        help="FLAW-02.3: Mandatory verified transaction reference for MFS/digital on-site collections.",
+    )
+    cash_shift_id = fields.Many2one(
+        "fix.cash.shift",
+        string="Handed Over to Branch Cash Shift (HS-08)",
+        tracking=True,
+        help="HS-08: Links on-site cash collected by field engineer to the M04 branch cash drawer shift.",
+    )
+    customer_otp_verified = fields.Boolean(
+        string="Customer Handover OTP Verified",
+        default=False,
+        tracking=True,
+    )
+    customer_rating = fields.Selection(
+        [
+            ("5", "5 — Excellent"),
+            ("4", "4 — Good"),
+            ("3", "3 — Satisfactory"),
+            ("2", "2 — Poor"),
+            ("1", "1 — Critical Dissatisfaction"),
+        ],
+        string="On-Site CSAT Rating",
+    )
+    field_job_sheet_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Signed On-Site Job Sheet (PDF/Photo)",
+    )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            if not vals.get("operating_unit_id"):
+                if vals.get("order_id"):
+                    so = self.env["fix.service.order"].browse(vals["order_id"]).exists()
+                    if so and so.operating_unit_id:
+                        vals["operating_unit_id"] = so.operating_unit_id.id
+                if not vals.get("operating_unit_id"):
+                    ou = (
+                        self.env.user.default_operating_unit_id
+                        or self.env["operating.unit"]
+                        .sudo()
+                        .search(
+                            [("company_id", "=", vals.get("company_id", self.env.company.id))],
+                            limit=1,
+                        )
+                        or self.env["operating.unit"].sudo().search([], limit=1)
+                    )
+                    if ou:
+                        vals["operating_unit_id"] = ou.id
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.field.order")
                 vals["name"] = (
@@ -196,6 +313,37 @@ class FixFieldOrder(models.Model):
                 )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
+            # Start the SLA clock. The service order's own deadline wins; when it
+            # carries none, the applicable SLA policy's resolution_hours applies
+            # (service type + priority first, then any active policy). Without
+            # this the SLA Risk Board had nothing to measure: no deadline was
+            # ever written, so the module's SLA screen could only be empty.
+            if not vals.get("sla_deadline"):
+                deadline = False
+                so = (
+                    self.env["fix.service.order"].browse(vals["order_id"]).exists()
+                    if vals.get("order_id")
+                    else None
+                )
+                if so and so.sla_resolution_deadline:
+                    deadline = so.sla_resolution_deadline
+                else:
+                    Policy = self.env["fix.sla.policy"].sudo()
+                    domain = [("active", "=", True)]
+                    if so:
+                        if so.service_type:
+                            domain.append(("service_type", "=", so.service_type))
+                        if so.priority:
+                            domain.append(("priority", "=", so.priority))
+                    policy = Policy.search(domain, limit=1) or Policy.search(
+                        [("active", "=", True)], limit=1
+                    )
+                    if policy and policy.resolution_hours:
+                        deadline = fields.Datetime.add(
+                            fields.Datetime.now(), hours=policy.resolution_hours
+                        )
+                if deadline:
+                    vals["sla_deadline"] = deadline
         return super().create(vals_list)
 
     def action_request_dispatch(self):
@@ -303,10 +451,50 @@ class FixFieldOrder(models.Model):
             rec.state = "en_route"
             rec.en_route_at = fields.Datetime.now()
 
-    def action_arrive(self, current_lat=None, current_lon=None):
+    def action_arrive(self, current_lat=None, current_lon=None, is_mock_location=False):
         for rec in self:
             if rec.state != "en_route":
                 raise UserError("Order must be en route to mark arrival.")
+            # FLAW-02.2: Hard-block arrival if mock location / GPS spoofing is active
+            is_mock = False
+            if is_mock_location is True or (
+                isinstance(getattr(rec, "is_mock_location", None), bool) and rec.is_mock_location
+            ):
+                is_mock = True
+            elif rec.technician_id and hasattr(self.env, "cr") and hasattr(self.env, "__getitem__"):
+                try:
+                    if "fix.technician.location" in self.env:
+                        res = (
+                            self.env["fix.technician.location"]
+                            .sudo()
+                            .search(
+                                [("technician_id", "=", rec.technician_id.id)],
+                                order="timestamp desc",
+                                limit=1,
+                            )
+                        )
+                        if res and getattr(res, "is_mock_location", False) is True:
+                            is_mock = True
+                except Exception:
+                    # Anti-spoofing evidence: a lookup that errors is not proof
+                    # of a genuine location, so it is logged rather than lost.
+                    _logger.warning(
+                        "GPS mock-location check failed for field order %s", rec.id, exc_info=True
+                    )
+
+            if is_mock:
+                rec._emit_field_event(
+                    "gps.spoofing.blocked",
+                    {
+                        "field_order_id": rec.id,
+                        "order_ref": rec.name,
+                        "technician_id": rec.technician_id.id if rec.technician_id else False,
+                    },
+                )
+                raise UserError(
+                    f"FLAW-02.2 Anti-Spoofing Gate: Arrival check-in blocked for {rec.name} — "
+                    "mock GPS location provider or GNSS spoofing telemetry detected."
+                )
             if current_lat is not None and current_lon is not None and rec.geofence_id:
                 in_fence = rec._check_geofence_arrival(current_lat, current_lon)
                 if not in_fence:
@@ -339,8 +527,60 @@ class FixFieldOrder(models.Model):
         for rec in self:
             if rec.state != "in_progress":
                 raise UserError("Only in-progress orders can be completed.")
+            # FLAW-02.3: Require verified MFS/Gateway TrxID when digital on-site payment is collected
+            amt = getattr(rec, "onsite_collection_amount", 0.0)
+            if isinstance(amt, int | float) and amt > 0:
+                method = getattr(rec, "onsite_payment_method", False)
+                trx_id = getattr(rec, "onsite_payment_trx_id", False)
+                if method in ("bkash", "nagad", "sslcommerz") and not trx_id:
+                    raise UserError(
+                        f"FLAW-02.3 On-Site Payment Gate: Order {rec.name} has an MFS/Digital "
+                        f"collection of BDT {amt:.2f} via "
+                        f"'{method}' without a verified Transaction ID."
+                    )
             rec.state = "completed"
             rec.completed_at = fields.Datetime.now()
+            if (
+                rec.order_id
+                and isinstance(amt, int | float)
+                and amt > 0
+                and rec.onsite_payment_method in ("bkash", "nagad", "sslcommerz", "cash")
+            ):
+                rec.order_id.write(
+                    {
+                        "payment_settlement_state": "settled",
+                        "invoice_ref": rec.onsite_payment_trx_id or f"COD/{rec.name}",
+                        "amount_settled_bdt": amt,
+                    }
+                )
+
+    def action_handover_field_cash(self, shift_id=None):
+        """HS-08: Deposit on-site cash collected by the field engineer into an M04
+        branch cash drawer shift (`fix.cash.shift.field_cash_deposited`)."""
+        Shift = self.env["fix.cash.shift"]
+        for rec in self:
+            if rec.onsite_payment_method != "cash" or rec.onsite_collection_amount <= 0:
+                raise UserError(
+                    f"Order {rec.name} has no on-site cash collection to hand over to a branch shift."
+                )
+            shift = Shift.browse(shift_id) if shift_id else rec.cash_shift_id
+            if not shift:
+                shift = Shift.search(
+                    [("state", "=", "open"), ("company_id", "=", rec.company_id.id)],
+                    order="id desc",
+                    limit=1,
+                )
+            if not shift or not shift.exists():
+                raise UserError(
+                    "HS-08 Field Cash Handover: No open Branch Cash Shift found to receive field cash."
+                )
+            rec.cash_shift_id = shift.id
+            shift.field_cash_deposited = (
+                shift.field_cash_deposited or 0.0
+            ) + rec.onsite_collection_amount
+            rec.message_post(
+                body=f"HS-08: On-site cash BDT {rec.onsite_collection_amount:.2f} handed over to Branch Cash Shift #{shift.id}."
+            )
 
     def action_cancel(self, reason=""):
         for rec in self:
@@ -360,6 +600,8 @@ class FixFieldOrder(models.Model):
                fix.certification.dispatch_eligibility; skills the W2 seam
                left unwired at dispatch time)
           +20  home zone matches the order's dispatch zone (roster branch)
+          +15  live GPS proximity (< 5 km: +15, < 15 km: +10, < 30 km: +5; FLAW-02.1)
+          +10  assigned active van stock location (FLAW-02.1)
            -5  per already-assigned ACTIVE field order (load)
 
         Candidates are the employees the business actually dispatches
@@ -372,6 +614,8 @@ class FixFieldOrder(models.Model):
         FieldOrder = self.env["fix.field.order"]
         Roster = self.env["fix.roster.slot"]
         Certification = self.env["fix.certification"]
+        LocationPing = self.env["fix.technician.location"]
+        StockLocation = self.env["fix.stock.location"]
 
         candidate_ids = set()
         for model, field in (
@@ -406,6 +650,13 @@ class FixFieldOrder(models.Model):
         ):
             load_by_employee[fo.technician_id.id] = load_by_employee.get(fo.technician_id.id, 0) + 1
 
+        van_tech_ids = set(
+            StockLocation.sudo()
+            .search([("is_van_stock", "=", True), ("technician_id", "!=", False)])
+            .mapped("technician_id")
+            .ids
+        )
+
         suggestions = []
         for employee in Employee.browse(candidate_ids).exists():
             reasons = []
@@ -426,6 +677,35 @@ class FixFieldOrder(models.Model):
             if zone_match:
                 score += 20
                 reasons.append("home zone")
+            # FLAW-02.1: Live GPS Haversine proximity & van stock availability scoring
+            distance_km = None
+            if self.latitude and self.longitude:
+                ping = LocationPing.sudo().search(
+                    [("technician_id", "=", employee.id), ("is_mock_location", "=", False)],
+                    order="timestamp desc",
+                    limit=1,
+                )
+                if ping and ping.latitude and ping.longitude:
+                    distance_km = round(
+                        self._haversine_distance(
+                            self.latitude, self.longitude, ping.latitude, ping.longitude
+                        )
+                        / 1000.0,
+                        2,
+                    )
+                    if distance_km <= 5.0:
+                        score += 15
+                        reasons.append(f"GPS proximity {distance_km:.1f} km")
+                    elif distance_km <= 15.0:
+                        score += 10
+                        reasons.append(f"GPS proximity {distance_km:.1f} km")
+                    elif distance_km <= 30.0:
+                        score += 5
+                        reasons.append(f"GPS proximity {distance_km:.1f} km")
+            has_van_stock = employee.id in van_tech_ids
+            if has_van_stock:
+                score += 10
+                reasons.append("van stock ready")
             open_jobs = load_by_employee.get(employee.id, 0)
             score -= open_jobs * 5
             if open_jobs:
@@ -438,6 +718,8 @@ class FixFieldOrder(models.Model):
                     "eligible": bool(eligible),
                     "rostered": bool(rostered),
                     "zone_match": zone_match,
+                    "distance_km": distance_km,
+                    "has_van_stock": has_van_stock,
                     "open_jobs": open_jobs,
                     "reasons": reasons,
                 }

@@ -2,6 +2,7 @@
 from . import (
     fix_device,
     fix_device_history,
+    fix_device_ops,
     fix_device_ownership,
     fix_device_part_compatibility,
     fix_warranty,

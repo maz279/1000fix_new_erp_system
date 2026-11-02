@@ -4,6 +4,8 @@
 # (AUT-018) and submitted within 72. The evidence pack's completeness check
 # BLOCKS submission (T05) — an incomplete claim is a rejected claim and a
 # re-work cycle.
+import base64
+import hashlib
 import logging
 import uuid
 from datetime import timedelta
@@ -390,6 +392,19 @@ class FixWarrantyClaim(models.Model):
                     "Claim %s is %s — only a submitted or in-review claim can be decided"
                     % (claim.claim_no, claim.state)
                 )
+            if approved and not self.env.context.get("skip_serial_validation"):
+                # Serial / IMEI Provenance Validation (FLAW-09.1)
+                device = claim.device_id or (
+                    claim.service_order_id and claim.service_order_id.device_id
+                )
+                serial = (
+                    getattr(device, "serial_number", None) or getattr(device, "imei", None) or ""
+                )
+                if not serial.strip() and not device:
+                    raise UserError(
+                        "Claim %s cannot be approved: device provenance verification failed. "
+                        "A valid device record with serial/IMEI is required." % claim.claim_no
+                    )
             claim.write(
                 {
                     "state": "approved" if approved else "rejected",
@@ -435,7 +450,7 @@ class FixWarrantyClaim(models.Model):
 
 
 class FixWarrantyEvidence(models.Model):
-    """One item in a claim's evidence pack."""
+    """One item in a claim's evidence pack (T04/FLAW-09.2)."""
 
     _name = "fix.warranty.evidence"
     _description = "Claim Evidence Item"
@@ -444,3 +459,32 @@ class FixWarrantyEvidence(models.Model):
     claim_id = fields.Many2one("fix.warranty.claim", required=True, ondelete="cascade")
     requirement_key = fields.Selection(list(EVIDENCE_REQUIREMENTS), required=True)
     document_id = fields.Many2one("fix.document", string="Document", ondelete="restrict")
+
+    # Cryptographic Evidence Verification (FLAW-09.2)
+    file_data = fields.Binary(string="Upload Evidence File")
+    file_name = fields.Char(string="File Name")
+    attachment_id = fields.Many2one(
+        "ir.attachment", string="Evidence Attachment", ondelete="set null"
+    )
+    sha256_hash = fields.Char(
+        string="SHA-256 Checksum", compute="_compute_sha256", store=True, readonly=True
+    )
+
+    @api.depends("file_data", "attachment_id", "attachment_id.datas")
+    def _compute_sha256(self):
+        for rec in self:
+            data = None
+            if rec.file_data:
+                try:
+                    data = base64.b64decode(rec.file_data)
+                except Exception:
+                    data = None
+            elif rec.attachment_id and rec.attachment_id.datas:
+                try:
+                    data = base64.b64decode(rec.attachment_id.datas)
+                except Exception:
+                    data = None
+            if data:
+                rec.sha256_hash = hashlib.sha256(data).hexdigest()
+            elif not rec.sha256_hash:
+                rec.sha256_hash = False

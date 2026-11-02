@@ -88,6 +88,41 @@ class FixWorkshopPartLine(models.Model):
         string="Stock Consumption Ref",
         help="Linked M15 consumption transaction reference",
     )
+    source_origin = fields.Selection(
+        [
+            ("central_warehouse", "Central Warehouse (M15)"),
+            ("branch_store", "Branch / Depot Local Store"),
+            ("donor_board_harvest", "Donor Board IC Harvest"),
+            ("oem_consignment", "OEM Warranty Consignment Stock"),
+        ],
+        string="Part Source Origin",
+        default="central_warehouse",
+        required=True,
+    )
+    donor_board_serial = fields.Char(
+        string="Donor Board S/N",
+        help="Required when harvesting an IC/component from a donor board",
+    )
+    circuit_designator = fields.Char(
+        string="Board Schematic Designator",
+        help="e.g. U3100, Q7030, J5800",
+    )
+    reservation_state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("reserved", "Reserved in M15"),
+            ("consumed", "Consumed on Bench"),
+            ("released", "Reservation Released"),
+        ],
+        string="M15 Reservation Status",
+        default="reserved",
+        required=True,
+        tracking=True,
+    )
+    part_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Old vs New Part Verification Photo",
+    )
     notes = fields.Char(string="Fitment Notes")
 
     @api.depends("quantity", "unit_cost")
@@ -99,3 +134,20 @@ class FixWorkshopPartLine(models.Model):
     def _onchange_product_id(self):
         if self.product_id:
             self.unit_cost = self.product_id.standard_price
+
+    def action_consume_part(self):
+        """HS-05: Confirm bench consumption of reserved spare part and stamp M15 ref."""
+        for rec in self:
+            rec.write(
+                {
+                    "reservation_state": "consumed",
+                    "consumption_ref": rec.consumption_ref or f"M15-CONS-{rec.id}",
+                }
+            )
+        return True
+
+    def action_release_reservation(self):
+        """HS-05: Release unconsumed spare part reservation back to M15 inventory."""
+        for rec in self:
+            rec.write({"reservation_state": "released"})
+        return True

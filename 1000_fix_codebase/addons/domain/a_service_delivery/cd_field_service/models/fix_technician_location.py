@@ -72,6 +72,17 @@ class FixTechnicianLocation(models.Model):
         default=False,
         help="Marked true if ping occurred within 30s rate limit window or < 100m distance threshold.",
     )
+    # FLAW-02.2: Anti-Spoofing GNSS & Mock Location Telemetry
+    is_mock_location = fields.Boolean(
+        string="Mock Location Flagged",
+        default=False,
+        help="FLAW-02.2: True if OS mock-location provider or GPS spoofing heuristic detected.",
+    )
+    gnss_hdop = fields.Float(
+        string="GNSS HDOP (Horizontal Dilution of Precision)",
+        default=1.0,
+        help="Horizontal dilution of precision (< 2.0 ideal, > 5.0 degraded/suspect).",
+    )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -86,7 +97,17 @@ class FixTechnicianLocation(models.Model):
         return super().create(vals_list)
 
     @api.model
-    def record_ping(self, technician_id, lat, lon, speed=0.0, accuracy=5.0, battery=100):
+    def record_ping(
+        self,
+        technician_id,
+        lat,
+        lon,
+        speed=0.0,
+        accuracy=5.0,
+        battery=100,
+        is_mock_location=False,
+        gnss_hdop=1.0,
+    ):
         """Record real-time location ping with NFR-056 rate-limiting (30s interval or 100m threshold)."""
         tech = self.env["hr.employee"].browse(technician_id)
         if not tech.exists():
@@ -124,6 +145,8 @@ class FixTechnicianLocation(models.Model):
                 "battery_pct": battery,
                 "timestamp": now,
                 "is_throttled": is_throttled,
+                "is_mock_location": bool(is_mock_location),
+                "gnss_hdop": float(gnss_hdop or 1.0),
             }
         )
 

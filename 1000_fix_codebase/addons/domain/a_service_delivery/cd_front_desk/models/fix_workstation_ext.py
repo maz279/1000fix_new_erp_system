@@ -157,6 +157,21 @@ class FixCounterSale(models.Model):
     sale_date = fields.Datetime(default=fields.Datetime.now, required=True)
     sold_by = fields.Many2one("hr.employee", string="Sold By")
 
+    # --- A02 Enterprise Data Capture (M04 Counter Sale Multi-Tab Specification) ---
+    serial_or_warranty_ref = fields.Char(
+        string="Part Serial / Protection Plan Ref",
+        tracking=True,
+    )
+    mushak_63_ref = fields.Char(
+        string="NBR Mushak-6.3 Tax Challan Ref",
+        tracking=True,
+    )
+    transaction_ref = fields.Char(
+        string="bKash / Nagad / POS TrxID",
+        tracking=True,
+    )
+    notes = fields.Char(string="Counter Sale Notes")
+
     @api.depends("quantity", "unit_price")
     def _compute_total(self):
         for sale in self:

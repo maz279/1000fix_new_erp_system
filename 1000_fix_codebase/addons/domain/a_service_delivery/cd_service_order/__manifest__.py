@@ -26,6 +26,7 @@ unit-testable without a database (AR-007 section 3.1).
         "cd_employee_core",
     ],
     "data": [
+        "data/fix_sla_instance_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",

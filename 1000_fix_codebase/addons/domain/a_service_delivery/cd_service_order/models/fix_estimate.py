@@ -111,6 +111,44 @@ class FixEstimate(models.Model):
     approved_at = fields.Datetime(readonly=True, copy=False)
     expiry_date = fields.Date(string="Estimate Valid Until")
 
+    # --- A02 Enterprise Data Capture & 5-Tier DOFA Discount Governance ---
+    discount_pct = fields.Float(
+        string="Discount (%)",
+        compute="_compute_totals",
+        store=True,
+        help="Discount percentage relative to pre-discount chargeable total.",
+    )
+    dofa_tier_required = fields.Selection(
+        [
+            ("tier_0", "Tier 0 — No Discount (0%)"),
+            ("tier_1", "Tier 1 — Front-Desk / Advisor (Up to 5%)"),
+            ("tier_2", "Tier 2 — Branch Manager (5% to 15%)"),
+            ("tier_3", "Tier 3 — Regional Operations Manager (15% to 30%)"),
+            ("tier_4", "Tier 4 — Head of Service Delivery (30% to 50%)"),
+            ("tier_5", "Tier 5 — COO / Managing Director (> 50% / Full Waiver)"),
+        ],
+        string="DOFA Discount Tier",
+        compute="_compute_totals",
+        store=True,
+        help="5-tier Delegation of Financial Authority required for commercial discount.",
+    )
+    dofa_approved_by = fields.Many2one(
+        "res.users",
+        string="DOFA Discount Approver",
+        copy=False,
+        tracking=True,
+        help="Required when discount_pct > 5.0% (Tier 2+ DOFA governance).",
+    )
+    diagnostic_notes = fields.Text(
+        string="Engineering Quotation Notes & Scope",
+        help="Detailed technical scope, warranty exclusions, and spare part lead-time notes.",
+    )
+    signed_estimate_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Signed Customer Estimate PDF",
+        help="Uploaded customer-signed quotation or corporate PO attachment.",
+    )
+
     # line_type is a dependency: re-typing a line moves it between the totals
     # (it was missing, so a re-typed line kept its old bucket until another change).
     @api.depends("line_ids.line_total", "line_ids.line_type", "discount", "vat_rate")
@@ -122,9 +160,24 @@ class FixEstimate(models.Model):
             est.parts_total = totals["part"]
             est.labour_total = totals["labour"]
             est.diagnostic_total = totals["diagnostic"]
-            subtotal = est._chargeable_total() - est.discount
+            chargeable = est._chargeable_total()
+            subtotal = chargeable - est.discount
             est.vat_amount = subtotal * (est.vat_rate / 100.0)
             est.grand_total = subtotal + est.vat_amount
+            pct = (est.discount / chargeable * 100.0) if chargeable > 0 else 0.0
+            est.discount_pct = round(pct, 2)
+            if pct <= 0.0:
+                est.dofa_tier_required = "tier_0"
+            elif pct <= 5.0:
+                est.dofa_tier_required = "tier_1"
+            elif pct <= 15.0:
+                est.dofa_tier_required = "tier_2"
+            elif pct <= 30.0:
+                est.dofa_tier_required = "tier_3"
+            elif pct <= 50.0:
+                est.dofa_tier_required = "tier_4"
+            else:
+                est.dofa_tier_required = "tier_5"
 
     def _chargeable_total(self) -> float:
         """Parts + labour + diagnostic: the VAT-exclusive amount before discount."""
@@ -205,6 +258,15 @@ class FixEstimate(models.Model):
                     "the manager approves"
                 )
             est.manager_approval_uid = self.env.user
+
+    def action_dofa_approve(self):
+        """Record DOFA commercial discount approval (Tier 2..Tier 5)."""
+        for est in self:
+            est.dofa_approved_by = self.env.user
+            est.message_post(
+                body=f"DOFA discount approval recorded for {est.dofa_tier_required} "
+                f"({est.discount_pct:.1f}% / BDT {est.discount:.2f})."
+            )
 
     def action_reject(self):
         for est in self:
