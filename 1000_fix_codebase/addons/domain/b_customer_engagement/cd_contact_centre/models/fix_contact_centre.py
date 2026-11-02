@@ -3,12 +3,15 @@
 # (ADR-022); this is the CONVERSATION half: unified channels, transcripts,
 # the customer-360 view, and the M32 assistant's transactional intents with
 # clean human handoff (G4-04/G4-05).
+import base64
+import hashlib
+
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from .assistant_engine import ORDER_STATE_TEXT, normalize_text
+from .assistant_engine import ORDER_STATE_TEXT, normalize_text, scrub_pii
 
 # Words that name the KIND of place, not WHICH branch: ignored when matching a
 # branch the customer mentions ("Dhanmondi service centre" -> "dhanmondi").
@@ -97,6 +100,126 @@ class FixConversation(models.Model):
     pii_masked = fields.Boolean(
         string="PII Masked", default=False, help="SC-003: transcript masked for offline mining"
     )
+    # M27 contact-centre operations: queue/agent/disposition/SLA capture.
+    # Without these the queue, service-level and AHT reports have no basis.
+    queue_id = fields.Many2one("fix.cc.queue", string="Queue", index=True)
+    agent_id = fields.Many2one("res.users", string="Handling Agent", index=True)
+    disposition_id = fields.Many2one("fix.cc.disposition", string="Disposition")
+    queued_at = fields.Datetime(help="When the contact entered the queue.")
+    answered_at = fields.Datetime(help="When an agent (or the AI) picked it up.")
+    fcr = fields.Boolean(
+        string="First-Contact Resolved",
+        help="Set by the disposition category when the contact was resolved on this session.",
+    )
+    # BTRC compliance and Voice recording fields (FLAW-27.2)
+    recording_url = fields.Char(string="Voice Recording URL")
+    recording_sha256 = fields.Char(string="Recording SHA-256 Checksum", tracking=True)
+    recording_retention_days = fields.Integer(
+        string="BTRC Retention Days Left", compute="_compute_btrc_retention"
+    )
+    # --- Consent-gated recording (A03 gap-plan P0, W1) ----------------
+    # The estate recorded, hashed and retained calls under BTRC's 180-day
+    # rule but never checked whether it was ALLOWED to record. M33 has held a
+    # PDPO-grade consent register the whole time; nothing joined them, so
+    # every call was recorded without a consent decision. D365 shipped
+    # consent-based recording GA 8 May 2026 -- for 1000FiX this was not a
+    # missing feature but a live compliance exposure, with the parts to close
+    # it already in the estate.
+    recording_consent_state = fields.Selection(
+        [
+            ("not_checked", "Not checked"),
+            ("granted", "Consent on file"),
+            ("notice_announced", "Notice announced on the call"),
+            ("legal_obligation", "Legal obligation (declared)"),
+            ("refused", "Refused - not recorded"),
+        ],
+        string="Recording Consent",
+        default="not_checked",
+        readonly=True,
+        copy=False,
+        tracking=True,
+        help="The basis on which this call was recorded, or the reason it was "
+        "not. 'not_checked' means no recording was attempted.",
+    )
+    recording_consent_id = fields.Many2one(
+        "fix.consent",
+        string="Decisive Recording Consent",
+        readonly=True,
+        copy=False,
+        ondelete="set null",
+    )
+    recording_notice_id = fields.Many2one(
+        "fix.transparency.notice",
+        string="Recording Notice Announced",
+        readonly=True,
+        copy=False,
+        help="The transparency-notice version read to the caller before "
+        "recording began. For an unidentified caller that announcement is the "
+        "only lawful basis available, so it is evidence, not decoration.",
+    )
+    recording_notice_at = fields.Datetime(string="Notice Announced At", readonly=True, copy=False)
+    recording_refusal_reason = fields.Text(
+        string="Recording Refusal Reason",
+        readonly=True,
+        copy=False,
+        help="Why a recording was refused. Kept so that the ABSENCE of a "
+        "recording is itself explained in the record.",
+    )
+    wrapup_notes = fields.Text(string="Wrap-Up Notes", tracking=True)
+    csat_dispatched_at = fields.Datetime(
+        string="CSAT Survey Dispatched At",
+        readonly=True,
+        copy=False,
+        help="REQ-27.5: stamped when the post-call satisfaction survey goes "
+        "out. Set only when a message was actually queued on the delivery "
+        "service, never merely when dispatch was attempted.",
+    )
+    csat_suppressed_reason = fields.Char(
+        string="CSAT Not Sent Because",
+        readonly=True,
+        copy=False,
+        help="Why no satisfaction survey went out: an anonymous caller, or a "
+        "consent refusal. Kept so the absence of a CSAT response is "
+        "explained rather than counted as a non-response.",
+    )
+    urgency_level = fields.Selection(
+        [
+            ("low", "Low"),
+            ("medium", "Medium"),
+            ("high", "High"),
+            ("critical", "Critical / Emergency"),
+        ],
+        default="medium",
+        string="Urgency Level",
+    )
+    field_work_order_ref = fields.Char(
+        string="Dispatched Field Order Ref (M02)",
+        readonly=True,
+        help="Reference to created field work order (fix.field.order or fix.work.order)",
+    )
+
+    @api.depends("channel", "customer_id.name", "contact_identity")
+    def _compute_display_name(self):
+        # No name field: QA, script-adherence and work-item rows rendered
+        # "fix.conversation,12". Channel + who is what a supervisor scans for.
+        channels = dict(self._fields["channel"].selection)
+        for conv in self:
+            who = conv.customer_id.name or conv.contact_identity or "অজ্ঞাত (unidentified)"
+            conv.display_name = "%s #%s · %s" % (
+                channels.get(conv.channel, conv.channel),
+                conv.id,
+                who,
+            )
+
+    @api.depends("started_at")
+    def _compute_btrc_retention(self):
+        now = fields.Datetime.now()
+        for rec in self:
+            if rec.started_at:
+                age_days = (now - rec.started_at).days
+                rec.recording_retention_days = max(0, 180 - age_days)
+            else:
+                rec.recording_retention_days = 180
 
     def action_handoff_to_agent(self, reason: str = ""):
         """T07: the human-handoff path with FULL context transfer — the
@@ -116,8 +239,44 @@ class FixConversation(models.Model):
                 },
             )
 
-    def action_resolve(self, by_ai: bool):
+    def action_resolve(self, by_ai: bool = False):
         for conversation in self:
+            if not by_ai:
+                if not conversation.disposition_id:
+                    raise ValidationError(
+                        "Mandatory wrap-up required: Please select a primary disposition code before resolving the ticket (FLAW-27.1 / REQ-27.1)."
+                    )
+                notes = (conversation.wrapup_notes or "").strip()
+                if not notes:
+                    raise ValidationError(
+                        "Mandatory wrap-up required: Please enter wrap-up notes before resolving the ticket (REQ-27.1)."
+                    )
+                # REQ-27.1 asks for *substantive* notes. The gate used to accept
+                # any non-empty string, so calls closed on "ok" (audit 2026-10-31).
+                if len(notes) < 20:
+                    raise ValidationError(
+                        "Wrap-up too short: REQ-27.1 requires at least 20 characters "
+                        "of substantive summary; %d given." % len(notes)
+                    )
+
+            # REQ-27.2 / BTRC: a voice call closes only with a verified digest
+            # OF THE AUDIO. This used to compute sha256(recording_url) — a
+            # digest of the URL string, which the file behind it can change
+            # freely without breaking (audit 2026-10-31). A digest is now
+            # produced by attach_recording() from the bytes, and resolving
+            # without one is refused rather than papered over.
+            if (
+                conversation.channel == "voice"
+                and conversation.recording_url
+                and (not conversation.recording_sha256 or len(conversation.recording_sha256) != 64)
+            ):
+                raise ValidationError(
+                    "BTRC recording integrity: this call carries a recording "
+                    "URL but no SHA-256 digest of the audio. Attach the "
+                    "recording through attach_recording() so the digest is "
+                    "taken from the file itself (REQ-27.2)."
+                )
+
             conversation.write(
                 {
                     "state": "resolved_ai" if by_ai else "resolved_agent",
@@ -130,7 +289,377 @@ class FixConversation(models.Model):
                 "conversation.resolved",
                 "fix.conversation",
                 conversation.id,
-                {"by_ai": by_ai, "intent": conversation.intent},
+                {
+                    "by_ai": by_ai,
+                    "intent": conversation.intent,
+                    "disposition": conversation.disposition_id.name
+                    if conversation.disposition_id
+                    else None,
+                    "fcr": conversation.fcr,
+                },
+            )
+            conversation._dispatch_csat_survey()
+
+    # --- Consent-gated recording --------------------------------------
+    def action_announce_recording_notice(self, notice=None):
+        """Record that the recording notice was READ TO THE CALLER.
+
+        For an identified party a stored consent record is the basis. On the
+        16743 hotline most callers are not identified when the call connects,
+        and the lawful mechanism there is the announcement at the head of the
+        call -- so this stamps that it happened, against a real transparency
+        notice version. The telephony layer calls it after the prompt plays.
+        It is never inferred: a basis nobody can evidence is not a basis.
+        """
+        self.ensure_one()
+        notice_rec = (
+            notice
+            if hasattr(notice, "id")
+            else (self.env["fix.transparency.notice"].browse(notice) if notice else None)
+        )
+        if not notice_rec or not notice_rec.exists():
+            raise ValidationError(
+                "Announcing a recording notice requires the transparency-notice "
+                "version that was read out. An announcement without a version "
+                "cannot be evidenced (BRU-CPM-08)."
+            )
+        self.write(
+            {
+                "recording_notice_id": notice_rec.id,
+                "recording_notice_at": fields.Datetime.now(),
+            }
+        )
+        return True
+
+    def recording_permitted(self, basis="consent", statutory_reference=""):
+        """May this call be recorded? Ask BEFORE recording, not after.
+
+        The telephony layer should call this at call setup, because the only
+        way to honour a refusal is to never capture the audio.
+        attach_recording() applies the same decision as a backstop for
+        anything that captured first.
+
+        Returns {allowed, state, reason, consent_id}.
+        """
+        self.ensure_one()
+        if basis == "legal_obligation":
+            if not (statutory_reference or "").strip():
+                return {
+                    "allowed": False,
+                    "state": "refused",
+                    "reason": "A legal-obligation basis for recording must cite the "
+                    "instrument that imposes it. An uncited obligation is an "
+                    "assertion, not a basis.",
+                    "consent_id": False,
+                }
+            return {
+                "allowed": True,
+                "state": "legal_obligation",
+                "reason": "Recorded under a declared legal obligation: %s."
+                % statutory_reference.strip(),
+                "consent_id": False,
+            }
+        if self.customer_id:
+            verdict = self.env["fix.consent"].consent_check(
+                self.customer_id, "call_recording", "voice", company=self.company_id
+            )
+            if verdict["allowed"]:
+                return {
+                    "allowed": True,
+                    "state": "granted",
+                    "reason": verdict["reason"],
+                    "consent_id": verdict["consent_id"],
+                }
+            # A withdrawal by an identified party is decisive, and the
+            # head-of-call announcement does not override it.
+            if verdict["decision"] == "withdrawn":
+                return {
+                    "allowed": False,
+                    "state": "refused",
+                    "reason": verdict["reason"],
+                    "consent_id": verdict["consent_id"],
+                }
+        if self.recording_notice_id and self.recording_notice_at:
+            return {
+                "allowed": True,
+                "state": "notice_announced",
+                "reason": "Recording notice version %s was read to the caller at "
+                "%s and the call continued."
+                % (self.recording_notice_id.version, self.recording_notice_at),
+                "consent_id": False,
+            }
+        return {
+            "allowed": False,
+            "state": "refused",
+            "reason": "No consent record for call recording and no recording "
+            "notice was announced on this call. Absence of a basis is a refusal, "
+            "not a permission (PDPO; D365-parity consent-based recording).",
+            "consent_id": False,
+        }
+
+    def attach_recording(
+        self,
+        attachment_id=None,
+        audio_bytes=None,
+        url=None,
+        basis="consent",
+        statutory_reference="",
+    ):
+        """REQ-27.2: register a call recording and digest THE AUDIO.
+
+        BTRC requires tamper-proof retention for 180 days. A digest is only
+        evidence if it is taken over the bytes: the previous implementation
+        hashed the recording URL, which the file behind it can change without
+        breaking (audit 2026-10-31). Pass either a stored ir.attachment or the
+        raw bytes; a bare URL is refused because it cannot be digested.
+
+        Consent gate (A03 gap-plan P0): the recording is STORED only when
+        recording_permitted() allows it. On a refusal this method deliberately
+        does NOT raise -- it stamps the refusal, publishes a compliance event
+        and returns None, so the refusal is persisted and auditable instead of
+        being rolled back along with the exception. A caller that gets None
+        must discard the audio it is holding.
+        """
+        self.ensure_one()
+        # The PAYLOAD is validated first, and the consent gate second. A bare
+        # URL cannot be digested and is a malformed call however the consent
+        # question comes out, so REQ-27.2's refusal must not depend on it;
+        # consent decides whether to STORE, not whether the call was wellformed.
+        payload = audio_bytes
+        if payload is None and attachment_id:
+            attachment = self.env["ir.attachment"].browse(attachment_id).exists()
+            if not attachment:
+                raise ValidationError("Recording attachment %s not found." % attachment_id)
+            payload = base64.b64decode(attachment.datas or b"")
+            url = url or ("/web/content/%d" % attachment.id)
+        if not payload:
+            raise ValidationError(
+                "A call recording must be supplied as bytes or a stored "
+                "attachment so its SHA-256 digest can be taken from the audio "
+                "itself. A URL alone is not tamper evidence (REQ-27.2)."
+            )
+        verdict = self.recording_permitted(basis=basis, statutory_reference=statutory_reference)
+        if not verdict["allowed"]:
+            self.write(
+                {
+                    "recording_consent_state": "refused",
+                    "recording_refusal_reason": verdict["reason"],
+                    "recording_consent_id": verdict["consent_id"] or False,
+                }
+            )
+            publish(
+                self.env,
+                "conversation.recording_refused",
+                "fix.conversation",
+                self.id,
+                {
+                    "channel": self.channel,
+                    "partner_id": self.customer_id.id or None,
+                    "reason": verdict["reason"],
+                    "basis_attempted": basis,
+                },
+            )
+            return None
+        digest = hashlib.sha256(payload).hexdigest()
+        self.write(
+            {
+                "recording_url": url or self.recording_url,
+                "recording_sha256": digest,
+                "recording_consent_state": verdict["state"],
+                "recording_consent_id": verdict["consent_id"] or False,
+                "recording_refusal_reason": False,
+            }
+        )
+        publish(
+            self.env,
+            "conversation.recording_attached",
+            "fix.conversation",
+            self.id,
+            {
+                "sha256": digest,
+                "bytes": len(payload),
+                "retention_days": self.recording_retention_days,
+                "consent_basis": verdict["state"],
+                "consent_id": verdict["consent_id"] or None,
+            },
+        )
+        return digest
+
+    def verify_recording_integrity(self, audio_bytes):
+        """Re-digest supplied audio and report whether it still matches."""
+        self.ensure_one()
+        if not self.recording_sha256:
+            return False
+        return hashlib.sha256(audio_bytes).hexdigest() == self.recording_sha256
+
+    # Conversation channels are not delivery channels: a voice call is
+    # followed up by SMS, and a web-chat session by an in-app push. Kept as
+    # one map so the choice is visible rather than re-derived per caller.
+    _CSAT_DELIVERY_CHANNEL = {
+        "voice": "sms",
+        "whatsapp": "whatsapp",
+        "email": "email",
+        "chat": "push",
+        "in_app": "push",
+    }
+
+    def _csat_target(self):
+        """Where to send the CSAT invitation, or why we cannot.
+
+        Returns (channel, address, reason). An anonymous caller who withheld
+        their number is a real and common case on a hotline, so "nobody to
+        write to" is an ANSWER here rather than an exception: S1 rightly
+        refuses to invent a destination, and a conversation must remain
+        resolvable either way. Refusing to let an agent close a call because
+        the caller cannot be surveyed would be a far worse failure than an
+        unsent survey.
+        """
+        self.ensure_one()
+        channel = self._CSAT_DELIVERY_CHANNEL.get(self.channel, "sms")
+        address = (self.contact_identity or "").strip()
+        if not address and self.customer_id:
+            partner = self.customer_id
+            if channel == "email":
+                address = (partner.email or "").strip()
+            else:
+                address = (getattr(partner, "mobile", False) or partner.phone or "").strip()
+        if not address:
+            return (
+                None,
+                None,
+                (
+                    "No contact identity on the conversation and none on file for "
+                    "the party, so the satisfaction survey cannot be addressed."
+                ),
+            )
+        return channel, address, ""
+
+    def _dispatch_csat_survey(self):
+        """REQ-27.5: a transactional CSAT survey within 5 minutes of the call.
+
+        This used to publish an event and stamp a timestamp, which recorded
+        our INTENTION to ask rather than a message. It now queues a real row
+        on the S1 delivery service, so the estate can answer whether the
+        customer was actually asked, on what channel, under what basis and at
+        what cost.
+
+        csat_dispatched_at is stamped ONLY when a message was queued. Stamping
+        it either way would repeat the exact fault being corrected in M34,
+        where a state meaning "we tried" was read as "we asked" and the CSAT
+        basis counted surveys nobody received.
+
+        Lawful basis is 'contract', declared and recorded: the customer is
+        being asked about a repair they themselves commissioned, which is
+        performance of that engagement rather than marketing. The basis is on
+        every delivery row, so if Legal rules otherwise the affected sends can
+        be found and the one declaration changed.
+        """
+        Delivery = self.env["fix.notif.delivery"]
+        for conversation in self:
+            if conversation.csat_dispatched_at:
+                continue
+            channel, address, reason = conversation._csat_target()
+            if not channel:
+                conversation.csat_suppressed_reason = reason
+                publish(
+                    self.env,
+                    "conversation.csat_survey_withheld",
+                    "fix.conversation",
+                    conversation.id,
+                    {
+                        "partner_id": conversation.customer_id.id or None,
+                        "channel": None,
+                        "reason": reason,
+                    },
+                )
+                continue
+            body = (
+                "1000FiX Services: আপনার সেবা কেমন ছিল? ১-৫ স্কেলে উত্তর দিন। / "
+                "How was your service? Reply 1-5. Hotline 16743"
+            )
+            delivery = Delivery.queue(
+                channel=channel,
+                purpose="service_updates",
+                partner=conversation.customer_id or None,
+                to_address=address,
+                body=body,
+                lawful_basis="contract",
+                source_model="fix.conversation",
+                source_id=conversation.id,
+                dedup_key="csat:conversation:%d" % conversation.id,
+                operating_unit=conversation.operating_unit_id,
+                company=conversation.company_id,
+            )
+            if delivery.state == "suppressed":
+                conversation.csat_suppressed_reason = delivery.consent_reason
+                publish(
+                    self.env,
+                    "conversation.csat_survey_withheld",
+                    "fix.conversation",
+                    conversation.id,
+                    {
+                        "partner_id": conversation.customer_id.id or None,
+                        "channel": channel,
+                        "reason": delivery.consent_reason,
+                        "delivery_id": delivery.id,
+                    },
+                )
+                continue
+            conversation.write(
+                {
+                    "csat_dispatched_at": fields.Datetime.now(),
+                    "csat_suppressed_reason": False,
+                }
+            )
+            publish(
+                self.env,
+                "conversation.csat_survey_dispatched",
+                "fix.conversation",
+                conversation.id,
+                {
+                    "partner_id": conversation.customer_id.id,
+                    "contact_identity": conversation.contact_identity,
+                    "channel": channel,
+                    "scale": "1-5",
+                    "delivery_id": delivery.id,
+                    "delivery_state": delivery.state,
+                },
+            )
+
+    def action_create_field_work_order(self):
+        """HS-03: Hotline 16743 urgent on-site repair dispatch to M02."""
+        for rec in self:
+            if not rec.customer_id:
+                raise ValidationError(
+                    "Cannot create field work order: Customer must be identified."
+                )
+            vals = {
+                "customer_id": rec.customer_id.id,
+                "contact_phone": rec.contact_identity or rec.customer_id.phone or "",
+                "description": rec.wrapup_notes
+                or ("Hotline 16743 Call Dispatch: " + (rec.intent or "Emergency Repair")),
+                "priority": "critical" if rec.urgency_level == "critical" else "high",
+            }
+            fwo_ref = ""
+            if "fix.field.order" in self.env:
+                fwo = self.env["fix.field.order"].create(vals)
+                fwo_ref = getattr(fwo, "name", str(fwo.id))
+                rec.field_work_order_ref = fwo_ref
+            elif "fix.work.order" in self.env:
+                fwo = self.env["fix.work.order"].create(vals)
+                fwo_ref = getattr(fwo, "name", str(fwo.id))
+                rec.field_work_order_ref = fwo_ref
+            publish(
+                self.env,
+                "hotline.emergency_dispatch",
+                "fix.conversation",
+                rec.id,
+                {
+                    "customer_id": rec.customer_id.id,
+                    "phone": rec.contact_identity,
+                    "intent": rec.intent,
+                    "work_order_ref": fwo_ref or rec.field_work_order_ref,
+                },
             )
 
     @api.model
@@ -458,6 +987,13 @@ class FixConversationTurn(models.Model):
     text = fields.Text(required=True)
     lang = fields.Selection([("bn", "বাংলা"), ("en", "English")], default="bn")
     spoken_at = fields.Datetime(default=fields.Datetime.now, readonly=True)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("text"):
+                vals["text"] = scrub_pii(vals["text"])
+        return super().create(vals_list)
 
 
 class FixAssistantIntent(models.Model):

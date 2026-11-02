@@ -1,3 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_campaign,fix.campaign,model_fix_campaign,base.group_user,1,1,1,0
 access_fix_campaign_response,fix.campaign.response,model_fix_campaign_response,base.group_user,1,1,1,0
+access_fix_campaign_journey,fix.campaign.journey,model_fix_campaign_journey,base.group_user,1,1,1,1
+access_fix_campaign_trigger,fix.campaign.trigger,model_fix_campaign_trigger,base.group_user,1,1,1,1
+access_fix_campaign_offer,fix.campaign.offer,model_fix_campaign_offer,base.group_user,1,1,1,1
+access_fix_campaign_creative,fix.campaign.creative,model_fix_campaign_creative,base.group_user,1,1,1,1
+access_fix_campaign_ad,fix.campaign.ad,model_fix_campaign_ad,base.group_user,1,1,1,1
+access_fix_campaign_experiment,fix.campaign.experiment,model_fix_campaign_experiment,base.group_user,1,1,1,1
+access_fix_dnd_registry,fix.dnd.registry,model_fix_dnd_registry,base.group_user,1,0,0,0
+access_fix_dnd_registry_mgr,fix.dnd.registry manager,model_fix_dnd_registry,cd_entity_config.group_dofa_tier_2,1,1,1,1
+access_fix_campaign_journey_step,fix.campaign.journey.step,model_fix_campaign_journey_step,base.group_user,1,1,1,1
+access_fix_campaign_journey_member,fix.campaign.journey.member,model_fix_campaign_journey_member,base.group_user,1,1,1,0
+access_fix_campaign_touch,fix.campaign.touch,model_fix_campaign_touch,base.group_user,1,1,1,0

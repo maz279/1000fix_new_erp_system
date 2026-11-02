@@ -1,7 +1,7 @@
 """Behavioural tests for M34 surveys/complaints and M42 supplier scorecards (live ORM)."""
 
 import pytest
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 @pytest.fixture
@@ -53,9 +53,73 @@ def test_closed_event_triggers_one_survey(env, closed_order, ou):
     survey = surveys.consume_order_closed(event)
     replay = surveys.consume_order_closed({"event_id": "evt-cx-2", "aggregate_id": closed_order.id})
     assert replay == survey  # idempotent on the order
-    assert (survey.state, survey.source_event_id) == ("sent", "evt-cx-1")
+    assert survey.source_event_id == "evt-cx-1"
     assert survey.operating_unit_id == ou
     assert survey.customer_id == closed_order.customer_id
+
+
+def test_an_unreachable_customer_leaves_the_survey_pending(env, closed_order):
+    """'sent' now means a message was queued, not that a row was created.
+
+    This fixture's customer has no phone and no e-mail. Previously the survey
+    was stamped 'sent' anyway, which meant the NPS basis counted surveys
+    nobody was ever asked. It now stays pending WITH A STATED REASON, and the
+    consumer does not raise -- an event consumer that throws on a data gap
+    stops the whole stream, which is worse than one unsent invitation.
+    """
+    survey = env["fix.survey"].consume_order_closed(
+        {"event_id": "evt-cx-addressless", "aggregate_id": closed_order.id}
+    )
+    assert survey.state == "pending"
+    assert not survey.dispatch_delivery_id
+    assert "no phone or e-mail" in (survey.dispatch_suppressed_reason or "").lower()
+
+
+def test_a_contactable_customer_gets_a_real_delivery_row(env, closed_order):
+    """The other half: a reachable customer produces an actual message.
+
+    The delivery row carries the consent decision and the lawful basis, which
+    is what makes 'we asked this customer' an auditable claim rather than a
+    state field.
+    """
+    closed_order.customer_id.write({"phone": "01711000111"})
+    survey = env["fix.survey"].consume_order_closed(
+        {"event_id": "evt-cx-reachable", "aggregate_id": closed_order.id}
+    )
+    assert survey.state == "sent"
+    delivery = survey.dispatch_delivery_id
+    assert delivery, "a sent survey must point at the message that was queued"
+    assert (delivery.channel, delivery.purpose) == ("sms", "service_updates")
+    assert delivery.lawful_basis == "contract"
+    assert delivery.to_address == "01711000111"
+    # The throttle counter is only charged when a send is actually accepted.
+    throttle = env["fix.cx.throttle"].search(
+        [("partner_id", "=", closed_order.customer_id.id), ("channel", "=", "sms")]
+    )
+    assert throttle.sent_this_month == 1
+
+
+def test_the_monthly_cap_withholds_the_second_invitation(env, closed_order, ou):
+    """The enforcement the 2 Nov audit found missing.
+
+    fix.cx.throttle was populated and surfaced, and the dispatch path never
+    read it, so a customer with four repairs in a month got four surveys. The
+    second one is now withheld with the cap named in the reason.
+    """
+    customer = closed_order.customer_id
+    customer.write({"phone": "01711000222"})
+    first = env["fix.survey"].consume_order_closed(
+        {"event_id": "evt-cap-1", "aggregate_id": closed_order.id}
+    )
+    assert first.state == "sent"
+
+    second_order = closed_order.copy({"state": "closed"})
+    second = env["fix.survey"].consume_order_closed(
+        {"event_id": "evt-cap-2", "aggregate_id": second_order.id}
+    )
+    assert second.state == "pending"
+    assert "cap reached" in (second.dispatch_suppressed_reason or "").lower()
+    assert not second.dispatch_delivery_id
 
 
 @pytest.mark.parametrize(
@@ -101,8 +165,20 @@ def test_ncr_is_raised_only_after_investigation(env, ou):
 def test_critical_complaints_close_only_through_capa(env, ou):
     critical = _complaint(env, ou, severity="critical")
     minor = _complaint(env, ou)
+    # FLAW-34.1 gate first: no 5-Why, no closure of a Critical complaint
+    with pytest.raises(ValidationError, match="5-Why Root Cause Analysis"), env.cr.savepoint():
+        critical.action_close("Refunded")
+    critical.root_cause_5why = (
+        "Why1 cable detaching; Why2 strain relief missing; Why3 bench SOP gap; "
+        "Why4 supervision missed it; Why5 SOP never updated after tooling change."
+    )
     with pytest.raises(UserError, match="CAPA verification"), env.cr.savepoint():
         critical.action_close("Refunded")
+    # FLAW-34.2: a concession needs DOFA approval even on a minor complaint
+    minor.concession_amount = 1500.0
+    with pytest.raises(ValidationError, match="DOFA approval"), env.cr.savepoint():
+        minor.action_close("Re-repaired free of charge")
+    minor.concession_amount = 0.0
     minor.action_close("Re-repaired free of charge")
     assert (minor.state, minor.resolution) == ("closed", "Re-repaired free of charge")
     with pytest.raises(UserError, match="already closed"), env.cr.savepoint():

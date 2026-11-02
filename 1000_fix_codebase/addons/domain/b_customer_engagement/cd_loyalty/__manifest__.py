@@ -27,13 +27,15 @@ CD-M10-01 (P05-M08-T01..T03):
         "cd_service_order",
         "cd_event_outbox",
         "cd_campaign",
-        # execute_redemption offsets fix.ar.invoice (M20); declared, not assumed
         "cd_billing_engine",
+        "cd_contact_centre",
     ],
     "data": [
+        "data/fix_loyalty_gap_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        "data/fix_loyalty_cron.xml",
         "views/fix_loyalty_views.xml",
     ],
     "installable": True,

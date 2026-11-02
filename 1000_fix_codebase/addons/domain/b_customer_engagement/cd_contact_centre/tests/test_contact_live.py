@@ -12,7 +12,7 @@ import pytest
 from odoo.addons.cd_contact_centre.controllers import contact_api
 from odoo.addons.cd_contact_centre.controllers.contact_api import ContactApiController
 from odoo.addons.cd_contact_centre.models import assistant_engine
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 ORDER_STATUS_BN = "আমার সার্ভিস অর্ডারের বর্তমান অবস্থা কী?"
 AGENT_REQUEST_EN = "I want to speak with a human agent"
@@ -48,6 +48,22 @@ def _console(env, user):
 def _conv(env, **vals):
     vals.setdefault("operating_unit_id", env["operating.unit"].search([], limit=1).id)
     return env["fix.conversation"].create(vals)
+
+
+def _wrapup_ready(env, conv):
+    """FLAW-27.1 / REQ-27.1: agent resolution demands a disposition code and
+    substantive wrap-up notes before action_resolve accepts the close."""
+    if not conv.disposition_id:
+        conv.disposition_id = env["fix.cc.disposition"].create(
+            {
+                "code": "TESTWRAP",
+                "name": "Test wrap-up",
+                "category": "resolved",
+                "is_resolved": True,
+            }
+        )
+    conv.wrapup_notes = "Verified the repair status with the customer; issue explained in full."
+    return conv
 
 
 def _customer_with_order(env, phone="01811222333"):
@@ -237,6 +253,10 @@ def test_resolution_rate_is_ai_over_ai_plus_handoffs(env):
     c.action_handoff_to_agent(reason="complaint_escalation")
     assert conversations.resolution_rate() == 66.67
     agent_closed = _conv(env)
+    # FLAW-27.1: agent closure is refused without disposition + wrap-up notes
+    with pytest.raises(ValidationError, match="wrap-up"), env.cr.savepoint():
+        agent_closed.action_resolve(by_ai=False)
+    _wrapup_ready(env, agent_closed)
     agent_closed.action_resolve(by_ai=False)
     assert agent_closed.state == "resolved_agent"
     assert conversations.resolution_rate() == 66.67  # an agent close is no AI resolution
@@ -267,8 +287,15 @@ def test_pii_is_masked_before_mining(env):
             "text": "Call +8801712345678 or mail rahim.k@example.com, NID 1234567890",
         }
     )
+    # FLAW-32.2: the create-time scrubber already masked the 13-digit phone
+    # (card-shaped) and the 10-digit NID before persistence
+    stored = conv.turn_ids.text
+    assert "+8801712345678" not in stored and "1234567890" not in stored
+    assert "****-****-****-****" in stored and "NID-***MASKED***" in stored
+    # the mining pass then masks the remaining email PII
     assert conv.mask_pii_for_mining() is True
-    assert conv.turn_ids.text == "Call [PHONE_MASKED] or mail [EMAIL_MASKED], NID [NID_MASKED]"
+    final = conv.turn_ids.text
+    assert "rahim.k@example.com" not in final and "[EMAIL_MASKED]" in final
     assert conv.pii_masked is True
 
 
@@ -449,7 +476,10 @@ def test_telephony_hangup_closes_an_open_call(env, agent):
     with _console(env, agent) as ctrl:
         ctrl.telephony_webhook(**{"from": "01811222444", "session_id": "CA-CC-10"})
         ended = ctrl.telephony_webhook(call_sid="CA-CC-10", event="call.ended")
-    assert ended["conversation"]["state"] == "resolved_agent"
+    # FLAW-27.1: a hangup cannot bypass the mandatory wrap-up gate — the open
+    # agent call stays with the agent (after-call work) until disposition +
+    # wrap-up notes are captured, then resolves as an agent close.
+    assert ended["conversation"]["state"] == "with_agent"
     assert ended["conversation"]["ai_resolved"] is False
 
 

@@ -24,8 +24,10 @@ CD-M27-nn + CD-M32-nn (P07-M05):
     "category": "Customer/Contact Centre",
     "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_party_master"],
     "data": [
+        "data/fix_cc_gap_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/fix_cc_presence_data.xml",
         "views/fix_contact_centre_views.xml",
     ],
     "installable": True,

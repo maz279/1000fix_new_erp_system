@@ -6,6 +6,7 @@ access_fix_loyalty_ledger,fix.loyalty.ledger,model_fix_loyalty_ledger,base.group
 access_fix_loyalty_voucher,fix.loyalty.voucher,model_fix_loyalty_voucher,base.group_user,1,1,1,0
 access_fix_loyalty_campaign_hook,fix.loyalty.campaign.hook,model_fix_loyalty_campaign_hook,base.group_user,1,1,1,0
 access_fix_loyalty_redemption_stub,fix.loyalty.redemption.stub,model_fix_loyalty_redemption_stub,base.group_user,1,1,1,0
+access_fix_loyalty_referral,fix.loyalty.referral.code,model_fix_loyalty_referral_code,base.group_user,1,1,1,0
 access_fix_loyalty_program_admin,fix.loyalty.program.admin,model_fix_loyalty_program,base.group_system,1,1,1,1
 access_fix_loyalty_tier_admin,fix.loyalty.tier.admin,model_fix_loyalty_tier,base.group_system,1,1,1,1
 access_fix_loyalty_account_admin,fix.loyalty.account.admin,model_fix_loyalty_account,base.group_system,1,1,1,1
@@ -13,3 +14,12 @@ access_fix_loyalty_ledger_admin,fix.loyalty.ledger.admin,model_fix_loyalty_ledge
 access_fix_loyalty_voucher_admin,fix.loyalty.voucher.admin,model_fix_loyalty_voucher,base.group_system,1,1,1,1
 access_fix_loyalty_campaign_hook_admin,fix.loyalty.campaign.hook.admin,model_fix_loyalty_campaign_hook,base.group_system,1,1,1,1
 access_fix_loyalty_redemption_stub_admin,fix.loyalty.redemption.stub.admin,model_fix_loyalty_redemption_stub,base.group_system,1,1,1,1
+access_fix_loyalty_point_type,fix.loyalty.point.type,model_fix_loyalty_point_type,base.group_user,1,1,1,1
+access_fix_loyalty_affiliation,fix.loyalty.affiliation,model_fix_loyalty_affiliation,base.group_user,1,1,1,1
+access_fix_loyalty_affiliation_member,fix.loyalty.affiliation.member,model_fix_loyalty_affiliation_member,base.group_user,1,1,1,1
+access_fix_loyalty_scheme,fix.loyalty.scheme,model_fix_loyalty_scheme,base.group_user,1,1,1,0
+access_fix_loyalty_scheme_mgr,fix.loyalty.scheme manager,model_fix_loyalty_scheme,cd_entity_config.group_dofa_tier_3,1,1,1,1
+access_fix_loyalty_earn_rule,fix.loyalty.earn.rule,model_fix_loyalty_earn_rule,base.group_user,1,1,1,1
+access_fix_loyalty_burn_rule,fix.loyalty.burn.rule,model_fix_loyalty_burn_rule,base.group_user,1,1,1,1
+access_fix_loyalty_card,fix.loyalty.card,model_fix_loyalty_card,base.group_user,1,1,1,0
+access_fix_loyalty_card_mgr,fix.loyalty.card manager,model_fix_loyalty_card,cd_entity_config.group_dofa_tier_2,1,1,1,1

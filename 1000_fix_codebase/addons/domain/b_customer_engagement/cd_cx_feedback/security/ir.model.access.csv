@@ -2,3 +2,9 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_survey,fix.survey,model_fix_survey,base.group_user,1,1,1,0
 access_fix_complaint,fix.complaint,model_fix_complaint,base.group_user,1,1,1,0
 access_fix_supplier_scorecard,fix.supplier.scorecard,model_fix_supplier_scorecard,base.group_user,1,1,1,0
+access_fix_cx_followup,fix.cx.followup,model_fix_cx_followup,base.group_user,1,1,1,1
+access_fix_cx_throttle,fix.cx.throttle,model_fix_cx_throttle,base.group_user,1,1,1,1
+access_fix_cx_review,fix.cx.review,model_fix_cx_review,base.group_user,1,1,1,1
+access_fix_survey_template,fix.survey.template,model_fix_survey_template,base.group_user,1,1,1,1
+access_fix_survey_question,fix.survey.question,model_fix_survey_question,base.group_user,1,1,1,1
+access_fix_survey_answer,fix.survey.answer,model_fix_survey_answer,base.group_user,1,1,1,0

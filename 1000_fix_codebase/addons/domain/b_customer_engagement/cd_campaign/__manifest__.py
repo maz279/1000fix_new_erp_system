@@ -18,8 +18,17 @@ CD-M35-01 (P08-M04-T08) — 02-02 Category B W5 places M35 here (02-02
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Marketing",
-    "depends": ["base", "mail", "cd_entity_config", "cd_party_master", "cd_event_outbox"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_party_master",
+        "cd_event_outbox",
+        "cd_contact_centre",
+    ],
     "data": [
+        "data/fix_journey_cron.xml",
+        "data/fix_campaign_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_campaign_views.xml",

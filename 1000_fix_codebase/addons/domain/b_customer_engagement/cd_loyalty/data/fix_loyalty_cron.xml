@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_loyalty — M10 scheduled jobs (REQ-10.2).
+
+     The A03 zero-trust audit (2026-10-31) found cron_expire_points written and
+     working but never registered: nothing called it, so every accrued point
+     lived forever and the IFRS 15 deferred-revenue liability grew without
+     bound. These records are what make the 365-day life real. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="ir_cron_loyalty_expire_points" model="ir.cron">
+            <field name="name">Loyalty: FIFO expiry of points past their 365-day life</field>
+            <field name="model_id" ref="model_fix_loyalty_ledger"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_points()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="ir_cron_loyalty_warn_expiring" model="ir.cron">
+            <field name="name">Loyalty: notify members 30 and 7 days before points lapse</field>
+            <field name="model_id" ref="model_fix_loyalty_ledger"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_warn_expiring_points()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+    </data>
+</odoo>

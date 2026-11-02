@@ -19,6 +19,21 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_cx_followup_company" model="ir.rule">
+        <field name="name">fix.cx.followup: allowed companies</field>
+        <field name="model_id" ref="model_fix_cx_followup"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cx_review_company" model="ir.rule">
+        <field name="name">fix.cx.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_cx_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cx_throttle_company" model="ir.rule">
+        <field name="name">fix.cx.throttle: allowed companies</field>
+        <field name="model_id" ref="model_fix_cx_throttle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_supplier_scorecard_company" model="ir.rule">
         <field name="name">fix.supplier.scorecard: allowed companies</field>
         <field name="model_id" ref="model_fix_supplier_scorecard"/>
@@ -40,5 +55,10 @@
         <field name="model_id" ref="model_fix_survey"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_survey_template_company" model="ir.rule">
+        <field name="name">fix.survey.template: allowed companies</field>
+        <field name="model_id" ref="model_fix_survey_template"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

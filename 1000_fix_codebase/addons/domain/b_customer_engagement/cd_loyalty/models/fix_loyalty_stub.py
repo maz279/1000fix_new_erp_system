@@ -96,6 +96,22 @@ class FixLoyaltyRedemptionStub(models.Model):
             }
 
         discount_bdt = points_to_redeem * program.bdt_per_point
+
+        # REQ-10.5: a points discount never exceeds 20% of the net labour
+        # charges on the order, so a redemption cannot drive the repair's gross
+        # margin negative. Parts and diagnostic fees are outside the cap.
+        cap = self._labour_discount_cap(order_id)
+        if cap is not None and discount_bdt > cap:
+            return {
+                "eligible": False,
+                "reason": (
+                    "Redemption capped: BDT %.2f exceeds 20%% of net labour "
+                    "charges (BDT %.2f) on this order (REQ-10.5)." % (discount_bdt, cap)
+                ),
+                "discount_bdt": 0.0,
+                "max_discount_bdt": round(cap, 2),
+            }
+
         # An eligibility check is NOT a redemption: nothing is deducted or
         # applied until execute_redemption offsets a real draft invoice.
         return {
@@ -109,7 +125,22 @@ class FixLoyaltyRedemptionStub(models.Model):
             "tier": account.tier_id.name if account.tier_id else "Standard",
         }
 
+    # REQ-10.5: the ceiling a points discount may reach on one repair order.
+    _LABOUR_DISCOUNT_CAP_PCT = 0.20
+
     @api.model
+    def _labour_discount_cap(self, order_id):
+        """20% of net labour on the order's latest estimate, or None when the
+        order carries no estimate to measure labour against."""
+        if not order_id:
+            return None
+        estimate = self.env["fix.estimate"].search(
+            [("order_id", "=", order_id)], order="version desc, id desc", limit=1
+        )
+        if not estimate or estimate.labour_total <= 0:
+            return None
+        return estimate.labour_total * self._LABOUR_DISCOUNT_CAP_PCT
+
     def _redeemable_invoice(self, partner_id, invoice_id, discount_bdt):
         """The M20 invoice the points offset: it must exist, belong to the
         redeeming customer, still be a DRAFT (an issued invoice already has

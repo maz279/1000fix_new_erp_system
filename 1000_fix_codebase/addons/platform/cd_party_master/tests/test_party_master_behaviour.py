@@ -227,23 +227,48 @@ def test_party_cannot_relate_to_itself(odoo_env):
     assert spouse.hierarchy_parent_ids == link
 
 
-def test_granted_consent_needs_proof(odoo_env):
+def test_granted_consent_needs_proof_and_notice(odoo_env):
     partner = _partner(odoo_env)
     Consent = odoo_env["fix.consent"]
     with _rejects(odoo_env, ValidationError, match="needs its proof reference"):
         Consent.create({"partner_id": partner.id, "channel": "sms"})
     withdrawn = Consent.create({"partner_id": partner.id, "channel": "email", "state": "withdrawn"})
     assert not withdrawn.proof
+    # BRU-CPM-08: a grant with proof but no notice version is not valid consent
+    with _rejects(odoo_env, ValidationError, match="BRU-CPM-08"):
+        Consent.create({"partner_id": partner.id, "channel": "sms", "proof": "OTP-1"})
 
 
-def test_withdrawal_keeps_an_auditable_record(odoo_env):
-    consent = odoo_env["fix.consent"].create(
-        {"partner_id": _partner(odoo_env).id, "channel": "marketing", "proof": "OTP-123"}
+def test_withdrawal_is_append_only_and_keeps_the_grant(odoo_env):
+    """T-09: a withdrawal is a NEW record — the granted row is never
+    rewritten to look withdrawn (it is marked superseded by link)."""
+    partner = _partner(odoo_env)
+    notice = odoo_env["fix.transparency.notice"].create(
+        {"version": "1.0", "text_en": "Notice EN", "text_bn": "বিজ্ঞপ্তি"}
     )
-    assert consent.action_withdraw() is True
-    assert consent.exists()
-    assert consent.state == "withdrawn"
-    assert consent.date_withdrawn
+    Consent = odoo_env["fix.consent"]
+    grant = Consent.create(
+        {
+            "partner_id": partner.id,
+            "purpose": "marketing",
+            "channel": "marketing",
+            "proof": "OTP-123",
+            "notice_version_id": notice.id,
+        }
+    )
+    assert grant.action_withdraw() is True
+
+    grant.invalidate_recordset()
+    assert grant.state == "superseded"
+    assert grant.proof == "OTP-123"  # the grant keeps its captured state
+    assert grant.date_granted  # never rewritten
+
+    withdrawal = Consent.search([("supersedes_id", "=", grant.id)])
+    assert len(withdrawal) == 1
+    assert withdrawal.state == "withdrawn"
+    assert withdrawal.purpose == grant.purpose
+    assert withdrawal.date_withdrawn
+    assert grant.superseded_by_id.id == withdrawal.id
 
 
 def test_notification_language_defaults_to_bengali(odoo_env):

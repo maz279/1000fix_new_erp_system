@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M07 scheduled jobs: the cadence runtime, its first-touch promise, and lead scoring.
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_sequence_advance" model="ir.cron">
+            <field name="name">M07 S10: advance due cadence enrolments</field>
+            <field name="model_id" ref="model_fix_crm_sequence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_advance_sequences()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_sequence_first_touch" model="ir.cron">
+            <field name="name">M07: publish first-touch SLA breaches</field>
+            <field name="model_id" ref="model_fix_crm_sequence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_flag_first_touch_breaches()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_lead_rescore" model="ir.cron">
+            <field name="name">M07: re-score the open pipeline (a stale score misleads)</field>
+            <field name="model_id" ref="model_crm_lead"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rescore_open_leads()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

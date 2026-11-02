@@ -1,0 +1,475 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_crm_ext — M07 rebuild views (2026-10-27; forms completed same day per
+  the user's D365-convention directive).
+
+  D365 SCREEN CONVENTION: the user-facing grids are the in-workspace screens
+  (cd_p03_portal static/src/a03/m07.js). The record forms below are the
+  COMPLETE D365-convention data-entry surfaces for the workspace's create and
+  form chips — status headers, workflow buttons, every business field.
+-->
+<odoo>
+
+    <record id="view_crm_lead_form_m07_fields" model="ir.ui.view">
+        <field name="name">crm.lead.form.m07.pipeline</field>
+        <field name="model">crm.lead</field>
+        <field name="inherit_id" ref="crm.crm_lead_view_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//group[1]" position="inside">
+                <group string="Pipeline (M07)">
+                    <field name="pipeline_id"/>
+                    <field name="forecast_category"/>
+                    <field name="is_cross_sell"/>
+                </group>
+                <group string="Win / Loss (M07)">
+                    <field name="competitor"/>
+                    <field name="price_position"/>
+                    <field name="lost_reason_code"/>
+                    <field name="criteria_confirmed"/>
+                </group>
+            </xpath>
+        </field>
+    </record>
+
+    <!-- ================= Pipelines ================= -->
+    <record id="view_fix_pipeline_tree" model="ir.ui.view">
+        <field name="name">fix.pipeline.tree</field>
+        <field name="model">fix.pipeline</field>
+        <field name="arch" type="xml">
+            <list string="Pipelines">
+                <field name="code"/>
+                <field name="name"/>
+                <field name="revenue_stream" widget="badge"/>
+                <field name="default_probability"/>
+                <field name="active" widget="boolean_toggle"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_pipeline_form" model="ir.ui.view">
+        <field name="name">fix.pipeline.form</field>
+        <field name="model">fix.pipeline</field>
+        <field name="arch" type="xml">
+            <form string="Sales Pipeline">
+                <sheet>
+                    <div class="oe_title">
+                        <label for="code"/>
+                        <h1><field name="code" placeholder="MSP"/></h1>
+                    </div>
+                    <group>
+                        <group string="Identity">
+                            <field name="name"/>
+                            <field name="revenue_stream"/>
+                            <field name="default_probability"/>
+                        </group>
+                        <group string="Lifecycle">
+                            <field name="active"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="Stage model (configuration, T-02)">
+                        <field name="stages_json" nolabel="1"
+                               placeholder='JSON list: [{"stage": "Proposal", "criteria": "quotation requested (M36)", "requires_confirmation": true, "probability": 40}] — the stage names must match the crm.stage names this pipeline uses; gated stages refuse advancement without confirmed criteria (BRU-CRM-03).'/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_pipeline" model="ir.actions.act_window">
+        <field name="name">Pipelines</field>
+        <field name="res_model">fix.pipeline</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Account Assignments ================= -->
+    <record id="view_fix_account_assignment_tree" model="ir.ui.view">
+        <field name="name">fix.account.assignment.tree</field>
+        <field name="model">fix.account.assignment</field>
+        <field name="arch" type="xml">
+            <list string="Account Assignments" decoration-muted="effective_to != False">
+                <field name="partner_id"/>
+                <field name="owner_id"/>
+                <field name="assignment_type" widget="badge"
+                       decoration-success="assignment_type == 'dedicated'"/>
+                <field name="effective_from"/>
+                <field name="effective_to" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_account_assignment_form" model="ir.ui.view">
+        <field name="name">fix.account.assignment.form</field>
+        <field name="model">fix.account.assignment</field>
+        <field name="arch" type="xml">
+            <form string="Account Assignment">
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The account (BRU-CRM-08: every corporate/dealer/government account has a named owner)"/></h2>
+                    </div>
+                    <group>
+                        <group string="Ownership">
+                            <field name="owner_id"/>
+                            <field name="assignment_type"/>
+                            <field name="dedicated" readonly="1"/>
+                        </group>
+                        <group string="Validity">
+                            <field name="effective_from"/>
+                            <field name="effective_to" placeholder="Empty = current owner"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_account_assignment" model="ir.actions.act_window">
+        <field name="name">Account Assignments</field>
+        <field name="res_model">fix.account.assignment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Account Plans ================= -->
+    <record id="view_fix_account_plan_tree" model="ir.ui.view">
+        <field name="name">fix.account.plan.tree</field>
+        <field name="model">fix.account.plan</field>
+        <field name="arch" type="xml">
+            <list string="Account Plans">
+                <field name="partner_id"/>
+                <field name="period"/>
+                <field name="reviewed_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_account_plan_form" model="ir.ui.view">
+        <field name="name">fix.account.plan.form</field>
+        <field name="model">fix.account.plan</field>
+        <field name="arch" type="xml">
+            <form string="Account Plan">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_mark_reviewed" type="object" class="oe_stat_button"
+                                icon="fa-check" string="Mark Reviewed"/>
+                    </div>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The account"/></h2>
+                    </div>
+                    <group>
+                        <group string="Plan">
+                            <field name="period" placeholder="2026 or 2026-Q4"/>
+                            <field name="reviewed_at" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Objectives" name="objectives">
+                            <field name="objectives" nolabel="1" placeholder="What this account must achieve this period"/>
+                        </page>
+                        <page string="Whitespace" name="whitespace">
+                            <field name="whitespace_json" nolabel="1" placeholder="Products/services the account does not buy but is a candidate for (peer comparison arrives with M17/M25 data)"/>
+                        </page>
+                        <page string="Risks" name="risks">
+                            <field name="risks" nolabel="1"/>
+                        </page>
+                        <page string="Planned Actions" name="actions">
+                            <field name="actions" nolabel="1"/>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_account_plan" model="ir.actions.act_window">
+        <field name="name">Account Plans</field>
+        <field name="res_model">fix.account.plan</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= QBR ================= -->
+    <record id="view_fix_qbr_tree" model="ir.ui.view">
+        <field name="name">fix.qbr.tree</field>
+        <field name="model">fix.qbr</field>
+        <field name="arch" type="xml">
+            <list string="Quarterly Business Reviews">
+                <field name="scheduled_for"/>
+                <field name="partner_id"/>
+                <field name="period"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'held'"
+                       decoration-info="state == 'data_ready'"/>
+                <field name="open_action_count"/>
+                <field name="held_on" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_qbr_form" model="ir.ui.view">
+        <field name="name">fix.qbr.form</field>
+        <field name="model">fix.qbr</field>
+        <field name="arch" type="xml">
+            <form string="Quarterly Business Review">
+                <header>
+                    <button name="action_mark_data_ready" type="object" string="Mark Data Pack Ready"
+                            invisible="state != 'scheduled'"/>
+                    <button name="action_mark_held" type="object" string="Mark Held"
+                            class="btn-primary" invisible="state in ('held', 'cancelled')"/>
+                    <field name="state" widget="statusbar"
+                           statusbar_visible="scheduled,data_ready,held"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The account"/></h2>
+                    </div>
+                    <group>
+                        <group string="Review">
+                            <field name="period" placeholder="2026-Q4"/>
+                            <field name="scheduled_for"/>
+                            <field name="held_on" readonly="1"/>
+                        </group>
+                        <group string="Pack &amp; record">
+                            <field name="open_action_count" readonly="1"/>
+                            <field name="document_ref"
+                                   placeholder="Generated bilingual pack (W4 seam: assembly from M05/M34 data)"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Agreed Actions" name="actions">
+                            <field name="action_ids">
+                                <list editable="bottom">
+                                    <field name="description"/>
+                                    <field name="owner_internal"/>
+                                    <field name="owner_party"/>
+                                    <field name="due_date"/>
+                                    <field name="state" widget="badge"
+                                           decoration-success="state == 'done'"
+                                           decoration-danger="overdue"/>
+                                    <field name="overdue" optional="hide"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Meeting Record" name="meeting">
+                            <group string="Attendees">
+                                <field name="attendees" nolabel="1"/>
+                            </group>
+                            <group string="Discussion &amp; decisions">
+                                <field name="decisions" nolabel="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_fix_qbr_action_form" model="ir.ui.view">
+        <field name="name">fix.qbr.action.form</field>
+        <field name="model">fix.qbr.action</field>
+        <field name="arch" type="xml">
+            <form string="QBR Action">
+                <header>
+                    <button name="action_close" type="object" string="Mark Done"
+                            class="btn-primary" invisible="state != 'open'"/>
+                    <button name="action_cancel" type="object" string="Cancel"
+                            invisible="state != 'open'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,done"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h2><field name="description" placeholder="The agreed action"/></h2></div>
+                    <group>
+                        <group string="Ownership">
+                            <field name="qbr_id"/>
+                            <field name="owner_internal"/>
+                            <field name="owner_party" placeholder="Client-side owner"/>
+                        </group>
+                        <group string="Tracking">
+                            <field name="due_date"/>
+                            <field name="overdue" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_qbr" model="ir.actions.act_window">
+        <field name="name">Quarterly Business Reviews</field>
+        <field name="res_model">fix.qbr</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Renewal Pipeline ================= -->
+    <record id="view_fix_renewal_tree" model="ir.ui.view">
+        <field name="name">fix.renewal.tree</field>
+        <field name="model">fix.renewal</field>
+        <field name="arch" type="xml">
+            <list string="Renewal Pipeline">
+                <field name="expiry_date"/>
+                <field name="partner_id"/>
+                <field name="source_type" widget="badge"/>
+                <field name="value" sum="Total"/>
+                <field name="risk_band" widget="badge"
+                       decoration-success="risk_band == 'low'"
+                       decoration-warning="risk_band == 'medium'"
+                       decoration-danger="risk_band == 'high'"/>
+                <field name="play" optional="show"/>
+                <field name="state" widget="badge"
+                       decoration-success="state == 'renewed'"
+                       decoration-danger="state == 'lapsed'"/>
+                <field name="owner_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_renewal_form" model="ir.ui.view">
+        <field name="name">fix.renewal.form</field>
+        <field name="model">fix.renewal</field>
+        <field name="arch" type="xml">
+            <form string="Renewal Pursuit">
+                <header>
+                    <button name="action_win" type="object" string="Mark Renewed"
+                            class="btn-primary" invisible="state != 'open'"/>
+                    <button name="action_lapse" type="object" string="Lapse → Win-Back"
+                            invisible="state != 'open'"
+                            confirm="Lapse this renewal? A win-back opportunity is created automatically (FR-CRM-043)."/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,renewed,lapsed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The account"/></h2>
+                    </div>
+                    <group>
+                        <group string="What renews">
+                            <field name="source_type"/>
+                            <field name="source_ref"/>
+                            <field name="value"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="expiry_date"/>
+                            <field name="lead_time_days" readonly="1"/>
+                        </group>
+                        <group string="Pursuit">
+                            <field name="risk_band"/>
+                            <field name="play"/>
+                            <field name="owner_id"/>
+                            <field name="auto_created" readonly="1"/>
+                            <field name="company_id" groups="base.group_multi_company"/>
+                        </group>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            An auto-created renewal may be closed but never deleted (BRU-CRM-12).
+                            Risk scoring sources (utilisation, satisfaction, SLA) arrive with
+                            M34/M05 data.
+                        </div>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_renewal" model="ir.actions.act_window">
+        <field name="name">Renewal Pipeline</field>
+        <field name="res_model">fix.renewal</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ================= Forecast Snapshots ================= -->
+    <record id="view_fix_forecast_snapshot_tree" model="ir.ui.view">
+        <field name="name">fix.forecast.snapshot.tree</field>
+        <field name="model">fix.forecast.snapshot</field>
+        <field name="arch" type="xml">
+            <list string="Forecast Snapshots" edit="false" create="false">
+                <field name="period"/>
+                <field name="owner_id"/>
+                <field name="pipeline_id"/>
+                <field name="commit_value" sum="Commit"/>
+                <field name="best_case_value" sum="Best Case"/>
+                <field name="pipeline_value" sum="Pipeline"/>
+                <field name="manager_adjustment" sum="Adjustment"/>
+                <field name="taken_at"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_forecast_snapshot_form" model="ir.ui.view">
+        <field name="name">fix.forecast.snapshot.form</field>
+        <field name="model">fix.forecast.snapshot</field>
+        <field name="arch" type="xml">
+            <form string="Forecast Snapshot" edit="false" create="false">
+                <sheet>
+                    <div class="oe_title"><h2>Forecast Snapshot — immutable once taken (BRU-CRM-06)</h2></div>
+                    <group>
+                        <group string="Period &amp; scope">
+                            <field name="period" readonly="1"/>
+                            <field name="owner_id" readonly="1"/>
+                            <field name="pipeline_id" readonly="1"/>
+                            <field name="taken_at" readonly="1"/>
+                        </group>
+                        <group string="Raw roll-up (locked)">
+                            <field name="commit_value" readonly="1"/>
+                            <field name="best_case_value" readonly="1"/>
+                            <field name="pipeline_value" readonly="1"/>
+                            <field name="currency_id" invisible="1"/>
+                        </group>
+                    </group>
+                    <separator string="Manager adjustment (separate &amp; attributable, BRU-CRM-07)"/>
+                    <group>
+                        <group>
+                            <field name="manager_adjustment"/>
+                            <field name="adjustment_reason"/>
+                        </group>
+                        <group>
+                            <field name="adjusted_by" readonly="1"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_forecast_snapshot" model="ir.actions.act_window">
+        <field name="name">Forecast Snapshots</field>
+        <field name="res_model">fix.forecast.snapshot</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+</odoo>

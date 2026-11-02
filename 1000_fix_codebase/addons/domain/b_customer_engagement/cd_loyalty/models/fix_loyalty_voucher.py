@@ -34,6 +34,10 @@ class FixLoyaltyVoucher(models.Model):
         index=True,
         default=lambda self: f"VCH-{secrets.token_hex(4).upper()}",
     )
+    name_bn = fields.Char(
+        string="Voucher Name (Bengali)",
+        help="DE-17: what the customer is shown when they are offered or redeem this voucher.",
+    )
     account_id = fields.Many2one(
         "fix.loyalty.account",
         string="Loyalty Account",
@@ -145,14 +149,20 @@ class FixLoyaltyVoucher(models.Model):
             rec.state = "active"
 
     def action_redeem(self, service_order):
-        """Redeem voucher against a service order with strict validity checks."""
+        """Redeem voucher against a service order with strict validity checks and row locking (FLAW-10.1 / HS-06)."""
         self.ensure_one()
-        if self.state != "active":
-            raise UserError(f"Voucher {self.name} cannot be redeemed: status is '{self.state}'.")
+        # FLAW-10.1: Pessimistic row locking to eliminate concurrent double-spending race conditions
+        self.env.cr.execute(
+            "SELECT state FROM fix_loyalty_voucher WHERE id = %s FOR UPDATE", (self.id,)
+        )
+        locked_state = self.env.cr.fetchone()
+        current_state = locked_state[0] if locked_state else self.state
+        if current_state != "active":
+            raise UserError(
+                f"Voucher {self.name} cannot be redeemed: status is '{current_state}' (FLAW-10.1)."
+            )
         today = fields.Date.today()
         if today < self.valid_from or today > self.valid_until:
-            # only a voucher PAST its window is expired; a not-yet-valid one stays
-            # usable (it used to be marked expired by an early redemption attempt)
             if today > self.valid_until:
                 self.state = "expired"
             raise UserError(

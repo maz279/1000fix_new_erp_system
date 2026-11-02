@@ -7,7 +7,7 @@
     "name": "1000FiX Party Master",
     "summary": "The party kernel: multi-role res.partner, identity documents via residency, consent registry, dedup engine",
     "description": """
-CD-M33-nn: the party kernel (M33).
+CD-M33-01: the party kernel (M33).
 
 THE design rule (TSS section 3.2): one res.partner holds multiple
 fix.party.role records. A party that is a customer AND a vendor AND a
@@ -20,17 +20,33 @@ Owns:
 - fix.party.classification (customer classification)
 - fix.consent (PDPA consent capture, withdrawal, transparency)
 - fix.dedup.rule (golden-record dedup, consuming M64-core governance)
+
+M33 rebuild (2026-10-27) adds the registry-screen surfaces:
+- fix.transparency.notice (BRU-CPM-08: consent is invalid without a notice version)
+- fix.otp.log (contact verification events)
+- fix.registration.approval (two-tier chain, BRU-CPM-02)
+- fix.party.duplicate + fix.party.merge (supervised merge, reversible, SOD-15)
+- fix.party.quality (deterministic scoring, KPI-120)
+- fix.rights.request (PDPA data-subject rights, 30-day clock)
+- fix.segment / fix.segment.membership (definitions + governed membership)
+- res.partner party_status lifecycle (BRU-CPM-13 hard exits)
+
+Credit profile: the model of record is cd_billing_engine's fix.credit.profile
+(M20, FR-ARB-030/031) — M33 surfaces it (spec §3.3: M33 holds the value,
+M20 enforces at order time); this module adds no competing model.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Party",
     "depends": ["base", "mail", "cd_entity_config", "cd_rbac_ext", "cd_event_outbox"],
     "data": [
+        "data/fix_dedup_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_party_views.xml",
         "views/fix_party_workspace_views.xml",
+        "views/fix_party_surfaces_views.xml",
     ],
     "installable": True,
     "application": False,

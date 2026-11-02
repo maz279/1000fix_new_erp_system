@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M34 scheduled jobs: re-offer invitations a monthly cap withheld.
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_survey_retry_withheld" model="ir.cron">
+            <field name="name">M34: re-offer invitations withheld by the monthly cap</field>
+            <field name="model_id" ref="model_fix_survey"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_retry_withheld_invitations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

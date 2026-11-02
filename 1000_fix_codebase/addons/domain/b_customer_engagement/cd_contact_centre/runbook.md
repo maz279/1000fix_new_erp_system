@@ -149,3 +149,95 @@ py -3.12 -m pytest addons/domain/b_customer_engagement/cd_contact_centre -q -o '
 ---
 
 *Last Updated: 2026-10-20 · Approved by: 1000FiX Architecture Review Board (ARB)*
+
+---
+
+## Deploying the A03 gap-closure build (2 November 2026)
+
+The build is verified on the test database (`fix_test`). Run at the
+repository's configured `testpaths`, the suite is 5,686 tests: **5,593 passed,
+9 failed, 7 skipped** — all 9 failures outside A03 (`cd_tradein` fixtures
+missing `customer_nid`, one `cd_rental_asset` source-text assertion, one
+network abort, two tests needing live Kafka brokers). A03's own modules show
+0 failures. An earlier note here said *1,506 passing, 0 failed*; that was a
+narrower target than the configured paths and is superseded. Also:
+all 53 new workspace screens rendered in a browser, every repo checker green.
+It has **not** been installed on `fix_dev` or any other environment.
+
+### Modules to upgrade, in one pass
+
+Odoo resolves dependents itself, but naming them all keeps the operation one
+registry load instead of several:
+
+```bash
+PYTHONPATH="$PWD" .venv/Scripts/python.exe vendor/odoo/odoo-bin \
+  -c infra/odoo-conf/local.resolved.conf -d <database> \
+  -u cd_entity_config,cd_party_master,cd_service_order,cd_contract_core,\
+cd_contact_centre,cd_campaign,cd_crm_ext,cd_cx_feedback,cd_loyalty,\
+cd_ml_services,cd_p03_portal \
+  --stop-after-init
+```
+
+`PYTHONPATH` is **required**: without the repo root on the path `libs.py`
+does not import and the upgrade dies in `cd_gl_ext`.
+
+### A restart is required, and this is the part that is easy to get wrong
+
+**Restart the web process after the upgrade. Nothing new is visible until you
+do — not the screens, and not the models either.**
+
+An earlier draft of this runbook said only controller changes need a restart,
+on the theory that models and data reach a running server through registry
+signalling. **That was measured on 2 November 2026 and it is false in this
+deployment.** After an upgrade that exited 0 and wrote everything to the
+database, the live server on 8069 was queried over XML-RPC and reported
+`Object fix.cc.presence.status doesn't exist` — along with `fix.notif.delivery`,
+`fix.dofa.ladder` and `fix.loyalty.scheme`. It still reported the same several
+minutes and many requests later, so this is not a signalling lag. The same
+server saw 8 A03 `ir.cron` records while the database held 27 rows.
+
+So there are two independent staleness traps, and the restart is the only cure
+for either:
+
+| What | Why it goes stale | Symptom without a restart |
+|---|---|---|
+| Models, fields, module data | The worker holds the registry it built at boot; signalling did not re-trigger it here | `Object <model> doesn't exist`, stale `ir.cron` counts |
+| Controller surfaces | `SURFACES` is a module-level dict read once at import | The 53 new screens return *"Model not served by the workspace screens"* |
+
+Both pass every static test, because the tests build their own registry and
+never ask the running process anything. **Verify against the database or a
+restarted server — never against the process that was up during the upgrade**,
+or you will measure the old build and call it the new one.
+
+### Post-deployment verification
+
+1. **Scheduled jobs.** 19 new `ir.cron` records ship with this build. Confirm
+   they are present and active — a cron method with no record never runs and
+   passes every unit test, because a test calls the method directly:
+   ```
+   M30 → Platform Administration → Scheduled Jobs
+   ```
+2. **Presence vocabulary.** `fix.cc.presence.status` must hold at least one
+   available-class status and exactly one system Busy-DND, or unified routing
+   has nothing to route to. Five ship as module data.
+3. **Screens.** Open one list and one multi-tab form per module. A form
+   section whose tab id is not declared renders as an invisible panel with no
+   error, so check the tabs are all present rather than that the page loads.
+4. **Gateways stay unconfigured until contracted.** With
+   `FIX_SMS_GATEWAY_URL` / `FIX_WHATSAPP_API_URL` / `FIX_EMAIL_API_URL` /
+   `FIX_NOVU_API_URL` unset, S1 records every send as `dry_run` with its
+   reason and transmits nothing. That is the intended state, not a fault.
+5. **Model runtime.** `FIX_OLLAMA_URL` / `FIX_OLLAMA_MODEL` unset means S7
+   answers from the rule-based grounders and says so. The endpoint is
+   SSRF-guarded to self-hosted hosts only; an offshore URL is refused,
+   because M32 is self-hosted precisely so customer data does not leave the
+   Company under PDPA transfer restrictions.
+
+### Rollback
+
+Every new model is additive and no existing column was dropped or retyped, so
+rolling back is a module downgrade plus a restart. The one behaviour change to
+be aware of: `fix.survey.state = 'sent'` now means *a message was queued*
+rather than *a row was created*, and surveys withheld by the monthly cap or a
+consent refusal stay `pending` with `dispatch_suppressed_reason` set. Any
+report that counted `sent` as "asked" will move, correctly.

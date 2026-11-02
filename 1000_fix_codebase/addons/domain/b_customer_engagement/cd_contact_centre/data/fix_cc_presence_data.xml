@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  S4 presence vocabulary (A03 gap-plan).
+
+  fix.cc.agent.state.state_for() refuses to invent a presence when none are
+  configured, which is right: defaulting a missing row to "available" would
+  silently enrol every user into the routing pool. But nothing shipped any
+  statuses, so unified routing was unusable on a fresh install.
+
+  These three are the minimum the engine's own rules require: exactly one
+  available-class status to receive work, exactly one system Busy-DND for
+  capacity blocking to force, and an offline default for a row that has
+  never been set. A tenant adds "On training" or "In a huddle" as data,
+  which is why these are records and not a Python list.
+-->
+<odoo>
+    <record id="presence_available" model="fix.cc.presence.status">
+        <field name="name">Available</field>
+        <field name="code">available</field>
+        <field name="sequence">10</field>
+        <field name="is_available_class" eval="True"/>
+    </record>
+    <record id="presence_busy" model="fix.cc.presence.status">
+        <field name="name">Busy</field>
+        <field name="code">busy</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="presence_busy_dnd" model="fix.cc.presence.status">
+        <field name="name">Busy - Do Not Disturb</field>
+        <field name="code">busy_dnd</field>
+        <field name="sequence">30</field>
+        <field name="is_system_dnd" eval="True"/>
+    </record>
+    <record id="presence_wrapup" model="fix.cc.presence.status">
+        <field name="name">Wrap-Up</field>
+        <field name="code">wrapup</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="presence_offline" model="fix.cc.presence.status">
+        <field name="name">Offline</field>
+        <field name="code">offline</field>
+        <field name="sequence">90</field>
+    </record>
+</odoo>

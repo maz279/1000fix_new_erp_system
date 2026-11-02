@@ -266,6 +266,11 @@ def test_voucher_hooks_and_empty_bonus_hooks(env, program, campaign, customer):
 
 def _voucher(env, customer, **vals):
     vals.setdefault("discount_value", 200.0)
+    # valid_from must be the TEST's own today: the model default uses
+    # Date.context_today (the user's timezone), which is tomorrow for ~6 h a
+    # day when the host clock is UTC and the user sits in Asia/Dhaka — that
+    # made an immediate redemption fail only in the evening (flake).
+    vals.setdefault("valid_from", date.today())
     vals.setdefault("valid_until", date.today() + timedelta(days=30))
     return env["fix.loyalty.voucher"].create({"partner_id": customer.id, **vals})
 

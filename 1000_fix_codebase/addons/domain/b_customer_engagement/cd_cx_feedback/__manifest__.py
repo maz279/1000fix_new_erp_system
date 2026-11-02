@@ -26,8 +26,12 @@ CD-M34-nn + CD-M42-nn (P07-M06):
         "cd_event_outbox",
         "cd_party_master",
         "cd_service_order",
+        "cd_document_core",
+        "cd_contact_centre",
     ],
     "data": [
+        "data/fix_cx_gap_cron.xml",
+        "data/fix_cx_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_cx_feedback_views.xml",

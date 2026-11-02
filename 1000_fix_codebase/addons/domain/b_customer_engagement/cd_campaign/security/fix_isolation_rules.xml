@@ -19,6 +19,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_campaign_journey_member_company" model="ir.rule">
+        <field name="name">fix.campaign.journey.member: allowed companies</field>
+        <field name="model_id" ref="model_fix_campaign_journey_member"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_campaign_response_company" model="ir.rule">
         <field name="name">fix.campaign.response: allowed companies</field>
         <field name="model_id" ref="model_fix_campaign_response"/>
@@ -29,5 +34,10 @@
         <field name="model_id" ref="model_fix_campaign_response"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_campaign_touch_company" model="ir.rule">
+        <field name="name">fix.campaign.touch: allowed companies</field>
+        <field name="model_id" ref="model_fix_campaign_touch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

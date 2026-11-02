@@ -1,5 +1,8 @@
 # fix_loyalty_account — M10 Customer Loyalty Account (CD-M10-01).
+from datetime import timedelta
+
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
@@ -56,12 +59,19 @@ class FixLoyaltyAccount(models.Model):
     state = fields.Selection(
         [
             ("active", "Active"),
+            ("frozen", "Frozen — Fraud Review"),
             ("suspended", "Suspended"),
             ("closed", "Closed"),
         ],
         default="active",
         required=True,
         tracking=True,
+    )
+    # REQ-10.6 velocity fraud lock
+    freeze_reason = fields.Char(string="Freeze Reason", readonly=True, copy=False, tracking=True)
+    frozen_at = fields.Datetime(string="Frozen On", readonly=True, copy=False)
+    unlock_supervisor_id = fields.Many2one(
+        "res.users", string="Unlocked By", readonly=True, copy=False, tracking=True
     )
 
     points_balance = fields.Integer(
@@ -188,3 +198,75 @@ class FixLoyaltyAccount(models.Model):
 
     def action_close(self):
         self.write({"state": "closed"})
+
+    # --- REQ-10.6 velocity fraud detection -------------------------------
+    # "more than 3 earn transactions from disparate physical branches within
+    # 120 minutes" freezes the wallet for investigation.
+    _FRAUD_WINDOW_MINUTES = 120
+    _FRAUD_MAX_ACCRUALS = 3
+
+    def _check_velocity_fraud(self):
+        """Freeze the wallet when accrual velocity crosses the REQ-10.6 limit."""
+        window_start = fields.Datetime.now() - timedelta(minutes=self._FRAUD_WINDOW_MINUTES)
+        for account in self:
+            if account.state != "active":
+                continue
+            recent = self.env["fix.loyalty.ledger"].search(
+                [
+                    ("account_id", "=", account.id),
+                    ("transaction_type", "=", "accrual"),
+                    ("state", "=", "posted"),
+                    ("create_date", ">=", window_start),
+                ]
+            )
+            if len(recent) <= self._FRAUD_MAX_ACCRUALS:
+                continue
+            # Disparate branches are the stronger signal, but a burst from one
+            # till is still a burst: the count alone trips the lock, and the
+            # branch spread is recorded for the investigator.
+            units = {r.operating_unit_id.id for r in recent if r.operating_unit_id}
+            account.write(
+                {
+                    "state": "frozen",
+                    "frozen_at": fields.Datetime.now(),
+                    "freeze_reason": (
+                        "Velocity check: %d accruals within %d minutes across %d "
+                        "operating unit(s) (REQ-10.6)."
+                        % (len(recent), self._FRAUD_WINDOW_MINUTES, len(units) or 1)
+                    ),
+                }
+            )
+            publish(
+                self.env,
+                "loyalty.wallet_frozen",
+                "fix.loyalty.account",
+                account.id,
+                {
+                    "account_no": account.name,
+                    "partner_id": account.partner_id.id,
+                    "accruals_in_window": len(recent),
+                    "operating_units": len(units),
+                },
+            )
+
+    def action_unfreeze(self):
+        """Release a fraud lock. Tier 2 authority, and never the account owner."""
+        for account in self:
+            if account.state != "frozen":
+                raise UserError("Only a frozen wallet can be released.")
+            if not self.env.user.has_group("cd_entity_config.group_dofa_tier_2"):
+                raise UserError(
+                    "Releasing a fraud lock requires DOFA Tier 2 (Branch / "
+                    "Operations Manager) authority."
+                )
+            account.write(
+                {
+                    "state": "active",
+                    "unlock_supervisor_id": self.env.user.id,
+                    "freeze_reason": False,
+                    "frozen_at": False,
+                }
+            )
+            account.message_post(
+                body="Fraud lock released by %s after investigation." % self.env.user.name
+            )

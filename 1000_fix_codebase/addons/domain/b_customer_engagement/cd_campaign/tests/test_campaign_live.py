@@ -4,8 +4,9 @@ from datetime import date, datetime
 from unittest.mock import patch
 
 import pytest
+from freezegun import freeze_time
 from odoo import api
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 
 @pytest.fixture
@@ -22,6 +23,50 @@ def _events(env, event_type, rec):
     return env["fix.event.outbox"].search(
         [("event_type", "=", event_type), ("aggregate_id", "=", rec.id)]
     )
+
+
+def test_launch_refuses_unapproved_large_budgets(env):
+    """FLAW-35.1 / REQ-35.3: budgets above BDT 50,000 launch only after formal
+    DOFA budget approval (recorded by action_approve_budget)."""
+    import datetime as _dt
+
+    window = {
+        "start_date": _dt.date.today(),
+        "end_date": _dt.date.today() + _dt.timedelta(days=7),
+    }
+    big = _campaign(env, channel="sms", budget=120000.0, **window)
+    with pytest.raises(UserError, match="50,000"), env.cr.savepoint():
+        big.action_launch()
+    bigger = _campaign(env, channel="sms", budget=250000.0, **window)
+    with pytest.raises(UserError, match="200,000"), env.cr.savepoint():
+        bigger.action_launch()
+    # Setting budget_approved by hand is now refused: above BDT 50,000 the
+    # flag is only legitimate with a recorded DOFA sign-off (A03 audit
+    # 2026-10-31 — the gate used to accept a directly written flag).
+    with pytest.raises(ValidationError, match="requires a recorded DOFA"), env.cr.savepoint():
+        big.budget_approved = True
+
+    # Approve it properly: a Tier 3 director who did not raise the campaign.
+    big.budget_memo_ref = "MEMO-A03-001"
+    big.dofa_justification = "Regional service drive approved at the commercial review."
+    director = env["res.users"].create(
+        {
+            "name": "Marketing Director",
+            "login": "a03.campaign.t3@example.com",
+            "group_ids": [
+                (4, env.ref("base.group_user").id),
+                (4, env.ref("cd_entity_config.group_dofa_tier_3").id),
+            ],
+        }
+    )
+    big.with_user(director).action_approve_budget()
+    assert big.budget_approved and big.dofa_approved
+
+    # the budget gate is now satisfied: launch proceeds to the PDPA consent
+    # gate (no SMS-consented partners in the fresh savepoint), proving the
+    # DOFA refusal was specifically what blocked the earlier attempts.
+    with pytest.raises(UserError, match="consent"):
+        big.action_launch()
 
 
 def test_utm_code_and_cost_per_response(env):
@@ -54,7 +99,25 @@ def test_launch_requires_a_draft_campaign_with_a_window(env):
         ok.action_launch()
 
 
+def _notice(env):
+    """A granted consent must name the transparency notice shown at capture
+    (BRU-CPM-08, enforced by cd_party_master). Get-or-create the fixture notice
+    — the rule is part of the product, not a test obstacle."""
+    Notice = env["fix.transparency.notice"]
+    notice = Notice.search([("version", "=", "v-test-1")], limit=1)
+    if not notice:
+        notice = Notice.create(
+            {
+                "version": "v-test-1",
+                "text_bn": "পরীক্ষামূলক নোটিশ",
+                "text_en": "Test transparency notice",
+            }
+        )
+    return notice
+
+
 def _consent(env, partner, channel, state="granted", **vals):
+    vals.setdefault("notice_version_id", _notice(env).id)
     return env["fix.consent"].create(
         {"partner_id": partner.id, "channel": channel, "state": state, "proof": "OTP-1", **vals}
     )
@@ -86,7 +149,12 @@ def test_sms_launch_messages_only_consented_partners(env):
         start_date=date(2026, 11, 1),
         end_date=date(2026, 11, 30),
     )
-    campaign.action_launch()
+    # REQ-35.1: an addressed promotional channel launches only after a BTRC
+    # DND scrub, and REQ-35.2 holds it outside 08:00-22:00 BST — so the launch
+    # is pinned inside the window (10:00 BST == 04:00 UTC).
+    with freeze_time("2026-11-03 04:00:00"):
+        campaign.action_scrub_dnd()
+        campaign.action_launch()
     assert campaign.recipient_ids == opted_in | all_channels
     assert (campaign.recipient_count, campaign.excluded_no_consent_count) == (2, 3)
     assert campaign.pdpa_consent_verified is True

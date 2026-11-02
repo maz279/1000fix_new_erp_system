@@ -478,7 +478,34 @@ def test_model_gate_failures_are_reported(world):
 # --- PDPA consent -------------------------------------------------------------------
 
 
+def _publish_notice(world, version="1.0"):
+    """Consent capture requires a published transparency notice (BRU-CPM-08);
+    the grant path cannot be exercised without one."""
+    return (
+        world.env["fix.transparency.notice"]
+        .sudo()
+        .create(
+            {
+                "version": version,
+                "purpose_set": "service,marketing",
+                "text_en": "Test notice: how 1000 FiX uses your data.",
+                "text_bn": "পরীক্ষামূলক বিজ্ঞপ্তি: ১০০০ ফিক্স আপনার তথ্য যেভাবে ব্যবহার করে।",
+            }
+        )
+    )
+
+
+def test_consent_grant_refused_when_no_notice_is_published(world):
+    """With no published notice there is nothing lawful to capture consent
+    against, and the caller is told so instead of hitting the model constraint."""
+    assert not world.env["fix.transparency.notice"].sudo().search([("active", "=", True)])
+    with _as(world, world.alice) as ctrl:
+        refused = ctrl.consent(action="grant", channel="sms", proof="OTP-REF-0")
+    assert refused["error"]["code"] == "no_transparency_notice"
+
+
 def test_consent_grant_list_and_withdraw(world):
+    notice = _publish_notice(world)
     with _as(world, world.alice) as ctrl:
         bad_action = ctrl.consent(action="sell")
         bad_channel = ctrl.consent(action="grant", channel="fax")
@@ -495,10 +522,24 @@ def test_consent_grant_list_and_withdraw(world):
     assert nothing["error"]["code"] == "nothing_to_withdraw"
     assert no_proof["error"]["code"] == "missing_proof"
     assert granted["consent"]["state"] == "granted"
+    # the grant records the notice version it was captured against (BRU-CPM-08)
+    assert granted["consent"]["notice_version"] == notice.version
+    assert (
+        world.env["fix.consent"].sudo().browse(granted["consent"]["id"]).notice_version_id == notice
+    )
     [row] = dashboard["consents"]
     assert (row["channel"], row["state"], row["proof"]) == ("sms", "granted", "OTP-REF-1")
     assert row["date_withdrawn"] is None
     assert withdrawn["consent"] == {"channel": "sms", "state": "withdrawn"}
-    assert after["consents"][0]["state"] == "withdrawn"
-    assert after["consents"][0]["date_withdrawn"]
+    # PDPA T-09 is append-only: the grant is never rewritten. It is marked
+    # `superseded` and a `withdrawn` record is APPENDED pointing back at it, so the
+    # dashboard carries both rows. (These assertions previously expected the grant
+    # itself to flip to `withdrawn`; they had never run, because the grant above
+    # died on the BRU-CPM-08 constraint — re-audit 2026-10-31.) Both rows share a
+    # channel and a date_granted, so assert on content, never on row order.
+    assert {r["state"] for r in after["consents"]} == {"superseded", "withdrawn"}
+    [wd] = [r for r in after["consents"] if r["state"] == "withdrawn"]
+    [sup] = [r for r in after["consents"] if r["state"] == "superseded"]
+    assert wd["date_withdrawn"] and wd["proof"] == "OTP-REF-1"
+    assert sup["date_withdrawn"] is None
     assert bobs == {"consents": [], "total": 0}

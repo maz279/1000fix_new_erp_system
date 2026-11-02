@@ -769,6 +769,24 @@ class CustomerApiController(http.Controller):
                 "A granted consent needs its proof reference — "
                 "an unverifiable grant is not a grant",
             )
+        # BRU-CPM-08: a grant must record the transparency-notice version PRESENTED
+        # at capture, and fix.consent refuses one without it. This endpoint used to
+        # create the record without a notice, so every grant died on that
+        # constraint — the endpoint could not record a consent at all (re-audit
+        # 2026-10-31). The version to record is the ACTIVE notice, which
+        # fix.transparency.notice defines as "published and not retired — the
+        # versions new consent is captured against"; when none is published there
+        # is nothing lawful to capture against, and the caller is told so plainly
+        # instead of receiving a constraint traceback.
+        notice = _su_env()["fix.transparency.notice"].search(
+            [("active", "=", True)], order="published_at desc, version desc", limit=1
+        )
+        if not notice:
+            return _error(
+                "no_transparency_notice",
+                "No published transparency notice to capture consent against "
+                "(BRU-CPM-08) — publish a notice version before collecting consent",
+            )
         row = Consent.create(
             {
                 "partner_id": partner,
@@ -776,6 +794,14 @@ class CustomerApiController(http.Controller):
                 "state": "granted",
                 "proof": proof,
                 "source": "web",
+                "notice_version_id": notice.id,
             }
         )
-        return {"consent": {"id": row.id, "channel": channel, "state": row.state}}
+        return {
+            "consent": {
+                "id": row.id,
+                "channel": channel,
+                "state": row.state,
+                "notice_version": notice.version,
+            }
+        }

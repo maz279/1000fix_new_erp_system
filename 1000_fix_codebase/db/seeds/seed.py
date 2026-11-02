@@ -510,12 +510,21 @@ def main() -> int:
             )
             if existing:
                 continue
+            basic = rng.choice([15000, 20000, 25000, 30000, 40000, 50000, 60000])
             contracts.append(
                 {
                     "employee_id": emp,
                     "contract_type": rng.choice(["permanent", "probation", "fixed_term"]),
                     "joining_date": joining,
-                    "basic_monthly": rng.choice([15000, 20000, 25000, 30000, 40000, 50000, 60000]),
+                    "basic_monthly": basic,
+                    # Bangladesh pay structure: house rent 50% of basic, medical
+                    # 10%, fixed conveyance, and a technical allowance for the
+                    # repair grades. Without these the payslip allowance seam
+                    # and the Para 27 exemption are never exercised.
+                    "house_rent": round(basic * 0.50, 2),
+                    "medical_allowance": round(basic * 0.10, 2),
+                    "conveyance_allowance": 2500.0,
+                    "technical_allowance": 2000.0 if i % 2 == 0 else 0.0,
                     "weekly_hours": 48,
                     "state": "active",
                 }
@@ -652,17 +661,62 @@ def main() -> int:
             )
         print("seed: attendance lock for 2026-09 (the payroll cycle's gate)")
 
-        # Competencies + certifications (the dispatch eligibility engine)
-        comps = []
-        for code, name, dev in [
-            ("SMP", "Smartphone Repair", "smartphone"),
-            ("LAP", "Laptop Repair", "laptop"),
-            ("APP", "Home Appliance Repair", "home_appliance"),
-            ("NET", "Network Diagnostics", None),
+        # Device taxonomy (RAP-M22-01). The model shipped but was never
+        # populated: with 0 categories and no branded competency the
+        # brand-scoped dispatch gate can never fire, however correct its code.
+        cat_by = {}
+        for code, name, tier in [
+            ("LAPTOP", "Laptop & Notebook", "l2"),
+            ("PHONE", "Smartphone & Tablet", "l3"),
+            ("APPLIANCE", "Home Appliance", "l2"),
+            ("NETWORK", "Network & Infrastructure", "l2"),
         ]:
+            cid = c.first("fix.device.category", [("code", "=", code)])
+            if not cid:
+                cid = c.call(
+                    "fix.device.category",
+                    "create",
+                    {"code": code, "name": name, "repair_tier_floor": tier},
+                )
+            cat_by[code] = cid
+
+        def _brand(nm):
+            return c.first("fix.brand", [("name", "ilike", nm)]) or c.first("fix.brand", [])
+
+        # Competencies + certifications (the dispatch eligibility engine).
+        # Each gating competency carries a brand, a device category and the
+        # minimum repair tier, so (brand, category, tier) is actually gated.
+        comps = []
+        SCOPE = {
+            "SMP": ("Smartphone Repair", "smartphone", "Apple", "PHONE", "l3"),
+            "LAP": ("Laptop Repair", "laptop", "Dell", "LAPTOP", "l2"),
+            "APP": ("Home Appliance Repair", "home_appliance", "Samsung", "APPLIANCE", "l2"),
+            "NET": ("Network Diagnostics", None, "Cisco", "NETWORK", "l2"),
+        }
+        for code, (name, dev, bname, ccode, tier) in SCOPE.items():
             existing = c.first("fix.competency", [("code", "=", code)])
-            if not existing:
-                comps.append({"code": code, "name": name, "name_bn": name, "device_type": dev})
+            vals = {
+                "code": code,
+                "name": name,
+                "name_bn": name,
+                "device_type": dev,
+                "brand_id": _brand(bname),
+                "device_category_id": cat_by[ccode],
+                "repair_tier": tier,
+            }
+            if existing:
+                c.call(
+                    "fix.competency",
+                    "write",
+                    [existing],
+                    {
+                        k: v
+                        for k, v in vals.items()
+                        if k in ("brand_id", "device_category_id", "repair_tier")
+                    },
+                )
+            else:
+                comps.append(vals)
         if comps:
             c.call("fix.competency", "create", comps)
         comp_ids = c.call("fix.competency", "search", [], limit=4)
@@ -679,12 +733,23 @@ def main() -> int:
             )
             if existing:
                 continue
+            comp_rec = c.call(
+                "fix.competency",
+                "read",
+                [comp],
+                ["brand_id", "device_category_id", "repair_tier"],
+            )[0]
             certs.append(
                 {
                     "employee_id": emp,
                     "competency_id": comp,
                     "issued_on": str(_dt.date(2025, 1, 15)),
                     "expires_on": str(_dt.date(2027, 1, 15)),
+                    # scope the certificate to its competency so the gate has
+                    # something to match and nobody loses existing eligibility
+                    "brand_id": (comp_rec.get("brand_id") or [False])[0],
+                    "device_category_id": (comp_rec.get("device_category_id") or [False])[0],
+                    "repair_tier": comp_rec.get("repair_tier") or False,
                 }
             )
         if certs:
@@ -1961,11 +2026,58 @@ def main() -> int:
                 [("employee_id", "=", emp[i]), ("period", "=", "2026-H1")],
                 {"employee_id": emp[i], "period": "2026-H1"},
             )
+        # Scorecards with real components for the incentive period, spread so
+        # every band (>=0.90 / >=0.75 / >=0.60 / below) is represented and the
+        # top band can be shown to pay (RAP-M57-01 / RAP-M57-09).
+        _bands = [
+            (1.00, 1.00, 1.00, 0.00, 1.00),  # score 1.0000 -> 15% band
+            (0.85, 0.80, 0.80, 0.02, 0.80),  # score 0.8170 -> 8% band
+            (0.70, 0.65, 0.65, 0.04, 0.60),  # score 0.6565 -> 4% band
+            (0.40, 0.40, 0.40, 0.10, 0.20),  # score 0.3550 -> below bands, 0%
+        ]
+        for i, (ftf, sla, csat, rew, salv) in enumerate(_bands):
+            if i >= len(emp):
+                break
+            ensure(
+                "fix.performance.scorecard",
+                [("employee_id", "=", emp[i]), ("period", "=", "2026-09")],
+                {
+                    "employee_id": emp[i],
+                    "period": "2026-09",
+                    "first_time_fix": ftf,
+                    "sla_hit": sla,
+                    "csat": csat,
+                    "rework_rate": rew,
+                    "salvage_target": 100000.0,
+                    "salvage_value": round(100000.0 * salv, 2),
+                },
+            )
         ensure(
             "fix.incentive.run",
             [("period", "=", "2026-09")],
-            {"period": "2026-09", "band_base": 100000.0, "state": "computed"},
+            {"period": "2026-09", "band_base": 100000.0},
         )
+        _run = c.first("fix.incentive.run", [("period", "=", "2026-09")])
+        if _run and not c.first("fix.incentive.line", [("run_id", "=", _run)]):
+            # compute for real: the run was previously stamped "computed" with
+            # no lines behind it, so the payout bands were never demonstrable
+            c.call("fix.incentive.run", "action_compute", [_run])
+
+        # WPPF year-end allocation (BLA 2006 Ch. XV) — absent from the estate,
+        # so the 80:10:10 split screen had nothing to show.
+        if not c.first("fix.wppf.allocation", [("fiscal_year", "=", "2025-2026")]):
+            _wppf = c.call(
+                "fix.wppf.allocation",
+                "create",
+                {
+                    "name": "WPPF 2025-2026",
+                    "fiscal_year": "2025-2026",
+                    "net_profit": 10000000.0,
+                    "eligible_workers_count": 100,
+                    "fiscal_year_end_date": "2026-06-30",
+                },
+            )
+            c.call("fix.wppf.allocation", "action_calculate", [_wppf])
         for i in range(2):
             ensure(
                 "fix.expense.claim",

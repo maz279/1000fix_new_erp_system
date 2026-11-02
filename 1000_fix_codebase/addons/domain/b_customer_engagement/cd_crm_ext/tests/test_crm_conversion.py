@@ -3,6 +3,7 @@
 from unittest.mock import patch
 
 import pytest
+from odoo.exceptions import ValidationError
 
 
 @pytest.fixture
@@ -49,6 +50,42 @@ def _notes(lead):
     return " ".join(lead.message_ids.mapped("body"))
 
 
+def _won(lead):
+    """FLAW-07.1 / REQ-07.1 / REQ-07.2: conversion is gated to won deals with a
+    verified contract, an approved rate card and no credit hold — tests must
+    qualify their leads through the full gate ladder before converting."""
+    lead.write(
+        {
+            "probability": 100,
+            "contract_ref": "PO-2026-TEST",
+            "contract_verified": True,
+            "rate_card_approved": True,
+        }
+    )
+    return lead
+
+
+def test_conversion_refuses_a_lead_that_has_not_reached_won(env, branch, phone_model):
+    """The stage gate itself: an unqualified lead must NEVER convert (FLAW-07.1)."""
+    customer = env["res.partner"].create({"name": "CRM Gate Customer"})
+    env["fix.device"].create(
+        {
+            "device_model_id": phone_model.id,
+            "owner_id": customer.id,
+            "serial_number": "SN-CRM-GATE",
+            "branch_id": branch.id,
+        }
+    )
+    lead = _lead(env, customer)
+    with pytest.raises(Exception, match="won"):
+        lead.action_convert_to_service_order()
+    assert not lead.converted_service_order_id
+    # once qualified (won + verified contract + approved rate card) it converts
+    _won(lead)
+    lead.action_convert_to_service_order()
+    assert lead.converted_service_order_id
+
+
 def test_lead_converts_to_an_intake_order_on_the_customers_device(env, branch, phone_model):
     company = env["res.partner"].create({"name": "CRM Customer Ltd", "is_company": True})
     contact = env["res.partner"].create({"name": "CRM Contact", "parent_id": company.id})
@@ -63,7 +100,7 @@ def test_lead_converts_to_an_intake_order_on_the_customers_device(env, branch, p
             "branch_id": branch.id,
         }
     )
-    lead = _lead(env, contact, "<p>Cracked <b>screen</b> after a fall</p>")
+    lead = _won(_lead(env, contact, "<p>Cracked <b>screen</b> after a fall</p>"))
     lead.action_convert_to_service_order()
     order = lead.converted_service_order_id
     assert (order.device_id, order.branch_id, order.customer_id) == (newest, branch, contact)
@@ -81,7 +118,7 @@ def test_conversion_falls_back_to_the_first_branch_and_a_default_fault(env, bran
     env["fix.device"].create(
         {"device_model_id": phone_model.id, "owner_id": customer.id, "serial_number": "SN-CRM-W"}
     )
-    lead = _lead(env, customer)
+    lead = _won(_lead(env, customer))
     first_branch = env["fix.branch"].search([], limit=1)
     lead.action_convert_to_service_order()
     assert lead.converted_service_order_id.branch_id == first_branch
@@ -89,8 +126,10 @@ def test_conversion_falls_back_to_the_first_branch_and_a_default_fault(env, bran
 
 
 def test_leads_that_cannot_be_converted_say_why(env, phone_model):
-    orphan = _lead(env)
-    deviceless = _lead(env, env["res.partner"].create({"name": "CRM No Device"}))
+    """Remediated behaviour: each conversion precondition is a hard, named
+    refusal (ValidationError) — the batch no longer soft-logs notes."""
+    orphan = _won(_lead(env))
+    deviceless = _won(_lead(env, env["res.partner"].create({"name": "CRM No Device"})))
     branchless_customer = env["res.partner"].create({"name": "CRM No Branch"})
     env["fix.device"].create(
         {
@@ -99,12 +138,15 @@ def test_leads_that_cannot_be_converted_say_why(env, phone_model):
             "serial_number": "SN-CRM-NB",
         }
     )
-    branchless = _lead(env, branchless_customer)
-    with patch.object(type(env["fix.branch"]), "search", return_value=env["fix.branch"]):
-        (orphan | deviceless | branchless).action_convert_to_service_order()
-    assert "no customer linked" in _notes(orphan)
-    assert "no registered device" in _notes(deviceless)
-    assert "no branch is configured" in _notes(branchless)
+    branchless = _won(_lead(env, branchless_customer))
+    with pytest.raises(ValidationError, match="No customer linked"):
+        orphan.action_convert_to_service_order()
+    with pytest.raises(ValidationError, match="no registered device"):
+        deviceless.action_convert_to_service_order()
+    with (
+        patch.object(type(env["fix.branch"]), "search", return_value=env["fix.branch"]),
+        pytest.raises(ValidationError, match="No branch is configured"),
+    ):
+        branchless.action_convert_to_service_order()
     for lead in (orphan, deviceless, branchless):
         assert not lead.converted_service_order_id
-        assert lead.won_status != "won"

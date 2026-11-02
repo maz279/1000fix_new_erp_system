@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M33 scheduled jobs: the nightly duplicate sweep (layer (c) of the three-layer model).
+
+  A cron METHOD with no ir.cron record never runs, and passes its unit tests
+  anyway because a test calls it directly. Every scheduled job this area's
+  gap-closure build relies on is declared here.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_dedup_nightly" model="ir.cron">
+            <field name="name">M33 S8: nightly duplicate-detection sweep</field>
+            <field name="model_id" ref="model_fix_dedup_job"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_run_nightly()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

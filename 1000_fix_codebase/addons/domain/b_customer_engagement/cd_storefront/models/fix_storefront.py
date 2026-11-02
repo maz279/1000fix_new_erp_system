@@ -1,6 +1,6 @@
 # fix_storefront — M38: cart, checkout, orders, returns (P10-M03 / R08-M03).
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -224,7 +224,41 @@ class FixStorefrontOrder(models.Model):
         required=True,
         tracking=True,
     )
+    # Logistics SLA & Delivery Deadline Tracking (FLAW-38.1)
+    delivery_due_date = fields.Datetime(
+        string="Delivery SLA Deadline",
+        compute="_compute_delivery_sla",
+        store=True,
+        help="Statutory delivery due date under Bangladesh e-Commerce guidelines",
+    )
+    delivery_sla_status = fields.Selection(
+        [("on_time", "Within SLA"), ("breached", "SLA Breached")],
+        string="Delivery SLA Status",
+        compute="_compute_delivery_sla",
+        store=True,
+    )
     line_ids = fields.One2many("fix.storefront.order.line", "order_id", string="Order Items")
+
+    @api.depends("order_date", "shipping_method")
+    def _compute_delivery_sla(self):
+        for rec in self:
+            if not rec.order_date:
+                rec.delivery_due_date = False
+                rec.delivery_sla_status = "on_time"
+                continue
+            hours = 48
+            if rec.shipping_method == "express_courier":
+                hours = 24
+            elif rec.shipping_method == "branch_pickup":
+                hours = 72
+            due = rec.order_date + timedelta(hours=hours)
+            rec.delivery_due_date = due
+            now = fields.Datetime.now()
+            rec.delivery_sla_status = (
+                "breached"
+                if (rec.state not in ("delivered", "cancelled") and now > due)
+                else "on_time"
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -367,6 +401,13 @@ class FixStorefrontReturn(models.Model):
         ],
         string="Inspection Result",
     )
+    # NBR Mushak 6.7 Credit Note Reference (FLAW-38.2)
+    credit_note_ref = fields.Char(
+        string="NBR Mushak 6.7 Credit Note Ref",
+        readonly=True,
+        copy=False,
+        help="Statutory VAT credit note reference issued under NBR Mushak 6.7 rules",
+    )
     state = fields.Selection(
         [
             ("requested", "Return Requested"),
@@ -411,6 +452,10 @@ class FixStorefrontReturn(models.Model):
         for rec in self:
             if rec.state != "received":
                 raise UserError("Cannot refund prior to physical receipt and inspection")
+            if not rec.credit_note_ref:
+                rec.credit_note_ref = (
+                    f"MUSHAK-6.7/{fields.Date.today().year}/{rec.name.replace('/', '-')}"
+                )
             rec.state = "refunded"
             publish(
                 self.env,
@@ -422,5 +467,6 @@ class FixStorefrontReturn(models.Model):
                     "customer": rec.customer_id.name,
                     "refund_amount": float(rec.refund_amount or 0.0),
                     "condition": rec.inspected_condition,
+                    "credit_note_ref": rec.credit_note_ref,
                 },
             )

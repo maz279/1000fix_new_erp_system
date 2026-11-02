@@ -1,2 +1,2 @@
 # cd_partner models.
-from . import fix_partner
+from . import fix_partner, fix_partner_ops

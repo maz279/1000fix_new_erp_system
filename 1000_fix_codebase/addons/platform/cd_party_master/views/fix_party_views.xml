@@ -23,19 +23,31 @@
         <field name="model">fix.party.role</field>
         <field name="arch" type="xml">
             <form string="Party Role">
+                <header>
+                    <field name="role_status" widget="statusbar"
+                           statusbar_visible="prospect,active,suspended,terminated"/>
+                </header>
                 <sheet>
+                    <div class="oe_title">
+                        <h2><field name="partner_id" placeholder="The ONE party this role belongs to"/></h2>
+                    </div>
                     <group>
-                        <group>
-                            <field name="partner_id"/>
+                        <group string="Role (the design rule: one party, many roles)">
                             <field name="role_type"/>
                             <field name="role_status"/>
                             <field name="since" readonly="1"/>
                         </group>
-                        <group>
+                        <group string="Scope">
                             <field name="company_id"/>
                             <field name="operating_unit_id"/>
                             <field name="operating_unit_ids" widget="many2many_tags"/>
                         </group>
+                    </group>
+                    <group string="">
+                        <div colspan="2" class="text-muted">
+                            A party with three roles has THREE role records pointing at the
+                            SAME party — never three separate master records.
+                        </div>
                     </group>
                 </sheet>
                 <div class="oe_chatter">

@@ -3,20 +3,41 @@
 # profile conveniences: every grant, withdrawal and proof lives here with its
 # dates. The notification dispatcher's RecipientState is the projection of
 # this table — never a separate source of truth.
+#
+# M33 rebuild (2026-10-27), per spec BRU-CPM-08 / T-09:
+#  - a GRANT is invalid without the transparency-notice version presented;
+#  - withdrawal is APPEND-ONLY: the granted row is never rewritten to look
+#    withdrawn — a NEW withdrawn record supersedes it and both stay forever.
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 
 class FixConsent(models.Model):
-    """One consent decision: what was consented, on which channel, when, proof."""
+    """One consent decision: what was consented, for which purpose, on which
+    channel, when, against which notice version, and with what proof."""
 
     _name = "fix.consent"
     _description = "Consent Record"
     _inherit = ["mail.thread", "mail.activity.mixin"]
-    _order = "partner_id, channel, date_granted desc"
+    _order = "partner_id, purpose, channel, date_granted desc"
 
     partner_id = fields.Many2one(
         "res.partner", string="Party", required=True, ondelete="cascade", index=True
+    )
+    purpose = fields.Selection(
+        [
+            ("service_updates", "Service Updates"),
+            ("marketing", "Marketing"),
+            ("research", "Research & Analytics"),
+            ("collections", "Debt Collection"),
+            ("profiling", "Profiling"),
+            ("call_recording", "Call Recording"),
+        ],
+        string="Purpose",
+        required=True,
+        default="marketing",
+        tracking=True,
+        help="PDPA: consent attaches to a PROCESSING PURPOSE, not a profile",
     )
     channel = fields.Selection(
         [
@@ -24,13 +45,19 @@ class FixConsent(models.Model):
             ("whatsapp", "WhatsApp"),
             ("email", "Email"),
             ("push", "Push"),
+            ("voice", "Voice Call"),
             ("marketing", "Marketing (all channels)"),
         ],
         string="Channel",
         required=True,
     )
     state = fields.Selection(
-        [("granted", "Granted"), ("withdrawn", "Withdrawn"), ("expired", "Expired")],
+        [
+            ("granted", "Granted"),
+            ("withdrawn", "Withdrawn"),
+            ("superseded", "Superseded (withdrawn later)"),
+            ("expired", "Expired"),
+        ],
         string="State",
         required=True,
         default="granted",
@@ -38,6 +65,34 @@ class FixConsent(models.Model):
     )
     date_granted = fields.Datetime(string="Granted At", default=fields.Datetime.now)
     date_withdrawn = fields.Datetime(string="Withdrawn At", readonly=True)
+    # BRU-CPM-08: the notice version PRESENTED at capture — without it the
+    # consent is not valid consent.
+    notice_version_id = fields.Many2one(
+        "fix.transparency.notice",
+        string="Notice Version",
+        tracking=True,
+        help="The transparency-notice version shown when this consent was "
+        "captured; a grant without it is invalid (BRU-CPM-08)",
+    )
+    wording_hash = fields.Char(
+        string="Wording Hash",
+        help="Hash of the exact wording accepted, for dispute evidence",
+    )
+    # T-09 append-only chain: a withdrawal record points at the grant it
+    # supersedes; the grant points back at its withdrawal.
+    supersedes_id = fields.Many2one(
+        "fix.consent",
+        string="Supersedes",
+        readonly=True,
+        index=True,
+        help="The granted record this withdrawal supersedes (append-only chain)",
+    )
+    superseded_by_id = fields.Many2one(
+        "fix.consent",
+        string="Superseded By",
+        readonly=True,
+        index=True,
+    )
     proof = fields.Char(
         string="Proof Reference",
         help="Where the consent came from: signed form ID, "
@@ -60,16 +115,70 @@ class FixConsent(models.Model):
     )
 
     def action_withdraw(self):
-        """Withdraw today, keep the record forever — an auditable trail,
-        not a deleted row (the BTRC/DND obligation outlives the account)."""
-        self.write({"state": "withdrawn", "date_withdrawn": fields.Datetime.now()})
+        """Withdraw today by APPENDING a new record — the original grant keeps
+        its exact captured state (marked superseded by link, never rewritten),
+        so the auditable trail outlives the account (BTRC/DND + PDPA T-09)."""
+        for consent in self:
+            if consent.state != "granted":
+                raise ValidationError(
+                    "Only a granted consent can be withdrawn — this record is %s" % consent.state
+                )
+            withdrawal = self.create(
+                {
+                    "partner_id": consent.partner_id.id,
+                    "purpose": consent.purpose,
+                    "channel": consent.channel,
+                    "state": "withdrawn",
+                    "date_granted": consent.date_granted,
+                    "date_withdrawn": fields.Datetime.now(),
+                    "notice_version_id": consent.notice_version_id.id,
+                    "supersedes_id": consent.id,
+                    "source": consent.source,
+                    "proof": consent.proof,
+                    "company_id": consent.company_id.id,
+                }
+            )
+            consent.write({"superseded_by_id": withdrawal.id, "state": "superseded"})
+            self._emit_consent_event("consent.withdrawn", withdrawal)
         return True
 
-    @api.constrains("state", "proof")
-    def _check_proof_on_grant(self):
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for rec in records:
+            if rec.state == "granted":
+                self._emit_consent_event("consent.captured", rec)
+        return records
+
+    def _emit_consent_event(self, event_type: str, rec) -> None:
+        from libs.py.fix_events import publish
+
+        publish(
+            self.env,
+            event_type,
+            "res.partner",
+            rec.partner_id.id,
+            {
+                "purpose": rec.purpose,
+                "channel": rec.channel,
+                "state": rec.state,
+                "notice_version": rec.notice_version_id.version or None,
+            },
+        )
+
+    @api.constrains("state", "proof", "notice_version_id")
+    def _check_proof_and_notice_on_grant(self):
         for consent in self:
-            if consent.state == "granted" and not consent.proof:
+            if consent.state != "granted":
+                continue
+            if not consent.proof:
                 raise ValidationError(
                     "A granted consent needs its proof reference — "
                     "an unverifiable grant is not a grant"
+                )
+            if not consent.notice_version_id:
+                raise ValidationError(
+                    "A granted consent must record the transparency-notice version "
+                    "presented at capture (BRU-CPM-08) — consent without a notice "
+                    "version is not valid consent"
                 )

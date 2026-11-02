@@ -324,21 +324,61 @@ INTENT_REGISTRY: dict[str, IntentDefinition] = {
 }
 
 
-# --- 2. Bengali & English Unicode Normalization ---
+# --- 2. Bengali & English Unicode Normalization & PII Scrubbing ---
+
+BENGALI_PHONETIC_VARIANTS = [
+    (r"\bবুজলাম\b", "বুঝলাম"),
+    (r"\bবুজছি\b", "বুঝেছি"),
+    (r"\bহবিনা\b", "হবে না"),
+    (r"\bটাকা\b", "মূল্য"),
+    (r"\bদাম\b", "মূল্য"),
+    (r"\bখরচ\b", "মূল্য"),
+    (r"\bকই\b", "কোথায়"),
+    (r"\bকোথায়\b", "কোথায়"),
+    (r"\bকবে\b", "কখন"),
+    (r"\bকেমন\b", "অবস্থা"),
+    (r"\bখবর\b", "অবস্থা"),
+    (r"\bসারভিস\b", "সার্ভিস"),
+    (r"\bঅরডার\b", "অর্ডার"),
+    (r"\bওয়ারেন্টি\b", "ওয়ারেন্টি"),
+]
+
+
+def scrub_pii(text: str) -> str:
+    """FLAW-32.2 / REQ-32.3: Masks bKash/Nagad/Rocket PINs, payment cards, and NIDs."""
+    if not text:
+        return ""
+    # 1. Payment cards (13 to 16 digits)
+    text = re.sub(r"\b(?:\d[ -]*?){13,16}\b", "****-****-****-****", text)
+    # 2. bKash / Nagad / Rocket / generic PINs (e.g. পিন ১২৩৪৫, pin 1234, etc.)
+    text = re.sub(
+        r"(?i)(?:পিন|pin|password|পাছওয়ার্ড|পাসওয়ার্ড)\s*[:\s=]?\s*([0-9\u09e6-\u09ef]{4,6})",
+        r"পিন *****",
+        text,
+    )
+    # 3. National ID numbers (10 or 17 continuous digits)
+    text = re.sub(r"\b(?:\d{10}|\d{17})\b", "NID-***MASKED***", text)
+    return text
 
 
 def normalize_text(text: str) -> str:
     """Normalizes Bengali and English text for robust intent classification.
-    Strips zero-width joiners (ZWJ, ZWNJ), normalizes unicode NFKC, and removes punctuation.
+    Strips zero-width joiners (ZWJ, ZWNJ), normalizes unicode NFKC, applies
+    dialectical phonetic variants (FLAW-32.3), and removes punctuation.
     """
     if not text:
         return ""
+    # Pre-scrub sensitive PII
+    text = scrub_pii(text)
     # Unicode NFKC normalization
     text = unicodedata.normalize("NFKC", text)
     # Remove Zero-Width Non-Joiner (\u200C) and Zero-Width Joiner (\u200D)
     text = re.sub(r"[\u200B-\u200D\uFEFF]", "", text)
     # Lowercase English letters
     text = text.lower()
+    # Apply Bengali phonetic/dialect normalizations
+    for pattern, replacement in BENGALI_PHONETIC_VARIANTS:
+        text = re.sub(pattern, replacement, text)
     # Replace punctuation with spaces
     text = re.sub(r"[?!.,;:\-—()\[\]{}'\"/।]+", " ", text)
     # Collapse multiple whitespaces
@@ -464,9 +504,12 @@ class AssistantEngine:
                 best_score = combined
                 best_intent = code
 
-        # High confidence threshold: >= 0.70
+        # FLAW-32.1 / REQ-32.1: Three-tier confidence gating
+        # Tier 1: High confidence (>= 0.75) -> Automated resolution / grounding
+        # Tier 2: Disambiguation (0.50 <= confidence < 0.75) -> Disambiguation prompt
+        # Tier 3: Low confidence (< 0.50) -> Immediate human agent handoff
         confidence = round(best_score, 4)
-        if best_intent and confidence >= 0.70:
+        if best_intent and confidence >= 0.75:
             defn = self.intents[best_intent]
             if defn.auto_handoff:
                 return IntentMatchResult(
@@ -527,20 +570,34 @@ class AssistantEngine:
                     response_text_en=resp_en,
                 )
 
-        # Fallback / Low confidence -> Handoff to human agent
+        # Tier 2: Disambiguation (0.50 <= confidence < 0.75) (FLAW-32.1 / REQ-32.1)
+        if best_intent and confidence >= 0.50:
+            defn = self.intents[best_intent]
+            return IntentMatchResult(
+                matched_intent=best_intent,
+                confidence=confidence,
+                utterance=utterance,
+                normalized_utterance=norm_input,
+                grounding=defn.grounding_source,
+                resolvable=False,
+                requires_handoff=False,
+                handoff_reason="disambiguation_required",
+                response_text_bn="আপনি কি সার্ভিস সম্পর্কিত তথ্য জানতে চাচ্ছেন? স্পষ্ট করতে হ্যাঁ লিখুন অথবা বিস্তারিত বলুন।",
+                response_text_en="Did you mean inquiry regarding service information? Please reply yes or clarify your request.",
+            )
+
+        # Tier 3: Low confidence (< 0.50) -> Immediate Human Agent Handoff (FLAW-32.1 / REQ-32.1)
         return IntentMatchResult(
-            matched_intent=best_intent if confidence >= 0.40 else None,
+            matched_intent=None,
             confidence=confidence,
             utterance=utterance,
             normalized_utterance=norm_input,
-            grounding=self.intents[best_intent].grounding_source
-            if (best_intent and confidence >= 0.40)
-            else "",
+            grounding="",
             resolvable=False,
             requires_handoff=True,
             handoff_reason="low_intent_confidence",
-            response_text_bn="আপনার প্রশ্নের নির্ভুল উত্তরের জন্য একজন কাস্টমার কেয়ার প্রতিনিধির সাথে যুক্ত করছি।",
-            response_text_en="Connecting you with a customer care specialist to assist you accurately.",
+            response_text_bn="আপনার প্রশ্নের নির্ভুল উত্তরের জন্য একজন কাস্টমার কেয়ার প্রতিনিধির সাথে যুক্ত করছি। অনুগ্রহ করে অপেক্ষা করুন।",
+            response_text_en="Transferring your request to a live customer care representative for accurate assistance. Please hold.",
         )
 
     def _synthesize_grounded_response(self, intent_code: str) -> tuple[str, str] | None:

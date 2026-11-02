@@ -164,15 +164,17 @@ class TestFCRMeasurement(unittest.TestCase):
 
         routed_to_grounding = 0
         engine_resolved = 0
+        disambiguation_count = 0
         handoff_count = 0
 
         for utterance, _lang, expected_resolvable, expected_intent in BENCHMARK_INTERACTIONS:
             result = self.engine.classify_intent(utterance)
 
-            # The intent the engine acted on: a candidate below the 0.70
-            # confidence threshold is a fallback handoff, not an intent match,
-            # so out-of-domain rows (expected_intent None) must not clear it.
-            confident_intent = result.matched_intent if result.confidence >= 0.70 else None
+            # The intent the engine acted on: a candidate below the 0.75
+            # auto-reply tier (FLAW-32.1 / REQ-32.1) is a disambiguation or a
+            # fallback handoff, not an intent match, so out-of-domain rows
+            # (expected_intent None) must not clear it.
+            confident_intent = result.matched_intent if result.confidence >= 0.75 else None
             self.assertEqual(
                 confident_intent,
                 expected_intent,
@@ -186,6 +188,15 @@ class TestFCRMeasurement(unittest.TestCase):
                 self.assertFalse(result.resolvable)
             elif result.resolvable and not result.requires_handoff:
                 engine_resolved += 1
+            elif result.handoff_reason == "disambiguation_required":
+                # Tier 2 (0.50 <= confidence < 0.75): a clarification prompt —
+                # the engine never guesses at mid-band confidence (REQ-32.1).
+                disambiguation_count += 1
+                self.assertTrue(
+                    0.50 <= result.confidence < 0.75,
+                    f"Disambiguation outside the 0.50-0.74 band for '{utterance}'",
+                )
+                self.assertFalse(result.resolvable)
             else:
                 handoff_count += 1
                 self.assertFalse(
@@ -194,12 +205,17 @@ class TestFCRMeasurement(unittest.TestCase):
                 self.assertTrue(result.requires_handoff)
                 self.assertTrue(len(result.handoff_reason) > 0)
 
-        self.assertEqual(routed_to_grounding + engine_resolved + handoff_count, 100)
+        self.assertEqual(
+            routed_to_grounding + engine_resolved + disambiguation_count + handoff_count, 100
+        )
         self.assertEqual(
             routed_to_grounding, 64, "Expected 64 transactional queries routed to grounding"
         )
         self.assertEqual(engine_resolved, 0, "The engine must not resolve transactional queries")
-        self.assertEqual(handoff_count, 36, "Expected exactly 36 escalated handoffs")
+        # The remaining 36 non-transactional rows split between mid-band
+        # disambiguation prompts and low-confidence handoffs (never guesses).
+        self.assertEqual(disambiguation_count + handoff_count, 36)
+        self.assertGreater(handoff_count, 0, "out-of-domain rows must still hand off")
 
 
 if __name__ == "__main__":

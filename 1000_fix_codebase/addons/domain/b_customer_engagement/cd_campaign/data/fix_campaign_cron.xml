@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_campaign — M35 scheduled jobs (REQ-35.2).
+
+     Campaigns launched outside the BTRC 08:00-22:00 BST promotional window are
+     queued rather than dispatched; this releases them when the window opens.
+     Before the A03 zero-trust audit (2026-10-31) the curfew existed only as
+     label text in the workspace and a campaign launched at 03:00 went out. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_campaign_release_curfew" model="ir.cron">
+            <field name="name">Campaigns: release BTRC curfew holds at 08:00 BST</field>
+            <field name="model_id" ref="model_fix_campaign"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_release_curfew_holds()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -3,3 +3,8 @@ access_fix_partner,fix.partner,model_fix_partner,base.group_user,1,1,1,0
 access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,1,1,0
 access_fix_partner_portal,fix.partner,model_fix_partner,group_fix_partner_portal,1,0,0,0
 access_fix_referral_portal,fix.referral,model_fix_referral,group_fix_partner_portal,1,1,1,0
+access_fix_partner_authorisation,fix.partner.authorisation,model_fix_partner_authorisation,base.group_user,1,1,1,1
+access_fix_partner_deal,fix.partner.deal,model_fix_partner_deal,base.group_user,1,1,1,1
+access_fix_partner_rebate,fix.partner.rebate,model_fix_partner_rebate,base.group_user,1,1,1,1
+access_fix_partner_franchise,fix.partner.franchise,model_fix_partner_franchise,base.group_user,1,1,1,1
+access_fix_partner_conflict,fix.partner.conflict,model_fix_partner_conflict,base.group_user,1,1,1,1

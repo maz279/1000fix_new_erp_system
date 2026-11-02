@@ -194,7 +194,15 @@ class ContactApiController(http.Controller):
             "resolved_ai",
             "resolved_agent",
         ):
-            conv.action_resolve(by_ai=conv.ai_resolved)
+            # FLAW-27.1: a hangup cannot bypass the mandatory wrap-up gate.
+            # AI-resolved sessions close; agent calls stay with_agent (after-call
+            # work) until disposition + wrap-up notes are captured.
+            if conv.ai_resolved:
+                conv.action_resolve(by_ai=True)
+            elif conv.disposition_id and (conv.wrapup_notes or "").strip():
+                conv.action_resolve(by_ai=False)
+            else:
+                conv.write({"ended_at": fields.Datetime.now(), "state": "with_agent"})
 
         return {
             "status": "ok",
