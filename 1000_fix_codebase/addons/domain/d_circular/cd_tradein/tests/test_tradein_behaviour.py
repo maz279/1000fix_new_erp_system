@@ -105,9 +105,16 @@ def test_money_fields_cannot_be_negative(odoo_env, field, message):
 
 
 def test_names(odoo_env):
-    assert _request(odoo_env).name == "TRD/New"
+    # the module ships the trade-in sequence (data/ir_sequence.xml): a new
+    # request is numbered, not left as the "TRD/New" placeholder
+    first = _request(odoo_env)
+    assert first.name.startswith("TRD/")
+    assert first.name != "TRD/New"
     assert _request(odoo_env, name="TRD/LEGACY/9").name == "TRD/LEGACY/9"
-    odoo_env["ir.sequence"].create({"name": "TRD test", "code": TRD, "prefix": "TRD/T/"})
+    # one sequence per code: retarget the module's own sequence rather than
+    # creating a second row for the same code (next_by_code would be ambiguous)
+    seq = odoo_env["ir.sequence"].search([("code", "=", TRD)], limit=1)
+    seq.prefix = "TRD/T/"
     assert _request(odoo_env).name.startswith("TRD/T/")
 
 

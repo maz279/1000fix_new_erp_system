@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_tradein_request" model="ir.sequence">
+            <field name="name">Trade-In Request</field>
+            <field name="code">fix.tradein.request</field>
+            <field name="prefix">TRD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_tradein_valuation" model="ir.sequence">
+            <field name="name">Trade-In Valuation</field>
+            <field name="code">fix.tradein.valuation</field>
+            <field name="prefix">TVAL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_tradein_provenance" model="ir.sequence">
+            <field name="name">Trade-In Provenance Screen</field>
+            <field name="code">fix.tradein.provenance</field>
+            <field name="prefix">PROV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_tradein_grade" model="ir.sequence">
+            <field name="name">Trade-In Grading Result</field>
+            <field name="code">fix.tradein.grade</field>
+            <field name="prefix">TGRD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_refurb_qa" model="ir.sequence">
+            <field name="name">Refurbishment QA</field>
+            <field name="code">fix.refurb.qa</field>
+            <field name="prefix">RQA/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_tradein_harvest" model="ir.sequence">
+            <field name="name">Trade-In Harvest</field>
+            <field name="code">fix.tradein.harvest</field>
+            <field name="prefix">HARV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_tradein_warranty" model="ir.sequence">
+            <field name="name">Refurbished Unit Warranty</field>
+            <field name="code">fix.tradein.warranty</field>
+            <field name="prefix">TWAR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

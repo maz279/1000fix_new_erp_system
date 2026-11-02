@@ -2,3 +2,10 @@ id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_data_recovery_case,fix.data.recovery.case,model_fix_data_recovery_case,base.group_user,1,1,1,0
 access_fix_data_wipe_certificate,fix.data.wipe.certificate,model_fix_data_wipe_certificate,base.group_user,1,1,1,0
 access_fix_z4_access_audit,fix.z4.access.audit,model_fix_z4_access_audit,base.group_user,1,0,1,0
+access_fix_data_recovery_attempt,fix.data.recovery.attempt,model_fix_data_recovery_attempt,base.group_user,1,1,1,1
+access_fix_data_media_unit,fix.data.media.unit,model_fix_data_media_unit,base.group_user,1,1,1,0
+access_fix_data_cleanroom_slot,fix.data.cleanroom.slot,model_fix_data_cleanroom_slot,base.group_user,1,1,1,1
+access_fix_data_evaluation,fix.data.evaluation,model_fix_data_evaluation,base.group_user,1,1,1,1
+access_fix_data_quote,fix.data.quote,model_fix_data_quote,base.group_user,1,1,1,0
+access_fix_data_backup_plan,fix.data.backup.plan,model_fix_data_backup_plan,base.group_user,1,1,1,0
+access_fix_data_backup_test,fix.data.backup.test,model_fix_data_backup_test,base.group_user,1,1,1,1

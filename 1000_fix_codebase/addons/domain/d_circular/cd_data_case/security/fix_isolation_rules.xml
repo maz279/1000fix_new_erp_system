@@ -8,6 +8,77 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_data_backup_plan_company" model="ir.rule">
+        <field name="name">fix.data.backup.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_backup_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_backup_plan_operating_unit" model="ir.rule">
+        <field name="name">fix.data.backup.plan: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_backup_plan"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_backup_test_company" model="ir.rule">
+        <field name="name">fix.data.backup.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_backup_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_cleanroom_slot_company" model="ir.rule">
+        <field name="name">fix.data.cleanroom.slot: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_cleanroom_slot"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_cleanroom_slot_operating_unit" model="ir.rule">
+        <field name="name">fix.data.cleanroom.slot: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_cleanroom_slot"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_evaluation_company" model="ir.rule">
+        <field name="name">fix.data.evaluation: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_evaluation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_evaluation_operating_unit" model="ir.rule">
+        <field name="name">fix.data.evaluation: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_evaluation"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_media_unit_company" model="ir.rule">
+        <field name="name">fix.data.media.unit: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_media_unit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_media_unit_operating_unit" model="ir.rule">
+        <field name="name">fix.data.media.unit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_media_unit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_quote_company" model="ir.rule">
+        <field name="name">fix.data.quote: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_quote"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_quote_operating_unit" model="ir.rule">
+        <field name="name">fix.data.quote: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_quote"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_recovery_attempt_company" model="ir.rule">
+        <field name="name">fix.data.recovery.attempt: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_recovery_attempt"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_recovery_attempt_operating_unit" model="ir.rule">
+        <field name="name">fix.data.recovery.attempt: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_recovery_attempt"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_data_recovery_case_company" model="ir.rule">
         <field name="name">fix.data.recovery.case: allowed companies</field>
         <field name="model_id" ref="model_fix_data_recovery_case"/>

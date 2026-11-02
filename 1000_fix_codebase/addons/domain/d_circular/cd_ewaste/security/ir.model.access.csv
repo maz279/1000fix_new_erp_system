@@ -1,3 +1,10 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_ewaste_collection,fix.ewaste.collection,model_fix_ewaste_collection,base.group_user,1,1,1,0
 access_fix_esg_metric,fix.esg.metric,model_fix_esg_metric,base.group_user,1,1,1,0
+access_fix_ewaste_event,fix.ewaste.event,model_fix_ewaste_event,base.group_user,1,1,1,0
+access_fix_ewaste_triage,fix.ewaste.triage,model_fix_ewaste_triage,base.group_user,1,1,1,0
+access_fix_ewaste_batch,fix.ewaste.batch,model_fix_ewaste_batch,base.group_user,1,1,1,0
+access_fix_ewaste_battery,fix.ewaste.battery,model_fix_ewaste_battery,base.group_user,1,1,1,0
+access_fix_ewaste_partner,fix.ewaste.partner,model_fix_ewaste_partner,base.group_user,1,1,1,0
+access_fix_ewaste_certificate,fix.ewaste.certificate,model_fix_ewaste_certificate,base.group_user,1,1,1,0
+access_fix_ewaste_return,fix.ewaste.return,model_fix_ewaste_return,base.group_user,1,1,1,0

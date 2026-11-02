@@ -92,22 +92,21 @@ def _case_in(env, state, zone="z4"):
 # --------------------------------------------------------------------------
 
 
-def test_case_name_falls_back_when_no_sequence(odoo_env):
+def test_case_name_uses_default_sequence(odoo_env):
+    # iteration 2: data/ir_sequence_data.xml ships DRC/ and DWC/ sequences —
+    # the old "DRC/New" fallback only applies when they are deleted.
     case = _case(odoo_env)
-    assert case.name == "DRC/New"
+    assert case.name.startswith("DRC/")
     assert case.state == "new"
     assert case.residency_zone == "pending"
 
 
-def test_case_name_uses_sequence_when_configured(odoo_env):
-    odoo_env["ir.sequence"].create(
-        {"name": "DRC test", "code": CASE, "prefix": "DRC/T/", "padding": 3}
-    )
+def test_case_names_are_sequential(odoo_env):
     first, second = odoo_env[CASE].create(
         [{"customer_id": _customer(odoo_env).id}, {"customer_id": _customer(odoo_env).id}]
     )
-    assert first.name.startswith("DRC/T/")
-    assert second.name.startswith("DRC/T/")
+    assert first.name.startswith("DRC/")
+    assert second.name.startswith("DRC/")
     assert first.name != second.name
 
 
@@ -475,7 +474,7 @@ def test_purge_never_fabricates_a_certificate(odoo_env):
 
 def test_certificate_starts_pending_with_no_invented_evidence(odoo_env):
     cert = _cert(odoo_env, sanitization_status="verified")
-    assert cert.name == "DWC/New"
+    assert cert.name.startswith("DWC/")
     assert cert.sanitization_status == "pending_verification"  # never born verified
     assert (cert.sector_count, cert.duration_seconds) == (0, 0)
     assert not cert.verification_hash
@@ -545,10 +544,9 @@ def test_verified_evidence_is_frozen_and_tampering_is_refused(odoo_env):
 
 
 def test_certificate_keeps_explicit_certifier_and_uses_sequence(odoo_env):
-    odoo_env["ir.sequence"].create({"name": "DWC test", "code": CERT, "prefix": "DWC/T/"})
     cert = odoo_env[CERT].create({"certified_by": "Ext. Auditor", "method": "cryptographic_erase"})
     assert cert.certified_by == "Ext. Auditor"
-    assert cert.name.startswith("DWC/T/")
+    assert cert.name.startswith("DWC/")
 
 
 def test_retained_certificate_cannot_be_deleted(odoo_env):

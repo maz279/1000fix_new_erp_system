@@ -1,6 +1,8 @@
 # fix_tradein — M14: trade-in, refurbishment, resale (P09-M04 / R07-M03).
 from __future__ import annotations
 
+import re
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -19,6 +21,10 @@ TRADEIN_STATES = [
     ("rejected", "Rejected"),
 ]
 
+# A Smart NID is 10 digits; the legacy NID 13 or 17. A 12-digit e-TIN.
+_NID_RE = re.compile(r"^\d{10}(\d{3}|\d{7})?$")
+_ETIN_RE = re.compile(r"^\d{12}$")
+
 
 class FixTradeinRequest(models.Model):
     """Journey 9: trade-in -> offer -> intake -> data wipe -> refurbishment
@@ -28,8 +34,33 @@ class FixTradeinRequest(models.Model):
 
     _name = "fix.tradein.request"
     _description = "Trade-In Request"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "create_date desc, id desc"
+
+    # A05 DOFA matrix — Customer Trade-In Valuation & Payout: Appraisal
+    # Specialist to 50k, Service Hub Lead to 250k, Head of Circular Economy
+    # to 1M, CFO above.
+    _DOFA_THRESHOLDS = [
+        (50000.0, "tier_1"),
+        (250000.0, "tier_2"),
+        (1000000.0, "tier_3"),
+        (float("inf"), "tier_4"),
+    ]
+
+    def _dofa_thresholds(self):
+        return self._DOFA_THRESHOLDS
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        return self.graded_value or self.offered_value or 0.0
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (graded payout value)" % self._dofa_amount()
+
+    @api.depends("graded_value", "offered_value")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -87,6 +118,62 @@ class FixTradeinRequest(models.Model):
         "res.users", string="Payout Approved By", readonly=True, copy=False
     )
     payout_approved_at = fields.Datetime(readonly=True, copy=False)
+
+    # Statutory Compliance (BTRC NEIR, ITA 2023 TDS & Customer NID)
+    customer_nid = fields.Char(
+        string="Customer Smart NID",
+        copy=False,
+        tracking=True,
+        help="10-digit Smart NID or 13/17-digit legacy NID — required before any "
+        "payout leaves (AML / ITA 2023 identification)",
+    )
+    taxpayer_tin = fields.Char(
+        string="Taxpayer e-TIN",
+        copy=False,
+        help="The seller's 12-digit e-TIN; its absence lifts the TDS rate by 50%",
+    )
+    psr_verified = fields.Boolean(
+        string="PSR Verified",
+        default=False,
+        copy=False,
+        help="Presumptive Sadharan Rate acknowledgement sighted — without it the "
+        "withholding rate is uplifted 50% (ITA 2023 s.142)",
+    )
+    tds_section = fields.Selection(
+        [
+            ("s89", "s.89 — supply of goods"),
+            ("s90", "s.90 — services"),
+            ("s140", "s.140 — e-commerce collection"),
+        ],
+        string="TDS Section (ITA 2023)",
+        default="s89",
+        help="A used-device trade-in is a supply of goods: s.89",
+    )
+    tds_applicable = fields.Boolean(
+        string="ITA 2023 TDS Applicable", default=False, help="Withholding tax under Section 89/90"
+    )
+    tds_rate_pct = fields.Float(string="TDS Rate % (Contract)", default=5.0)
+    tds_effective_rate_pct = fields.Float(
+        string="TDS Effective Rate %",
+        compute="_compute_tds",
+        store=True,
+        help="Contract rate, uplifted ×1.5 when no PSR/e-TIN is sighted (s.142)",
+    )
+    tds_amount = fields.Monetary(
+        string="TDS Withheld (BDT)",
+        currency_field="currency_id",
+        compute="_compute_tds",
+        store=True,
+    )
+    net_payout = fields.Monetary(
+        string="Net Payout (BDT)", currency_field="currency_id", compute="_compute_tds", store=True
+    )
+    tds_certificate_no = fields.Char(
+        string="TDS Withholding Certificate No",
+        copy=False,
+        help="The income-tax TDS certificate issued to the seller (NOT Mushak 6.6, "
+        "which evidences only VAT deducted at source)",
+    )
 
     # Grading on M37 grades (fix.refurb.grade)
     refurb_grade_id = fields.Many2one(
@@ -146,6 +233,22 @@ class FixTradeinRequest(models.Model):
         default=0.0,
         help="The graded resale valuation / listed price",
     )
+    resale_channel = fields.Selection(
+        [
+            ("marketplace", "Marketplace (M12)"),
+            ("store", "Own Store (M38)"),
+            ("direct", "Direct / Walk-in"),
+            ("none", "Not listed"),
+        ],
+        string="Resale Channel",
+        default="none",
+    )
+    resale_listed_on = fields.Date(string="Listed On")
+    battery_health_pct = fields.Integer(
+        string="Battery Health %",
+        default=100,
+        help="Measured at grading; the A–E grade and resale price reflect it",
+    )
     graded_stock_id = fields.Many2one(
         "fix.graded.stock", string="Graded Inventory Unit (M15)", ondelete="set null"
     )
@@ -174,6 +277,35 @@ class FixTradeinRequest(models.Model):
     def _compute_inventory_valuation(self):
         for rec in self:
             rec.inventory_valuation = (rec.offered_value or 0.0) + (rec.refurbishment_cost or 0.0)
+
+    @api.depends("graded_value", "tds_applicable", "tds_rate_pct", "psr_verified", "taxpayer_tin")
+    def _compute_tds(self):
+        for rec in self:
+            val = rec.graded_value or 0.0
+            # ITA 2023 s.142: withholding without a sighted PSR or e-TIN is
+            # lifted by half again (the estate's x1.5 uplift, M53/M52 pattern).
+            rate = rec.tds_rate_pct or 0.0
+            if (
+                rec.tds_applicable
+                and rate > 0
+                and not (rec.psr_verified or (rec.taxpayer_tin or "").strip())
+            ):
+                rate = round(rate * 1.5, 4)
+            rec.tds_effective_rate_pct = rate if rec.tds_applicable else 0.0
+            tds = round(val * (rate / 100.0), 2) if rec.tds_applicable and rate > 0 else 0.0
+            rec.tds_amount = tds
+            rec.net_payout = max(0.0, val - tds)
+
+    @api.constrains("customer_nid", "taxpayer_tin")
+    def _check_statutory_ids(self):
+        for rec in self:
+            if rec.customer_nid and not _NID_RE.match(rec.customer_nid.strip()):
+                raise ValidationError(
+                    "Customer NID %r is not a 10-digit Smart NID or 13/17-digit NID."
+                    % rec.customer_nid
+                )
+            if rec.taxpayer_tin and not _ETIN_RE.match(rec.taxpayer_tin.strip()):
+                raise ValidationError("Taxpayer e-TIN %r is not 12 digits." % rec.taxpayer_tin)
 
     @api.constrains("offered_value", "resale_value", "parts_cost", "labour_cost", "graded_value")
     def _check_monetary_bounds(self):
@@ -331,6 +463,23 @@ class FixTradeinRequest(models.Model):
                 )
                 rec.workshop_job_id = job.id
 
+            # the Refurb Work Orders screen reads fix.refurbishment: create the
+            # step plan once per unit so the workspace grid is the real plan,
+            # not an empty model beside a workshop job
+            steps = self.env["fix.refurbishment"]
+            if not steps.search_count([("tradein_id", "=", rec.id)]):
+                labels = dict(steps._fields["step"].selection)
+                for step in ("intake", "repair", "cosmetic", "testing", "final_qa"):
+                    steps.create(
+                        {
+                            "name": "%s · %s" % (rec.name, labels.get(step, step)),
+                            "tradein_id": rec.id,
+                            "step": step,
+                            "state": "done" if step == "intake" else "pending",
+                            "parts_cost": 0.0,
+                        }
+                    )
+
             rec.state = "refurbished"
             publish(
                 self.env,
@@ -392,12 +541,14 @@ class FixTradeinRequest(models.Model):
                 stock = self.env["fix.graded.stock"].create(
                     {
                         "device_id": rec.device_id.id,
-                        "tradein_id": rec.id,
                         "grade_id": rec.refurb_grade_id.id,
                         "acquisition_cost": rec.offered_value,
                         "refurbishment_cost": rec.refurbishment_cost,
                         "resale_price": rec.resale_value,
                         "state": "in_stock",
+                        # the graded-stock screen shows the origin trade-in
+                        "tradein_id": rec.id,
+                        "tradein_ref": rec.name,
                     }
                 )
                 rec.graded_stock_id = stock.id
@@ -478,7 +629,10 @@ class FixTradeinRequest(models.Model):
 
     def action_pay(self):
         """Trade-in payout through M50 treasury: the APPROVED graded value,
-        never the pre-inspection offer regardless of grade."""
+        never the pre-inspection offer regardless of grade. Statutory gates
+        before a taka leaves: identified seller (NID), BTRC NEIR clearance,
+        TDS certificate issued where withholding applies, and DOFA authority
+        covering the amount."""
         for rec in self:
             if rec.state not in ("resale_ready", "graded"):
                 raise UserError("Payout from graded or resale-ready")
@@ -489,11 +643,38 @@ class FixTradeinRequest(models.Model):
                     "Payout for %s is '%s': it must be approved before it is paid"
                     % (rec.name, rec.payout_approval_state)
                 )
+            # Identified seller (AML / ITA 2023): an anonymous payout is a
+            # laundering vector, not a customer-convenience feature.
+            if not (rec.customer_nid or "").strip():
+                raise UserError(
+                    "Payout blocked: customer Smart NID is required before any "
+                    "trade-in money leaves (AML identification)"
+                )
+            # BTRC Provenance Anti-Theft Validation
+            prov = self.env["fix.tradein.provenance"].search([("tradein_id", "=", rec.id)], limit=1)
+            if prov and (prov.stolen_hit or prov.blacklist_hit or prov.state == "flagged"):
+                raise UserError(
+                    "Payout blocked: Device IMEI flagged as stolen/blacklisted by BTRC NEIR"
+                )
+            # Withholding must be evidenced: the certificate number is the
+            # seller's only proof of credit for the tax withheld.
+            if rec.tds_applicable and rec.tds_amount and not (rec.tds_certificate_no or "").strip():
+                raise UserError(
+                    "Payout blocked: BDT %.2f TDS is withheld but no income-tax TDS "
+                    "withholding certificate has been issued (ITA 2023 %s)"
+                    % (rec.tds_amount, dict(rec._fields["tds_section"].selection)[rec.tds_section])
+                )
+            # DOFA: the payout amount decides the tier that must sign it off.
+            rec._dofa_assert_approved("A trade-in payout")
 
             # Queue the payout with M50 treasury. Only treasury releases it and
             # marks it executed on bank/MFS evidence; trade-in never asserts
             # the money left. Created with sudo after the approval checks
             # above: a branch user requests a payout without treasury rights.
+            # The seller receives the NET (graded value − TDS): the withheld
+            # tax is the Crown's money and is remitted to NBR separately,
+            # never bundled into the seller's payout.
+            net_to_seller = rec.net_payout if rec.tds_applicable else rec.graded_value
             if not rec.payout_execution_id:
                 payment = (
                     self.env["fix.payment.execution"]
@@ -504,14 +685,15 @@ class FixTradeinRequest(models.Model):
                             "source_model": "fix.tradein.request",
                             "source_id": rec.id,
                             "payee": rec.customer_id.name,
-                            "amount": rec.graded_value,
+                            "partner_id": rec.customer_id.id,
+                            "amount": net_to_seller,
                             "method": "mobile_fs",  # default bKash/Nagad
                         }
                     )
                 )
                 rec.payout_execution_id = payment.id
 
-            rec.write({"state": "closed", "payout_amount": rec.graded_value})
+            rec.write({"state": "closed", "payout_amount": net_to_seller})
             publish(
                 self.env,
                 "tradein.paid",
@@ -554,13 +736,62 @@ class FixRefurbishment(models.Model):
         default="intake",
     )
     state = fields.Selection(
-        [("pending", "Pending"), ("done", "Done")], default="pending", required=True
+        [("pending", "Pending"), ("in_progress", "In Progress"), ("done", "Done")],
+        default="pending",
+        required=True,
     )
     notes = fields.Text()
     technician_id = fields.Many2one("hr.employee", string="Technician")
     parts_cost = fields.Monetary(
         string="Step Parts Cost", currency_field="currency_id", default=0.0
     )
+    labor_cost = fields.Monetary(
+        string="Step Labor Cost", currency_field="currency_id", default=0.0
+    )
+    total_cost = fields.Monetary(
+        string="Total Step Cost",
+        currency_field="currency_id",
+        compute="_compute_total_cost",
+        store=True,
+    )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
+
+    @api.depends("parts_cost", "labor_cost")
+    def _compute_total_cost(self):
+        for rec in self:
+            rec.total_cost = (rec.parts_cost or 0.0) + (rec.labor_cost or 0.0)
+
+    def action_start(self):
+        """Allocate technician and initiate repair session."""
+        for rec in self:
+            if not rec.technician_id:
+                employee = self.env["hr.employee"].search(
+                    [("user_id", "=", self.env.user.id)], limit=1
+                )
+                if employee:
+                    rec.technician_id = employee.id
+            rec.state = "in_progress"
+
+    def action_request_parts(self):
+        """Record spare parts request from M15 inventory."""
+        self.ensure_one()
+        self.message_post(
+            body="Parts requested for step %s: Parts cost BDT %.2f" % (self.step, self.parts_cost)
+        )
+        return True
+
+    def action_complete_repair(self):
+        """Mark refurbishment step as done and log to trade-in request."""
+        for rec in self:
+            rec.state = "done"
+            if rec.tradein_id:
+                rec.tradein_id.message_post(
+                    body="Refurbishment step '%s' completed by %s. Cost: BDT %.2f"
+                    % (
+                        dict(rec._fields["step"].selection).get(rec.step, rec.step),
+                        rec.technician_id.name if rec.technician_id else "Technician",
+                        rec.total_cost,
+                    )
+                )

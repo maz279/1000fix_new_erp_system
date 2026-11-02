@@ -19,6 +19,33 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_ewaste_batch_company" model="ir.rule">
+        <field name="name">fix.ewaste.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_batch_operating_unit" model="ir.rule">
+        <field name="name">fix.ewaste.batch: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ewaste_batch"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_battery_company" model="ir.rule">
+        <field name="name">fix.ewaste.battery: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_battery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_battery_operating_unit" model="ir.rule">
+        <field name="name">fix.ewaste.battery: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ewaste_battery"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_certificate_company" model="ir.rule">
+        <field name="name">fix.ewaste.certificate: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_certificate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_ewaste_collection_company" model="ir.rule">
         <field name="name">fix.ewaste.collection: allowed companies</field>
         <field name="model_id" ref="model_fix_ewaste_collection"/>
@@ -29,5 +56,31 @@
         <field name="model_id" ref="model_fix_ewaste_collection"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_event_company" model="ir.rule">
+        <field name="name">fix.ewaste.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_event_operating_unit" model="ir.rule">
+        <field name="name">fix.ewaste.event: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ewaste_event"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_partner_company" model="ir.rule">
+        <field name="name">fix.ewaste.partner: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_partner"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_return_company" model="ir.rule">
+        <field name="name">fix.ewaste.return: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_return"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_triage_company" model="ir.rule">
+        <field name="name">fix.ewaste.triage: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_triage"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

@@ -19,6 +19,7 @@
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/cd_ewaste_views.xml",
     ],
     "installable": True,

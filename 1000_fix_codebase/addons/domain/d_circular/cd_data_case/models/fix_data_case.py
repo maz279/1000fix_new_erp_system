@@ -168,6 +168,72 @@ class FixDataRecoveryCase(models.Model):
         string="Total Access Reads", compute="_compute_audit_count", readonly=True
     )
 
+    # --- A02 Enterprise Data Capture (M06 6-Tab Data Recovery Specification) ---
+    form_factor = fields.Selection(
+        [
+            ("35_desktop", "3.5-inch Desktop HDD"),
+            ("25_mobile", "2.5-inch Mobile HDD / SATA SSD"),
+            ("m2_nvme", "M.2 NVMe / PCIe Blade"),
+            ("nand_monolith", "Monolith Flash / eMMC / UFS BGA"),
+            ("enterprise_raid", "Enterprise SAS / Multi-Disk RAID Array"),
+        ],
+        string="Storage Media Form Factor",
+        default="25_mobile",
+    )
+    interface_type = fields.Selection(
+        [
+            ("sata", "SATA III (6 Gbps)"),
+            ("nvme_pcie", "NVMe PCIe Gen3/Gen4/Gen5"),
+            ("sas", "Enterprise SAS"),
+            ("usb", "USB 3.x / Type-C Bridge"),
+            ("ufs_emmc", "Embedded UFS / eMMC / Apple NAND"),
+        ],
+        string="Physical Interface Protocol",
+        default="sata",
+    )
+    capacity_gb = fields.Float(string="Raw Storage Capacity (GB)", default=512.0)
+    media_serial_number = fields.Char(string="Storage Media Factory S/N", tracking=True)
+    firmware_revision = fields.Char(string="Controller / ROM Firmware Version")
+    nda_reference = fields.Char(
+        string="PDPA / Corporate NDA Reference",
+        tracking=True,
+    )
+    nda_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Signed Confidentiality & NDA Document (PDF)",
+    )
+    donor_drive_serial = fields.Char(
+        string="Matched Donor Drive / Head Stack S/N",
+        tracking=True,
+    )
+    donor_microcode_match = fields.Boolean(
+        string="Donor Head-Map & Microcode Verified",
+        default=False,
+    )
+    donor_cost_bdt = fields.Float(
+        string="Donor Media Procurement Cost (BDT)",
+        default=0.0,
+    )
+    write_blocker_serial = fields.Char(
+        string="Hardware Write-Blocker / PC-3000 Port ID",
+        tracking=True,
+    )
+    image_sha256_hash = fields.Char(
+        string="Bit-Stream Forensic Clone SHA-256 Digest",
+        tracking=True,
+    )
+    recovered_files_count = fields.Integer(
+        string="Total Recovered Files Count",
+        default=0,
+    )
+    recovered_volume_gb = fields.Float(
+        string="Recovered Data Volume (GB)",
+        default=0.0,
+    )
+    encrypted_target_serial = fields.Char(
+        string="Encrypted Handover Target Drive S/N (AES-256)",
+    )
+
     @api.depends("audit_ids")
     def _compute_audit_count(self):
         for rec in self:

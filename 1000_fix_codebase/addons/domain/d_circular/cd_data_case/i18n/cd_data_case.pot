@@ -9,6 +9,21 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__plan_type__rule_321
+msgid "3-2-1 Rule"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_quote_form
+msgid "Accept"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_quote__state__accepted
+msgid "Accepted"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__access_time
 msgid "Access Timestamp"
 msgstr ""
@@ -29,8 +44,49 @@ msgid "Accessor Name"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__attempt_count
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__attempt_ids
+msgid "Attempts"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__sha256_audit_hash
 msgid "Audit Entry SHA-256 Hash"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_backup_plan
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_backup_plans
+msgid "Backup Plans"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_media_unit_form
+msgid "Break Seal"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__seal_state__broken_on_receipt
+msgid "Broken on Receipt"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_cleanroom_form
+msgid "Cancel"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_cleanroom_slot__case_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_evaluation__case_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_media_unit__case_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_quote__case_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_attempt__case_id
+msgid "Case"
 msgstr ""
 
 #. module: cd_data_case
@@ -54,6 +110,23 @@ msgid "Chain of Custody Log"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__chip_off
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__chip_off
+msgid "Chip-Off"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__cleanroom
+msgid "Cleanroom"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_cleanroom
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_cleanroom
+msgid "Cleanroom Schedule"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__ip_address
 msgid "Client IP Address"
 msgstr ""
@@ -64,10 +137,22 @@ msgid "Closed"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__plan_type__cloud_hybrid
+msgid "Cloud Hybrid"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__company_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_cleanroom_slot__company_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__company_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__company_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__company_id
 msgid "Company"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_evaluation_form
+msgid "Complete Evaluation"
 msgstr ""
 
 #. module: cd_data_case
@@ -76,6 +161,12 @@ msgid "Cryptographic Erase"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_media_unit__holder
+msgid "Current Holder"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__customer_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__customer_id
 msgid "Customer"
 msgstr ""
@@ -89,9 +180,13 @@ msgstr ""
 #: model:ir.actions.act_window,name:cd_data_case.action_fix_data_recovery_case
 #: model:ir.model,name:cd_data_case.model_fix_data_recovery_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__case_id
-#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_recovery_case
 #: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
 msgid "Data Recovery Case"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_services
+msgid "Data Services"
 msgstr ""
 
 #. module: cd_data_case
@@ -101,15 +196,113 @@ msgstr ""
 #. module: cd_data_case
 #: model:ir.actions.act_window,name:cd_data_case.action_fix_data_wipe_certificate
 #: model:ir.model,name:cd_data_case.model_fix_data_wipe_certificate
-#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_wipe_certificate
 #: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_wipe_certificate_form
 msgid "Data Wipe Certificate"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_wipe_certificate
+msgid "Data Wipe Certificates"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_quote_form
+msgid "Decline"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_quote__state__declined
+msgid "Declined"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__destroyed
+msgid "Destroyed"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__device_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__device_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__device_id
 msgid "Device"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__plan_type__disk_image
+msgid "Disk Image"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__donor_parts
+msgid "Donor Parts"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_quote__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__evaluation_ids
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Evaluations"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__vault
+msgid "Evidence Vault"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__last_test_result__failed
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_test__result__failed
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__outcome__failed
+msgid "Failed"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_attempt_form
+msgid "Finish Attempt"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_quote
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_quotes
+msgid "Firm Quotations"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__firmware_repair
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__firmware_repair
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__firmware_repair
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__firmware_repair
+msgid "Firmware Repair"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__flash_chipoff
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__flash_chipoff
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__flash_chipoff
+msgid "Flash Chip-Off"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__forensic_imaging
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__forensic_imaging
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__forensic_imaging
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__forensic_imaging
+msgid "Forensic Imaging"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_evaluation
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_evaluations
+msgid "Free Evaluations"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__outcome__success
+msgid "Full Recovery"
 msgstr ""
 
 #. module: cd_data_case
@@ -118,8 +311,21 @@ msgid "Handover"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__hardware_repair
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__hardware_repair
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__hardware_repair
+msgid "Hardware / PCB Repair"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__hdd
 msgid "HDD"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__head_swap
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__head_swap
+msgid "Head Assembly Swap"
 msgstr ""
 
 #. module: cd_data_case
@@ -128,8 +334,96 @@ msgid "In Custody"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__outcome__in_progress
+msgid "In Progress"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__inspection
+msgid "Inspection"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__iso_class__iso_5
+msgid "ISO Class 5 (100)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__iso_class__iso_7
+msgid "ISO Class 7 (10,000)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__last_test_date
+msgid "Last Restore Test"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__last_test_result
+msgid "Last Test Result"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__plan_type__nas_local
+msgid "Local NAS"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Log Custody Transfer"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_backup_plan_form
+msgid "Log Restore Test (Passed)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__logical_recovery
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__logical_recovery
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__logical_recovery
+msgid "Logical Recovery"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_wipe_certificate_form
+msgid "Mark Failed"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Mark Recovered"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_cleanroom_form
+msgid "Mark Used"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__outcome__media_damaged
+msgid "Media Damaged"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_z4_access_audit__access_type__preview_read
 msgid "Media File Preview"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_media_unit__media_label
+msgid "Media Label"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__received_at
+msgid "Media Received At"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_media_unit__media_type
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__media_type
+msgid "Media Type"
 msgstr ""
 
 #. module: cd_data_case
@@ -153,6 +447,23 @@ msgid "NIST SP 800-88 (Purge)"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__verdict__no_media_damage
+msgid "No Media Damage (logical only)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__plan_type__offline_vault
+msgid "Offline Vault"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__seal_state__opened_in_lab
+msgid "Opened in Lab"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__operating_unit_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_cleanroom_slot__operating_unit_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__operating_unit_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__operating_unit_id
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_z4_access_audit__operating_unit_id
@@ -165,13 +476,57 @@ msgid "Other"
 msgstr ""
 
 #. module: cd_data_case
-#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__sanitization_status__verified
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__last_test_result__partial
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_test__result__partial
+msgid "Partial"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__outcome__partial
+msgid "Partial Recovery"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__verdict__partial
+msgid "Partially Recoverable"
+msgstr ""
+
+#. module: cd_data_case
 msgid "Pass - Cryptographically Verified"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__sanitization_status__verified
+msgid "Pass - Evidence Verified"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_plan__last_test_result__passed
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_backup_test__result__passed
+msgid "Passed"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__pcb_transplant
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__pcb_transplant
+msgid "PCB Transplant"
 msgstr ""
 
 #. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__pending
 msgid "Pending Routing"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__sanitization_status__pending_verification
+msgid "Pending Verification"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__phone_extraction
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__phone_extraction
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__phone_extraction
+msgid "Phone Extraction"
 msgstr ""
 
 #. module: cd_data_case
@@ -185,6 +540,21 @@ msgid "Physical Destruction"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__state__planned
+msgid "Planned"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__purpose__platter_transfer
+msgid "Platter Transfer"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Purge (Verified Certificate)"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__purge_certificate_id
 msgid "Purge Certificate"
 msgstr ""
@@ -192,6 +562,44 @@ msgstr ""
 #. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__purged
 msgid "Purged"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__quote_ids
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Quotations"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__raid_rebuild
+msgid "RAID Rebuild"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__recommended_specialism__raid_reconstruction
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__specialism__raid_reconstruction
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__specialism__raid_reconstruction
+msgid "RAID Reconstruction"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__reception
+msgid "Reception"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_evaluation__recommended_specialism
+msgid "Recommended Specialism"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_evaluation__recoverability_pct
+msgid "Recoverability %"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__verdict__recoverable
+msgid "Recoverable"
 msgstr ""
 
 #. module: cd_data_case
@@ -215,6 +623,54 @@ msgid "Recovering"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_attempt
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_attempts
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Recovery Attempts"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_recovery_case
+msgid "Recovery Cases"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__test_ids
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_backup_plan_form
+msgid "Restore Tests"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__compliant
+msgid "Restore-Test Compliant"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_test__restored_gb
+msgid "Restored (GB)"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_media_unit_form
+msgid "Return to Customer"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__returned_to_customer
+msgid "Returned to Customer"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__rpo_hours
+msgid "RPO (h)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__rto_hours
+msgid "RTO (h)"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__duration_seconds
 msgid "Sanitization Duration (s)"
 msgstr ""
@@ -225,13 +681,70 @@ msgid "Sanitization Incomplete"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_quote__description
+msgid "Scope"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__sd_card
 msgid "SD Card"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_media_unit__seal_number
+msgid "Seal / Bag Number"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__seal_state__sealed
+msgid "Sealed"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__media_unit_ids
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Sealed Media"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_media_unit
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_media_units
+msgid "Sealed Media Custody"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Secure Handover"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_quote_form
+msgid "Send"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_quote__state__sent
+msgid "Sent"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_attempt__method__software_scan
+msgid "Software Scan"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__specialism
+msgid "Specialism"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__ssd
 msgid "SSD"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Start Recovery"
 msgstr ""
 
 #. module: cd_data_case
@@ -260,6 +773,26 @@ msgid "Storage Media Serial Number"
 msgstr ""
 
 #. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_recovery_case_form
+msgid "Take Custody"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_cleanroom_slot__technician_id
+msgid "Technician"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_plan__test_frequency_days
+msgid "Test Frequency (days)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_backup_test__tested_by
+msgid "Tested By"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__audit_count
 msgid "Total Access Reads"
 msgstr ""
@@ -270,6 +803,12 @@ msgid "Total Overwritten Sectors"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_evaluation__eval_hours
+msgid "Turnaround (h)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_evaluation__verdict__unrecoverable
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__unrecoverable
 msgid "Unrecoverable"
 msgstr ""
@@ -280,6 +819,41 @@ msgid "USB Drive"
 msgstr ""
 
 #. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_cleanroom_slot__state__used
+msgid "Used"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__verified_by_id
+msgid "Verified By"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_wipe_certificate_form
+msgid "Verify Evidence"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_evaluation_form
+msgid "What the bench found…"
+msgstr ""
+
+#. module: cd_data_case
+#: model_terms:ir.ui.view,arch_db:cd_data_case.view_fix_data_quote_form
+msgid "What the quoted recovery covers…"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__tool_name
+msgid "Wipe Tool / Version"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__wipe_log_attachment_id
+msgid "Wipe Tool Output / Log"
+msgstr ""
+
+#. module: cd_data_case
 #: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__z4
 msgid "Z4 (Residency-Classified)"
 msgstr ""
@@ -287,6 +861,11 @@ msgstr ""
 #. module: cd_data_case
 #: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__audit_ids
 msgid "Z4 Access Audits"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_media_unit__location__z4_lab
+msgid "Z4 Lab"
 msgstr ""
 
 #. module: cd_data_case

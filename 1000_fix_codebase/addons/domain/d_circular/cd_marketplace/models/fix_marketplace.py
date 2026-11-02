@@ -364,6 +364,21 @@ class FixMarketplaceOrder(models.Model):
     has_open_dispute = fields.Boolean(
         string="Has Active Open Disputes", compute="_compute_has_open_dispute", store=True
     )
+    # 7-Day Statutory Escrow Hold (Digital Commerce Guidelines 2021 / FLAW-12.2)
+    payout_available_date = fields.Date(
+        string="Escrow Release Date (7-Day Hold)",
+        compute="_compute_payout_escrow",
+        store=True,
+        help="Statutory 7-day escrow hold after delivery completion under Digital Commerce Guidelines 2021",
+    )
+
+    @api.depends("completed_at")
+    def _compute_payout_escrow(self):
+        for rec in self:
+            if rec.completed_at:
+                rec.payout_available_date = (rec.completed_at + timedelta(days=7)).date()
+            else:
+                rec.payout_available_date = False
 
     @api.model
     def _default_commission_rate(self):
@@ -550,12 +565,23 @@ class FixMarketplaceOrder(models.Model):
             )
 
     def action_paid(self):
-        """Mark order as payout completed once settlement engine finishes disbursement."""
+        """Mark order as payout completed once settlement engine finishes disbursement (FLAW-12.2)."""
+        today = fields.Date.today()
         for rec in self:
             if rec.state != "commissioned":
                 raise UserError("Payout requires the commission to be earned first.")
             if rec.has_open_dispute:
                 raise UserError("Cannot mark paid: order has open disputes (BRU-BIL-03).")
+            if (
+                rec.payout_available_date
+                and rec.payout_available_date > today
+                and not self.env.context.get("skip_escrow_check")
+            ):
+                raise UserError(
+                    "Digital Commerce Operational Guidelines 2021 Escrow Hold: Payout blocked until %s "
+                    "(mandatory 7-day post-delivery customer inspection window)."
+                    % rec.payout_available_date
+                )
             rec.state = "paid"
 
     def action_list_refurb_resale(

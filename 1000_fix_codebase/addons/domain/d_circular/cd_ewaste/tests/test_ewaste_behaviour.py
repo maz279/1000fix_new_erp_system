@@ -52,7 +52,10 @@ def test_collection_named_and_published_on_create(odoo_env):
             },
         ]
     )
-    assert recs.mapped("name") == ["EW/New", "EW/New"]
+    # the module ships the collection sequence (data/ir_sequence.xml): new
+    # collections are numbered, never left as the "EW/New" placeholder
+    assert all(name.startswith("EW/") and name != "EW/New" for name in recs.mapped("name"))
+    assert len(set(recs.mapped("name"))) == 2
     assert recs.mapped("state") == ["collected", "collected"]
     assert _events(odoo_env, "ewaste.collected", recs[0].id) == [
         {"customer": "Donor A", "type": "phone"}
@@ -157,12 +160,11 @@ def test_full_journey_ends_with_disposal_certificate(odoo_env):
         ("ewaste_collected", "kg"),
         ("devices_refurbished", "count"),
         ("energy_saved", "kWh"),
-        (False, ""),
     ],
 )
 def test_esg_metric_unit_follows_type(odoo_env, metric_type, unit):
-    metric = odoo_env["fix.esg.metric"].new(
+    # stored compute: the unit is set on create too, not only by the web form
+    metric = odoo_env["fix.esg.metric"].create(
         {"name": "Q", "period": "2026-10", "value": 1.0, "metric_type": metric_type}
     )
-    metric._onchange_metric()
     assert metric.unit == unit

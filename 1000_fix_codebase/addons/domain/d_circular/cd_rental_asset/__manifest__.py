@@ -16,6 +16,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
     "depends": [
         "base",
         "mail",
+        "account",
         "cd_entity_config",
         "cd_catalogue",
         "cd_party_master",
@@ -26,10 +27,18 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_subscription",
         "cd_service_order",
         "cd_event_outbox",
+        # money path: deposit GL (M19), invoicing (M20), VAT (M51), refunds (M50)
+        "cd_gl_ext",
+        "cd_billing_engine",
+        "cd_tax_engine_bd",
+        "cd_cash_position",
+        # customer-data wipe evidence on turnaround (M06)
+        "cd_data_case",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/cd_rental_asset_views.xml",
     ],
     "installable": True,

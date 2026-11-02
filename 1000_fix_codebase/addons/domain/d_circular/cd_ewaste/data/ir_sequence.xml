@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_ewaste_collection" model="ir.sequence">
+            <field name="name">E-Waste Collection</field>
+            <field name="code">fix.ewaste.collection</field>
+            <field name="prefix">EW/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_event" model="ir.sequence">
+            <field name="name">E-Waste Collection Event</field>
+            <field name="code">fix.ewaste.event</field>
+            <field name="prefix">EWEV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_triage" model="ir.sequence">
+            <field name="name">E-Waste Triage Decision</field>
+            <field name="code">fix.ewaste.triage</field>
+            <field name="prefix">ETRI/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_batch" model="ir.sequence">
+            <field name="name">E-Waste Material Batch</field>
+            <field name="code">fix.ewaste.batch</field>
+            <field name="prefix">EBTY/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_battery" model="ir.sequence">
+            <field name="name">E-Waste Battery Stream</field>
+            <field name="code">fix.ewaste.battery</field>
+            <field name="prefix">EBAT/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_certificate" model="ir.sequence">
+            <field name="name">E-Waste Disposal Certificate</field>
+            <field name="code">fix.ewaste.certificate</field>
+            <field name="prefix">ECER/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_return" model="ir.sequence">
+            <field name="name">DoE / BTRC Return</field>
+            <field name="code">fix.ewaste.return</field>
+            <field name="prefix">ERET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

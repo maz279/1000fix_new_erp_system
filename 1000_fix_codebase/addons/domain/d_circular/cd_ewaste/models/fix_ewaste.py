@@ -30,6 +30,12 @@ class FixEwasteCollection(models.Model):
     name = fields.Char(required=True, copy=False, readonly=True, default="New")
     customer_id = fields.Many2one("res.partner", string="Customer", required=True, index=True)
     device_id = fields.Many2one("fix.device", string="Device", ondelete="set null")
+    event_id = fields.Many2one(
+        "fix.ewaste.event", string="Collection Event", ondelete="set null", index=True
+    )
+    batch_id = fields.Many2one(
+        "fix.ewaste.batch", string="Material Batch", ondelete="set null", index=True
+    )
     material_type = fields.Selection(
         [
             ("phone", "Mobile Phone"),
@@ -138,6 +144,24 @@ class FixEwasteCollection(models.Model):
                 {"certificate": cert_ref, "co2_saved": rec.esg_co2_saved_kg},
             )
 
+    def action_triage_reuse(self):
+        self.action_triage("reuse")
+
+    def action_triage_refurbish(self):
+        self.action_triage("refurbish")
+
+    def action_triage_recycle(self):
+        self.action_triage("recycle")
+
+    def action_triage_hazardous(self):
+        self.action_triage("hazardous")
+
+    def action_recycle_estimated(self):
+        """Recycle with the CO2 saving estimated at 1.5 kg CO2e per kg of
+        e-waste — the documented factor, not a hidden number."""
+        for rec in self:
+            rec.action_recycle(round((rec.weight_kg or 0.0) * 1.5, 3))
+
 
 class FixEsgMetric(models.Model):
     """M18: ESG metrics feeding M25's reporting (BM-004)."""
@@ -164,14 +188,17 @@ class FixEsgMetric(models.Model):
     )
     period = fields.Char(required=True, help="YYYY-MM")
     value = fields.Float(required=True)
-    unit = fields.Char(readonly=True)
+    # stored compute (not an onchange-only value): metrics created by the API,
+    # a seed or an import must carry their unit too, not just the web form
+    unit = fields.Char(compute="_compute_unit", store=True, readonly=True)
 
-    @api.onchange("metric_type")
-    def _onchange_metric(self):
+    @api.depends("metric_type")
+    def _compute_unit(self):
         units = {
             "co2_saved": "kg",
             "ewaste_collected": "kg",
             "devices_refurbished": "count",
             "energy_saved": "kWh",
         }
-        self.unit = units.get(self.metric_type, "")
+        for rec in self:
+            rec.unit = units.get(rec.metric_type, "")

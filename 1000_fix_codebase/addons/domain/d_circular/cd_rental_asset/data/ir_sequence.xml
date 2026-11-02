@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_rental_reservation" model="ir.sequence">
+            <field name="name">Rental Reservation</field>
+            <field name="code">fix.rental.reservation</field>
+            <field name="prefix">RENT/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_deposit" model="ir.sequence">
+            <field name="name">Rental Deposit Movement</field>
+            <field name="code">fix.rental.deposit</field>
+            <field name="prefix">DEP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_condition" model="ir.sequence">
+            <field name="name">Rental Condition Report</field>
+            <field name="code">fix.rental.condition</field>
+            <field name="prefix">COND/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_turnaround" model="ir.sequence">
+            <field name="name">Rental Turnaround</field>
+            <field name="code">fix.rental.turnaround</field>
+            <field name="prefix">TURN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

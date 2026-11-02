@@ -55,7 +55,10 @@ def _in(env, state, **vals):
 
 def test_create_defaults_and_name(odoo_env):
     rec = odoo_env[RES].create({"customer_id": odoo_env["res.partner"].create({"name": "C"}).id})
-    assert rec.name == "RENT/New"
+    # the module ships the rental sequence (data/ir_sequence.xml): a new
+    # reservation is numbered, not left as the "RENT/New" placeholder
+    assert rec.name.startswith("RENT/")
+    assert rec.name != "RENT/New"
     assert rec.state == "draft"
     assert rec.date_from == rec.date_to == fields.Date.context_today(rec)
     assert rec.duration_days == 1
@@ -64,7 +67,10 @@ def test_create_defaults_and_name(odoo_env):
 
 def test_explicit_name_kept_and_sequence_used(odoo_env):
     assert _reservation(odoo_env, name="RENT/LEGACY/1").name == "RENT/LEGACY/1"
-    odoo_env["ir.sequence"].create({"name": "RENT test", "code": RES, "prefix": "RENT/T/"})
+    # one sequence per code: retarget the module's own sequence instead of
+    # creating a second row for the same code (next_by_code would be ambiguous)
+    seq = odoo_env["ir.sequence"].search([("code", "=", RES)], limit=1)
+    seq.prefix = "RENT/T/"
     assert _reservation(odoo_env).name.startswith("RENT/T/")
 
 

@@ -9,3 +9,4 @@ access_fix_marketplace_order_portal,fix.marketplace.order,model_fix_marketplace_
 access_fix_seller_quote_portal,fix.seller.quote,model_fix_seller_quote,group_fix_marketplace_seller,1,1,1,0
 access_fix_seller_score_portal,fix.seller.score,model_fix_seller_score,group_fix_marketplace_seller,1,0,0,0
 access_fix_marketplace_dispute_portal,fix.marketplace.dispute,model_fix_marketplace_dispute,group_fix_marketplace_seller,1,1,0,0
+access_fix_marketplace_listing,fix.marketplace.listing,model_fix_marketplace_listing,base.group_user,1,1,1,1

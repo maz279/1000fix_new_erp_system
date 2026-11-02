@@ -1,3 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_rental_reservation,fix.rental.reservation,model_fix_rental_reservation,base.group_user,1,1,1,0
 access_fix_rental_damage,fix.rental.damage,model_fix_rental_damage,base.group_user,1,1,1,0
+access_fix_rental_asset,fix.rental.asset,model_fix_rental_asset,base.group_user,1,1,1,0
+access_fix_rental_kit,fix.rental.kit,model_fix_rental_kit,base.group_user,1,1,1,0
+access_fix_rental_deposit,fix.rental.deposit,model_fix_rental_deposit,base.group_user,1,1,1,0
+access_fix_rental_condition,fix.rental.condition,model_fix_rental_condition,base.group_user,1,1,1,0
+access_fix_rental_turnaround,fix.rental.turnaround,model_fix_rental_turnaround,base.group_user,1,1,1,0
