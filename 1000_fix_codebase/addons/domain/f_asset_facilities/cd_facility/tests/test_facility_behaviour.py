@@ -63,6 +63,16 @@ def test_site_close_and_reopen(odoo_env):
 
 
 def test_work_order_name_falls_back_to_timestamp(odoo_env):
+    # The module ships `seq_fix_facility_work_order`, so the timestamp branch is
+    # only reachable with no active sequence for the code. The test used to
+    # assert the fallback without deactivating it, and so only passed on a
+    # database where this module's own data had never loaded (re-audit
+    # 2026-10-31); it now removes the sequence inside the rolled-back
+    # transaction, which is what the fallback is actually for.
+    odoo_env["ir.sequence"].search([("code", "=", "fix.facility.work.order")]).write(
+        {"active": False}
+    )
+
     wo = _work_order(odoo_env)
     assert re.fullmatch(r"FWO/\d{14}", wo.name)
     assert wo.state == "draft"

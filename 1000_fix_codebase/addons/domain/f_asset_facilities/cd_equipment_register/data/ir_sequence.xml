@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_equipment_issue" model="ir.sequence">
+            <field name="name">Equipment Issue</field>
+            <field name="code">fix.equipment.issue</field>
+            <field name="prefix">EISS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_transfer" model="ir.sequence">
+            <field name="name">Equipment Transfer</field>
+            <field name="code">fix.equipment.transfer</field>
+            <field name="prefix">ETRF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_verification" model="ir.sequence">
+            <field name="name">Equipment Verification</field>
+            <field name="code">fix.equipment.verification</field>
+            <field name="prefix">EVER/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_oos" model="ir.sequence">
+            <field name="name">Out of Service Record</field>
+            <field name="code">fix.equipment.oos</field>
+            <field name="prefix">EOOS/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_equipment_pm" model="ir.sequence">
+            <field name="name">Equipment PM Job</field>
+            <field name="code">fix.equipment.pm</field>
+            <field name="prefix">EPM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

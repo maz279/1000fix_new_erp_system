@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_site_lease" model="ir.sequence">
+            <field name="name">Site Lease</field>
+            <field name="code">fix.site.lease</field>
+            <field name="prefix">LEASE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_licence" model="ir.sequence">
+            <field name="name">Site Licence</field>
+            <field name="code">fix.site.licence</field>
+            <field name="prefix">SLIC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_utility" model="ir.sequence">
+            <field name="name">Site Utility</field>
+            <field name="code">fix.site.utility</field>
+            <field name="prefix">SUTL/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_condition" model="ir.sequence">
+            <field name="name">Site Condition</field>
+            <field name="code">fix.site.condition</field>
+            <field name="prefix">SCND/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_pm" model="ir.sequence">
+            <field name="name">Building Services PM</field>
+            <field name="code">fix.site.pm</field>
+            <field name="prefix">SPM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_safety" model="ir.sequence">
+            <field name="name">Site Safety Equipment</field>
+            <field name="code">fix.site.safety</field>
+            <field name="prefix">SSAF/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_incident" model="ir.sequence">
+            <field name="name">Site Incident</field>
+            <field name="code">fix.site.incident</field>
+            <field name="prefix">SINC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_project" model="ir.sequence">
+            <field name="name">Site Project</field>
+            <field name="code">fix.site.project</field>
+            <field name="prefix">SPRJ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_facility_work_order" model="ir.sequence">
+            <field name="name">Facility Work Order</field>
+            <field name="code">fix.facility.work.order</field>
+            <field name="prefix">FWO/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_site_asset" model="ir.sequence">
+            <field name="name">Site Infrastructure Asset</field>
+            <field name="code">fix.site.asset</field>
+            <field name="prefix">SASET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -35,9 +35,10 @@ class FixSite(models.Model):
     equipment_ids = fields.Many2many(
         "fix.equipment",
         string="Linked Site Assets",
-        help="Equipments deployed at this facility (M46)",
+        help="Equipments deployed at this facility (M45)",
     )
     work_order_ids = fields.One2many("fix.facility.work.order", "site_id", string="Work Orders")
+    asset_ids = fields.One2many("fix.site.asset", "site_id", string="Infrastructure Assets")
     state = fields.Selection(
         [("active", "Active"), ("closed", "Closed")], default="active", required=True, tracking=True
     )

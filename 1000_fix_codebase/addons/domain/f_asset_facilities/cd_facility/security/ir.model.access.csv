@@ -1,3 +1,12 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_site,fix.site,model_fix_site,base.group_user,1,1,1,0
 access_fix_facility_work_order,fix.facility.work.order,model_fix_facility_work_order,base.group_user,1,1,1,0
+access_fix_site_lease,fix.site.lease,model_fix_site_lease,base.group_user,1,1,1,0
+access_fix_site_licence,fix.site.licence,model_fix_site_licence,base.group_user,1,1,1,0
+access_fix_site_utility,fix.site.utility,model_fix_site_utility,base.group_user,1,1,1,0
+access_fix_site_condition,fix.site.condition,model_fix_site_condition,base.group_user,1,1,1,0
+access_fix_site_pm,fix.site.pm,model_fix_site_pm,base.group_user,1,1,1,0
+access_fix_site_safety,fix.site.safety,model_fix_site_safety,base.group_user,1,1,1,0
+access_fix_site_incident,fix.site.incident,model_fix_site_incident,base.group_user,1,1,1,0
+access_fix_site_project,fix.site.project,model_fix_site_project,base.group_user,1,1,1,0
+access_fix_site_asset,fix.site.asset,model_fix_site_asset,base.group_user,1,1,1,0

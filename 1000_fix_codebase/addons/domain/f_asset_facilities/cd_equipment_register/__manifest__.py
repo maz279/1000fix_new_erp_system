@@ -29,6 +29,7 @@ CD-M45-01 (P08-M08):
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/fix_equipment_views.xml",
     ],
     "installable": True,

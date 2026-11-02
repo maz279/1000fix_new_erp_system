@@ -9,7 +9,8 @@ class FleetVehicleCdExt(models.Model):
     _inherit = "fleet.vehicle"
 
     branch_id = fields.Many2one("fix.branch", string="Branch")
-    driver_employee_id = fields.Many2one("hr.employee", string="Driver (HR)")
+    # NOT driver_employee_id: hr_fleet defines that as a computed field
+    fix_driver_id = fields.Many2one("fix.driver", string="Assigned Driver")
     fitness_expiry = fields.Date(string="Fitness Expiry")
     insurance_expiry = fields.Date(string="Insurance Expiry")
     compliance_ok = fields.Boolean(compute="_compute_compliance", string="Compliance OK")

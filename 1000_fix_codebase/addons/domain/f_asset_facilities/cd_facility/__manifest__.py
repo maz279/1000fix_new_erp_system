@@ -13,6 +13,7 @@ CD-M47-01 (P10) — Facility & Branch Infrastructure.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence.xml",
         "views/cd_facility_views.xml",
     ],
     "installable": True,
