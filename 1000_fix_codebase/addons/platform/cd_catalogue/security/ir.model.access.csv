@@ -6,3 +6,4 @@ access_fix_rental_sku,fix.rental.sku,model_fix_rental_sku,base.group_user,1,1,1,
 access_fix_refurb_grade,fix.refurb.grade,model_fix_refurb_grade,base.group_user,1,0,0,0
 access_fix_brand,fix.brand,model_fix_brand,base.group_user,1,1,1,0
 access_fix_device_model,fix.device.model,model_fix_device_model,base.group_user,1,1,1,0
+access_fix_rbom_line,fix.rbom.line,model_fix_rbom_line,base.group_user,1,1,1,1

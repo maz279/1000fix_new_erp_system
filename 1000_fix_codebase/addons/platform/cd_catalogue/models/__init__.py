@@ -3,6 +3,7 @@ from . import (
     fix_brand,
     fix_catalogue_item,
     fix_device_model,
+    fix_rbom,
     fix_refurb_grade,
     fix_rental_sku,
     fix_service_kit,

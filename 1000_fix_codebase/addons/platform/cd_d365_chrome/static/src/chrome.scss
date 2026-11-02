@@ -1,0 +1,201 @@
+// =====================================================================
+// cd_d365_chrome — Fluent/D365 skin, part 1: the webclient CHROME.
+//
+// The native navbar/dropdowns are the only Odoo chrome a back-office user
+// still sees (the D365 Operations Workspace owns everything else), so they
+// carry the estate's Fluent identity: a white 48px command bar with the
+// D365 signature active-tab underline, ink text, teal accents, Fluent
+// menus and focus rings.
+//
+// `!important` is deliberate and scoped: Odoo ships parts of the chrome
+// as `!important` utilities and component styles; the skin answers in
+// kind only where contested.
+//
+// CFM-01: tokens only — every colour/size comes from cd_design_tokens'
+// generated variables. No raw literals.
+// =====================================================================
+
+// --- The command bar (was Odoo purple) ------------------------------
+.o_main_navbar {
+    --o-navbar-height: #{$dimension-layout-topbar-h};
+
+    // Odoo's own navbar theming API (navbar.scss consumes these vars) —
+    // retargeted to the estate palette: the stock purple default dies here
+    --NavBar-entry-backgroundColor: transparent;
+    --NavBar-entry-backgroundColor--hover: #{$color-surface-hover};
+    --NavBar-entry-backgroundColor--focus: #{$color-surface-hover};
+    --NavBar-entry-backgroundColor--active: #{$color-primary-tint};
+    --NavBar-entry-color: #{$color-text-primary};
+    --NavBar-entry-color--active: #{$color-primary-base};
+    --NavBar-entry-borderColor-active: transparent;
+
+    background: $color-surface-primary;
+    border-bottom: $dimension-border-width solid $color-border-default;
+    box-shadow: $shadow-sm;
+    font-family: $typography-font-latin-family, $typography-font-bengali-family, sans-serif;
+    font-size: $typography-size-300;
+    color: $color-text-primary;
+
+    // Brand: semibold app name (Teams app-title treatment)
+    .o_menu_brand {
+        color: $color-text-primary;
+        font-size: $typography-size-300;
+        font-weight: $typography-weight-semibold;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-text-primary;
+        }
+    }
+
+    // Menu entries: Fluent nav items — washed hover + the D365
+    // signature active underline
+    .o_nav_entry {
+        color: $color-text-primary;
+        font-weight: $typography-weight-medium;
+        border-radius: $dimension-border-radius-sm;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-text-primary;
+        }
+
+        &.active,
+        &.show,
+        .show > & {
+            background: transparent;
+            color: $color-primary-base;
+            font-weight: $typography-weight-semibold;
+            box-shadow: inset 0 -$dimension-focus-ring-width 0 0 $color-primary-base;
+        }
+    }
+
+    // Breadcrumbs: secondary ink, current crumb strong
+    .o_navbar_breadcrumbs {
+        color: $color-text-secondary;
+
+        .o_menu_brand,
+        strong,
+        b {
+            color: $color-text-ink-strong;
+        }
+    }
+
+    // Apps burger + systray: quiet circular icon buttons
+    .o_navbar_apps_menu .dropdown-toggle,
+    .o_menu_systray .dropdown-toggle,
+    .o_menu_systray .btn,
+    .o_menu_systray button {
+        color: $color-text-secondary;
+        border-radius: $dimension-border-radius-pill;
+        padding-left: $dimension-space-sm;
+        padding-right: $dimension-space-sm;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-text-primary;
+        }
+
+        &.show,
+        &.active {
+            background: $color-primary-tint;
+            color: $color-primary-base;
+        }
+    }
+
+    // Notification counters: teal pill, inverse text (mail ships the
+    // counter badge green with !important — answered in kind)
+    .badge,
+    .o-mail-MessagingMenu-counter,
+    .o-mail-ActivityMenu-counter {
+        background: $color-primary-base !important;
+        color: $color-text-inverse;
+        font-size: $typography-size-100;
+        font-weight: $typography-weight-semibold;
+    }
+
+    .o-discuss-badge,
+    .o-discuss-badge .o-innerBadge {
+        --o-discuss-badge-bg: #{$color-primary-base};
+        background-color: $color-primary-base !important;
+        color: $color-text-inverse !important;
+    }
+
+    // Any navbar icon inherits the quiet-ink treatment
+    i.fa,
+    i.oi,
+    span.fa,
+    span.oi {
+        color: inherit;
+    }
+}
+
+// --- Fluent menus (navbar dropdowns and the burger app menu) ---------
+.o_main_navbar .dropdown-menu {
+    background: $color-surface-primary;
+    border: $dimension-border-width solid $color-border-default;
+    border-radius: $dimension-border-radius-md;
+    box-shadow: $shadow-lg;
+    padding: $dimension-space-xs;
+
+    .dropdown-item {
+        color: $color-text-primary;
+        border-radius: $dimension-border-radius-xs;
+        font-size: $typography-size-300;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-text-primary;
+        }
+
+        &.active {
+            background: $color-primary-tint;
+            color: $color-primary-base;
+        }
+
+        .dropdown-header,
+        h6 {
+            color: $color-text-secondary;
+            font-size: $typography-size-200;
+            font-weight: $typography-weight-semibold;
+            text-transform: uppercase;
+        }
+    }
+}
+
+// --- Webclient surface ------------------------------------------------
+.o_web_client {
+    font-family: $typography-font-latin-family, $typography-font-bengali-family, sans-serif;
+    background: $color-surface-canvas;
+    color: $color-text-primary;
+
+    // Fluent focus ring estate-wide in the backend
+    :focus-visible {
+        outline: $dimension-focus-ring-width solid $color-primary-base;
+        outline-offset: $dimension-focus-ring-offset;
+    }
+
+    // Thin, neutral scrollbars (Fluent)
+    * {
+        scrollbar-width: thin;
+        scrollbar-color: $color-border-strong transparent;
+    }
+
+    ::-webkit-scrollbar {
+        width: $dimension-space-sm;
+        height: $dimension-space-sm;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: $color-border-strong;
+        border-radius: $dimension-border-radius-pill;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+}

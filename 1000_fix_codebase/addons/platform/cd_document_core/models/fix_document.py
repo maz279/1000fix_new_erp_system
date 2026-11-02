@@ -129,6 +129,26 @@ class FixDocument(models.Model):
     )
     payload_size_bytes = fields.Integer(string="Payload Size (Bytes)", copy=False)
 
+    # Document control (ISO 9001 7.5.3): a controlled document is versioned and
+    # only one version is current. Superseding a document retires the old one.
+    version = fields.Char(default="1.0", required=True, tracking=True)
+    is_current = fields.Boolean(
+        default=True,
+        tracking=True,
+        help="Only the current version may be issued; superseded versions stay readable.",
+    )
+    previous_version_id = fields.Many2one(
+        "fix.document",
+        string="Supersedes",
+        ondelete="set null",
+        copy=False,
+    )
+    superseded_by_id = fields.Many2one(
+        "fix.document",
+        string="Superseded by",
+        ondelete="set null",
+        copy=False,
+    )
     state = fields.Selection(
         [
             ("active", "Active"),

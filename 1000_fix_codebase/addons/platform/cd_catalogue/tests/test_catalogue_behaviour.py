@@ -141,11 +141,20 @@ def test_service_kit_estimates_sum_component_cost_and_time(odoo_env):
             "name": "Screen Replacement",
             "catalogue_item_id": item.id,
             "component_ids": [
-                (0, 0, {"component_type": "part", "standard_cost": 4500.0}),
                 (
                     0,
                     0,
-                    {"component_type": "labour", "standard_cost": 800.0, "time_allocation": 1.5},
+                    {"notes": "Test component", "component_type": "part", "standard_cost": 4500.0},
+                ),
+                (
+                    0,
+                    0,
+                    {
+                        "notes": "Bench labour",
+                        "component_type": "labour",
+                        "standard_cost": 800.0,
+                        "time_allocation": 1.5,
+                    },
                 ),
             ],
         }
@@ -174,7 +183,9 @@ def test_service_kit_cannot_be_emptied_by_write(odoo_env):
         {
             "name": "One Part Kit",
             "catalogue_item_id": item.id,
-            "component_ids": [(0, 0, {"component_type": "part", "standard_cost": 10.0})],
+            "component_ids": [
+                (0, 0, {"notes": "Test component", "component_type": "part", "standard_cost": 10.0})
+            ],
         }
     )
     with _rejects(odoo_env, ValidationError, match="must have at least one component"):

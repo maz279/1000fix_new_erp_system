@@ -173,3 +173,63 @@ py -3.12 -m pytest addons/platform/cd_entity_config -q -o 'addopts='
 ---
 
 *Last Updated: 2026-10-20 · Approved by: 1000FiX Architecture Review Board (ARB)*
+
+---
+
+## Taking a DOFA authority ruling (open as of 2 November 2026)
+
+Two approval ladders have an unresolved conflict between the specification's
+prose and the DOFA authority matrix. **Neither is a defect** — in both cases
+the code implements the REQ text and says so — but both are unresolved
+policy, and the A03 gap plan classifies them as a **Decision** owed "before
+external audit".
+
+| Model | Field | REQ text (what the code does) | DOFA matrix (the alternative) |
+|---|---|---|---|
+| `fix.loyalty.ledger` | point adjustments | ≤500 → **Tier 0, no approval**; >500 → T2; >2,000 → T3 | ≤500 → T1; ≤2,000 → T2; ≤10,000 → T3 |
+| `fix.complaint` | service-recovery concessions | >৳1,000 → T2; >৳5,000 → T3 (≤৳1,000 → T1) | ≤৳500 → T1; ≤৳2,500 → T2; ≤৳10,000 → T3 |
+
+Note the deliberate asymmetry worth ruling on as well: M10 allows a
+no-approval band below its first bound while M34 requires a supervisor for
+any concession.
+
+### Current state
+
+Both bases are loaded as `fix.dofa.ladder` records with **`in_force` false on
+every one**, so each model keeps its own coded default and behaviour today is
+exactly what it has always been. Nothing has been pre-decided.
+
+### How to take the ruling
+
+1. Open **M30 → Approval Authority (DOFA) → Open DOFA Rulings**. The report
+   lists each unresolved model, both bases, their bands side by side, and a
+   **"What The Code Does Today"** column. That column is *computed* by
+   comparing each ladder's bands against the model's real
+   `_dofa_thresholds()`, so it cannot drift from the code — it currently
+   reads *REQ text* for both. Choosing REQ text therefore changes nothing;
+   choosing the matrix changes the bands.
+2. Open **Authority Ladders**, select the ladder you are ruling for, and run
+   **Put In Force (ruling)**.
+3. Supply the **authority reference** — the board minute, memo or approval
+   that authorises it. The action refuses without one: a change to who may
+   approve what, with nothing recorded about who authorised the change, is
+   not an improvement on a hard-coded list.
+
+Putting a ladder in force automatically stands the sibling ladder down, so
+exactly one basis per model is ever live. `ruled_by` and `ruled_at` are
+stamped from the acting user, and the change is posted to the ladder's
+chatter.
+
+### Required authority
+
+`fix.dofa.ladder` is writable only by `cd_entity_config.group_dofa_tier_4`
+(CFO / CCO / COO). Read access is open to internal users, deliberately: an
+approver is entitled to see the ladder they are held to.
+
+### Effect
+
+The ladder in force is consulted by `fix.dofa.mixin._dofa_tier_for_amount()`,
+which is the single chokepoint every tier derivation passes through. With no
+ladder in force the call falls through to the model's own Python default, so
+the fallback — not the table — is what guarantees that an unruled estate
+behaves exactly as before.

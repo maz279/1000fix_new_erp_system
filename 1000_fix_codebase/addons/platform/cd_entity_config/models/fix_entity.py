@@ -12,6 +12,7 @@ class FixEntity(models.Model):
     """A legal entity within the 1000FiX group (M65 multi-entity/multi-country)."""
 
     _name = "fix.entity"
+    _rec_name = "legal_name"
     _description = "Legal Entity"
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"

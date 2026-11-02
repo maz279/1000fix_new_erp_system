@@ -64,12 +64,30 @@ class FixServiceKit(models.Model):
         store=True,
         help="Sum of component times — consumed by M02 for dispatch scheduling",
     )
+    component_count = fields.Integer(
+        string="Components",
+        compute="_compute_component_count",
+        store=True,
+        help="How many parts/labour rows this kit contains. A kit list that "
+        "shows only a name and two computed totals gives no way to tell a "
+        "one-line kit from a twenty-line one (A04 audit, 2026-11-01).",
+    )
     active = fields.Boolean(default=True, tracking=True)
 
-    @api.depends("component_ids.standard_cost", "component_ids.time_allocation")
+    @api.depends("component_ids")
+    def _compute_component_count(self):
+        for kit in self:
+            kit.component_count = len(kit.component_ids)
+
+    @api.depends(
+        "component_ids.subtotal_cost",
+        "component_ids.standard_cost",
+        "component_ids.quantity",
+        "component_ids.time_allocation",
+    )
     def _compute_estimated(self):
         for kit in self:
-            kit.estimated_cost = sum(kit.component_ids.mapped("standard_cost"))
+            kit.estimated_cost = sum(c.subtotal_cost for c in kit.component_ids)
             kit.estimated_time = sum(kit.component_ids.mapped("time_allocation"))
 
     @api.constrains("component_ids")
@@ -77,6 +95,23 @@ class FixServiceKit(models.Model):
         for kit in self:
             if not kit.component_ids:
                 raise ValidationError(f"Service kit '{kit.name}' must have at least one component.")
+
+    is_costed = fields.Boolean(
+        string="Fully Costed",
+        compute="_compute_is_costed",
+        store=True,
+        help="False while any component carries neither a cost nor a time, "
+        "so a kit that cannot price or schedule the work it describes is "
+        "visible as such instead of quietly reporting zero.",
+    )
+
+    @api.depends("component_ids.standard_cost", "component_ids.time_allocation")
+    def _compute_is_costed(self):
+        for kit in self:
+            comps = kit.component_ids
+            kit.is_costed = bool(comps) and all(
+                (c.standard_cost or 0.0) > 0.0 or (c.time_allocation or 0.0) > 0.0 for c in comps
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -123,4 +158,39 @@ class FixServiceKitComponent(models.Model):
         default=0.0,
         help="How many technician-hours this component consumes (labour only)",
     )
+    subtotal_cost = fields.Monetary(
+        string="Subtotal Cost",
+        currency_field="currency_id",
+        compute="_compute_subtotal_cost",
+        store=True,
+        help="Total component cost = quantity * standard_cost",
+    )
     notes = fields.Char()
+
+    @api.constrains("product_id", "notes", "quantity")
+    def _check_component_is_identified(self):
+        """A component must say WHAT it is.
+
+        The seeded kit carried a component with no product, no description,
+        no cost and no time - it contributed nothing to the kit's estimated
+        cost or estimated time, which is why both read zero. Cost and time
+        may be zero (an included step); anonymity may not
+        (A04 audit, 2026-11-01).
+        """
+        for comp in self:
+            if not comp.product_id and not (comp.notes or "").strip():
+                raise ValidationError(
+                    "A kit component must name a product or carry a "
+                    "description - kit '%s' has a component that identifies "
+                    "nothing." % (comp.kit_id.name or "?")
+                )
+            if (comp.quantity or 0.0) <= 0.0:
+                raise ValidationError(
+                    "A kit component needs a positive quantity (kit '%s')."
+                    % (comp.kit_id.name or "?")
+                )
+
+    @api.depends("quantity", "standard_cost")
+    def _compute_subtotal_cost(self):
+        for rec in self:
+            rec.subtotal_cost = round((rec.quantity or 0.0) * (rec.standard_cost or 0.0), 2)

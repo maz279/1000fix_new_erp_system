@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The two open A03 DOFA rulings, loaded as data with NEITHER in force.
+
+  In both cases the specification's prose and its DOFA authority matrix
+  disagree, and in both the code implements the prose and says so in a
+  comment. That is not a defect, but it is unresolved policy — and while the
+  ladders were Python lists, resolving it meant a code change, a review and a
+  release. It is now a configuration act with a recorded authority.
+
+  in_force is FALSE on every row on purpose. Behaviour is therefore unchanged:
+  each model keeps its own Python default until somebody with Tier-4 authority
+  calls action_put_in_force() with a ruling reference. Loading a basis as
+  "in force" here would have been this build choosing 1000FiX's financial
+  authority policy for it, which is not ours to choose.
+
+  fix.dofa.ladder.conflicts() lists both targets for whoever has to rule.
+-->
+<odoo>
+    <data noupdate="1">
+        <!-- ============ M10 loyalty point adjustments ============ -->
+        <record id="dofa_ladder_loyalty_req" model="fix.dofa.ladder">
+            <field name="name">M10 point adjustments — REQ text (currently implemented)</field>
+            <field name="target_model">fix.loyalty.ledger</field>
+            <field name="basis">req_text</field>
+            <field name="in_force" eval="False"/>
+            <field name="ruling_reference"/>
+        </record>
+        <record id="dofa_band_loyalty_req_1" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_req"/>
+            <field name="upper_bound">500</field>
+            <field name="tier">tier_0</field>
+            <field name="note">REQ text: at or below 500 points needs no approval.</field>
+        </record>
+        <record id="dofa_band_loyalty_req_2" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_req"/>
+            <field name="upper_bound">2000</field>
+            <field name="tier">tier_2</field>
+        </record>
+        <record id="dofa_band_loyalty_req_3" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_req"/>
+            <field name="upper_bound">10000</field>
+            <field name="tier">tier_3</field>
+        </record>
+        <record id="dofa_band_loyalty_req_4" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_req"/>
+            <field name="upper_bound">1000000000</field>
+            <field name="tier">tier_4</field>
+        </record>
+
+        <record id="dofa_ladder_loyalty_matrix" model="fix.dofa.ladder">
+            <field name="name">M10 point adjustments — DOFA matrix (alternative)</field>
+            <field name="target_model">fix.loyalty.ledger</field>
+            <field name="basis">dofa_matrix</field>
+            <field name="in_force" eval="False"/>
+        </record>
+        <record id="dofa_band_loyalty_matrix_1" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_matrix"/>
+            <field name="upper_bound">500</field>
+            <field name="tier">tier_1</field>
+            <field name="note">Matrix: a supervisor signs every adjustment; there is no no-approval band.</field>
+        </record>
+        <record id="dofa_band_loyalty_matrix_2" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_matrix"/>
+            <field name="upper_bound">2000</field>
+            <field name="tier">tier_2</field>
+        </record>
+        <record id="dofa_band_loyalty_matrix_3" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_matrix"/>
+            <field name="upper_bound">10000</field>
+            <field name="tier">tier_3</field>
+        </record>
+        <record id="dofa_band_loyalty_matrix_4" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_loyalty_matrix"/>
+            <field name="upper_bound">1000000000</field>
+            <field name="tier">tier_4</field>
+        </record>
+
+        <!-- ============ M34 service-recovery concessions ============ -->
+        <record id="dofa_ladder_concession_req" model="fix.dofa.ladder">
+            <field name="name">M34 concessions — REQ text (currently implemented)</field>
+            <field name="target_model">fix.complaint</field>
+            <field name="basis">req_text</field>
+            <field name="in_force" eval="False"/>
+        </record>
+        <record id="dofa_band_concession_req_1" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_req"/>
+            <field name="upper_bound">1000</field>
+            <field name="tier">tier_1</field>
+            <field name="note">REQ text: a supervisor signs any concession.</field>
+        </record>
+        <record id="dofa_band_concession_req_2" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_req"/>
+            <field name="upper_bound">5000</field>
+            <field name="tier">tier_2</field>
+        </record>
+        <record id="dofa_band_concession_req_3" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_req"/>
+            <field name="upper_bound">10000</field>
+            <field name="tier">tier_3</field>
+        </record>
+        <record id="dofa_band_concession_req_4" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_req"/>
+            <field name="upper_bound">1000000000</field>
+            <field name="tier">tier_4</field>
+        </record>
+
+        <record id="dofa_ladder_concession_matrix" model="fix.dofa.ladder">
+            <field name="name">M34 concessions — DOFA matrix (alternative)</field>
+            <field name="target_model">fix.complaint</field>
+            <field name="basis">dofa_matrix</field>
+            <field name="in_force" eval="False"/>
+        </record>
+        <record id="dofa_band_concession_matrix_1" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_matrix"/>
+            <field name="upper_bound">500</field>
+            <field name="tier">tier_1</field>
+            <field name="note">Matrix bands are tighter: 500 / 2,500 / 10,000.</field>
+        </record>
+        <record id="dofa_band_concession_matrix_2" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_matrix"/>
+            <field name="upper_bound">2500</field>
+            <field name="tier">tier_2</field>
+        </record>
+        <record id="dofa_band_concession_matrix_3" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_matrix"/>
+            <field name="upper_bound">10000</field>
+            <field name="tier">tier_3</field>
+        </record>
+        <record id="dofa_band_concession_matrix_4" model="fix.dofa.threshold">
+            <field name="ladder_id" ref="dofa_ladder_concession_matrix"/>
+            <field name="upper_bound">1000000000</field>
+            <field name="tier">tier_4</field>
+        </record>
+    </data>
+</odoo>

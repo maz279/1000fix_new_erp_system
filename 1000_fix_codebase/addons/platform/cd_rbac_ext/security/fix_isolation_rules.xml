@@ -8,6 +8,31 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_access_certification_company" model="ir.rule">
+        <field name="name">fix.access.certification: allowed companies</field>
+        <field name="model_id" ref="model_fix_access_certification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_access_request_company" model="ir.rule">
+        <field name="name">fix.access.request: allowed companies</field>
+        <field name="model_id" ref="model_fix_access_request"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_encryption_key_company" model="ir.rule">
+        <field name="name">fix.encryption.key: allowed companies</field>
+        <field name="model_id" ref="model_fix_encryption_key"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_jml_event_company" model="ir.rule">
+        <field name="name">fix.jml.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_jml_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_privileged_session_company" model="ir.rule">
+        <field name="name">fix.privileged.session: allowed companies</field>
+        <field name="model_id" ref="model_fix_privileged_session"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_role_company" model="ir.rule">
         <field name="name">fix.role: allowed companies</field>
         <field name="model_id" ref="model_fix_role"/>
@@ -19,6 +44,16 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_ids', '=', False), ('operating_unit_ids', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_security_incident_company" model="ir.rule">
+        <field name="name">fix.security.incident: allowed companies</field>
+        <field name="model_id" ref="model_fix_security_incident"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_sensitive_field_company" model="ir.rule">
+        <field name="name">fix.sensitive.field: allowed companies</field>
+        <field name="model_id" ref="model_fix_sensitive_field"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_sod_control_company" model="ir.rule">
         <field name="name">fix.sod.control: allowed companies</field>
         <field name="model_id" ref="model_fix_sod_control"/>
@@ -29,5 +64,10 @@
         <field name="model_id" ref="model_fix_sod_control"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_sod_test_company" model="ir.rule">
+        <field name="name">fix.sod.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_sod_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

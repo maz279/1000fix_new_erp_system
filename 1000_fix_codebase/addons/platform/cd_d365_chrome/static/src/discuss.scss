@@ -1,0 +1,231 @@
+// =====================================================================
+// cd_d365_chrome — Fluent/D365 skin, part 2: the Discuss chat app.
+//
+// Team Chat (Odoo Discuss, opened from the workspace topbar and the app
+// menu) keeps its native functionality; this skin gives it the estate's
+// messaging identity, modelled on the Teams/Fluent layout:
+//   - D365-sitemap-style channel rail (secondary surface, 40px rows,
+//     8px radii, teal-tint active with the sitemap left accent)
+//   - caption-uppercase category headers
+//   - a proper channel header bar and white thread canvas
+//   - authored-message structure: semibold authors, secondary
+//     timestamps, teal-tint bubbles for own messages
+//   - a Fluent compose box: 48px+, rounded, teal focus ring, circular
+//     tool buttons
+//
+// `!important` is deliberate and scoped: Odoo ships these surfaces as
+// `!important` utilities (.o-mail-discussSidebarBgColor, Bootstrap
+// rounded-*/border-*/bg-inherit), so the skin answers in kind.
+//
+// CFM-01: tokens only — no raw colour/size literals.
+// =====================================================================
+
+.o-mail-Discuss {
+    background: $color-surface-primary;
+    font-family: $typography-font-latin-family, $typography-font-bengali-family, sans-serif;
+
+    // --- Channel rail (D365 sitemap analogue) ------------------------
+    .o-mail-DiscussSidebar,
+    .o-mail-discussSidebarBgColor {
+        background: $color-surface-secondary !important;
+    }
+
+    .o-mail-DiscussSidebar {
+        border-right: $dimension-border-width solid $color-border-default !important;
+        padding-left: $dimension-space-xs;
+        padding-right: $dimension-space-xs;
+    }
+
+    // Rail search: white field, strong border
+    .o-mail-DiscussSearch-inputContainer {
+        background: $color-surface-primary !important;
+        border-color: $color-border-strong !important;
+        border-radius: $dimension-border-radius-sm !important;
+
+        &:focus-within {
+            border-color: $color-primary-base !important;
+        }
+    }
+
+    // Category headers ("Channels", "Direct messages"): caption ink,
+    // uppercase — the Teams rail headers
+    .o-mail-DiscussSidebarCategory-title {
+        color: $color-text-secondary;
+        font-size: $typography-size-200;
+        font-weight: $typography-weight-semibold;
+        text-transform: uppercase;
+    }
+
+    // Channel items: 40px Fluent nav rows — washed hover, teal-tint
+    // active with the D365 sitemap left accent (bg-inherit utilities
+    // are !important, so the surfaces here answer in kind)
+    .o-mail-DiscussSidebarChannel,
+    .o-mail-DiscussSidebarCategory,
+    .o-mail-DiscussSidebarSubchannel {
+        border-radius: $dimension-border-radius-md !important;
+        min-height: $dimension-density-row-cozy;
+
+        &:hover {
+            background: $color-surface-hover !important;
+        }
+    }
+
+    .o-mail-DiscussSidebarChannel.o-active,
+    .o-mail-DiscussSidebarSubchannel.o-active {
+        background: $color-primary-tint !important;
+        border-left: $dimension-focus-ring-width solid $color-primary-base !important;
+
+        .o-mail-DiscussSidebarChannel-itemName {
+            color: $color-primary-base;
+            font-weight: $typography-weight-semibold;
+        }
+    }
+
+    .o-mail-DiscussSidebarChannel,
+    .o-mail-DiscussSidebarChannel-itemName {
+        color: $color-text-primary;
+    }
+
+    // --- Channel header bar -------------------------------------------
+    .o-mail-DiscussContent-header {
+        border-bottom: $dimension-border-width solid $color-border-default !important;
+        padding-top: $dimension-space-sm;
+        padding-bottom: $dimension-space-sm;
+
+        // Channel title + description read as a Fluent page header
+        h5, h4, .fw-bold {
+            color: $color-text-ink-strong;
+            font-size: $typography-size-400;
+            font-weight: $typography-weight-semibold;
+        }
+
+        .text-muted,
+        small {
+            color: $color-text-secondary;
+        }
+    }
+
+    // --- Thread canvas -------------------------------------------------
+    .o-mail-Thread {
+        background: $color-surface-primary;
+    }
+
+    // Date/message separators: quiet hairlines
+    .o-discuss-separator {
+        background: $color-border-default;
+    }
+
+    // Authored-message structure: semibold author, secondary time
+    .o-mail-Message-author {
+        color: $color-text-ink-strong;
+        font-size: $typography-size-300;
+        font-weight: $typography-weight-semibold;
+    }
+
+    .o-mail-Message-header .text-muted,
+    .o-mail-Message-header small {
+        color: $color-text-secondary;
+    }
+
+    // Own messages: the Teams self-bubble — visible teal surface + border
+    // (the row ships Bootstrap rounded-0 and bg-inherit, hence important)
+    .o-mail-Message.o-selfAuthored {
+        background: $color-brand-140 !important;
+        border: $dimension-border-width solid $color-status-info-border;
+        border-radius: $dimension-border-radius-md !important;
+        padding-left: $dimension-space-sm;
+        padding-right: $dimension-space-sm;
+
+        &:hover {
+            background: $color-brand-140 !important;
+        }
+    }
+
+    // Others' messages: explicit white canvas (never a tint)
+    .o-mail-Message:not(.o-selfAuthored) {
+        background: $color-surface-primary !important;
+
+        &:hover {
+            background: $color-surface-hover !important;
+        }
+    }
+
+    // Quiet message rows (Fluent list hover)
+    .o-mail-Message {
+        &:hover {
+            background: $color-surface-hover;
+        }
+    }
+
+    // --- Composer (Fluent compose box) ---------------------------------
+    .o-mail-Composer-inputContainer,
+    .o-mail-Composer-bg {
+        background: $color-surface-primary !important;
+        border-color: $color-border-strong !important;
+        border-radius: $dimension-border-radius-md !important;
+        min-height: $dimension-density-row-relaxed;
+    }
+
+    .o-mail-Composer-inputContainer:focus-within {
+        border-color: $color-primary-base !important;
+        outline: $dimension-focus-ring-width solid $color-primary-base;
+        outline-offset: $dimension-focus-ring-offset;
+    }
+
+    // Circular compose tools (emoji, attach, send): quiet, teal hover
+    .o-mail-ActionList-button {
+        color: $color-text-secondary;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-primary-base;
+        }
+    }
+
+    // Thread/channel toolbars: quiet icon buttons
+    .btn {
+        color: $color-text-secondary;
+
+        &:hover,
+        &:focus {
+            color: $color-text-primary;
+            background: $color-surface-hover;
+        }
+    }
+
+    .btn-primary {
+        background: $color-primary-base;
+        border-color: $color-primary-base;
+        color: $color-text-inverse;
+
+        &:hover,
+        &:focus {
+            background: $color-primary-hover;
+            border-color: $color-primary-hover;
+            color: $color-text-inverse;
+        }
+    }
+}
+
+// Systray messaging flyout + chat windows share the identity
+.o_mail_messaging_menu,
+.o_ChatWindow,
+[class*="o-mail-ChatWindow"] {
+    font-family: $typography-font-latin-family, $typography-font-bengali-family, sans-serif;
+
+    .o-mail-Message-author {
+        color: $color-text-ink-strong;
+        font-weight: $typography-weight-semibold;
+    }
+
+    .btn {
+        color: $color-text-secondary;
+
+        &:hover,
+        &:focus {
+            background: $color-surface-hover;
+            color: $color-text-primary;
+        }
+    }
+}
