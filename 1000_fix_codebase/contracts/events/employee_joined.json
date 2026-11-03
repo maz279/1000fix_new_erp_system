@@ -89,7 +89,7 @@
           ]
         },
         "work_email": {
-          "description": "Type not statically derivable from `rec.work_email or None` (addons/platform/cd_employee_core/models/hr_employee_ext.py:110 via _emit_jml() at addons/platform/cd_employee_core/models/hr_employee_ext.py:176)."
+          "description": "Type not statically derivable from `rec.work_email or None` (addons/platform/cd_employee_core/models/hr_employee_ext.py:111 via _emit_jml() at addons/platform/cd_employee_core/models/hr_employee_ext.py:181)."
         }
       },
       "additionalProperties": false
