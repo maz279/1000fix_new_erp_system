@@ -1,5 +1,6 @@
 # fix_talent — M58: talent acquisition and onboarding (P09-M08).
 from odoo import fields, models
+from odoo.exceptions import AccessError
 
 from libs.py.fix_events import publish
 
@@ -124,23 +125,33 @@ class FixCandidate(models.Model):
             rec.state = "hired"
             emp = rec.employee_id
             if not emp:
-                emp = self.env["hr.employee"].create(
-                    {
-                        "name": rec.name,
-                        "work_email": rec.email or False,
-                        "work_phone": rec.phone or False,
-                        "company_id": rec.company_id.id,
-                        "operating_unit_id": rec.operating_unit_id.id
-                        if rec.operating_unit_id
-                        else False,
-                        "department_id": rec.requisition_id.department_id.id
-                        if rec.requisition_id and rec.requisition_id.department_id
-                        else False,
-                        "position_id": rec.requisition_id.position_id.id
-                        if rec.requisition_id and rec.requisition_id.position_id
-                        else False,
-                        "joining_date": fields.Date.today(),
-                    }
+                # A09 audit M58-F9: the Recruitment Officer holds no employee
+                # create right (the master is HR's), so every hire failed on
+                # hr.employee. The record is created here, after the hiring
+                # gates above, by the recruiting role only.
+                if not (self.env.su or self.env.user.has_group("cd_talent.group_talent")):
+                    raise AccessError("Only Recruitment may complete a hire.")
+                emp = (
+                    self.env["hr.employee"]
+                    .sudo()
+                    .create(
+                        {
+                            "name": rec.name,
+                            "work_email": rec.email or False,
+                            "work_phone": rec.phone or False,
+                            "company_id": rec.company_id.id,
+                            "operating_unit_id": rec.operating_unit_id.id
+                            if rec.operating_unit_id
+                            else False,
+                            "department_id": rec.requisition_id.department_id.id
+                            if rec.requisition_id and rec.requisition_id.department_id
+                            else False,
+                            "position_id": rec.requisition_id.position_id.id
+                            if rec.requisition_id and rec.requisition_id.position_id
+                            else False,
+                            "joining_date": fields.Date.today(),
+                        }
+                    )
                 )
                 rec.employee_id = emp.id
             plan = self.env["fix.onboarding.plan"].search([("candidate_id", "=", rec.id)], limit=1)
@@ -266,19 +277,28 @@ class FixOnboardingPlan(models.Model):
             if not rec.employee_id:
                 emp = rec.candidate_id.employee_id
                 if not emp:
-                    emp = self.env["hr.employee"].create(
-                        {
-                            "name": rec.candidate_id.name,
-                            "work_email": rec.candidate_id.email or False,
-                            "work_phone": rec.candidate_id.phone or False,
-                            "company_id": rec.company_id.id,
-                            "operating_unit_id": rec.operating_unit_id.id
-                            if rec.operating_unit_id
-                            else False,
-                            "department_id": rec.department_id.id if rec.department_id else False,
-                            "position_id": rec.position_id.id if rec.position_id else False,
-                            "joining_date": rec.joined_date or fields.Date.today(),
-                        }
+                    # same rule as action_hire (A09 audit M58-F9)
+                    if not (self.env.su or self.env.user.has_group("cd_talent.group_talent")):
+                        raise AccessError("Only Recruitment may complete onboarding.")
+                    emp = (
+                        self.env["hr.employee"]
+                        .sudo()
+                        .create(
+                            {
+                                "name": rec.candidate_id.name,
+                                "work_email": rec.candidate_id.email or False,
+                                "work_phone": rec.candidate_id.phone or False,
+                                "company_id": rec.company_id.id,
+                                "operating_unit_id": rec.operating_unit_id.id
+                                if rec.operating_unit_id
+                                else False,
+                                "department_id": rec.department_id.id
+                                if rec.department_id
+                                else False,
+                                "position_id": rec.position_id.id if rec.position_id else False,
+                                "joining_date": rec.joined_date or fields.Date.today(),
+                            }
+                        )
                     )
                     rec.candidate_id.employee_id = emp.id
                 rec.employee_id = emp.id
