@@ -21,6 +21,7 @@ CD-M63-01/02/04: process automation.
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/workflow_ops_sequences.xml",
+        "data/approval_engine_cron.xml",
         "views/fix_workflow_engine_views.xml",
     ],
     "installable": True,

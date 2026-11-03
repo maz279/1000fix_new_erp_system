@@ -8,6 +8,11 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_approval_request_company" model="ir.rule">
+        <field name="name">fix.approval.request: allowed companies</field>
+        <field name="model_id" ref="model_fix_approval_request"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_approval_substitution_company" model="ir.rule">
         <field name="name">fix.approval.substitution: allowed companies</field>
         <field name="model_id" ref="model_fix_approval_substitution"/>

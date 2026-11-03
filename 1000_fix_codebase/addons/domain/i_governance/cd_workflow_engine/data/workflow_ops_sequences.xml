@@ -15,6 +15,13 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_approval_request" model="ir.sequence">
+            <field name="name">Approval Request</field>
+            <field name="code">fix.approval.request</field>
+            <field name="prefix">APR/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_approval_substitution" model="ir.sequence">
             <field name="name">Approval Substitution</field>
             <field name="code">fix.approval.substitution</field>
