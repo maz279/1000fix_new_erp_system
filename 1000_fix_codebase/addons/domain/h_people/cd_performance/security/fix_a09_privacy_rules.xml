@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 audit M57-F3: cd_performance defined no groups, and base.group_user
+     read every scorecard, goal, review, PIP, recognition and incentive line
+     company-wide. An employee now reads their own records and their direct
+     reports'; the HR and payroll roles (res.users fix_reads_all_people) read
+     every row the other rules allow. GLOBAL rules, because scorecards and
+     incentive lines also carry the generated operating-unit group rule and
+     group rules combine with OR. Incentive runs, compensation bands and
+     succession plans are HR-only (ACL). -->
+<odoo>
+    <record id="rule_performance_scorecard_own" model="ir.rule">
+        <field name="name">fix.performance.scorecard: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_performance_scorecard"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_performance_goal_own" model="ir.rule">
+        <field name="name">fix.performance.goal: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_performance_goal"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_performance_review_own" model="ir.rule">
+        <field name="name">fix.performance.review: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_performance_review"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_performance_pip_own" model="ir.rule">
+        <field name="name">fix.performance.pip: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_performance_pip"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_performance_recognition_own" model="ir.rule">
+        <field name="name">fix.performance.recognition: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_performance_recognition"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_incentive_line_own" model="ir.rule">
+        <field name="name">fix.incentive.line: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_incentive_line"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <!-- no groups: a global rule (an earlier version of this record had them) -->
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+</odoo>
