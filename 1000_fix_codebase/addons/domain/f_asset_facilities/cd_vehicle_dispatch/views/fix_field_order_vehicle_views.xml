@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_vehicle_dispatch views — the vehicle a field order travels in. -->
+<odoo>
+    <record id="view_fix_field_order_form_vehicle" model="ir.ui.view">
+        <field name="name">fix.field.order.form.vehicle</field>
+        <field name="model">fix.field.order</field>
+        <field name="inherit_id" ref="cd_field_service.view_fix_field_order_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='technician_id']" position="after">
+                <field name="vehicle_id"/>
+                <field name="vehicle_driver_id"/>
+                <field name="vehicle_assignment_id" readonly="1"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_fix_vehicle_assignment_list_orders" model="ir.ui.view">
+        <field name="name">fix.vehicle.assignment.list.orders</field>
+        <field name="model">fix.vehicle.assignment</field>
+        <field name="inherit_id" ref="cd_vehicle_ext.view_fix_vehicle_assignment_list"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='order_id']" position="after">
+                <field name="field_order_ids" widget="many2many_tags"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

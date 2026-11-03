@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 audit (2026-11-03) M46-1: whether M02 dispatch REQUIRES a vehicle.
+     Off (the deploy-safe default): no live field order names a vehicle yet,
+     and a walk-in or motorbike job may not use a fleet van. A field order
+     that does name a vehicle is gated either way. A business decision.
+     noupdate: an upgrade never resets a value the business has chosen. -->
+<odoo noupdate="1">
+    <record id="param_dispatch_requires_vehicle" model="ir.config_parameter">
+        <field name="key">cd_vehicle_dispatch.dispatch_requires_vehicle</field>
+        <field name="value">False</field>
+    </record>
+</odoo>

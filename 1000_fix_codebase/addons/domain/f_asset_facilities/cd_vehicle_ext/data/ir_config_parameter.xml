@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 audit (2026-11-03) M46-2/3: the M46 dispatch-gate switches, created
+     with the deploy-safe defaults so the business can see and change them
+     (Settings > Technical > System Parameters). noupdate: an upgrade never
+     resets a value the business has chosen. -->
+<odoo noupdate="1">
+    <record id="param_mandatory_document_types" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.mandatory_document_types</field>
+        <field name="value">fitness,insurance,tax</field>
+    </record>
+    <record id="param_require_passed_preuse_check" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.require_passed_preuse_check</field>
+        <field name="value">False</field>
+    </record>
+    <!-- A07 P0 recipe M46-9 (FR-FLT-034): a fill above this many litres is held
+         for review. A fleet-wide default the business must confirm. -->
+    <record id="param_fuel_tank_capacity_litres" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fuel_tank_capacity_litres</field>
+        <field name="value">100</field>
+    </record>
+</odoo>

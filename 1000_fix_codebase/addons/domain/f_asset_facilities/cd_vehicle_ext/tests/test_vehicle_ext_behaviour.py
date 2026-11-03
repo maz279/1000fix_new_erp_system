@@ -4,19 +4,23 @@ dispatch vehicle assignment (one van, one place, one day)."""
 from __future__ import annotations
 
 import json
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
-from odoo import fields
 from odoo.exceptions import ValidationError
 
-TODAY = fields.Date.today()
+# the gate decides on the Dhaka date (A07 audit M46-2)
+TODAY = datetime.now(ZoneInfo("Asia/Dhaka")).date()
 
 
 def _vehicle(env, fitness=None, insurance=None, plate="DHAKA-METRO-GA-11-2233"):
+    """A vehicle whose fitness and insurance are recorded in the document
+    register (A07 audit M46-2/3: the register, not the header dates, decides
+    compliance), with a valid token tax. None = no such document."""
     brand = env["fleet.vehicle.model.brand"].create({"name": "Toyota (behaviour)"})
     model = env["fleet.vehicle.model"].create({"name": "HiAce", "brand_id": brand.id})
-    return env["fleet.vehicle"].create(
+    vehicle = env["fleet.vehicle"].create(
         {
             "model_id": model.id,
             "license_plate": plate,
@@ -24,6 +28,16 @@ def _vehicle(env, fitness=None, insurance=None, plate="DHAKA-METRO-GA-11-2233"):
             "insurance_expiry": insurance,
         }
     )
+    for doc_type, valid_to in (
+        ("fitness", fitness),
+        ("insurance", insurance),
+        ("tax", TODAY + timedelta(days=90)),
+    ):
+        if valid_to:
+            env["fix.vehicle.document"].create(
+                {"vehicle_id": vehicle.id, "doc_type": doc_type, "valid_to": valid_to}
+            )
+    return vehicle
 
 
 def _compliant(env, **kw):

@@ -62,6 +62,18 @@ def test_offroad_and_return(ctx):
     env, vehicle = ctx["env"], ctx["vehicle"]
     record = env["fix.vehicle.offroad"].create({"vehicle_id": vehicle.id, "reason": "service"})
     assert record.name.startswith("VOFF/")
+    # A07 P0 recipe M46-8: the return rests on a passed re-check
+    with pytest.raises(UserError, match="pre-use check"), env.cr.savepoint():
+        record.action_return()
+    env["fix.vehicle.check"].create(
+        {
+            "vehicle_id": vehicle.id,
+            "tyres_ok": True,
+            "lights_ok": True,
+            "fluids_ok": True,
+            "brakes_ok": True,
+        }
+    )
     record.action_return()
     assert record.state == "returned"
     assert record.ended_on
@@ -71,8 +83,16 @@ def test_offroad_and_return(ctx):
 
 def test_pre_use_check_pass_compute(ctx):
     env, vehicle, driver = ctx["env"], ctx["vehicle"], ctx["driver"]
+    # A07 P0 recipe M46-7: the items no longer default to True
     check = env["fix.vehicle.check"].create(
-        {"vehicle_id": vehicle.id, "driver_id": driver.id, "brakes_ok": False}
+        {
+            "vehicle_id": vehicle.id,
+            "driver_id": driver.id,
+            "tyres_ok": True,
+            "lights_ok": True,
+            "fluids_ok": True,
+            "brakes_ok": False,
+        }
     )
     assert check.name.startswith("VCHK/")
     assert check.passed is False
@@ -84,6 +104,10 @@ def test_pm_done_and_fuel_positive(ctx):
     env, vehicle = ctx["env"], ctx["vehicle"]
     job = env["fix.vehicle.pm"].create({"vehicle_id": vehicle.id, "cost": 5000})
     assert job.name.startswith("VPM/")
+    # A07 P0 recipe M46-13: completion records the odometer at service
+    with pytest.raises(UserError, match="odometer"), env.cr.savepoint():
+        job.action_done()
+    job.odometer = 15000
     job.action_done()
     assert job.done_on
     with pytest.raises(IntegrityError), env.cr.savepoint():
@@ -106,8 +130,13 @@ def test_accident_claim_then_close(ctx):
     assert accident.name.startswith("VACC/")
     with pytest.raises(UserError, match="claimed"), env.cr.savepoint():
         accident.action_close()
-    accident.action_claim()
-    accident.action_close()
+    # A07 P0 recipe M46-10: a claim reference to file, a settlement to close
+    with pytest.raises(UserError, match="claim reference"), env.cr.savepoint():
+        accident.action_claim()
+    accident.action_claim(claim_ref="INS-1")
+    with pytest.raises(UserError, match="settled amount"), env.cr.savepoint():
+        accident.action_close()
+    accident.action_close(settlement=0)
     assert accident.state == "closed"
 
 

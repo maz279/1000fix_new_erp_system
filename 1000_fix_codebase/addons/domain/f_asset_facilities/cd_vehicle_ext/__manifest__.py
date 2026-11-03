@@ -11,6 +11,18 @@ CD-M46-01 (P08-M08):
   (P05-M03-T06): a vehicle assigned to a service-order day; OVERLAPPING
   assignments for one vehicle are refused (a van cannot be in two
   places); the assignment is created from the work order's field
+- A07 audit (2026-11-03) M46-2..5: the dispatch gate reads the statutory
+  document register (mandatory types from an ir.config_parameter), open
+  off-road records, open accidents, today's failed pre-use check and the
+  driver's state and licence expiry; it runs on assignment create AND write.
+  M02 dispatch is gated by it through the separate cd_vehicle_dispatch bridge
+- A07 P0 recipe (2026-11-03) M46-5..10/13: workflow fields are guarded
+  (fix.guarded.mixin); off-road return needs a passed re-check and a second
+  person; suspension and reinstatement take a reason and a second person;
+  checks no longer pass by default and are never rewritten; fuel exceptions
+  are computed and held for review by someone other than the recorder;
+  accident claims need a reference, the close a second person and a
+  settlement, DOFA-routed above Tier 0 through the M63 engine
 """,
     "version": "19.0.0.1.0",
     "license": "LGPL-3",
@@ -21,6 +33,8 @@ CD-M46-01 (P08-M08):
         "mail",
         "fleet",
         "cd_entity_config",
+        # A07 P0 recipe: the M63 routed-approval engine (accident settlement)
+        "cd_workflow_engine",
         "cd_employee_core",
         "cd_service_order",
         "cd_event_outbox",
@@ -29,6 +43,7 @@ CD-M46-01 (P08-M08):
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/ir_config_parameter.xml",
         "views/fix_vehicle_views.xml",
     ],
     "installable": True,

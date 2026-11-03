@@ -9,6 +9,7 @@
                 <field name="date"/>
                 <field name="vehicle_id"/>
                 <field name="technician_id"/>
+                <field name="driver_id"/>
                 <field name="order_id"/>
             </list>
         </field>
@@ -31,6 +32,7 @@
                 <field name="fitness_expiry"/>
                 <field name="insurance_expiry"/>
                 <field name="compliance_ok" readonly="1"/>
+                <field name="dispatch_blockers" readonly="1"/>
             </xpath>
         </field>
     </record>
