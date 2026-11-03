@@ -8,7 +8,85 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from . import fix_otp_util
+
 logger = logging.getLogger(__name__)
+
+# A02 workflow audit (A1): an order may be BORN only in these states. create()
+# ran no transition check, so an order was created 'closed', or 'ready' with no
+# QC, by the ORM and by /p03/model/write (M01-3).
+_BIRTH_STATES = ("draft", "intake")
+# The in-process token that lets create() pass a legitimate birth state through
+# the field guard. An object, like the guard's own token: an RPC caller can put
+# any key in the context but cannot put this object there.
+_BIRTH_KEY = "fix_so_birth_state"
+_BIRTH_TOKEN = object()
+
+# The states before the customer's approval; an estimate's send/approve drives
+# the order through them (A02 audit M01-2: two unlinked state machines).
+_PRE_APPROVAL_STATES = ("diagnostic", "estimate_pending", "estimate_sent", "awaiting_approval")
+
+# FLAW-01.1 / M01-1: the settlement sources the API accepts, and what each
+# needs before the delivery gate opens (documented on _fix_record_settlement).
+SETTLEMENT_SOURCES = [
+    ("m20_receipt", "M20 Receipt"),
+    ("field_collection", "Field Collection (M02)"),
+    ("counter", "Branch Counter (Cashier)"),
+]
+_SETTLEMENT_SOURCE_KEYS = {key for key, _label in SETTLEMENT_SOURCES}
+
+# M01-12: cancellation reason codes (spec §5 exceptions).
+CANCEL_REASONS = [
+    ("customer_declined", "Customer Declined the Repair"),
+    ("estimate_declined", "Customer Rejected the Estimate"),
+    ("duplicate", "Duplicate Order"),
+    ("unrepairable", "Unrepairable"),
+    ("customer_unreachable", "Customer Unreachable"),
+    ("other", "Other (note required)"),
+]
+_CANCEL_REASON_KEYS = {key for key, _label in CANCEL_REASONS}
+
+# Roles (security/fix_service_order_groups.xml).
+GROUP_CASHIER = "cd_service_order.group_so_cashier"
+GROUP_QC_INSPECTOR = "cd_service_order.group_so_qc_inspector"
+GROUP_COMMERCIAL_APPROVER = "cd_service_order.group_so_commercial_approver"
+
+# Business switches (ir.config_parameter). Each defaults fail-closed where it is
+# a control, or to today's behaviour where it is commercial policy.
+#  - delivery evidence (verified OTP + recipient + signed report): a control,
+#    default "1". "0" only where the SMS service cannot be wired.
+DELIVERY_EVIDENCE_PARAM = "cd_service_order.delivery_evidence_required"
+#  - warranty cover must be VERIFIED to give a zero-charge job: commercial
+#    policy, default "0" (today: live unverified cover still counts).
+WARRANTY_VERIFIED_PARAM = "cd_service_order.warranty_requires_verified"
+#  - an AMC zero-charge job needs its contract on the order: a control, "1".
+AMC_CONTRACT_PARAM = "cd_service_order.amc_requires_contract"
+
+# Fields frozen once the order is handed over or cancelled (A1): the record of
+# what was repaired, for whom, and the handover evidence.
+_FROZEN_WHEN_DONE = frozenset(
+    {
+        "device_id",
+        "customer_id",
+        "branch_id",
+        "service_type",
+        "technician_id",
+        "fault_description",
+        "service_warranty_days",
+        "recipient_name",
+        "recipient_nid_phone",
+        "service_report_attachment_id",
+    }
+)
+# Fields set at intake and changed afterwards only through their action
+# (M01-1 re-classification to warranty; FR-SRM-080 priority override).
+_SET_AT_INTAKE = frozenset({"order_category", "priority"})
+
+
+def _param_on(env, key, default):
+    raw = env["ir.config_parameter"].sudo().get_param(key, default)
+    return str(raw).strip().lower() not in ("0", "false", "no", "off", "")
+
 
 # AS-06: the ONE place the state machine is declared (DP-01)
 SERVICE_ORDER_STATES = [
@@ -56,8 +134,79 @@ class FixServiceOrder(models.Model):
 
     _name = "fix.service.order"
     _description = "Service Order"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
+
+    # A02 workflow audit (A1, M01-1/3/10, M01-7): every one of these was
+    # writable by any internal user, by the ORM and by /p03/model/write: a
+    # clerk "settled" an order, ticked goodwill and named the approver, ticked
+    # the delivery OTP and paused the SLA clock. Only the order's own actions
+    # change them now.
+    _GUARDED = frozenset(
+        {
+            "state",
+            "payment_settlement_state",
+            "amount_settled_bdt",
+            "invoice_ref",
+            "settlement_source",
+            "settlement_recorded_by",
+            "settlement_verified",
+            "settlement_verified_by",
+            "settlement_verified_at",
+            "is_goodwill",
+            "goodwill_approved_by",
+            "goodwill_approved_at",
+            "goodwill_reason",
+            "goodwill_cost_attribution_bdt",
+            "is_rework",
+            "rework_of_id",
+            "rework_approved_by",
+            "rework_approved_at",
+            "rework_reason",
+            "warranty_cover_unverified",
+            "delivery_otp_verified",
+            "delivery_otp_verified_at",
+            "delivery_otp_verified_by",
+            "delivery_otp_sent_at",
+            "delivery_otp_expires_at",
+            "delivery_otp_attempts",
+            "sla_clock_paused",
+            "sla_paused_at",
+            "sla_total_paused_minutes",
+            "sla_response_deadline",
+            "sla_resolution_deadline",
+            "sla_response_at",
+            "sla_resolution_at",
+            "priority_override_reason",
+            "priority_override_user_id",
+            "service_warranty_until",
+            "service_warranty_issued_by",
+            "repair_completed_by",
+            "intake_completed_at",
+            "delivered_at",
+            "closed_at",
+            "cancel_reason_code",
+            "cancel_note",
+            "cancelled_by",
+        }
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        guarded = set(super()._fix_guarded_fields()) | self._GUARDED
+        if self.env.context.get(_BIRTH_KEY) is _BIRTH_TOKEN:
+            # create() already refused every state but draft/intake.
+            guarded.discard("state")
+        return guarded
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self:
+            # An existing order: category and priority change only through
+            # their actions; a handed-over order is frozen.
+            locked |= _SET_AT_INTAKE
+            if any(o.state in ("delivered", "closed", "cancelled") for o in self):
+                locked |= _FROZEN_WHEN_DONE
+        return locked
 
     # AS-03
     company_id = fields.Many2one(
@@ -168,6 +317,7 @@ class FixServiceOrder(models.Model):
     is_rework = fields.Boolean(
         string="Rework",
         default=False,
+        readonly=True,
         copy=False,
         tracking=True,
         help="BRU-SRM-06: auto-flagged when the same device returns with the same "
@@ -186,8 +336,12 @@ class FixServiceOrder(models.Model):
     )
 
     # FR-SRM-080: Priority Override Logging
-    priority_override_reason = fields.Text(string="Priority Override Justification", tracking=True)
-    priority_override_user_id = fields.Many2one("res.users", string="Priority Overridden By")
+    priority_override_reason = fields.Text(
+        string="Priority Override Justification", tracking=True, readonly=True, copy=False
+    )
+    priority_override_user_id = fields.Many2one(
+        "res.users", string="Priority Overridden By", readonly=True, copy=False
+    )
 
     # FR-SRM-081: Customer-Preferred Technician
     preferred_technician_id = fields.Many2one("hr.employee", string="Customer-Preferred Technician")
@@ -323,14 +477,35 @@ class FixServiceOrder(models.Model):
 
     # FR-SRM-075: Goodwill Repair
     is_goodwill = fields.Boolean(
-        string="Goodwill Repair (Zero-Charge)", default=False, tracking=True
+        string="Goodwill Repair (Zero-Charge)",
+        default=False,
+        readonly=True,
+        copy=False,
+        tracking=True,
     )
     goodwill_cost_attribution_bdt = fields.Monetary(
         string="Goodwill Cost Absorbed (BDT)",
         currency_field="currency_id",
         default=0.0,
+        readonly=True,
+        copy=False,
     )
-    goodwill_approved_by = fields.Many2one("res.users", string="Goodwill Approved By")
+    goodwill_approved_by = fields.Many2one(
+        "res.users",
+        string="Goodwill Approved By",
+        readonly=True,
+        copy=False,
+        help="Stamped by Approve Goodwill with the approving user (never typed).",
+    )
+    goodwill_approved_at = fields.Datetime(readonly=True, copy=False)
+    goodwill_reason = fields.Text(string="Goodwill Reason", readonly=True, copy=False)
+    # BRU-SRM-06: an auto-flagged rework is zero-charge only once a commercial
+    # approver confirms it (A02 audit M01-1: 413 of 930 orders were flagged).
+    rework_approved_by = fields.Many2one(
+        "res.users", string="Zero-Charge Rework Confirmed By", readonly=True, copy=False
+    )
+    rework_approved_at = fields.Datetime(readonly=True, copy=False)
+    rework_reason = fields.Text(string="Rework Confirmation Reason", readonly=True, copy=False)
 
     # FR-SRM-076: Loan Device Management
     loan_device_id = fields.Many2one("fix.device", string="Temporary Loan Device")
@@ -431,6 +606,7 @@ class FixServiceOrder(models.Model):
     sla_resolution_at = fields.Datetime(readonly=True)
     sla_clock_paused = fields.Boolean(
         default=False,
+        readonly=True,
         tracking=True,
         help="Clock paused during customer approval hold or parts wait (FLAW-01.3).",
     )
@@ -454,15 +630,22 @@ class FixServiceOrder(models.Model):
             ("settled", "Invoice Paid & Settled"),
             ("covered_zero_charge", "Zero-Charge Covered (Warranty / AMC / Goodwill)"),
             ("credit_approved", "Corporate B2B Credit Approved"),
+            # M01-12: a settled order that is cancelled owes the customer
+            # money; the refund/credit hand-off event carries it to M20.
+            ("refund_due", "Refund / Credit Due"),
         ],
         string="Financial Settlement Status",
         default="unpaid",
         required=True,
+        readonly=True,
+        copy=False,
         tracking=True,
         help="FLAW-01.1: Hard gate before transitioning to Delivered.",
     )
     invoice_ref = fields.Char(
         string="M19 Invoice / Receipt Reference",
+        readonly=True,
+        copy=False,
         tracking=True,
         help="POS Receipt, MFS TrxID, or M19 Tax Invoice reference.",
     )
@@ -470,13 +653,58 @@ class FixServiceOrder(models.Model):
         string="Amount Settled (BDT)",
         currency_field="currency_id",
         default=0.0,
+        readonly=True,
+        copy=False,
         tracking=True,
     )
+    # FLAW-01.1 / M01-15: where the settlement came from and whether anyone
+    # has checked it. A typed TrxID is a claim, not money: the delivery gate
+    # opens only on a VERIFIED settlement (see _fix_record_settlement).
+    settlement_source = fields.Selection(
+        SETTLEMENT_SOURCES, string="Settlement Source", readonly=True, copy=False
+    )
+    settlement_recorded_by = fields.Many2one(
+        "res.users", string="Settlement Recorded By", readonly=True, copy=False
+    )
+    settlement_verified = fields.Boolean(
+        string="Settlement Verified", readonly=True, copy=False, tracking=True
+    )
+    settlement_verified_by = fields.Many2one(
+        "res.users", string="Settlement Verified By", readonly=True, copy=False
+    )
+    settlement_verified_at = fields.Datetime(readonly=True, copy=False)
+    # A5 / M01-10: set only by Verify Delivery OTP, when the code the
+    # notification service sent to the customer's phone is read back.
     delivery_otp_verified = fields.Boolean(
         string="Handover OTP / Signature Verified",
         default=False,
+        readonly=True,
+        copy=False,
         tracking=True,
     )
+    delivery_otp_verified_at = fields.Datetime(readonly=True, copy=False)
+    delivery_otp_verified_by = fields.Many2one(
+        "res.users", string="Handover OTP Checked By", readonly=True, copy=False
+    )
+    delivery_otp_sent_at = fields.Datetime(readonly=True, copy=False)
+    delivery_otp_expires_at = fields.Datetime(readonly=True, copy=False)
+    delivery_otp_attempts = fields.Integer(readonly=True, copy=False)
+    # Keyed digest only, never the code; not readable by internal users.
+    delivery_otp_digest = fields.Char(readonly=True, copy=False, groups="base.group_system")
+    intake_completed_at = fields.Datetime(string="Intake Completed At", readonly=True, copy=False)
+    delivered_at = fields.Datetime(string="Delivered At", readonly=True, copy=False)
+    closed_at = fields.Datetime(string="Closed At", readonly=True, copy=False)
+    # BRU-SRM-18 / SOD-07: who completed the repair, so the QC inspector can
+    # be checked against them.
+    repair_completed_by = fields.Many2one(
+        "res.users", string="Repair Completed By", readonly=True, copy=False
+    )
+    # M01-12: a cancellation carries its reason.
+    cancel_reason_code = fields.Selection(
+        CANCEL_REASONS, string="Cancellation Reason", readonly=True, copy=False
+    )
+    cancel_note = fields.Text(string="Cancellation Note", readonly=True, copy=False)
+    cancelled_by = fields.Many2one("res.users", readonly=True, copy=False)
     recipient_name = fields.Char(string="Collecting Recipient Name")
     recipient_nid_phone = fields.Char(string="Recipient Phone / NID Reference")
     service_report_attachment_id = fields.Many2one(
@@ -526,6 +754,11 @@ class FixServiceOrder(models.Model):
                 f"Invalid state transition: {old} -> {new_state}. "
                 f"Valid transitions from '{old}': {', '.join(sorted(valid_targets)) or '(terminal state)'}"
             )
+        if new_state == "approved":
+            # A02 audit M01-2: 'approved' needs an approved estimate or a
+            # zero-charge entitlement - the order approved with no estimate,
+            # or with a REJECTED one.
+            self._check_commercial_clearance()
         if new_state == "ready":
             # BRU-SRM-04 (H): the QC hard gate lives in the transition check
             # so NO write path (action, controller, sync, RPC) reaches Ready
@@ -534,6 +767,12 @@ class FixServiceOrder(models.Model):
         if new_state == "delivered":
             # FLAW-01.1: Financial settlement & zero-charge gate before handover
             self._check_delivery_settlement_gate()
+            # A5 / M01-10: handover evidence (verified OTP, recipient, report)
+            self._check_delivery_evidence()
+        if new_state == "closed":
+            # M01-11: close only once the money is settled (or credit
+            # approved), or the job is a zero-charge entitlement.
+            self._check_close_gate()
 
     def _check_qc_gate(self) -> None:
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
@@ -550,26 +789,152 @@ class FixServiceOrder(models.Model):
                 "Order %s cannot be Ready: %d QC checklist(s) not passed (BRU-SRM-04)"
                 % (self.name, len(failed))
             )
+        # A02 audit M01-6: 5 of 8 live passed checklists had no items - a
+        # checklist with nothing checked is not an inspection. (Only trusted
+        # superuser code can still write such a row: the state is guarded.)
+        empty = self.env["fix.qc.checklist"]
+        if not self.env.su:
+            empty = checklists.filtered(lambda c: not c.item_ids)
+        if empty:
+            raise UserError(
+                "Order %s cannot be Ready: %d passed QC checklist(s) have no inspection "
+                "items (BRU-SRM-04)" % (self.name, len(empty))
+            )
+
+    # --- commercial basis: what is due, and what makes a job zero-charge ---
+    def _fix_governing_estimate(self):
+        """The estimate the money is decided on: the latest approved version,
+        else the latest one with the customer (sent). Earlier versions are
+        superseded by a revision; summing them double-counted."""
+        self.ensure_one()
+        for states in (("approved",), ("sent",)):
+            ests = self.estimate_ids.filtered(lambda e, s=states: e.state in s)
+            if ests:
+                return ests.sorted(lambda e: (e.version, e.id))[-1]
+        return self.env["fix.estimate"]
+
+    def _fix_amount_due(self) -> float:
+        self.ensure_one()
+        est = self._fix_governing_estimate()
+        return max(est.grand_total, 0.0) if est else 0.0
+
+    def _fix_zero_charge_basis(self) -> str:
+        """Why this job is not charged to the customer, or '' if it is.
+
+        A02 audit M01-1: the settlement gate skipped any order whose CATEGORY
+        said warranty/amc/goodwill/rework, and whose is_goodwill / is_rework
+        flag any clerk could set. A zero-charge basis is now an entitlement the
+        system can check, or an approval stamped by a commercial approver."""
+        self.ensure_one()
+        category = self.order_category
+        if category == "warranty":
+            day = (self.create_date or fields.Datetime.now()).date()
+            require = _param_on(self.env, WARRANTY_VERIFIED_PARAM, "0")
+            if self.device_id.is_under_warranty(day, require_verified=require):
+                return "warranty cover"
+        if category == "amc":
+            if not _param_on(self.env, AMC_CONTRACT_PARAM, "1"):
+                return "AMC contract"
+            if "contract_id" in self._fields and self.contract_id:
+                return "AMC contract %s" % self.contract_id.display_name
+        if category in ("recycling", "refurbishment"):
+            return "internal %s intake" % category
+        if self.is_goodwill and self.goodwill_approved_by:
+            return "goodwill approved by %s" % self.goodwill_approved_by.name
+        if self.is_rework and self.rework_approved_by:
+            return "rework confirmed by %s" % self.rework_approved_by.name
+        return ""
+
+    def _check_commercial_clearance(self) -> None:
+        """M01-2: the customer's approval of the price, or an entitlement."""
+        self.ensure_one()
+        if self.env.su:
+            return  # trusted service code (crons, data loads) decides itself
+        if self._fix_zero_charge_basis():
+            return
+        approved = self.estimate_ids.filtered(lambda e: e.state == "approved")
+        if not approved:
+            raise UserError(
+                "Order %s cannot be approved: it has no approved estimate and no "
+                "warranty, AMC or approved goodwill entitlement. Send the estimate "
+                "and record the customer's approval first." % self.name
+            )
+
+    def _fix_settlement_covers(self, due: float) -> bool:
+        return (
+            self.payment_settlement_state == "settled"
+            and (self.amount_settled_bdt or 0.0) + 0.005 >= due
+            and (self.settlement_verified or self._fix_try_verify_from_receipt())
+        )
 
     def _check_delivery_settlement_gate(self) -> None:
         """FLAW-01.1: Prevent handover/delivery of chargeable orders when an
         approved estimate exists with payable balance > 0 and payment is unpaid."""
         self.ensure_one()
-        zero_charge_categories = {"warranty", "amc", "rework", "goodwill", "recycling"}
-        if self.order_category in zero_charge_categories or self.is_goodwill or self.is_rework:
+        if self._fix_zero_charge_basis():
             return
         approved_estimates = self.estimate_ids.filtered(
             lambda e: e.state == "approved" and e.grand_total > 0
         )
         if approved_estimates and self.payment_settlement_state == "unpaid":
-            total_due = sum(approved_estimates.mapped("grand_total"))
+            total_due = self._fix_amount_due()
             raise UserError(
                 f"FLAW-01.1 Financial Settlement Gate: Order {self.name} has an approved "
                 f"chargeable estimate of BDT {total_due:.2f} that is still 'unpaid'. "
                 "Settle the invoice or record payment before delivering the device."
             )
+        if self.env.su:
+            return
+        due = self._fix_amount_due()
+        if due <= 0 or self.payment_settlement_state == "credit_approved":
+            return
+        if not self._fix_settlement_covers(due):
+            raise UserError(
+                f"FLAW-01.1 Financial Settlement Gate: Order {self.name} owes BDT {due:.2f}. "
+                "The device is released only on a verified settlement that covers it "
+                f"(recorded: BDT {self.amount_settled_bdt or 0.0:.2f}, "
+                f"{'verified' if self.settlement_verified else 'not verified'})."
+            )
+
+    def _check_delivery_evidence(self) -> None:
+        """A5 / M01-10: 0 of 47 delivered orders had an OTP, a recipient or a
+        signed report. Behind DELIVERY_EVIDENCE_PARAM (default on)."""
+        self.ensure_one()
+        if self.env.su or not _param_on(self.env, DELIVERY_EVIDENCE_PARAM, "1"):
+            return
+        missing = []
+        if not self.delivery_otp_verified:
+            missing.append("the customer's handover OTP (Send / Verify Delivery OTP)")
+        if not (self.recipient_name or "").strip():
+            missing.append("the collecting recipient's name")
+        if not self.service_report_attachment_id:
+            missing.append("the signed service delivery report")
+        if missing:
+            raise UserError(
+                "Order %s cannot be delivered without %s." % (self.name, "; ".join(missing))
+            )
+
+    def _check_close_gate(self) -> None:
+        """M01-11: settled (verified, covering the amount due) or credit
+        approved, or a zero-charge entitlement. A warranty job's OEM claim is
+        raised by the close itself (AUT-018 consumes service_order.closed)."""
+        self.ensure_one()
+        if self.env.su or self._fix_zero_charge_basis():
+            return
+        due = self._fix_amount_due()
+        if due <= 0 or self.payment_settlement_state == "credit_approved":
+            return
+        if not self._fix_settlement_covers(due):
+            raise UserError(
+                "Order %s cannot be closed: BDT %.2f is due and no verified settlement "
+                "or approved credit covers it." % (self.name, due)
+            )
 
     def write(self, vals):
+        if self and not self._fix_guard_open():
+            # The guard runs FIRST, so a forged state is refused as a forgery
+            # rather than as a bad transition.
+            self._fix_refuse_direct_changes(vals)
         old_states = {}
         if "state" in vals:
             for rec in self:
@@ -579,7 +944,39 @@ class FixServiceOrder(models.Model):
         if "state" in vals:
             for rec in self:
                 rec._on_state_change(vals["state"], old_states[rec.id])
+        if "order_category" in vals:
+            # M01-1 / BRU-SRM-02: a re-classification re-runs the warranty gate
+            # (it only ran in create, so a standard order became 'warranty').
+            self._check_warranty_gate()
         return result
+
+    def _fix_refuse_direct_changes(self, vals) -> None:
+        guarded = self._fix_guarded_fields() & set(vals)
+        changed = {
+            name
+            for rec in self
+            for name in guarded
+            if rec._fix_guard_differs(name, vals[name], rec[name])
+        }
+        if changed:
+            self._fix_guard_refuse(changed)
+        for rec in self:
+            frozen = rec.state in ("delivered", "closed", "cancelled")
+            names = set(vals) & (_SET_AT_INTAKE | (_FROZEN_WHEN_DONE if frozen else set()))
+            for name in names:
+                if not rec._fix_guard_differs(name, vals[name], rec[name]):
+                    continue
+                label = self._fields[name].string or name
+                if frozen:
+                    raise UserError(
+                        "Order %s is %s: %s is part of the handover record and can no "
+                        "longer change." % (rec.name, rec.state, label)
+                    )
+                action = "Change Category" if name == "order_category" else "Override Priority"
+                raise UserError(
+                    "%s of order %s is set at intake. Change it with %s, which records "
+                    "the reason and who changed it." % (label, rec.name, action)
+                )
 
     def _on_state_change(self, new_state: str, old_state: str) -> None:
         """Hook for side effects on state changes. ``old_state`` is captured
@@ -590,50 +987,194 @@ class FixServiceOrder(models.Model):
             "service_order", f"Order {self.name}: {old_state} -> {new_state}", order_id=self.id
         )
         now = fields.Datetime.now()
+        stamps = {}
         # FLAW-01.3: Automatic SLA hold clock pausing during customer estimate approval wait
         hold_states = {"estimate_sent", "awaiting_approval"}
         if new_state in hold_states and not self.sla_clock_paused:
-            self.sla_clock_paused = True
-            self.sla_paused_at = now
+            stamps.update(sla_clock_paused=True, sla_paused_at=now)
+            self._fix_sla_instances("pause", "Awaiting the customer's estimate decision")
         elif (
             old_state in hold_states
             and new_state not in hold_states
             and not self.is_deferred_block
             and self.sla_clock_paused
         ):
-            if self.sla_paused_at:
-                delta_mins = max(0.0, (now - self.sla_paused_at).total_seconds() / 60.0)
-                self.sla_total_paused_minutes = round(
-                    (self.sla_total_paused_minutes or 0.0) + delta_mins, 2
-                )
-            self.sla_clock_paused = False
-            self.sla_paused_at = False
+            stamps.update(self._fix_resume_stamps(now))
+            self._fix_sla_instances("resume")
 
         # SLA clock events
+        if new_state == "intake" and not self.intake_completed_at:
+            stamps["intake_completed_at"] = now
         if new_state == "in_repair" and not self.sla_response_at:
-            self.sla_response_at = now
+            stamps["sla_response_at"] = now
         if new_state in ("delivered", "closed") and not self.sla_resolution_at:
-            self.sla_resolution_at = now
+            stamps["sla_resolution_at"] = now
+        if new_state == "delivered" and not self.delivered_at:
+            stamps["delivered_at"] = now
+        if new_state == "closed" and not self.closed_at:
+            stamps["closed_at"] = now
+        if stamps:
+            self._guarded().write(stamps)
+        if new_state == "intake":
+            self._fix_start_sla()
+        if new_state in ("ready", "delivered", "closed", "cancelled"):
+            self._fix_sla_instances("succeed" if new_state != "cancelled" else "cancel")
+
+    def _fix_resume_stamps(self, now) -> dict:
+        minutes = self.sla_total_paused_minutes or 0.0
+        if self.sla_paused_at:
+            minutes += max(0.0, (now - self.sla_paused_at).total_seconds() / 60.0)
+        return {
+            "sla_clock_paused": False,
+            "sla_paused_at": False,
+            "sla_total_paused_minutes": round(minutes, 2),
+        }
+
+    # --- SLA (M01-7: no clock ran on any of 930 orders) ---
+    def _fix_start_sla(self) -> None:
+        """Start the resolution clock at intake from the order's policy (or
+        the active policy for its channel and priority). Best effort: a policy
+        problem is logged, never blocks the intake."""
+        Policy = self.env["fix.sla.policy"].sudo()
+        Instance = self.env["fix.sla.kpi.instance"].sudo()
+        for order in self:
+            policy = order.sla_policy_id or Policy.search(
+                [
+                    ("service_type", "=", order.service_type),
+                    ("priority", "=", order.priority),
+                    ("active", "=", True),
+                    ("company_id", "in", [order.company_id.id, False]),
+                ],
+                limit=1,
+            )
+            if not policy:
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    start = order.intake_completed_at or fields.Datetime.now()
+                    inst = Instance.start_for(order, policy, "resolution", started_at=start)
+                    vals = {"sla_resolution_deadline": inst.target_at}
+                    if not order.sla_response_deadline:
+                        vals["sla_response_deadline"] = Instance.add_business_hours(
+                            start, policy.response_hours, Instance._effective_calendar(policy, None)
+                        )
+                    if not order.sla_policy_id:
+                        order.sudo().sla_policy_id = policy.id
+                    order._guarded().write(vals)
+            except (UserError, ValidationError) as exc:
+                logger.warning("SLA clock not started for %s: %s", order.name, exc)
+
+    def _fix_sla_instances(self, verb: str, reason: str = "") -> None:
+        Instance = self.env["fix.sla.kpi.instance"].sudo()
+        for order in self:
+            for inst in Instance.for_record(order):
+                try:
+                    with self.env.cr.savepoint():
+                        if verb == "pause" and inst.state == "in_progress":
+                            inst.pause(reason)
+                        elif verb == "resume" and inst.state == "paused":
+                            inst.resume()
+                        elif verb == "succeed" and inst.state in ("in_progress", "paused"):
+                            inst.succeed()
+                        elif verb == "cancel" and inst.state in ("in_progress", "paused"):
+                            inst.cancel("Order %s cancelled" % order.name)
+                except (UserError, ValidationError) as exc:
+                    logger.warning("SLA %s skipped for %s: %s", verb, order.name, exc)
+
+    # --- transitions: every one writes state through the guard token ---
+    def _fix_advance(self, new_state: str, extra=None) -> None:
+        """The one way an action moves an order: the transition check and its
+        gates run in write(); the token lets the guarded field through."""
+        for order in self:
+            if order.state == new_state:
+                continue
+            vals = dict(extra or {}, state=new_state)
+            order._guarded().write(vals)
+
+    # The action that owns each target state (M31 sync, M04 consoles and the
+    # P03 stage button call action_transition instead of writing state).
+    _ACTION_FOR_STATE = {
+        "intake": "action_intake",
+        "diagnostic": "action_start_diagnostic",
+        "estimate_pending": "action_request_estimate",
+        "estimate_sent": "action_send_estimate",
+        "awaiting_approval": "action_await_approval",
+        "approved": "action_approve",
+        "in_repair": "action_start_repair",
+        "qc_pending": "action_submit_qc",
+        "qc_failed": "action_qc_fail",
+        "ready": "action_ready",
+        "delivered": "action_deliver",
+        "closed": "action_close",
+        "cancelled": "action_cancel",
+    }
+
+    def action_transition(self, new_state, **kwargs):
+        """Move to ``new_state`` through the action that owns it, so its own
+        checks apply. For callers outside M01 that used to write state."""
+        method = self._ACTION_FOR_STATE.get(new_state)
+        if not method:
+            raise UserError("Unknown service order state: %s" % new_state)
+        for order in self:
+            if order.state != new_state:
+                getattr(order, method)(**kwargs)
+        return True
+
+    def action_intake(self):
+        self._fix_advance("intake")
 
     def action_start_diagnostic(self):
-        for order in self:
-            order.state = "diagnostic"
+        self._fix_advance("diagnostic")
+
+    def action_request_estimate(self):
+        """Diagnosis done: the fault is coded, the estimate is being prepared.
+        The fault is known now, so the rework check runs again (BRU-SRM-06)."""
+        self._fix_advance("estimate_pending")
+        self._flag_rework()
 
     def action_send_estimate(self):
+        """Send the prepared estimate; sending it moves the order on."""
         for order in self:
-            order.state = "estimate_sent"
+            drafts = order.estimate_ids.filtered(lambda e: e.state == "draft")
+            if drafts and order.state in ("diagnostic", "estimate_pending"):
+                drafts.sorted(lambda e: (e.version, e.id))[-1].action_send()
+            order._fix_advance("estimate_sent")
+
+    def action_await_approval(self):
+        self._fix_advance("awaiting_approval")
 
     def action_approve(self):
-        for order in self:
-            order.state = "approved"
+        self._fix_advance("approved")
 
     def action_start_repair(self):
-        for order in self:
-            order.state = "in_repair"
+        self._fix_advance("in_repair")
 
     def action_submit_qc(self):
         for order in self:
-            order.state = "qc_pending"
+            order._fix_advance("qc_pending", {"repair_completed_by": self.env.user.id})
+
+    def action_qc_fail(self):
+        self._fix_advance("qc_failed")
+
+    def action_fail_qc(self):
+        """qc_pending -> qc_failed: the name the M31 workshop sync calls."""
+        return self.action_qc_fail()
+
+    def action_mark_unrepairable(self, reason=None):
+        """Beyond economic repair (M31 BER confirmation, spec §5 exceptions):
+        the order leaves through the cancellation path with reason
+        'unrepairable', so its estimate, field order and workshop job are
+        closed and a settled amount is handed to M20 for refund."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason the device cannot be repaired.")
+        for order in self:
+            if order.state not in ("diagnostic", "in_repair"):
+                raise UserError(
+                    "Order %s is %s: it is marked unrepairable from diagnosis or repair."
+                    % (order.name, order.state)
+                )
+            order.action_cancel(reason_code="unrepairable", note=reason.strip())
+        return True
 
     def action_ready(self):
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
@@ -641,46 +1182,504 @@ class FixServiceOrder(models.Model):
         _validate_transition (write), so every path shares the one gate."""
         for order in self:
             order._check_qc_gate()
-            order.state = "ready"
+            order._fix_advance("ready")
 
     def action_deliver(self):
         for order in self:
             order._check_delivery_settlement_gate()
-            if (
-                order.order_category in ("warranty", "amc", "rework", "goodwill", "recycling")
-                and order.payment_settlement_state == "unpaid"
-            ):
-                order.payment_settlement_state = "covered_zero_charge"
-            order.state = "delivered"
+            extra = {}
+            if order.payment_settlement_state == "unpaid" and order._fix_zero_charge_basis():
+                extra["payment_settlement_state"] = "covered_zero_charge"
+            order._fix_advance("delivered", extra)
 
-    def action_mark_settled(self, invoice_ref=None, amount_bdt=None):
-        """FLAW-01.1: Record financial invoice settlement before device handover."""
-        for order in self:
-            approved_total = sum(
-                order.estimate_ids.filtered(lambda e: e.state == "approved").mapped("grand_total")
+    # --- settlement (FLAW-01.1, M01-1/15): the contract with M02, M04, M20 ---
+    def _fix_record_settlement(self, amount_bdt, reference, source):
+        """Record that the money for this order was taken. The ONE writer of
+        the settlement fields (M02's field completion calls it; so does Mark
+        Settled).
+
+        ``source`` and what it needs before the DELIVERY gate opens:
+
+        * ``m20_receipt``: a CONFIRMED fix.ar.receipt for this customer whose
+          number or reference is ``reference`` and whose amount covers
+          ``amount_bdt``, not already used by another order. Verified at once;
+          refused when no such receipt exists.
+        * ``counter``: taken at the branch counter by a Service Order Cashier,
+          who is accountable for it in the cash shift. Verified at once;
+          refused for anyone else.
+        * ``field_collection``: cash or an MFS TrxID taken on site (M02). The
+          technician's typed TrxID is a claim, not money, so it is recorded
+          UNVERIFIED. The device stays held until a cashier who did not
+          record it verifies it (Verify Settlement), or an M20 receipt with
+          that reference is confirmed.
+
+        Refused: an unknown source, a missing reference, an amount that does
+        not cover the amount due, a closed or cancelled order."""
+        self.ensure_one()
+        if source not in _SETTLEMENT_SOURCE_KEYS:
+            raise UserError(
+                "Unknown settlement source '%s' (expected one of: %s)."
+                % (source, ", ".join(sorted(_SETTLEMENT_SOURCE_KEYS)))
             )
-            order.write(
+        reference = (reference or "").strip()
+        if not reference:
+            raise UserError(
+                "A settlement needs the receipt or transaction reference that proves "
+                "the payment (M01-15: no made-up INV/<order> reference)."
+            )
+        try:
+            amount = float(amount_bdt)
+        except (TypeError, ValueError):
+            raise UserError("Enter the amount received for order %s." % self.name) from None
+        if self.state in ("closed", "cancelled"):
+            raise UserError("Order %s is %s; it takes no settlement." % (self.name, self.state))
+        if self.payment_settlement_state == "settled" and self.settlement_verified:
+            raise UserError("Order %s is already settled and verified." % self.name)
+        due = self._fix_amount_due()
+        if amount <= 0 or amount + 0.005 < due:
+            raise UserError(
+                "BDT %.2f does not settle order %s: BDT %.2f is due on its estimate."
+                % (amount, self.name, due)
+            )
+        verified = False
+        if source == "m20_receipt":
+            receipt = self._fix_find_m20_receipt(reference, amount)
+            if not receipt:
+                raise UserError(
+                    "No confirmed M20 receipt '%s' of at least BDT %.2f exists for %s."
+                    % (reference, amount, self.customer_id.display_name)
+                )
+            verified = True
+        elif source == "counter":
+            if not (self.env.su or self.env.user.has_group(GROUP_CASHIER)):
+                raise UserError(
+                    "Only a Service Order Cashier records a counter settlement. "
+                    "Ask the cashier to take the payment."
+                )
+            verified = True
+        now = fields.Datetime.now()
+        vals = {
+            "payment_settlement_state": "settled",
+            "invoice_ref": reference,
+            "amount_settled_bdt": amount,
+            "settlement_source": source,
+            "settlement_recorded_by": self.env.user.id,
+            "settlement_verified": verified,
+            "settlement_verified_by": self.env.user.id if verified else False,
+            "settlement_verified_at": now if verified else False,
+        }
+        self._guarded().write(vals)
+        self.message_post(
+            body="Settlement recorded (%s): %s, BDT %.2f%s."
+            % (
+                dict(SETTLEMENT_SOURCES)[source],
+                reference,
+                amount,
+                "" if verified else " - NOT YET VERIFIED, the device stays held",
+            )
+        )
+        return True
+
+    def _fix_find_m20_receipt(self, reference, amount):
+        """A confirmed M20 receipt for this customer matching ``reference``
+        that covers ``amount`` and backs no other order's settlement."""
+        self.ensure_one()
+        if "fix.ar.receipt" not in self.env:
+            return False
+        partner = self.customer_id.commercial_partner_id
+        receipts = (
+            self.env["fix.ar.receipt"]
+            .sudo()
+            .search(
+                [
+                    ("state", "=", "confirmed"),
+                    "|",
+                    ("name", "=", reference),
+                    ("reference", "=", reference),
+                ]
+            )
+            .filtered(
+                lambda r: r.customer_id.commercial_partner_id == partner
+                and (r.amount or 0.0) + 0.005 >= amount
+            )
+        )
+        if not receipts:
+            return False
+        reused = self.sudo().search_count(
+            [
+                ("id", "!=", self.id),
+                ("invoice_ref", "=", reference),
+                ("settlement_verified", "=", True),
+                ("payment_settlement_state", "in", ("settled", "refund_due")),
+            ]
+        )
+        return False if reused else receipts[:1]
+
+    def _fix_try_verify_from_receipt(self) -> bool:
+        """An unverified field collection becomes verified once an M20
+        receipt with its reference is confirmed."""
+        self.ensure_one()
+        if self.settlement_verified or not self.invoice_ref:
+            return bool(self.settlement_verified)
+        receipt = self._fix_find_m20_receipt(self.invoice_ref, self.amount_settled_bdt or 0.0)
+        if not receipt:
+            return False
+        self._guarded().write(
+            {
+                "settlement_verified": True,
+                "settlement_verified_by": self.env.user.id,
+                "settlement_verified_at": fields.Datetime.now(),
+            }
+        )
+        self.message_post(body="Settlement verified against M20 receipt %s." % receipt.name)
+        return True
+
+    def action_verify_settlement(self):
+        """A cashier confirms a field collection: the cash is in the shift,
+        or the MFS TrxID shows in the merchant statement. Never the person
+        who recorded it, never the order's technician."""
+        for order in self:
+            if order.payment_settlement_state != "settled":
+                raise UserError("Order %s has no settlement to verify." % order.name)
+            if order.settlement_verified:
+                continue
+            if order._fix_try_verify_from_receipt():
+                continue
+            user = self.env.user
+            if not (self.env.su or user.has_group(GROUP_CASHIER)):
+                raise UserError("Only a Service Order Cashier verifies a collection.")
+            if user == order.settlement_recorded_by or (
+                order.technician_id and order.technician_id.user_id == user
+            ):
+                raise UserError(
+                    "Segregation of duties: the person who collected or recorded the "
+                    "payment cannot verify it."
+                )
+            order._guarded().write(
                 {
-                    "payment_settlement_state": "settled",
-                    "invoice_ref": invoice_ref or order.invoice_ref or f"INV/{order.name}",
-                    "amount_settled_bdt": (
-                        amount_bdt
-                        if amount_bdt is not None
-                        else (order.amount_settled_bdt or approved_total)
-                    ),
+                    "settlement_verified": True,
+                    "settlement_verified_by": user.id,
+                    "settlement_verified_at": fields.Datetime.now(),
                 }
             )
             order.message_post(
-                body=f"Financial settlement recorded: {order.invoice_ref} (BDT {order.amount_settled_bdt:.2f})."
+                body="Collection %s verified by %s." % (order.invoice_ref, user.name)
             )
+        return True
+
+    def action_mark_settled(
+        self, invoice_ref=None, amount_bdt=None, source="counter", reference=None
+    ):
+        """FLAW-01.1: Record financial invoice settlement before device handover.
+
+        Goes through _fix_record_settlement: no default INV/<order>
+        reference and no amount other than one that covers the amount due.
+        From an M20 receipt the amount is the receipt's own."""
+        reference = reference or invoice_ref
+        for order in self:
+            amount = amount_bdt
+            if amount is None and source == "m20_receipt" and reference:
+                receipt = order._fix_find_m20_receipt(reference, 0.0)
+                if not receipt:
+                    raise UserError(
+                        "No confirmed M20 receipt '%s' for %s that another order has not "
+                        "already used." % (reference, order.customer_id.display_name)
+                    )
+                amount = receipt.amount
+            if amount is None:
+                raise UserError(
+                    "Enter the amount received for order %s (BDT %.2f is due)."
+                    % (order.name, order._fix_amount_due())
+                )
+            order._fix_record_settlement(amount, reference, source)
+        return True
 
     def action_close(self):
-        for order in self:
-            order.state = "closed"
+        self._fix_advance("closed")
 
-    def action_cancel(self):
+    def action_cancel(self, reason_code=None, note=None, reason=None):
+        """M01-12: a cancellation needs a reason code. It cancels the open
+        estimate, field order and workshop job, and a settled order raises
+        the refund/credit hand-off (service_order.refund_requested) for M20.
+
+        ``reason`` (one prompt on the workspace) may be "code: note"."""
+        if reason and not reason_code:
+            head, _sep, tail = str(reason).partition(":")
+            if head.strip() in _CANCEL_REASON_KEYS:
+                reason_code, note = head.strip(), (tail.strip() or note)
+            else:
+                reason_code, note = "other", str(reason).strip()
+        if reason_code not in _CANCEL_REASON_KEYS:
+            raise UserError(
+                "Give a cancellation reason: %s." % ", ".join(k for k, _l in CANCEL_REASONS)
+            )
+        if reason_code == "other" and not (note or "").strip():
+            raise UserError("Describe the reason when cancelling for 'Other'.")
         for order in self:
-            order.state = "cancelled"
+            refund = order.payment_settlement_state == "settled" and order.amount_settled_bdt > 0
+            order._fix_cancel_downstream(reason_code, note)
+            extra = {
+                "cancel_reason_code": reason_code,
+                "cancel_note": note or False,
+                "cancelled_by": self.env.user.id,
+            }
+            if refund:
+                extra["payment_settlement_state"] = "refund_due"
+            order._fix_advance("cancelled", extra)
+            if refund:
+                from libs.py.fix_events import publish
+
+                publish(
+                    self.env,
+                    "service_order.refund_requested",
+                    "fix.service.order",
+                    order.id,
+                    {
+                        "order_id": order.id,
+                        "name": order.name,
+                        "customer_id": order.customer_id.id,
+                        "amount_bdt": order.amount_settled_bdt,
+                        "reference": order.invoice_ref,
+                        "settlement_source": order.settlement_source,
+                        "reason_code": reason_code,
+                    },
+                )
+            order.message_post(
+                body="Order cancelled (%s)%s%s."
+                % (
+                    dict(CANCEL_REASONS)[reason_code],
+                    ": %s" % note if note else "",
+                    "; BDT %.2f refund/credit requested" % order.amount_settled_bdt
+                    if refund
+                    else "",
+                )
+            )
+        return True
+
+    def _fix_cancel_downstream(self, reason_code, note) -> None:
+        """Cancel what still runs for this order (M01-12, A02 ho_06/can_02):
+        the customer could still approve its estimate, and a technician was
+        still dispatched on its field order."""
+        self.ensure_one()
+        label = "Order %s cancelled (%s)" % (self.name, reason_code)
+        open_estimates = self.estimate_ids.filtered(lambda e: e.state in ("draft", "sent"))
+        if open_estimates:
+            open_estimates._guarded().write({"state": "rejected"})
+            for est in open_estimates:
+                est.message_post(body="%s: estimate withdrawn." % label)
+        # The cascade is the order's own system transition: the downstream
+        # records are found and cancelled with the order, whoever may see them.
+        if "field_order_ids" in self._fields:
+            live = self.sudo().field_order_ids.filtered(
+                lambda f: f.state not in ("completed", "cancelled", "declined")
+            )
+            for field_order in live:
+                field_order.action_cancel(reason="%s%s" % (label, ": %s" % note if note else ""))
+        if "workshop_job_ids" in self._fields:
+            live = self.sudo().workshop_job_ids.filtered(
+                lambda j: j.state not in ("delivered", "cancelled")
+            )
+            for job in live:
+                if job.state in ("burn_in", "qc_pending", "ready"):
+                    raise UserError(
+                        "Order %s cannot be cancelled while workshop job %s is %s: "
+                        "finish or fail the bench work first." % (self.name, job.name, job.state)
+                    )
+                job.action_cancel()
+
+    def _fix_assert_no_live_handoff(self, downstream, label) -> None:
+        """A6 / M01-13: one live downstream record per order. Repeat presses
+        created duplicates (30 orders with 2 workshop jobs on fix_dev)."""
+        self.ensure_one()
+        if downstream:
+            raise UserError(
+                "Order %s already has a live %s (%s). Cancel or finish it before "
+                "handing the order over again."
+                % (self.name, label, ", ".join(downstream.mapped("display_name")))
+            )
+
+    # --- the zero-charge approvals (M01-1, A3) ---
+    def _fix_assert_commercial_approver(self, what: str) -> None:
+        self.ensure_one()
+        user = self.env.user
+        if not (self.env.su or user.has_group(GROUP_COMMERCIAL_APPROVER)):
+            raise UserError(
+                "%s needs a Service Commercial Approver. No one may approve their own "
+                "zero-charge job; ask an appointed approver." % what
+            )
+        if user == self.create_uid and not self.env.su:
+            raise UserError(
+                "Segregation of duties: the person who raised order %s cannot approve "
+                "its %s." % (self.name, what.lower())
+            )
+
+    def action_approve_goodwill(self, reason=None):
+        """FR-SRM-075: a goodwill (zero-charge) repair, approved and pinned
+        to the amount it waives."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason for the goodwill repair.")
+        for order in self:
+            if order.state in ("delivered", "closed", "cancelled"):
+                raise UserError("Order %s is %s." % (order.name, order.state))
+            order._fix_assert_commercial_approver("Goodwill")
+            order._guarded().write(
+                {
+                    "is_goodwill": True,
+                    "goodwill_approved_by": self.env.user.id,
+                    "goodwill_approved_at": fields.Datetime.now(),
+                    "goodwill_reason": reason.strip(),
+                    "goodwill_cost_attribution_bdt": order._fix_amount_due(),
+                }
+            )
+            order.message_post(
+                body="Goodwill approved by %s: %s" % (self.env.user.name, reason.strip())
+            )
+        return True
+
+    def action_approve_rework(self, reason=None):
+        """BRU-SRM-06: a rework flagged by the system (same device AND fault
+        category within 30 days) is free only once an approver confirms it."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason the rework is free of charge.")
+        for order in self:
+            if not order.is_rework:
+                raise UserError(
+                    "Order %s is not a detected rework (same device and fault category "
+                    "within 30 days)." % order.name
+                )
+            order._fix_assert_commercial_approver("Zero-charge rework")
+            order._guarded().write(
+                {
+                    "rework_approved_by": self.env.user.id,
+                    "rework_approved_at": fields.Datetime.now(),
+                    "rework_reason": reason.strip(),
+                }
+            )
+            order.message_post(
+                body="Zero-charge rework confirmed by %s: %s" % (self.env.user.name, reason.strip())
+            )
+        return True
+
+    def action_change_category(self, category=None, reason=None):
+        """Re-classify an order before the customer has approved a price.
+        Re-runs the warranty gate (M01-1: a post-create switch to warranty
+        skipped both gates)."""
+        valid = dict(self._fields["order_category"]._description_selection(self.env))
+        if category not in valid:
+            raise UserError("Unknown order category: %s." % category)
+        if not (reason or "").strip():
+            raise UserError("Give the reason for the re-classification.")
+        for order in self:
+            if order.state not in ("draft", "intake", "diagnostic", "estimate_pending"):
+                raise UserError(
+                    "Order %s is %s: its category can no longer change. Cancel and "
+                    "re-raise it instead." % (order.name, order.state)
+                )
+            old = order.order_category
+            order._guarded().write({"order_category": category})
+            order.message_post(
+                body="Category changed %s -> %s by %s: %s"
+                % (old, category, self.env.user.name, reason.strip())
+            )
+        return True
+
+    def action_override_priority(self, priority=None, reason=None):
+        """FR-SRM-080: a priority override is logged with its reason and the
+        user (19 non-normal priorities on fix_dev had no reason)."""
+        valid = dict(self._fields["priority"]._description_selection(self.env))
+        if priority not in valid:
+            raise UserError("Unknown priority: %s." % priority)
+        if not (reason or "").strip():
+            raise UserError("Give the justification for the priority override.")
+        for order in self:
+            if order.state in ("delivered", "closed", "cancelled"):
+                raise UserError("Order %s is %s." % (order.name, order.state))
+            order._guarded().write(
+                {
+                    "priority": priority,
+                    "priority_override_reason": reason.strip(),
+                    "priority_override_user_id": self.env.user.id,
+                }
+            )
+        return True
+
+    # --- delivery handover OTP (A5, M01-10) ---
+    def action_send_delivery_otp(self):
+        """Send a one-time code to the customer's phone. The staff member
+        never sees it; the collector reads it back from the customer's phone."""
+        for order in self:
+            if order.state != "ready":
+                raise UserError("The handover code is sent when order %s is Ready." % order.name)
+            phone = fix_otp_util.bd_mobile(order.customer_id)
+            if not phone:
+                raise UserError(
+                    "Customer %s has no valid Bangladesh mobile number for the handover "
+                    "code." % order.customer_id.display_name
+                )
+            code = fix_otp_util.issue_code()
+            fix_otp_util.dispatch_otp(phone, code, fix_otp_util.OTP_TTL_SECONDS)
+            now = fields.Datetime.now()
+            order.sudo().write(
+                {
+                    "delivery_otp_digest": fix_otp_util.digest(
+                        self.env, "so_delivery", order.id, code
+                    ),
+                    "delivery_otp_sent_at": now,
+                    "delivery_otp_expires_at": now
+                    + timedelta(seconds=fix_otp_util.OTP_TTL_SECONDS),
+                    "delivery_otp_attempts": 0,
+                    "delivery_otp_verified": False,
+                }
+            )
+            order.message_post(
+                body="Handover code sent to the customer's phone %s." % fix_otp_util.mask(phone)
+            )
+        return True
+
+    def action_verify_delivery_otp(self, otp=None, code=None):
+        """Read back the handover code. A wrong code is COUNTED and returned
+        as not verified rather than raised: a raise would roll the counter
+        back, and an unlimited number of guesses defeats a 6-digit code. Five
+        misses burn the code."""
+        code = (otp or code or "").strip()
+        result = {"verified": True}
+        for order in self:
+            if order.state != "ready":
+                raise UserError("Order %s is not Ready for handover." % order.name)
+            stored = order.sudo().delivery_otp_digest
+            if not stored or not order.delivery_otp_expires_at:
+                raise UserError("Send the handover code to the customer first.")
+            if fields.Datetime.now() > order.delivery_otp_expires_at:
+                raise UserError("The handover code has expired. Send a new one.")
+            if not fix_otp_util.matches(self.env, "so_delivery", order.id, code, stored):
+                attempts = order.delivery_otp_attempts + 1
+                burnt = attempts >= fix_otp_util.OTP_MAX_ATTEMPTS
+                order.sudo().write(
+                    {
+                        "delivery_otp_attempts": attempts,
+                        "delivery_otp_digest": False if burnt else stored,
+                    }
+                )
+                order.message_post(
+                    body="Wrong handover code entered by %s (attempt %d)%s."
+                    % (self.env.user.name, attempts, "; the code is burnt" if burnt else "")
+                )
+                result = {
+                    "verified": False,
+                    "error": "That handover code is not correct."
+                    + (" Too many attempts: send a new code." if burnt else ""),
+                }
+                continue
+            order.sudo().write(
+                {
+                    "delivery_otp_digest": False,
+                    "delivery_otp_verified": True,
+                    "delivery_otp_verified_at": fields.Datetime.now(),
+                    "delivery_otp_verified_by": self.env.user.id,
+                }
+            )
+            order.message_post(body="Handover code verified by %s." % self.env.user.name)
+        return result
 
     def action_issue_repair_warranty(self):
         """M01 Quality & Release: issue OUR repair-service warranty. Allowed
@@ -701,7 +1700,7 @@ class FixServiceOrder(models.Model):
             base = (
                 order.sla_resolution_at.date() if order.sla_resolution_at else fields.Date.today()
             )
-            order.write(
+            order._guarded().write(
                 {
                     "service_warranty_until": base + timedelta(days=days),
                     "service_warranty_issued_by": order.env.user.id,
@@ -749,9 +1748,14 @@ class FixServiceOrder(models.Model):
                 "deferred_reason": reason,
                 "deferred_until": resume_date,
                 "deferred_notes": notes,
-                "sla_clock_paused": True,
             }
         )
+        if not self.sla_clock_paused:
+            # A02 audit sla_02: the hold set no pause time, so it was never timed.
+            self._guarded().write(
+                {"sla_clock_paused": True, "sla_paused_at": fields.Datetime.now()}
+            )
+            self._fix_sla_instances("pause", "Deferred hold: %s" % reason)
         self.message_post(
             body=f"Deferred repair hold activated: {reason}. Resumption target: {resume_date or 'Indefinite'}."
         )
@@ -760,18 +1764,26 @@ class FixServiceOrder(models.Model):
     def action_resume_order(self):
         """Resume repair order and restart SLA clock."""
         self.ensure_one()
-        self.write(
-            {
-                "is_deferred_block": False,
-                "sla_clock_paused": False,
-            }
-        )
+        self.write({"is_deferred_block": False})
+        if self.sla_clock_paused and self.state not in ("estimate_sent", "awaiting_approval"):
+            self._guarded().write(self._fix_resume_stamps(fields.Datetime.now()))
+            self._fix_sla_instances("resume")
         self.message_post(body="Deferred repair hold lifted — order processing resumed.")
         self._emit("service_order.resumed", self)
 
     # --- Idempotency (T08, DI-04) ---
     @api.model_create_multi
     def create(self, vals_list):
+        # A02 audit M01-3: refuse a late state at birth (an order was created
+        # 'closed', or 'ready' with no QC). Superuser code (imports, data
+        # loads, migrations) is trusted, as by the field guard.
+        if not self.env.su:
+            for vals in vals_list:
+                if vals.get("state", "draft") not in _BIRTH_STATES:
+                    raise UserError(
+                        "A service order starts as Draft or Intake; '%s' is reached only "
+                        "through the order's workflow actions." % vals.get("state")
+                    )
         # DI-04: a vals whose idempotency key already exists yields the existing
         # order instead of a new one. Per vals, in input order: the old body
         # RETURNED on the first replayed key, silently dropping every other vals
@@ -799,10 +1811,16 @@ class FixServiceOrder(models.Model):
                 vals["name"] = ref
             result_ids.append(None)
             to_create.append(vals)
-        records = super().create(to_create)
+        records = super(FixServiceOrder, self.with_context(**{_BIRTH_KEY: _BIRTH_TOKEN})).create(
+            to_create
+        )
+        records = records.with_context(**{_BIRTH_KEY: False})
         for rec in records:
             rec._check_warranty_gate()
             rec._flag_rework()
+            if rec.state == "intake":
+                rec._guarded().write({"intake_completed_at": fields.Datetime.now()})
+                rec._fix_start_sla()
             rec._emit("service_order.created", rec)
         created = iter(records.ids)
         return self.browse([rid or next(created) for rid in result_ids])
@@ -816,13 +1834,18 @@ class FixServiceOrder(models.Model):
         value that field never takes ("in_warranty", "out_of_warranty",
         "extended", "unknown"): EVERY warranty order was refused - from the P01
         customer booking and the P04 corporate request alike (R01 re-audit
-        2026-10-22)."""
+        2026-10-22).
+
+        It runs at create AND on every re-classification (A02 audit M01-1)."""
         request_date = fields.Date.context_today(self)
+        require_verified = _param_on(self.env, WARRANTY_VERIFIED_PARAM, "0")
         for order in self:
             if order.order_category != "warranty":
+                if order.warranty_cover_unverified:
+                    order._guarded().write({"warranty_cover_unverified": False})
                 continue
             device = order.device_id
-            if not device.is_under_warranty(request_date):
+            if not device.is_under_warranty(request_date, require_verified=require_verified):
                 raise UserError(
                     "BRU-SRM-02: device %s has no active warranty on %s (warranty status "
                     "'%s') — a warranty order needs an ACTIVE warranty at the request date"
@@ -833,7 +1856,7 @@ class FixServiceOrder(models.Model):
             # must not be silent: record it on the order so the exposure is
             # filterable and attributable instead of invisible.
             unverified = device.unverified_warranty_cover(request_date)
-            order.warranty_cover_unverified = bool(unverified)
+            order._guarded().write({"warranty_cover_unverified": bool(unverified)})
             if unverified:
                 order.message_post(
                     body=(
@@ -848,16 +1871,39 @@ class FixServiceOrder(models.Model):
                     )
                 )
 
+    def _fix_fault_categories(self) -> set:
+        """The fault categories this order is about: its coded fault lines'
+        categories, plus its catalogue service item."""
+        self.ensure_one()
+        codes = [c for c in self.fault_line_ids.mapped("fault_code") if c]
+        cats = set()
+        if codes:
+            cats = set(
+                self.env["fix.fault.code"]
+                .sudo()
+                .with_context(active_test=False)
+                .search([("code", "in", codes)])
+                .mapped("category")
+            )
+        if self.catalog_item_id:
+            cats.add("catalogue:%d" % self.catalog_item_id.id)
+        return cats
+
     def _flag_rework(self):
         """BRU-SRM-06 (C): a new order for the same device with the same
-        fault within 30 days is auto-flagged as rework and linked."""
-        from datetime import timedelta
+        fault within 30 days is auto-flagged as rework and linked.
 
+        Same device AND same fault category (A02 audit M01-1: the device alone
+        flagged 413 of 930 orders, an unrelated cracked screen included). An
+        order with no coded fault yet is checked again when diagnosis ends."""
         cutoff = fields.Date.today() - timedelta(days=30)
         for order in self:
             if order.is_rework:
                 continue
-            original = self.search(
+            categories = order._fix_fault_categories()
+            if not categories:
+                continue
+            candidates = self.search(
                 [
                     ("device_id", "=", order.device_id.id),
                     ("id", "!=", order.id),
@@ -865,14 +1911,15 @@ class FixServiceOrder(models.Model):
                     ("create_date", ">=", cutoff),
                 ],
                 order="create_date desc",
-                limit=1,
             )
+            original = next((c for c in candidates if c._fix_fault_categories() & categories), None)
             if original:
-                order.write({"is_rework": True, "rework_of_id": original.id})
+                order._guarded().write({"is_rework": True, "rework_of_id": original.id})
                 order.message_post(
                     body=(
                         "BRU-SRM-06: flagged as rework — device returned within 30 "
-                        "days (linked to %s)" % original.name
+                        "days with the same fault (linked to %s). It is charged unless "
+                        "a commercial approver confirms the rework." % original.name
                     )
                 )
 

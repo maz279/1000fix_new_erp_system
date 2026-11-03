@@ -61,6 +61,7 @@ def _won(lead):
     lead.env["fix.estimate.line"].create(
         {"estimate_id": estimate.id, "description": "Screen", "unit_price": 1500.0}
     )
+    estimate.action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.action_approve()
     lead.write(
         {

@@ -167,7 +167,7 @@ def test_invalid_transitions_name_the_valid_targets(base):
         "Invalid state transition: draft -> ready. Valid transitions from 'draft': intake"
     )
     order.state = "intake"
-    order.action_cancel()
+    order.action_cancel(reason_code="duplicate")  # A02 M01-12: a reason code
     assert order.state == "cancelled"
     with _refused(base.env, ValidationError, r"from 'cancelled': \(terminal state\)"):
         order.state = "intake"
@@ -351,8 +351,12 @@ def test_warranty_order_refused_without_cover_on_the_request_date(
 
 
 def test_return_within_30_days_is_flagged_as_rework(base):
-    original = _order(base)
-    repeat = _order(base, fault_description="No display again")
+    # A02 M01-1 / BRU-SRM-06: same device AND same fault category.
+    fault = [Command.create({"fault_code": "DSP-01", "description": "No display"})]
+    original = _order(base, fault_line_ids=fault)
+    unrelated = _order(base, fault_description="Battery swelling")
+    assert not unrelated.is_rework
+    repeat = _order(base, fault_description="No display again", fault_line_ids=fault)
     assert (repeat.is_rework, repeat.rework_of_id) == (True, original)
     assert "flagged as rework" in repeat.message_ids[0].body
     assert original.name in repeat.message_ids[0].body
@@ -364,10 +368,11 @@ def test_return_within_30_days_is_flagged_as_rework(base):
 
 
 def test_cancelled_order_does_not_make_a_return_a_rework(base):
-    first = _order(base)
+    fault = [Command.create({"fault_code": "DSP-01", "description": "No display"})]
+    first = _order(base, fault_line_ids=fault)
     first.state = "intake"
-    first.action_cancel()
-    assert not _order(base).is_rework
+    first.action_cancel(reason_code="duplicate")
+    assert not _order(base, fault_line_ids=fault).is_rework
 
 
 # --- fix.estimate ----------------------------------------------------------------
@@ -509,13 +514,15 @@ def test_send_emits_estimate_sent(base):
 
 def test_approval_up_to_5000_needs_no_documented_consent(base):
     est = _estimate(base, lines=(("part", 1, 4000.0),))  # 4000 * 1.15 = 4600
+    est.action_send()  # A02 M01-4: only a sent estimate is approved
     est.action_approve()
     assert (est.state, bool(est.approved_at)) == ("approved", True)
-    assert _events(base.env, "fix.estimate", est.id).event_type == "estimate.approved"
+    assert _events(base.env, "fix.estimate", est.id, "estimate.approved")
 
 
 def test_approval_above_5000_needs_the_customer_approval_ref(base):
     est = _estimate(base, lines=(("part", 1, 5000.0),))  # 5750 > 5000
+    est.action_send()
     with _refused(base.env, UserError, "BRU-SRM-07.*above BDT 5000"):
         est.action_approve()
     est.customer_approval_ref = "OTP-1234"
@@ -525,6 +532,7 @@ def test_approval_above_5000_needs_the_customer_approval_ref(base):
 
 def test_approval_above_25000_needs_customer_then_manager(base):
     est = _estimate(base, lines=(("part", 1, 30000.0),))  # 34500 > 25000
+    est.action_send()
     with _refused(base.env, UserError, "BRU-SRM-07.*above BDT 25000"):
         est.action_approve()
     with _refused(base.env, UserError, "customer approval must be documented"):
@@ -566,14 +574,16 @@ def test_manager_approval_is_not_recorded_at_or_below_25000(base):
 
 def test_reject_emits_estimate_rejected(base):
     est = _estimate(base)
+    est.action_send()  # A02 M01-4: the customer rejects a SENT estimate
     est.action_reject()
     assert est.state == "rejected"
-    assert _events(base.env, "fix.estimate", est.id).event_type == "estimate.rejected"
+    assert _events(base.env, "fix.estimate", est.id, "estimate.rejected")
 
 
 def test_revision_is_a_new_draft_version_with_the_lines(base):
     """Regression: One2many lines are not copied by default - revisions were empty."""
     est = _estimate(base, customer_approval_ref="OTP-9")
+    est.action_send()
     est.action_approve()
     action = est.action_revise()
     new = base.env["fix.estimate"].browse(action["res_id"])
@@ -606,10 +616,15 @@ def test_qc_checklist_completion(base):
     qc.item_ids = [Command.create({"name": "Charging", "passed": False})]
     qc.action_complete()
     assert (qc.state, bool(qc.checked_at)) == ("failed", True)
-    qc.item_ids.filtered(lambda i: not i.passed).passed = True
-    assert qc.all_passed is True
-    qc.action_complete()
-    assert qc.state == "passed"
+    # A02 M01-6: a completed inspection is evidence; the re-test is a new one.
+    with _refused(base.env, UserError, "already failed"):
+        qc.action_complete()
+    retest = base.env["fix.qc.checklist"].create(
+        {"order_id": order.id, "item_ids": [Command.create({"name": "Charging", "passed": True})]}
+    )
+    assert retest.all_passed is True
+    retest.action_complete()
+    assert retest.state == "passed"
 
 
 def test_qc_inspector_must_not_be_the_repairing_technician(base):

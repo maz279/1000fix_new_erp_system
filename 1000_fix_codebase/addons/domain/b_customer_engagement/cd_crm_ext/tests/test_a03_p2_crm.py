@@ -203,6 +203,7 @@ def test_won_requires_an_approved_linked_estimate(env, seller, verifier, corpora
     assert estimate.lead_id == lead and not estimate.order_id
     with pytest.raises(ValidationError, match="must be approved"):
         lead.with_user(seller).action_set_won()
+    estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_approve()
     assert estimate.state == "approved" and estimate.approval_stamped_at
     assert estimate.approved_total == estimate.grand_total
@@ -229,16 +230,18 @@ def test_linked_estimate_cannot_be_forced_to_approved(env, seller, corporate):
 def test_an_edit_after_approval_blocks_the_win(env, seller, verifier, corporate):
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
+    estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_approve()
-    env["fix.estimate.line"].with_user(seller).create(
-        {"estimate_id": estimate.id, "description": "Extra drum", "unit_price": 900.0}
-    )
-    with pytest.raises(ValidationError, match="was approved at"):
-        lead.with_user(seller).action_set_won()
+    # A02 M01-5: the approved estimate's lines are now frozen outright
+    with pytest.raises(UserError, match="frozen"):
+        env["fix.estimate.line"].with_user(seller).create(
+            {"estimate_id": estimate.id, "description": "Extra drum", "unit_price": 900.0}
+        )
     # The legitimate path: revise, approve the revision, win.
     revision = estimate.with_user(seller).action_revise()
     revised = env["fix.estimate"].browse(revision["res_id"])
     assert revised.lead_id == lead and revised.state == "draft"
+    revised.with_user(seller).action_send()
     revised.with_user(seller).action_approve()
     lead.with_user(seller).action_set_won()
     assert lead.won_status == "won"
@@ -251,6 +254,7 @@ def test_pending_discount_approval_is_voided_by_an_edit(
     approver = make_user(T2)
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller, price=4000.0, discount=400.0)  # 10%: Tier 2
+    estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_request_approval(justification="Strategic account")
     estimate.invalidate_recordset()
     assert estimate.approval_state == "pending"
@@ -281,6 +285,7 @@ def test_a_rejected_discount_request_blocks_the_win(env, seller, verifier, corpo
         pytest.skip("cd_quotation is not installed")
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
+    estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_approve()
     request = env["fix.discount.approval"].create(
         {
@@ -341,7 +346,9 @@ def device_for(env):
 
 def test_b2b_without_a_device_gets_a_contract_path(env, seller, verifier, corporate):
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
-    _estimate(env, lead, seller).with_user(seller).action_approve()
+    b2b_estimate = _estimate(env, lead, seller)
+    b2b_estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
+    b2b_estimate.with_user(seller).action_approve()
     lead.with_user(seller).action_set_won()
     with pytest.raises(ValidationError, match="corporate account .* M08"):
         lead.with_user(seller).action_convert_to_service_order()
@@ -352,6 +359,7 @@ def test_conversion_carries_the_approved_estimate(env, seller, verifier, corpora
     device_for(corporate)
     lead = _verify_contract(env, _opp(env, seller, corporate), seller, verifier)
     estimate = _estimate(env, lead, seller)
+    estimate.with_user(seller).action_send()  # A02 M01-4: only a sent estimate is approved
     estimate.with_user(seller).action_approve()
     lead.with_user(seller).action_set_won()
     lead.with_user(seller).action_convert_to_service_order()

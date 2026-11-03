@@ -629,6 +629,9 @@ class TestDiscountApproval:
         assert estimate.dofa_approved
         estimate.with_user(seller).write({"discount": 140.0})  # 14%, still Tier 2
         assert not estimate.dofa_approved
+        # A02 audit M01-4: only a sent estimate is approvable, so send it; the
+        # refusal must then come from the withdrawn DOFA sign-off.
+        estimate.with_user(seller).action_send()
         with pytest.raises(ValidationError, match="sign-off"):
             estimate.with_user(seller).action_approve()
 

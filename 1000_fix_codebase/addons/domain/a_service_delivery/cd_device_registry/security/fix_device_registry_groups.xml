@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M17 warranty role (A02 workflow audit M01-W1).
+
+     Any internal user created ACTIVE warranty cover with no proof, or flipped
+     pending cover to active, and so opened a zero-charge warranty job. A new
+     warranty is now born pending, and only a Warranty Officer verifies or
+     voids it, never on a warranty the officer registered.
+
+     A DECISION role: it ships EMPTY. Who holds it is a business appointment;
+     until someone is appointed, pending cover cannot be verified and gives no
+     warranty entitlement. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_device_registry" model="res.groups.privilege">
+            <field name="name">Device Registry (M17)</field>
+            <field name="description">Warranty verification decisions on the device registry (M17).</field>
+            <field name="sequence">32</field>
+        </record>
+
+        <record id="group_warranty_officer" model="res.groups">
+            <field name="name">Warranty Officer</field>
+            <field name="privilege_id" ref="privilege_device_registry"/>
+            <field name="comment">Verifies a warranty's purchase proof (pending to active) and voids cover with a reason. Never on a warranty the officer registered (BRU-SRM-02).</field>
+        </record>
+
+    </data>
+</odoo>

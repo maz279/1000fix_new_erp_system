@@ -278,7 +278,12 @@ class FixWarrantyClaim(models.Model):
                 ).id,
                 "service_order_id": order_id,
                 "brand_id": order.device_id.brand_id.id,
-                "claim_amount": (order.estimate_ids and order.estimate_ids[0].grand_total) or 0.0,
+                # A02 audit M01-W2: the APPROVED estimate's total, not the
+                # first estimate in any state (a draft or rejected quote).
+                "claim_amount": order._fix_governing_estimate()
+                .filtered(lambda e: e.state == "approved")
+                .grand_total
+                or 0.0,
                 "job_completed_at": completed_time,
             }
         )

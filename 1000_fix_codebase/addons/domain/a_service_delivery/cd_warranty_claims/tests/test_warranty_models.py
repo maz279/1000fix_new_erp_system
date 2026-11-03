@@ -146,6 +146,9 @@ def test_completed_warranty_job_creates_one_claim(wc):
             ],
         }
     )
+    # A02 M01-W2: the claim is for the APPROVED estimate
+    estimate.action_send()
+    estimate.action_approve()
     model = env["fix.warranty.claim"]
     event = {"aggregate_id": wc.order.id, "payload": {"completed_at": "2026-10-21 08:00:00"}}
     claim = model.consume_order_completed(event)

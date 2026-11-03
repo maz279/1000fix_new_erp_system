@@ -736,31 +736,14 @@ class TechnicianApiController(http.Controller):
                     "start_time": wo.start_time or now,
                 }
             )
-            if so and so.state != "in_repair":
+            # Only an APPROVED order (or one back from a failed QC) goes into
+            # repair. Starting a job used to walk a draft order through
+            # estimate and customer approval in one go (A02 audit M01-2): a
+            # technician's tap approved a price the customer never saw.
+            if so and so.state in ("approved", "qc_failed"):
                 try:
                     with env.cr.savepoint():
-                        if so.state == "approved" or so.state == "qc_failed":
-                            so.write({"state": "in_repair"})
-                        elif so.state in (
-                            "draft",
-                            "intake",
-                            "diagnostic",
-                            "estimate_pending",
-                            "estimate_sent",
-                            "awaiting_approval",
-                        ):
-                            chain = [
-                                "intake",
-                                "diagnostic",
-                                "estimate_pending",
-                                "estimate_sent",
-                                "awaiting_approval",
-                                "approved",
-                                "in_repair",
-                            ]
-                            start_idx = -1 if so.state == "draft" else chain.index(so.state)
-                            for nxt in chain[start_idx + 1 :]:
-                                so.write({"state": nxt})
+                        so.action_start_repair()
                 except Exception as ex:
                     _logger.warning("Could not transition SO %s state: %s", so.id, ex)
 
@@ -774,7 +757,7 @@ class TechnicianApiController(http.Controller):
             if so and so.state == "in_repair":
                 try:
                     with env.cr.savepoint():
-                        so.write({"state": "qc_pending"})
+                        so.action_submit_qc()
                 except Exception as ex:
                     _logger.warning("Could not transition SO %s to qc_pending: %s", so.id, ex)
 

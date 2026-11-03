@@ -82,6 +82,7 @@ def test_warranty_status_is_derived_from_the_warranty_records(reg):
             "device_id": device.id,
             "start_date": today - timedelta(days=10),
             "end_date": today + timedelta(days=355),
+            "status": "active",  # A02 M01-W1: a new warranty is born pending
         }
     )
     # the most recent start date comes first (_order) and is still running
@@ -136,7 +137,11 @@ def test_writes_publish_only_owner_and_warranty_changes(reg):
         {
             "warranty_id": [
                 Command.create(
-                    {"start_date": date.today(), "end_date": date.today() + timedelta(days=30)}
+                    {
+                        "start_date": date.today(),
+                        "end_date": date.today() + timedelta(days=30),
+                        "status": "active",  # A02 M01-W1: born pending otherwise
+                    }
                 )
             ]
         }
@@ -193,7 +198,12 @@ def test_under_warranty_is_decided_on_the_date(reg):
     device = _device(reg, serial_number="SN-REG-U")
     assert device.is_under_warranty() is False  # no record
     env["fix.warranty"].create(
-        {"device_id": device.id, "start_date": date(2026, 1, 1), "end_date": date(2026, 6, 30)}
+        {
+            "device_id": device.id,
+            "start_date": date(2026, 1, 1),
+            "end_date": date(2026, 6, 30),
+            "status": "active",  # A02 M01-W1: a new warranty is born pending
+        }
     )
     env["fix.warranty"].create(
         {

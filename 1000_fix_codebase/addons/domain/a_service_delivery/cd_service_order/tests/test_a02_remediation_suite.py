@@ -147,18 +147,17 @@ def test_flaw_04_2_cash_shift_blind_count_and_variance(odoo_env):
         }
     )
 
-    # Blind count must fail without supervisor approval
-    with pytest.raises(ValidationError, match="FLAW-04.2 Blind Cash Count Gate"):
-        shift.action_submit_blind_count()
-
-    # Supervisor approves variance -> blind count succeeds
-    supervisor = env["res.users"].create(
-        {"name": "Shift Supervisor", "login": f"sup_{shift.id}@test.com"}
-    )
-    shift.supervisor_variance_approved_by = supervisor.id
+    # A02 audit M04-11: the blind count no longer reveals the variance; the
+    # gate is at reconcile, and the approval is stamped by Approve Variance.
     shift.action_submit_blind_count()
     assert shift.blind_count_submitted is True
     assert shift.closing_counted == 6300.0
+    with pytest.raises(ValidationError, match="FLAW-04.2 Blind Cash Count Gate"):
+        shift.action_reconcile()
+    shift.action_approve_variance()
+    assert shift.variance_approved_amount == 5300.0
+    shift.action_reconcile()
+    assert shift.state == "discrepancy"
 
 
 def test_flaw_06_1_dual_custody_unsealing(odoo_env):
@@ -248,7 +247,12 @@ def test_flaw_31_3_burn_in_duration_gate(odoo_env):
     with pytest.raises(UserError, match="FLAW-31.3 Burn-In Gate"):
         job.action_pass_burn_in()
 
-    job.burn_in_actual_minutes = 240.0
+    # A02 audit M31-6: the minutes are measured from the burn-in start stamp
+    from datetime import timedelta
+
+    from odoo import fields
+
+    job.burn_in_started_at = fields.Datetime.now() - timedelta(minutes=241)
     job.action_pass_burn_in()
     assert job.burn_in_passed is True
     assert job.state == "qc_pending"

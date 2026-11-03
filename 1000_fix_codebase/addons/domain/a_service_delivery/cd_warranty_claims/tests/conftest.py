@@ -44,6 +44,7 @@ def wc(odoo_env):
             "device_id": device.id,
             "start_date": date.today() - timedelta(days=60),
             "end_date": date.today() + timedelta(days=300),
+            "status": "active",  # A02 M01-W1: a new warranty is born pending
         }
     )
     order = env["fix.service.order"].create(

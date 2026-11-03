@@ -26,6 +26,7 @@ order against a device, permanently.
         "cd_employee_core",
     ],
     "data": [
+        "security/fix_device_registry_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",

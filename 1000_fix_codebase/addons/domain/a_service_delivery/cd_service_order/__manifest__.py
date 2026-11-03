@@ -28,6 +28,8 @@ unit-testable without a database (AR-007 section 3.1).
     ],
     "data": [
         "data/fix_sla_instance_cron.xml",
+        "data/fix_estimate_expiry_cron.xml",
+        "security/fix_service_order_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",

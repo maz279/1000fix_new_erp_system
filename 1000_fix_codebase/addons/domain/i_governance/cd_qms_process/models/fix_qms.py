@@ -366,7 +366,9 @@ class FixQcChecklistM23Ext(models.Model):
                     "description": "QC checklist failed for order %s" % rec.order_id.name,
                 }
             )
-            rec.write({"state": "failed", "ncr_id": ncr.id})
+            # The checklist state is guarded (A02 audit M01-6): a QMS failure
+            # is a legitimate system transition, so it writes with the token.
+            rec._guarded().write({"state": "failed", "ncr_id": ncr.id})
             publish(self.env, "qc.ncr_raised", "fix.qc.checklist", rec.id, {"ncr": ncr.name})
 
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")

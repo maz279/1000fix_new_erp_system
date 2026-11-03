@@ -439,19 +439,17 @@ def test_job_status_requires_work_order_and_action(world):
         assert ctrl.job_status(work_order_id=world.wo.id)["error"]["code"] == "missing_params"
 
 
-def test_start_walks_a_draft_service_order_to_in_repair(world):
+def test_start_does_not_walk_an_unapproved_service_order_into_repair(world):
+    # A02 audit M01-2: starting a job used to walk a draft order through the
+    # estimate and the customer's approval; only an approved order is repaired.
     with _as(world.env, world.tech_user):
         res = TechnicianApiController().job_status(work_order_id=world.wo.id, action="start")
     assert res["work_order"]["state"] == "in_progress"
-    assert res["work_order"]["service_order_state"] == "in_repair"
+    assert res["work_order"]["service_order_state"] == "draft"
     assert world.wo.start_time
-    history = world.device.history_ids.sorted("id").mapped("description")
-    assert history[0].endswith("draft -> intake")
-    assert history[-1].endswith("approved -> in_repair")
-    assert len(history) == 7
 
 
-@pytest.mark.parametrize("so_state", ["approved", "qc_failed", "awaiting_approval"])
+@pytest.mark.parametrize("so_state", ["approved", "qc_failed"])
 def test_start_moves_the_service_order_into_repair(world, so_state):
     _so_to(world.so, so_state)
     with _as(world.env, world.tech_user):
@@ -459,7 +457,7 @@ def test_start_moves_the_service_order_into_repair(world, so_state):
     assert res["work_order"]["service_order_state"] == "in_repair"
 
 
-@pytest.mark.parametrize("so_state", ["in_repair", "qc_pending"])
+@pytest.mark.parametrize("so_state", ["in_repair", "qc_pending", "awaiting_approval"])
 def test_start_leaves_a_service_order_already_past_approval(world, so_state):
     _so_to(world.so, so_state)
     with _as(world.env, world.tech_user):
@@ -492,6 +490,7 @@ def test_restart_keeps_the_original_start_time(world):
 
 def test_complete_submits_an_in_repair_order_to_qc(world):
     ctrl = TechnicianApiController()
+    _so_to(world.so, "approved")  # A02 M01-2: start repairs an APPROVED order only
     with _as(world.env, world.tech_user):
         ctrl.job_status(work_order_id=world.wo.id, action="start")
         res = ctrl.job_status(work_order_id=world.wo.id, action="complete")

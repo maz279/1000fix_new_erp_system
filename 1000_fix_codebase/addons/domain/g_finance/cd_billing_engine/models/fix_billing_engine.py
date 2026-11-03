@@ -573,6 +573,17 @@ class FixArInvoice(models.Model):
         )
         if existing:
             return existing  # idempotent on the source
+        # A02 audit M01-8: a warranty job with an approved estimate was
+        # invoiced to the customer (BDT 4,600). A job M01 decides is not
+        # charged to the customer (warranty cover, AMC contract, approved
+        # goodwill or rework, internal intake) is refused here; the warranty
+        # job's cost goes to the OEM claim (cd_warranty_claims) instead.
+        basis = order._fix_zero_charge_basis() if hasattr(order, "_fix_zero_charge_basis") else ""
+        if basis or order.payment_settlement_state == "covered_zero_charge":
+            raise UserError(
+                "%s is not charged to the customer (%s): no customer invoice is raised"
+                % (order.name, basis or "zero-charge")
+            )
 
         # BRU-SRM-05 gate: the invoiced amount comes from the APPROVED
         # estimate of the closed order — never re-priced here.

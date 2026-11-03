@@ -194,6 +194,7 @@ def test_threshold_config_param_tightens_customer_gate(base):
         order = _order(base)
         # one part line at BDT 150: above the overridden threshold, below default
         est = _estimate(base, order, [("part", 1, 150.0)])
+        est.action_send()  # A02 M01-4: only a sent estimate is approved
         assert est.grand_total > 100.0
         with _refused(env, UserError, match="BRU-SRM-07"):
             est.action_approve()
@@ -215,5 +216,6 @@ def test_default_threshold_still_blocks_without_config_param(base):
     env = base.env
     order = _order(base)
     est = _estimate(base, order, [("part", 1, 6000.0)])
+    est.action_send()  # A02 M01-4: only a sent estimate is approved
     with _refused(env, UserError, match="BRU-SRM-07"):
         est.action_approve()

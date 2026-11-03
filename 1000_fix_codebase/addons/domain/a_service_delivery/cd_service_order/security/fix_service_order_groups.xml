@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M01 service order roles (A02 workflow audit, A3).
+
+     The A02 audit found every M01 approval self-signable: a clerk ticked
+     goodwill and typed the approver, the repairing technician passed his own
+     QC, and any user "settled" an order with a typed reference. The workflow
+     actions now check the ACTING user against these groups.
+
+     - Cashier and QC Inspector are OPERATIONAL roles that daily work needs,
+       so the dev admin is a member (segregation of duties still applies to
+       him: he cannot verify a collection he recorded or inspect a repair he
+       completed).
+     - Service Commercial Approver is a DECISION role (goodwill, zero-charge
+       rework). It ships EMPTY: who holds it is a business appointment. A
+       decision with no holder is refused with a clear message. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_service_order" model="res.groups.privilege">
+            <field name="name">Service Orders (M01)</field>
+            <field name="description">Settlement, quality-control and zero-charge decisions on service orders (M01).</field>
+            <field name="sequence">31</field>
+        </record>
+
+        <record id="group_so_cashier" model="res.groups">
+            <field name="name">Service Order Cashier</field>
+            <field name="privilege_id" ref="privilege_service_order"/>
+            <field name="comment">Records counter settlements and verifies field collections against the cash or the M20 receipt before a device is released (FLAW-01.1).</field>
+            <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        </record>
+
+        <record id="group_so_qc_inspector" model="res.groups">
+            <field name="name">Service Order QC Inspector</field>
+            <field name="privilege_id" ref="privilege_service_order"/>
+            <field name="comment">Completes QC checklists. Never on a repair the inspector carried out or completed (BRU-SRM-18 / SOD-07).</field>
+            <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        </record>
+
+        <record id="group_so_commercial_approver" model="res.groups">
+            <field name="name">Service Commercial Approver</field>
+            <field name="privilege_id" ref="privilege_service_order"/>
+            <field name="comment">Approves goodwill (zero-charge) repairs and confirms zero-charge rework (FR-SRM-075, BRU-SRM-06). Never on an order the approver raised.</field>
+        </record>
+
+    </data>
+</odoo>
