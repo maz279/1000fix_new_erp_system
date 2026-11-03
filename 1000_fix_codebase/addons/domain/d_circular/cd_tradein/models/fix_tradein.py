@@ -403,16 +403,13 @@ class FixTradeinRequest(models.Model):
             )
 
     @staticmethod
-    def _wipe_gate_denial(cert) -> str:
-        """'' when ``cert`` is a VERIFIED M06 wipe certificate, else why not."""
+    def _wipe_gate_denial(cert, device=None) -> str:
+        """'' when ``cert`` is a VERIFIED M06 wipe certificate for this
+        device's media serial, else why not. A02 audit M06-1: the status alone
+        was forgeable and one certificate released any number of devices."""
         if not cert:
             return "no M06 data wipe certificate is attached"
-        if cert.sanitization_status != "verified":
-            return "wipe certificate %s is '%s', not verified" % (
-                cert.name,
-                cert.sanitization_status,
-            )
-        return ""
+        return cert._fix_certify_denial(cert._fix_media_serial(device))
 
     def action_wipe(self):
         """The secure data wipe gate: the wipe operator's M06 certificate
@@ -421,7 +418,7 @@ class FixTradeinRequest(models.Model):
         for rec in self:
             if rec.state != "collected":
                 raise UserError("Wipe from collected")
-            denial = rec._wipe_gate_denial(rec.wipe_certificate_id)
+            denial = rec._wipe_gate_denial(rec.wipe_certificate_id, rec.device_id)
             if denial:
                 raise UserError("Journey 9 wipe gate: %s" % denial)
             rec.state = "wiped"
@@ -443,7 +440,7 @@ class FixTradeinRequest(models.Model):
         for rec in self:
             if rec.state != "wiped":
                 raise UserError("Refurbish from data-wiped (the wipe gate)")
-            denial = rec._wipe_gate_denial(rec.wipe_certificate_id)
+            denial = rec._wipe_gate_denial(rec.wipe_certificate_id, rec.device_id)
             if denial:
                 raise UserError(
                     "Journey 9 gate violation: refurbishment is strictly blocked "

@@ -29,15 +29,21 @@
                             class="oe_highlight" invisible="state != 'new'"/>
                     <button name="action_transfer_me" type="object" string="Log Custody Transfer"
                             invisible="state not in ('custody', 'recovering', 'recovered', 'handover')"/>
+                    <button name="action_route_to_z4" type="object" string="Route to Z4"
+                            invisible="state not in ('new', 'custody') or residency_zone == 'z4'"/>
                     <button name="action_start_recovery" type="object" string="Start Recovery"
                             class="oe_highlight" invisible="state != 'custody'"/>
                     <button name="action_recovered" type="object" string="Mark Recovered"
                             invisible="state != 'recovering'"/>
+                    <button name="action_mark_unrecoverable" type="object" string="Mark Unrecoverable"
+                            invisible="state not in ('custody', 'recovering')"/>
                     <button name="action_handover_me" type="object" string="Secure Handover"
                             invisible="state != 'recovered'"/>
                     <button name="action_purge" type="object" string="Purge (Verified Certificate)"
                             class="oe_highlight" invisible="state != 'handover'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="new,custody,recovering,recovered,handover,purged"/>
+                    <button name="action_close" type="object" string="Close Case"
+                            invisible="state not in ('custody', 'purged', 'unrecoverable')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="new,custody,recovering,recovered,handover,purged,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -50,6 +56,7 @@
                             <field name="customer_id"/>
                             <field name="device_id"/>
                             <field name="media_type"/>
+                            <field name="media_serial_number" readonly="state != 'new'"/>
                             <field name="specialism"/>
                         </group>
                         <group>
@@ -69,9 +76,9 @@
                                 <list editable="bottom">
                                     <field name="seal_number"/>
                                     <field name="media_label"/>
-                                    <field name="location"/>
-                                    <field name="seal_state"/>
-                                    <field name="holder"/>
+                                    <field name="location" readonly="1"/>
+                                    <field name="seal_state" readonly="1"/>
+                                    <field name="holder" readonly="1"/>
                                 </list>
                             </field>
                         </page>
@@ -123,7 +130,13 @@
                         </page>
                         <page string="Statutory Purge &amp; Wipe Record" name="purge">
                             <group>
-                                <field name="purge_certificate_id" readonly="state != 'handover'" domain="[('sanitization_status', '=', 'verified')]"/>
+                                <field name="purge_certificate_id" readonly="1"/>
+                            </group>
+                            <group string="Destructive-Work Consent">
+                                <field name="destructive_consent_at"/>
+                                <field name="destructive_consent_by_id"/>
+                                <field name="destructive_consent_reference"/>
+                                <field name="destructive_consent_attachment_id"/>
                             </group>
                         </page>
                     </notebook>
@@ -203,8 +216,8 @@
                     </div>
                     <group>
                         <group>
-                            <field name="device_id"/>
-                            <field name="serial_number"/>
+                            <field name="device_id" readonly="sanitization_status != 'pending_verification'"/>
+                            <field name="serial_number" required="1" readonly="sanitization_status != 'pending_verification'"/>
                             <field name="method" required="1" readonly="sanitization_status == 'verified'"/>
                             <field name="sector_count" required="method != 'physical_destruction'" readonly="sanitization_status == 'verified'"/>
                             <field name="duration_seconds" readonly="sanitization_status == 'verified'"/>
@@ -212,12 +225,15 @@
                             <field name="wipe_log_attachment_id" required="1" readonly="sanitization_status == 'verified'"/>
                         </group>
                         <group>
-                            <field name="statutory_record_retained"/>
+                            <field name="statutory_record_retained" readonly="1"/>
+                            <field name="technician_id" readonly="1"/>
                             <field name="certified_by"/>
                             <field name="certified_at"/>
                             <field name="verified_by_id"/>
                             <field name="verified_at"/>
                             <field name="verification_hash"/>
+                            <field name="verified_hash"/>
+                            <field name="evidence_intact"/>
                         </group>
                     </group>
                 </sheet>
@@ -273,7 +289,9 @@
                         <group>
                             <field name="started_at"/>
                             <field name="finished_at"/>
-                            <field name="outcome"/>
+                            <field name="outcome" readonly="1"/>
+                            <field name="destructive"/>
+                            <field name="cleanroom_slot_id"/>
                             <field name="notes"/>
                         </group>
                     </group>
@@ -316,8 +334,6 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_break_seal" type="object" string="Break Seal"
-                            class="oe_highlight" invisible="seal_state != 'sealed'"/>
                     <button name="action_return" type="object" string="Return to Customer"
                             invisible="location in ('destroyed', 'returned_to_customer')"/>
                 </header>
@@ -330,9 +346,11 @@
                             <field name="media_type"/>
                         </group>
                         <group>
-                            <field name="location"/>
-                            <field name="seal_state"/>
-                            <field name="holder"/>
+                            <field name="location" readonly="1"/>
+                            <field name="seal_state" readonly="1"/>
+                            <field name="holder" readonly="1"/>
+                            <field name="witness_user_id" readonly="1"/>
+                            <field name="witness_verified_at"/>
                         </group>
                     </group>
                 </sheet>
@@ -494,6 +512,8 @@
                             class="oe_highlight" invisible="state != 'sent'"/>
                     <button name="action_decline" type="object" string="Decline"
                             invisible="state not in ('draft', 'sent')"/>
+                    <button name="action_requote" type="object" string="Re-quote"
+                            invisible="state not in ('sent', 'accepted')"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -504,8 +524,13 @@
                             <field name="valid_until"/>
                         </group>
                         <group>
-                            <field name="amount"/>
+                            <field name="amount" readonly="state != 'draft'"/>
                             <field name="currency_id" invisible="1"/>
+                            <field name="acceptance_channel"/>
+                            <field name="signed_quote_attachment_id"/>
+                            <field name="customer_acceptance_reference"/>
+                            <field name="accepted_by_id"/>
+                            <field name="accepted_at"/>
                         </group>
                     </group>
                     <field name="description" placeholder="What the quoted recovery covers…"/>

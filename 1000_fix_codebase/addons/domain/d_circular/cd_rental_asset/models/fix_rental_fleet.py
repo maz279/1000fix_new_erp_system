@@ -688,10 +688,9 @@ class FixRentalTurnaround(models.Model):
         evidence that the previous customer's data is gone."""
         for rec in self:
             wiped = rec.internal_storage_factory_reset or rec.memory_card_wiped
-            certified = (
-                rec.data_wipe_certificate_id
-                and rec.data_wipe_certificate_id.sanitization_status == "verified"
-            )
+            # A02 audit M06-1: verified through M06, its log unchanged since,
+            # and bound to this unit's serial (not just a 'verified' status)
+            certified = rec.data_wipe_certificate_id._fix_certifies(rec.rental_asset_id.serial_no)
             if wiped and not (rec.nist_wipe_hash or "").strip() and not certified:
                 raise UserError(
                     "Turnaround %s: storage was wiped but carries no evidence — "

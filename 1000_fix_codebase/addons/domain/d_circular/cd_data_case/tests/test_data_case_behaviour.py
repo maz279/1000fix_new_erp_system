@@ -176,14 +176,29 @@ def test_start_recovery_blocked_until_routed_to_z4(odoo_env):
     assert case.state == "custody"
 
 
+def _evaluated_and_accepted(env, case):
+    """A02 audit M06-4: recovery needs a completed evaluation and the
+    customer's accepted quotation."""
+    env["fix.data.evaluation"].create(
+        {"case_id": case.id, "verdict": "recoverable"}
+    ).action_complete()
+    quote = env["fix.data.quote"].create({"case_id": case.id, "amount": 1000})
+    quote.action_send()
+    quote.action_accept(acceptance_reference="OTP-482913")
+
+
 def test_start_recovery_from_custody_in_z4(odoo_env):
     case = _case_in(odoo_env, "custody")
+    _evaluated_and_accepted(odoo_env, case)
     case.action_start_recovery()
     assert case.state == "recovering"
 
 
 def test_recovered_publishes_event(odoo_env):
     case = _case_in(odoo_env, "recovering")
+    odoo_env["fix.data.recovery.attempt"].create(
+        {"case_id": case.id, "method": "software_scan"}
+    ).action_finish(outcome="success")
     case.action_recovered()
     assert case.state == "recovered"
     assert _events(odoo_env, "data_case.recovered", CASE, case.id) == [{"case": case.name}]
@@ -435,6 +450,7 @@ def _cert(env, **vals):
 
 
 def _verified_cert(env, **vals):
+    vals.setdefault("serial_number", "WD-BEHAVIOUR-1")  # A02 M06-1: no blanket certificates
     vals.setdefault("sector_count", 1000)
     vals.setdefault("wipe_log_attachment_id", _wipe_log(env).id)
     cert = _cert(env, **vals)
@@ -444,6 +460,7 @@ def _verified_cert(env, **vals):
 
 def test_purge_closes_on_the_operators_verified_certificate(odoo_env):
     case = _case_in(odoo_env, "handover")
+    case.write({"media_serial_number": "WD-123"})  # A02 M06-1: bound to the serial
     cert = _verified_cert(odoo_env, serial_number="WD-123")
     case.action_purge(certificate=cert)
     assert case.state == "purged"
@@ -498,7 +515,10 @@ def test_verification_requires_the_operators_evidence(odoo_env):
         cert.action_verify()
     assert cert.sanitization_status == "pending_verification"
     destroyed = _cert(
-        odoo_env, method="physical_destruction", wipe_log_attachment_id=_wipe_log(odoo_env).id
+        odoo_env,
+        method="physical_destruction",
+        serial_number="WD-SHRED-1",
+        wipe_log_attachment_id=_wipe_log(odoo_env).id,
     )
     destroyed.action_verify()  # no sectors for a shredded platter
     assert destroyed.sanitization_status == "verified"
@@ -535,7 +555,12 @@ def test_verified_evidence_is_frozen_and_tampering_is_refused(odoo_env):
         cert.action_verify()
     with pytest.raises(UserError, match="cannot be failed"):
         cert.action_mark_failed()
-    tampered = _cert(odoo_env, sector_count=5, wipe_log_attachment_id=_wipe_log(odoo_env).id)
+    tampered = _cert(
+        odoo_env,
+        sector_count=5,
+        serial_number="WD-TAMPER-1",
+        wipe_log_attachment_id=_wipe_log(odoo_env).id,
+    )
     tampered.wipe_log_attachment_id.raw = b"edited after the fact"
     with pytest.raises(UserError, match="hash mismatch"):
         tampered.action_verify()

@@ -28,13 +28,14 @@ class TestResidencyEnforcement(unittest.TestCase):
         self.assertIn("z4", src)
         self.assertIn("SC-007", src)
 
+    # A02 audit M06-6: the chain is an append-only ledger written by _custody_log
     def test_custody_chain_logged(self):
         src = inspect.getsource(FixDataRecoveryCase.action_take_custody)
-        self.assertIn("custody_chain", src)
+        self.assertIn("_custody_log", src)
 
     def test_custody_transfer_logged(self):
         src = inspect.getsource(FixDataRecoveryCase.action_log_custody_transfer)
-        self.assertIn("custody_chain", src)
+        self.assertIn("_custody_log", src)
         self.assertIn("custody_transferred", src)
 
     def test_step_up_auth_enforced(self):

@@ -104,10 +104,13 @@ class FixEwasteCollection(models.Model):
             if rec.state != "triaged":
                 raise UserError("Destruction from triaged state")
             if not rec.wipe_certificate_id:
-                wipe = self.env["fix.data.wipe.certificate"].create(
+                Wipe = self.env["fix.data.wipe.certificate"]
+                wipe = Wipe.create(
                     {
                         "device_id": rec.device_id.id,
                         "method": "physical_destruction",
+                        # A02 audit M06-1: bound to the one item it certifies
+                        "serial_number": Wipe._fix_media_serial(rec.device_id) or rec.name,
                     }
                 )
                 rec.write({"wipe_certificate_id": wipe.id, "state": "destruction"})
@@ -122,10 +125,13 @@ class FixEwasteCollection(models.Model):
             # The destruction certificate opened above starts pending: the
             # operator's evidence must be verified in M06 before the device
             # leaves for recycling.
-            if rec.wipe_certificate_id.sanitization_status != "verified":
+            # A02 audit M06-1: verified through M06, its log unchanged since,
+            # and bound to this item (the device serial, else this collection)
+            cert = rec.wipe_certificate_id
+            denial = cert._fix_certify_denial(cert._fix_media_serial(rec.device_id) or rec.name)
+            if denial:
                 raise UserError(
-                    "Recycle needs a verified M06 destruction certificate (%s is '%s')"
-                    % (rec.wipe_certificate_id.name, rec.wipe_certificate_id.sanitization_status)
+                    "Recycle needs a verified M06 destruction certificate (%s)" % denial
                 )
             rec.write({"state": "recycled", "esg_co2_saved_kg": co2_saved})
 

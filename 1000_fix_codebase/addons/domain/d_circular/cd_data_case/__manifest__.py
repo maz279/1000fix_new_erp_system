@@ -22,6 +22,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_event_outbox",
     ],
     "data": [
+        "security/cd_data_case_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",

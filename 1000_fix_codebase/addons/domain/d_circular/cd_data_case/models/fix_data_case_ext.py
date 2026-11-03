@@ -22,6 +22,37 @@ SPECIALISMS = [
     ("firmware_repair", "Firmware Repair"),
 ]
 
+# A02 audit M06-5: techniques that open the drive or destroy the original
+# (chip-off desolders the NAND). They need the customer's recorded consent and
+# a booked cleanroom slot that passed its environmental interlock.
+INVASIVE_METHODS = ("head_swap", "chip_off", "donor_parts")
+
+# A02 audit M06-4: quote acceptance needs a customer artefact (a signed
+# quotation attached to the quote, or an OTP / portal acceptance reference).
+# Whether staff may ever accept without one is a business decision: the
+# switch is fail-closed (artefact required) unless set to 0.
+PARAM_QUOTE_ARTEFACT = "cd_data_case.quote_acceptance_requires_customer_artefact"
+
+
+def _param_on(env, key, default=True) -> bool:
+    raw = env["ir.config_parameter"].sudo().get_param(key)
+    if raw in (None, False, ""):
+        return default
+    return str(raw).strip().lower() not in ("0", "false", "no", "off")
+
+
+def _resolve_user(env, value):
+    """A user named by id or login (the workspace prompt sends text)."""
+    if isinstance(value, models.BaseModel):
+        return value
+    ref = str(value or "").strip()
+    Users = env["res.users"].sudo()
+    if not ref:
+        return Users
+    if ref.isdigit():
+        return Users.browse(int(ref)).exists()
+    return Users.search([("login", "=", ref)], limit=1)
+
 
 class FixDataRecoveryCaseExt(models.Model):
     """Case polish: the 7 specialisms the registry names, the intake clock
@@ -69,7 +100,7 @@ class FixDataRecoveryAttempt(models.Model):
 
     _name = "fix.data.recovery.attempt"
     _description = "Data Recovery Attempt"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "case_id, sequence, id"
 
     company_id = fields.Many2one(
@@ -124,19 +155,91 @@ class FixDataRecoveryAttempt(models.Model):
         "ir.attachment",
         string="Attempt Log / Clone Map Evidence",
     )
+    destructive = fields.Boolean(
+        string="Destructive / Invasive Technique",
+        compute="_compute_destructive",
+        store=True,
+        help="Head swap, chip-off and donor parts open or destroy the original media: "
+        "they need the customer's consent and a cleanroom slot that passed its interlock.",
+    )
 
-    @api.constrains("method", "cleanroom_slot_id")
-    def _check_cleanroom_interlock(self):
+    # what the attempt was, once it finished, is evidence
+    _FROZEN_WHEN_FINISHED = ("case_id", "method", "cleanroom_slot_id", "started_at")
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M06 (M5): the outcome was forged to success with no
+        # finished_at; only action_finish sets them.
+        return super()._fix_guarded_fields() | {"outcome", "finished_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self[:1].outcome not in (False, "in_progress"):
+            locked |= set(self._FROZEN_WHEN_FINISHED)
+        return locked
+
+    @api.depends("method")
+    def _compute_destructive(self):
         for attempt in self:
-            if (
-                attempt.method in ("head_swap", "chip_off", "donor_parts")
-                and attempt.cleanroom_slot_id
-                and not attempt.cleanroom_slot_id.interlock_passed
-            ):
+            attempt.destructive = attempt.method in INVASIVE_METHODS
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A02 audit M06-5 (D5): attempts were logged on a NEW case, so a
+        # chip-off ran before any quote, consent or custody.
+        cases = self.env["fix.data.recovery.case"].browse(
+            [vals["case_id"] for vals in vals_list if vals.get("case_id")]
+        )
+        for case in cases:
+            if case.state != "recovering":
+                raise UserError(
+                    "Recovery attempts are logged while case %s is in recovery (it is '%s')."
+                    % (case.name, case.state)
+                )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        frozen = set(self._FROZEN_WHEN_FINISHED) & set(vals)
+        if frozen and not self._fix_guard_open():
+            for attempt in self:
+                if attempt.outcome != "in_progress" and any(
+                    attempt._fix_guard_differs(f, vals[f], attempt[f]) for f in frozen
+                ):
+                    raise UserError(
+                        "Attempt %s is finished: its method, case and cleanroom slot are "
+                        "evidence and can no longer change." % attempt.id
+                    )
+        return super().write(vals)
+
+    @api.constrains("method", "cleanroom_slot_id", "case_id")
+    def _check_cleanroom_interlock(self):
+        """A02 audit M06-5 (D5): an invasive attempt ran with no cleanroom
+        slot and no customer consent; the interlock applied only IF a slot was
+        linked. A destructive technique now needs both."""
+        for attempt in self:
+            if not attempt.destructive:
+                continue
+            case = attempt.case_id
+            if not case.destructive_consent_at:
+                raise UserError(
+                    "'%s' is a destructive / invasive technique: record the customer's "
+                    "consent for destructive work on case %s first." % (attempt.method, case.name)
+                )
+            slot = attempt.cleanroom_slot_id
+            if not slot:
+                raise UserError(
+                    "FLAW-06.2: invasive recovery method '%s' needs a booked cleanroom slot."
+                    % attempt.method
+                )
+            if slot.state == "cancelled" or slot.case_id != case:
+                raise UserError(
+                    "FLAW-06.2: cleanroom slot #%s is not booked for case %s."
+                    % (slot.id, case.name)
+                )
+            if not slot.interlock_passed:
                 raise UserError(
                     "FLAW-06.2 Cleanroom Environmental Interlock: Invasive recovery method '%s' "
                     "cannot proceed because Cleanroom Slot #%s failed ISO Class 5 particle/airflow limits."
-                    % (attempt.method, attempt.cleanroom_slot_id.id)
+                    % (attempt.method, slot.id)
                 )
 
     @api.depends("case_id", "sequence")
@@ -154,11 +257,14 @@ class FixDataRecoveryAttempt(models.Model):
             if attempt.outcome != "in_progress":
                 raise UserError("Attempt %s already finished (%s)" % (attempt.id, attempt.outcome))
             final = outcome or attempt.outcome
-            if final == "in_progress":
+            if final not in dict(type(self).outcome.selection) or final == "in_progress":
                 raise UserError(
-                    "Attempt %s needs an outcome (full/partial/failed/media damaged)" % attempt.id
+                    "Attempt %s needs an outcome (success/partial/failed/media_damaged)"
+                    % attempt.id
                 )
-            attempt.write(
+            # the slot's interlock and the consent are re-checked at the end
+            attempt._check_cleanroom_interlock()
+            attempt._guarded().write(
                 {
                     "outcome": final,
                     "finished_at": fields.Datetime.now(),
@@ -181,7 +287,7 @@ class FixDataMediaUnit(models.Model):
 
     _name = "fix.data.media.unit"
     _description = "Sealed Media Unit"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "case_id desc, id desc"
 
     company_id = fields.Many2one(
@@ -247,13 +353,26 @@ class FixDataMediaUnit(models.Model):
         "UNIQUE (seal_number)", "This seal / bag number is already registered"
     )
 
-    def _log(self, text):
-        """Append to the case's append-only custody chain (single source)."""
-        stamp = fields.Datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M06-5 (M1, M3): location='destroyed' and an opened seal
+        # with the operator as his own witness were set by field writes.
+        return super()._fix_guarded_fields() | {
+            "location",
+            "seal_state",
+            "holder",
+            "witness_user_id",
+            "witness_verified_at",
+        }
+
+    def _log(self, text, action="media_moved", witness_id=False):
+        """Append to the case's append-only custody ledger (single source)."""
         for unit in self:
-            unit.case_id.custody_chain = (
-                unit.case_id.custody_chain or ""
-            ) + "\n%s: [Media %s] %s" % (stamp, unit.seal_number, text)
+            unit.case_id._custody_log(
+                action,
+                "[Media %s] %s" % (unit.seal_number, text),
+                media_unit=unit,
+                witness_id=witness_id,
+            )
 
     def action_transfer(self, location, handler=""):
         """Move the unit to a new physical location; the case's chain of
@@ -268,7 +387,7 @@ class FixDataMediaUnit(models.Model):
                 )
             who = handler or self.env.user.name
             unit._log("moved to %s by %s" % (dict(type(self).location.selection)[location], who))
-            unit.write({"location": location, "holder": who})
+            unit._guarded().write({"location": location, "holder": who})
             publish(
                 self.env,
                 "data_case.media_transferred",
@@ -278,53 +397,61 @@ class FixDataMediaUnit(models.Model):
             )
 
     def action_break_seal(self, handler="", witness_user_id=None):
+        """Open the evidence seal in the lab, under dual custody (FLAW-06.1,
+        BRU-DTS-01). A02 audit M06-5 (M2): the witness was optional, so the
+        default button broke a seal with one person. A witness is now always
+        required, and must be another active internal user."""
         for unit in self:
             if unit.seal_state != "sealed":
                 raise UserError("Seal %s is already %s" % (unit.seal_number, unit.seal_state))
-            witness_id = witness_user_id or (
-                unit.witness_user_id.id if unit.witness_user_id else None
-            )
-            if witness_id and witness_id == self.env.uid:
+            witness = _resolve_user(self.env, witness_user_id)
+            if not witness:
+                raise UserError(
+                    "FLAW-06.1 Dual-Custody Gate: Breaking evidence seal %s requires a second "
+                    "witness sign-off." % unit.seal_number
+                )
+            if witness.id == self.env.uid:
                 raise UserError(
                     "FLAW-06.1 Dual-Custody Gate: Witness user must be a different person from the unsealing technician."
                 )
+            if not witness.active or witness.share:
+                raise UserError(
+                    "FLAW-06.1 Dual-Custody Gate: the witness must be an active internal user."
+                )
             who = handler or self.env.user.name
-            witness_suffix = ""
-            vals = {"seal_state": "opened_in_lab", "holder": who}
-            if witness_id:
-                witness_user = self.env["res.users"].browse(witness_id)
-                witness_suffix = " (witnessed by %s)" % (witness_user.name or witness_id)
-                vals["witness_user_id"] = witness_id
-                vals["witness_verified_at"] = fields.Datetime.now()
-            unit._log("seal broken by %s%s" % (who, witness_suffix))
-            unit.write(vals)
+            unit._log(
+                "seal broken by %s (witnessed by %s)" % (who, witness.name),
+                action="seal_broken",
+                witness_id=witness.id,
+            )
+            unit._guarded().write(
+                {
+                    "seal_state": "opened_in_lab",
+                    "holder": who,
+                    "witness_user_id": witness.id,
+                    "witness_verified_at": fields.Datetime.now(),
+                }
+            )
             publish(
                 self.env,
                 "data_case.media_seal_broken",
                 "fix.data.media.unit",
                 unit.id,
-                {"seal": unit.seal_number, "witness_user_id": witness_id or False},
+                {"seal": unit.seal_number, "witness_user_id": witness.id},
             )
 
     def action_break_seal_with_witness(self, witness_user_id=None, handler=""):
         """Strict FLAW-06.1 entry point requiring an explicit distinct witness."""
-        for unit in self:
-            wid = witness_user_id or (unit.witness_user_id.id if unit.witness_user_id else None)
-            if not wid:
-                raise UserError(
-                    "FLAW-06.1 Dual-Custody Gate: Breaking evidence seal %s requires a second witness sign-off."
-                    % unit.seal_number
-                )
-            unit.action_break_seal(handler=handler, witness_user_id=wid)
+        self.action_break_seal(handler=handler, witness_user_id=witness_user_id)
         return True
 
     def action_return(self, handler=""):
         for unit in self:
-            if unit.location == "destroyed":
-                raise UserError("Unit %s is destroyed" % unit.seal_number)
+            if unit.location in ("destroyed", "returned_to_customer"):
+                raise UserError("Unit %s is %s" % (unit.seal_number, unit.location))
             who = handler or self.env.user.name
-            unit._log("returned to customer by %s" % who)
-            unit.write({"location": "returned_to_customer", "holder": who})
+            unit._log("returned to customer by %s" % who, action="media_returned")
+            unit._guarded().write({"location": "returned_to_customer", "holder": who})
             publish(
                 self.env,
                 "data_case.media_returned",
@@ -340,7 +467,7 @@ class FixDataCleanroomSlot(models.Model):
 
     _name = "fix.data.cleanroom.slot"
     _description = "Cleanroom Slot"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "start_at desc"
 
     company_id = fields.Many2one(
@@ -397,6 +524,41 @@ class FixDataCleanroomSlot(models.Model):
         string="Particle Counter Log Attachment",
     )
 
+    # the environmental readings a used slot was judged on are evidence
+    _FROZEN_AFTER_PLANNED = (
+        "case_id",
+        "purpose",
+        "iso_class",
+        "particle_count_per_ft3",
+        "laminar_airflow_mps",
+        "temperature_c",
+        "humidity_pct",
+        "telemetry_log_attachment_id",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M06-5 (M4): a failed-interlock slot was forged to 'used'.
+        return super()._fix_guarded_fields() | {"state", "interlock_passed"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self[:1].state not in (False, "planned"):
+            locked |= set(self._FROZEN_AFTER_PLANNED)
+        return locked
+
+    def write(self, vals):
+        frozen = set(self._FROZEN_AFTER_PLANNED) & set(vals)
+        if frozen and not self._fix_guard_open():
+            for slot in self:
+                if slot.state != "planned" and any(
+                    slot._fix_guard_differs(f, vals[f], slot[f]) for f in frozen
+                ):
+                    raise UserError(
+                        "Cleanroom slot #%s is %s: its booking and environmental readings "
+                        "can no longer change." % (slot.id, slot.state)
+                    )
+        return super().write(vals)
+
     @api.depends("iso_class", "particle_count_per_ft3", "laminar_airflow_mps")
     def _compute_interlock_passed(self):
         for slot in self:
@@ -426,7 +588,7 @@ class FixDataCleanroomSlot(models.Model):
                         slot.iso_class,
                     )
                 )
-            slot.state = "used"
+            slot._guarded().write({"state": "used"})
             publish(
                 self.env,
                 "data_case.cleanroom_slot_used",
@@ -439,7 +601,7 @@ class FixDataCleanroomSlot(models.Model):
         for slot in self:
             if slot.state != "planned":
                 raise UserError("Only a planned slot can be cancelled")
-            slot.state = "cancelled"
+            slot._guarded().write({"state": "cancelled"})
 
 
 class FixDataEvaluation(models.Model):
@@ -448,7 +610,7 @@ class FixDataEvaluation(models.Model):
 
     _name = "fix.data.evaluation"
     _description = "Data Recovery Evaluation"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "received_at desc"
 
     company_id = fields.Many2one(
@@ -488,6 +650,41 @@ class FixDataEvaluation(models.Model):
         help="Hours from media received to verdict — the Eval Turnaround KPI",
     )
 
+    # the verdict recovery was started on (A02 audit M06-4) is frozen
+    _FROZEN_WHEN_COMPLETE = (
+        "case_id",
+        "received_at",
+        "verdict",
+        "recoverability_pct",
+        "recommended_specialism",
+        "findings",
+        "donor_required",
+        "donor_estimated_cost_bdt",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # a completed evaluation now gates recovery: only action_complete stamps it
+        return super()._fix_guarded_fields() | {"evaluated_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self[:1].evaluated_at:
+            locked |= set(self._FROZEN_WHEN_COMPLETE)
+        return locked
+
+    def write(self, vals):
+        frozen = set(self._FROZEN_WHEN_COMPLETE) & set(vals)
+        if frozen and not self._fix_guard_open():
+            for ev in self:
+                if ev.evaluated_at and any(
+                    ev._fix_guard_differs(f, vals[f], ev[f]) for f in frozen
+                ):
+                    raise UserError(
+                        "Evaluation of case %s is complete: its verdict is frozen."
+                        % ev.case_id.name
+                    )
+        return super().write(vals)
+
     @api.depends("received_at", "evaluated_at")
     def _compute_eval_hours(self):
         for ev in self:
@@ -506,7 +703,7 @@ class FixDataEvaluation(models.Model):
                 raise UserError("Evaluation already completed")
             if not ev.verdict:
                 raise UserError("Set a verdict before completing the evaluation")
-            ev.write(
+            ev._guarded().write(
                 {
                     "evaluated_at": fields.Datetime.now(),
                     "findings": (notes or "") or (ev.findings or ""),
@@ -529,7 +726,7 @@ class FixDataQuote(models.Model):
 
     _name = "fix.data.quote"
     _description = "Data Recovery Quotation"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -558,15 +755,82 @@ class FixDataQuote(models.Model):
     signed_quote_attachment_id = fields.Many2one(
         "ir.attachment",
         string="Signed Quotation / Authorization PDF",
+        readonly=True,
+        copy=False,
     )
     description = fields.Char(string="Scope")
     valid_until = fields.Date()
     state = fields.Selection(
-        [("draft", "Draft"), ("sent", "Sent"), ("accepted", "Accepted"), ("declined", "Declined")],
+        [
+            ("draft", "Draft"),
+            ("sent", "Sent"),
+            ("accepted", "Accepted"),
+            ("declined", "Declined"),
+            ("superseded", "Superseded"),
+        ],
         default="draft",
         required=True,
         tracking=True,
     )
+    # A02 audit M06-4 (Q2): staff accepted on the customer's behalf. The
+    # acceptance records the customer's artefact and who recorded it.
+    sent_at = fields.Datetime(readonly=True, copy=False)
+    acceptance_channel = fields.Selection(
+        [
+            ("signed_document", "Customer-Signed Quotation"),
+            ("otp_portal", "Customer OTP / Portal Acceptance"),
+            ("staff_recorded", "Staff Recorded (no customer artefact required)"),
+        ],
+        readonly=True,
+        copy=False,
+    )
+    customer_acceptance_reference = fields.Char(
+        string="Customer OTP / Portal Acceptance Reference", readonly=True, copy=False
+    )
+    accepted_at = fields.Datetime(readonly=True, copy=False)
+    accepted_by_id = fields.Many2one(
+        "res.users", string="Acceptance Recorded By", readonly=True, copy=False
+    )
+    superseded_by_id = fields.Many2one(
+        "fix.data.quote", string="Superseded By", readonly=True, copy=False
+    )
+
+    # A02 audit M06-10 (Q4): a quotation of BDT -5,000 was sent and accepted.
+    _amount_not_negative = models.Constraint(
+        "CHECK (amount >= 0 AND donor_fee_bdt >= 0)",
+        "A quotation amount and donor fee cannot be negative",
+    )
+
+    # A02 audit M06-4 (Q3): the price was raised 15k -> 95k after acceptance,
+    # with no-data-no-fee dropped. What the customer was sent is frozen; a
+    # change is a new quotation (action_requote) and a new acceptance.
+    _TERMS = (
+        "case_id",
+        "amount",
+        "currency_id",
+        "donor_fee_bdt",
+        "no_data_no_fee_applies",
+        "description",
+        "valid_until",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "signed_quote_attachment_id",
+            "sent_at",
+            "acceptance_channel",
+            "customer_acceptance_reference",
+            "accepted_at",
+            "accepted_by_id",
+            "superseded_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self[:1].state not in (False, "draft"):
+            locked |= set(self._TERMS)
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -574,11 +838,24 @@ class FixDataQuote(models.Model):
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.data.quote") or "DRQ/New"
         return super().create(vals_list)
 
+    def write(self, vals):
+        terms = set(self._TERMS) & set(vals)
+        if terms and not self._fix_guard_open():
+            for quote in self:
+                if quote.state != "draft" and any(
+                    quote._fix_guard_differs(f, vals[f], quote[f]) for f in terms
+                ):
+                    raise UserError(
+                        "Quotation %s was sent to the customer: its price and terms are "
+                        "frozen. Issue a new quotation (Re-quote) to change them." % quote.name
+                    )
+        return super().write(vals)
+
     def action_send(self):
         for quote in self:
             if quote.state != "draft":
                 raise UserError("Quote %s is not draft" % quote.name)
-            quote.state = "sent"
+            quote._guarded().write({"state": "sent", "sent_at": fields.Datetime.now()})
             publish(
                 self.env,
                 "data_case.quote_sent",
@@ -587,13 +864,69 @@ class FixDataQuote(models.Model):
                 {"case": quote.case_id.name, "amount": quote.amount},
             )
 
-    def action_accept(self):
+    def _signed_quotation(self, signed_attachment_id=None):
+        """The customer-signed quotation: a non-empty file attached to THIS
+        quote (named, or the latest one uploaded to it)."""
+        self.ensure_one()
+        Attachment = self.env["ir.attachment"].sudo()
+        on_quote = [("res_model", "=", self._name), ("res_id", "=", self.id)]
+        if signed_attachment_id:
+            try:
+                att = Attachment.search([("id", "=", int(signed_attachment_id)), *on_quote])
+            except (TypeError, ValueError):
+                att = Attachment
+            if not att or not att.raw:
+                raise UserError(
+                    "The signed quotation must be a non-empty file attached to quotation %s."
+                    % self.name
+                )
+            return att
+        for att in Attachment.search(on_quote, order="id desc"):
+            if att.raw:
+                return att
+        return Attachment
+
+    def action_accept(self, acceptance_reference=None, signed_attachment_id=None):
+        """Record the CUSTOMER's acceptance (A02 audit M06-4, Q2): it needs the
+        customer's artefact — a signed quotation attached to this quote, or
+        the customer's OTP / portal acceptance reference. Staff cannot accept
+        on the customer's behalf unless the business turns the
+        `cd_data_case.quote_acceptance_requires_customer_artefact` switch off."""
+        required = _param_on(self.env, PARAM_QUOTE_ARTEFACT, True)
         for quote in self:
             if quote.state != "sent":
                 raise UserError("Quote %s must be sent before acceptance" % quote.name)
             if quote.valid_until and quote.valid_until < date.today():
                 raise UserError("Quote %s expired on %s" % (quote.name, quote.valid_until))
-            quote.state = "accepted"
+            ref = str(acceptance_reference or "").strip()
+            signed = quote._signed_quotation(signed_attachment_id) if not ref else None
+            if ref and len(ref) < 6:
+                raise UserError(
+                    "Quote %s: an OTP / portal acceptance reference has at least 6 characters."
+                    % quote.name
+                )
+            if signed:
+                channel = "signed_document"
+            elif ref:
+                channel = "otp_portal"
+            elif not required:
+                channel = "staff_recorded"
+            else:
+                raise UserError(
+                    "Quote %s needs the customer's acceptance: attach the customer-signed "
+                    "quotation to the quote, or give the customer's OTP / portal acceptance "
+                    "reference. Staff cannot accept on the customer's behalf." % quote.name
+                )
+            quote._guarded().write(
+                {
+                    "state": "accepted",
+                    "acceptance_channel": channel,
+                    "signed_quote_attachment_id": signed.id if signed else False,
+                    "customer_acceptance_reference": ref or False,
+                    "accepted_at": fields.Datetime.now(),
+                    "accepted_by_id": self.env.uid,
+                }
+            )
             publish(
                 self.env,
                 "data_case.quote_accepted",
@@ -606,7 +939,38 @@ class FixDataQuote(models.Model):
         for quote in self:
             if quote.state not in ("draft", "sent"):
                 raise UserError("Quote %s cannot be declined from '%s'" % (quote.name, quote.state))
-            quote.state = "declined"
+            quote._guarded().write({"state": "declined"})
+
+    def action_requote(self):
+        """Change a sent or accepted price or terms the only legitimate way:
+        a new draft quotation that the customer must accept again; this one
+        is superseded (A02 audit M06-4, Q3)."""
+        new_quotes = self.browse()
+        for quote in self:
+            if quote.state not in ("sent", "accepted"):
+                raise UserError(
+                    "Only a sent or accepted quotation is re-quoted (%s is '%s'); edit a draft "
+                    "directly." % (quote.name, quote.state)
+                )
+            if quote.case_id.state not in ("new", "custody"):
+                raise UserError(
+                    "Case %s is past quotation ('%s'): its accepted price stands."
+                    % (quote.case_id.name, quote.case_id.state)
+                )
+            new = self.create(
+                {
+                    "case_id": quote.case_id.id,
+                    "currency_id": quote.currency_id.id,
+                    "amount": quote.amount,
+                    "donor_fee_bdt": quote.donor_fee_bdt,
+                    "no_data_no_fee_applies": quote.no_data_no_fee_applies,
+                    "description": quote.description,
+                    "valid_until": quote.valid_until,
+                }
+            )
+            quote._guarded().write({"state": "superseded", "superseded_by_id": new.id})
+            new_quotes |= new
+        return {"quote_ids": new_quotes.ids}
 
 
 class FixDataBackupPlan(models.Model):

@@ -23,7 +23,11 @@ def _events(env, event_type, res_id):
 def _device(env):
     brand = env["fix.brand"].create({"name": "Trade-in Brand (behaviour)", "code": "TRDB"})
     model = env["fix.device.model"].create({"name": "Pixel 7", "brand_id": brand.id})
-    return env["fix.device"].create({"device_model_id": model.id})
+    # A02 audit M06-1: the wipe certificate binds to the device's media serial
+    return env["fix.device"].create({"device_model_id": model.id, "serial_number": WIPE_SN})
+
+
+WIPE_SN = "TRD-WIPE-SN"
 
 
 def _grade(env, code):
@@ -32,6 +36,8 @@ def _grade(env, code):
 
 def _request(env, **vals):
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
+    if vals.get("wipe_certificate_id") and "device_id" not in vals:
+        vals["device_id"] = _device(env).id  # the device the certificate certifies
     return env[TRD].create(vals)
 
 
@@ -44,6 +50,7 @@ def _in(env, state, **vals):
 def _cert(env, verified=True, **vals):
     """The wipe operator's M06 certificate, with real evidence when verified."""
     vals.setdefault("method", "nist_800_88")
+    vals.setdefault("serial_number", WIPE_SN)
     if verified:
         log = env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
         vals.setdefault("sector_count", 1000)

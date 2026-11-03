@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M06 Data Services roles (A02 workflow audit, M06 A3).
+
+     The module defined no group, so all 11 internal users were data-recovery
+     operator, wipe-certificate verifier and Z4 accessor at once, and could
+     read every case's customer data.
+
+     - Data Recovery Operator: the lab's daily work (cases, custody, media,
+       attempts, cleanroom, evaluations, quotations). Operational, so the
+       administrator holds it and the back office keeps working.
+     - Wipe Certificate Verifier: the second identity that verifies a wipe or
+       destruction certificate (spec 13 SoD, FR-DTS-022); never the
+       technician who recorded it. Ships EMPTY: a business appointment.
+     - Z4 Custodian: the named staff allowed the step-up access to recovered
+       data in Z4 (BRU-DTS-02). Ships EMPTY: a business appointment. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_data_services" model="res.groups.privilege">
+            <field name="name">Data Services &amp; Recovery</field>
+            <field name="description">Data recovery operations, wipe-certificate verification and Z4 recovered-data custody (M06).</field>
+            <field name="sequence">40</field>
+        </record>
+
+        <record id="group_data_recovery_operator" model="res.groups">
+            <field name="name">Data Recovery Operator</field>
+            <field name="privilege_id" ref="privilege_data_services"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Works data-recovery cases: custody, sealed media, evaluations, quotations, attempts, cleanroom bookings, handover and purge. Reads the case's customer data.</field>
+            <!-- the back office keeps working: the administrator holds the role -->
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+        </record>
+
+        <record id="group_wipe_verifier" model="res.groups">
+            <field name="name">Wipe Certificate Verifier</field>
+            <field name="privilege_id" ref="privilege_data_services"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Verifies a data-wipe or destruction certificate against its evidence, as the second identity: never the technician who recorded it.</field>
+        </record>
+
+        <record id="group_z4_custodian" model="res.groups">
+            <field name="name">Z4 Recovered-Data Custodian</field>
+            <field name="privilege_id" ref="privilege_data_services"/>
+            <field name="implied_ids" eval="[(4, ref('group_data_recovery_operator'))]"/>
+            <field name="comment">Opens recovered customer data in Z4 through the TOTP step-up access, which writes an audit row per read.</field>
+        </record>
+
+    </data>
+</odoo>

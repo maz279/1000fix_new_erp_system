@@ -41,6 +41,7 @@ def _events(env, aggregate, res_id):
 
 def test_attempt_lifecycle_and_guards(ds):
     env = ds.env
+    ds.case.write({"state": "recovering"})  # A02 M06-5: attempts are logged in recovery
     attempt = env["fix.data.recovery.attempt"].create(
         {"case_id": ds.case.id, "method": "software_scan"}
     )
@@ -58,14 +59,21 @@ def test_attempt_lifecycle_and_guards(ds):
 
 def test_attempt_finish_requires_outcome(ds):
     env = ds.env
+    ds.case.write({"state": "recovering"})
     attempt = env["fix.data.recovery.attempt"].create(
-        {"case_id": ds.case.id, "method": "head_swap"}
+        {"case_id": ds.case.id, "method": "firmware_repair"}
     )
     with pytest.raises(UserError):
         attempt.action_finish()  # outcome still in_progress
 
 
 # ------------------------------------------------------------- sealed media
+
+
+def _witness(env, n="1"):
+    return env["res.users"].create(
+        {"name": "M06 Seal Witness %s" % n, "login": "m06-engines-witness-%s" % n}
+    )
 
 
 def test_media_unit_seal_transfer_and_chain(ds):
@@ -82,7 +90,7 @@ def test_media_unit_seal_transfer_and_chain(ds):
     ds.case.invalidate_recordset()
     assert "[Media BAG-M06-001] moved to Z4 Lab by Nadia" in ds.case.custody_chain
     assert unit.location == "z4_lab"
-    unit.action_break_seal(handler="Cleanroom Lead")
+    unit.action_break_seal(handler="Cleanroom Lead", witness_user_id=_witness(env).id)
     assert unit.seal_state == "opened_in_lab"
     assert "seal broken by Cleanroom Lead" in ds.case.custody_chain
     assert "data_case.media_seal_broken" in _events(env, "fix.data.media.unit", unit.id).mapped(
@@ -95,9 +103,11 @@ def test_media_unit_guards(ds):
     unit = env["fix.data.media.unit"].create({"case_id": ds.case.id, "seal_number": "BAG-M06-002"})
     with pytest.raises(UserError):
         unit.action_transfer(location="destroyed")  # destruction is certified, not moved
-    unit.action_break_seal()
+    with pytest.raises(UserError, match="second witness"):
+        unit.action_break_seal()  # A02 M06-5: never without a witness
+    unit.action_break_seal(witness_user_id=_witness(env).id)
     with pytest.raises(UserError):
-        unit.action_break_seal()  # double break refused
+        unit.action_break_seal(witness_user_id=_witness(env, "2").id)  # double break refused
     with pytest.raises(IntegrityError):
         env["fix.data.media.unit"].create(
             {"case_id": ds.case.id, "seal_number": "BAG-M06-002"}
@@ -191,7 +201,7 @@ def test_quote_lifecycle_and_expiry_guard(ds):
         quote.action_accept()  # must be sent first
     quote.action_send()
     assert quote.state == "sent"
-    quote.action_accept()
+    quote.action_accept(acceptance_reference="OTP-771204")  # A02 M06-4: the customer's artefact
     assert quote.state == "accepted"
     events = _events(env, "fix.data.quote", quote.id).mapped("event_type")
     assert "data_case.quote_sent" in events and "data_case.quote_accepted" in events
@@ -204,8 +214,8 @@ def test_quote_lifecycle_and_expiry_guard(ds):
         }
     )
     stale.action_send()
-    with pytest.raises(UserError):
-        stale.action_accept()  # expired
+    with pytest.raises(UserError, match="expired"):
+        stale.action_accept(acceptance_reference="OTP-771205")  # expired
 
 
 # ------------------------------------------------------------------ backup
@@ -249,17 +259,18 @@ def test_case_journey_with_new_engines(ds):
     ds.case.action_take_custody("Front Desk")
     with pytest.raises(UserError):
         ds.case.action_start_recovery()  # SC-007: not routed to Z4 yet
-    ds.case.write({"residency_zone": "z4"})
+    ds.case.action_route_to_z4()
+    env["fix.data.evaluation"].create(
+        {"case_id": ds.case.id, "verdict": "recoverable"}
+    ).action_complete()
+    quote = env["fix.data.quote"].create({"case_id": ds.case.id, "amount": 5000})
+    quote.action_send()
+    quote.action_accept(acceptance_reference="PORTAL-55120")
     ds.case.action_start_recovery()
     assert ds.case.state == "recovering"
     env["fix.data.recovery.attempt"].create(
-        {
-            "case_id": ds.case.id,
-            "method": "software_scan",
-            "outcome": "success",
-            "finished_at": fields.Datetime.now(),
-        }
-    )
+        {"case_id": ds.case.id, "method": "software_scan"}
+    ).action_finish(outcome="success")
     ds.case.action_recovered()
     ds.case.action_handover("Data Lead")
     assert ds.case.state == "handover"

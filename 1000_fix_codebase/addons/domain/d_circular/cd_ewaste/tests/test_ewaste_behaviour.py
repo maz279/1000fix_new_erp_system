@@ -32,11 +32,16 @@ def _in(env, state, **vals):
     return rec
 
 
-def _verified_destruction_cert(env):
-    """The destruction operator's M06 certificate, evidence attached and verified."""
+def _verified_destruction_cert(env, serial):
+    """The destruction operator's M06 certificate, evidence attached and verified,
+    bound to the item it certifies (A02 audit M06-1: here the collection)."""
     log = env["ir.attachment"].create({"name": "shred.log", "raw": b"shredder run 42: PASS"})
     cert = env["fix.data.wipe.certificate"].create(
-        {"method": "physical_destruction", "wipe_log_attachment_id": log.id}
+        {
+            "method": "physical_destruction",
+            "wipe_log_attachment_id": log.id,
+            "serial_number": serial,
+        }
     )
     cert.action_verify()
     return cert
@@ -119,7 +124,8 @@ def test_recycle_only_from_destruction(odoo_env):
 
 
 def test_recycle_records_co2(odoo_env):
-    rec = _in(odoo_env, "destruction", wipe_certificate_id=_verified_destruction_cert(odoo_env).id)
+    rec = _in(odoo_env, "destruction")
+    rec.wipe_certificate_id = _verified_destruction_cert(odoo_env, rec.name)
     rec.action_recycle(12.5)
     assert rec.state == "recycled"
     assert rec.esg_co2_saved_kg == 12.5
@@ -142,7 +148,7 @@ def test_full_journey_ends_with_disposal_certificate(odoo_env):
     assert cert.sanitization_status == "pending_verification"
     with pytest.raises(UserError, match="verified M06 destruction certificate"):
         rec.action_recycle(7.25)
-    rec.wipe_certificate_id = _verified_destruction_cert(odoo_env)
+    rec.wipe_certificate_id = _verified_destruction_cert(odoo_env, rec.name)
     rec.action_recycle(7.25)
     rec.action_issue_certificate()
     expected_ref = "DISPOSE/%s/%s" % (fields.Date.today().strftime("%Y%m"), rec.name)
