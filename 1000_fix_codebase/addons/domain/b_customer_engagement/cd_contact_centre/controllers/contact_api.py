@@ -132,12 +132,14 @@ class ContactApiController(http.Controller):
             if action == "claim":
                 if conv.state not in ("new", "with_ai"):
                     return _error("not_claimable", "Only a new/AI conversation can be claimed")
-                conv.write({"state": "with_agent"})
+                conv.action_claim()
             elif action == "handoff":
                 # back to the AI lane with a recorded reason
-                conv.write({"state": "with_ai", "handoff_reason": kwargs.get("reason", "")})
+                conv.action_return_to_ai(kwargs.get("reason", ""))
             else:  # end
-                conv.write({"state": "resolved_agent", "ended_at": fields.Datetime.now()})
+                # Through the wrap-up gate (REQ-27.1). Writing the state here
+                # closed 13 live calls with no disposition or notes.
+                conv.action_resolve(by_ai=False)
         except (UserError, ValidationError) as exc:
             return _error("handoff_rejected", str(exc))
         return {"conversation": {"id": conv.id, "state": conv.state}}
@@ -202,7 +204,7 @@ class ContactApiController(http.Controller):
             elif conv.disposition_id and (conv.wrapup_notes or "").strip():
                 conv.action_resolve(by_ai=False)
             else:
-                conv.write({"ended_at": fields.Datetime.now(), "state": "with_agent"})
+                conv._mark_call_ended()
 
         return {
             "status": "ok",
@@ -243,7 +245,7 @@ class ContactApiController(http.Controller):
                 else False
             )
             ou = conv_env.env["operating.unit"].search([], limit=1)
-            conv = conv_env.create(
+            conv = conv_env._guarded().create(
                 {
                     "channel": channel
                     if channel in ("whatsapp", "chat", "email", "in_app")
@@ -255,6 +257,8 @@ class ContactApiController(http.Controller):
                     "started_at": fields.Datetime.now(),
                 }
             )
+            # Without the transition token from here on (A03 audit M27).
+            conv = conv_env.browse(conv.id)
 
         conv.intake_message(message, speaker="customer", lang=lang)
         latest_turn = conv.turn_ids.sorted(key=lambda t: t.sequence)[-1] if conv.turn_ids else False

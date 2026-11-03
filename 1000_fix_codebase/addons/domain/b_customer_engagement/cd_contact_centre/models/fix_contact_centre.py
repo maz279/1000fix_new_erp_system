@@ -7,7 +7,7 @@ import base64
 import hashlib
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -58,8 +58,30 @@ class FixConversation(models.Model):
 
     _name = "fix.conversation"
     _description = "Conversation"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "started_at desc, id desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # REQ-27.1 (wrap-up) and REQ-27.2 (BTRC recording integrity) live in
+        # action_resolve and attach_recording. A plain write closed calls with
+        # no disposition or notes and planted an all-zero "digest" (A03 audit).
+        return super()._fix_guarded_fields() | {
+            "state",
+            "ai_resolved",
+            "recording_sha256",
+            "recording_consent_state",
+            "recording_consent_id",
+            # Set by the dispatch hand-off; its presence stops a second dispatch.
+            "field_work_order_ref",
+            # Routing and service-level evidence (A03 audit M27 G7/G13): set
+            # by intake, claim and assignment, never typed. Affinity routing
+            # and the service-level alert read them.
+            "agent_id",
+            "queued_at",
+            "answered_at",
+            "work_item_id",
+            "sla_answer_due_at",
+        }
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -197,6 +219,30 @@ class FixConversation(models.Model):
         readonly=True,
         help="Reference to created field work order (fix.field.order or fix.work.order)",
     )
+    # --- Routing (A03 audit M27 G7) ------------------------------------
+    # Conversations never became work items: routing, presence and capacity
+    # ran beside the contact and were never joined to it. Intake now creates
+    # the work item, and the conversation owns its lifecycle.
+    work_item_id = fields.Many2one(
+        "fix.routing.workitem",
+        string="Routed Work Item",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="set null",
+    )
+    routing_note = fields.Char(
+        readonly=True,
+        copy=False,
+        help="Why this contact is not routed, when it is not. A contact with no "
+        "work item and no reason would be invisible to every queue.",
+    )
+    sla_answer_due_at = fields.Datetime(
+        string="Answer Due By (SLA)",
+        readonly=True,
+        copy=False,
+        help="The deadline of this contact's answer-time SLA instance (S9).",
+    )
 
     @api.depends("channel", "customer_id.name", "contact_identity")
     def _compute_display_name(self):
@@ -221,11 +267,212 @@ class FixConversation(models.Model):
             else:
                 rec.recording_retention_days = 180
 
+    _CLOSED_STATES = ("resolved_ai", "resolved_agent", "abandoned")
+
+    # ------------------------------------------------------------------
+    # Routing: the conversation owns its work item (A03 audit M27 G7)
+    # ------------------------------------------------------------------
+    # One owner, so the two cannot drift: conversation transitions drive the
+    # work item (claim, resolve, return to AI, abandon). The only flow in the
+    # other direction is an ASSIGNMENT made by the router or a supervisor,
+    # which stamps the agent on the conversation (_mark_answered). A work item
+    # of an open conversation cannot be closed on its own; see
+    # fix.routing.workitem.close_and_release.
+    def _route_contact(self):
+        """Make sure each open contact has a live work item in a queue."""
+        Workstream = self.env["fix.routing.workstream"].sudo()
+        for conv in self:
+            if conv.state in self._CLOSED_STATES:
+                continue
+            item = conv.work_item_id
+            if item and item.state not in ("closed", "abandoned"):
+                continue
+            workstream = Workstream.for_conversation(conv)
+            if not workstream:
+                conv._guarded().write(
+                    {
+                        "routing_note": "No active routing workstream serves the %s "
+                        "channel, so this contact is in no queue. Configure one "
+                        "(M27 Unified Routing)." % conv.channel
+                    }
+                )
+                continue
+            item = workstream.intake(
+                "fix.conversation",
+                conv.id,
+                partner=conv.customer_id,
+                context_values={"urgency_level": conv.urgency_level, "intent": conv.intent or ""},
+            )
+            conv._guarded().write(
+                {
+                    "work_item_id": item.id,
+                    "queue_id": item.queue_id.id,
+                    "queued_at": conv.queued_at or fields.Datetime.now(),
+                    "routing_note": False,
+                }
+            )
+            conv._open_answer_sla()
+
+    def _mark_answered(self, agent):
+        """An agent now handles the contact: stamp who and when (G13)."""
+        for conv in self:
+            vals = {"agent_id": agent.id}
+            if not conv.answered_at:
+                vals["answered_at"] = fields.Datetime.now()
+            if conv.state in ("new", "with_ai"):
+                vals["state"] = "with_agent"
+            conv._guarded().write(vals)
+            conv._close_answer_sla("answered")
+
+    def _close_work_item(self, reason: str, abandoned: bool = False):
+        """Close (or abandon) the contact's live work item from the owner side."""
+        for conv in self:
+            item = conv.work_item_id
+            if not item or item.state in ("closed", "abandoned"):
+                continue
+            if abandoned:
+                item._guarded().action_abandon(reason)
+            else:
+                item._guarded().close_and_release(session_closed=True, reason=reason)
+
+    # ------------------------------------------------------------------
+    # Per-contact answer SLA (S9; A03 audit M27 G6/G13)
+    # ------------------------------------------------------------------
+    # fix.sla.kpi.instance lives in cd_service_order, which this module does
+    # not depend on (it would pull the whole service-order stack into the
+    # contact centre). The engine is reached through the registry instead, the
+    # same soft coupling the field dispatch and the entitlement lookup use.
+    # The target is the queue's own answer target, so no new number is set.
+    _ANSWER_KPI = "first_response"
+
+    def _sla_engine(self):
+        return self.env.get("fix.sla.kpi.instance")
+
+    def _contact_sla_policy(self):
+        """The answer-time policy for this contact's queue (created on first use)."""
+        self.ensure_one()
+        Policy = self.env["fix.sla.policy"].sudo()
+        queue = self.queue_id
+        seconds = queue.target_answer_seconds or 20
+        hours = round(seconds / 3600.0, 6)
+        code = ("CC-%s" % (queue.code or "DEFAULT"))[:16]
+        policy = Policy.with_context(active_test=False).search([("code", "=", code)], limit=1)
+        vals = {"response_hours": hours, "resolution_hours": hours}
+        if not policy:
+            # service_type is a service-delivery dimension with no contact-centre
+            # value; the CC- code is what identifies this policy.
+            return Policy.create(
+                dict(
+                    vals,
+                    code=code,
+                    name="Hotline 16743 answer target: %s" % (queue.name or "default queue"),
+                    service_type="walk_in",
+                    priority="normal",
+                    company_id=self.company_id.id,
+                )
+            )
+        if abs(policy.response_hours - hours) > 1e-6:
+            policy.write(vals)
+        return policy
+
+    def _open_answer_sla(self):
+        Instance = self._sla_engine()
+        if Instance is None or "fix.sla.policy" not in self.env:
+            return
+        for conv in self:
+            if not conv.queue_id or conv.answered_at:
+                continue
+            instance = Instance.sudo().start_for(
+                conv,
+                conv._contact_sla_policy(),
+                self._ANSWER_KPI,
+                partner=conv.customer_id,
+                started_at=conv.queued_at or fields.Datetime.now(),
+            )
+            conv._guarded().write({"sla_answer_due_at": instance.target_at})
+
+    def _close_answer_sla(self, outcome: str):
+        """Finish the live answer clock: met, missed, or not applicable."""
+        Instance = self._sla_engine()
+        if Instance is None:
+            return
+        now = fields.Datetime.now()
+        for conv in self:
+            for inst in Instance.sudo().for_record(conv, self._ANSWER_KPI):
+                late = inst.target_at and now > inst.target_at
+                if late and outcome in ("answered", "abandoned"):
+                    # Answered or abandoned after the target is a breach,
+                    # whether or not the breach cron has run yet.
+                    inst.write({"state": "breached", "breached_at": now})
+                elif outcome == "answered":
+                    inst.succeed(when=now)
+                elif outcome == "abandoned":
+                    inst.cancel("Caller abandoned before the answer target.")
+                else:
+                    inst.cancel("Resolved by the assistant; no agent answer was needed.")
+
+    def action_claim(self):
+        """An agent takes a new or AI conversation (call control 'claim')."""
+        for conversation in self:
+            # A handed-off contact waits as with_agent with no agent yet.
+            waiting = conversation.state == "with_agent" and not conversation.agent_id
+            if conversation.state not in ("new", "with_ai") and not waiting:
+                raise UserError("Only a new or AI-handled conversation can be claimed")
+            item = conversation.work_item_id
+            if (
+                item
+                and item.state in ("assigned", "active")
+                and item.assigned_agent_id
+                and item.assigned_agent_id != self.env.user
+            ):
+                raise UserError(
+                    "This contact is assigned to %s. A supervisor reassigns it; it "
+                    "cannot be claimed past the routing decision." % item.assigned_agent_id.name
+                )
+            conversation._mark_answered(self.env.user)
+            if item and item.state in ("pending", "offered"):
+                item._guarded()._assign_to(self.env.user, mode="pick", enforce_capacity=False)
+            if item and item.state == "assigned":
+                item._guarded().action_start_work()
+
+    def action_return_to_ai(self, reason: str = ""):
+        """Hand an open conversation back to the AI lane, with its reason."""
+        for conversation in self:
+            if conversation.state in self._CLOSED_STATES:
+                raise UserError("A closed conversation cannot be handed back to the AI")
+            conversation._guarded().write({"state": "with_ai", "handoff_reason": reason})
+            # The agent is no longer working it: give the capacity back. A
+            # later hand-off routes a fresh work item.
+            conversation._close_work_item("returned to the AI assistant: %s" % (reason or "-"))
+
+    def _mark_call_ended(self):
+        """Hang-up before wrap-up: the call is over, the after-call work is not.
+
+        A caller who hangs up before any agent answered was never served: that
+        is an abandoned contact (G13), not after-call work."""
+        for conv in self:
+            if not conv.answered_at and not conv.agent_id:
+                conv._mark_abandoned()
+            else:
+                conv._guarded().write({"ended_at": fields.Datetime.now(), "state": "with_agent"})
+
+    def _mark_abandoned(self):
+        for conv in self:
+            if conv.state in self._CLOSED_STATES:
+                continue
+            conv._guarded().write({"state": "abandoned", "ended_at": fields.Datetime.now()})
+            conv._close_work_item("caller abandoned before an agent answered", abandoned=True)
+            conv._close_answer_sla("abandoned")
+
     def action_handoff_to_agent(self, reason: str = ""):
         """T07: the human-handoff path with FULL context transfer — the
         agent sees the entire transcript, the intent and the customer 360."""
         for conversation in self:
-            conversation.write({"state": "with_agent", "handoff_reason": reason})
+            if conversation.state in self._CLOSED_STATES:
+                # It had no state check: a hand-off reopened a resolved call (C3).
+                raise UserError("A closed conversation cannot be handed off.")
+            conversation._guarded().write({"state": "with_agent", "handoff_reason": reason})
+            conversation._route_contact()
             publish(
                 self.env,
                 "conversation.handed_off",
@@ -277,13 +524,19 @@ class FixConversation(models.Model):
                     "taken from the file itself (REQ-27.2)."
                 )
 
-            conversation.write(
+            if conversation.state in self._CLOSED_STATES:
+                raise UserError("This conversation is already closed (%s)." % conversation.state)
+            conversation._guarded().write(
                 {
                     "state": "resolved_ai" if by_ai else "resolved_agent",
                     "ai_resolved": by_ai,
                     "ended_at": fields.Datetime.now(),
                 }
             )
+            # The conversation owns its work item: resolving ends the session
+            # and releases the agent's capacity (A03 audit M27 G7).
+            conversation._close_work_item("conversation resolved")
+            conversation._close_answer_sla("answered" if conversation.answered_at else "ai")
             publish(
                 self.env,
                 "conversation.resolved",
@@ -440,7 +693,7 @@ class FixConversation(models.Model):
             )
         verdict = self.recording_permitted(basis=basis, statutory_reference=statutory_reference)
         if not verdict["allowed"]:
-            self.write(
+            self._guarded().write(
                 {
                     "recording_consent_state": "refused",
                     "recording_refusal_reason": verdict["reason"],
@@ -461,7 +714,7 @@ class FixConversation(models.Model):
             )
             return None
         digest = hashlib.sha256(payload).hexdigest()
-        self.write(
+        self._guarded().write(
             {
                 "recording_url": url or self.recording_url,
                 "recording_sha256": digest,
@@ -627,28 +880,78 @@ class FixConversation(models.Model):
             )
 
     def action_create_field_work_order(self):
-        """HS-03: Hotline 16743 urgent on-site repair dispatch to M02."""
+        """HS-03: Hotline 16743 urgent on-site repair dispatch to M02.
+
+        This used to create fix.field.order from a customer_id it does not
+        have, missing the service order and zone it requires, so the button
+        could only fail (A03 audit, M27 G6). A field order is the dispatch of
+        a SERVICE ORDER, so the hand-off now opens an on-site service order
+        for the customer's registered device and hands it to M02 through the
+        service order's own bridge, which resolves the zone, operating unit
+        and SLA deadline. The service order carries an idempotency key per
+        conversation, so a repeated click cannot open a second job.
+        """
+        if "fix.field.order" not in self.env or "fix.service.order" not in self.env:
+            raise UserError(
+                "Field dispatch is not available: the service order and field "
+                "service modules are not installed."
+            )
         for rec in self:
             if not rec.customer_id:
                 raise ValidationError(
                     "Cannot create field work order: Customer must be identified."
                 )
-            vals = {
-                "customer_id": rec.customer_id.id,
-                "contact_phone": rec.contact_identity or rec.customer_id.phone or "",
-                "description": rec.wrapup_notes
-                or ("Hotline 16743 Call Dispatch: " + (rec.intent or "Emergency Repair")),
-                "priority": "critical" if rec.urgency_level == "critical" else "high",
-            }
-            fwo_ref = ""
-            if "fix.field.order" in self.env:
-                fwo = self.env["fix.field.order"].create(vals)
-                fwo_ref = getattr(fwo, "name", str(fwo.id))
-                rec.field_work_order_ref = fwo_ref
-            elif "fix.work.order" in self.env:
-                fwo = self.env["fix.work.order"].create(vals)
-                fwo_ref = getattr(fwo, "name", str(fwo.id))
-                rec.field_work_order_ref = fwo_ref
+            if rec.field_work_order_ref:
+                raise UserError(
+                    "This conversation was already dispatched as field order %s."
+                    % rec.field_work_order_ref
+                )
+            device = self.env["fix.device"].search(
+                [("owner_id", "child_of", rec.customer_id.commercial_partner_id.id)],
+                order="id desc",
+                limit=1,
+            )
+            if not device:
+                raise UserError(
+                    "Cannot dispatch: %s has no registered device. Register the "
+                    "device (M17) so the on-site job knows what it is repairing."
+                    % rec.customer_id.display_name
+                )
+            branch = device.branch_id
+            if not branch and rec.operating_unit_id:
+                branch = self.env["fix.branch"].search(
+                    [("operating_unit_id", "=", rec.operating_unit_id.id)], limit=1
+                )
+            if not branch:
+                raise UserError(
+                    "Cannot dispatch: no branch is known for this customer's device "
+                    "or this conversation's operating unit."
+                )
+            critical = rec.urgency_level == "critical"
+            order = self.env["fix.service.order"].create(
+                {
+                    "idempotency_key": "hotline-dispatch-conversation-%d" % rec.id,
+                    "customer_id": rec.customer_id.id,
+                    "device_id": device.id,
+                    "branch_id": branch.id,
+                    "operating_unit_id": (rec.operating_unit_id or branch.operating_unit_id).id,
+                    "service_type": "onsite",
+                    "priority": "emergency" if critical else "urgent",
+                    "fault_description": rec.wrapup_notes
+                    or ("Hotline 16743 Call Dispatch: " + (rec.intent or "Emergency Repair")),
+                }
+            )
+            fwo = order.field_order_ids.filtered(lambda f: f.state != "cancelled")[:1]
+            if not fwo:
+                fwo = order.action_create_field_order()
+            fwo.write(
+                {
+                    "priority": "3" if critical else "2",
+                    "notes": "Hotline 16743 conversation %s. Contact: %s"
+                    % (rec.display_name, rec.contact_identity or rec.customer_id.phone or "-"),
+                }
+            )
+            rec._guarded().write({"field_work_order_ref": fwo.name})
             publish(
                 self.env,
                 "hotline.emergency_dispatch",
@@ -658,7 +961,8 @@ class FixConversation(models.Model):
                     "customer_id": rec.customer_id.id,
                     "phone": rec.contact_identity,
                     "intent": rec.intent,
-                    "work_order_ref": fwo_ref or rec.field_work_order_ref,
+                    "service_order": order.name,
+                    "work_order_ref": fwo.name,
                 },
             )
 
@@ -678,7 +982,7 @@ class FixConversation(models.Model):
         """INT-015: Inbound call on Hotline 16743 creates conversation in record (G4-04)."""
         partner = self.env["res.partner"].search([("phone", "=", caller_phone)], limit=1)
         ou = self.env["operating.unit"].search([], limit=1)
-        conv = self.create(
+        conv = self._guarded().create(
             {
                 "channel": "voice",
                 "contact_identity": caller_phone,
@@ -689,6 +993,9 @@ class FixConversation(models.Model):
                 "started_at": fields.Datetime.now(),
             }
         )
+        # Drop the transition token: the record goes back to the caller, and a
+        # record carrying it would let every later write skip the guard.
+        conv = self.browse(conv.id)
         greeting_bn = "১০০০ফিক্স কাস্টমার কেয়ারে আপনাকে স্বাগতম। আপনি কিভাবে সাহায্য চান?"
         greeting_en = "Welcome to 1000FiX Customer Care. How can we assist you today?"
         self.env["fix.conversation.turn"].create(
@@ -711,13 +1018,34 @@ class FixConversation(models.Model):
                 "call_sid": call_sid,
             },
         )
+        # A03 audit M27 G7: every contact becomes a routed work item.
+        conv._route_contact()
         if initial_utterance:
             conv.intake_message(initial_utterance, speaker="customer", lang=lang)
         return conv
 
+    # What the bot says when it may not answer: a guardrail blocked the turn,
+    # or the drafted answer must be reviewed by a person first. Never the
+    # blocked or unreviewed text itself.
+    _HOLD_REPLY = {
+        "bn": "আপনার প্রশ্নের নির্ভুল উত্তরের জন্য একজন কাস্টমার কেয়ার প্রতিনিধির সাথে যুক্ত করছি।",
+        "en": "Connecting you with a customer care specialist to assist you accurately.",
+    }
+
     def intake_message(self, text: str, speaker: str = "customer", lang: str = "bn"):
-        """Records a transcript turn and triggers transactional AI dialogue management."""
+        """Records a transcript turn and triggers transactional AI dialogue management.
+
+        A03 audit M32 G3: the live bot used to classify and answer on its own,
+        so a text that a blocking guardrail refused in ask() was answered and
+        closed as resolved_ai, with no audit row. Every bot answer now goes
+        through the S7 ask() pipeline (guardrails, grounding, audit row), and
+        only an answer ask() lets through, and that needs no human review, is
+        sent and counted as an AI resolution.
+        """
+        Ask = self.env["fix.assistant.intent"]
         for conv in self:
+            # A03 audit M27 G7: every contact is routed, whatever its channel.
+            conv._route_contact()
             seq = (max(conv.turn_ids.mapped("sequence"), default=0) + 10) if conv.turn_ids else 10
             self.env["fix.conversation.turn"].create(
                 {
@@ -729,31 +1057,53 @@ class FixConversation(models.Model):
                 }
             )
             if speaker == "customer" and conv.state in ("new", "with_ai"):
-                from .assistant_engine import default_assistant_engine
-
-                res = default_assistant_engine.classify_intent(text)
+                engine, _release = self.env["fix.assistant.dataset"].runtime_engine()
+                res = engine.classify_intent(text)
                 conv.write({"intent": res.matched_intent or ""})
-                resolvable = res.resolvable
-                handoff_reason = res.handoff_reason
-                reply = res.response_text_bn if lang == "bn" else res.response_text_en
-                if getattr(res, "requires_grounding", False):
-                    # Transactional intent: answer ONLY from the customer's
-                    # live records; anything not grounded hands off (G4-05:
-                    # only a grounded answer counts as an AI resolution).
-                    answer = conv._ground_intent_response(res.matched_intent, text)
-                    resolvable = answer["grounded"]
-                    handoff_reason = answer["reason"]
-                    reply = answer["bn"] if lang == "bn" else answer["en"]
+                confident = bool(res.resolvable or getattr(res, "requires_grounding", False))
+                result = Ask.ask(
+                    text,
+                    intent=res.matched_intent if confident else None,
+                    conversation=conv,
+                    consumer="m27_bot",
+                    language=lang if lang in ("bn", "en") else "bn",
+                )
+                ask_row = self.env["fix.assistant.ask"].sudo().browse(result.get("ask_id"))
+                sendable = result.get("ok") and not result.get("requires_human")
+                if sendable:
+                    reply = result.get("bn") if lang == "bn" else result.get("en")
+                    reply = reply or result.get("bn") or result.get("en")
+                    handoff_reason = ""
+                elif ask_row.guardrail_verdict == "blocked":
+                    reply = self._HOLD_REPLY["bn" if lang == "bn" else "en"]
+                    handoff_reason = "guardrail_blocked"
+                elif result.get("ok"):
+                    # Drafted (e.g. generated) but needs a person first (G12).
+                    reply = self._HOLD_REPLY["bn" if lang == "bn" else "en"]
+                    handoff_reason = "ai_answer_awaiting_review"
+                elif getattr(res, "requires_grounding", False):
+                    # Transactional intent the records could not ground: the
+                    # grounder's authored hand-off line and its reason.
+                    reply = result.get("bn") if lang == "bn" else result.get("en")
+                    handoff_reason = result.get("reason") or "no_grounding_record"
+                else:
+                    # The classifier was not confident: its own authored line
+                    # (disambiguation or transfer), never an invented answer.
+                    reply = res.response_text_bn if lang == "bn" else res.response_text_en
+                    handoff_reason = res.handoff_reason
                 self.env["fix.conversation.turn"].create(
                     {
                         "conversation_id": conv.id,
                         "sequence": seq + 10,
                         "speaker": "ai",
-                        "text": reply,
+                        "text": reply or self._HOLD_REPLY["bn" if lang == "bn" else "en"],
                         "lang": lang,
                     }
                 )
-                if resolvable:
+                if sendable:
+                    ask_row._guarded().write(
+                        {"sent_at": fields.Datetime.now(), "sent_by": self.env.user.id}
+                    )
                     conv.action_resolve(by_ai=True)
                 else:
                     # T07: an unresolved turn always hands off - never a dead end

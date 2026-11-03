@@ -22,11 +22,23 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish  # FF-28
 
 from .fix_cc_routing import WORK_TYPES, WORK_TYPES_WITHOUT_AUTO_RELEASE
+
+SUPERVISOR_GROUP = "cd_contact_centre.group_cc_supervisor"
+OPEN_CONVERSATION_STATES = ("new", "with_ai", "with_agent")
+
+
+def assert_cc_supervisor(env, what: str) -> None:
+    """Supervisor-only decisions (A03 audit M27 G9/G11). Superuser code is trusted."""
+    if env.su or env.user.has_group(SUPERVISOR_GROUP):
+        return
+    raise AccessError(
+        "%s is a supervisor decision. Ask a Contact Centre Supervisor to do it." % what
+    )
 
 
 class ResUsersCcSkills(models.Model):
@@ -58,7 +70,7 @@ class FixRoutingWorkitem(models.Model):
 
     _name = "fix.routing.workitem"
     _description = "Routing Work Item"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "priority desc, created_at, id"
     _rec_name = "display_label"
 
@@ -139,6 +151,27 @@ class FixRoutingWorkitem(models.Model):
         help="The S5 entitlement verdict captured at intake, so the agent sees "
         "what the customer is contractually owed without a second lookup.",
     )
+
+    def _fix_guarded_fields(self) -> set:
+        # An agent wrote state=closed and reassigned an item to a colleague
+        # with a plain write (A03 audit M27 W1). Routing state, ownership and
+        # capacity move only through the transitions below.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "assigned_agent_id",
+            "offered_agent_id",
+            "assigned_at",
+            "capacity_released",
+            "capacity_released_at",
+            "assignment_mode",
+        }
+
+    def _source_conversation(self):
+        """The conversation this item routes, when it routes one."""
+        self.ensure_one()
+        if self.source_model != "fix.conversation" or not self.source_id:
+            return self.env["fix.conversation"]
+        return self.env["fix.conversation"].sudo().browse(self.source_id).exists()
 
     @api.depends("source_model", "source_id", "partner_id")
     def _compute_display_label(self):
@@ -299,7 +332,7 @@ class FixRoutingWorkitem(models.Model):
             return False
         state = agents[0]
         preferred = self._preferred_agent()
-        self.write(
+        self._guarded().write(
             {
                 "state": "offered",
                 "offered_agent_id": state.agent_id.id,
@@ -370,7 +403,7 @@ class FixRoutingWorkitem(models.Model):
             if item.state != "offered":
                 continue
             agent = item.offered_agent_id
-            item.write(
+            item._guarded().write(
                 {
                     "state": "pending",
                     "offered_agent_id": False,
@@ -416,6 +449,7 @@ class FixRoutingWorkitem(models.Model):
         and stamps the owner. All three happen here, and the override is
         recorded with its reason rather than looking like ordinary routing.
         """
+        assert_cc_supervisor(self.env, "Assigning work by hand")
         agent_rec = agent if hasattr(agent, "id") else self.env["res.users"].browse(agent)
         if not agent_rec or not agent_rec.exists():
             raise UserError("Manual assignment needs the agent to assign to.")
@@ -449,7 +483,7 @@ class FixRoutingWorkitem(models.Model):
                         blocking.limit_for(agent),
                     )
                 )
-        self.write(
+        self._guarded().write(
             {
                 "state": "assigned",
                 "assigned_agent_id": agent.id,
@@ -463,6 +497,15 @@ class FixRoutingWorkitem(models.Model):
         # Presence is derived from capacity: taking this item may be what
         # fills a blocking profile and forces Busy-DND.
         state.enforce_capacity_blocking(self.capacity_profile_ids)
+        # The one flow from item to conversation: whoever routing (or a
+        # supervisor) gave the contact to now handles it (A03 audit M27 G7).
+        conversation = self._source_conversation()
+        if (
+            conversation
+            and conversation.state in OPEN_CONVERSATION_STATES
+            and (conversation.agent_id != agent or not conversation.answered_at)
+        ):
+            conversation._mark_answered(agent)
         publish(
             self.env,
             "routing.work_item_assigned",
@@ -482,7 +525,7 @@ class FixRoutingWorkitem(models.Model):
         for item in self:
             if item.state != "assigned":
                 raise UserError("Only an assigned item can be started.")
-            item.state = "active"
+            item._guarded().write({"state": "active"})
         return True
 
     # ------------------------------------------------------------------
@@ -499,6 +542,18 @@ class FixRoutingWorkitem(models.Model):
         for item in self:
             if item.state == "closed":
                 continue
+            conversation = item._source_conversation()
+            if (
+                conversation
+                and conversation.state in OPEN_CONVERSATION_STATES
+                and not item._fix_guard_open()
+            ):
+                # The conversation owns the lifecycle: closing its work item on
+                # its own left a live call with no queue entry (A03 audit G7).
+                raise UserError(
+                    "This work item routes an open conversation. Resolve or hand "
+                    "back the conversation; that closes its work item."
+                )
             releases = item._release_allowed(session_closed=session_closed)
             vals = {"state": "closed", "closed_at": fields.Datetime.now()}
             if releases:
@@ -506,7 +561,7 @@ class FixRoutingWorkitem(models.Model):
                     capacity_released=True,
                     capacity_released_at=fields.Datetime.now(),
                 )
-            item.write(vals)
+            item._guarded().write(vals)
             if not releases:
                 item.message_post(
                     body="Closed without releasing capacity: %s"
@@ -555,14 +610,39 @@ class FixRoutingWorkitem(models.Model):
             return "an end-of-day capacity profile releases at the daily reset"
         return "release conditions not met"
 
+    def action_abandon(self, reason=""):
+        """The contact left the queue before anyone served it (G13)."""
+        for item in self:
+            if item.state in ("closed", "abandoned"):
+                continue
+            if not item._fix_guard_open():
+                raise UserError("A work item is abandoned only by its conversation.")
+            item._guarded().write(
+                {
+                    "state": "abandoned",
+                    "closed_at": fields.Datetime.now(),
+                    "offered_agent_id": False,
+                    "offer_expires_at": False,
+                    "capacity_released": True,
+                    "capacity_released_at": fields.Datetime.now(),
+                }
+            )
+            item.message_post(body="Abandoned: %s" % (reason or "the contact left the queue"))
+            if item.assigned_agent_id:
+                self.env["fix.cc.agent.state"].sudo().state_for(
+                    item.assigned_agent_id
+                ).enforce_capacity_blocking(item.capacity_profile_ids)
+        return True
+
     def action_release_capacity(self, reason=""):
         """A supervisor hands capacity back by hand."""
+        assert_cc_supervisor(self.env, "Releasing held capacity by hand")
         if not (reason or "").strip():
             raise UserError("Releasing capacity by hand requires a stated reason.")
         for item in self:
             if item.capacity_released:
                 continue
-            item.write(
+            item._guarded().write(
                 {
                     "capacity_released": True,
                     "capacity_released_at": fields.Datetime.now(),

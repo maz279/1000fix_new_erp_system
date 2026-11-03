@@ -22,8 +22,18 @@ CD-M27-nn + CD-M32-nn (P07-M05):
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Contact Centre",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_party_master"],
+    # cd_workflow_engine: the NLU dataset release is a routed four-eyes
+    # decision through the M63 engine (A03 audit M32 G4).
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_party_master",
+        "cd_workflow_engine",
+    ],
     "data": [
+        "security/fix_cc_groups.xml",
         "data/fix_cc_gap_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",

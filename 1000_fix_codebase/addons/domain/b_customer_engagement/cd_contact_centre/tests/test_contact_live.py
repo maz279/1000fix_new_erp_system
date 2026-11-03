@@ -418,7 +418,12 @@ def test_call_control_transitions(env, agent):
         claimed = ctrl.handoff(conversation_id=conv.id, action="claim")
         not_again = ctrl.handoff(conversation_id=conv.id, action="claim")
         back = ctrl.handoff(conversation_id=conv.id, action="handoff", reason="after hours")
+        # 'end' runs the REQ-27.1 wrap-up gate: refused without it...
+        refused = ctrl.handoff(conversation_id=conv.id, action="end")
+        _wrapup_ready(env, conv)
+        # ...and accepted once the disposition and notes are captured.
         ended = ctrl.handoff(conversation_id=conv.id, action="end")
+    assert refused["error"]["code"] == "handoff_rejected"
     assert invalid["error"]["code"] == "invalid_action"
     assert unknown["error"]["code"] == "no_conversation"
     assert claimed["conversation"]["state"] == "with_agent"
@@ -431,6 +436,7 @@ def test_call_control_transitions(env, agent):
 
 def test_a_refused_transition_is_reported(env, agent):
     conv = _conv(env, state="new")
+    _wrapup_ready(env, conv)
     with (
         patch.object(type(conv), "write", side_effect=UserError("locked by supervisor")),
         _console(env, agent) as ctrl,
@@ -474,13 +480,19 @@ def test_telephony_webhook_captures_the_call_lifecycle(env, agent):
 
 def test_telephony_hangup_closes_an_open_call(env, agent):
     with _console(env, agent) as ctrl:
-        ctrl.telephony_webhook(**{"from": "01811222444", "session_id": "CA-CC-10"})
+        started = ctrl.telephony_webhook(**{"from": "01811222444", "session_id": "CA-CC-10"})
+        ctrl.handoff(conversation_id=started["conversation"]["id"], action="claim")
         ended = ctrl.telephony_webhook(call_sid="CA-CC-10", event="call.ended")
+        # A03 audit M27 G13: a caller who hangs up before ANY agent answered
+        # was never served, so the contact is abandoned, not after-call work.
+        ctrl.telephony_webhook(**{"from": "01811222445", "session_id": "CA-CC-11"})
+        unanswered = ctrl.telephony_webhook(call_sid="CA-CC-11", event="call.ended")
     # FLAW-27.1: a hangup cannot bypass the mandatory wrap-up gate — the open
     # agent call stays with the agent (after-call work) until disposition +
     # wrap-up notes are captured, then resolves as an agent close.
     assert ended["conversation"]["state"] == "with_agent"
     assert ended["conversation"]["ai_resolved"] is False
+    assert unanswered["conversation"]["state"] == "abandoned"
 
 
 def test_a_call_without_a_session_id_opens_a_new_conversation(env, agent):

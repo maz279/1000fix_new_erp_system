@@ -80,6 +80,17 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A03 audit M27 G13: the service-level and abandonment alert had a
+             method and no schedule, so it never fired. -->
+        <record id="ir_cron_queue_service_level" model="ir.cron">
+            <field name="name">M27: queue service-level and abandonment alert</field>
+            <field name="model_id" ref="model_fix_cc_queue"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_monitor_service_level()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
         <record id="ir_cron_intent_mining" model="ir.cron">
             <field name="name">M32: mine candidate intents from scrubbed traffic</field>
             <field name="model_id" ref="model_fix_assistant_intent_candidate"/>

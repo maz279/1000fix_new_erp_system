@@ -25,6 +25,7 @@
 #   3. Cost is recorded per message from the provider's configured tariff,
 #      and is zero (not estimated) until a provider is attached.
 import logging
+import re
 import sys
 from datetime import timedelta
 from pathlib import Path
@@ -91,6 +92,28 @@ ADAPTER_FOR_CHANNEL = {
 # route is DERIVED from the processing purpose rather than configured, because
 # it is a regulatory consequence of the purpose and not a preference.
 NON_MASKING_PURPOSES = frozenset({"marketing", "profiling"})
+
+# BTRC Do-Not-Disturb binds promotional traffic to a subscriber's number.
+# The purposes are the curfew's (fix_btrc.CURFEWED_PURPOSES): transactional
+# and statutory messages are exempt from both for the same reason.
+DND_CHANNELS = frozenset({"sms", "whatsapp", "voice"})
+
+
+def msisdn_variants(address: str) -> set:
+    """The forms one Bangladeshi number is stored in (01..., 8801..., +8801...)."""
+    raw = (address or "").strip()
+    digits = re.sub(r"\D", "", raw.split("@")[0])
+    if not digits:
+        return {raw} if raw else set()
+    if digits.startswith("880"):
+        local = "0" + digits[3:]
+    elif digits.startswith("0"):
+        local = digits
+    else:
+        local = "0" + digits
+    national = local[1:]
+    return {raw, digits, local, "880" + national, "+880" + national}
+
 
 # BD-03: the masking signature must not appear on a numeric-sender message.
 MASKING_SIGNATURE = "1000FiX"
@@ -190,7 +213,24 @@ class FixNotifDelivery(models.Model):
 
     _name = "fix.notif.delivery"
     _description = "Notification Delivery"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # The S2 consent verdict and the delivery state are set by queue() and
+        # the send path. A plain write turned a 'suppressed' marketing SMS
+        # with no consent back into 'queued' for the dispatch cron (A03 audit).
+        return super()._fix_guarded_fields() | {"state", "consent_decision"}
+
+    # What queue() checked consent and curfew against, and what a sent message
+    # said. Frozen once the row exists; see write().
+    _FROZEN_FIELDS = frozenset(
+        {"to_address", "body", "subject", "purpose", "lawful_basis", "partner_id"}
+    )
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        return locked | self._FROZEN_FIELDS if self else locked
+
     _order = "queued_at desc, id desc"
     _rec_name = "to_address"
 
@@ -398,6 +438,12 @@ class FixNotifDelivery(models.Model):
         verdict = self.env["fix.consent"].consent_check(
             partner_rec, purpose, channel, basis=lawful_basis, company=company_rec
         )
+        dnd_reason = self._dnd_reason(purpose, channel, address)
+        if verdict["allowed"] and dnd_reason:
+            # A03 audit: the DND registry was counted at campaign launch but
+            # never enforced, and a marketing SMS was queued to a listed
+            # number. This is the single exit, so it is enforced here.
+            verdict = dict(verdict, allowed=False, decision="dnd_listed", reason=dnd_reason)
         curfew = fix_btrc.curfew_verdict(purpose, channel)
         provider = self.env["fix.notif.provider"].provider_for(channel, company=company_rec)
 
@@ -465,6 +511,29 @@ class FixNotifDelivery(models.Model):
                 event_payload,
             )
         return record
+
+    @api.model
+    def _dnd_reason(self, purpose, channel, address) -> str:
+        """Why a promotional send to this number is refused, or ''.
+
+        fix.dnd.registry belongs to M35 (cd_campaign, which depends on this
+        module), so it is read through the registry. Without M35 installed
+        there is no registry to honour, and the send is not refused on a guess.
+        """
+        if purpose not in fix_btrc.CURFEWED_PURPOSES or channel not in DND_CHANNELS:
+            return ""
+        Registry = self.env.get("fix.dnd.registry")
+        variants = msisdn_variants(address)
+        if Registry is None or not variants:
+            return ""
+        listed = Registry.sudo().search([("msisdn", "in", list(variants))], limit=1)
+        if not listed:
+            return ""
+        return (
+            "%s is on the BTRC Do-Not-Disturb registry (listed %s, source %s). "
+            "Promotional messages are not sent to it; transactional ones are exempt."
+            % (listed.msisdn, listed.registered_on, listed.source)
+        )
 
     @api.model
     def _default_address(self, partner, channel):
@@ -562,9 +631,37 @@ class FixNotifDelivery(models.Model):
         # Re-check the curfew at SEND time, not only at queue time: a message
         # queued at 21:58 and dispatched at 22:03 is an out-of-window send,
         # and the regulator cares when it left, not when it was composed.
+        # The registry can list a number after the message was queued: check
+        # again at the exit, the moment the message would leave.
+        dnd_reason = self._dnd_reason(self.purpose, self.channel, self.to_address)
+        if dnd_reason:
+            self._guarded().write(
+                {
+                    "state": "suppressed",
+                    "consent_decision": "dnd_listed",
+                    "consent_reason": dnd_reason,
+                    "next_attempt_at": False,
+                }
+            )
+            publish(
+                self.env,
+                "notification.suppressed",
+                "fix.notif.delivery",
+                self.id,
+                {
+                    "channel": self.channel,
+                    "purpose": self.purpose,
+                    "partner_id": self.partner_id.id or None,
+                    "decision": "dnd_listed",
+                    "reason": dnd_reason,
+                    "curfew_bound": self.curfew_bound,
+                    "provider": self.provider_id.code if self.provider_id else None,
+                },
+            )
+            return False
         curfew = fix_btrc.curfew_verdict(self.purpose, self.channel)
         if not curfew["allowed"]:
-            self.write(
+            self._guarded().write(
                 {
                     "curfew_bound": True,
                     "curfew_hold_until": curfew["hold_until"],
@@ -577,7 +674,7 @@ class FixNotifDelivery(models.Model):
         provider = self.provider_id
         if not provider:
             # The honest state: nothing was sent and nothing is pretended.
-            self.write(
+            self._guarded().write(
                 {
                     "last_error": "No provider is configured for channel '%s'. The "
                     "message stays queued; CPaaS/WhatsApp vendor selection is a "
@@ -595,7 +692,7 @@ class FixNotifDelivery(models.Model):
             result = {"ok": False, "error": str(exc), "provider_ref": ""}
 
         if result.get("ok"):
-            self.write(
+            self._guarded().write(
                 {
                     "state": "sent",
                     "sent_at": fields.Datetime.now(),
@@ -627,7 +724,7 @@ class FixNotifDelivery(models.Model):
             # Its own state, deliberately. Recording a dry run as 'sent'
             # would be exactly the lie this log exists to prevent, and
             # leaving it 'queued' would have the cron retry it forever.
-            self.write(
+            self._guarded().write(
                 {
                     "state": "dry_run",
                     "last_error": error,
@@ -639,7 +736,7 @@ class FixNotifDelivery(models.Model):
 
         if result.get("permanent"):
             # A policy refusal or a misconfiguration retrying cannot fix.
-            self.write(
+            self._guarded().write(
                 {
                     "state": "failed",
                     "failed_at": fields.Datetime.now(),
@@ -662,7 +759,7 @@ class FixNotifDelivery(models.Model):
             return False
 
         if self.attempts >= (self.max_attempts or 4):
-            self.write(
+            self._guarded().write(
                 {
                     "state": "failed",
                     "failed_at": fields.Datetime.now(),
@@ -685,7 +782,7 @@ class FixNotifDelivery(models.Model):
             return False
 
         backoff = RETRY_BACKOFF_MINUTES[min(self.attempts - 1, len(RETRY_BACKOFF_MINUTES) - 1)]
-        self.write(
+        self._guarded().write(
             {
                 "last_error": error,
                 "next_attempt_at": fields.Datetime.now() + timedelta(minutes=backoff),
@@ -812,7 +909,17 @@ class FixNotifDelivery(models.Model):
         for rec in self:
             if not rec.provider_id or rec.provider_id.transport != "manual":
                 raise UserError("Only a manual-transport message may be marked sent by hand.")
-            rec.write(
+            if rec.state != "queued":
+                # It had no state check, so a failed or cancelled message
+                # could be recorded as sent.
+                raise UserError(
+                    "Only a queued message can be marked sent; this one is %s." % rec.state
+                )
+            # Every live provider is manual, so this is the exit in practice.
+            dnd_reason = rec._dnd_reason(rec.purpose, rec.channel, rec.to_address)
+            if dnd_reason:
+                raise UserError("Do not send this message. %s" % dnd_reason)
+            rec._guarded().write(
                 {
                     "state": "sent",
                     "sent_at": fields.Datetime.now(),
@@ -838,7 +945,7 @@ class FixNotifDelivery(models.Model):
                     "Only a message already sent can be marked delivered (this "
                     "one is %s)." % rec.state
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "delivered",
                     "delivered_at": delivered_at or fields.Datetime.now(),
@@ -862,7 +969,7 @@ class FixNotifDelivery(models.Model):
     def mark_failed(self, error, permanent=True):
         """A provider reports the message could not be delivered."""
         for rec in self:
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "failed" if permanent else rec.state,
                     "failed_at": fields.Datetime.now() if permanent else rec.failed_at,
@@ -878,7 +985,7 @@ class FixNotifDelivery(models.Model):
         for rec in self:
             if rec.state in ("sent", "delivered"):
                 raise UserError("A message already sent cannot be cancelled.")
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "cancelled",
                     "last_error": reason or "cancelled by %s" % self.env.user.name,
@@ -943,7 +1050,7 @@ class FixNotifDelivery(models.Model):
             ]
         )
         for rec in stale:
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "cancelled",
                     "last_error": "Abandoned: queued %s and still unsendable after "
@@ -1062,9 +1169,24 @@ class FixNotifDelivery(models.Model):
         tell them. Editing them afterwards would make the log worthless as
         evidence, which is the only reason the log exists.
         """
-        frozen = {"to_address", "body", "subject", "purpose", "lawful_basis", "partner_id"}
-        touched = frozen & set(vals)
+        touched = self._FROZEN_FIELDS & set(vals)
         if touched:
+            # Before a send the same fields carry the consent check: queue()
+            # decided on THIS recipient, purpose and basis. Changing them on a
+            # queued row afterwards sent a message the check never saw.
+            if not self._fix_guard_open():
+                changed = {
+                    name
+                    for rec in self
+                    for name in touched
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+                if changed:
+                    raise UserError(
+                        "Cannot change %s on a queued message: the consent and "
+                        "curfew checks were made for what was queued. Cancel it and "
+                        "queue a new one." % ", ".join(sorted(changed))
+                    )
             for rec in self:
                 if rec.state in ("sent", "delivered"):
                     raise UserError(

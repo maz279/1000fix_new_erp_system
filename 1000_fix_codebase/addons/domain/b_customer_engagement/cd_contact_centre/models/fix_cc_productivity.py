@@ -241,13 +241,25 @@ class FixCcMacro(models.Model):
                 "note": delivery.consent_reason or "Queued for delivery.",
             }
         if self.macro_action == "raise_complaint":
-            if "fix.complaint" not in self.env:
-                return {"ok": False, "note": "The complaints module is not installed."}
+            # A03 audit M27 G6: the macro was a stub that always refused. M34
+            # (cd_cx_feedback, which depends on this module) adds
+            # fix.conversation.action_create_complaint; call it when present.
+            if not hasattr(conversation, "action_create_complaint"):
+                return {
+                    "ok": False,
+                    "note": "The complaints module (M34) is not installed, so no "
+                    "complaint can be raised from a conversation.",
+                }
+            result = conversation.action_create_complaint()
+            complaint_id = None
+            if isinstance(result, models.BaseModel):
+                complaint_id = result[:1].id or None
+            elif isinstance(result, dict):
+                complaint_id = result.get("res_id") or result.get("complaint_id")
             return {
-                "ok": False,
-                "note": "Raising a complaint needs a category and a severity "
-                "from the agent; open the complaint form rather than "
-                "guessing them here.",
+                "ok": True,
+                "complaint_id": complaint_id,
+                "note": "Complaint raised from this conversation.",
             }
         return {"ok": False, "note": "Unknown macro action."}
 

@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from odoo import fields as odoo_fields
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 
 fields = odoo_fields
 from odoo.exceptions import UserError, ValidationError
@@ -451,7 +452,7 @@ class TestM10Loyalty:
         )
         approver = _approver(env, 2, "a03.dofa.t2.just@example.com")
         with pytest.raises((ValidationError, UserError), match="justification"):
-            line.with_user(approver).action_dofa_approve()
+            approve_via_inbox(line, approver)  # R7: decided from the inbox
 
     def test_req_10_3_creator_cannot_self_approve(self, env, loyalty):
         """REQ-10.3: holding the tier is not enough — the operator who raised
@@ -471,8 +472,12 @@ class TestM10Loyalty:
             )
         )
         assert line.dofa_tier_required == "tier_3"
-        with pytest.raises(UserError, match="Segregation of duties"):
+        with pytest.raises(UserError, match="approver's inbox"):
             line.with_user(director).action_dofa_approve()
+        # Routed: the request never reaches the person who raised it.
+        _approver(env, 3, "a03.dofa.t3.other@example.com")
+        line.with_user(director).action_request_approval()
+        assert director not in assigned(line)
 
     def test_req_10_3_lower_tier_cannot_approve_higher_amount(self, env, loyalty):
         """REQ-10.3: a Tier 2 manager cannot clear a Tier 3 credit."""
@@ -486,8 +491,11 @@ class TestM10Loyalty:
             }
         )
         weak = _approver(env, 2, "a03.dofa.t2.weak@example.com")
-        with pytest.raises(UserError, match="authority insufficient"):
-            line.with_user(weak).action_dofa_approve()
+        _approver(env, 3, "a03.dofa.t3.strong@example.com")
+        line.action_request_approval()
+        # A Tier 3 credit is routed to Tier 3 holders only.
+        assert weak not in assigned(line)
+        assert all(u.has_group("cd_entity_config.group_dofa_tier_3") for u in assigned(line))
 
     def test_req_10_3_tier_3_approver_can_clear_and_post(self, env, loyalty):
         """The positive path: a real Tier 3 approver releases the credit."""
@@ -501,7 +509,7 @@ class TestM10Loyalty:
             }
         )
         director = _approver(env, 3, "a03.dofa.t3@example.com")
-        line.with_user(director).action_dofa_approve()
+        approve_via_inbox(line, director)
         assert line.dofa_approved and line.dofa_approved_by == director
         line.action_post()
         assert account.points_balance == 5000
@@ -609,7 +617,7 @@ class TestM10Loyalty:
         with pytest.raises(UserError, match="Tier 2"):
             account.action_unfreeze()
         manager = _approver(env, 2, "a03.dofa.t2.unfreeze@example.com")
-        account.with_user(manager).action_unfreeze()
+        approve_via_inbox(account, manager)  # routed through M63 (A03 P2 M10)
         assert account.state == "active" and account.unlock_supervisor_id == manager
 
 
@@ -1031,11 +1039,15 @@ class TestM32ConversationalAi:
                 "sha256_checksum": "d" * 64,
             }
         )
-        with pytest.raises(UserError, match="Tier 3"):
+        # A03 audit M32 G4: a typed accuracy is not benchmark evidence, and a
+        # director releases from the M63 inbox, not directly. The routed path
+        # is proven in test_a03_p2_contact_centre.py.
+        with pytest.raises(UserError, match="benchmark"):
             ds.action_release()
         director = _approver(env, 3, "a03.nlu.t3@example.com")
-        ds.with_user(director).action_release()
-        assert ds.state == "released" and ds.released_by == director
+        with pytest.raises(UserError, match="inbox"):
+            ds.with_user(director).action_release()
+        assert ds.state == "draft"
 
     def test_req_32_5_digest_is_taken_over_the_file(self, env):
         import base64
@@ -1135,7 +1147,7 @@ class TestM34Complaints:
             dofa_justification="Device destroyed in the workshop; board-noted settlement.",
         )
         cfo = _approver(env, 4, "a03.dofa.t4.cx@example.com")
-        c.with_user(cfo).action_approve_concession()
+        approve_via_inbox(c, cfo)
         assert c.concession_approved and c.dofa_approved_by == cfo
         assert c.dofa_approved_tier == "tier_4"
 
@@ -1148,9 +1160,12 @@ class TestM34Complaints:
             dofa_justification="Partial labour refund.",
         )
         mgr = _approver(env, 2, "a03.dofa.t2.cx@example.com")
-        c.with_user(mgr).action_approve_concession()
+        approve_via_inbox(c, mgr)
         c.concession_amount = 400000.0
-        with pytest.raises(ValidationError, match="Re-approval is required"):
+        # R4: the approval is withdrawn the moment the amount passes it, so
+        # the close finds no approval at all rather than a stale one.
+        assert not c.dofa_approved and not c.concession_approved
+        with pytest.raises(ValidationError, match="requires formal corporate DOFA approval"):
             c.action_close("Refund issued.")
 
     def test_req_34_1_acknowledgment_stamped_within_60_minutes(self, complaint):
@@ -1255,7 +1270,7 @@ class TestM35Campaigns:
             dofa_justification="National Eid service drive.",
         )
         cfo = _approver(env, 4, "a03.dofa.t4.mkt@example.com")
-        c.with_user(cfo).action_dofa_approve()
+        approve_via_inbox(c, cfo)
         assert c.dofa_approved and c.dofa_approved_by == cfo
 
     def test_req_35_2_out_of_hours_launch_is_queued_not_sent(self, env, customer, campaign):

@@ -142,6 +142,31 @@ class FixRoutingWorkstream(models.Model):
     # ------------------------------------------------------------------
     # 1-2. Intake and classification
     # ------------------------------------------------------------------
+    @api.model
+    def for_conversation(self, conversation):
+        """The workstream that routes this contact: its channel first.
+
+        A workstream for the conversation's own channel wins; otherwise any
+        workstream declared for fix.conversation. Empty when none exists, and
+        the caller records why the contact is unrouted (A03 audit M27 G7).
+        """
+        base = [
+            ("active", "=", True),
+            ("company_id", "in", [conversation.company_id.id, False]),
+            ("source_model", "in", [False, "", "fix.conversation"]),
+        ]
+        found = self.search([*base, ("channel", "=", conversation.channel)], limit=1)
+        if not found:
+            found = self.search(
+                [
+                    ("active", "=", True),
+                    ("company_id", "in", [conversation.company_id.id, False]),
+                    ("source_model", "=", "fix.conversation"),
+                ],
+                limit=1,
+            )
+        return found
+
     def intake(self, source_model, source_id, partner=None, context_values=None):
         """Create and classify a work item. The single entry to routing."""
         self.ensure_one()
@@ -194,7 +219,10 @@ class FixRoutingWorkstream(models.Model):
         else:
             domain.append(("presence_status_id.is_available_class", "=", True))
         if ring is not None and ring.user_group_id:
-            domain.append(("agent_id.groups_id", "in", ring.user_group_id.id))
+            # Odoo 19 renamed res.users.groups_id; the old name crashed every
+            # bullseye ring with a group (A03 audit M27 G10). all_group_ids
+            # also counts groups held through implication.
+            domain.append(("agent_id.all_group_ids", "in", ring.user_group_id.id))
         candidates = State.search(domain)
         candidates = candidates.filtered(lambda s: s.is_live())
 

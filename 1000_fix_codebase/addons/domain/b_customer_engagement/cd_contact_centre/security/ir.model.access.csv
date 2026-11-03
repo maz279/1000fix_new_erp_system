@@ -8,7 +8,8 @@ access_fix_cc_routing,fix.cc.routing.rule,model_fix_cc_routing_rule,base.group_u
 access_fix_cc_ivr,fix.cc.ivr.flow,model_fix_cc_ivr_flow,base.group_user,1,1,1,1
 access_fix_cc_outbound,fix.cc.outbound.list,model_fix_cc_outbound_list,base.group_user,1,1,1,1
 access_fix_cc_template,fix.cc.notif.template,model_fix_cc_notif_template,base.group_user,1,1,1,1
-access_fix_cc_qa,fix.cc.qa.evaluation,model_fix_cc_qa_evaluation,base.group_user,1,1,1,1
+access_fix_cc_qa,fix.cc.qa.evaluation,model_fix_cc_qa_evaluation,base.group_user,1,1,1,0
+access_fix_cc_qa_supervisor,fix.cc.qa.evaluation supervisor,model_fix_cc_qa_evaluation,cd_contact_centre.group_cc_supervisor,1,1,1,1
 access_fix_cc_wfm,fix.cc.wfm.shift,model_fix_cc_wfm_shift,base.group_user,1,1,1,1
 access_fix_assistant_dialogue,fix.assistant.dialogue,model_fix_assistant_dialogue,base.group_user,1,1,1,1
 access_fix_assistant_rag,fix.assistant.rag.source,model_fix_assistant_rag_source,base.group_user,1,1,1,1

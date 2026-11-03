@@ -126,17 +126,18 @@ def model_name() -> str:
     return os.environ.get(MODEL_ENV, "").strip()
 
 
-def configured() -> bool:
+def configured(model: str | None = None) -> bool:
     """Is a self-hosted runtime actually reachable-by-configuration?
 
     False is a normal, reportable answer: the caller falls back to its
-    rule-based grounders and says so, rather than failing.
+    rule-based grounders and says so, rather than failing. `model` is the
+    model named by the released Odoo bundle; the env var is only the fallback.
     """
     try:
         _validate_url(endpoint())
     except GenerationRefused:
         return False
-    return bool(model_name())
+    return bool(model or model_name())
 
 
 def generate(
@@ -146,18 +147,21 @@ def generate(
     profile: str = DEFAULT_PROFILE,
     max_tokens: int = 512,
     temperature: float = 0.2,
+    model: str | None = None,
 ) -> GenerationResult:
     """One non-streaming completion. Never raises for a transport failure.
 
     A low default temperature on purpose: this serves transactional intents
     and agent assistance, where a surprising answer is a worse answer.
+    `model` is the model named by the released Odoo bundle (A03 audit M32
+    G4); the env var is only the fallback when nothing is released.
     """
     url_base = endpoint()
     try:
         _validate_url(url_base)
     except GenerationRefused as exc:
         return GenerationResult(False, detail=str(exc))
-    model = model_name()
+    model = (model or "").strip() or model_name()
     if not model:
         return GenerationResult(
             False,

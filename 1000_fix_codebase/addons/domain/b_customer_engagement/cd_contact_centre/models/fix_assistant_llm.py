@@ -158,6 +158,7 @@ class FixAssistantAsk(models.Model):
 
     _name = "fix.assistant.ask"
     _description = "Assistant Grounded Answer"
+    _inherit = ["fix.guarded.mixin"]
     _order = "asked_at desc, id desc"
     _rec_name = "question"
 
@@ -248,14 +249,108 @@ class FixAssistantAsk(models.Model):
     human_reviewed_at = fields.Datetime(readonly=True)
     latency_ms = fields.Integer(readonly=True)
 
+    sent_at = fields.Datetime(
+        readonly=True,
+        copy=False,
+        help="When this answer reached the customer. Empty means it never did.",
+    )
+    sent_by = fields.Many2one("res.users", readonly=True, copy=False)
+    release_id = fields.Many2one(
+        "fix.assistant.dataset",
+        string="Released Bundle",
+        readonly=True,
+        help="The released NLU bundle (corpus, model, prompt) this answer ran on. "
+        "Empty means the explicit built-in fallback.",
+    )
+    runtime_basis = fields.Char(
+        readonly=True, help="Which model and prompt version produced the answer, and why."
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        # The audit row is evidence of what the assistant said and who checked
+        # it. The asker marked their own answer reviewed (A03 audit M32 G12).
+        return super()._fix_guarded_fields() | {
+            "asked_by",
+            "question",
+            "answer_bn",
+            "answer_en",
+            "grounded",
+            "citations",
+            "engine",
+            "provider_id",
+            "guardrail_verdict",
+            "guardrail_reason",
+            "requires_human",
+            "human_reviewed_by",
+            "human_reviewed_at",
+            "sent_at",
+            "sent_by",
+            "release_id",
+            "runtime_basis",
+        }
+
     def action_mark_reviewed(self):
+        """A person other than the asker checks the answer (four eyes, G12)."""
         for rec in self:
-            rec.write(
+            if rec.human_reviewed_by:
+                raise UserError(
+                    "This answer was already reviewed by %s." % rec.human_reviewed_by.name
+                )
+            if rec.engine == "refused":
+                raise UserError("A refused answer has nothing to review or send.")
+            if rec.asked_by == self.env.user:
+                raise UserError(
+                    "Segregation of duties: the person who asked for an AI answer "
+                    "cannot also review it. Another person must check it."
+                )
+            rec._guarded().write(
                 {
                     "human_reviewed_by": self.env.user.id,
                     "human_reviewed_at": fields.Datetime.now(),
                 }
             )
+        return True
+
+    def _assert_sendable(self):
+        self.ensure_one()
+        if self.sent_at:
+            raise UserError("This answer was already sent at %s." % self.sent_at)
+        if self.engine == "refused" or not self.grounded:
+            raise UserError("A refused or ungrounded answer is never sent to a customer.")
+        if self.requires_human and not self.human_reviewed_by:
+            raise UserError(
+                "This answer needs human review before it reaches the customer. "
+                "A person other than the asker must mark it reviewed first."
+            )
+        if self.requires_human and self.human_reviewed_by == self.asked_by:
+            raise UserError("The asker's own review does not count (four eyes).")
+
+    def action_send_to_customer(self):
+        """Put the answer on the conversation transcript (the send)."""
+        Turn = self.env["fix.conversation.turn"]
+        for rec in self:
+            rec._assert_sendable()
+            conv = rec.conversation_id
+            if not conv:
+                raise UserError(
+                    "This answer belongs to no conversation, so there is nobody to send it to."
+                )
+            if conv.state in ("resolved_ai", "resolved_agent", "abandoned"):
+                raise UserError("The conversation is closed; the answer can no longer be sent.")
+            text = (rec.answer_bn if rec.language == "bn" else rec.answer_en) or (
+                rec.answer_bn or rec.answer_en
+            )
+            seq = max(conv.turn_ids.mapped("sequence"), default=0) + 10
+            Turn.create(
+                {
+                    "conversation_id": conv.id,
+                    "sequence": seq,
+                    "speaker": "ai",
+                    "text": text,
+                    "lang": "bn" if rec.language == "bn" else "en",
+                }
+            )
+            rec._guarded().write({"sent_at": fields.Datetime.now(), "sent_by": self.env.user.id})
         return True
 
 
@@ -418,6 +513,8 @@ class FixAssistantGroundingService(models.Model):
                 guardrail_verdict="pass",
                 guardrail_reason=generative_note,
                 grounded=True,
+                release_id=grounded.get("release_id") or False,
+                runtime_basis=grounded.get("runtime_basis") or False,
                 citations=json.dumps(grounded.get("citations") or [], ensure_ascii=False),
                 answer_bn=grounded.get("bn") or "",
                 answer_en=grounded.get("en") or "",
@@ -506,6 +603,10 @@ class FixAssistantGroundingService(models.Model):
                 "reason": "The grounder for intent %r failed: %s" % (resolved_intent, exc),
                 "citations": [],
             }
+        if not answer.get("grounded") and answer.get("reason") == "no_grounding_source":
+            authored = self._authored_answer(resolved_intent)
+            if authored:
+                answer = authored
         citations = []
         if answer.get("grounded"):
             citations.append(
@@ -522,6 +623,24 @@ class FixAssistantGroundingService(models.Model):
             "reason": answer.get("reason") or "",
             "citations": citations,
         }
+
+    @api.model
+    def _authored_answer(self, intent):
+        """An authored knowledge answer (T08) for an intent that has one.
+
+        The live bot answered knowledge intents with authored text before it
+        went through ask() (A03 audit M32 G3). That text is reviewed copy, so
+        it counts as grounded, cited as authored rather than as a record."""
+        if not intent:
+            return None
+        engine, _release = self.env["fix.assistant.dataset"].runtime_engine()
+        defn = engine.intents.get(intent)
+        if not defn or defn.requires_grounding or defn.auto_handoff or not defn.resolvable_by_ai:
+            return None
+        authored = engine._synthesize_grounded_response(intent)
+        if not authored:
+            return None
+        return {"bn": authored[0], "en": authored[1], "grounded": True, "reason": "authored_answer"}
 
     # The system prompt. Deliberately narrow: this model serves transactional
     # intents for a repair business, and a model told it may answer anything
@@ -560,7 +679,27 @@ class FixAssistantGroundingService(models.Model):
                 "reason": "The conversational-ai service tree is not available "
                 "to this process, so nothing was generated.",
             }
-        if not client.configured():
+        # A03 audit M32 G4: the model and the prompt come from the RELEASED
+        # bundle, not from an env var and a code constant. Those remain only
+        # as the explicit, logged fallback when nothing is released.
+        release = self.env["fix.assistant.dataset"].runtime_release()
+        model = (release.model_name or "").strip() if release else ""
+        system = (release.system_prompt or "").strip() if release else ""
+        if not model or not system:
+            _logger.warning(
+                "Generation without a released model/prompt bundle: falling back to "
+                "%s and the built-in system prompt.",
+                client.MODEL_ENV,
+            )
+        basis = (
+            "release %s (model %s, prompt %s)"
+            % (release.name, model or client.MODEL_ENV, release.prompt_version or "-")
+            if release
+            else "fallback: %s and the built-in prompt" % client.MODEL_ENV
+        )
+        model = model or None
+        system = system or self._ASSIST_SYSTEM_PROMPT
+        if not client.configured(model=model):
             return {
                 "ok": False,
                 "reason": "No self-hosted model runtime is configured (%s / %s "
@@ -575,9 +714,10 @@ class FixAssistantGroundingService(models.Model):
         )
         result = client.generate(
             prompt,
-            system=self._ASSIST_SYSTEM_PROMPT,
+            system=system,
             profile=provider.latency_profile or "chat",
             max_tokens=provider.max_tokens or 512,
+            model=model,
         )
         if not result.ok:
             return {"ok": False, "reason": result.detail}
@@ -610,6 +750,8 @@ class FixAssistantGroundingService(models.Model):
                 },
             ],
         }
+        answer["release_id"] = release.id if release else False
+        answer["runtime_basis"] = basis
         return {"ok": True, "answer": answer, "text": result.text}
 
 

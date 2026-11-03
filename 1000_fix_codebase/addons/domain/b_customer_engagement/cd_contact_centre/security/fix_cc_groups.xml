@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M27 Contact Centre roles.
+
+  A03 audit M27 G9/G11: supervisor overrides (manual assignment, capacity
+  release), QA calibration and rubric publishing were open to every agent,
+  and a plain agent ran all of them. These decisions now need the supervisor
+  group. Membership is a business appointment, so no user is put in the group
+  here.
+-->
+<odoo>
+    <record id="group_cc_supervisor" model="res.groups">
+        <field name="name">Contact Centre Supervisor</field>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Assigns work by hand, releases held capacity, calibrates and finalises QA scores, and publishes or retires QA rubrics.</field>
+    </record>
+</odoo>

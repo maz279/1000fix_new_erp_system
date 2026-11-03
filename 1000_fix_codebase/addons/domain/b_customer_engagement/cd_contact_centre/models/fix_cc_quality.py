@@ -26,11 +26,12 @@ import re
 from collections import Counter
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
 from .assistant_engine import normalize_text
+from .fix_cc_workitem import assert_cc_supervisor
 
 # Stop words in both languages, so mining surfaces INTENTS rather than
 # grammar. Hand-listed because a runtime corpus download is not a dependency
@@ -103,7 +104,13 @@ class FixCcQaRubric(models.Model):
 
     _name = "fix.cc.qa.rubric"
     _description = "QA Rubric"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # An agent published a rubric by pressing Publish (A03 audit M27 Q3);
+        # the state moves only through the supervisor's publish and retire.
+        return super()._fix_guarded_fields() | {"state"}
+
     _order = "name"
 
     name = fields.Char(required=True)
@@ -154,10 +161,24 @@ class FixCcQaRubric(models.Model):
         self._assert_weights_total_100()
 
     def action_publish(self):
+        assert_cc_supervisor(self.env, "Publishing a QA rubric")
         for rec in self:
+            if rec.state != "draft":
+                raise UserError(
+                    "Only a draft rubric can be published (this one is %s)." % rec.state
+                )
             if not rec.criterion_ids:
                 raise UserError("A rubric with no criteria scores nothing.")
-            rec.state = "published"
+            rec._guarded().write({"state": "published"})
+        return True
+
+    def action_retire(self):
+        """Take a rubric out of use. It stays as the basis of its past scores."""
+        assert_cc_supervisor(self.env, "Retiring a QA rubric")
+        for rec in self:
+            if rec.state != "published":
+                raise UserError("Only a published rubric can be retired.")
+            rec._guarded().write({"state": "retired"})
         return True
 
     @api.model
@@ -267,9 +288,160 @@ class FixCcQaCriterion(models.Model):
 
 
 class FixCcQaEvaluationAtScale(models.Model):
-    """Extend the existing scorecard: who handled it, and auto-scoring."""
+    """Extend the existing scorecard: who handled it, and auto-scoring.
 
-    _inherit = "fix.cc.qa.evaluation"
+    A03 audit M27 G11: there was no dispute or calibration flow, and an agent
+    edited their own score from 40 to 100 and then deleted the row. A score is
+    now scored -> (disputed by the agent) -> in calibration -> final, the
+    scored agent can neither change nor delete it, and only a supervisor who
+    is not the scored agent calibrates or finalises it.
+    """
+
+    _name = "fix.cc.qa.evaluation"
+    _inherit = ["fix.cc.qa.evaluation", "fix.guarded.mixin"]
+
+    # What the score is. The scored agent never changes these; once the score
+    # is disputed or final only a transition does.
+    _SCORE_FIELDS = frozenset(
+        {"score", "criteria_json", "notes", "agent_id", "conversation_id", "rubric_id"}
+    )
+
+    state = fields.Selection(
+        [
+            ("scored", "Scored"),
+            ("disputed", "Disputed by the agent"),
+            ("in_calibration", "In calibration"),
+            ("final", "Final"),
+        ],
+        required=True,
+        default="scored",
+        index=True,
+    )
+    dispute_reason = fields.Text(readonly=True, copy=False)
+    disputed_at = fields.Datetime(readonly=True, copy=False)
+    original_score = fields.Integer(
+        readonly=True, copy=False, help="The score as it stood when it was disputed."
+    )
+    calibration_note = fields.Text(readonly=True, copy=False)
+    calibrated_by = fields.Many2one("res.users", readonly=True, copy=False)
+    finalised_at = fields.Datetime(readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "dispute_reason",
+            "disputed_at",
+            "original_score",
+            "calibration_note",
+            "calibrated_by",
+            "finalised_at",
+            "auto_scored",
+            "auto_score",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(
+            rec.agent_id == self.env.user or rec.state in ("disputed", "final") for rec in self
+        ):
+            locked |= self._SCORE_FIELDS
+        return locked
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_open():
+            for vals in vals_list:
+                if vals.get("agent_id") == self.env.user.id:
+                    raise UserError("An agent cannot score their own interaction.")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        touched = self._SCORE_FIELDS & set(vals)
+        if touched and self and not self._fix_guard_open():
+            supervisor = self.env.user.has_group("cd_contact_centre.group_cc_supervisor")
+            for rec in self:
+                changed = [n for n in touched if rec._fix_guard_differs(n, vals[n], rec[n])]
+                if not changed:
+                    continue
+                if rec.agent_id == self.env.user:
+                    raise UserError(
+                        "You cannot change your own QA score. Dispute it instead; a "
+                        "supervisor calibrates disputed scores."
+                    )
+                if rec.state in ("disputed", "final"):
+                    raise UserError("A %s QA score changes only through calibration." % rec.state)
+                if rec.state == "in_calibration" and not supervisor:
+                    raise UserError("Only a supervisor adjusts a score in calibration.")
+        return super().write(vals)
+
+    def unlink(self):
+        if not self._fix_guard_open():
+            for rec in self:
+                if rec.agent_id == self.env.user:
+                    raise UserError("You cannot delete your own QA evaluation.")
+                if rec.state != "scored":
+                    raise UserError("A disputed or calibrated QA evaluation is kept as evidence.")
+        return super().unlink()
+
+    def action_dispute(self, reason=""):
+        """The scored agent contests the score, with a reason."""
+        for rec in self:
+            if rec.agent_id != self.env.user:
+                raise UserError("Only the agent who was scored can dispute the score.")
+            if rec.state != "scored":
+                raise UserError(
+                    "Only a scored evaluation can be disputed (this one is %s)." % rec.state
+                )
+            if not (reason or "").strip():
+                raise UserError("A dispute needs the reason the score is wrong.")
+            rec._guarded().write(
+                {
+                    "state": "disputed",
+                    "dispute_reason": reason.strip(),
+                    "disputed_at": fields.Datetime.now(),
+                    "original_score": rec.score,
+                }
+            )
+        return True
+
+    def _assert_calibrator(self):
+        assert_cc_supervisor(self.env, "Calibrating a QA score")
+        for rec in self:
+            if rec.agent_id == self.env.user and not self.env.su:
+                raise AccessError("A supervisor cannot calibrate their own QA score.")
+
+    def action_send_to_calibration(self, note=""):
+        """A supervisor opens the score for calibration."""
+        self._assert_calibrator()
+        for rec in self:
+            if rec.state not in ("scored", "disputed"):
+                raise UserError("Only a scored or disputed evaluation goes to calibration.")
+            rec._guarded().write(
+                {
+                    "state": "in_calibration",
+                    "calibration_note": (note or "").strip() or rec.calibration_note,
+                    "original_score": rec.original_score or rec.score,
+                }
+            )
+        return True
+
+    def action_finalise(self, note=""):
+        """A supervisor closes the score: upheld, or as calibrated."""
+        self._assert_calibrator()
+        for rec in self:
+            if rec.state == "final":
+                raise UserError("This QA evaluation is already final.")
+            if rec.state == "disputed" and not (note or "").strip():
+                raise UserError("Finalising a disputed score needs the supervisor's ruling.")
+            rec._guarded().write(
+                {
+                    "state": "final",
+                    "calibration_note": (note or "").strip() or rec.calibration_note,
+                    "calibrated_by": self.env.user.id,
+                    "finalised_at": fields.Datetime.now(),
+                }
+            )
+        return True
 
     handled_by = fields.Selection(
         [("human", "Human agent"), ("ai", "AI assistant"), ("hybrid", "AI then human")],
@@ -355,6 +527,9 @@ class FixCcQaEvaluationAtScale(models.Model):
             ],
             limit=1,
         )
+        if existing and existing.state != "scored":
+            # A disputed or calibrated score is not overwritten by a re-run.
+            return existing
         vals = {
             "conversation_id": conversation.id,
             "agent_id": (conversation.agent_id or self.env.user).id,
