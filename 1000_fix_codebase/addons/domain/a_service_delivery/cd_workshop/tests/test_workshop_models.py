@@ -340,21 +340,38 @@ def test_qc_defaults_the_inspector_to_the_acting_user(ws):
 
 
 def test_qc_checks_the_test_instrument(ws):
+    """A07 audit M45-14: this test used to MOCK action_assert_usable and then
+    pass QC with a never-calibrated meter, certifying M45-1 as correct. It now
+    runs the real M45 gate: never calibrated, then failed, then passed."""
     env = ws.env
+    today = fields.Date.today()
     meter = env["fix.equipment"].create({"code": "WS-DMM-1", "name": "Bench DMM"})
     job = _job(ws, qc_inspector_id=ws.inspector.id, equipment_id=meter.id)
     _to_repair(ws, job)
     job.action_transition("qc_pending")
-    with (
-        patch.object(
-            type(meter), "action_assert_usable", side_effect=UserError("Calibration overdue")
-        ),
-        _refused(env, UserError, "Calibration overdue"),
-    ):
-        job.action_pass_qc()
     _evidence(ws, job)
+
+    def calibrate(on, result):
+        env["fix.calibration"].create(
+            {
+                "equipment_id": meter.id,
+                "calibrated_on": on,
+                "next_due": on + timedelta(days=365),
+                "standard_ref": "BSTI-REF-WS",
+                "result": result,
+            }
+        )
+
+    with _refused(env, UserError, "never been calibrated"):
+        job.action_pass_qc()
+    calibrate(today - timedelta(days=100), "pass")
+    calibrate(today - timedelta(days=1), "fail")  # the latest result rules
+    with _refused(env, UserError, "failed its latest calibration"):
+        job.action_pass_qc()
+    assert (job.state, job.qc_passed) == ("qc_pending", False)
+    calibrate(today, "pass")
     job.action_pass_qc()
-    assert job.state == "ready"
+    assert (job.state, job.qc_passed, job.equipment_id) == ("ready", True, meter)
 
 
 def test_failed_qc_raises_an_ncr_and_opens_one_rework_loop(ws):

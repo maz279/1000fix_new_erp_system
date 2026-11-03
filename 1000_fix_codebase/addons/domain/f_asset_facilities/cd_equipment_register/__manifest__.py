@@ -23,6 +23,8 @@ CD-M45-01 (P08-M08):
         "mail",
         "maintenance",
         "cd_entity_config",
+        # A07 P0 recipe: the write-off approval is routed by the M63 engine
+        "cd_workflow_engine",
         "cd_employee_core",
         "cd_event_outbox",
     ],

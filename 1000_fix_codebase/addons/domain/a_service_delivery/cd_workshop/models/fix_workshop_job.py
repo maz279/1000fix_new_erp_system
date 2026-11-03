@@ -132,6 +132,12 @@ GROUP_QC_INSPECTOR = "cd_workshop.group_fix_workshop_qc_inspector"
 BURN_IN_MIN_MINUTES_PARAM = "cd_workshop.burn_in_min_minutes"
 BURN_IN_MIN_MINUTES_DEFAULT = 240.0
 
+# A07 audit (2026-11-03) M45-4 / BRU-EAM-15: every QC pass names the test
+# instrument it was measured with. Live, 0 of 65 QC'd jobs name one and 7 of 13
+# instruments have never been calibrated, so enforcing it on deploy would stop
+# every QC pass: it is a business switch, off by default ("1"/"true" = on).
+QC_REQUIRES_INSTRUMENT_PARAM = "cd_workshop.qc_requires_instrument"
+
 # BER / scrap write-off ladder, from the tier labels already on the job
 # (Tier 2 ≤ 10,000 BDT, Tier 3 ≤ 50,000 BDT, Tier 4 above).
 BER_DOFA_THRESHOLDS = [
@@ -581,6 +587,11 @@ class FixWorkshopJob(models.Model):
                     frozen |= ROUTING_LOCKED_FIELDS
                 if rec.state in CLOSED_JOB_STATES:
                     frozen |= JOB_FROZEN_WHEN_CLOSED
+                # A07 audit (2026-11-03) M45-4: the instrument is the QC
+                # measurement evidence; it was frozen only once the job closed,
+                # so it could be cleared or swapped right after QC passed
+                if rec.qc_passed:
+                    frozen |= {"equipment_id"}
                 changed = sorted(
                     name
                     for name in frozen & set(vals)
@@ -1136,6 +1147,10 @@ class FixWorkshopJob(models.Model):
         )
         return True
 
+    def _m31_qc_requires_instrument(self) -> bool:
+        raw = self.env["ir.config_parameter"].sudo().get_param(QC_REQUIRES_INSTRUMENT_PARAM)
+        return str(raw or "").strip().lower() in ("1", "true", "yes")
+
     def _run_qc_inspection(self, passed: bool, notes: str = "") -> bool:
         """STUB-M31-M23-001: M31 Workshop Quality Gate -> M23 Quality Management (ISO).
 
@@ -1149,9 +1164,24 @@ class FixWorkshopJob(models.Model):
         self._m31_assert_qc_inspector()
 
         # M45 Test-Equipment Calibration check (ISO 9001 Clause 7.1.5);
-        # cd_equipment_register is a manifest dependency (the method always exists)
+        # cd_equipment_register is a manifest dependency (the method always exists).
+        # A07 audit (2026-11-03) M45-1/M45-4: the gate now refuses failed,
+        # never-calibrated, out-of-service and retired instruments, not only
+        # overdue ones. An instrument issued to the inspector or to this job's
+        # repairing technician is on this bench and counts as in service.
+        if (
+            passed
+            and not self.equipment_id
+            and not self.env.su
+            and self._m31_qc_requires_instrument()
+        ):
+            raise UserError(
+                "BRU-EAM-15: name the test instrument used for this QC inspection "
+                "before passing job %s." % self.name
+            )
         if self.equipment_id:
-            self.equipment_id.action_assert_usable()
+            holder = self.env.user.sudo().employee_ids | self.sudo().technician_id
+            self.equipment_id.action_assert_usable(holder=holder)
 
         self._guarded().write(
             {

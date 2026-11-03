@@ -41,23 +41,36 @@ def _calibrate(env, equipment, calibrated_on, next_due, result="pass"):
     )
 
 
-def test_uncalibrated_equipment_has_no_dates_and_is_usable(odoo_env):
+def test_uncalibrated_equipment_has_no_dates_and_is_not_usable(odoo_env):
+    """A07 audit M45-1: 'no due date' was treated as fit. No calibration means
+    no certificate, so the instrument is unfit."""
     eq = _equipment(odoo_env)
     assert eq.last_calibration is False
     assert eq.next_calibration is False
     assert eq.calibration_overdue is False
-    assert eq.action_assert_usable() is True
+    assert eq.calibration_state == "never"
+    with pytest.raises(UserError, match="never been calibrated"):
+        eq.action_assert_usable()
 
 
-def test_calibration_dates_come_from_passing_records_only(odoo_env):
+def test_the_latest_calibration_decides(odoo_env):
+    """A07 audit M45-1: fitness was the max next_due of PASSING rows, so a
+    later FAIL changed nothing. The latest calibration now rules."""
     eq = _equipment(odoo_env)
     _calibrate(odoo_env, eq, TODAY - timedelta(days=400), TODAY - timedelta(days=35))
     _calibrate(odoo_env, eq, TODAY - timedelta(days=30), TODAY + timedelta(days=335))
-    # a later FAILED calibration never extends the due date
-    _calibrate(odoo_env, eq, TODAY - timedelta(days=1), TODAY + timedelta(days=900), "fail")
-    assert eq.last_calibration == TODAY - timedelta(days=30)
     assert eq.next_calibration == TODAY + timedelta(days=335)
-    assert eq.calibration_overdue is False
+    assert eq.action_assert_usable() is True
+    # a later FAILED calibration withdraws the earlier pass and never gives a due date
+    _calibrate(odoo_env, eq, TODAY - timedelta(days=1), TODAY + timedelta(days=900), "fail")
+    assert eq.last_calibration == TODAY - timedelta(days=1)
+    assert eq.next_calibration is False
+    assert eq.calibration_state == "failed"
+    with pytest.raises(UserError, match="failed its latest calibration"):
+        eq.action_assert_usable()
+    # re-calibrated and passed: fit again
+    _calibrate(odoo_env, eq, TODAY, TODAY + timedelta(days=365))
+    assert (eq.calibration_state, eq.next_calibration) == ("current", TODAY + timedelta(days=365))
     assert eq.action_assert_usable() is True
 
 
@@ -65,6 +78,7 @@ def test_overdue_calibration_blocks_use(odoo_env):
     eq = _equipment(odoo_env)
     _calibrate(odoo_env, eq, TODAY - timedelta(days=400), TODAY - timedelta(days=1))
     assert eq.calibration_overdue is True
+    assert eq.calibration_state == "overdue"
     with pytest.raises(UserError, match="Calibration overdue on Fluke 117 Multimeter"):
         eq.action_assert_usable()
 
@@ -94,7 +108,8 @@ def test_failing_a_calibration_withdraws_its_dates(odoo_env):
     assert eq.next_calibration == TODAY + timedelta(days=355)
     cal.write({"result": "fail"})
     assert eq.next_calibration is False
-    assert eq.last_calibration is False
+    assert eq.last_calibration == TODAY - timedelta(days=10)  # the event still happened
+    assert eq.calibration_state == "failed"
 
 
 def test_calibration_publishes_recorded_event(odoo_env):
