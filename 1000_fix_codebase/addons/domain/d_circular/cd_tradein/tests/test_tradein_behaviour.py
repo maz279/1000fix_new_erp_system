@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 import pytest
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import UserError, ValidationError
 
 TRD = "fix.tradein.request"
@@ -36,6 +37,8 @@ def _grade(env, code):
 
 def _request(env, **vals):
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
+    # An identified seller: payout refuses without a Smart NID (AML gate).
+    vals.setdefault("customer_nid", "1990123456")
     if vals.get("wipe_certificate_id") and "device_id" not in vals:
         vals["device_id"] = _device(env).id  # the device the certificate certifies
     return env[TRD].create(vals)
@@ -72,11 +75,34 @@ def _approver(env):
     return user
 
 
+def _dofa_approver(env):
+    login = "tradein-dofa-tier1"
+    return env["res.users"].search([("login", "=", login)], limit=1) or env["res.users"].create(
+        {
+            "name": "Trade-in DOFA Tier 1",
+            "login": login,
+            "group_ids": [
+                (
+                    6,
+                    0,
+                    [
+                        env.ref("base.group_user").id,
+                        env.ref("cd_entity_config.group_dofa_tier_1").id,
+                    ],
+                )
+            ],
+        }
+    )
+
+
 def _approved(env, rec, value):
-    """Graded value entered, requested (superuser) and approved (4-eyes)."""
+    """Graded value entered, requested (superuser) and approved (4-eyes),
+    then the DOFA tier the amount needs signed off from the M63 inbox."""
     rec.write({"graded_value": value})
     rec.action_request_payout_approval()
     rec.with_user(_approver(env)).sudo().action_approve_payout()
+    if rec.dofa_tier_required not in (False, "tier_0"):
+        approve_via_inbox(rec, _dofa_approver(env), justification="Trade-in payout")
     return rec
 
 
@@ -444,6 +470,15 @@ def test_pay_only_from_graded_or_resale_ready(odoo_env):
     rec = _in(odoo_env, "refurbished", offered_value=100)
     with pytest.raises(UserError, match="Payout from graded or resale-ready"):
         rec.action_pay()
+
+
+def test_pay_refuses_an_unidentified_seller(odoo_env):
+    """AML / ITA 2023: no trade-in money leaves without the seller's Smart NID."""
+    rec = _in(odoo_env, "graded", offered_value=15000, customer_nid=False)
+    _approved(odoo_env, rec, 12500)
+    with pytest.raises(UserError, match="Smart NID is required"):
+        rec.action_pay()
+    assert rec.state == "graded" and not rec.payout_execution_id
 
 
 @pytest.mark.parametrize("state", ["graded", "resale_ready"])

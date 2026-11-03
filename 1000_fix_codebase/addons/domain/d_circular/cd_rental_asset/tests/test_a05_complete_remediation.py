@@ -43,10 +43,16 @@ class TestA05CompleteRemediation(unittest.TestCase):
         self.assertIn("net_book_value", src)
 
     def test_m13_deposit_gl_integration_declared(self):
-        """FixRentalDeposit must declare GL journal entry link."""
+        """FixRentalDeposit must declare GL journal entry link.
+
+        The deposit used to carry a "GL Ready" placeholder; it now posts every
+        non-refund movement to the General Ledger (_post_gl) and queues refunds
+        with treasury, so the contract checked is the real one."""
         self.assertTrue(hasattr(FixRentalDeposit, "journal_entry_id"))
         src = inspect.getsource(FixRentalDeposit._post)
-        self.assertIn("GL Ready", src)
+        self.assertIn("rec._post_gl()", src)
+        self.assertIn("rec._queue_refund()", src)
+        self.assertTrue(hasattr(FixRentalDeposit, "_post_gl"))
 
     def test_m14_refurbishment_methods_activated(self):
         """FixRefurbishment must not be a passive stub; methods must be defined."""
