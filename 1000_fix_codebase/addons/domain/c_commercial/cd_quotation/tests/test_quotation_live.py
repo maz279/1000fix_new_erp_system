@@ -4,6 +4,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 from odoo.exceptions import UserError
 
 # per-run tag: unique keys never collide with a concurrent run on fix_test
@@ -59,7 +60,20 @@ def ctx(odoo_env):
             "group_ids": [(6, 0, [env.ref("base.group_user").id])],
         }
     )
-    return SimpleNamespace(env=env, ou=ou, order=order, clerk=clerk)
+
+    def _holder(name, tier):
+        groups = [env.ref("base.group_user").id, env.ref(f"cd_entity_config.group_dofa_{tier}").id]
+        return env["res.users"].create(
+            {"name": name, "login": f"qt-{tier}-{TAG}", "group_ids": [(6, 0, groups)]}
+        )
+
+    # 5-10% is the branch manager's (Tier 2), above 10% the commercial
+    # director's (Tier 3) - matrix 05-04 s.7, not "anyone" and "IT admin".
+    manager = _holder("Branch Manager", "tier_2")
+    director = _holder("Commercial Director", "tier_3")
+    return SimpleNamespace(
+        env=env, ou=ou, order=order, clerk=clerk, manager=manager, director=director
+    )
 
 
 def _estimate(ctx, **vals):
@@ -157,9 +171,12 @@ def test_agent_authority_auto_approves_up_to_five_percent(ctx, pct, state):
 
 def test_manager_band_discount_is_approved_and_published(ctx):
     approval = _approval(ctx, _estimate(ctx), 8.0)
-    approval.with_user(ctx.clerk).action_approve()  # 8% <= the 10% manager cap
+    with pytest.raises(UserError, match="approver's inbox"), ctx.env.cr.savepoint():
+        approval.with_user(ctx.clerk).action_approve()  # R7: never pressed directly
+    approve_via_inbox(approval, ctx.manager)  # 8% <= the 10% manager cap
+    assert ctx.clerk not in assigned(approval)  # a front-desk agent is not routed to
     assert approval.state == "approved"
-    assert approval.approved_by == ctx.clerk
+    assert approval.approved_by == ctx.manager
     assert _events(ctx.env, "discount.approved", "fix.discount.approval", approval.id) == [
         {"pct": 8.0}
     ]
@@ -167,12 +184,11 @@ def test_manager_band_discount_is_approved_and_published(ctx):
 
 def test_director_band_discount_needs_a_system_approver(ctx):
     approval = _approval(ctx, _estimate(ctx), 12.0)
-    with (
-        pytest.raises(UserError, match=r"above 10.0% require commercial-director approval"),
-        ctx.env.cr.savepoint(),
-    ):
+    with pytest.raises(UserError, match="approver's inbox"), ctx.env.cr.savepoint():
         approval.with_user(ctx.clerk).action_approve()
     assert approval.state == "pending"
-    approval.action_approve()  # the superuser holds base.group_system
+    approve_via_inbox(approval, ctx.director)
+    # 12% is the commercial director's: the branch manager is not routed to.
+    assert ctx.manager not in assigned(approval)
     assert approval.state == "approved"
-    assert approval.approved_by == ctx.env.user
+    assert approval.approved_by == ctx.director

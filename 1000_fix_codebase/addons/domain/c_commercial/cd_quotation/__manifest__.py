@@ -18,7 +18,14 @@ CD-M36-02/03: quotation and estimation.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Quotations",
-    "depends": ["base", "mail", "cd_entity_config", "cd_event_outbox", "cd_service_order"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_event_outbox",
+        "cd_service_order",
+        "cd_workflow_engine",
+    ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",

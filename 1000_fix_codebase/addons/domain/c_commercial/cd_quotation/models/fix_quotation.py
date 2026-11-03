@@ -98,7 +98,13 @@ class FixDiscountApproval(models.Model):
 
     _name = "fix.discount.approval"
     _description = "Discount Approval"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
+
+    # A03 audit R7: a discount above the agent's 5% is approved from the
+    # approver's M63 inbox (Request Approval), not by pressing Approve.
+    _approval_domain = "discount"
+    _approval_apply_method = "action_approve"
+    _approval_routed = True
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -116,28 +122,69 @@ class FixDiscountApproval(models.Model):
         tracking=True,
     )
     approved_by = fields.Many2one("res.users", readonly=True)
+    rejection_reason = fields.Char(readonly=True)
     # Authority matrix (05-04 section 7): agent 5%, branch manager 10%,
     # above that the commercial director.
     AGENT_MAX = 5.0
     MANAGER_MAX = 10.0
+
+    def _fix_guarded_fields(self) -> set:
+        # A 15% approval was set by writing state='approved' (A03 audit).
+        return super()._fix_guarded_fields() | {"state", "approved_by", "rejection_reason"}
 
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         for rec in records:
             if rec.discount_pct <= self.AGENT_MAX:
-                rec.state = "approved"  # within delegated authority
+                rec._guarded().write({"state": "approved"})  # within delegated authority
         return records
 
+    def _approval_needed(self) -> bool:
+        return self.state == "pending" and self.discount_pct > self.AGENT_MAX
+
+    def _approval_amount(self) -> float:
+        return self.discount_pct
+
+    def _approval_group_xmlid(self):
+        if self.discount_pct > self.MANAGER_MAX:
+            return "cd_entity_config.group_dofa_tier_3"
+        return "cd_entity_config.group_dofa_tier_2"
+
+    def _approval_on_rejected(self, comment):
+        for approval in self.filtered(lambda a: a.state == "pending"):
+            approval._guarded().write({"state": "rejected", "rejection_reason": comment})
+
     def action_approve(self):
+        self._approval_assert_routed()
         for approval in self:
-            if approval.discount_pct > self.MANAGER_MAX and not self.env.user.has_group(
-                "base.group_system"
-            ):
+            if approval.state != "pending":
+                raise UserError("Only a pending discount request can be approved")
+            # 5-10% is the branch manager's; above that the commercial
+            # director's. It was "anyone" and "base.group_system" (an IT
+            # admin role), with no segregation of duties (A03 audit).
+            needed = (
+                "cd_entity_config.group_dofa_tier_3"
+                if approval.discount_pct > self.MANAGER_MAX
+                else "cd_entity_config.group_dofa_tier_2"
+            )
+            # A delegate decides with the absent approver's authority.
+            if not approval._approval_authority_user().has_group(needed):
+                if approval.discount_pct > self.MANAGER_MAX:
+                    raise UserError(
+                        "Discounts above %.1f%% require commercial-director approval "
+                        "(DOFA Tier 3)" % self.MANAGER_MAX
+                    )
                 raise UserError(
-                    "Discounts above %.1f%% require commercial-director approval" % self.MANAGER_MAX
+                    "Discounts above %.1f%% require branch-manager approval (DOFA Tier 2)"
+                    % self.AGENT_MAX
                 )
-            approval.write({"state": "approved", "approved_by": self.env.user.id})
+            if approval.create_uid in approval._approval_acting_users():
+                raise UserError(
+                    "Segregation of duties: you requested this discount, so someone "
+                    "else must approve it."
+                )
+            approval._guarded().write({"state": "approved", "approved_by": self.env.user.id})
             publish(
                 self.env,
                 "discount.approved",
@@ -145,3 +192,14 @@ class FixDiscountApproval(models.Model):
                 approval.id,
                 {"pct": approval.discount_pct},
             )
+
+    def action_reject(self, reason=None):
+        """There was no way to refuse a discount request. Since R7 a rejection
+        is an approver's decision, taken from their M63 inbox."""
+        self._approval_assert_routed()
+        if not (reason or "").strip():
+            raise UserError("A rejected discount request needs its reason")
+        for approval in self:
+            if approval.state != "pending":
+                raise UserError("Only a pending discount request can be rejected")
+            approval._guarded().write({"state": "rejected", "rejection_reason": reason})
