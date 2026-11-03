@@ -51,8 +51,11 @@ class FixSegment(models.Model):
         if not partner_ids:
             raise ValidationError("add_members needs partner ids")
         Membership = self.env["fix.segment.membership"]
+        partners = self.env["res.partner"].browse(partner_ids).exists()
+        # A segment feeds campaigns: commercial use (A03 audit M33-3).
+        partners._fix_assert_party_usable("segment membership")
         for segment in self:
-            for partner in self.env["res.partner"].browse(partner_ids).exists():
+            for partner in partners:
                 membership = Membership.search(
                     [("segment_id", "=", segment.id), ("partner_id", "=", partner.id)], limit=1
                 )
@@ -112,3 +115,30 @@ class FixSegmentMembership(models.Model):
     company_id = fields.Many2one(
         "res.company", string="Company", required=True, default=lambda self: self.env.company
     )
+
+    @api.model
+    def consume_party_merged(self, event):
+        """R8 consumer: current memberships follow the party to the survivor.
+
+        Where the survivor is already a member of the segment the victim's
+        membership is closed (UNIQUE segment/partner), never deleted; past
+        memberships stay on the victim as history. Idempotent: a second
+        delivery finds no current membership on the victim."""
+        parties = self.env["res.partner"]._fix_merge_event_parties(event)
+        if not parties:
+            return 0
+        survivor, victim = parties
+        Membership = self.sudo()
+        current = Membership.search([("partner_id", "=", victim.id), ("exited_at", "=", False)])
+        for membership in current:
+            held = Membership.search(
+                [("segment_id", "=", membership.segment_id.id), ("partner_id", "=", survivor.id)],
+                limit=1,
+            )
+            if held:
+                membership.write({"exited_at": fields.Datetime.now()})
+                if held.exited_at:
+                    held.write({"exited_at": False, "entered_at": fields.Datetime.now()})
+            else:
+                membership.write({"partner_id": survivor.id})
+        return len(current)

@@ -164,12 +164,14 @@
         <field name="arch" type="xml">
             <form string="Registration Approval">
                 <header>
-                    <button name="action_lm_approve" type="object" string="Approve (Client Line Manager)"
-                            class="btn-primary" invisible="lm_state != 'pending'"/>
-                    <button name="action_admin_approve" type="object" string="Approve (1000FiX Administrator)"
-                            class="btn-primary" invisible="admin_state != 'pending' or lm_state != 'approved'"/>
-                    <button name="action_reject" type="object" string="Reject"
-                            invisible="lm_state == 'rejected' or admin_state == 'rejected'"/>
+                    <!-- A03 audit M33-1: each step is decided from the M63 approval
+                         inbox, by a different person; this form only routes it. -->
+                    <field name="approval_state" invisible="1"/>
+                    <button name="action_request_approval" type="object" string="Request Approval"
+                            class="btn-primary"
+                            invisible="approval_state == 'pending' or admin_state != 'pending' or lm_state == 'rejected'"/>
+                    <button name="action_recall_approval" type="object" string="Recall Approval Request"
+                            invisible="approval_state != 'pending'"/>
                     <field name="lm_state" widget="statusbar" statusbar_visible="pending,approved,rejected"/>
                 </header>
                 <sheet>
@@ -577,6 +579,14 @@
         <field name="model">fix.identity.document</field>
         <field name="arch" type="xml">
             <form string="Identity Document">
+                <header>
+                    <!-- A03 audit M33-9: KYC is a steward decision that stamps the verifier. -->
+                    <button name="action_kyc_submit" type="object" string="Submit for Verification"
+                            invisible="verification_status not in ('unverified', 'failed')"/>
+                    <button name="action_kyc_verify" type="object" string="Verify (Data Steward)"
+                            class="btn-primary"
+                            invisible="verification_status not in ('unverified', 'pending')"/>
+                </header>
                 <sheet>
                     <div class="oe_title"><h2>Identity Document</h2></div>
                     <group>
@@ -588,7 +598,8 @@
                             <field name="is_primary"/>
                         </group>
                         <group string="Verification">
-                            <field name="verification_status"/>
+                            <field name="verification_status" readonly="1"/>
+                            <field name="verification_note" readonly="1"/>
                             <field name="checksum_valid" readonly="1"/>
                             <field name="verified_by" readonly="1"/>
                             <field name="verified_at" readonly="1"/>

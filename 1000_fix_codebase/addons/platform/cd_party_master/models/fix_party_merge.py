@@ -10,6 +10,8 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
+from .fix_party_security import STEWARD_GROUP, require_group
+
 
 class FixPartyMerge(models.Model):
     """One supervised merge: survivor updated, victim tombstoned, party-owned
@@ -17,7 +19,18 @@ class FixPartyMerge(models.Model):
 
     _name = "fix.party.merge"
     _description = "Supervised Party Merge"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # state='executed' with a forged executor moved nothing (A03 audit).
+        return super()._fix_guarded_fields() | {
+            "state",
+            "executed_by",
+            "executed_at",
+            "reversible_until",
+            "attribute_decisions",
+        }
+
     _order = "requested_at desc, id desc"
 
     survivor_id = fields.Many2one(
@@ -64,6 +77,9 @@ class FixPartyMerge(models.Model):
     def action_execute(self):
         """Execute the supervised merge. All activity transfers (BRU-CPM-05):
         nothing is deleted — the victim is tombstoned as 'merged'."""
+        # "Only a data steward executes" (module header) had no group behind
+        # it: any user with Contact write could merge (A03 audit M33-6).
+        require_group(self.env, STEWARD_GROUP, "Executing a party merge")
         for merge in self:
             if merge.state != "draft":
                 raise ValidationError("Only a draft merge can be executed")
@@ -128,8 +144,8 @@ class FixPartyMerge(models.Model):
                 "skipped": skips,
                 "victim_prior_status": victim.party_status,
             }
-            victim.write({"party_status": "merged", "active": False})
-            merge.write(
+            victim._guarded().write({"party_status": "merged", "active": False})
+            merge._guarded().write(
                 {
                     "state": "executed",
                     "executed_by": self.env.user.id,
@@ -147,10 +163,15 @@ class FixPartyMerge(models.Model):
                 "res.partner",
                 survivor.id,
                 {
+                    # Consumers key on these two; never rename them (the
+                    # loyalty and service-order consumers read them).
                     "survivor_id": survivor.id,
                     "victim_id": victim.id,
                     # All subscribers re-point their own references (§12.3)
                     "mandated_consumers": "all",
+                    # Added for the R8 consumers: which merge, and when.
+                    "merge_id": merge.id,
+                    "executed_at": fields.Datetime.to_string(merge.executed_at),
                 },
             )
         return True
@@ -161,6 +182,7 @@ class FixPartyMerge(models.Model):
         (the UNIQUE parent/child/relation rule makes verbatim restore
         unsafe) — the steward re-links, honestly recorded. Downstream
         re-points unwind on party.merge_reversed."""
+        require_group(self.env, STEWARD_GROUP, "Reversing a party merge")
         for merge in self:
             if merge.state != "executed":
                 raise ValidationError("Only an executed merge can be reversed")
@@ -172,10 +194,12 @@ class FixPartyMerge(models.Model):
                 if not ids or model_name == "fix.party.hierarchy":
                     continue  # hierarchy has no partner_id — steward re-links
                 self.env[model_name].browse(ids).exists().write({"partner_id": victim.id})
-            victim.with_context(skip_party_status_guard=True).write(
+            # _guarded(), not a context flag: a JSON-RPC caller can set any
+            # context key, so a flag would let anyone un-tombstone a party.
+            victim._guarded().write(
                 {"party_status": audit.get("victim_prior_status") or "active", "active": True}
             )
-            merge.state = "reversed"
+            merge._guarded().write({"state": "reversed"})
             from libs.py.fix_events import publish
 
             publish(
@@ -183,6 +207,6 @@ class FixPartyMerge(models.Model):
                 "party.merge_reversed",
                 "res.partner",
                 survivor.id,
-                {"survivor_id": survivor.id, "restored_id": victim.id},
+                {"survivor_id": survivor.id, "restored_id": victim.id, "merge_id": merge.id},
             )
         return True

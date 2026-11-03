@@ -70,12 +70,25 @@ class FixPartyRole(models.Model):
     # Event emission (AS-08, via fix_events)
     @api.model_create_multi
     def create(self, vals_list):
+        # An active role lets the party trade in it (A03 audit M33-3).
+        Partner = self.env["res.partner"]
+        for vals in vals_list:
+            if vals.get("role_status") == "active" and vals.get("partner_id"):
+                Partner.browse(vals["partner_id"])._fix_assert_party_usable(
+                    "an active %s role" % vals.get("role_type")
+                )
         records = super().create(vals_list)
         for rec in records:
             self._emit_party_event("party.role_added", rec)
         return records
 
+    def _fix_assert_role_party_usable(self):
+        for rec in self:
+            rec.partner_id._fix_assert_party_usable("an active %s role" % rec.role_type)
+
     def write(self, vals):
+        if vals.get("role_status") == "active":
+            self.filtered(lambda r: r.role_status != "active")._fix_assert_role_party_usable()
         result = super().write(vals)
         if "role_status" in vals:
             for rec in self:

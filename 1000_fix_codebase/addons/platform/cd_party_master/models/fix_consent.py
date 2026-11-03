@@ -9,7 +9,18 @@
 #  - withdrawal is APPEND-ONLY: the granted row is never rewritten to look
 #    withdrawn — a NEW withdrawn record supersedes it and both stay forever.
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
+
+# What a consent row SAYS. Captured once; a later change is a new row.
+_CONSENT_DECISION_FIELDS = {
+    "purpose",
+    "channel",
+    "date_granted",
+    "notice_version_id",
+    "wording_hash",
+    "proof",
+    "source",
+}
 
 
 class FixConsent(models.Model):
@@ -18,8 +29,40 @@ class FixConsent(models.Model):
 
     _name = "fix.consent"
     _description = "Consent Record"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "partner_id, purpose, channel, date_granted desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # The append-only rule was a comment: rewriting a withdrawn row to
+        # 'granted' turned consent_check from refused to allowed (A03 audit).
+        # Under the GDPR Art. 7 / PDPO 2025 burden of proof, a consent row the
+        # business can edit proves nothing.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "date_withdrawn",
+            "supersedes_id",
+            "superseded_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        # Captured once: on an existing row the decision fields are history.
+        locked = super()._fix_form_locked_fields()
+        return locked | _CONSENT_DECISION_FIELDS if self else locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            changed = {
+                name
+                for rec in self
+                for name in _CONSENT_DECISION_FIELDS & set(vals)
+                if rec._fix_guard_differs(name, vals[name], rec[name])
+            }
+            if changed:
+                raise UserError(
+                    "A consent record cannot be edited once captured (%s). Record "
+                    "a new consent, or withdraw this one." % ", ".join(sorted(changed))
+                )
+        return super().write(vals)
 
     partner_id = fields.Many2one(
         "res.partner", string="Party", required=True, ondelete="cascade", index=True
@@ -123,7 +166,7 @@ class FixConsent(models.Model):
                 raise ValidationError(
                     "Only a granted consent can be withdrawn — this record is %s" % consent.state
                 )
-            withdrawal = self.create(
+            withdrawal = self._guarded().create(
                 {
                     "partner_id": consent.partner_id.id,
                     "purpose": consent.purpose,
@@ -138,7 +181,7 @@ class FixConsent(models.Model):
                     "company_id": consent.company_id.id,
                 }
             )
-            consent.write({"superseded_by_id": withdrawal.id, "state": "superseded"})
+            consent._guarded().write({"superseded_by_id": withdrawal.id, "state": "superseded"})
             self._emit_consent_event("consent.withdrawn", withdrawal)
         return True
 

@@ -4,12 +4,40 @@
 # masters. This extension carries the kernel's Bengali-first fields, the
 # language default the dispatcher and reports read, and the party status
 # lifecycle (spec §8.1) with its hard exits.
-from odoo import fields, models
-from odoo.exceptions import ValidationError
+import logging
+
+from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
+
+# States a party may be moved INTO by hand: they restrict what it can do.
+# Moving a party to 'active' grants it the right to transact, so that goes
+# through the registration approval or action_reactivate_party.
+# 'pending_approval' is NOT here: only opening a registration approval sets
+# it (A03 audit M33-3), so the status always has an approval behind it.
+_RESTRICTIVE_STATUSES = {"dormant", "blocked", "credit_hold", "blacklisted"}
+
+# BRU-CPM-02: these classes transact only after the two-step registration.
+REGISTERED_CLASSES = ("dealer", "corporate", "government")
+
+# A party in one of these is never usable downstream, whatever the policy.
+_UNUSABLE_STATUSES = {
+    "merged": "it was merged into another party; use the surviving record",
+    "blacklisted": "it is blacklisted (BRU-CPM-13)",
+    "blocked": "it is blocked",
+    "pending_approval": "its registration approval is not complete (BRU-CPM-02)",
+}
+
+# ir.config_parameter: what a 'draft' (unverified) party may do downstream.
+# allow (default, today's behaviour) | warn | refuse. A business ruling.
+DRAFT_POLICY_PARAM = "cd_party_master.draft_party_policy"
+DRAFT_POLICIES = ("allow", "warn", "refuse")
 
 
 class ResPartner(models.Model):
-    _inherit = "res.partner"
+    _name = "res.partner"
+    _inherit = ["res.partner", "fix.guarded.mixin"]
 
     name_bn = fields.Char(
         string="Name (Bengali)",
@@ -43,6 +71,20 @@ class ResPartner(models.Model):
         help="The party lifecycle. BLACKLISTED is terminal: reinstatement "
         "requires CEO authority (BRU-CPM-13) and is refused by the system.",
     )
+    party_class = fields.Selection(
+        [
+            ("individual", "Individual / Retail"),
+            ("dealer", "Dealer"),
+            ("corporate", "Corporate"),
+            ("government", "Government"),
+        ],
+        string="Party Class",
+        default="individual",
+        required=True,
+        tracking=True,
+        help="Dealer, corporate and government parties open a two-step registration "
+        "approval automatically and transact only once it is complete (BRU-CPM-02).",
+    )
     status_reason = fields.Char(string="Status Reason")
     status_since = fields.Date(string="Status Since", default=fields.Date.today)
     # --- kernel one-to-many surfaces ----------------------------------------
@@ -71,14 +113,74 @@ class ResPartner(models.Model):
         help="MIG-03: permanent source system reference (FR-SRM-088)",
     )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        # The create path skipped the status rules: a party could be BORN
+        # 'active' or 'pending_approval' with no decision behind it.
+        if not self._fix_guard_has_token():
+            for vals in vals_list:
+                status = vals.get("party_status") or "draft"
+                if status == "pending_approval":
+                    self._fix_refuse_pending_approval()
+                if status not in _RESTRICTIVE_STATUSES | {"draft"} and not self.env.su:
+                    raise UserError(
+                        "A new party starts as 'draft'. It becomes '%s' only through its "
+                        "registration approval or 'Reactivate Party'." % status
+                    )
+        partners = super().create(vals_list)
+        partners._fix_open_registration()
+        return partners
+
+    def _fix_refuse_pending_approval(self):
+        raise UserError(
+            "'Pending Approval' is set only by opening a registration approval. Set the "
+            "party class to Dealer, Corporate or Government and the approval opens itself."
+        )
+
     def write(self, vals):
+        if self._fix_guard_has_token():
+            # A transition (approval, merge, reversal) owns this write.
+            return super().write(vals)
+        if vals.get("party_status") == "pending_approval" and any(
+            p.party_status != "pending_approval" for p in self
+        ):
+            # Binds the superuser too: the status must have an approval behind it.
+            self._fix_refuse_pending_approval()
+        class_changed = self.browse()
+        if "party_class" in vals:
+            class_changed = self.filtered(lambda p: p.party_class != vals["party_class"])
+            for partner in class_changed:
+                if partner._fix_open_registration_approval():
+                    raise UserError(
+                        "%s has a registration approval in progress. Have it decided "
+                        "(approved or rejected) before changing the party class."
+                        % partner.display_name
+                    )
+        result = self._fix_write_status_rules(vals)
+        class_changed._fix_open_registration()
+        return result
+
+    def _fix_write_status_rules(self, vals):
         # BRU-CPM-13: blacklisted is terminal below CEO authority — the
         # system refuses the transition outright (the CEO path is a
         # governance action outside this model). fix.party.merge's reversal
-        # passes skip_party_status_guard to restore its own tombstone.
-        if "party_status" in vals and not self.env.context.get("skip_party_status_guard"):
+        # restores its own tombstone through _guarded().
+        # The hard exits below bind everyone, superuser included; only a
+        # merge reversal (holding the transition token) restores a tombstone.
+        # The activation rule binds people, not system code.
+        if "party_status" in vals:
             new_status = vals["party_status"]
             for partner in self:
+                if new_status == partner.party_status:
+                    continue
+                if new_status not in _RESTRICTIVE_STATUSES and not self.env.su:
+                    # draft -> active and blocked -> active were plain writes
+                    # (A03 audit). Activation is a decision with an owner.
+                    raise UserError(
+                        "A party becomes '%s' only through its registration approval "
+                        "or 'Reactivate Party' (DOFA Tier 2 with a reason), not by "
+                        "editing the status." % new_status
+                    )
                 if partner.party_status == "blacklisted" and new_status != "blacklisted":
                     raise ValidationError(
                         "A blacklisted party cannot be reactivated below CEO "
@@ -90,6 +192,159 @@ class ResPartner(models.Model):
                         "merge (fix.party.merge.action_reverse)"
                     )
         return super().write(vals)
+
+    def action_reactivate_party(self, reason=None):
+        """Return a draft, dormant, blocked or credit-held party to 'active'.
+
+        The governed alternative to editing party_status. Blacklisted and
+        merged parties are refused by the hard exits above."""
+        if not (reason or "").strip():
+            raise ValidationError("Reactivating a party needs a written reason.")
+        if not self.env.user.has_group("cd_entity_config.group_dofa_tier_2"):
+            raise UserError(
+                "Reactivating a party requires DOFA Tier 2 (Branch / Operations "
+                "Manager) authority."
+            )
+        for partner in self:
+            if partner.party_status in ("blacklisted", "merged", "active"):
+                raise ValidationError(
+                    "Party %s is %s and cannot be reactivated here."
+                    % (partner.display_name, partner.party_status)
+                )
+            # A registration is decided by its two-step chain; reactivation
+            # would otherwise be a one-person way round it (A03 audit M33-1).
+            if partner.party_status == "pending_approval" or (
+                partner.party_class in REGISTERED_CLASSES
+                and partner.party_status == "draft"
+                and not partner._fix_registration_approved()
+            ):
+                raise ValidationError(
+                    "Party %s is a %s awaiting its registration approval. It is "
+                    "activated by that approval, not by reactivation."
+                    % (partner.display_name, partner.party_class)
+                )
+            prior = partner.party_status
+            partner._guarded().write({"party_status": "active"})
+            partner.message_post(
+                body="Party reactivated from '%s' by %s. Reason: %s"
+                % (prior, self.env.user.name, reason)
+            )
+        return True
+
+    # --- registration approval (BRU-CPM-02, A03 audit M33-3) ----------------
+    def _fix_open_registration_approval(self):
+        """This party's registration approval still awaiting a decision."""
+        self.ensure_one()
+        return (
+            self.env["fix.registration.approval"]
+            .sudo()
+            .search(
+                [
+                    ("partner_id", "=", self.id),
+                    ("lm_state", "!=", "rejected"),
+                    ("admin_state", "=", "pending"),
+                ],
+                limit=1,
+            )
+        )
+
+    def _fix_registration_approved(self) -> bool:
+        """True when a completed approval covers this party's current class."""
+        self.ensure_one()
+        return bool(
+            self.env["fix.registration.approval"]
+            .sudo()
+            .search_count(
+                [
+                    ("partner_id", "=", self.id),
+                    ("party_class", "=", self.party_class),
+                    ("lm_state", "=", "approved"),
+                    ("admin_state", "=", "approved"),
+                ]
+            )
+        )
+
+    def _fix_open_registration(self):
+        """Open the registration approval a dealer, corporate or government
+        party needs. Nothing created these before; the 'two approvals before
+        a dealer transacts' rule was a screen nobody had to use."""
+        Approval = self.env["fix.registration.approval"].sudo()
+        for partner in self:
+            if partner.party_class not in REGISTERED_CLASSES:
+                continue
+            if partner.party_status in ("merged", "blacklisted"):
+                continue
+            if partner._fix_open_registration_approval() or partner._fix_registration_approved():
+                continue
+            # sudo() keeps the uid, so the approval's creator is the acting
+            # user and the engine excludes them from deciding it.
+            Approval.create(
+                {
+                    "partner_id": partner.id,
+                    "party_class": partner.party_class,
+                    "company_id": (partner.company_id or self.env.company).id,
+                }
+            )
+
+    # --- downstream usability (A03 audit M33-3) -------------------------------
+    @api.model
+    def _fix_draft_party_policy(self) -> str:
+        """allow | warn | refuse (see DRAFT_POLICY_PARAM). An unknown value
+        fails closed to 'refuse' rather than silently allowing."""
+        icp = self.env["ir.config_parameter"].sudo()
+        value = (icp.get_param(DRAFT_POLICY_PARAM, "allow") or "allow").strip().lower()
+        return value if value in DRAFT_POLICIES else "refuse"
+
+    def _fix_assert_party_usable(self, purpose: str) -> str:
+        """Refuse parties that may not be used for `purpose` (an order, an
+        invoice, a role, a segment...). Returns a warning text, or "".
+
+        Always refused: merged, blacklisted, blocked, pending approval, and a
+        dealer / corporate / government party whose registration is not
+        approved. A 'draft' individual follows the draft-party policy.
+        Credit hold is not checked here: M20 enforces credit at order time."""
+        warnings = []
+        policy = None
+        for partner in self:
+            reason = _UNUSABLE_STATUSES.get(partner.party_status)
+            if not reason and partner.party_status == "draft":
+                if partner.party_class in REGISTERED_CLASSES:
+                    reason = (
+                        "it is a %s whose registration is not approved (BRU-CPM-02)"
+                        % partner.party_class
+                    )
+                else:
+                    policy = policy or self._fix_draft_party_policy()
+                    if policy == "refuse":
+                        reason = "it is still a draft (unverified) party"
+                    elif policy == "warn":
+                        text = "%s is a draft (unverified) party, used for %s." % (
+                            partner.display_name,
+                            purpose,
+                        )
+                        _logger.warning("draft party policy: %s", text)
+                        warnings.append(text)
+            if reason:
+                raise UserError(
+                    "%s cannot be used for %s: %s." % (partner.display_name, purpose, reason)
+                )
+        return " ".join(warnings)
+
+    # --- party.merged consumers (R8) ------------------------------------------
+    @api.model
+    def _fix_merge_event_parties(self, event):
+        """(survivor, victim) for a party.merged event, or None when the merge
+        no longer stands (reversed before delivery). Every consumer checks
+        this, so a late delivery never re-points onto a restored party."""
+        payload = event.get("payload") or {}
+        Partner = self.sudo().with_context(active_test=False)
+        survivor = Partner.browse(payload.get("survivor_id") or 0).exists()
+        victim = Partner.browse(payload.get("victim_id") or 0).exists()
+        if not survivor or not victim or survivor == victim:
+            return None
+        if victim.party_status != "merged":
+            return None
+        return survivor, victim
 
     def _get_notification_language(self) -> str:
         """The dispatcher's language lookup: preferred_language, defaulting bn."""

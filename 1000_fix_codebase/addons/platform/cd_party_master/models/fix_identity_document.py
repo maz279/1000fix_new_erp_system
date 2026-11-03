@@ -5,8 +5,14 @@
 import logging
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError, ValidationError
+
+from .fix_party_security import STEWARD_GROUP, require_group
 
 logger = logging.getLogger(__name__)
+
+# Editing what was verified makes the verification stale.
+_KYC_SUBJECT_FIELDS = {"document_number", "document_type"}
 
 
 class FixIdentityDocument(models.Model):
@@ -16,7 +22,17 @@ class FixIdentityDocument(models.Model):
 
     _name = "fix.identity.document"
     _description = "Identity Document"
-    _inherit = ["mail.thread", "mail.activity.mixin", "residency.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "residency.mixin", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # KYC was a plain field edit and verified_by was never written
+        # (A03 audit M33-9): the verification is the steward's action.
+        return super()._fix_guarded_fields() | {
+            "verification_status",
+            "verified_by",
+            "verified_at",
+            "verification_note",
+        }
 
     # The classified fields routed to Z4 by the residency.mixin:
     # key prefix "party nid" / "party passport" / "party tin"
@@ -73,6 +89,9 @@ class FixIdentityDocument(models.Model):
     )
     verified_by = fields.Many2one("res.users", string="Verified By", readonly=True)
     verified_at = fields.Datetime(readonly=True)
+    verification_note = fields.Char(
+        string="Verification Note", readonly=True, help="Why a verification failed"
+    )
 
     # The NID checksum validity is a derived, NON-classified field
     # (it says whether the number is well-formed, not what the number is)
@@ -113,6 +132,78 @@ class FixIdentityDocument(models.Model):
             # CD-086 cd_nid validation (TSS section 4.5)
             self._emit_event("party.identity_added", rec)
         return records
+
+    def write(self, vals):
+        stale = self.browse()
+        if _KYC_SUBJECT_FIELDS & set(vals) and not self._fix_guard_has_token():
+            stale = self.filtered(lambda d: d.verification_status == "verified")
+        result = super().write(vals)
+        if stale:
+            # A verified NID whose number is then edited is not verified.
+            stale._guarded().write(
+                {
+                    "verification_status": "unverified",
+                    "verified_by": False,
+                    "verified_at": False,
+                    "verification_note": "Document changed after verification",
+                }
+            )
+        return result
+
+    # ---- KYC verification (A03 audit M33-9) ----------------------------------
+    def action_kyc_submit(self):
+        """Ask a data steward to verify the document."""
+        for doc in self:
+            if doc.verification_status not in ("unverified", "failed"):
+                raise ValidationError(
+                    "Only an unverified or failed document is submitted for verification."
+                )
+            doc._guarded().write({"verification_status": "pending", "verification_note": False})
+        return True
+
+    def _kyc_check_decider(self, what: str):
+        require_group(self.env, STEWARD_GROUP, what)
+        for doc in self:
+            if doc.verification_status not in ("unverified", "pending"):
+                raise ValidationError("This document is already %s." % doc.verification_status)
+            # Four eyes: whoever captured the document does not verify it.
+            if not self.env.su and doc.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you captured this identity document, so "
+                    "another data steward must verify it."
+                )
+
+    def action_kyc_verify(self):
+        """Stamp the verifier: verified_by / verified_at were never written."""
+        self._kyc_check_decider("Verifying an identity document")
+        now = fields.Datetime.now()
+        for doc in self:
+            doc._guarded().write(
+                {
+                    "verification_status": "verified",
+                    "verified_by": self.env.user.id,
+                    "verified_at": now,
+                    "verification_note": False,
+                }
+            )
+            self._emit_event("party.identity_verified", doc)
+        return True
+
+    def action_kyc_fail(self, reason=None):
+        if not (reason or "").strip():
+            raise ValidationError("A failed verification needs its reason.")
+        self._kyc_check_decider("Failing an identity verification")
+        now = fields.Datetime.now()
+        for doc in self:
+            doc._guarded().write(
+                {
+                    "verification_status": "failed",
+                    "verified_by": self.env.user.id,
+                    "verified_at": now,
+                    "verification_note": reason,
+                }
+            )
+        return True
 
     def _emit_event(self, event_type: str, rec) -> None:
         from libs.py.fix_events import publish

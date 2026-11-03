@@ -39,9 +39,19 @@ M20 enforces at order time); this module adds no competing model.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Party",
-    "depends": ["base", "mail", "cd_entity_config", "cd_rbac_ext", "cd_event_outbox"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_rbac_ext",
+        "cd_event_outbox",
+        # A03 audit M33-1: registration approval is a routed M63 request.
+        "cd_workflow_engine",
+    ],
     "data": [
+        "security/fix_party_master_groups.xml",
         "data/fix_dedup_cron.xml",
+        "data/fix_party_master_a03_data.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_party_views.xml",

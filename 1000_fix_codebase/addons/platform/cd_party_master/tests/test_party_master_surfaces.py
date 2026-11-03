@@ -26,8 +26,17 @@ def _steward(env):
             "name": "M33 Steward (test)",
             "login": "m33-steward-test",
             "email": "steward@test.invalid",
+            # A03 audit M33-6: merges are a data-steward decision.
             "group_ids": [
-                (6, 0, [env.ref("base.group_user").id, env.ref("base.group_partner_manager").id])
+                (
+                    6,
+                    0,
+                    [
+                        env.ref("base.group_user").id,
+                        env.ref("base.group_partner_manager").id,
+                        env.ref("cd_party_master.group_party_data_steward").id,
+                    ],
+                )
             ],
         }
     )
@@ -98,13 +107,32 @@ def test_admin_cannot_approve_before_the_line_manager(odoo_env):
         approval.action_admin_approve()
 
 
+def _approver(env, login, *xmlids):
+    groups = [env.ref("base.group_user").id, env.ref("base.group_partner_manager").id]
+    groups += [env.ref(x).id for x in xmlids]
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create({"name": login, "login": login, "group_ids": [(6, 0, groups)]})
+    )
+
+
 def test_two_tier_approval_activates_the_party_and_emits(odoo_env):
     partner = _partner(odoo_env, "Dealer Rahman & Sons")
     approval = odoo_env["fix.registration.approval"].create(
         {"partner_id": partner.id, "party_class": "dealer"}
     )
-    approval.action_lm_approve()
-    approval.action_admin_approve()
+    # BRU-CPM-02 is a two-PERSON chain: neither step may be the requester's,
+    # and the administrator may not be the line manager. Since A03 audit
+    # M33-1 each step is decided from the M63 approval inbox.
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    lm = _approver(odoo_env, "lm.approver@a03.test", "cd_party_master.group_party_registration_lm")
+    admin = _approver(
+        odoo_env, "admin.approver@a03.test", "cd_party_master.group_party_registration_admin"
+    )
+    approve_via_inbox(approval, lm)
+    approve_via_inbox(approval, admin)
     assert approval.lm_state == "approved" and approval.admin_state == "approved"
     partner.invalidate_recordset()
     assert partner.party_status == "active"
