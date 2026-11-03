@@ -10,6 +10,12 @@
     </record>
 
     <!-- Cross-tenant isolation rules (R08-M04-T01 / G7-6) -->
+    <!-- A04 audit C1 (M12-2): a portal seller READS their profile and
+         disputes and CREATES quotes; nothing more (ir.model.access.csv).
+         With write on their own profile a seller set kyc_status=verified,
+         cfo_approved, tier and payout_hold on themselves. The seller API
+         (controllers/seller_api.py) only reads profiles and disputes and
+         only creates quotes. -->
     <!-- Seller sees only their own seller profile -->
     <record id="rule_fix_marketplace_seller_self" model="ir.rule">
         <field name="name">P07 Seller: own seller profile only</field>

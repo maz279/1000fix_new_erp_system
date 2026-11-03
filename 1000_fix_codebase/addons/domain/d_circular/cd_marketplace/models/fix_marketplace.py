@@ -671,6 +671,10 @@ class FixSellerQuote(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # A04 audit C1 (M12-7): a seller submits a quote; selecting it is
+            # the operator's decision, never the seller's own.
+            if self.env.user.share and vals.get("state", "submitted") != "submitted":
+                raise UserError("A quote is submitted by the seller; only the operator selects it.")
             seller = self.env["fix.marketplace.seller"].browse(vals.get("seller_id"))
             if seller and (seller.kyc_status != "verified" or not seller.cfo_approved):
                 raise UserError(
@@ -679,7 +683,9 @@ class FixSellerQuote(models.Model):
         recs = super().create(vals_list)
         for rec in recs:
             if rec.marketplace_order_id.state == "open":
-                rec.marketplace_order_id.state = "quoted"
+                # The first quote moves the job to "quoted": a system
+                # transition, so the seller needs no write access on the order.
+                rec.marketplace_order_id.sudo().state = "quoted"
             publish(
                 self.env,
                 "seller.quoted",

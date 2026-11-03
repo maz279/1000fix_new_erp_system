@@ -4,9 +4,9 @@ access_fix_marketplace_order,fix.marketplace.order,model_fix_marketplace_order,b
 access_fix_seller_quote,fix.seller.quote,model_fix_seller_quote,base.group_user,1,1,1,0
 access_fix_seller_score,fix.seller.score,model_fix_seller_score,base.group_user,1,1,1,0
 access_fix_marketplace_dispute,fix.marketplace.dispute,model_fix_marketplace_dispute,base.group_user,1,1,1,0
-access_fix_marketplace_seller_portal,fix.marketplace.seller,model_fix_marketplace_seller,group_fix_marketplace_seller,1,1,1,0
+access_fix_marketplace_seller_portal,fix.marketplace.seller,model_fix_marketplace_seller,group_fix_marketplace_seller,1,0,0,0
 access_fix_marketplace_order_portal,fix.marketplace.order,model_fix_marketplace_order,group_fix_marketplace_seller,1,0,0,0
-access_fix_seller_quote_portal,fix.seller.quote,model_fix_seller_quote,group_fix_marketplace_seller,1,1,1,0
+access_fix_seller_quote_portal,fix.seller.quote,model_fix_seller_quote,group_fix_marketplace_seller,1,0,1,0
 access_fix_seller_score_portal,fix.seller.score,model_fix_seller_score,group_fix_marketplace_seller,1,0,0,0
-access_fix_marketplace_dispute_portal,fix.marketplace.dispute,model_fix_marketplace_dispute,group_fix_marketplace_seller,1,1,0,0
+access_fix_marketplace_dispute_portal,fix.marketplace.dispute,model_fix_marketplace_dispute,group_fix_marketplace_seller,1,0,0,0
 access_fix_marketplace_listing,fix.marketplace.listing,model_fix_marketplace_listing,base.group_user,1,1,1,1
