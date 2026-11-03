@@ -4,10 +4,10 @@ access_fix_storefront_cart_line,fix.storefront.cart.line,model_fix_storefront_ca
 access_fix_storefront_order,fix.storefront.order,model_fix_storefront_order,base.group_user,1,1,1,0
 access_fix_storefront_order_line,fix.storefront.order.line,model_fix_storefront_order_line,base.group_user,1,1,1,0
 access_fix_storefront_return,fix.storefront.return,model_fix_storefront_return,base.group_user,1,1,1,0
-access_fix_storefront_cart_portal,fix.storefront.cart,model_fix_storefront_cart,base.group_portal,1,1,1,0
-access_fix_storefront_cart_line_portal,fix.storefront.cart.line,model_fix_storefront_cart_line,base.group_portal,1,1,1,0
-access_fix_storefront_order_portal,fix.storefront.order,model_fix_storefront_order,base.group_portal,1,0,1,0
+access_fix_storefront_cart_portal,fix.storefront.cart,model_fix_storefront_cart,base.group_portal,1,0,0,0
+access_fix_storefront_cart_line_portal,fix.storefront.cart.line,model_fix_storefront_cart_line,base.group_portal,1,0,0,0
+access_fix_storefront_order_portal,fix.storefront.order,model_fix_storefront_order,base.group_portal,1,0,0,0
 access_fix_storefront_order_line_portal,fix.storefront.order.line,model_fix_storefront_order_line,base.group_portal,1,0,0,0
-access_fix_storefront_return_portal,fix.storefront.return,model_fix_storefront_return,base.group_portal,1,0,1,0
+access_fix_storefront_return_portal,fix.storefront.return,model_fix_storefront_return,base.group_portal,1,0,0,0
 access_fix_storefront_rma,fix.storefront.rma,model_fix_storefront_rma,base.group_user,1,1,1,1
 access_fix_storefront_slot,fix.storefront.slot,model_fix_storefront_slot,base.group_user,1,1,1,1

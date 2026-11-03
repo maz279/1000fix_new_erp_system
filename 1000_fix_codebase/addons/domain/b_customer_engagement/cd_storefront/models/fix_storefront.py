@@ -68,6 +68,14 @@ class FixStorefrontCart(models.Model):
         rec = self
         if not rec.line_ids:
             raise UserError("Cart is empty")
+        # A04 audit C1 (M38-3): the price is the catalogue's, not the cart's.
+        # A line priced anywhere but here (a tampered line, or one from
+        # before the price changed) is re-priced, so the order is always
+        # placed at the price the server sets.
+        for line in rec.line_ids:
+            catalogue_price = line.product_id.list_price
+            if line.currency_id.compare_amounts(line.unit_price, catalogue_price) != 0:
+                line.sudo().write({"unit_price": catalogue_price})
         # The address the customer gave, else the one on their record - never
         # an invented city. Only a branch pickup needs no delivery address.
         address = (shipping_address or "").strip() or (
@@ -147,6 +155,24 @@ class FixStorefrontCartLine(models.Model):
     subtotal = fields.Monetary(
         compute="_compute_subtotal", string="Subtotal", currency_field="currency_id", store=True
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A04 audit C1 (M38-3): a cart line's price is the catalogue price.
+        # Only trusted server code may set a different one.
+        if not self.env.su:
+            products = self.env["product.template"].sudo()
+            for vals in vals_list:
+                if vals.get("product_id"):
+                    vals["unit_price"] = products.browse(vals["product_id"]).list_price
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self.env.su and "unit_price" in vals:
+            raise UserError(
+                "A cart line's price comes from the catalogue and cannot be set by hand."
+            )
+        return super().write(vals)
 
     @api.depends("quantity", "unit_price")
     def _compute_subtotal(self):
