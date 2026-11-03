@@ -13,6 +13,7 @@
 import logging
 
 from odoo import api, fields, models
+from odoo.exceptions import AccessError
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,10 @@ class HrEmployeeExt(models.Model):
         M29 consumes employee.left and deprovisions Keycloak within 1 hour.
         KPI-090: zero orphaned accounts beyond 24 hours.
         """
+        # A09 audit M21-6: a public method, so any internal user fired the
+        # leaver event for a colleague and so deprovisioned their access.
+        if not (self.env.su or self.env.user.has_group("hr.group_hr_user")):
+            raise AccessError("Only HR may record that an employee has left.")
         for rec in self:
             rec.left_date = fields.Date.today()
             rec._emit_leaver()
