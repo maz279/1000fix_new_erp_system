@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M04 scheduled jobs (A02 audit M04-9).
+
+  action_evaluate_wait_sla had no ir.cron and its breach flag was a stored
+  compute on now(), frozen at the last write: 5 tokens breached, 0 escalated.
+  This job re-evaluates every waiting token and escalates each breach once.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_token_wait_sla" model="ir.cron">
+            <field name="name">M04: evaluate queue wait SLA and escalate breaches</field>
+            <field name="model_id" ref="model_fix_token_queue"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_evaluate_wait_sla()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

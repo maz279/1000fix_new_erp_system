@@ -142,7 +142,10 @@ def test_expected_closing_and_variance(desk):
     # 2000 + 7500 - 500 - 1000 = 8000; no variance while the drawer is open
     assert (shift.expected_closing, shift.variance) == (8000.0, 0.0)
     shift.action_close_shift()
-    shift.closing_counted = 7950.0
+    # A02 audit M04-7: the count is the blind denomination count (7,950)
+    shift.write({"denom_1000_count": 7, "denom_500_count": 1, "denom_100_count": 4})
+    shift.write({"denom_50_count": 1})
+    shift.action_submit_blind_count()
     assert shift.variance == -50.0
     shift.action_reconcile()
     assert (shift.state, shift.reconciled_by, bool(shift.closed_at)) == (
@@ -162,7 +165,8 @@ def test_expected_closing_and_variance(desk):
 def test_balanced_drawer_reconciles(desk):
     shift = _shift(desk)
     shift.action_close_shift()
-    shift.closing_counted = 8000.0
+    shift.denom_1000_count = 8
+    shift.action_submit_blind_count()
     shift.action_reconcile()
     assert (shift.state, shift.variance) == ("reconciled", 0.0)
 
@@ -171,8 +175,12 @@ def test_an_empty_drawer_is_a_discrepancy_not_a_reconciled_shift(desk):
     """Regression: a count of 0.00 read as "not counted": variance 0, reconciled."""
     shift = _shift(desk)
     shift.action_close_shift()
-    shift.closing_counted = 0.0
+    shift.action_submit_blind_count()  # every denomination 0: an empty drawer
     assert shift.variance == -8000.0
+    # A02 audit M04-7: a total shortage does not land in discrepancy unseen
+    with _refused(desk.env, ValidationError, "must approve this variance"):
+        shift.action_reconcile()
+    shift.action_approve_variance()
     shift.action_reconcile()
     assert shift.state == "discrepancy"
 
@@ -201,6 +209,11 @@ def _intake(desk, **vals):
             "device_id": desk.device.id,
             "fault_description": "Cracked screen",
             "intake_start": datetime(2026, 10, 22, 10, 0, 0),
+            # A02 audit M04-8: the handover needs the customer's signed receipt
+            "handover_method": "signature",
+            "customer_signature_attachment_id": desk.env["ir.attachment"]
+            .create({"name": "signed.png", "raw": b"signed"})
+            .id,
             **vals,
         }
     )

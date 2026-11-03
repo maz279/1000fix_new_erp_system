@@ -37,6 +37,9 @@ def fd(odoo_env):
         base.update(vals)
         return env["fix.token.queue"].create(base)
 
+    # A02 audit M04-8: the handover needs the customer's signed receipt
+    signature = env["ir.attachment"].create({"name": "signed-receipt.png", "raw": b"signed"})
+
     def intake(**vals):
         base = {
             "branch_id": branch.id,
@@ -44,6 +47,8 @@ def fd(odoo_env):
             "customer_id": customer.id,
             "device_id": device.id,
             "fault_description": "Charging port loose",
+            "handover_method": "signature",
+            "customer_signature_attachment_id": signature.id,
         }
         base.update(vals)
         return env["fix.walkin.intake"].create(base)
@@ -141,7 +146,8 @@ def test_shift_close_then_reconcile(fd):
     s = fd.shift()
     s.action_close_shift()
     assert s.state == "counting"
-    s.closing_counted = 2000.0
+    s.denom_1000_count = 2  # A02 audit M04-7: the count is the blind denomination count
+    s.action_submit_blind_count()
     s.action_confirm_closed()
     assert s.state == "closed" and s.closed_at
     s.action_reconcile()
@@ -199,8 +205,10 @@ def test_counter_sale_refund_reverses_drawer(fd):
         }
     )
     sale.action_confirm()
-    sale.action_refund()
+    # A02 audit M04-5: a refund is requested with a reason, then approved
+    sale.action_request_refund(reason="defective: cable does not charge")
+    sale.action_approve_refund()
     assert sale.state == "refunded"
     assert s.cash_refunds == 200.0
     with pytest.raises(UserError, match="Only confirmed sales"):
-        sale.action_refund()
+        sale.action_request_refund(reason="duplicate")

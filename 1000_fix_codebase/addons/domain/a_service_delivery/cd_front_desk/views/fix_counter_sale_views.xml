@@ -24,7 +24,11 @@
             <form>
                 <header>
                     <button name="action_confirm" type="object" string="Confirm Sale" invisible="state != 'draft'"/>
-                    <button name="action_refund" type="object" string="Refund" invisible="state != 'confirmed'"/>
+                    <!-- A02 audit M04-5: a refund is requested with a reason (workspace
+                         prompt) and approved by a manager who did not sell. -->
+                    <button name="action_approve_price_override" type="object" string="Approve Price" invisible="state != 'draft'"/>
+                    <button name="action_approve_refund" type="object" string="Approve Refund" invisible="refund_state != 'requested'"/>
+                    <field name="refund_state" invisible="1"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>

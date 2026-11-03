@@ -27,9 +27,12 @@ and shift control with AS-10 Monetary reconciliation.
         "product",
     ],
     "data": [
+        # A02 audit M04-6: the role groups load before the ACLs that use them
+        "security/fix_front_desk_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_counter_sale_sequence.xml",
+        "data/fix_front_desk_cron.xml",
         "views/fix_counter_sale_views.xml",
         "views/fix_front_desk_views.xml",
     ],
