@@ -1,14 +1,131 @@
 # fix.field.order — Field Service Order & Execution Unit (CD-M02-01)
+import hashlib
 import json
 import logging
 import math
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish  # FF-28
 
 _logger = logging.getLogger(__name__)
+
+# A02 audit M02-4/M02-9: dispatch, reassignment and cancellation are dispatcher
+# decisions. The group already exists (security/fix_field_service_security.xml).
+DISPATCHER_GROUP = "cd_field_service.group_fix_field_service_manager"
+
+# A02 audit M02-2: what completion needs. "strict" (the default, and what any
+# unknown value means) requires the customer's sign-off (verified OTP or a
+# captured signature), a post-work photo and a work summary. "no_photo" drops
+# only the photo, for zones where the business decides a photo cannot be
+# taken. The switch is a business decision; the default fails closed.
+EVIDENCE_PROFILE_PARAM = "cd_field_service.completion_evidence_profile"
+EVIDENCE_PROFILES = ("strict", "no_photo")
+
+MFS_METHODS = ("bkash", "nagad", "sslcommerz")
+OPEN_STATES = ("pending_dispatch", "dispatched", "accepted", "en_route", "arrived", "in_progress")
+
+# A02 audit M02-1/M02-10: fields only a transition may change. A technician
+# wrote state=completed with customer_otp_verified=True on a dispatched order,
+# moved a breached SLA deadline 30 days out and cleared the mock-GPS block.
+_GUARDED = frozenset(
+    {
+        "state",
+        "technician_id",
+        "sla_deadline",
+        "sla_escalated_at",
+        # journey stamps (they drive the on-time and travel KPIs)
+        "dispatched_at",
+        "accepted_at",
+        "en_route_at",
+        "arrived_at",
+        "started_work_at",
+        "completed_at",
+        "actual_travel_minutes",
+        "arrival_latitude",
+        "arrival_longitude",
+        # anti-spoofing and geofence
+        "is_mock_location",
+        "geofence_waived_by",
+        "geofence_waive_reason",
+        # decline / cancel records
+        "decline_reason",
+        "decline_notes",
+        "cancel_reason",
+        # completion evidence
+        "customer_otp_verified",
+        "customer_signature_attachment_id",
+        "customer_signature_signer",
+        "customer_signature_sha256",
+        "customer_signature_at",
+        "pre_work_photo_attachment_id",
+        "post_work_photo_attachment_id",
+        "oem_certification_verified",
+        "safety_ppe_verified",
+        # on-site money (A02 audit M02-3)
+        "onsite_collection_amount",
+        "onsite_payment_method",
+        "onsite_payment_trx_id",
+        "onsite_payment_state",
+        "cash_shift_id",
+        "cash_handed_over_at",
+    }
+)
+
+# What a closed (completed or cancelled) order keeps as it was closed: the
+# technician's own inputs stay editable while the job runs, not afterwards.
+_FROZEN_WHEN_CLOSED = frozenset(
+    {
+        "order_id",
+        "zone_id",
+        "geofence_id",
+        "priority",
+        "scheduled_start",
+        "scheduled_end",
+        "customer_address",
+        "latitude",
+        "longitude",
+        "work_summary",
+        "before_repair_photo_ref",
+        "after_repair_photo_ref",
+        "field_job_sheet_attachment_id",
+        "customer_rating",
+        "diagnostic_tool_serial",
+    }
+)
+
+
+def _point_in_fence(fence, lat, lon):
+    """True when (lat, lon) lies inside ``fence`` (circle or polygon).
+
+    A fence whose geometry cannot be read tests True: a broken fence is a
+    configuration fault, logged, and must not strand every technician."""
+    try:
+        geom = json.loads(fence.geometry_json or "")
+    except (TypeError, ValueError):
+        _logger.warning("geofence %s has unreadable geometry", getattr(fence, "id", "?"))
+        return True
+    if not isinstance(geom, dict):
+        return True
+    if fence.geofence_type == "circle":
+        center_lat = float(geom.get("lat", 0.0))
+        center_lon = float(geom.get("lng", 0.0))
+        radius_m = float(geom.get("radius_m", 500.0))
+        return FixFieldOrder._haversine_distance(lat, lon, center_lat, center_lon) <= radius_m
+    # Polygon ray-casting algorithm
+    points = geom.get("points", [])
+    if len(points) < 3:
+        return True
+    inside = False
+    j = len(points) - 1
+    for i in range(len(points)):
+        xi, yi = points[i][0], points[i][1]
+        xj, yj = points[j][0], points[j][1]
+        if ((yi > lon) != (yj > lon)) and (lat < (xj - xi) * (lon - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
 
 
 class FixFieldOrder(models.Model):
@@ -16,7 +133,7 @@ class FixFieldOrder(models.Model):
 
     _name = "fix.field.order"
     _description = "Field Service Order"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "priority desc, scheduled_start asc, id desc"
 
     # Multi-tenant scoping per AS-03
@@ -285,9 +402,126 @@ class FixFieldOrder(models.Model):
         string="Signed On-Site Job Sheet (PDF/Photo)",
     )
 
+    # --- A02 audit P0: the records the transitions keep -------------------
+    # M02-2: completion evidence. The signature and photos are attachments
+    # that came through the technician's evidence channel (bearer-authenticated,
+    # bound to the assigned technician), linked by _fix_attach_field_evidence.
+    customer_signature_attachment_id = fields.Many2one(
+        "ir.attachment", string="Customer Signature", readonly=True, copy=False
+    )
+    customer_signature_signer = fields.Char(string="Signed By", readonly=True, copy=False)
+    customer_signature_sha256 = fields.Char(string="Signature SHA-256", readonly=True, copy=False)
+    customer_signature_at = fields.Datetime(string="Signed At", readonly=True, copy=False)
+    pre_work_photo_attachment_id = fields.Many2one(
+        "ir.attachment", string="Pre-Work Photo", readonly=True, copy=False
+    )
+    post_work_photo_attachment_id = fields.Many2one(
+        "ir.attachment", string="Post-Work Photo", readonly=True, copy=False
+    )
+    # M02-3: on-site money is recorded, never settled by the field order.
+    onsite_payment_state = fields.Selection(
+        [
+            ("none", "No On-Site Collection"),
+            ("pending_handover", "Cash Pending Hand-over"),
+            ("pending_settlement", "Collected, Settlement Not Recorded"),
+            ("settled", "Settlement Recorded on the Service Order"),
+        ],
+        string="On-Site Payment Status",
+        default="none",
+        required=True,
+        tracking=True,
+        copy=False,
+    )
+    cash_handed_over_at = fields.Datetime(string="Cash Handed Over At", readonly=True, copy=False)
+    # M02-9: why it was cancelled, and M02-8: a dispatcher's geofence waiver
+    cancel_reason = fields.Text(string="Cancellation Reason", readonly=True, copy=False)
+    geofence_waived_by = fields.Many2one(
+        "res.users", string="Geofence Waived By", readonly=True, copy=False
+    )
+    geofence_waive_reason = fields.Text(string="Geofence Waiver Reason", readonly=True, copy=False)
+    arrival_latitude = fields.Float(
+        string="Arrival Latitude", digits=(10, 7), readonly=True, copy=False
+    )
+    arrival_longitude = fields.Float(
+        string="Arrival Longitude", digits=(10, 7), readonly=True, copy=False
+    )
+    # M02-7: when the breach was escalated to the dispatchers
+    sla_escalated_at = fields.Datetime(string="SLA Breach Escalated At", readonly=True, copy=False)
+
+    # ------------------------------------------------------------------ guard
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | _GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(rec.state in ("completed", "cancelled") for rec in self):
+            locked = locked | _FROZEN_WHEN_CLOSED
+        return locked
+
+    def write(self, vals):
+        # A closed order keeps what it was closed with (A02 audit M02-2): the
+        # work summary and site details were editable after completion.
+        touched = _FROZEN_WHEN_CLOSED & set(vals)
+        if touched and not self._fix_guard_open():
+            changed = {
+                name
+                for rec in self
+                if rec.state in ("completed", "cancelled")
+                for name in touched
+                if rec._fix_guard_differs(name, vals[name], rec[name])
+            }
+            if changed:
+                raise UserError(
+                    "Cannot change %s on a completed or cancelled field order: it keeps "
+                    "what it was closed with."
+                    % ", ".join(sorted(self._fields[n].string or n for n in changed))
+                )
+        return super().write(vals)
+
+    # ------------------------------------------------------- authority checks
+    def _fix_is_dispatcher(self) -> bool:
+        return self.env.su or self.env.user.has_group(DISPATCHER_GROUP)
+
+    def _fix_require_dispatcher(self, what):
+        """A02 audit M02-4/M02-9: dispatch decisions need the dispatcher group."""
+        if not self._fix_is_dispatcher():
+            raise AccessError(
+                "%s is a dispatcher decision. Ask a member of the Field Service "
+                "Dispatcher group." % what
+            )
+
+    def _fix_require_assigned_technician(self, what):
+        """A02 audit M02-4: only the technician the order is dispatched to may
+        accept or progress it. Superuser code (the offline sync, which checks
+        the assignment itself) is trusted."""
+        if self.env.su:
+            return
+        for rec in self:
+            user = rec.sudo().technician_id.user_id
+            if not user or user != self.env.user:
+                raise AccessError(
+                    "Only the technician %s is assigned to can %s it." % (rec.name, what)
+                )
+
     @api.model_create_multi
     def create(self, vals_list):
+        # A02 audit M02-7: the SLA deadline is derived here, never typed. An
+        # untrusted caller may pass it only when it equals the derived value
+        # (the M01 bridge passes the service order's own deadline); the
+        # derived value is written through the guard after create.
+        trusted = self._fix_guard_open()
+        derived = []
         for vals in vals_list:
+            supplied = vals.pop("sla_deadline", None) if not trusted else None
+            if trusted and vals.get("sla_deadline"):
+                derived.append(None)
+            else:
+                deadline = self._fix_derive_sla_deadline(vals.get("order_id"))
+                if supplied and self.browse()._fix_guard_differs(
+                    "sla_deadline", supplied, deadline or False
+                ):
+                    self._fix_guard_refuse(["sla_deadline"])
+                derived.append(deadline)
             if not vals.get("operating_unit_id"):
                 if vals.get("order_id"):
                     so = self.env["fix.service.order"].browse(vals["order_id"]).exists()
@@ -313,67 +547,85 @@ class FixFieldOrder(models.Model):
                 )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
-            # Start the SLA clock. The service order's own deadline wins; when it
-            # carries none, the applicable SLA policy's resolution_hours applies
-            # (service type + priority first, then any active policy). Without
-            # this the SLA Risk Board had nothing to measure: no deadline was
-            # ever written, so the module's SLA screen could only be empty.
-            if not vals.get("sla_deadline"):
-                deadline = False
-                so = (
-                    self.env["fix.service.order"].browse(vals["order_id"]).exists()
-                    if vals.get("order_id")
-                    else None
-                )
-                if so and so.sla_resolution_deadline:
-                    deadline = so.sla_resolution_deadline
-                else:
-                    Policy = self.env["fix.sla.policy"].sudo()
-                    domain = [("active", "=", True)]
-                    if so:
-                        if so.service_type:
-                            domain.append(("service_type", "=", so.service_type))
-                        if so.priority:
-                            domain.append(("priority", "=", so.priority))
-                    policy = Policy.search(domain, limit=1) or Policy.search(
-                        [("active", "=", True)], limit=1
-                    )
-                    if policy and policy.resolution_hours:
-                        deadline = fields.Datetime.add(
-                            fields.Datetime.now(), hours=policy.resolution_hours
-                        )
-                if deadline:
-                    vals["sla_deadline"] = deadline
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # Start the SLA clock (written through the guard: an untrusted
+        # creator cannot set it, see above).
+        for rec, deadline in zip(records, derived, strict=True):
+            if deadline:
+                rec._guarded().write({"sla_deadline": deadline})
+        return records
+
+    def _fix_derive_sla_deadline(self, order_id):
+        """The service order's own deadline; else the applicable SLA policy's
+        resolution_hours (service type + priority first, then any active
+        policy). Without this the SLA Risk Board had nothing to measure: no
+        deadline was ever written, so the module's SLA screen was empty."""
+        so = self.env["fix.service.order"].browse(order_id).exists() if order_id else None
+        if so and so.sla_resolution_deadline:
+            return so.sla_resolution_deadline
+        Policy = self.env["fix.sla.policy"].sudo()
+        domain = [("active", "=", True)]
+        if so:
+            if so.service_type:
+                domain.append(("service_type", "=", so.service_type))
+            if so.priority:
+                domain.append(("priority", "=", so.priority))
+        policy = Policy.search(domain, limit=1) or Policy.search([("active", "=", True)], limit=1)
+        if policy and policy.resolution_hours:
+            return fields.Datetime.add(fields.Datetime.now(), hours=policy.resolution_hours)
+        return False
 
     def action_request_dispatch(self):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only draft field orders can be submitted for dispatch.")
-            rec.state = "pending_dispatch"
+            rec._guarded().write({"state": "pending_dispatch"})
+
+    @api.model
+    def _fix_resolve_technician(self, technician_id):
+        """The hr.employee a dispatch names (the P03 prompt sends a string)."""
+        if not technician_id:
+            return self.env["hr.employee"]
+        if isinstance(technician_id, models.BaseModel):
+            return technician_id[:1]
+        try:
+            emp_id = int(str(technician_id).strip())
+        except (TypeError, ValueError):
+            raise UserError("Name the technician by their employee id.") from None
+        employee = self.env["hr.employee"].sudo().browse(emp_id).exists()
+        if not employee:
+            raise UserError("Technician %s does not exist." % emp_id)
+        return employee
 
     def action_dispatch(self, technician_id=None):
+        # A02 audit M02-4: a plain technician self-dispatched through P03.
+        self._fix_require_dispatcher("Dispatching a field order")
+        technician = self._fix_resolve_technician(technician_id)
         for rec in self:
             if rec.state not in ("draft", "pending_dispatch", "declined"):
                 raise UserError(f"Cannot dispatch order in state '{rec.state}'.")
-            if technician_id:
-                rec.technician_id = technician_id
-            if not rec.technician_id:
+            tech = technician or rec.technician_id
+            if not tech:
                 raise UserError("A technician must be assigned to dispatch the field order.")
 
+            vals = {
+                "technician_id": tech.id,
+                "state": "dispatched",
+                "dispatched_at": fields.Datetime.now(),
+                "accepted_at": False,
+                "en_route_at": False,
+            }
             # Check technician van stock location
             van = self.env["fix.stock.location"].search(
                 [
-                    ("technician_id", "=", rec.technician_id.id),
+                    ("technician_id", "=", tech.id),
                     ("is_van_stock", "=", True),
                 ],
                 limit=1,
             )
             if van:
-                rec.van_location_id = van.id
-
-            rec.state = "dispatched"
-            rec.dispatched_at = fields.Datetime.now()
+                vals["van_location_id"] = van.id
+            rec._guarded().write(vals)
             rec._emit_field_event(
                 "field.order.dispatched",
                 {
@@ -389,12 +641,67 @@ class FixFieldOrder(models.Model):
                 },
             )
 
+    def action_reassign(self, technician_id=None, reason="", reassignment=None):
+        """A02 audit M02-4: a dispatcher moves a dispatched job to another
+        technician, with a reason. Technician B took over A's in-progress job
+        by editing technician_id on the form; that field is now guarded and
+        this is the only way to change it once dispatched. A job already on
+        site is not handed over mid-work: cancel it with a reason instead.
+
+        ``reassignment`` is the workspace prompt's one string:
+        ``"<employee id> <reason>"``."""
+        self._fix_require_dispatcher("Reassigning a field order")
+        if reassignment not in (None, "", False):
+            head, _sep, tail = str(reassignment).strip().partition(" ")
+            technician_id, reason = head, tail
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Give the reason for the reassignment.")
+        technician = self._fix_resolve_technician(technician_id)
+        if not technician:
+            raise UserError("Name the technician to reassign the order to.")
+        for rec in self:
+            if rec.state not in ("dispatched", "accepted", "en_route"):
+                raise UserError(
+                    "Only a dispatched, accepted or en-route order can be reassigned "
+                    "(%s is %s)." % (rec.name, rec.state)
+                )
+            previous = rec.technician_id
+            if previous == technician:
+                raise UserError("%s is already assigned to %s." % (rec.name, technician.name))
+            rec._guarded().write(
+                {
+                    "technician_id": technician.id,
+                    "state": "dispatched",
+                    "dispatched_at": fields.Datetime.now(),
+                    "accepted_at": False,
+                    "en_route_at": False,
+                    "geofence_waived_by": False,
+                    "geofence_waive_reason": False,
+                }
+            )
+            rec.message_post(
+                body="Reassigned from %s to %s by %s. Reason: %s"
+                % (previous.name or "nobody", technician.name, self.env.user.name, reason)
+            )
+            rec._emit_field_event(
+                "field.order.reassigned",
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "previous_technician_id": previous.id,
+                    "technician_id": technician.id,
+                    "reason": reason,
+                },
+            )
+
     def action_accept(self):
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Only dispatched orders can be accepted.")
-            rec.state = "accepted"
-            rec.accepted_at = fields.Datetime.now()
+            # A02 audit M02-4: technician B accepted A's job.
+            rec._fix_require_assigned_technician("accept")
+            rec._guarded().write({"state": "accepted", "accepted_at": fields.Datetime.now()})
             rec._emit_field_event(
                 "field.order.accepted",
                 {
@@ -406,7 +713,17 @@ class FixFieldOrder(models.Model):
             )
 
     def action_decline(self, reason="other", notes=""):
-        DeclineLog = self.env["fix.field.decline.log"]
+        """The assigned technician declines a dispatched job, with a reason.
+        ``reason`` is a decline code, or free text (then filed as "other")."""
+        codes = dict(self._fields["decline_reason"].selection)
+        reason = (reason or "").strip() if isinstance(reason, str) else reason
+        notes = (notes or "").strip()
+        if reason not in codes:
+            notes = " ".join(p for p in (str(reason or ""), notes) if p).strip()
+            reason = "other"
+        # the log is the audit record of this decline: written by this method
+        # only (technicians have read-only access to it, A02 audit M02-4)
+        DeclineLog = self.env["fix.field.decline.log"].sudo()
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Only dispatched orders can be declined.")
@@ -414,7 +731,10 @@ class FixFieldOrder(models.Model):
             if not prev_tech:
                 # the decline log names the declining technician (NOT NULL)
                 raise UserError("Only an order dispatched to a technician can be declined.")
-            rec.write(
+            rec._fix_require_assigned_technician("decline")
+            if reason == "other" and not notes:
+                raise UserError("Say why the job is declined.")
+            rec._guarded().write(
                 {
                     "state": "declined",
                     "decline_reason": reason,
@@ -448,13 +768,51 @@ class FixFieldOrder(models.Model):
         for rec in self:
             if rec.state != "accepted":
                 raise UserError("Technician must accept the order before starting travel.")
-            rec.state = "en_route"
-            rec.en_route_at = fields.Datetime.now()
+            rec._fix_require_assigned_technician("start travel on")
+            rec._guarded().write({"state": "en_route", "en_route_at": fields.Datetime.now()})
 
-    def action_arrive(self, current_lat=None, current_lon=None, is_mock_location=False):
+    @staticmethod
+    def _fix_parse_position(position):
+        """``"23.81, 90.41"`` -> (23.81, 90.41); the P03 prompt sends one string."""
+        if isinstance(position, list | tuple) and len(position) == 2:
+            parts = list(position)
+        else:
+            parts = str(position or "").replace(";", ",").split(",")
+            if len(parts) != 2:
+                parts = str(position or "").split()
+        try:
+            lat, lon = (float(str(p).strip()) for p in parts)
+        except (TypeError, ValueError):
+            raise UserError(
+                "Give your position as latitude, longitude (for example 23.8103, 90.4125)."
+            ) from None
+        if not (math.isfinite(lat) and math.isfinite(lon)) or abs(lat) > 90 or abs(lon) > 180:
+            raise UserError("That position is not a valid latitude, longitude.")
+        return lat, lon
+
+    def _fix_arrival_fences(self):
+        """The fences an arrival is tested against: the order's own customer
+        geofence, else the active fences of its dispatch zone."""
+        self.ensure_one()
+        if self.geofence_id:
+            return self.geofence_id.sudo()
+        if not self.zone_id:
+            return self.env["fix.geofence"]
+        return (
+            self.env["fix.geofence"]
+            .sudo()
+            .search([("zone_id", "=", self.zone_id.id), ("active", "=", True)])
+        )
+
+    def action_arrive(
+        self, current_lat=None, current_lon=None, is_mock_location=False, position=None
+    ):
+        if position not in (None, "", False) and (current_lat is None or current_lon is None):
+            current_lat, current_lon = self._fix_parse_position(position)
         for rec in self:
             if rec.state != "en_route":
                 raise UserError("Order must be en route to mark arrival.")
+            rec._fix_require_assigned_technician("check in on")
             # FLAW-02.2: Hard-block arrival if mock location / GPS spoofing is active
             is_mock = False
             if is_mock_location is True or (
@@ -495,100 +853,344 @@ class FixFieldOrder(models.Model):
                     f"FLAW-02.2 Anti-Spoofing Gate: Arrival check-in blocked for {rec.name} — "
                     "mock GPS location provider or GNSS spoofing telemetry detected."
                 )
-            if current_lat is not None and current_lon is not None and rec.geofence_id:
-                in_fence = rec._check_geofence_arrival(current_lat, current_lon)
-                if not in_fence:
-                    rec._emit_field_event(
-                        "geofence.breach.detected",
-                        {
-                            "field_order_id": rec.id,
-                            "order_ref": rec.name,
-                            "technician_id": rec.technician_id.id if rec.technician_id else False,
-                            "current_lat": current_lat,
-                            "current_lon": current_lon,
-                            "geofence_id": rec.geofence_id.id,
-                            "detail": "Arrival recorded outside designated geofence perimeter.",
-                        },
+            # A02 audit M02-8: where the order or its zone has a fence, the
+            # arrival must give a position inside it. An arrival 11 km out was
+            # accepted, and the workspace button sent no position at all. A
+            # dispatcher can waive the fence for one order (action_waive_geofence).
+            fences = rec._fix_arrival_fences()
+            has_position = current_lat is not None and current_lon is not None
+            if fences and not rec.geofence_waived_by:
+                if not has_position:
+                    raise UserError(
+                        "Arrival at %s needs your current position: the order is "
+                        "geofenced." % rec.name
                     )
-            rec.arrived_at = fields.Datetime.now()
+                if not any(_point_in_fence(f, current_lat, current_lon) for f in fences):
+                    raise UserError(
+                        "Arrival refused: your position (%.5f, %.5f) is outside the "
+                        "geofence of %s. Check in from the customer site, or ask a "
+                        "dispatcher to waive the geofence for this order."
+                        % (current_lat, current_lon, rec.name)
+                    )
+            now = fields.Datetime.now()
+            vals = {"state": "arrived", "arrived_at": now}
+            if has_position:
+                vals.update({"arrival_latitude": current_lat, "arrival_longitude": current_lon})
             if rec.en_route_at:
-                travelled = (rec.arrived_at - rec.en_route_at).total_seconds() / 60.0
-                rec.actual_travel_minutes = round(travelled, 1)
-            rec.state = "arrived"
+                travelled = (now - rec.en_route_at).total_seconds() / 60.0
+                vals["actual_travel_minutes"] = round(travelled, 1)
+            rec._guarded().write(vals)
+
+    def action_waive_geofence(self, reason=""):
+        """A02 audit M02-8: a dispatcher lets one order check in without the
+        geofence test (a wrong geocode, a customer who moved), with a reason."""
+        self._fix_require_dispatcher("Waiving the arrival geofence")
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Give the reason for waiving the geofence.")
+        for rec in self:
+            if rec.state not in ("dispatched", "accepted", "en_route"):
+                raise UserError("The geofence can be waived only before arrival.")
+            rec._guarded().write(
+                {"geofence_waived_by": self.env.user.id, "geofence_waive_reason": reason}
+            )
+            rec.message_post(
+                body="Arrival geofence waived by %s. Reason: %s" % (self.env.user.name, reason)
+            )
 
     def action_start_work(self):
         for rec in self:
             if rec.state != "arrived":
                 raise UserError("Technician must arrive on site before commencing work.")
-            rec.state = "in_progress"
-            rec.started_work_at = fields.Datetime.now()
+            rec._fix_require_assigned_technician("start work on")
+            rec._guarded().write({"state": "in_progress", "started_work_at": fields.Datetime.now()})
+
+    # ------------------------------------------------------ on-site evidence
+    def _fix_attach_field_evidence(self, attachment, media_type, signer=None):
+        """Link an evidence attachment (signature or photo) to this order.
+
+        Called by the technician's evidence channel and the offline signature
+        op (both bound to the assigned technician), never over RPC: the name
+        is private. A02 audit M02-2: the signature op answered verified=True
+        and stored only a chatter line with a client token."""
+        self.ensure_one()
+        attachment = attachment.sudo()
+        if attachment.res_model != self._name or attachment.res_id != self.id:
+            raise UserError("That attachment does not belong to field order %s." % self.name)
+        media_type = (media_type or "photo").lower()
+        vals = {}
+        if media_type == "signature":
+            if self.state not in ("arrived", "in_progress"):
+                raise UserError("The customer signs on site: %s is %s." % (self.name, self.state))
+            raw = attachment.raw or b""
+            if not raw:
+                raise UserError("The signature attachment is empty.")
+            vals = {
+                "customer_signature_attachment_id": attachment.id,
+                "customer_signature_signer": (signer or "").strip() or False,
+                "customer_signature_sha256": hashlib.sha256(raw).hexdigest(),
+                "customer_signature_at": fields.Datetime.now(),
+            }
+        elif media_type in ("photo", "pre_work_photo", "post_work_photo"):
+            if not (attachment.mimetype or "").startswith("image/"):
+                return False
+            if media_type == "post_work_photo" or (
+                media_type == "photo" and self.state == "in_progress"
+            ):
+                if self.state != "in_progress":
+                    raise UserError("A post-work photo is taken while the work is in progress.")
+                vals = {"post_work_photo_attachment_id": attachment.id}
+            elif self.state in ("arrived", "in_progress") and not self.pre_work_photo_attachment_id:
+                vals = {"pre_work_photo_attachment_id": attachment.id}
+        if vals:
+            self._guarded().write(vals)
+        return bool(vals)
+
+    def _fix_completion_evidence_missing(self):
+        """What completion still needs, in plain words (empty = complete)."""
+        self.ensure_one()
+        profile = (
+            self.env["ir.config_parameter"].sudo().get_param(EVIDENCE_PROFILE_PARAM) or "strict"
+        )
+        if profile not in EVIDENCE_PROFILES:
+            profile = "strict"  # an unknown value fails closed
+        missing = []
+        if not (self.customer_otp_verified or self.customer_signature_attachment_id):
+            missing.append("the customer's sign-off (a verified OTP or a captured signature)")
+        if profile != "no_photo" and not self.post_work_photo_attachment_id:
+            missing.append("at least one post-work photo")
+        if not (self.work_summary or "").strip():
+            missing.append("a work summary")
+        return missing
+
+    # -------------------------------------------------------- on-site money
+    @api.model
+    def _fix_parse_collection(self, payment):
+        """``"bkash 1500 8N7A6B5C"`` or ``"cash 900"`` -> (method, amount, trx)."""
+        parts = str(payment or "").replace(",", " ").split()
+        if len(parts) < 2:
+            raise UserError(
+                "Give the collection as: method amount [TrxID], for example "
+                "'bkash 1500 8N7A6B5C' or 'cash 900'."
+            )
+        try:
+            amount = float(parts[1])
+        except ValueError:
+            raise UserError("The amount must be a number.") from None
+        return parts[0].lower(), amount, (parts[2] if len(parts) > 2 else None)
+
+    def action_record_collection(self, amount=None, method=None, trx_id=None, payment=None):
+        """The assigned technician records what was collected on site.
+
+        A02 audit M02-3: the amount, channel and TrxID were plain fields and
+        completion settled the service order from them. They are recorded here
+        and only here; nothing about the record settles anything."""
+        if payment not in (None, "", False):
+            method, amount, trx_id = self._fix_parse_collection(payment)
+        methods = dict(self._fields["onsite_payment_method"].selection)
+        if method not in methods:
+            raise UserError("Unknown payment channel '%s'." % (method or ""))
+        try:
+            amount = float(amount or 0.0)
+        except (TypeError, ValueError):
+            raise UserError("The amount must be a number.") from None
+        if not math.isfinite(amount) or amount < 0:
+            raise UserError("The amount must be zero or more.")
+        if method == "none" and amount:
+            raise UserError("A zero-charge job collects nothing.")
+        trx_id = (trx_id or "").strip() or False
+        if method in MFS_METHODS and amount > 0 and not trx_id:
+            raise UserError(
+                f"FLAW-02.3 On-Site Payment Gate: a {methods[method]} collection needs its "
+                "Transaction ID."
+            )
+        for rec in self:
+            if rec.state not in ("arrived", "in_progress"):
+                raise UserError("A collection is recorded on site, before completion.")
+            rec._fix_require_assigned_technician("record a collection on")
+            rec._guarded().write(
+                {
+                    "onsite_collection_amount": amount,
+                    "onsite_payment_method": method,
+                    "onsite_payment_trx_id": trx_id if method in MFS_METHODS else False,
+                }
+            )
+
+    def _fix_record_order_settlement(self, amount, reference):
+        """Hand the collection to the service order's own settlement method
+        (contract with M01: fix.service.order._fix_record_settlement). The
+        field order never writes the order's settlement fields itself (A02
+        audit M02-3). Returns the payment state to record."""
+        self.ensure_one()
+        order = self.order_id
+        if not order or not hasattr(order, "_fix_record_settlement"):
+            self.message_post(
+                body="On-site collection of BDT %.2f (%s) recorded; the service order's "
+                "settlement was not recorded because its settlement method is not "
+                "available." % (amount, reference)
+            )
+            return "pending_settlement"
+        try:
+            with self.env.cr.savepoint():
+                order._fix_record_settlement(amount, reference, source="field_collection")
+        except (UserError, AccessError) as exc:
+            self.message_post(
+                body="On-site collection of BDT %.2f (%s) recorded; the service order "
+                "refused the settlement: %s" % (amount, reference, exc.args[0] if exc.args else exc)
+            )
+            return "pending_settlement"
+        return "settled"
 
     def action_complete(self):
         for rec in self:
             if rec.state != "in_progress":
                 raise UserError("Only in-progress orders can be completed.")
+            rec._fix_require_assigned_technician("complete")
             # FLAW-02.3: Require verified MFS/Gateway TrxID when digital on-site payment is collected
             amt = getattr(rec, "onsite_collection_amount", 0.0)
+            method = getattr(rec, "onsite_payment_method", False)
             if isinstance(amt, int | float) and amt > 0:
-                method = getattr(rec, "onsite_payment_method", False)
                 trx_id = getattr(rec, "onsite_payment_trx_id", False)
-                if method in ("bkash", "nagad", "sslcommerz") and not trx_id:
+                if method in MFS_METHODS and not trx_id:
                     raise UserError(
                         f"FLAW-02.3 On-Site Payment Gate: Order {rec.name} has an MFS/Digital "
                         f"collection of BDT {amt:.2f} via "
                         f"'{method}' without a verified Transaction ID."
                     )
-            rec.state = "completed"
-            rec.completed_at = fields.Datetime.now()
-            if (
-                rec.order_id
-                and isinstance(amt, int | float)
-                and amt > 0
-                and rec.onsite_payment_method in ("bkash", "nagad", "sslcommerz", "cash")
-            ):
-                rec.order_id.write(
-                    {
-                        "payment_settlement_state": "settled",
-                        "invoice_ref": rec.onsite_payment_trx_id or f"COD/{rec.name}",
-                        "amount_settled_bdt": amt,
-                    }
+            # A02 audit M02-2 / URD US-P3-013: completion needs the customer's
+            # sign-off, a post-work photo and a work summary.
+            missing = rec._fix_completion_evidence_missing()
+            if missing:
+                raise UserError(
+                    "Field order %s cannot be completed without %s."
+                    % (rec.name, "; ".join(missing))
                 )
+            rec._guarded().write({"state": "completed", "completed_at": fields.Datetime.now()})
+            # A02 audit M02-3: completion no longer marks the service order
+            # settled. Cash waits for its hand-over to a branch shift; a digital
+            # collection goes to the service order's own settlement method.
+            pay_state = "none"
+            if isinstance(amt, int | float) and amt > 0:
+                if method == "cash":
+                    pay_state = "pending_handover"
+                elif method in MFS_METHODS:
+                    pay_state = rec._fix_record_order_settlement(amt, rec.onsite_payment_trx_id)
+            rec._guarded().write({"onsite_payment_state": pay_state})
 
     def action_handover_field_cash(self, shift_id=None):
         """HS-08: Deposit on-site cash collected by the field engineer into an M04
-        branch cash drawer shift (`fix.cash.shift.field_cash_deposited`)."""
-        Shift = self.env["fix.cash.shift"]
+        branch cash drawer shift (`fix.cash.shift.field_cash_deposited`).
+
+        A02 audit M02-3: the cash is settled on the service order only now,
+        when it reaches an open branch shift, and only once."""
+        Shift = self.env["fix.cash.shift"].sudo()
         for rec in self:
             if rec.onsite_payment_method != "cash" or rec.onsite_collection_amount <= 0:
                 raise UserError(
                     f"Order {rec.name} has no on-site cash collection to hand over to a branch shift."
                 )
-            shift = Shift.browse(shift_id) if shift_id else rec.cash_shift_id
+            if rec.state != "completed" or rec.onsite_payment_state != "pending_handover":
+                raise UserError(
+                    f"Order {rec.name} has no cash pending hand-over "
+                    f"(payment status: {rec.onsite_payment_state})."
+                )
+            if not rec._fix_is_dispatcher():
+                rec._fix_require_assigned_technician("hand over the cash of")
+            shift = Shift.browse(int(shift_id)).exists() if shift_id else Shift.browse()
             if not shift:
                 shift = Shift.search(
                     [("state", "=", "open"), ("company_id", "=", rec.company_id.id)],
                     order="id desc",
                     limit=1,
                 )
-            if not shift or not shift.exists():
+            if not shift or shift.state != "open":
                 raise UserError(
                     "HS-08 Field Cash Handover: No open Branch Cash Shift found to receive field cash."
                 )
-            rec.cash_shift_id = shift.id
-            shift.field_cash_deposited = (
-                shift.field_cash_deposited or 0.0
-            ) + rec.onsite_collection_amount
+            if shift.company_id != rec.company_id:
+                raise UserError("The cash shift belongs to another company.")
+            # Contract with M04 (A02 audit M04-4): the drawer totals are
+            # guarded; the shift's own method posts onto an OPEN shift only.
+            shift._post_field_cash(rec.onsite_collection_amount)
+            rec._guarded().write(
+                {"cash_shift_id": shift.id, "cash_handed_over_at": fields.Datetime.now()}
+            )
             rec.message_post(
                 body=f"HS-08: On-site cash BDT {rec.onsite_collection_amount:.2f} handed over to Branch Cash Shift #{shift.id}."
             )
+            pay_state = rec._fix_record_order_settlement(
+                rec.onsite_collection_amount, f"COD/{rec.name}"
+            )
+            rec._guarded().write({"onsite_payment_state": pay_state})
 
     def action_cancel(self, reason=""):
+        """A02 audit M02-9: a technician cancelled an in-progress job with no
+        reason. A reason is required, and once the order is in dispatch the
+        cancellation is a dispatcher decision."""
         for rec in self:
             if rec.state == "completed":
                 raise UserError("Completed orders cannot be cancelled.")
-            rec.state = "cancelled"
-            if reason:
-                rec.notes = f"{rec.notes or ''}\nCancellation: {reason}".strip()
+            if rec.state == "cancelled":
+                raise UserError("Order %s is already cancelled." % rec.name)
+        reason = (reason or "").strip() if isinstance(reason, str) else ""
+        if not reason:
+            raise UserError("Give the reason for the cancellation.")
+        if any(rec.state != "draft" for rec in self):
+            self._fix_require_dispatcher("Cancelling a field order in dispatch")
+        for rec in self:
+            rec._guarded().write(
+                {
+                    "state": "cancelled",
+                    "cancel_reason": reason,
+                    "notes": f"{rec.notes or ''}\nCancellation: {reason}".strip(),
+                }
+            )
+
+    # ------------------------------------------------------------- SLA watch
+    @api.model
+    def _cron_escalate_sla_breaches(self, limit=200):
+        """A02 audit M02-7: no one was told when a field order passed its SLA
+        deadline (42 open orders were past it). Each newly breached open order
+        gets one to-do activity for a dispatcher (round robin), once."""
+        orders = self.sudo().search(
+            [
+                ("state", "in", OPEN_STATES),
+                ("sla_deadline", "!=", False),
+                ("sla_deadline", "<", fields.Datetime.now()),
+                ("sla_escalated_at", "=", False),
+            ],
+            order="sla_deadline asc, id asc",
+            limit=limit,
+        )
+        if not orders:
+            return 0
+        group = self.env.ref(DISPATCHER_GROUP, raise_if_not_found=False)
+        dispatchers = (
+            group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share).sorted("id")
+            if group
+            else self.env["res.users"]
+        )
+        if not dispatchers:
+            _logger.warning(
+                "%d field orders are past their SLA deadline and no dispatcher is "
+                "appointed to be told.",
+                len(orders),
+            )
+            return 0
+        activity_type = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        today = fields.Date.context_today(self)
+        for i, order in enumerate(orders):
+            user = dispatchers[i % len(dispatchers)]
+            order.activity_schedule(
+                activity_type_id=activity_type.id if activity_type else False,
+                summary="SLA breached: %s" % order.name,
+                note="Field order %s passed its SLA deadline (%s) in state %s."
+                % (order.name, order.sla_deadline, order.state),
+                user_id=user.id,
+                date_deadline=today,
+            )
+        orders.write({"sla_escalated_at": fields.Datetime.now()})
+        return len(orders)
 
     def action_suggest_technicians(self, limit=5):
         """The dispatch suggestion engine (M02): a deterministic, explainable
@@ -731,32 +1333,7 @@ class FixFieldOrder(models.Model):
         """Validate if current coordinates fall within the assigned geofence."""
         if not self.geofence_id or not self.geofence_id.geometry_json:
             return True
-        try:
-            geom = json.loads(self.geofence_id.geometry_json)
-        except Exception:
-            return True
-
-        if self.geofence_id.geofence_type == "circle":
-            center_lat = float(geom.get("lat", 0.0))
-            center_lon = float(geom.get("lng", 0.0))
-            radius_m = float(geom.get("radius_m", 500.0))
-            # Haversine distance
-            dist = self._haversine_distance(lat, lon, center_lat, center_lon)
-            return dist <= radius_m
-        else:
-            # Polygon ray-casting algorithm
-            points = geom.get("points", [])
-            if len(points) < 3:
-                return True
-            inside = False
-            j = len(points) - 1
-            for i in range(len(points)):
-                xi, yi = points[i][0], points[i][1]
-                xj, yj = points[j][0], points[j][1]
-                if ((yi > lon) != (yj > lon)) and (lat < (xj - xi) * (lon - yi) / (yj - yi) + xi):
-                    inside = not inside
-                j = i
-            return inside
+        return _point_in_fence(self.geofence_id, lat, lon)
 
     @staticmethod
     def _haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:

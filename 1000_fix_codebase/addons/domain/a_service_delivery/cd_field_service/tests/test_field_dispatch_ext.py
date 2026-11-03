@@ -86,6 +86,31 @@ def _certify(env, employee):
     )
 
 
+PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
+
+
+def _give_completion_evidence(fo):
+    """A02 audit M02-2: completion needs the customer's signature, a post-work
+    photo and a work summary (the order must be in progress)."""
+    import base64
+
+    Att = fo.env["ir.attachment"]
+    for media in ("signature", "photo"):
+        att = Att.create(
+            {
+                "name": "%s.png" % media,
+                "raw": base64.b64decode(PNG_B64),
+                "mimetype": "image/png",
+                "res_model": "fix.field.order",
+                "res_id": fo.id,
+            }
+        )
+        fo._fix_attach_field_evidence(att, media, signer="Test Customer")
+    fo.work_summary = "Replaced the faulty part and tested."
+
+
 def _field_order(fx, **vals):
     return fx.env["fix.field.order"].create(
         {
@@ -116,6 +141,7 @@ def test_journey_stamps_and_actual_travel_minutes(fx):
     assert fo.on_time_arrival is True  # arrival before the +2h scheduled start
     fo.action_start_work()
     assert fo.started_work_at
+    _give_completion_evidence(fo)
     fo.action_complete()
     assert fo.completed_at
 
@@ -202,8 +228,11 @@ def test_bridge_creates_draft_field_order_from_onsite(fx):
     assert fo.zone_id == fx.branch.zone_id
     assert fo.order_id == fx.order
     assert fx.order.field_order_count == 1
-    # idempotent per order is NOT enforced (multiple visits are legal), but a
-    # second creation must still link the same service order
+    # multiple visits are legal, one at a time: A02 audit M01-13 refuses a
+    # second LIVE field order, so the first visit ends before the next
+    with pytest.raises(UserError, match="already has a live field order"):
+        fx.order.action_create_field_order()
+    fo.action_cancel(reason="revisit booked")
     second = fx.order.action_create_field_order()
     assert second[0].order_id == fx.order
     assert fx.order.field_order_count == 2
@@ -216,18 +245,10 @@ def test_bridge_refuses_non_onsite(fx):
 
 
 def test_bridge_refuses_closed(fx):
-    fx.order.state = "intake"
-    fx.order.state = "diagnostic"
-    fx.order.state = "estimate_pending"
-    fx.order.state = "estimate_sent"
-    fx.order.state = "awaiting_approval"
-    fx.order.state = "approved"
-    fx.order.state = "in_repair"
-    fx.order.state = "qc_pending"
-    env = fx.env
-    env["fix.qc.checklist"].create({"order_id": fx.order.id, "state": "passed"})
-    fx.order.state = "ready"
-    fx.order.state = "delivered"
-    fx.order.state = "closed"
+    # placed in its state directly: what this test checks is the bridge's
+    # refusal, not the M01 path to closed (whose gates change independently)
+    fx.env.flush_all()
+    fx.env.cr.execute("UPDATE fix_service_order SET state = 'closed' WHERE id = %s", [fx.order.id])
+    fx.env.invalidate_all()
     with pytest.raises(UserError, match="can no longer be dispatched"):
         fx.order.action_create_field_order()

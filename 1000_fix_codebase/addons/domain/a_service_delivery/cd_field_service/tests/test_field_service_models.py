@@ -51,6 +51,31 @@ def fs(odoo_env):
     return SimpleNamespace(env=env, ou=ou, so=so, zone=zone, tech=tech, tech2=tech2)
 
 
+PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
+
+
+def _give_completion_evidence(fo):
+    """A02 audit M02-2: completion needs the customer's signature, a post-work
+    photo and a work summary (the order must be in progress)."""
+    import base64
+
+    Att = fo.env["ir.attachment"]
+    for media in ("signature", "photo"):
+        att = Att.create(
+            {
+                "name": "%s.png" % media,
+                "raw": base64.b64decode(PNG_B64),
+                "mimetype": "image/png",
+                "res_model": "fix.field.order",
+                "res_id": fo.id,
+            }
+        )
+        fo._fix_attach_field_evidence(att, media, signer="Test Customer")
+    fo.work_summary = "Replaced the faulty part and tested."
+
+
 def _order(fs, **vals):
     return fs.env["fix.field.order"].create(
         {"order_id": fs.so.id, "zone_id": fs.zone.id, "operating_unit_id": fs.ou.id, **vals}
@@ -102,6 +127,7 @@ def test_lifecycle_emits_dispatch_accept_events(fs):
     order.action_start_travel()
     order.action_arrive()
     order.action_start_work()
+    _give_completion_evidence(order)
     order.action_complete()
     assert order.state == "completed"
     dispatched, accepted = _events(env, "fix.field.order", order.id)
@@ -176,21 +202,22 @@ def test_decline_without_a_technician_is_refused_cleanly(fs):
     assert not fs.env["fix.field.decline.log"].search([("field_order_id", "=", order.id)])
 
 
-def test_arrival_outside_the_geofence_emits_a_breach(fs):
+def test_arrival_outside_the_geofence_is_refused(fs):
+    """A02 audit M02-8: an arrival outside the fence, or with no position on a
+    geofenced order, is refused (it was accepted with only an event)."""
     env = fs.env
     fence = _fence(fs, {"lat": 23.8, "lng": 90.4, "radius_m": 500})
     inside, outside, unchecked = (
         _order(fs, geofence_id=fence.id, state="en_route") for _ in range(3)
     )
     inside.action_arrive(current_lat=23.8001, current_lon=90.4)
-    outside.action_arrive(current_lat=23.9, current_lon=90.4)
-    unchecked.action_arrive(current_lat=23.9)  # no longitude: no check
-    assert (inside.state, outside.state, unchecked.state) == ("arrived", "arrived", "arrived")
+    with _refused(env, UserError, "outside the geofence"):
+        outside.action_arrive(current_lat=23.9, current_lon=90.4)
+    with _refused(env, UserError, "needs your current position"):
+        unchecked.action_arrive(current_lat=23.9)  # no longitude
+    assert (inside.state, outside.state, unchecked.state) == ("arrived", "en_route", "en_route")
+    assert (inside.arrival_latitude, inside.arrival_longitude) == (23.8001, 90.4)
     assert not _events(env, "fix.field.order", inside.id)
-    assert not _events(env, "fix.field.order", unchecked.id)
-    breach = _events(env, "fix.field.order", outside.id)
-    assert breach.event_type == "geofence.breach.detected"
-    assert json.loads(breach.payload)["geofence_id"] == fence.id
 
 
 def test_geofence_checks_circle_polygon_and_degenerate_geometry(fs):
@@ -219,8 +246,9 @@ def test_cancel_records_the_reason_but_never_a_completed_order(fs):
         "Gate code 1234\nCancellation: Customer not home",
     )
     quiet = _order(fs)
-    quiet.action_cancel()
-    assert (quiet.state, quiet.notes) == ("cancelled", False)
+    with _refused(fs.env, UserError, "reason for the cancellation"):
+        quiet.action_cancel()  # A02 audit M02-9: a reason is required
+    assert quiet.state == "draft"
     done = _order(fs, state="completed")
     with _refused(fs.env, UserError, "Completed orders cannot be cancelled"):
         done.action_cancel()

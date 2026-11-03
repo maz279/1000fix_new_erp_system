@@ -1,5 +1,21 @@
 # fix.field.decline.log — Audit Trail for Declined Dispatches (CD-M02-01)
 from odoo import api, fields, models
+from odoo.exceptions import UserError
+
+# A02 audit M02-4: the log is the record of a decline. Creating one through the
+# P03 "override" form declined an ACCEPTED order, bypassing action_decline's
+# state rule. A log is now written only by fix.field.order.action_decline,
+# and what it records cannot be rewritten afterwards.
+_GUARDED = frozenset(
+    {
+        "field_order_id",
+        "technician_id",
+        "decline_date",
+        "reason",
+        "dofa_override_tier",
+        "supervisor_id",
+    }
+)
 
 
 class FixFieldDeclineLog(models.Model):
@@ -7,7 +23,7 @@ class FixFieldDeclineLog(models.Model):
 
     _name = "fix.field.decline.log"
     _description = "Field Dispatch Decline Log"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "decline_date desc, id desc"
 
     # Multi-tenant scoping per AS-03
@@ -86,8 +102,16 @@ class FixFieldDeclineLog(models.Model):
         tracking=True,
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | _GUARDED
+
     @api.model_create_multi
     def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError(
+                "A decline is recorded by declining the field order (Decline), "
+                "which checks that the order is dispatched to you."
+            )
         for vals in vals_list:
             if not vals.get("operating_unit_id"):
                 if vals.get("field_order_id"):
@@ -115,12 +139,5 @@ class FixFieldDeclineLog(models.Model):
                 )
             if not vals.get("name_bn") and vals.get("name"):
                 vals["name_bn"] = vals["name"]
-        records = super().create(vals_list)
-        for rec in records:
-            if rec.field_order_id and rec.field_order_id.state in (
-                "pending_dispatch",
-                "dispatched",
-                "accepted",
-            ):
-                rec.field_order_id.write({"state": "declined"})
-        return records
+        # The order's state is action_decline's to change, never the log's.
+        return super().create(vals_list)

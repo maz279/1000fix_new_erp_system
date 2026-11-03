@@ -109,8 +109,17 @@ class FixFieldRoute(models.Model):
 
     _name = "fix.field.route"
     _description = "Field Route Itinerary"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "date desc, technician_id asc, id desc"
+
+    # A02 audit M02-1: route_state (and the optimiser's measured result) moved
+    # only through the route actions; a plain write set any of them.
+    _GUARDED_FIELDS = frozenset(
+        {"route_state", "total_distance_km", "total_duration_hours", "baseline_duration_hours"}
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self._GUARDED_FIELDS
 
     # Multi-tenant scoping per AS-03
     company_id = fields.Many2one(
@@ -284,7 +293,7 @@ class FixFieldRoute(models.Model):
             base_hours = base_km / AVG_SPEED_KMH + len(orders) * SERVICE_MINUTES_PER_STOP / 60.0
             opt_hours = opt_km / AVG_SPEED_KMH + len(orders) * SERVICE_MINUTES_PER_STOP / 60.0
 
-            rec.write(
+            rec._guarded().write(
                 {
                     "baseline_duration_hours": round(base_hours, 2),
                     "total_duration_hours": round(opt_hours, 2),
@@ -307,10 +316,10 @@ class FixFieldRoute(models.Model):
         for rec in self:
             if rec.route_state not in ("optimized", "draft"):
                 raise UserError("Route must be drafted or optimized before starting.")
-            rec.route_state = "in_progress"
+            rec._guarded().write({"route_state": "in_progress"})
 
     def action_complete_route(self):
         for rec in self:
             if rec.route_state != "in_progress":
                 raise UserError("Only in-progress routes can be completed.")
-            rec.route_state = "completed"
+            rec._guarded().write({"route_state": "completed"})

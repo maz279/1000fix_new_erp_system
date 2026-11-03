@@ -19,6 +19,7 @@ from odoo.addons.cd_service_order.controllers.technician_api import (
     _to_int,
     resolve_technician,
 )
+from odoo.exceptions import UserError
 from odoo.http import request
 
 _logger = logging.getLogger(__name__)
@@ -175,6 +176,15 @@ class OfflineEvidenceApiController(http.Controller):
                 # Clean up buffer
                 _ACTIVE_CHUNKS.pop(session_key, None)
             attachment_id = attachment.id
+            # A02 audit M02-2: a signature or photo uploaded here is the
+            # completion evidence of a field order. Linking it never blocks the
+            # upload (SP-09): a photo taken in the wrong state is kept, unlinked.
+            if session["model"] == "fix.field.order":
+                try:
+                    with env.cr.savepoint():
+                        target_rec._fix_attach_field_evidence(attachment, session["media_type"])
+                except UserError as exc:
+                    _logger.info("evidence %s kept unlinked: %s", media_uuid, exc)
 
         return {
             "status": "complete" if is_complete else "chunk_accepted",

@@ -73,6 +73,13 @@ class TestFieldServiceCore:
         mock_order.env = MagicMock()
         mock_order._emit_field_event = MagicMock()
         mock_order.__iter__.return_value = [mock_order]
+        # transitions write through the guard (A02 audit M02-1); completion
+        # evidence is checked by _fix_completion_evidence_missing (M02-2)
+        mock_order._guarded = MagicMock()
+        mock_order._guarded.return_value.write.side_effect = lambda vals: [
+            setattr(mock_order, k, v) for k, v in vals.items()
+        ]
+        mock_order._fix_completion_evidence_missing.return_value = []
 
         # 1. Request dispatch
         FixFieldOrder.action_request_dispatch(mock_order)
@@ -121,9 +128,13 @@ class TestFieldServiceCore:
 
         mock_decline_log = MagicMock()
         mock_order.env = {"fix.field.decline.log": mock_decline_log}
+        mock_order._fields = {
+            "decline_reason": SimpleNamespace(selection=[("distance", "D"), ("other", "O")])
+        }
+        mock_order._guarded = MagicMock()
 
         FixFieldOrder.action_decline(mock_order, reason="distance", notes="Out of coverage zone")
-        mock_order.write.assert_called_once_with(
+        mock_order._guarded.return_value.write.assert_called_once_with(
             {
                 "state": "declined",
                 "decline_reason": "distance",
@@ -131,7 +142,7 @@ class TestFieldServiceCore:
                 "technician_id": False,
             }
         )
-        mock_decline_log.create.assert_called_once()
+        mock_decline_log.sudo.return_value.create.assert_called_once()
         mock_order._emit_field_event.assert_called_once()
         event_args = mock_order._emit_field_event.call_args[0]
         assert event_args[0] == "field.order.declined"
@@ -167,7 +178,7 @@ class TestFieldServiceCore:
 
         rec = SimpleNamespace(
             field_order_ids=stops,
-            write=lambda vals: written.update(vals),
+            _guarded=lambda: SimpleNamespace(write=lambda vals: written.update(vals)),
             message_post=lambda body: posts.append(body),
         )
 

@@ -35,6 +35,13 @@ class FixServiceOrderFieldBridge(models.Model):
                 raise UserError(
                     "Order %s is %s — it can no longer be dispatched." % (order.name, order.state)
                 )
+            # A02 audit M01-13 (M01-owned line): no second live field order.
+            order._fix_assert_no_live_handoff(
+                order.field_order_ids.filtered(
+                    lambda f: f.state not in ("completed", "cancelled", "declined")
+                ),
+                "field order",
+            )
             zone = order.branch_id.zone_id
             if not zone:
                 raise UserError(
@@ -53,9 +60,16 @@ class FixServiceOrderFieldBridge(models.Model):
                     "order_id": order.id,
                     "zone_id": zone.id,
                     "operating_unit_id": ou.id,
-                    "priority": {"0": "0", "1": "1", "2": "2", "3": "3"}.get(
-                        order.priority or "1", "1"
-                    ),
+                    # A02 audit M01-13 (bridge mapping owned by M01): the
+                    # order's priorities are normal/high/urgent/emergency;
+                    # the old '0'-'3' keys never matched, so an emergency went
+                    # out as field priority '1'.
+                    "priority": {
+                        "normal": "1",
+                        "high": "2",
+                        "urgent": "3",
+                        "emergency": "3",
+                    }.get(order.priority or "normal", "1"),
                     "scheduled_start": (
                         order.sla_resolution_deadline and order.sla_resolution_deadline
                     )

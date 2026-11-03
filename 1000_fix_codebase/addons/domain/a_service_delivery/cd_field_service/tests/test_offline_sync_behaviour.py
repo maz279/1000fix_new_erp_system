@@ -107,6 +107,29 @@ def _fo(world, state="arrived", **vals):
     return world.env["fix.field.order"].create(dict(world.fo_vals, state=state, **vals))
 
 
+PNG_B64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
+
+
+def _give_sign_off_and_photo(fo):
+    """A02 audit M02-2: the customer's signature and a post-work photo, linked
+    the way the evidence channel links them (the order is in progress)."""
+    import base64
+
+    for media in ("signature", "photo"):
+        att = fo.env["ir.attachment"].create(
+            {
+                "name": "%s.png" % media,
+                "raw": base64.b64decode(PNG_B64),
+                "mimetype": "image/png",
+                "res_model": "fix.field.order",
+                "res_id": fo.id,
+            }
+        )
+        fo._fix_attach_field_evidence(att, media, signer="Test Customer")
+
+
 # the centre of the technician's zone fence, with a good (10 m) GPS fix
 DHAKA = {"geo_lat": 23.8, "geo_long": 90.4, "accuracy_m": 10}
 
@@ -318,6 +341,11 @@ def test_complete_order_records_resolution_and_detects_double_completion(world):
         _fo(world, state="in_progress", notes="Bring ladder"),
         _fo(world, state="in_progress"),
     )
+    # A02 audit M02-2: completion needs the customer's sign-off and a post-work
+    # photo; the resolution notes become the work summary
+    for order in (noted, plain):
+        _give_sign_off_and_photo(order)
+    plain.work_summary = "Cleaned the condenser"
     out = _sync(
         world,
         [
@@ -332,6 +360,7 @@ def test_complete_order_records_resolution_and_detects_double_completion(world):
         ],
     )
     assert noted.notes == "Bring ladder\n[Resolution]: Replaced capacitor"
+    assert noted.work_summary == "Replaced capacitor"
     assert (noted.state, plain.state, plain.notes) == ("completed", "completed", False)
     assert out["conflicts"] == {"osb-k3": "Order already marked completed on server"}
 
@@ -431,6 +460,8 @@ def test_consume_part_variants(world):
 
 
 def test_customer_signature_is_posted_on_the_own_order(world):
+    """A02 audit M02-2: the op stores the signature image with its SHA-256;
+    a token or a non-image is refused, never answered verified=True."""
     order = _fo(world)
     out = _sync(
         world,
@@ -445,21 +476,26 @@ def test_customer_signature_is_posted_on_the_own_order(world):
             ),
             _cmd("osb-sig2", "customer_signature", record_id=order.id, signature_base64="Q" * 40),
             _cmd("osb-sig3", "customer_signature", record_id="abc"),
+            _cmd(
+                "osb-sig4",
+                "customer_signature",
+                record_id=order.id,
+                signer_name="Rahim",
+                signature_base64=PNG_B64,
+            ),
         ],
     )
-    assert out["rejected"] == {
-        "osb-sig0": "Missing field order ID for customer signature",
-        "osb-sig3": "Field order abc not found or not assigned to you",
-    }
-    assert out["acknowledged"]["osb-sig1"] == {
-        "order_id": order.id,
-        "signer": "Rahim",
-        "verified": True,
-    }
-    bodies = order.message_ids.mapped("body")
-    assert any("captured offline for Rahim. Token: TOK-1" in b for b in bodies)
-    # no token: the first 32 characters of the bitmap stand in
-    assert any(f"for Customer. Token: {'Q' * 32}" in b and "Q" * 33 not in b for b in bodies)
+    assert set(out["rejected"]) == {"osb-sig0", "osb-sig1", "osb-sig2", "osb-sig3"}
+    assert out["rejected"]["osb-sig0"] == "Missing field order ID for customer signature"
+    assert out["rejected"]["osb-sig3"] == "Field order abc not found or not assigned to you"
+    assert "a token is not evidence" in out["rejected"]["osb-sig1"]
+    assert "too small" in out["rejected"]["osb-sig2"]  # 30 bytes of noise
+    ack = out["acknowledged"]["osb-sig4"]
+    assert "verified" not in ack and ack["recorded"] is True
+    att = order.customer_signature_attachment_id
+    assert att.id == ack["attachment_id"] and att.res_id == order.id
+    assert order.customer_signature_signer == "Rahim"
+    assert order.customer_signature_sha256 == ack["sha256"] and len(ack["sha256"]) == 64
 
 
 def test_panic_sos_and_unknown_operations(world):

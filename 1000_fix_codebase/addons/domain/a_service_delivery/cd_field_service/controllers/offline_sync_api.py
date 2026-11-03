@@ -15,6 +15,8 @@ Implements the upload-first offline synchronization protocol
 7. Return single unified response.
 """
 
+import base64
+import binascii
 import hashlib
 import logging
 import math
@@ -37,6 +39,36 @@ from odoo.http import request
 _logger = logging.getLogger(__name__)
 
 FIELD_ORDER_OPERATIONS = ("start_order", "complete_order", "decline_order")
+
+# A02 audit M02-2: a signature is an image the customer drew, stored and
+# hashed: PNG, JPEG or WEBP, and more than a token's worth of bytes.
+_SIGNATURE_MAGIC = {
+    b"\x89PNG\r\n\x1a\n": ("image/png", "png"),
+    b"\xff\xd8\xff": ("image/jpeg", "jpg"),
+    b"RIFF": ("image/webp", "webp"),
+}
+MIN_SIGNATURE_BYTES = 64
+MAX_SIGNATURE_BYTES = 2 * 1024 * 1024
+
+
+def _decode_signature(data):
+    """(raw bytes, mimetype, extension) of a base64 signature image; a
+    ValueError names what is wrong."""
+    if not isinstance(data, str) or not data.strip():
+        raise ValueError("signature_base64 is required")
+    text = data.strip()
+    if text.startswith("data:") and "," in text:
+        text = text.split(",", 1)[1]
+    try:
+        raw = base64.b64decode(text, validate=True)
+    except (binascii.Error, ValueError):
+        raise ValueError("signature_base64 is not valid base64") from None
+    if not MIN_SIGNATURE_BYTES <= len(raw) <= MAX_SIGNATURE_BYTES:
+        raise ValueError("the signature image is too small or too large")
+    for magic, (mimetype, ext) in _SIGNATURE_MAGIC.items():
+        if raw.startswith(magic):
+            return raw, mimetype, ext
+    raise ValueError("the signature must be a PNG, JPEG or WEBP image")
 
 
 def _su_env():
@@ -375,6 +407,10 @@ class OfflineSyncApiController(http.Controller):
                 res_notes = payload.get("resolution_notes", "")
                 if res_notes:
                     order.notes = f"{order.notes or ''}\n[Resolution]: {res_notes}".strip()
+                    # the resolution the technician typed is the work summary
+                    # completion requires (A02 audit M02-2), unless one exists
+                    if not (order.work_summary or "").strip():
+                        order.work_summary = res_notes
                 order.action_complete()
                 return (
                     "applied",
@@ -491,10 +527,13 @@ class OfflineSyncApiController(http.Controller):
             )
 
         # 6. Customer E-Signature
+        # A02 audit M02-2: this op answered verified=True and stored only a
+        # chatter line with a client token. It now stores the signature image
+        # (or links one uploaded through the evidence channel) as an
+        # attachment with its SHA-256; a token alone is refused.
         if operation == "customer_signature":
             order_id = record_id or payload.get("order_id")
             sig_name = payload.get("signer_name", "Customer")
-            sig_token = payload.get("signature_token") or payload.get("signature_base64", "")[:32]
 
             if not order_id:
                 return "rejected", {}, "Missing field order ID for customer signature"
@@ -502,11 +541,53 @@ class OfflineSyncApiController(http.Controller):
             if not order:
                 return "rejected", {}, f"Field order {order_id} not found or not assigned to you"
 
-            msg = f"Customer signature captured offline for {sig_name}. Token: {sig_token}"
-            order.message_post(body=msg)
+            attachment = env["ir.attachment"]
+            if payload.get("attachment_id"):
+                attachment = attachment.search(
+                    [
+                        ("id", "=", _to_int(payload.get("attachment_id")) or 0),
+                        ("res_model", "=", "fix.field.order"),
+                        ("res_id", "=", order.id),
+                    ],
+                    limit=1,
+                )
+                if not attachment:
+                    return "rejected", {}, "The signature attachment is not on this order"
+            else:
+                try:
+                    raw, mimetype, ext = _decode_signature(payload.get("signature_base64"))
+                except ValueError as exc:
+                    return (
+                        "rejected",
+                        {},
+                        "A signature image is required (%s); a token is not evidence" % exc,
+                    )
+                attachment = attachment.create(
+                    {
+                        "name": "customer_signature_%s.%s" % (order.name.replace("/", "_"), ext),
+                        "type": "binary",
+                        "raw": raw,
+                        "mimetype": mimetype,
+                        "res_model": "fix.field.order",
+                        "res_id": order.id,
+                        "description": "Customer signature (%s), captured offline by %s"
+                        % (sig_name, tech.name),
+                    }
+                )
+            order._fix_attach_field_evidence(attachment, "signature", signer=sig_name)
+            order.message_post(
+                body=f"Customer signature captured offline for {sig_name}.",
+                attachment_ids=[attachment.id],
+            )
             return (
                 "applied",
-                {"order_id": order.id, "signer": sig_name, "verified": True},
+                {
+                    "order_id": order.id,
+                    "signer": sig_name,
+                    "attachment_id": attachment.id,
+                    "sha256": order.customer_signature_sha256,
+                    "recorded": True,
+                },
                 None,
             )
 

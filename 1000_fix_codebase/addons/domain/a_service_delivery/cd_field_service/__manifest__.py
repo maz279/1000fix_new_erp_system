@@ -30,6 +30,8 @@
         "security/fix_field_service_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        # A02 audit M02-7: the SLA breach escalation
+        "data/ir_cron.xml",
         # sample field orders removed from install data (R01 re-audit 2026-10-22):
         # synthetic records belong in db/seeds (DE-12/13), and they required a
         # service order that a clean install does not have (NOT NULL order_id).

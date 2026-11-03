@@ -37,6 +37,9 @@ class TelemetryApiController(http.Controller):
             speed=kwargs.get("speed"),
             accuracy=kwargs.get("accuracy"),
             battery=kwargs.get("battery"),
+            # A02 audit M02-8: the device's mock-location flag is the anti-
+            # spoofing input; the API dropped it, so no mock ping ever existed.
+            is_mock_location=kwargs.get("is_mock_location") in (True, 1, "1", "true"),
         )
         if not ping:
             # throttled duplicate (<30 s AND <100 m) — acknowledged, not stored

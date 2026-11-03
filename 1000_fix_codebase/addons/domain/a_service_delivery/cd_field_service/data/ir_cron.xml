@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M02 scheduled jobs (A02 audit M02-7).
+
+  42 open field orders were past their SLA deadline and nobody was told: the
+  module had no cron. Each newly breached open order gets one to-do activity
+  for a dispatcher (fix.field.order._cron_escalate_sla_breaches).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_field_order_sla_escalation" model="ir.cron">
+            <field name="name">M02: escalate field orders past their SLA deadline</field>
+            <field name="model_id" ref="model_fix_field_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_escalate_sla_breaches()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

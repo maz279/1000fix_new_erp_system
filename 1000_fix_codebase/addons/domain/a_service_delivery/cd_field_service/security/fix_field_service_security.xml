@@ -13,9 +13,15 @@
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
     </record>
 
+    <!-- A02 audit M02-4/M02-9: dispatch, reassignment, the geofence waiver and
+         cancellation in dispatch need this group (fix_field_order.py
+         DISPATCHER_GROUP). It is an operational group, so the dev admin is a
+         member and keeps working; who else dispatches is a business
+         appointment. -->
     <record id="group_fix_field_service_manager" model="res.groups">
         <field name="name">Field Service / Dispatcher &amp; Manager</field>
         <field name="implied_ids" eval="[(4, ref('group_fix_field_service_user'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
     </record>
 
     <!-- Multi-company record rules per AS-03 -->
