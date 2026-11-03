@@ -1,3 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_event_outbox,fix.event.outbox,model_fix_event_outbox,base.group_user,1,0,0,0
 access_fix_event_outbox_system,fix.event.outbox.system,model_fix_event_outbox,base.group_system,1,1,1,0
+access_fix_event_consumer,fix.event.consumer,model_fix_event_consumer,base.group_user,1,0,0,0
+access_fix_event_consumer_system,fix.event.consumer.system,model_fix_event_consumer,base.group_system,1,1,1,1
+access_fix_event_consumer_delivery,fix.event.consumer.delivery,model_fix_event_consumer_delivery,base.group_user,1,0,0,0
