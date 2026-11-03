@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M31 Workshop roles (A02 workflow audit, 2026-11-03, M31-2 / M31-5 / M31-14).
+
+  QC independence (BRU-SRM-18) compared a field the technician typed, and the
+  technician waived his own M22 certification gate. QC sign-off now needs the
+  QC Inspector (or the Workshop Supervisor) role and is stamped from the acting
+  user; a certification waiver is a Workshop Supervisor action.
+
+  Who inspects and who supervises are business appointments: the QC Inspector
+  group ships EMPTY, and no user is added to the Supervisor group here. The
+  Technician group is an operational role, so the dev admin is a member and
+  keeps working; segregation of duties still applies to him.
+-->
+<odoo>
+    <record id="group_fix_workshop_qc_inspector" model="res.groups">
+        <field name="name">Workshop QC Inspector</field>
+        <field name="privilege_id" ref="privilege_fix_workshop"/>
+        <field name="implied_ids" eval="[(4, ref('group_fix_workshop_user'))]"/>
+        <field name="comment">Runs the independent QC inspection of workshop jobs (pass / fail). Never on a job he repaired.</field>
+    </record>
+
+    <record id="group_fix_workshop_user" model="res.groups">
+        <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+    </record>
+</odoo>

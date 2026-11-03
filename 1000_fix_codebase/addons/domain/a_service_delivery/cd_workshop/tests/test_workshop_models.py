@@ -4,10 +4,12 @@
 import base64
 import json
 from contextlib import contextmanager
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+from odoo import fields
 from odoo.addons.cd_workshop.models.fix_workshop_job import WORKSHOP_JOB_STATES
 from odoo.exceptions import UserError, ValidationError
 
@@ -76,6 +78,29 @@ def _to_repair(ws, job, bench=None):
     job.action_intake()
     (bench or ws.l1).action_assign_job(job)
     job.action_start_repair()
+
+
+def _evidence(ws, job, *types):
+    """A02 audit M31-8: a release needs the evidence pack."""
+    for t in types or ("post_repair_photo", "test_log"):
+        ws.env["fix.workshop.evidence"].create_evidence(
+            job.id, "%s.jpg" % t, base64.b64encode(b"x"), t
+        )
+
+
+def _burn_in_elapsed(job, minutes=245):
+    """A02 audit M31-6: burn-in minutes come from the start stamp."""
+    job.write({"burn_in_started_at": fields.Datetime.now() - timedelta(minutes=minutes)})
+
+
+def _passed_checklist(env, order):
+    return env["fix.qc.checklist"].create(
+        {
+            "order_id": order.id,
+            "state": "passed",
+            "item_ids": [(0, 0, {"name": "Functional test", "passed": True})],
+        }
+    )
 
 
 # --- workshop & bench ------------------------------------------------------------------------
@@ -234,14 +259,17 @@ def test_burn_in_qc_and_release(ws):
         job.action_transition("qc_pending")
     job.action_start_burn_in()
     assert (job.state, bool(job.burn_in_started_at)) == ("burn_in", True)
+    _burn_in_elapsed(job)
     job.action_pass_burn_in()
     assert (job.state, job.burn_in_passed, bool(job.burn_in_completed_at)) == (
         "qc_pending",
         True,
         True,
     )
+    assert job.burn_in_actual_minutes >= 240.0  # measured, not typed
     with _refused(env, UserError, "without passing Quality Control"):
-        job.action_transition("ready")
+        job._transition("ready")
+    _evidence(ws, job, "post_repair_photo", "test_log", "burn_in_log")
     job.action_pass_qc(notes="All rails nominal")
     assert (job.state, job.qc_passed, job.qc_notes, bool(job.completed_at)) == (
         "ready",
@@ -268,16 +296,32 @@ def test_l1_job_goes_to_qc_without_burn_in(ws):
     job.action_transition("qc_pending")
     assert job.state == "qc_pending"
     ws.l1.action_release_job(job)  # bench freed early (e.g. bench swap during QC)
+    _evidence(ws, job)
     job.action_pass_qc()
     assert (job.state, job.bench_id) == ("ready", ws.env["fix.workshop.bench"])
 
 
 def test_inspector_must_not_be_the_repairing_technician(ws):
-    job = _job(ws, qc_inspector_id=ws.tech.id)
+    """A02 audit M31-2: compared on the ACTING user, not a typed inspector."""
+    env = ws.env
+    user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "WS Bench Tech User",
+                "login": "ws.bench.tech@a02.test",
+                "group_ids": [(6, 0, [env.ref("cd_workshop.group_fix_workshop_qc_inspector").id])],
+            }
+        )
+    )
+    ws.tech.user_id = user
+    job = _job(ws)
     _to_repair(ws, job)  # the L1 bench assigns ws.tech
     job.action_transition("qc_pending")
+    _evidence(ws, job)
     with _refused(ws.env, ValidationError, "BRU-SRM-18 Violation"):
-        job.action_pass_qc()
+        job.with_user(user).action_pass_qc()
     assert job.state == "qc_pending"
 
 
@@ -289,8 +333,10 @@ def test_qc_defaults_the_inspector_to_the_acting_user(ws):
     job = _job(ws)
     _to_repair(ws, job)
     job.action_transition("qc_pending")
+    _evidence(ws, job)
     job.action_pass_qc()
     assert job.qc_inspector_id == me
+    assert job.qc_inspector_user_id == env.user
 
 
 def test_qc_checks_the_test_instrument(ws):
@@ -306,6 +352,7 @@ def test_qc_checks_the_test_instrument(ws):
         _refused(env, UserError, "Calibration overdue"),
     ):
         job.action_pass_qc()
+    _evidence(ws, job)
     job.action_pass_qc()
     assert job.state == "ready"
 
@@ -401,14 +448,25 @@ def test_job_milestones_follow_onto_the_service_order(ws, so):
     job.action_transition("qc_pending")
     assert so.state == "qc_pending"
     job.action_fail_qc(reason="Fan noise")
-    assert (so.state, job.ncr_id.order_id) == ("qc_failed", so)  # the rework loop reaches the order
+    # M01 now offers action_fail_qc (A02 audit M31-3 / M01): the order
+    # follows the job into the rework loop through the order's own method
+    assert (so.state, job.ncr_id.order_id) == ("qc_failed", so)
     job.action_start_repair()
-    assert so.state == "in_repair"
+    assert (job.state, so.state) == ("in_repair", "in_repair")
     job.action_transition("qc_pending")
     env = ws.env
-    env["fix.qc.checklist"].create({"order_id": so.id, "state": "passed"})
+    _passed_checklist(env, so)
+    _evidence(ws, job)
     job.action_pass_qc()
     assert (job.state, so.state) == ("ready", "ready")
+    report = env["ir.attachment"].create({"name": "r.pdf", "datas": base64.b64encode(b"%PDF")})
+    so.write(
+        {
+            "delivery_otp_verified": True,
+            "recipient_name": "WS Customer",
+            "service_report_attachment_id": report.id,
+        }
+    )
     job.action_deliver()
     assert so.state == "delivered"
     payload = json.loads(
@@ -419,7 +477,8 @@ def test_job_milestones_follow_onto_the_service_order(ws, so):
 
 def test_job_ready_does_not_bypass_the_order_qc_checklist_gate(ws, so):
     """Regression: the job wrote the order's state directly, skipping BRU-SRM-04
-    (an order reaches Ready only with a passed QC checklist)."""
+    (an order reaches Ready only with a passed QC checklist). A02 audit M31-3:
+    the refusal is no longer swallowed, so the job is not released either."""
     for state in (
         "intake",
         "diagnostic",
@@ -432,14 +491,21 @@ def test_job_ready_does_not_bypass_the_order_qc_checklist_gate(ws, so):
     job = _job(ws, order_id=so.id, qc_inspector_id=ws.inspector.id)
     _to_repair(ws, job)
     job.action_transition("qc_pending")
-    job.action_pass_qc()
-    assert (job.state, so.state) == ("ready", "qc_pending")
+    _evidence(ws, job)
+    with _refused(ws.env, UserError, "QC checklist"):
+        job.action_pass_qc()
+    assert (job.state, so.state) == ("qc_pending", "qc_pending")
 
 
-def test_an_order_that_cannot_follow_is_skipped_not_fatal(ws, so):
+def test_a_job_on_an_unapproved_order_cannot_start_repair(ws, so):
+    """A02 audit M31-3 / P31-08: the old sync skipped the refusal, so a job
+    reached in_repair (and delivered) while its order was still a draft."""
     job = _job(ws, order_id=so.id)
-    _to_repair(ws, job)  # the order is still a draft: draft -> in_repair is refused
-    assert (job.state, so.state) == ("in_repair", "draft")
+    job.action_intake()
+    ws.l1.action_assign_job(job)
+    with _refused(ws.env, UserError, "Repair starts only once the order is approved"):
+        job.action_start_repair()
+    assert (job.state, so.state) == ("intake", "draft")
     job.action_wait_parts()  # no order milestone for waiting_parts
     assert so.state == "draft"
 

@@ -56,7 +56,21 @@ class FixServiceOrderWorkshopBridge(models.Model):
                     "No active workshop facility exists — create one first "
                     "(Workshop Facilities master)."
                 )
-            priority_map = {"0": "normal", "1": "normal", "2": "high", "3": "urgent"}
+            # A02 audit M01-13 (M01-owned lines): the job uses the order's own
+            # priority values; the old '0'-'3' keys sent urgent as 'normal'.
+            priority_map = {
+                "normal": "normal",
+                "high": "high",
+                "urgent": "urgent",
+                "emergency": "emergency",
+            }
+            # ...and no second live workshop job for the same order.
+            order._fix_assert_no_live_handoff(
+                order.workshop_job_ids.filtered(
+                    lambda j: j.state not in ("delivered", "cancelled")
+                ),
+                "workshop job",
+            )
             created |= Job.create(
                 {
                     "order_id": order.id,
@@ -64,7 +78,7 @@ class FixServiceOrderWorkshopBridge(models.Model):
                     "device_id": order.device_id.id,
                     "customer_id": order.customer_id.id,
                     "repair_level": repair_level,
-                    "priority": priority_map.get(order.priority or "1", "normal"),
+                    "priority": priority_map.get(order.priority or "normal", "normal"),
                     # fault_description is required on the job — the order's
                     # reported fault carries over (never fabricated)
                     "fault_description": order.fault_description

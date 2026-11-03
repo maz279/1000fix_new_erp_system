@@ -1,4 +1,10 @@
 # fix.workshop.bench — Repair Bench Master (CD-M31-02, RR-03 Milestone R03-M02).
+#
+# A02 workflow audit (2026-11-03), M31-1: the bench state and the daily ESD
+# readings that the L2/L3 interlock reads were plain writable fields. They now
+# move only through the bench actions (fix.guarded.mixin): the load-driven
+# available/occupied flip, maintenance / offline / return to service, and the
+# daily ESD log.
 import logging
 
 from odoo import api, fields, models
@@ -16,8 +22,17 @@ class FixWorkshopBench(models.Model):
 
     _name = "fix.workshop.bench"
     _description = "Workshop Repair Bench"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "workshop_id, repair_level, code"
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "is_esd_safe",
+            "wrist_strap_mohm",
+            "worksurface_rtg_mohm",
+            "esd_last_verified_date",
+        }
 
     # Multi-entity & Governance (AS-03)
     company_id = fields.Many2one(
@@ -90,6 +105,7 @@ class FixWorkshopBench(models.Model):
         string="Bench Status",
         default="available",
         required=True,
+        readonly=True,
         tracking=True,
     )
 
@@ -190,7 +206,7 @@ class FixWorkshopBench(models.Model):
                     f"FLAW-31.2 ESD Interlock: Worksurface resistance ({surface_mohm} MΩ) on bench {rec.code} "
                     f"exceeds IEC 61340-5-1 limit (< 1000.0 MΩ)."
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "wrist_strap_mohm": wrist_mohm,
                     "worksurface_rtg_mohm": surface_mohm,
@@ -207,10 +223,56 @@ class FixWorkshopBench(models.Model):
             rec.current_job_count = count
             # Auto-update status if occupied or available (unless in maintenance/offline)
             if rec.state in ("available", "occupied"):
-                if count >= rec.max_concurrent_jobs:
-                    rec.state = "occupied"
-                else:
-                    rec.state = "available"
+                target = "occupied" if count >= rec.max_concurrent_jobs else "available"
+                if rec.state != target and rec.id:
+                    # the load-driven flip is a system transition (A02 M31-1)
+                    rec._guarded().write({"state": target})
+
+    def action_set_maintenance(self, reason=""):
+        """Take the bench out of service for tool calibration or repair. Any
+        workshop technician may stop a bench; the queue then skips it."""
+        for rec in self:
+            if rec.state == "maintenance":
+                continue
+            rec._guarded().write({"state": "maintenance"})
+            rec.message_post(
+                body="Bench taken into maintenance by %s%s"
+                % (self.env.user.name, (": %s" % reason) if reason else ".")
+            )
+        return True
+
+    def action_set_offline(self, reason=""):
+        """Close the bench (supervisor decision)."""
+        if not self.env.su and not self.env.user.has_group(
+            "cd_workshop.group_fix_workshop_manager"
+        ):
+            raise UserError("Closing a bench is a workshop supervisor decision.")
+        for rec in self:
+            rec._guarded().write({"state": "offline"})
+            rec.message_post(
+                body="Bench closed by %s%s"
+                % (self.env.user.name, (": %s" % reason) if reason else ".")
+            )
+        return True
+
+    def action_return_to_service(self):
+        """Back from maintenance / offline. A bench with lapsed calibration
+        stays out: the job gates read its instruments."""
+        for rec in self:
+            if rec.state not in ("maintenance", "offline"):
+                continue
+            if rec.state == "offline" and not (
+                self.env.su or self.env.user.has_group("cd_workshop.group_fix_workshop_manager")
+            ):
+                raise UserError("Reopening a closed bench is a workshop supervisor decision.")
+            if rec.calibration_expiry_date and rec.calibration_expiry_date < fields.Date.today():
+                raise UserError(
+                    "Bench %s cannot return to service: its calibration expired on %s."
+                    % (rec.code, rec.calibration_expiry_date)
+                )
+            target = "occupied" if rec.current_job_count >= rec.max_concurrent_jobs else "available"
+            rec._guarded().write({"state": target})
+        return True
 
     def action_assign_job(self, job):
         """Assign a workshop job to this bench, validating capacity and routing level."""

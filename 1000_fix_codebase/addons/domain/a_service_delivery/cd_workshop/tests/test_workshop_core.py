@@ -27,12 +27,14 @@ class TestWorkshopCore:
             WORKSHOP_JOB_STATES,
         )
 
-        assert len(WORKSHOP_JOB_STATES) == 11
-        assert len(VALID_JOB_TRANSITIONS) == 11
+        # 12 with the A02 audit's BER / scrap exit (M31-9)
+        assert len(WORKSHOP_JOB_STATES) == 12
+        assert len(VALID_JOB_TRANSITIONS) == 12
 
         # Terminal states
         assert VALID_JOB_TRANSITIONS["delivered"] == set()
         assert VALID_JOB_TRANSITIONS["cancelled"] == set()
+        assert VALID_JOB_TRANSITIONS["unrepairable"] == set()
 
         # Happy path transitions
         assert "intake" in VALID_JOB_TRANSITIONS["draft"]
@@ -126,6 +128,13 @@ class TestWorkshopCore:
         mock_job.technician_id = mock_tech
         mock_job.qc_inspector_id = mock_tech  # Same person!
         mock_job.env.user.employee_id = mock_tech
+        # A02 audit M31-2: the check runs on the ACTING user (superuser here, so
+        # the role check is skipped), who is the repairing technician
+        mock_job.env.su = True
+        mock_job._m31_actor_is_technician.return_value = True
+        mock_job._m31_assert_qc_inspector = lambda: FixWorkshopJob._m31_assert_qc_inspector(
+            mock_job
+        )
 
         with pytest.raises(ValidationError, match="BRU-SRM-18 Violation"):
             FixWorkshopJob._run_qc_inspection(mock_job, passed=True)
@@ -148,7 +157,8 @@ class TestWorkshopCore:
         mock_job._validate_transition = MagicMock()
 
         with pytest.raises(UserError, match="requires burn-in test to pass before QC"):
-            FixWorkshopJob.action_transition(mock_job, "qc_pending")
+            # A02 audit M31-7: the gates live in the private _transition engine
+            FixWorkshopJob._transition(mock_job, "qc_pending")
 
     def test_monetary_costing_totals(self):
         """AS-10: Monetary total calculations."""

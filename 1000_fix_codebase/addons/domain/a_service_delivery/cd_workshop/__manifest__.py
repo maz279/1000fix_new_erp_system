@@ -37,6 +37,7 @@ Key Features:
     "data": [
         "security/fix_isolation_rules.xml",
         "security/fix_workshop_security.xml",
+        "security/fix_workshop_groups.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/fix_workshop_data.xml",

@@ -110,7 +110,14 @@ def test_bridge_refuses_closed_orders(ws):
     order.state = "approved"
     order.state = "in_repair"
     order.state = "qc_pending"
-    ws.env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
+    # M01 (A02 audit M01-6) reads a passed checklist only when it has items
+    ws.env["fix.qc.checklist"].create(
+        {
+            "order_id": order.id,
+            "state": "passed",
+            "item_ids": [(0, 0, {"name": "Functional test", "passed": True})],
+        }
+    )
     order.state = "ready"
     order.state = "delivered"
     order.state = "closed"
