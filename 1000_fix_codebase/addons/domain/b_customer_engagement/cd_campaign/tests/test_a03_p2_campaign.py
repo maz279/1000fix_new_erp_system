@@ -465,6 +465,26 @@ class TestCreativeApproval:
         with pytest.raises(UserError, match="not approved yet"):
             campaign.with_user(marketer).action_launch()
 
+    def test_withdrawing_live_content_pauses_the_campaign_until_reapproved(
+        self, env, marketer, approver
+    ):
+        """A03 audit W7: a running campaign kept sending a withdrawn creative,
+        and Resume did not look at the creatives at all."""
+        campaign = _campaign(env, marketer, "CRW", channel="social")
+        creative = self._creative(env, marketer, campaign)
+        approve_via_inbox(creative, approver, requester=marketer)
+        campaign.with_user(marketer).action_launch()
+        assert campaign.state == "running"
+        creative.with_user(marketer).action_withdraw()
+        assert campaign.state == "paused"
+        with pytest.raises(UserError, match="not approved yet"):
+            campaign.with_user(marketer).action_resume()
+        assert campaign.state == "paused"
+        creative.with_user(marketer).write({"reference": "s3://m35/eid-banner-v2.png"})
+        approve_via_inbox(creative, approver, requester=marketer)
+        campaign.with_user(marketer).action_resume()
+        assert campaign.state == "running"
+
     def test_pending_content_is_frozen_and_rejection_returns_it(self, env, marketer, approver):
         campaign = _campaign(env, marketer, "CRD", channel="social")
         creative = self._creative(env, marketer, campaign)

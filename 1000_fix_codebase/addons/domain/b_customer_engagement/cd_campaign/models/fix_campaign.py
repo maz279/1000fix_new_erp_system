@@ -857,6 +857,9 @@ class FixCampaign(models.Model):
         for rec in self:
             if rec.state != "paused":
                 raise UserError("Only a PAUSED campaign resumes")
+            # A03 audit W7: the launch gate applies again, so a campaign
+            # paused for a withdrawn creative cannot resume until it is re-approved.
+            rec._assert_creatives_approved()
             rec._guarded().write({"state": "running"})
             rec.journey_ids.filtered("paused_by_campaign")._resume_for_campaign()
         return True

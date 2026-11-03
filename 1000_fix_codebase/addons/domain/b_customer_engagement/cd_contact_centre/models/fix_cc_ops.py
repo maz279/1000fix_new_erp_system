@@ -6,6 +6,7 @@ import math
 from datetime import timedelta
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
@@ -229,10 +230,65 @@ class FixCcOutboundList(models.Model):
     contact_count = fields.Integer(readonly=True, default=0)
 
 
+# A03 audit W7: a "transactional" template is sent on the contract basis and
+# skips the marketing-consent and DND checks (fix_cc_productivity,
+# fix_journey_runtime), so the class is a compliance decision, not a label.
+# Only a contact-centre supervisor may classify a template transactional or
+# change what a transactional template says; anyone may down-classify to
+# marketing, which only adds checks.
+TEMPLATE_SUPERVISOR_GROUP = "cd_contact_centre.group_cc_supervisor"
+TEMPLATE_CONTENT = frozenset({"channel", "subject", "subject_bn", "body", "body_bn"})
+
+
 class FixCcNotifTemplate(models.Model):
     _name = "fix.cc.notif.template"
     _description = "Notification Template"
     _order = "name"
+
+    def _fix_may_classify(self) -> bool:
+        return self.env.su or self.env.user.has_group(TEMPLATE_SUPERVISOR_GROUP)
+
+    def _default_consent_class(self) -> str:
+        return "transactional" if self._fix_may_classify() else "marketing"
+
+    def _fix_form_locked_fields(self) -> set:
+        # The class stays open: down-classifying is allowed, and write()
+        # refuses an up-classification with the reason.
+        if self._fix_may_classify() or not any(r.consent_class == "transactional" for r in self):
+            return set()
+        return set(TEMPLATE_CONTENT)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_may_classify() and any(
+            vals.get("consent_class") == "transactional" for vals in vals_list
+        ):
+            raise UserError(
+                "Only a Contact Centre Supervisor can classify a template as transactional: "
+                "transactional messages are sent without marketing consent."
+            )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if not self._fix_may_classify():
+            if vals.get("consent_class") == "transactional" and self.filtered(
+                lambda r: r.consent_class != "transactional"
+            ):
+                raise UserError(
+                    "Only a Contact Centre Supervisor can classify a template as "
+                    "transactional: transactional messages are sent without marketing consent."
+                )
+            if (
+                TEMPLATE_CONTENT & set(vals)
+                and vals.get("consent_class") != "marketing"
+                and self.filtered(lambda r: r.consent_class == "transactional")
+            ):
+                raise UserError(
+                    "Template %s is transactional: only a Contact Centre Supervisor can "
+                    "change its content. Down-classify it to marketing to edit it yourself."
+                    % ", ".join(self.mapped("name"))
+                )
+        return super().write(vals)
 
     name = fields.Char(required=True)
     name_bn = fields.Char(string="Template Name (Bengali)", help="DE-17")
@@ -255,7 +311,7 @@ class FixCcNotifTemplate(models.Model):
     consent_class = fields.Selection(
         [("transactional", "Transactional"), ("marketing", "Marketing")],
         required=True,
-        default="transactional",
+        default=lambda self: self._default_consent_class(),
     )
     active = fields.Boolean(default=True)
 

@@ -459,6 +459,14 @@ class FixCampaignCreative(models.Model):
             rec._guarded().write({"state": "draft", "approved_by_id": False, "approved_at": False})
             rec._approval_void("creative withdrawn for editing")
             rec.message_post(body="Creative withdrawn for editing; it needs a fresh approval.")
+            # A03 audit W7: a running campaign kept sending the withdrawn
+            # content. It pauses until the creative is approved again, and
+            # Resume re-checks that.
+            if rec.campaign_id.state == "running":
+                rec.campaign_id.action_pause()
+                rec.campaign_id.message_post(
+                    body="Paused: creative %s was withdrawn for editing." % rec.display_name
+                )
         return True
 
     def action_retire(self):
