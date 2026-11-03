@@ -1,3 +1,12 @@
 # cd_cx_feedback models.
-# The survey designer EXTENDS fix.survey, so it imports after it.
-from . import fix_cx_feedback, fix_cx_selfservice, fix_survey_designer
+# ruff: noqa: I001
+# Import order is registration order, so it is NOT alphabetical: the survey
+# designer extends fix.survey, and the complaint lifecycle, intake and
+# concession files extend fix.complaint (and fix.cx.followup), so each comes
+# after the file that defines the model it extends.
+from . import fix_cx_feedback
+from . import fix_cx_selfservice
+from . import fix_survey_designer
+from . import fix_complaint_lifecycle
+from . import fix_complaint_intake
+from . import fix_complaint_concession

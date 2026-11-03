@@ -26,7 +26,7 @@ class FixCxFollowup(models.Model):
     reason = fields.Selection(
         [
             ("detractor_nps", "Detractor (NPS ≤ 6)"),
-            ("low_rating", "Low rating (≤ 2)"),
+            ("low_rating", "Low rating (≤ 3)"),
             ("complaint_linked", "Linked complaint"),
             ("callback", "Requested callback"),
         ],

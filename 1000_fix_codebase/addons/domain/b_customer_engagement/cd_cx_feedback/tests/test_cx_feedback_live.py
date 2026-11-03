@@ -162,6 +162,15 @@ def test_ncr_is_raised_only_after_investigation(env, ou):
     )
 
 
+def _to_accepted(complaint, response="Re-repaired free of charge"):
+    """Walk a complaint through the ISO 10002 lifecycle to the customer's
+    acceptance (A03 P2: closing straight from 'new' is refused)."""
+    complaint.action_assess()
+    complaint.action_investigate()
+    complaint.action_respond(response)
+    complaint.action_customer_accept()
+
+
 def test_critical_complaints_close_only_through_capa(env, ou):
     critical = _complaint(env, ou, severity="critical")
     minor = _complaint(env, ou)
@@ -172,6 +181,17 @@ def test_critical_complaints_close_only_through_capa(env, ou):
         "Why1 cable detaching; Why2 strain relief missing; Why3 bench SOP gap; "
         "Why4 supervision missed it; Why5 SOP never updated after tooling change."
     )
+    # A03 P2: a written 5-Why is not enough; a second person verifies it
+    with pytest.raises(ValidationError, match="not verified"), env.cr.savepoint():
+        critical.action_close("Refunded")
+    verifier = env["res.users"].create(
+        {
+            "name": "CX RCA Verifier",
+            "login": "cx.rca.verifier@test",
+            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+        }
+    )
+    critical.with_user(verifier).action_verify_root_cause()
     with pytest.raises(UserError, match="CAPA verification"), env.cr.savepoint():
         critical.action_close("Refunded")
     # FLAW-34.2: a concession needs DOFA approval even on a minor complaint
@@ -179,6 +199,10 @@ def test_critical_complaints_close_only_through_capa(env, ou):
     with pytest.raises(ValidationError, match="DOFA approval"), env.cr.savepoint():
         minor.action_close("Re-repaired free of charge")
     minor.concession_amount = 0.0
+    # every evidence gate passes, but the customer has not accepted anything
+    with pytest.raises(UserError, match="customer accepts"), env.cr.savepoint():
+        minor.action_close("Re-repaired free of charge")
+    _to_accepted(minor)
     minor.action_close("Re-repaired free of charge")
     assert (minor.state, minor.resolution) == ("closed", "Re-repaired free of charge")
     with pytest.raises(UserError, match="already closed"), env.cr.savepoint():
@@ -207,6 +231,7 @@ def test_critical_complaints_close_only_through_capa(env, ou):
         capa.action_verify("Re-tested OK")
     else:
         critical.capa_stub_ref = "CAPA/2026/0001"  # entered by the quality owner
+    _to_accepted(critical, "Board replaced and the CAPA verified")
     critical.action_close("CAPA verified")
     assert critical.state == "closed"
 

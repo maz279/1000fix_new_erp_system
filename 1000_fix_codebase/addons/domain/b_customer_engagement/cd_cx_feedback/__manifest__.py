@@ -28,10 +28,17 @@ CD-M34-nn + CD-M42-nn (P07-M06):
         "cd_service_order",
         "cd_document_core",
         "cd_contact_centre",
+        "cd_workflow_engine",
+        # A03 audit M34-9: an approved concession becomes an M20 credit note
+        # or an M10 voucher. Neither depends on this module (checked), so the
+        # dependency adds no cycle.
+        "cd_billing_engine",
+        "cd_loyalty",
     ],
     "data": [
         "data/fix_cx_gap_cron.xml",
         "data/fix_cx_cron.xml",
+        "data/fix_cx_event_consumers.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_cx_feedback_views.xml",

@@ -22,6 +22,8 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
+from .fix_cx_feedback import DETRACTOR_MAX_RATING
+
 QUESTION_TYPES = [
     ("rating_5", "Rating 1-5"),
     ("nps_11", "NPS 0-10"),
@@ -415,9 +417,13 @@ class FixSurveyWithTemplate(models.Model):
     # Detractor auto-spawn (the 2 Nov audit found the worklist unwired)
     # ------------------------------------------------------------------
     def _is_detractor(self):
-        """Low overall rating, or a low NPS answer on the instrument."""
+        """Low overall rating, or a low NPS answer on the instrument.
+
+        The rating threshold is the one _compute_nps uses (A03 audit M34-10):
+        a 3 scored -100 there but stopped at 2 here, so the customers who
+        dragged NPS down most often got no recovery call."""
         self.ensure_one()
-        if self.rating and int(self.rating) <= 2:
+        if self.rating and int(self.rating) <= DETRACTOR_MAX_RATING:
             return True, "low_rating"
         nps_answers = self.answer_ids.filtered(lambda a: a.question_type == "nps_11")
         if nps_answers and nps_answers[0].value_numeric <= 6:
@@ -452,6 +458,10 @@ class FixSurveyWithTemplate(models.Model):
                 }
             )
             survey.write({"followup_id": followup.id})
+            # A03 audit M34-8: a detractor whose order already has an open
+            # complaint is the same grievance; link it rather than run two
+            # recoveries that do not know about each other.
+            followup._link_open_complaint()
             publish(
                 self.env,
                 "survey.detractor_flagged",

@@ -8,3 +8,5 @@ access_fix_cx_review,fix.cx.review,model_fix_cx_review,base.group_user,1,1,1,1
 access_fix_survey_template,fix.survey.template,model_fix_survey_template,base.group_user,1,1,1,1
 access_fix_survey_question,fix.survey.question,model_fix_survey_question,base.group_user,1,1,1,1
 access_fix_survey_answer,fix.survey.answer,model_fix_survey_answer,base.group_user,1,1,1,0
+access_fix_complaint_sla_rule_user,fix.complaint.sla.rule.user,model_fix_complaint_sla_rule,base.group_user,1,0,0,0
+access_fix_complaint_sla_rule_admin,fix.complaint.sla.rule.admin,model_fix_complaint_sla_rule,base.group_system,1,1,1,1

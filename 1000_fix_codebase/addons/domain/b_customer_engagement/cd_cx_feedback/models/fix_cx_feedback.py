@@ -18,6 +18,11 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
+# A 1-5 rating at or below this is a detractor. ONE constant for both the NPS
+# score and the recovery trigger: they disagreed (A03 audit M34-10), so a
+# rating of 3 scored as a detractor (-100) yet raised no recovery task.
+DETRACTOR_MAX_RATING = 3
+
 
 class FixSurvey(models.Model):
     """T04: the post-service survey, triggered by consuming
@@ -111,7 +116,7 @@ class FixSurvey(models.Model):
                 survey.nps_score = 0
             elif int(survey.rating) >= 5:
                 survey.nps_score = 100
-            elif int(survey.rating) <= 3:
+            elif int(survey.rating) <= DETRACTOR_MAX_RATING:
                 survey.nps_score = -100
             else:
                 survey.nps_score = 0
@@ -120,14 +125,28 @@ class FixSurvey(models.Model):
     def consume_order_closed(self, event: dict) -> "FixSurvey | None":
         """T04: journey 1 ends here — the closed event triggers the survey
         (deferred per NT-024, never at completion time). Idempotent on the
-        order."""
-        order_id = event.get("aggregate_id")
-        existing = self.search([("service_order_id", "=", order_id)])
+        order.
+
+        A03 audit M34-4: this had no caller, so 22 closed orders produced no
+        survey. It is now the R8 consumer of service_order.closed
+        (data/fix_cx_event_consumers.xml) and takes the relay's event dict.
+        An event for another aggregate, or for an order that no longer
+        exists, is acknowledged and ignored rather than raised: a consumer
+        that throws is retried and dead-lettered, which would report a data
+        gap as a fault."""
+        if event.get("aggregate") not in (None, "fix.service.order"):
+            return None
+        order_id = event.get("aggregate_id") or (event.get("payload") or {}).get("order_id")
+        if not order_id:
+            return None
+        existing = self.search([("service_order_id", "=", int(order_id))])
         if existing:
             return existing
         # AS-03: the survey belongs to the order's operating unit (the field is
         # required - the former create omitted it, so every survey failed)
-        order = self.env["fix.service.order"].browse(order_id)
+        order = self.env["fix.service.order"].browse(int(order_id)).exists()
+        if not order:
+            return None
         survey = self.create(
             {
                 "service_order_id": order.id,
@@ -330,6 +349,11 @@ class FixComplaint(models.Model):
     _name = "fix.complaint"
     _description = "Complaint"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
+
+    # A03 audit R7: a concession is approved from the approver's M63 inbox.
+    _approval_domain = "concession"
+    _approval_apply_method = "action_approve_concession"
+    _approval_routed = True
     _order = "create_date desc, id desc"
 
     # REQ-34.3 service-recovery thresholds in BDT. As with M10 the REQ text and
@@ -361,6 +385,17 @@ class FixComplaint(models.Model):
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
+    def _fix_guarded_fields(self) -> set:
+        # The lifecycle and the concession sign-off change only through the
+        # actions below: a plain write closed a critical complaint with no
+        # RCA or CAPA, and forged the approval on a BDT 250,000 refund.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "concession_approved",
+            "concession_approver_id",
+            "post_closure_survey_sent_at",
+        }
+
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
@@ -390,16 +425,23 @@ class FixComplaint(models.Model):
         required=True,
         tracking=True,
     )
+    # ISO 10002:2018 cl. 7 as states (A03 audit M34-3). 'new' is receipt;
+    # acknowledgement is stamped at create (cl. 7.3 asks for it at once), so
+    # it is a timestamp rather than a state somebody has to remember to set.
+    # Every state below has a transition method in fix_complaint_lifecycle.py.
     state = fields.Selection(
         [
-            ("new", "New"),
+            ("new", "Received"),
+            ("assessed", "Assessed"),
             ("investigating", "Investigating"),
             ("ncr_raised", "NCR Raised"),
             ("root_cause", "Root Cause Identified"),
             ("capa_open", "CAPA Open"),
-            ("verification", "Verification"),
+            ("verification", "CAPA Verification"),
+            ("responded", "Response Sent"),
+            ("accepted", "Customer Accepted"),
             ("closed", "Closed"),
-            ("rejected", "Rejected"),
+            ("rejected", "Declined (not upheld)"),
         ],
         default="new",
         required=True,
@@ -599,11 +641,21 @@ class FixComplaint(models.Model):
     def _resolve_sla_policy(self):
         """The policy this complaint's severity buys, or an empty recordset.
 
+        A03 audit M34-5: the choice ignored branch and operating unit. An M34
+        binding rule (fix.complaint.sla.rule) now decides first, most specific
+        scope winning: branch, then operating unit, then severity alone.
+        fix.sla.policy itself is estate-wide master data with no scope of its
+        own, so the scope lives on the binding, not on the policy. With no
+        rule the severity's priority picks the policy, as before.
+
         Returns empty when nothing matches, which the caller reports rather
         than papering over: inventing a deadline for a severity nobody has
         configured a promise for would be worse than having none.
         """
         self.ensure_one()
+        rule = self.env["fix.complaint.sla.rule"].sudo()._match(self)
+        if rule:
+            return rule.policy_id
         Policy = self.env["fix.sla.policy"]
         priority = self._SEVERITY_PRIORITY.get(self.severity, "normal")
         return Policy.sudo().search(
@@ -612,7 +664,7 @@ class FixComplaint(models.Model):
             limit=1,
         )
 
-    def _start_sla_clocks(self):
+    def _start_sla_clocks(self, kpis=("first_response", "resolution"), started_at=None):
         """Open the acknowledgement and resolution clocks for this complaint."""
         Instance = self.env.get("fix.sla.kpi.instance")
         if Instance is None:
@@ -622,9 +674,11 @@ class FixComplaint(models.Model):
             if not policy:
                 continue
             if not rec.sla_policy_id:
-                rec.sla_policy_id = policy.id
-            for kpi in ("first_response", "resolution"):
-                Instance.sudo().start_for(rec, policy, kpi, partner=rec.customer_id or None)
+                rec._guarded().write({"sla_policy_id": policy.id})
+            for kpi in kpis:
+                Instance.sudo().start_for(
+                    rec, policy, kpi, partner=rec.customer_id or None, started_at=started_at
+                )
         return True
 
     @api.depends("severity", "state")
@@ -660,7 +714,7 @@ class FixComplaint(models.Model):
         records = super().create(vals_list)
         for rec in records:
             # FLAW-34.3 / ISO 10002 Clause 7.3: Immediate formal complaint acknowledgment
-            rec.acknowledged_at = fields.Datetime.now()
+            rec._guarded().write({"acknowledged_at": fields.Datetime.now()})
             # S9: the promise starts when the complaint is raised, not when
             # somebody remembers to start a timer.
             rec._start_sla_clocks()
@@ -678,6 +732,14 @@ class FixComplaint(models.Model):
             )
         return records
 
+    def _dofa_void_approval(self, reason: str):
+        # The concession flag is the same approval in this model's words;
+        # it cannot outlive the DOFA stamp it was set from.
+        self.filtered("concession_approved")._guarded().write(
+            {"concession_approved": False, "concession_approver_id": False}
+        )
+        return super()._dofa_void_approval(reason)
+
     def action_approve_concession(self):
         """REQ-34.3: real DOFA authority over a service-recovery concession.
 
@@ -691,12 +753,50 @@ class FixComplaint(models.Model):
             if complaint.concession_amount <= 0:
                 raise ValidationError("No concession amount specified to approve.")
             complaint.action_dofa_approve()
-            complaint.write(
+            complaint._guarded().write(
                 {
                     "concession_approved": True,
                     "concession_approver_id": self.env.user.id,
                 }
             )
+            # A03 audit M34-9: the hand-off Finance and M10 can act on even
+            # before the complaint closes. The money document itself is
+            # created at closure (_settle_concession), once the customer has
+            # accepted the remedy it pays for.
+            publish(
+                self.env,
+                "complaint.concession_approved",
+                "fix.complaint",
+                complaint.id,
+                {
+                    "complaint": complaint.name,
+                    "partner_id": complaint.customer_id.id,
+                    "concession_type": complaint.concession_type,
+                    "amount": complaint.concession_amount,
+                    "currency": complaint.currency_id.name or "BDT",
+                    "tier": complaint.dofa_approved_tier or None,
+                    "approved_by": self.env.user.id,
+                },
+            )
+
+    def action_investigate(self):
+        """ISO 10002 cl. 7.5-7.6: assessment opens the investigation.
+
+        Without it nothing could enter 'investigating', so the NCR step below
+        was reachable only by writing the state field directly — which is now
+        refused. The investigation follows the initial assessment (owner and
+        severity, action_assess): an investigation nobody owns is the
+        unassigned complaint the audit found (M34-6)."""
+        for complaint in self:
+            if complaint.state != "assessed":
+                raise UserError(
+                    "Assess complaint %s first (confirm its owner and severity); only an "
+                    "assessed complaint moves into investigation." % complaint.name
+                )
+            if not complaint.owner_id:
+                raise UserError("Complaint %s has no owner to investigate it." % complaint.name)
+            complaint._guarded().write({"state": "investigating"})
+            complaint.message_post(body="Investigation opened by %s." % self.env.user.name)
 
     def action_raise_ncr(self):
         """Journey 14: complaint -> NCR. Until M23 (W5), the stub records
@@ -704,7 +804,7 @@ class FixComplaint(models.Model):
         for complaint in self:
             if complaint.state != "investigating":
                 raise UserError("Investigate before raising the NCR")
-            complaint.write(
+            complaint._guarded().write(
                 {
                     "state": "ncr_raised",
                     "ncr_stub_ref": "NCR-STUB/%s" % complaint.id,
@@ -735,33 +835,59 @@ class FixComplaint(models.Model):
             return ""
         return "" if (self.capa_stub_ref or "").strip() else "no CAPA reference is entered"
 
+    def _rca_denial(self) -> str:
+        """'' when the 5-Why evidence allows this complaint to proceed.
+
+        FLAW-34.1: a major or critical complaint needs a written 5-Why, and
+        (A03 audit, "five_why_verified gates nothing") that 5-Why verified by
+        someone other than its author (action_verify_root_cause)."""
+        self.ensure_one()
+        if self.severity not in ("major", "critical"):
+            return ""
+        if not self.root_cause_5why or len(self.root_cause_5why.strip()) < 20:
+            return (
+                "ISO 10002 compliance violation: 5-Why Root Cause Analysis is mandatory "
+                "before closing Major or Critical complaints (FLAW-34.1)."
+            )
+        if not self.five_why_verified:
+            return (
+                "The 5-Why Root Cause Analysis of this %s complaint is written but not "
+                "verified. A second person verifies it (Verify Root Cause) before the "
+                "complaint is answered or closed." % self.severity
+            )
+        return ""
+
+    def _concession_denial(self):
+        """Raise unless any concession on the complaint is approved for its amount."""
+        self.ensure_one()
+        # REQ-34.3: the concession must carry an approval that still covers
+        # its amount. _dofa_assert_approved also catches the case where the
+        # amount was raised after a lower-tier sign-off.
+        if self.concession_amount > 0:
+            if not self.concession_approved:
+                raise ValidationError(
+                    f"Recovery concession of BDT {self.concession_amount} "
+                    f"({self.concession_type}) requires formal corporate DOFA "
+                    f"approval before closure (REQ-34.3)."
+                )
+            self._dofa_assert_approved("Service recovery concession")
+
     def action_close(self, resolution: str):
+        """ISO 10002 cl. 7.9: close a complaint the customer has accepted.
+
+        The evidence checks run first so a refusal names what is missing; the
+        lifecycle position runs last. A03 audit M34-1/M34-3: closing used to
+        work from 'new', skipping assessment, investigation and the
+        customer's answer."""
         for complaint in self:
             if complaint.state in ("closed", "rejected"):
                 raise UserError("Complaint %s is already %s" % (complaint.name, complaint.state))
             if not (resolution or "").strip():
                 raise UserError("Record the resolution before closing the complaint")
-
-            # FLAW-34.1 / ISO 10002: Mandate 5-Why RCA before closing Major or Critical complaints
-            if complaint.severity in ("major", "critical") and (
-                not complaint.root_cause_5why or len(complaint.root_cause_5why.strip()) < 20
-            ):
-                raise ValidationError(
-                    "ISO 10002 compliance violation: 5-Why Root Cause Analysis is mandatory before closing Major or Critical complaints (FLAW-34.1)."
-                )
-
-            # REQ-34.3: the concession must carry an approval that still covers
-            # its amount. _dofa_assert_approved also catches the case where the
-            # amount was raised after a lower-tier sign-off.
-            if complaint.concession_amount > 0:
-                if not complaint.concession_approved:
-                    raise ValidationError(
-                        f"Recovery concession of BDT {complaint.concession_amount} "
-                        f"({complaint.concession_type}) requires formal corporate DOFA "
-                        f"approval before closure (REQ-34.3)."
-                    )
-                complaint._dofa_assert_approved("Service recovery concession")
-
+            denial = complaint._rca_denial()
+            if denial:
+                raise ValidationError(denial)
+            complaint._concession_denial()
             if complaint.severity == "critical":
                 denial = complaint._capa_closure_denial()
                 if denial:
@@ -769,7 +895,12 @@ class FixComplaint(models.Model):
                         "A CRITICAL complaint closes only through CAPA verification "
                         "(journey 14) — no shortcut: %s" % denial
                     )
-            complaint.write({"state": "closed", "resolution": resolution})
+            complaint._closure_position_check()
+            complaint._guarded().write(
+                {"state": "closed", "resolution": resolution, "closed_at": fields.Datetime.now()}
+            )
+            complaint._stop_sla_clocks("complaint closed")
+            complaint._settle_concession()
             complaint._trigger_post_closure_survey()
 
     def _trigger_post_closure_survey(self):
@@ -784,7 +915,7 @@ class FixComplaint(models.Model):
         for complaint in self:
             if complaint.post_closure_survey_sent_at:
                 continue
-            complaint.post_closure_survey_sent_at = fields.Datetime.now()
+            complaint._guarded().write({"post_closure_survey_sent_at": fields.Datetime.now()})
             publish(
                 self.env,
                 "complaint.post_closure_survey_dispatched",
@@ -795,13 +926,22 @@ class FixComplaint(models.Model):
                     "partner_id": complaint.customer_id.id,
                     "severity": complaint.severity,
                     "channel": "sms",
+                    # A reopened complaint is surveyed again after its next
+                    # closure; the cycle tells the consumer which one this is.
+                    "cycle": complaint.reopen_count,
                 },
             )
 
     @api.model
     def cron_escalate_stale_complaints(self):
         """REQ-34.5: a complaint unresolved 72 hours after intake escalates to
-        the COO and flags its branch as a quality warning."""
+        the COO and flags its branch as a quality warning.
+
+        A03 audit M34-6: the escalation flagged and posted chatter but
+        assigned and notified nobody. It now names an escalation owner
+        (_escalation_owner: a configured user, else the Tier 4 holders), gives
+        them a to-do on the complaint, and the complaint.escalated_72h
+        consumer opens their M63 exception task."""
         cutoff = fields.Datetime.now() - timedelta(hours=72)
         stale = self.search(
             [
@@ -811,16 +951,33 @@ class FixComplaint(models.Model):
             ]
         )
         for complaint in stale:
-            complaint.write(
+            owner = complaint._escalation_owner()
+            complaint._guarded().write(
                 {
                     "escalated_at": fields.Datetime.now(),
                     "quality_warning": True,
+                    "escalation_owner_id": owner.id or False,
                 }
             )
-            complaint.message_post(
-                body="Unresolved 72 hours after intake — escalated to the COO and "
-                "the operating unit flagged Quality Warning (REQ-34.5)."
-            )
+            if owner:
+                complaint._notify_user(
+                    owner,
+                    "Escalated complaint: %s" % complaint.name,
+                    "Unresolved 72 hours after intake (REQ-34.5). You are the escalation "
+                    "owner; the current owner is %s." % (complaint.owner_id.name or "nobody"),
+                )
+                body = (
+                    "Unresolved 72 hours after intake — escalated to %s and the "
+                    "operating unit flagged Quality Warning (REQ-34.5)." % owner.name
+                )
+            else:
+                body = (
+                    "Unresolved 72 hours after intake and the operating unit flagged "
+                    "Quality Warning (REQ-34.5). NOBODY could be notified: no user holds "
+                    "DOFA Tier 4 and the parameter cd_cx_feedback.escalation_user is not "
+                    "set. Appoint the escalation owner."
+                )
+            complaint.message_post(body=body)
             publish(
                 self.env,
                 "complaint.escalated_72h",
@@ -831,6 +988,8 @@ class FixComplaint(models.Model):
                     "severity": complaint.severity,
                     "operating_unit_id": complaint.operating_unit_id.id,
                     "hours_open": 72,
+                    "escalation_owner_id": owner.id or None,
+                    "owner_id": complaint.owner_id.id or None,
                 },
             )
         return len(stale)
