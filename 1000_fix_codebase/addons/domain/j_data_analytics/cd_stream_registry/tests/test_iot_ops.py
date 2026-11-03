@@ -85,7 +85,9 @@ def test_rule_matching_and_ingest_raises_alert(ctx):
     assert alerts.severity == "major"
     assert alerts.name.startswith("IOT/")
     assert stream.last_seen >= telemetry.timestamp
-    rule.action_pause()
+    # A07 P0 recipe: pausing is a routed suppression (test_a07_p0_recipe_governance);
+    # here the trusted superuser fixture pauses it to test evaluation only.
+    rule.write({"state": "paused"})
     _, alerts2 = stream.ingest(7.0)
     assert len(alerts2) == 0
 
@@ -126,11 +128,11 @@ def test_alert_lifecycle(ctx):
     alert.action_ack()
     assert alert.state == "acked"
     assert alert.acked_on
-    alert.action_resolve()
+    alert.action_resolve(resolution_note="sensor reseated")
     assert alert.state == "resolved"
     assert alert.resolved_on
     with pytest.raises(UserError, match="already resolved"), env.cr.savepoint():
-        alert.action_resolve()
+        alert.action_resolve(resolution_note="again")
 
 
 def test_prediction_creates_one_work_order(ctx):
@@ -167,16 +169,19 @@ def test_prescriptive_action_lifecycle(ctx):
             "estimated_days_to_failure": 9,
         }
     )
+    # A07 P0 recipe: dispatch needs a technician and done records an outcome.
+    technician = env["hr.employee"].create({"name": f"Tech {TAG}"})
     action = env["fix.iot.action"].create(
-        {"prediction_id": prediction.id, "action_type": "inspect"}
+        {"prediction_id": prediction.id, "action_type": "inspect", "technician_id": technician.id}
     )
     assert action.name.startswith("IACT/")
     action.action_approve()
     action.action_dispatch()
-    action.action_done()
+    action.action_done(outcome="confirmed", note="worn bearing")
     assert action.state == "done"
+    assert prediction.outcome == "confirmed"
     with pytest.raises(UserError, match="dispatched"), env.cr.savepoint():
-        action.action_done()
+        action.action_done(outcome="confirmed", note="again")
 
 
 def test_consent_revoke(ctx):

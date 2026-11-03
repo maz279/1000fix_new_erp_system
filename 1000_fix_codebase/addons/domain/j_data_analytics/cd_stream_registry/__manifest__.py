@@ -14,6 +14,9 @@
         "cd_equipment_register",
         "cd_facility",
         "cd_event_outbox",
+        # A07 P0 recipe: prescriptive-action and rule-suppression approvals are
+        # routed through the M63 engine (fix.approvable.mixin).
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
