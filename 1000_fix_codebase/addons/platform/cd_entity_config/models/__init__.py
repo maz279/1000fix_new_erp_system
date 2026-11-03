@@ -2,6 +2,7 @@
 # The T0 configuration module: everything downstream depends on this.
 # The ladder table EXTENDS fix.dofa.mixin, so it imports after it.
 from . import (
+    fix_approval_guard,
     fix_bd_address,
     fix_branch,
     fix_country_pack,

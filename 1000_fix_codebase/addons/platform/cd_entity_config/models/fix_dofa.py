@@ -30,11 +30,26 @@ TIER_GROUP = {
 }
 
 
+DOFA_APPROVAL_FIELDS = {
+    "dofa_approved",
+    "dofa_approved_by",
+    "dofa_approved_at",
+    "dofa_approved_tier",
+    "dofa_approved_amount",
+}
+
+
 class FixDofaMixin(models.AbstractModel):
     """Derives the approval tier from the amount at risk and enforces it."""
 
     _name = "fix.dofa.mixin"
+    _inherit = ["fix.guarded.mixin"]
     _description = "5-Tier Delegation of Financial Authority"
+
+    def _fix_guarded_fields(self) -> set:
+        # The approval stamp is evidence. Only action_dofa_approve (and the
+        # voiding path) may write it — a stamp anyone can type is not one.
+        return super()._fix_guarded_fields() | DOFA_APPROVAL_FIELDS
 
     dofa_tier_required = fields.Selection(
         DOFA_TIERS,
@@ -55,6 +70,13 @@ class FixDofaMixin(models.AbstractModel):
         copy=False,
         help="The tier in force when approval was granted. If the amount later "
         "rises above it, the approval no longer covers the record.",
+    )
+    dofa_approved_amount = fields.Float(
+        string="Amount Approved",
+        readonly=True,
+        copy=False,
+        help="The amount at risk the approver actually signed off. An approval "
+        "covers this amount, not whatever the record is later edited to.",
     )
     dofa_justification = fields.Text(
         string="DOFA Justification",
@@ -86,34 +108,72 @@ class FixDofaMixin(models.AbstractModel):
                 return tier
         return thresholds[-1][1] if thresholds else "tier_0"
 
-    @api.depends_context("uid")
+    def _dofa_current_tier(self) -> str:
+        """The tier the record needs NOW, derived from its live amount.
+
+        Decisions use this, never the stored column. The column used to carry
+        @api.depends_context("uid"), which gives a stored field one cache slot
+        per user; on flush Odoo writes whichever slot it finds first, so a
+        record raised by an ordinary user stored NULL. The approver was then
+        told "nothing to approve" while _dofa_assert_approved read NULL as
+        tier_0 and let the record through (A03 audit, 2026-11-03). A gate must
+        not depend on a cached copy of its own input.
+        """
+        self.ensure_one()
+        amount = abs(self._dofa_amount() or 0.0)
+        if amount <= 0.0:
+            # Nothing at risk, nothing to authorise.
+            return "tier_0"
+        return self._dofa_tier_for_amount(amount)
+
     def _compute_dofa_tier_required(self):
-        """Concrete models re-declare @api.depends on their own amount field."""
+        """Concrete models re-declare @api.depends on their own amount field.
+
+        No depends_context: the tier depends on the amount and the ruled
+        ladder, not on who happens to be reading the record.
+        """
         for rec in self:
-            rec.dofa_tier_required = rec._dofa_tier_for_amount(abs(rec._dofa_amount() or 0.0))
+            rec.dofa_tier_required = rec._dofa_current_tier()
 
     # ---- enforcement -----------------------------------------------------
     def _dofa_tier_rank(self, tier: str) -> int:
         order = [t[0] for t in DOFA_TIERS]
         return order.index(tier) if tier in order else 0
 
+    def _dofa_route_guard(self):
+        """Hook: refuse an approval that must arrive through a workflow task.
+        No-op here; the M63 engine (cd_workflow_engine) overrides it."""
+        return None
+
+    def _dofa_authority_user(self):
+        """The user whose DOFA tier group must cover the approval. The M63
+        engine returns the absent approver when a delegate decides on their
+        behalf."""
+        return self.env.user
+
+    def _dofa_acting_users(self):
+        """Everyone who must not be the record's creator (segregation of
+        duties): the approver, and the person they act for."""
+        return self.env.user
+
     def action_dofa_approve(self):
         """Grant approval, if this user is actually allowed to grant it."""
+        self._dofa_route_guard()
         for rec in self:
-            tier = rec.dofa_tier_required or "tier_0"
+            tier = rec._dofa_current_tier()
             if tier == "tier_0":
                 raise UserError(
                     "Nothing to approve: %s falls below the lowest DOFA threshold."
                     % rec._dofa_amount_label()
                 )
             group = TIER_GROUP.get(tier)
-            if group and not self.env.user.has_group(group):
+            if group and not rec._dofa_authority_user().has_group(group):
                 raise UserError(
                     "DOFA authority insufficient: %s requires %s. You do not hold "
                     "that approval authority." % (rec._dofa_amount_label(), dict(DOFA_TIERS)[tier])
                 )
             # Segregation of duties: the person who raised it cannot clear it.
-            if rec.create_uid and rec.create_uid.id == self.env.user.id:
+            if rec.create_uid and rec.create_uid in rec._dofa_acting_users():
                 raise UserError(
                     "Segregation of duties: %s was raised by you and must be "
                     "approved by a different %s."
@@ -126,12 +186,13 @@ class FixDofaMixin(models.AbstractModel):
                 raise ValidationError(
                     "A written DOFA justification is mandatory at %s." % dict(DOFA_TIERS)[tier]
                 )
-            rec.write(
+            rec._guarded().write(
                 {
                     "dofa_approved": True,
                     "dofa_approved_by": self.env.user.id,
                     "dofa_approved_at": fields.Datetime.now(),
                     "dofa_approved_tier": tier,
+                    "dofa_approved_amount": abs(rec._dofa_amount() or 0.0),
                 }
             )
             if hasattr(rec, "message_post"):
@@ -143,7 +204,7 @@ class FixDofaMixin(models.AbstractModel):
     def _dofa_assert_approved(self, what: str = "This transaction"):
         """Raise unless the record carries an approval that still covers it."""
         for rec in self:
-            tier = rec.dofa_tier_required or "tier_0"
+            tier = rec._dofa_current_tier()
             if tier == "tier_0":
                 continue
             if not rec.dofa_approved:
@@ -164,6 +225,57 @@ class FixDofaMixin(models.AbstractModel):
                         dict(DOFA_TIERS)[tier],
                     )
                 )
+            # ...and neither does an approval of a smaller amount within the
+            # same tier: signing off BDT 3,000 is not signing off BDT 4,999.
+            # Rows approved before the amount was recorded carry 0 and keep
+            # the tier check only.
+            approved_amount = rec.dofa_approved_amount or 0.0
+            current = abs(rec._dofa_amount() or 0.0)
+            if approved_amount and current > approved_amount + 0.005:
+                raise ValidationError(
+                    "%s was approved for %.2f but now stands at %s. An approval "
+                    "covers the amount that was signed off; re-approval is required."
+                    % (what, approved_amount, rec._dofa_amount_label())
+                )
+
+    def write(self, vals):
+        """An approval covers the amount that was signed off, from the moment
+        the amount moves past it — not only when a gate next looks.
+
+        _dofa_assert_approved already refuses an exceeded approval at the
+        point of consequence, but until then the record still read
+        "approved" (A03 audit, R4). Raising the amount above what was
+        approved now withdraws the approval at once and says so in the
+        chatter; lowering it leaves the approval standing, since signing off
+        BDT 5,000 covers BDT 3,000.
+        """
+        approved = self.filtered("dofa_approved")
+        before = {rec.id: abs(rec._dofa_amount() or 0.0) for rec in approved}
+        result = super().write(vals)
+        for rec in approved:
+            pinned = rec.dofa_approved_amount or before[rec.id]
+            now = abs(rec._dofa_amount() or 0.0)
+            if now > pinned + 0.005 and now != before[rec.id]:
+                rec._dofa_void_approval(
+                    "the amount rose from %.2f to %s after approval; re-approval "
+                    "is required." % (pinned, rec._dofa_amount_label())
+                )
+        return result
+
+    def _dofa_void_approval(self, reason: str):
+        """Withdraw an approval that no longer covers the record."""
+        for rec in self.filtered("dofa_approved"):
+            rec._guarded().write(
+                {
+                    "dofa_approved": False,
+                    "dofa_approved_by": False,
+                    "dofa_approved_at": False,
+                    "dofa_approved_tier": False,
+                    "dofa_approved_amount": 0.0,
+                }
+            )
+            if hasattr(rec, "message_post"):
+                rec.message_post(body="DOFA approval withdrawn: %s" % reason)
 
 
 class FixPiiAccessLog(models.Model):

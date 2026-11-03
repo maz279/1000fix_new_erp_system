@@ -249,7 +249,28 @@ class FixDofaLadder(models.Model):
                     ", ".join(siblings.mapped("name")) or "none",
                 )
             )
+            rec._recompute_target_tiers()
         return True
+
+    def _recompute_target_tiers(self):
+        """A ruling must move the tier of records that already exist.
+
+        dofa_tier_required depends only on the amount field, so without this
+        a BDT 700 complaint raised before the ruling kept its old tier while
+        an identical one raised after it got the new one (A03 audit). The
+        gates now read the live tier anyway; this keeps the stored column —
+        what lists, filters and dashboards show — telling the same story.
+        """
+        for rec in self:
+            if rec.target_model not in self.env:
+                continue
+            target = self.env[rec.target_model]
+            field = target._fields.get("dofa_tier_required")
+            if not field:
+                continue
+            records = target.sudo().with_context(active_test=False).search([])
+            self.env.add_to_compute(field, records)
+            records.flush_recordset(["dofa_tier_required"])
 
     @api.model
     def thresholds_for(self, model_name, company=None):
