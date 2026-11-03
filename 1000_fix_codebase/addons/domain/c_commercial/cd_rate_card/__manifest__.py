@@ -23,6 +23,7 @@ CD-M11-02: price books and rate cards.
         # fix.catalogue.item (cd_catalogue) is referenced by this module's models
         # (FF-46).
         "cd_catalogue",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

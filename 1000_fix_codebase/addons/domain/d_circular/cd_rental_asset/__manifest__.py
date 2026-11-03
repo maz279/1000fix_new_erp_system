@@ -34,6 +34,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_cash_position",
         # customer-data wipe evidence on turnaround (M06)
         "cd_data_case",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

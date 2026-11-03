@@ -27,6 +27,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_cash_position",
         "cd_inventory",
         "cd_event_outbox",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
