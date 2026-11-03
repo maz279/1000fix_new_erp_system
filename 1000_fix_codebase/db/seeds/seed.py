@@ -1280,28 +1280,48 @@ def main() -> int:
                 )
         print("seed: IoT devices (idempotent)")
 
-        # 20 telemetry records (unique timestamp per record keeps the
-        # per-record guard exact on reruns)
+        # 20 telemetry readings, 4 per device. A07 P0 (M48-1): readings arrive only
+        # through the stream's ingest, which checks the telemetry consent, so each
+        # device gets a temperature stream, and a synthetic seed consent where one
+        # is required (trackers, unbound devices). Idempotent by count.
         iot_devices = c.call("fix.iot.device", "search", [], limit=5)
-        for i in range(20):
-            dev = iot_devices[i % len(iot_devices)] if iot_devices else 1
-            ts = f"2026-10-05 10:{i:02d}:00"
-            if c.first(
-                "fix.iot.telemetry",
-                [("device_id", "=", dev), ("metric", "=", "temperature"), ("timestamp", "=", ts)],
+        for dev in iot_devices:
+            d = c.call("fix.iot.device", "read", [dev], ["device_type", "equipment_id", "site_id"])[
+                0
+            ]
+            needs_consent = d["device_type"] == "tracker" or not (d["equipment_id"] or d["site_id"])
+            if needs_consent and not c.first(
+                "fix.iot.consent", [("device_id", "=", dev), ("state", "=", "active")]
             ):
-                continue
-            c.call(
-                "fix.iot.telemetry",
-                "create",
-                {
-                    "device_id": dev,
-                    "timestamp": ts,
-                    "metric": "temperature",
-                    "value": round(rng.uniform(20, 45), 2),
-                    "unit": "C",
-                },
+                c.call(
+                    "fix.iot.consent",
+                    "create",
+                    {
+                        "subject_type": "device",
+                        "device_id": dev,
+                        "purpose": "service",
+                        "granted_on": "2026-01-01",
+                        "notes": "Synthetic seed consent (DE-12): test data only",
+                    },
+                )
+            stream = c.first(
+                "fix.iot.stream", [("device_id", "=", dev), ("metric", "=", "temperature")]
             )
+            if not stream:
+                stream = c.call(
+                    "fix.iot.stream",
+                    "create",
+                    {"device_id": dev, "metric": "temperature", "unit": "C"},
+                )
+            if c.call("fix.iot.stream", "read", [stream], ["state"])[0]["state"] != "active":
+                c.call("fix.iot.stream", "action_activate", [stream])
+            have = c.call(
+                "fix.iot.telemetry",
+                "search_count",
+                [("device_id", "=", dev), ("metric", "=", "temperature")],
+            )
+            for _ in range(max(0, 4 - have)):
+                c.call("fix.iot.stream", "ingest", [stream], round(rng.uniform(20, 45), 2))
         print("seed: IoT telemetry records (idempotent)")
 
         # 3 IoT alerts (name is sequence-generated; guard on message)
@@ -1781,17 +1801,18 @@ def main() -> int:
                 [("method", "=", "nist_800_88"), ("name", "=", f"Seed Wipe Cert {i+1}")],
                 {"name": f"Seed Wipe Cert {i+1}", "method": "nist_800_88", "device_id": dev_ids[i]},
             )
+        # A07 P0 (M17-1): ownership history is written only by a transfer, which
+        # moves the owner and records the row together. Rows created directly
+        # had contradicted the device's owner (fix_dev devices 552-554).
         for i in range(3):
-            ensure(
-                "fix.device.ownership",
-                [("device_id", "=", dev_ids[i]), ("transfer_type", "=", "sale")],
-                {
-                    "device_id": dev_ids[i],
-                    "to_partner_id": cust[i],
-                    "transfer_date": "2026-09-15",
-                    "transfer_type": "sale",
-                },
-            )
+            if c.first("fix.device.ownership", [("device_id", "=", dev_ids[i])]):
+                continue
+            d = c.call("fix.device", "read", [dev_ids[i]], ["owner_id", "state"])[0]
+            if d["state"] in ("lost", "scrapped") or (
+                d["owner_id"] and d["owner_id"][0] == cust[i]
+            ):
+                continue
+            c.call("fix.device", "action_transfer_ownership", [dev_ids[i]], cust[i], "sale")
         print("seed: supply-chain + circular anchors (idempotent)")
 
         # Assets + facilities
@@ -1826,6 +1847,10 @@ def main() -> int:
                     "next_due": "2027-03-01",
                     "result": ["pass", "pass", "fail"][i],
                     "standard_ref": "SEED-ISO-17025",
+                    # A07 P0 (M45-2): a pass is evidence only with its certificate
+                    # and the person who performed it (synthetic seed values).
+                    "certificate_ref": f"SEED-CAL-CERT-{i+1:03d}",
+                    "performed_by": "Seed Calibration Lab",
                 },
             )
         # BRTA compliance first: a vehicle is only dispatchable with valid
@@ -1839,23 +1864,56 @@ def main() -> int:
                 vals["insurance_expiry"] = "2027-03-31"
             if vals:
                 c.call("fleet.vehicle", "write", [vid], vals)
+            # A07 P0 (M46-2): the gate decides from the document register, not the
+            # header dates, so each seed van carries its mandatory documents.
+            for doc_type, valid_to in (
+                ("fitness", "2027-06-30"),
+                ("insurance", "2027-03-31"),
+                ("tax", "2027-06-30"),
+            ):
+                ensure(
+                    "fix.vehicle.document",
+                    [
+                        ("vehicle_id", "=", vid),
+                        ("doc_type", "=", doc_type),
+                        ("valid_to", ">=", "2026-12-31"),
+                    ],
+                    {
+                        "vehicle_id": vid,
+                        "doc_type": doc_type,
+                        "number": f"SEED-{doc_type.upper()}-{vid}",
+                        "valid_from": "2026-01-01",
+                        "valid_to": valid_to,
+                    },
+                )
         for i in range(2):
             ensure(
                 "fix.vehicle.assignment",
                 [("vehicle_id", "=", veh[i]), ("date", "=", "2026-10-01")],
                 {"vehicle_id": veh[i], "date": "2026-10-01"},
             )
-            ensure(
-                "fix.facility.work.order",
-                [("name", "=", f"SEED-FAC-{i+1:03d}")],
-                {
-                    "name": f"SEED-FAC-{i+1:03d}",
-                    "site_id": ste[i],
-                    "work_type": ["maintenance", "inspection"][i],
-                    "description": "Seed facility work",
-                    "state": ["scheduled", "completed"][i],
-                },
-            )
+            # A07 P0 (M47-1): a work order's state moves only through its actions,
+            # so the seed creates a draft and walks it (no cost: no approval).
+            if not c.first("fix.facility.work.order", [("name", "=", f"SEED-FAC-{i+1:03d}")]):
+                wo = c.call(
+                    "fix.facility.work.order",
+                    "create",
+                    {
+                        "name": f"SEED-FAC-{i+1:03d}",
+                        "site_id": ste[i],
+                        "work_type": ["maintenance", "inspection"][i],
+                        "description": "Seed facility work",
+                    },
+                )
+                c.call("fix.facility.work.order", "action_schedule", [wo])
+                if i == 1:
+                    c.call("fix.facility.work.order", "action_start", [wo])
+                    c.call(
+                        "fix.facility.work.order",
+                        "action_complete",
+                        [wo],
+                        "Seed inspection done; no defects",
+                    )
             ensure(
                 "fix.safety.inspection",
                 [("name", "=", f"SEED-HSE-{i+1:03d}")],
