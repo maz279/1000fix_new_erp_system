@@ -277,7 +277,31 @@ class FixReferral(models.Model):
         tracking=True,
     )
 
+    # A04 audit C1 (M40-7): what a portal partner may say when submitting a
+    # referral. The state, the referred revenue and the commission are the
+    # company's to establish, because M53's accrual posts the GL entry from
+    # them; a P12 partner set its own referral to commissioned on a
+    # BDT 5,000,000 base.
+    _PORTAL_REFERRAL_FIELDS = frozenset({"name", "partner_id", "referred_partner_id"})
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if self.env.user.share and not self.env.su:
+            for vals in vals_list:
+                extra = set(vals) - self._PORTAL_REFERRAL_FIELDS
+                if extra:
+                    raise UserError(
+                        "A partner submits who was referred; %s are set by the company."
+                        % ", ".join(sorted(extra))
+                    )
+        return super().create(vals_list)
+
+    def _fix_require_internal(self, what):
+        if self.env.user.share and not self.env.su:
+            raise UserError("%s is the company's decision, not the partner's." % what)
+
     def action_convert(self, base_amount=None):
+        self._fix_require_internal("Converting a referral")
         for rec in self:
             if rec.state != "submitted":
                 raise UserError("Only a submitted referral can be converted")
@@ -294,6 +318,7 @@ class FixReferral(models.Model):
 
     def action_earn_commission(self):
         """Publishes commission.earned — M53's engine consumes it."""
+        self._fix_require_internal("Earning a referral commission")
         for rec in self:
             if rec.state != "converted":
                 raise UserError("Convert before commissioning")
