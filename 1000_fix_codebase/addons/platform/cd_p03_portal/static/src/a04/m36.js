@@ -154,7 +154,7 @@ export const SCREENS = {
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'company_id', label: 'Company', required: true },
-        { name: 'order_id', label: 'Service Order', required: true },
+        { name: 'order_id', label: 'Service Order' },  // optional for a pre-sales estimate; the server requires an order or an opportunity (A03 W8)
         { name: 'manager_approval_uid', label: 'Manager Approval', readonly: true },
         { name: 'currency_id', label: 'Currency', required: true },
         { name: 'approved_by', label: 'Approved By', readonly: true },

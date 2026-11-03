@@ -64,7 +64,9 @@ class FixEstimateCrm(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"approved_total", "approval_stamped_at"}
 
-    @api.constrains("order_id", "lead_id")
+    # "version" is always written on create, so the check also runs for an
+    # estimate created with neither owner (A03 audit W8: create({}) passed).
+    @api.constrains("order_id", "lead_id", "version")
     def _check_estimate_owner(self):
         for est in self:
             if not est.order_id and not est.lead_id:

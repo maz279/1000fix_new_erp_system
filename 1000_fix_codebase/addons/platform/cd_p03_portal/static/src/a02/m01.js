@@ -351,7 +351,7 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'scope', title: 'Estimate Header & Diagnostic Findings', fields: [
-        { name: 'order_id', required: true, label: 'Service Order' },
+        { name: 'order_id', label: 'Service Order' },  // optional for a pre-sales estimate; the server requires an order or an opportunity (A03 W8)
         { name: 'version', label: 'Estimate Revision', readonly: true },
         { name: 'state', label: 'Estimate Status', readonly: true },
         { name: 'expiry_date', label: 'Valid Until' },
