@@ -10,7 +10,6 @@ access_fix_hse_jsa,fix.hse.jsa,model_fix_hse_jsa,base.group_user,1,0,0,0
 access_fix_hse_loneworker,fix.hse.loneworker,model_fix_hse_loneworker,base.group_user,1,1,1,0
 access_fix_hse_roadcheck,fix.hse.roadcheck,model_fix_hse_roadcheck,base.group_user,1,1,1,0
 access_fix_hse_drill,fix.hse.drill,model_fix_hse_drill,base.group_user,1,0,0,0
-access_fix_hse_health,fix.hse.health,model_fix_hse_health,base.group_user,1,0,0,0
 access_fix_hse_incident_mgr,fix.hse.incident.manager,model_fix_hse_incident,hr.group_hr_manager,1,1,1,1
 access_fix_statutory_accident_register_mgr,fix.statutory.accident.register.manager,model_fix_statutory_accident_register,hr.group_hr_manager,1,1,1,0
 access_fix_safety_inspection_role,fix.safety.inspection.role,model_fix_safety_inspection,cd_hse.group_hse_officer,1,1,1,0
@@ -20,5 +19,5 @@ access_fix_hazardous_substance_register_role,fix.hazardous.substance.register.ro
 access_fix_hse_hazard_role,fix.hse.hazard.role,model_fix_hse_hazard,cd_hse.group_hse_officer,1,1,1,0
 access_fix_hse_jsa_role,fix.hse.jsa.role,model_fix_hse_jsa,cd_hse.group_hse_officer,1,1,1,0
 access_fix_hse_drill_role,fix.hse.drill.role,model_fix_hse_drill,cd_hse.group_hse_officer,1,1,1,0
-access_fix_hse_health_role,fix.hse.health.role,model_fix_hse_health,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_health_role,fix.hse.health.role,model_fix_hse_health,cd_hse.group_occupational_health,1,1,1,0
 access_fix_statutory_register_hse,fix.statutory.accident.register.hse,model_fix_statutory_accident_register,cd_hse.group_hse_officer,1,1,1,0
