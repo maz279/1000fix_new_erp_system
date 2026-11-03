@@ -10,7 +10,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields as odoo_fields
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from psycopg2 import IntegrityError
 
 TAG = uuid.uuid4().hex[:6].upper()
@@ -51,9 +51,9 @@ def test_lease_sequence_and_date_rule(ctx):
         )
 
 
-def test_licence_validity_is_computed(ctx):
+def test_licence_validity_is_computed(ctx, monkeypatch):
     env, site = ctx["env"], ctx["site"]
-    today = date.today()
+    today = odoo_fields.Date.context_today(env.user)
     good = env["fix.site.licence"].create(
         {
             "site_id": site.id,
@@ -73,6 +73,20 @@ def test_licence_validity_is_computed(ctx):
     assert late.is_valid is False
     late.state = "suspended"
     assert late.is_valid is False
+    # A07 audit (2026-11-03, M47-18): this test checked validity only at
+    # create time, which certified the stale STORED compute. Validity must
+    # follow the calendar: 11 days on, the good licence has lapsed too.
+    monkeypatch.setattr(
+        odoo_fields.Date, "context_today", staticmethod(lambda *a, **k: today + timedelta(days=11))
+    )
+    good.invalidate_recordset()
+    assert good.is_valid is False
+    monkeypatch.undo()
+    # no end date is not "valid forever" (AC-21)
+    undated = env["fix.site.licence"].create({"site_id": site.id, "licence_type": "health"})
+    assert undated.is_valid is False
+    found = env["fix.site.licence"].search([("site_id", "=", site.id), ("is_valid", "=", True)])
+    assert found == good
 
 
 def test_occupancy_is_a_percentage(ctx):
@@ -100,16 +114,26 @@ def test_building_pm_completion(ctx):
 
 def test_safety_check_clears_overdue(ctx):
     env, site = ctx["env"], ctx["site"]
+    today = odoo_fields.Date.context_today(env.user)
     item = env["fix.site.safety"].create(
         {
             "site_id": site.id,
             "equipment_type": "extinguisher",
-            "next_check": date.today() - timedelta(days=5),
-            "state": "overdue",
+            "next_check": today - timedelta(days=5),
+            "state": "ok",
         }
     )
     assert item.name.startswith("SSAF/")
-    item.action_check()
+    # A07 audit (2026-11-03, M47-18): the status is derived from next_check;
+    # a typed "ok" on an item 5 days past due does not stick.
+    assert item.state == "overdue"
+    # the old test asserted "ok" after a check and never looked at next_check,
+    # which stayed in the past. No inspection interval exists, so the check
+    # must be given the next date, and it must move the date forward.
+    with pytest.raises(UserError, match="next check date"), env.cr.savepoint():
+        item.action_check()
+    item.action_check(next_check=str(today + timedelta(days=180)))
+    assert item.next_check == today + timedelta(days=180)
     assert item.state == "ok"
     # fix.site.safety.action_check stamps `fields.Date.context_today` - the
     # Bangladesh date (UTC+6). Asserting Python's `date.today()` asserted the
@@ -124,10 +148,14 @@ def test_incident_close_guard(ctx):
         {"site_id": site.id, "incident_type": "theft", "description": "test"}
     )
     assert incident.name.startswith("SINC/")
-    incident.action_close()
-    assert incident.state == "closed"
-    with pytest.raises(UserError, match="open"), env.cr.savepoint():
+    # A07 P0 recipe (M47-10): closing records a resolution
+    with pytest.raises(UserError, match="resolution"), env.cr.savepoint():
         incident.action_close()
+    incident.action_close(resolution="Lock replaced; police GD 123")
+    assert incident.state == "closed"
+    assert incident.resolution == "Lock replaced; police GD 123"
+    with pytest.raises(UserError, match="open"), env.cr.savepoint():
+        incident.action_close(resolution="again")
 
 
 def test_site_project_lifecycle(ctx):
@@ -155,7 +183,14 @@ def test_plant_asset_lifecycle_and_report(ctx):
         asset.action_maintenance()
     asset.action_restore()
     assert asset.state == "operational"
-    asset.action_retire()
+    # A07 P0 recipe (M47-11): retiring BDT 500,000 of plant needs a DOFA
+    # approval; the routed path is tested in test_a07_p0_recipe_lifecycles.py
+    with pytest.raises(ValidationError, match="sign-off"), env.cr.savepoint():
+        asset.action_retire()
+    asset.write(
+        {"dofa_approved": True, "dofa_approved_tier": "tier_5", "dofa_approved_amount": 500000}
+    )
+    asset.action_retire(reason="Replaced by new plant")
     assert asset.state == "retired"
 
     pack = m47.branch_assets(env)
@@ -174,8 +209,9 @@ def test_work_order_lifecycle_and_sequence(ctx):
     assert order.state == "scheduled"
     order.action_start()
     assert order.state == "in_progress"
-    order.action_complete()
+    order.action_complete(notes="Fan motor replaced")
     assert order.state == "completed"
+    assert order.completion_notes == "Fan motor replaced"
 
 
 def test_kpis_count_only_open_work_orders(ctx):
@@ -186,7 +222,10 @@ def test_kpis_count_only_open_work_orders(ctx):
     done = env["fix.facility.work.order"].create(
         {"site_id": site.id, "work_type": "repair", "description": "done one"}
     )
-    done.action_complete()
+    # A07 P0 recipe: the lifecycle is walked, not jumped
+    done.action_schedule()
+    done.action_start()
+    done.action_complete(notes="done")
     payload = m47.kpis(env)
     assert payload["sites_active"] >= 1
     assert payload["open_work_orders"] >= 1

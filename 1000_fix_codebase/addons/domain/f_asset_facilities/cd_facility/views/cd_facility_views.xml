@@ -24,9 +24,12 @@
             <form string="Facility / Site Infrastructure">
                 <header>
                     <button name="action_link_assets" string="Publish Linked Assets" type="object" class="btn-primary"/>
+                    <!-- A07 P0 recipe: a status change needs the CFO and CEO sign-offs (routed) -->
+                    <button name="action_request_approval" string="Request Status-Change Approval" type="object" invisible="approval_state == 'pending'"/>
                     <button name="action_close" string="Close Site" type="object" invisible="state == 'closed'"/>
                     <button name="action_reopen" string="Reopen Site" type="object" invisible="state == 'active'"/>
                     <field name="state" widget="statusbar" statusbar_visible="active,closed"/>
+                    <field name="approval_state" invisible="1"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -112,11 +115,14 @@
         <field name="arch" type="xml">
             <form string="Facility Maintenance Work Order">
                 <header>
+                    <!-- A07 P0 recipe: spend approval (DOFA, routed), evidence, verification by another user -->
+                    <button name="action_request_approval" string="Request Spend Approval" type="object" invisible="state not in ('draft', 'scheduled', 'in_progress') or approval_state == 'pending'"/>
                     <button name="action_schedule" string="Schedule" type="object" class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_start" string="Start Work" type="object" class="btn-primary" invisible="state != 'scheduled'"/>
                     <button name="action_complete" string="Complete Work" type="object" class="btn-success" invisible="state != 'in_progress'"/>
-                    <button name="action_cancel" string="Cancel" type="object" invisible="state in ('completed', 'cancelled')"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,scheduled,in_progress,completed"/>
+                    <button name="action_verify" string="Verify &amp; Close" type="object" class="btn-success" invisible="state != 'completed'"/>
+                    <button name="action_cancel" string="Cancel" type="object" invisible="state not in ('draft', 'scheduled', 'in_progress')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,scheduled,in_progress,completed,verified"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -136,7 +142,15 @@
                             <field name="currency_id"/>
                             <field name="estimated_cost"/>
                             <field name="actual_cost"/>
+                            <field name="dofa_tier_required"/>
+                            <field name="approval_state"/>
                         </group>
+                    </group>
+                    <group string="Completion &amp; Verification">
+                        <field name="completion_notes" readonly="state not in ('draft', 'scheduled', 'in_progress')"/>
+                        <field name="completed_by_id"/>
+                        <field name="verified_by_id"/>
+                        <field name="verified_at"/>
                     </group>
                     <group string="Work Description">
                         <field name="description"/>

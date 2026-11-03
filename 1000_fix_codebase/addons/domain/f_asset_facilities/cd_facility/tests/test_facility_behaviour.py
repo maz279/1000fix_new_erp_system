@@ -7,7 +7,9 @@ import json
 import re
 from datetime import date
 
+import pytest
 from odoo import fields
+from odoo.exceptions import UserError
 
 
 def _events(env, event_type, aggregate, res_id):
@@ -33,6 +35,25 @@ def _work_order(env, site=None, **vals):
     return env["fix.facility.work.order"].create(vals)
 
 
+def _stamp_dofa(record):
+    """Fixture shortcut (A07 P0 recipe): stamp a DOFA approval as superuser,
+    which the guard trusts. The routed approval itself (inbox, tier, SoD) is
+    exercised by tests/test_a07_p0_recipe_lifecycles.py."""
+    record.write(
+        {
+            "dofa_approved": True,
+            "dofa_approved_tier": "tier_5",
+            "dofa_approved_amount": record._dofa_amount(),
+        }
+    )
+
+
+def _sign_off_status(sites):
+    """Both status-change sign-offs, as trusted superuser code (no task)."""
+    sites.action_approve_status_change()  # CFO
+    sites.action_approve_status_change()  # CEO
+
+
 def test_site_defaults(odoo_env):
     site = _site(odoo_env)
     assert site.site_type == "branch"
@@ -56,8 +77,16 @@ def test_link_assets_publishes_asset_count(odoo_env):
 
 def test_site_close_and_reopen(odoo_env):
     sites = _site(odoo_env, name="A") | _site(odoo_env, name="B")
+    # A07 P0 recipe: a status change needs the CFO and CEO sign-offs first,
+    # and each pair of sign-offs is consumed by the change it authorised
+    with pytest.raises(UserError, match="sign-off"), odoo_env.cr.savepoint():
+        sites.action_close()
+    _sign_off_status(sites)
     sites.action_close()
     assert set(sites.mapped("state")) == {"closed"}
+    with pytest.raises(UserError, match="sign-off"), odoo_env.cr.savepoint():
+        sites.action_reopen()
+    _sign_off_status(sites)
     sites.action_reopen()
     assert set(sites.mapped("state")) == {"active"}
 
@@ -105,32 +134,49 @@ def test_schedule_with_and_without_date(odoo_env):
 
 def test_start_and_cancel(odoo_env):
     wo = _work_order(odoo_env)
+    # A07 P0 recipe: a draft work order is scheduled before it is started
+    with pytest.raises(UserError, match="cannot be started"), odoo_env.cr.savepoint():
+        wo.action_start()
+    wo.action_schedule()
     wo.action_start()
     assert wo.state == "in_progress"
     wo.action_cancel()
     assert wo.state == "cancelled"
 
 
-def test_complete_publishes_actual_then_estimated_then_zero_cost(odoo_env):
+def test_complete_publishes_the_actual_cost_never_the_estimate(odoo_env):
+    # A07 audit (2026-11-03, M47-7): a WO completed with no actual cost
+    # published its estimate as the cost. The event now carries the actual
+    # (0 when none was recorded) and the estimate separately.
     site = _site(odoo_env, name="CTG Warehouse")
     actual = _work_order(odoo_env, site, work_type="repair", estimated_cost=900, actual_cost=1250)
     estimated = _work_order(odoo_env, site, estimated_cost=900)
     free = _work_order(odoo_env, site, work_type="inspection")
-    (actual | estimated | free).action_complete()
+    orders = actual | estimated | free
+    for wo in actual | estimated:
+        _stamp_dofa(wo)
+    orders.action_schedule()
+    orders.action_start()
+    orders.action_complete(notes="Batteries replaced; job sheet JS-1")
     assert {actual.state, estimated.state, free.state} == {"completed"}
     wo_model = "fix.facility.work.order"
     assert _events(odoo_env, "facility.work_order_completed", wo_model, actual.id) == [
-        {"order": actual.name, "site": "CTG Warehouse", "work_type": "repair", "cost": 1250.0}
+        {
+            "order": actual.name,
+            "site": "CTG Warehouse",
+            "work_type": "repair",
+            "cost": 1250.0,
+            "estimated_cost": 900.0,
+        }
     ]
-    assert (
-        _events(odoo_env, "facility.work_order_completed", wo_model, estimated.id)[0]["cost"]
-        == 900.0
-    )
+    ev = _events(odoo_env, "facility.work_order_completed", wo_model, estimated.id)[0]
+    assert (ev["cost"], ev["estimated_cost"]) == (0.0, 900.0)
     assert _events(odoo_env, "facility.work_order_completed", wo_model, free.id)[0] == {
         "order": free.name,
         "site": "CTG Warehouse",
         "work_type": "inspection",
         "cost": 0.0,
+        "estimated_cost": 0.0,
     }
 
 

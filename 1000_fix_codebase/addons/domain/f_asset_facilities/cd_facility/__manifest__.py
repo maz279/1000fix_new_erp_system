@@ -9,7 +9,15 @@ CD-M47-01 (P10) — Facility & Branch Infrastructure.
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",
-    "depends": ["base", "mail", "cd_entity_config", "cd_equipment_register", "cd_event_outbox"],
+    "depends": [
+        "base",
+        "mail",
+        "cd_entity_config",
+        "cd_equipment_register",
+        "cd_event_outbox",
+        # A07 P0 recipe: the routed approval engine (fix.approvable.mixin)
+        "cd_workflow_engine",
+    ],
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
