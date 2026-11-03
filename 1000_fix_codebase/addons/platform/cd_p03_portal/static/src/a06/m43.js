@@ -42,11 +42,15 @@ export const MODULE = {
   forms: ['Review Cycle', 'Policy Assignment', 'Rebalance Proposal'],
   cross: ['M26 forecast models', 'M16 planned orders', 'M15 stock positions', 'M37 lifecycle states'],
   freg: { src: 58, sub: [
-    ['1', 'History & Cleansing', 7], ['2', 'Segmentation', 6],
-    ['3', 'Forecast Orchestration', 8], ['4', 'Accuracy Tracking', 6],
-    ['5', 'Safety Stock & ROP', 9], ['6', 'Lead-Time', 5],
-    ['7', 'Planned Orders', 6], ['8', 'Multi-Echelon Rebalancing', 7],
-    ['9', 'What-If', 4]
+    ['1', 'History & Cleansing', 7, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'actual_qty', 'source', 'state'], screens: ['M43-history'] }],
+    ['2', 'Segmentation', 6, { model: 'fix.demand.segment', cols: ['product_id', 'abc_class', 'xyz_class', 'criticality', 'state'], screens: ['M43-segments'] }],
+    ['3', 'Forecast Orchestration', 8, { model: 'fix.demand.forecast', cols: ['name', 'product_id', 'period', 'forecast_qty', 'method'], screens: ['M43-models', 'M43-reviews'] }],
+    ['4', 'Accuracy Tracking', 6, { model: 'fix.demand.forecast', cols: ['product_id', 'period', 'forecast_qty', 'actual_qty', 'abs_error_pct'], screens: ['M43-accuracy'] }],
+    ['5', 'Safety Stock & ROP', 9, { model: 'fix.demand.policy', cols: ['product_id', 'service_level_pct', 'safety_stock', 'reorder_point', 'state'], screens: ['M43-safety'] }],
+    ['6', 'Lead-Time', 5, { model: 'fix.demand.policy', cols: ['product_id', 'lead_time_days', 'avg_daily_demand', 'demand_stddev'], screens: ['M43-leadtime'] }],
+    ['7', 'Planned Orders', 6, { model: 'fix.demand.plan', cols: ['name', 'product_id', 'forecast_quantity', 'recommended_order', 'state'], screens: ['M43-planned'] }],
+    ['8', 'Multi-Echelon Rebalancing', 7, { model: 'fix.demand.rebalance', cols: ['name', 'product_id', 'source_branch', 'target_branch', 'qty'], screens: ['M43-rebalance', 'M43-vanpar'] }],
+    ['9', 'What-If', 4, { model: 'fix.demand.scenario', cols: ['name', 'product_id', 'demand_adjust_pct', 'projected_reorder_point', 'state'], screens: ['M43-whatif'] }]
   ] }
 };
 

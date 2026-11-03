@@ -42,8 +42,12 @@ export const MODULE = {
   forms: ['Steward Request', 'DQ Rule', 'Code List Entry'],
   cross: ['M30 branch master', 'M33 golden party', 'M25 DQ dashboards'],
   freg: { src: 52, sub: [
-    ['1', 'Stewardship', 10], ['2', 'Data Quality', 12], ['3', 'Code Lists', 9],
-    ['4', 'Golden Records', 8], ['5', 'Workflows', 7], ['6', 'Audit', 6]
+    ['1', 'Stewardship', 10, { model: 'fix.mdm.steward', cols: ['name', 'request_type', 'res_model', 'steward_id', 'state'], screens: ['M64-stewardship', 'M64-mdm-stewardship', 'M64-domains'] }],
+    ['2', 'Data Quality', 12, { model: 'fix.mdm.dq.rule', cols: ['code', 'name', 'res_model', 'rule_type', 'severity'], screens: ['M64-rules', 'M64-scoring'] }],
+    ['3', 'Code Lists', 9, { model: 'fix.mdm.code.list', cols: ['code', 'name', 'domain_area', 'state'], screens: ['M64-codelists', 'M64-entries', 'M64-xref'] }],
+    ['4', 'Golden Records', 8, { model: 'fix.mdm.golden.rule', cols: ['model_name', 'field_name', 'strategy', 'sequence', 'active'], screens: ['M64-mdm-golden-rule', 'M64-mdm-match-rule'] }],
+    ['5', 'Workflows', 7, { model: 'fix.mdm.change.request', cols: ['reference', 'title', 'model_name', 'priority', 'state'], screens: ['M64-mdm-change-request', 'M64-impact'] }],
+    ['6', 'Audit', 6, { model: 'fix.mdm.duplicate', cols: ['name', 'res_model', 'decision', 'decided_by_id', 'decided_on'], screens: ['M64-lineage', 'M64-dedupe'] }]
   ] }
 };
 

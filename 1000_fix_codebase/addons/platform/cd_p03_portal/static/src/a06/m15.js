@@ -49,12 +49,18 @@ export const MODULE = {
   forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
-    ['1', 'On-Hand & Classes', 12], ['2', 'Location Hierarchy', 8],
-    ['3', 'Ownership Segregation', 9], ['4', 'Reservations', 7],
-    ['5', 'Issue / Return / Consumption', 10], ['6', 'Van Stock', 11],
-    ['7', 'Serial & Lot Trace', 10], ['8', 'Valuation', 8],
-    ['9', 'Goods Receipt', 7], ['10', 'Counting', 9],
-    ['11', 'Ageing & Analysis', 8], ['12', 'Transfers & RTV', 8]
+    ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'] }],
+    ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-network', 'M15-onhand'] }],
+    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership'] }],
+    ['4', 'Reservations', 7, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'reserved', 'available_qty'], screens: ['M15-onhand'], domain: [['reserved', '>', 0]] }],
+    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-genealogy'] }],
+    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'] }],
+    ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-genealogy'] }],
+    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation'] }],
+    ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'] }],
+    ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'] }],
+    ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'] }],
+    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'] }]
   ] }
 };
 

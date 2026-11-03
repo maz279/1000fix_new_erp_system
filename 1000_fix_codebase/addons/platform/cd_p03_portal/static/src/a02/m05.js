@@ -58,16 +58,16 @@ export const MODULE = {
   freg: {
     src: 93,
     sub: [
-      ['1', 'Remote Sessions', 10],
-      ['2', 'Monitored Estate', 12],
-      ['3', 'Metrics & Health Scoring', 9],
-      ['4', 'Alerting Engine', 11],
-      ['5', 'On-Call & Escalation', 7],
-      ['6', 'Runbooks & Remediation', 8],
-      ['7', 'Patch Management', 9],
-      ['8', 'MSP Service Desk', 13],
-      ['9', 'Client Reporting', 9],
-      ['10', 'Onboarding Projects', 5]
+      ['1', 'Remote Sessions', 10, { model: 'fix.remote.session', cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'started_at'], screens: ['M05-sessions', 'M05-console'] }],
+      ['2', 'Monitored Estate', 12, { model: 'fix.monitored.asset', cols: ['hostname', 'agent_id', 'msp_contract_id', 'health', 'last_seen'], screens: ['M05-estate'] }],
+      ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate'] }],
+      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'state', 'create_date'], screens: ['M05-alerts'] }],
+      ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'] }],
+      ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks'] }],
+      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'] }],
+      ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem'], domain: [['state', 'in', ['ticketed', 'resolved']]] }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla'] }],
+      ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-estate'] }]
     ]
   }
 };

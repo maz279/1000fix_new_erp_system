@@ -49,8 +49,12 @@ export const MODULE = {
   forms: ['Branch', 'Config Parameter', 'Feature Flag', 'Announcement', 'Authority Ladder'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
-    ['1', 'Branch Master', 12], ['2', 'Entity Structure', 8], ['3', 'Config & Flags', 10],
-    ['4', 'Calendars', 9], ['5', 'Announcements', 6], ['6', 'Audit', 19]
+    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'] }],
+    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities', 'M30-env'] }],
+    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-config', 'M30-params', 'M30-jobs'] }],
+    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars'] }],
+    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'] }],
+    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-rulings', 'M30-drift', 'M30-release'] }]
   ] }
 };
 

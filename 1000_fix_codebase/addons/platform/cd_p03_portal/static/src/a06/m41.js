@@ -49,11 +49,15 @@ export const MODULE = {
   forms: ['Bin', 'Wave Template', 'Dock Appointment', 'Packing Station Config'],
   cross: ['M15 stock ledger', 'M16 goods receipt', 'M03 outbound staging', 'M44 import receiving'],
   freg: { src: 78, sub: [
-    ['1', 'Physical Structure', 8], ['2', 'Slotting', 7],
-    ['3', 'Inbound & Put-Away', 12], ['4', 'Wave Planning', 9],
-    ['5', 'Picking', 11], ['6', 'Packing & Staging', 8],
-    ['7', 'Replenishment', 6], ['8', 'RF Execution', 8],
-    ['9', 'Labour & Analytics', 9]
+    ['1', 'Physical Structure', 8, { model: 'fix.warehouse.bin', cols: ['name', 'zone_id', 'barcode', 'capacity_qty'], screens: ['M41-zones', 'M41-warehouse', 'M41-stock-location'] }],
+    ['2', 'Slotting', 7, { model: 'fix.wms.slot', cols: ['part_id', 'bin_id', 'velocity', 'slot_type', 'state'], screens: ['M41-slotting'] }],
+    ['3', 'Inbound & Put-Away', 12, { model: 'fix.wms.putaway', cols: ['name', 'part_id', 'qty', 'to_bin_id', 'state'], screens: ['M41-docks', 'M41-receiving', 'M41-putaway'] }],
+    ['4', 'Wave Planning', 9, { model: 'fix.wms.wave', cols: ['name', 'wave_date', 'strategy', 'released_at', 'state'], screens: ['M41-waves'] }],
+    ['5', 'Picking', 11, { model: 'fix.wms.task', cols: ['name', 'part_id', 'bin_id', 'qty', 'state'], screens: ['M41-picking', 'M41-tasks'], domain: [['task_type', '=', 'pick']] }],
+    ['6', 'Packing & Staging', 8, { model: 'fix.wms.carton', cols: ['name', 'wave_id', 'carton_size', 'weight_kg', 'state'], screens: ['M41-packing', 'M41-staging'] }],
+    ['7', 'Replenishment', 6, { model: 'fix.spare.part', cols: ['name', 'part_number', 'qty_available', 'min_qty', 'max_qty'], screens: ['M41-spare-part', 'M41-tasks'] }],
+    ['8', 'RF Execution', 8, { model: 'fix.wms.task', cols: ['name', 'task_type', 'bin_id', 'assignee_id', 'state'], screens: ['M41-rf', 'M41-tasks'] }],
+    ['9', 'Labour & Analytics', 9, { model: 'fix.wms.task', cols: ['assignee_id', 'task_type', 'qty', 'done_at', 'state'], screens: ['M41-tasks', 'M41-counting', 'M41-inventory-valuation-suspense'] }]
   ] }
 };
 

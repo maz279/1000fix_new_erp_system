@@ -59,11 +59,16 @@ export const MODULE = {
   ],
   cross: ['M06 destruction gate', 'M31 refurb repairs', 'M15 graded stock', 'M38 online resale', 'M18 recycle routing'],
   freg: { src: 84, sub: [
-    ['1', 'Intake (5 channels)', 9], ['2', 'Valuation Engine', 9],
-    ['3', 'Provenance Screening', 7], ['4', 'Settlement', 8],
-    ['5', 'Bulk Buy-Back', 6], ['6', 'Destruction Gate', 4],
-    ['7', 'Refurbishment Orders', 11], ['8', 'Grading & QA', 11],
-    ['9', 'Resale', 10], ['10', 'Harvesting', 9]
+    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake'] }],
+    ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'] }],
+    ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'] }],
+    ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'] }],
+    ['5', 'Bulk Buy-Back', 6, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'marketplace_seller_id', 'offered_value', 'state'], screens: ['M14-intake'] }],
+    ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-intake', 'M14-orders'], domain: [['state', 'in', ['collected', 'wiped']]] }],
+    ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'] }],
+    ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'] }],
+    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'] }],
+    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-harvest'] }]
   ] }
 };
 
@@ -104,7 +109,7 @@ export const SCREENS = {
       { m: 'action_request_parts', l: 'Request Parts' },
       { m: 'action_complete_repair', l: 'Complete Step' }
     ] },
-  'M14-qa': { kind: 'model_list', model: 'fix.refurb_qa', stateField: 'qa_state',
+  'M14-qa': { kind: 'model_list', model: 'fix.refurb.qa', stateField: 'qa_state',
     cols: ['name', 'tradein_id', 'battery_health_pct', 'tests_passed', 'tests_total', 'pass_pct', 'qa_state', 'checked_on', 'inspector_id'] },
   'M14-grading': { kind: 'model_list', model: 'fix.tradein.grade',
     cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'screen_grade', 'cosmetic_grade', 'functional_grade', 'graded_on'] },

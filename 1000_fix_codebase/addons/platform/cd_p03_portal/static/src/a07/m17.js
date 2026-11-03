@@ -51,12 +51,17 @@ export const MODULE = {
   forms: ['Asset (6 identifiers)', 'Estate Assignment', 'Ownership Transfer', 'Condition Grading'],
   cross: ['M01 every order links asset', 'M09 warranty evidence', 'M05 monitored assets', 'M48 telemetry streams', 'P01 customer devices'],
   freg: { src: 96, sub: [
-    ['1', 'Identity & Resolution', 14], ['2', 'Configuration & Components', 8],
-    ['3', 'Ownership & Custody', 12], ['4', 'Service History', 9],
-    ['5', 'Parts Genealogy', 7], ['6', 'Repeat-Fault Detection', 6],
-    ['7', 'Warranty Projection', 7], ['8', 'Corporate Estates', 12],
-    ['9', 'Bulk Registration', 7], ['10', 'Condition & EOL Routing', 8],
-    ['11', 'Data Quality', 6]
+    ['1', 'Identity & Resolution', 14, { model: 'fix.device', cols: ['name', 'serial_number', 'imei_1', 'mac_address', 'legacy_reference'], screens: ['M17-asset', 'M17-identifiers', 'M17-assets'] }],
+    ['2', 'Configuration & Components', 8, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'installed_on', 'state'], screens: ['M17-components', 'M17-device-part-compatibility'] }],
+    ['3', 'Ownership & Custody', 12, { model: 'fix.device.ownership', cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date'], screens: ['M17-ownership', 'M17-custody'] }],
+    ['4', 'Service History', 9, { model: 'fix.device.history', cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'], screens: ['M17-history', 'M17-360'] }],
+    ['5', 'Parts Genealogy', 7, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'source_ref', 'removed_on'], screens: ['M17-genealogy', 'M17-components'] }],
+    ['6', 'Repeat-Fault Detection', 6, { model: 'fix.device.history', cols: ['device_id', 'date', 'event_type', 'service_order_id', 'description'], screens: ['M17-rework', 'M17-history'], domain: [['event_type', 'in', ['repair', 'service_order']]] }],
+    ['7', 'Warranty Projection', 7, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'], screens: ['M17-wty'] }],
+    ['8', 'Corporate Estates', 12, { model: 'fix.device.estate', cols: ['name', 'client_id', 'site', 'department', 'cost_centre'], screens: ['M17-estates'] }],
+    ['9', 'Bulk Registration', 7, { model: 'fix.device', cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'estate_id'], screens: ['M17-bulk', 'M17-assets'] }],
+    ['10', 'Condition & EOL Routing', 8, { model: 'fix.device.condition', cols: ['device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on'], screens: ['M17-conditions', 'M17-pm'] }],
+    ['11', 'Data Quality', 6, { model: 'fix.device.identity', cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_score', 'state'], screens: ['M17-merge', 'M17-identifiers'] }]
   ] }
 };
 

@@ -65,9 +65,16 @@ export const MODULE = {
   forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   freg: { src: 91, sub: [
-    ['1', 'CoA & Dimensions', 12], ['2', 'Journals', 11], ['3', 'Subledger Posting Engine', 12],
-    ['4', 'Fiscal Calendar & Close', 10], ['5', 'Multi-Entity & Consolidation', 9], ['6', 'Multi-Currency', 7],
-    ['7', 'Statutory Statements', 9], ['8', 'Audit & Retention', 7], ['9', 'Accrual Framework', 8], ['10', 'Controls & SoD', 6]
+    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader'] }],
+    ['2', 'Journals', 11, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je'] }],
+    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'] }],
+    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla'] }],
+    ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-consol'] }],
+    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'] }],
+    ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf'] }],
+    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'] }],
+    ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'] }],
+    ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense'] }]
   ] }
 };
 

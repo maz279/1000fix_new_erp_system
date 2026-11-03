@@ -42,11 +42,16 @@ export const MODULE = {
   forms: ['Subscription', 'Billing Schedule', 'Plan Change', 'Dunning Step'],
   cross: ['M20 AR', 'M53 Rev-Rec', 'M08 Contracts'],
   freg: { src: 92, sub: [
-    ['1', 'Subscription Object', 10, { model: 'fix.subscription', cols: ['name', 'customer_id', 'state', 'recurring_amount', 'next_invoice_date'], screens: ['M39-subs'] }], ['2', 'Billing Schedules', 9, { screens: ['M39-plans', 'M39-rpt-planmix'] }],
-    ['3', 'Charge Models', 10, { model: 'fix.subscription.charge', cols: ['subscription_id', 'customer_id', 'amount', 'period_start', 'period_end', 'invoice_state'], screens: ['M39-runs'] }], ['4', 'Quantity & Proration', 12, { model: 'fix.subscription.proration', cols: ['name', 'state', 'subscription_id', 'amount', 'change_type', 'effective_date'], screens: ['M39-proration'] }],
-    ['5', 'Usage Rating', 8, { model: 'fix.subscription.usage', cols: ['subscription_id', 'metric', 'quantity', 'committed', 'overage_quantity', 'overage_charge'], screens: ['M39-usage', 'M39-rpt-usage'] }], ['6', 'Billing Runs', 11, { model: 'fix.subscription.charge', cols: ['subscription_id', 'customer_id', 'amount', 'period_start', 'period_end', 'invoice_state'], screens: ['M39-runs', 'M39-rpt-deferred'] }],
-    ['7', 'Credits & Adjustments', 7, { screens: ['M39-rpt-exceptions'] }], ['8', 'Suspend / Cancel / Renew', 9, { model: 'fix.subscription', cols: ['name', 'customer_id', 'state', 'recurring_amount', 'next_invoice_date'], screens: ['M39-subs'] }],
-    ['9', 'Autopay & Dunning', 8, { model: 'fix.subscription.autopay', cols: ['subscription_id', 'state', 'method', 'mandate_ref', 'last_attempt_at', 'last_result'], screens: ['M39-autopay', 'M39-dunning'] }], ['10', 'Metrics & Forecast', 8, { screens: ['M39-mrr', 'M39-cohorts', 'M39-forecast'] }]
+    ['1', 'Subscription Object', 10, { model: 'fix.subscription', cols: ['name', 'customer_id', 'state', 'recurring_amount', 'next_invoice_date'], screens: ['M39-subs'] }],
+    ['2', 'Billing Schedules', 9, { model: 'fix.subscription.charge', cols: ['subscription_id', 'customer_id', 'period_start', 'period_end', 'amount'], screens: ['M39-plans', 'M39-rpt-planmix', 'M39-runs'] }],
+    ['3', 'Charge Models', 10, { model: 'fix.subscription.charge', cols: ['subscription_id', 'customer_id', 'amount', 'period_start', 'period_end', 'invoice_state'], screens: ['M39-runs'] }],
+    ['4', 'Quantity & Proration', 12, { model: 'fix.subscription.proration', cols: ['name', 'state', 'subscription_id', 'amount', 'change_type', 'effective_date'], screens: ['M39-proration'] }],
+    ['5', 'Usage Rating', 8, { model: 'fix.subscription.usage', cols: ['subscription_id', 'metric', 'quantity', 'committed', 'overage_quantity', 'overage_charge'], screens: ['M39-usage', 'M39-rpt-usage'] }],
+    ['6', 'Billing Runs', 11, { model: 'fix.subscription.charge', cols: ['subscription_id', 'customer_id', 'amount', 'period_start', 'period_end', 'invoice_state'], screens: ['M39-runs', 'M39-rpt-deferred'] }],
+    ['7', 'Credits & Adjustments', 7, { model: 'fix.subscription.proration', cols: ['name', 'subscription_id', 'change_type', 'amount', 'state'], screens: ['M39-rpt-exceptions', 'M39-proration'] }],
+    ['8', 'Suspend / Cancel / Renew', 9, { model: 'fix.subscription', cols: ['name', 'customer_id', 'state', 'recurring_amount', 'next_invoice_date'], screens: ['M39-subs'] }],
+    ['9', 'Autopay & Dunning', 8, { model: 'fix.subscription.autopay', cols: ['subscription_id', 'state', 'method', 'mandate_ref', 'last_attempt_at', 'last_result'], screens: ['M39-autopay', 'M39-dunning'] }],
+    ['10', 'Metrics & Forecast', 8, { model: 'fix.subscription', cols: ['name', 'plan', 'recurring_amount', 'state', 'start_date'], screens: ['M39-mrr', 'M39-cohorts', 'M39-forecast', 'M39-subs'] }]
   ] }
 };
 

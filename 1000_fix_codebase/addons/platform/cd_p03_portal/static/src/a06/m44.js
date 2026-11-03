@@ -43,10 +43,14 @@ export const MODULE = {
   forms: ['Import Order', 'LC Application', 'HS Ruling Request', 'Bill of Entry'],
   cross: ['M16 import POs', 'M50 trade finance', 'M51 import VAT/duty', 'M15 landed cost'],
   freg: { src: 64, sub: [
-    ['1', 'Import Order Lifecycle', 9], ['2', 'LC & Payments', 10],
-    ['3', 'HS Classification', 7], ['4', 'Eligibility & IRC', 5],
-    ['5', 'Shipping & Insurance', 8], ['6', 'Port & Customs', 9],
-    ['7', 'Duty Computation', 8], ['8', 'Landed Cost', 8]
+    ['1', 'Import Order Lifecycle', 9, { model: 'fix.import.order', cols: ['name', 'supplier_id', 'incoterm', 'fob_value', 'state'], screens: ['M44-orders', 'M44-proforma'] }],
+    ['2', 'LC & Payments', 10, { model: 'fix.import.lc', cols: ['lc_no', 'order_id', 'bank', 'amount', 'state'], screens: ['M44-lc', 'M44-incoterms'] }],
+    ['3', 'HS Classification', 7, { model: 'fix.import.hs', cols: ['product_id', 'hs_code', 'description', 'cd_pct', 'state'], screens: ['M44-hs'] }],
+    ['4', 'Eligibility & IRC', 5, { model: 'fix.import.irc', cols: ['irc_no', 'issued_on', 'valid_to', 'is_valid', 'state'], screens: ['M44-irc', 'M44-lca'] }],
+    ['5', 'Shipping & Insurance', 8, { model: 'fix.import.shipdoc', cols: ['name', 'order_id', 'doc_type', 'ref', 'state'], screens: ['M44-docs'] }],
+    ['6', 'Port & Customs', 9, { model: 'fix.import.arrival', cols: ['name', 'order_id', 'vessel', 'arrival_date', 'demurrage_days'], screens: ['M44-arrival', 'M44-boe', 'M44-cf'] }],
+    ['7', 'Duty Computation', 8, { model: 'fix.import.boe', cols: ['boe_no', 'order_id', 'cd_amount', 'vat_amount', 'total_tax'], screens: ['M44-duty', 'M44-boe'] }],
+    ['8', 'Landed Cost', 8, { model: 'fix.import.landed', cols: ['name', 'order_id', 'freight', 'duty', 'total_landed'], screens: ['M44-landed'] }]
   ] }
 };
 

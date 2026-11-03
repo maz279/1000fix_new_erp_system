@@ -43,10 +43,13 @@ export const MODULE = {
   forms: ['Equipment', 'Calibration Record', 'Issue/Return', 'Write-Off'],
   cross: ['M31 bench equipment', 'M23 ISO 7.1.5 evidence', 'M21 custodians', 'M47 branch assets'],
   freg: { src: 64, sub: [
-    ['1', 'Register & Classification', 10], ['2', 'Issue / Custody / Transfer', 11],
-    ['3', 'Kit Management', 6], ['4', 'Calibration Management', 16],
-    ['5', 'PM & Repair', 8], ['6', 'Usage Capture', 6],
-    ['7', 'Verification & Loss', 7]
+    ['1', 'Register & Classification', 10, { model: 'fix.equipment', cols: ['code', 'name', 'category', 'custodian_id', 'operational_status'], screens: ['M45-register', 'M45-classes'] }],
+    ['2', 'Issue / Custody / Transfer', 11, { model: 'fix.equipment.issue', cols: ['name', 'equipment_id', 'custodian_id', 'issued_on', 'due_on', 'state'], screens: ['M45-issue', 'M45-transfer'] }],
+    ['3', 'Kit Management', 6, { model: 'fix.equipment.kit', cols: ['code', 'name', 'active'], screens: ['M45-kits'] }],
+    ['4', 'Calibration Management', 16, { model: 'fix.calibration', cols: ['equipment_id', 'calibrated_on', 'result', 'next_due', 'certificate_ref'], screens: ['M45-calibration', 'M45-certificates', 'M45-oos'] }],
+    ['5', 'PM & Repair', 8, { model: 'fix.equipment.pm', cols: ['name', 'equipment_id', 'pm_type', 'scheduled_on', 'done_on', 'state'], screens: ['M45-pm'] }],
+    ['6', 'Usage Capture', 6, { model: 'fix.equipment.usage', cols: ['equipment_id', 'job_ref', 'used_on', 'uses', 'qc_result'], screens: ['M45-usage', 'M45-retro'] }],
+    ['7', 'Verification & Loss', 7, { model: 'fix.equipment.verification', cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'found', 'state'], screens: ['M45-audits'] }]
   ] }
 };
 

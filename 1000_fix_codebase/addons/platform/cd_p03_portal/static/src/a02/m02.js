@@ -64,18 +64,18 @@ export const MODULE = {
   freg: {
     src: 106,
     sub: [
-      ['1', 'Candidate Scoring & Assignment', 14],
-      ['2', 'Dispatch Board', 10],
-      ['3', 'Route Optimisation & Re-optimisation', 9],
-      ['4', 'Territory / Zone / Geofence', 8],
-      ['5', 'Work-Order Lifecycle', 9],
-      ['6', 'Technician Mobile App', 18],
-      ['7', 'Offline Sync & Conflict Resolution', 7],
-      ['8', 'GPS Tracking & ETA', 7],
-      ['9', 'Field Evidence Capture', 6],
-      ['10', 'Van Stock', 5],
-      ['11', 'On-Site Payment', 6],
-      ['12', 'Field Safety', 7]
+      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-unassigned', 'M02-exceptions'], domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
+      ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk'], domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
+      ['3', 'Route Optimisation & Re-optimisation', 9, { model: 'fix.field.route', cols: ['name', 'technician_id', 'date', 'total_distance_km', 'improvement_pct'], screens: ['M02-routes'] }],
+      ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'] }],
+      ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews'] }],
+      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo'] }],
+      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'] }],
+      ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location'] }],
+      ['9', 'Field Evidence Capture', 6, { model: 'fix.workshop.evidence', cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at'], screens: ['M02-evidence'] }],
+      ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'technician_id', 'recon_date', 'variance', 'state'], screens: ['M02-vanstock'] }],
+      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-fieldpay', 'M02-cashrec'], domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
+      ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'] }]
     ]
   }
 };

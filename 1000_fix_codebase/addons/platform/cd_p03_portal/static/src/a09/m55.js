@@ -44,11 +44,15 @@ export const MODULE = {
   forms: ['Leave Request', 'Roster', 'Shift Pattern', 'Exception Regularisation'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M57 Incentives', 'M02 Dispatch'],
   freg: { src: 74, sub: [
-    ['1', 'Capture (4 modes)', 12], ['2', 'Working Time & OT', 9],
-    ['3', 'Leave', 10], ['4', 'Holidays', 5],
-    ['5', 'Shifts & Rosters', 13], ['6', 'On-Call', 6],
-    ['7', 'Availability Publication', 7], ['8', 'Verification & Lock', 6],
-    ['9', 'Timesheets', 6]
+    ['1', 'Capture (4 modes)', 12, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'source', 'approval_state'], screens: ['M55-daily', 'M55-devices', 'M55-geofence'] }],
+    ['2', 'Working Time & OT', 9, { model: 'fix.attendance.record', cols: ['employee_id', 'week_start', 'worked_hours', 'overtime_hours', 'compliance_status'], screens: ['M55-rules'] }],
+    ['3', 'Leave', 10, { model: 'fix.leave.request', cols: ['employee_id', 'leave_type_id', 'date_from', 'date_to', 'state'], screens: ['M55-leave', 'M55-balances', 'M55-calendar'] }],
+    ['4', 'Holidays', 5, { model: 'fix.hr.holiday', cols: ['name', 'date', 'holiday_type', 'tentative'], screens: ['M55-holidays'] }],
+    ['5', 'Shifts & Rosters', 13, { model: 'fix.roster.slot', cols: ['employee_id', 'date', 'shift_id', 'branch_id', 'on_leave'], screens: ['M55-shifts', 'M55-rosters'] }],
+    ['6', 'On-Call', 6, { model: 'fix.hr.oncall', cols: ['name', 'employee_id', 'date_from', 'date_to', 'state'], screens: ['M55-oncall'] }],
+    ['7', 'Availability Publication', 7, { model: 'fix.roster.slot', cols: ['date', 'branch_id', 'employee_id', 'shift_id'], screens: ['M55-availability', 'M55-rosters'], domain: [['on_leave', '=', false]] }],
+    ['8', 'Verification & Lock', 6, { model: 'fix.attendance.lock', cols: ['name', 'period_start', 'period_end', 'state'], screens: ['M55-attendance-lock', 'M55-exc'] }],
+    ['9', 'Timesheets', 6, { model: 'fix.attendance.record', cols: ['employee_id', 'check_in', 'check_out', 'worked_hours', 'overtime_hours'], screens: ['M55-daily'] }]
   ] }
 };
 

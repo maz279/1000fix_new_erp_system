@@ -52,12 +52,17 @@ export const MODULE = {
   forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case'],
   cross: ['M01 Service Orders', 'M20 AR', 'M33 Party Master', 'M40 Partners'],
   freg: { src: 101, sub: [
-    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'] }], ['2', 'Agreements & Tiers', 7, { screens: ['M12-agreements'] }],
-    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-rpt-listingcoverage'] }], ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast'] }],
-    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['state'], screens: ['M12-marketplace-order', 'M12-oversight'] }], ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews'] }],
-    ['7', 'Performance Consequences', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-rpt-scorecard'] }], ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-rpt-dispute'] }],
-    ['9', 'Commission & Fees', 10, { screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'] }], ['10', 'Wallet & Payouts', 10, { screens: ['M12-wallet'] }],
-    ['11', 'Trust & Safety', 8, { screens: ['M12-trust'] }]
+    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'] }],
+    ['2', 'Agreements & Tiers', 7, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'cfo_approved', 'rating'], screens: ['M12-agreements', 'M12-sellers'] }],
+    ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-rpt-listingcoverage'] }],
+    ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast'] }],
+    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['state'], screens: ['M12-marketplace-order', 'M12-oversight'] }],
+    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews'] }],
+    ['7', 'Performance Consequences', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-rpt-scorecard'] }],
+    ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-rpt-dispute'] }],
+    ['9', 'Commission & Fees', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'commission_amount', 'platform_fee'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'] }],
+    ['10', 'Wallet & Payouts', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'net_payable', 'payout_run_id', 'state'], screens: ['M12-wallet'] }],
+    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-disputes'] }]
   ] }
 };
 

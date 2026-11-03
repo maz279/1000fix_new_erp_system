@@ -50,15 +50,15 @@ export const MODULE = {
   freg: {
     src: 76,
     sub: [
-      ['1', 'Repair Order Creation', 8],
-      ['2', 'Workshop & Bench Master', 9],
-      ['3', 'Bench Allocation & Queue', 10],
-      ['4', 'Repair-Level Routing', 7],
-      ['5', 'Diagnosis & Execution', 13],
-      ['6', 'Parts Consumption & Genealogy', 8],
-      ['7', 'Testing & Burn-In', 8],
-      ['8', 'Rework & Transfers', 6],
-      ['9', 'Repair Costing', 7]
+      ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record'] }],
+      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'] }],
+      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'] }],
+      ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record'] }],
+      ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods'], domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
+      ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts'] }],
+      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.job', cols: ['name', 'burn_in_started_at', 'burn_in_passed', 'qc_passed', 'state'], screens: ['M31-testing'], domain: [['state', 'in', ['burn_in', 'qc_pending', 'qc_failed']]] }],
+      ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfer', 'M31-record'], domain: [['is_rework', '=', true]] }],
+      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput'] }]
     ]
   }
 };

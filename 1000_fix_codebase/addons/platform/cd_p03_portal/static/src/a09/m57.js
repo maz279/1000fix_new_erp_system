@@ -36,9 +36,13 @@ export const MODULE = {
   forms: ['Goal', 'Review', 'Incentive Scheme', 'Recognition'],
   cross: ['M21 Workforce', 'M56 Payroll', 'M01 Service Orders', 'M54 Costing'],
   freg: { src: 58, sub: [
-    ['1', 'Goals & KPIs', 11], ['2', 'Review Cycles', 10], ['3', 'Multi-Source Feedback', 6],
-    ['4', 'Rating & Calibration', 8], ['5', 'Incentive Design & Calculation', 12],
-    ['6', 'Recognition', 4], ['7', 'Compensation Review', 7]
+    ['1', 'Goals & KPIs', 11, { model: 'fix.performance.goal', cols: ['name', 'employee_id', 'period', 'target_value', 'actual_value'], screens: ['M57-goals', 'M57-kpis'] }],
+    ['2', 'Review Cycles', 10, { model: 'fix.performance.review', cols: ['name', 'employee_id', 'period', 'reviewer_id', 'state'], screens: ['M57-reviews', 'M57-pips'] }],
+    ['3', 'Multi-Source Feedback', 6, { model: 'fix.performance.review', cols: ['employee_id', 'reviewer_id', 'period', 'self_rating', 'manager_rating'], screens: ['M57-reviews'] }],
+    ['4', 'Rating & Calibration', 8, { model: 'fix.performance.review', cols: ['employee_id', 'period', 'manager_rating', 'calibrated_rating', 'state'], screens: ['M57-calibration', 'M57-reviews'] }],
+    ['5', 'Incentive Design & Calculation', 12, { model: 'fix.incentive.line', cols: ['run_id', 'employee_id', 'scorecard_id', 'amount', 'applied_to_payslip'], screens: ['M57-schemes', 'M57-calc'] }],
+    ['6', 'Recognition', 4, { model: 'fix.performance.recognition', cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount'], screens: ['M57-recognition'] }],
+    ['7', 'Compensation Review', 7, { model: 'fix.compensation.band', cols: ['name', 'grade', 'range_min', 'range_mid', 'range_max'], screens: ['M57-comp', 'M57-succession'] }]
   ] }
 };
 

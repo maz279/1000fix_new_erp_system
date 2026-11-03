@@ -61,9 +61,15 @@ export const MODULE = {
   forms: ['Bank Statement Import', 'Payment Instruction', 'Cash Deposit', 'Imprest Top-Up'],
   cross: ['Financial Accounting & GL', 'AR, Invoicing & Collections', 'AP & Employee Expense'],
   freg: { src: 88, sub: [
-    ['1', 'Bank Masters', 7], ['2', 'Statement & Recon', 13], ['3', 'Cash Position & Consolidation', 12],
-    ['4', 'Payment Execution', 13], ['5', 'Gateway/MFS Settlement', 11], ['6', 'Forecasting', 8],
-    ['7', 'Facilities & Trade Finance', 12], ['8', 'FX', 5], ['9', 'Controls', 7]
+    ['1', 'Bank Masters', 7, { model: 'account.journal', cols: ['name', 'code', 'bank_account_id', 'currency_id', 'fix_treasury_role'], screens: ['M50-accounts'], domain: [['type', '=', 'bank']] }],
+    ['2', 'Statement & Recon', 13, { model: 'fix.bank.statement.line', cols: ['date', 'journal_id', 'reference', 'amount', 'match_state'], screens: ['M50-recon', 'M50-statements', 'M50-rpt-recon', 'M50-rpt-charges'] }],
+    ['3', 'Cash Position & Consolidation', 12, { model: 'fix.cash.position', cols: ['as_of', 'bank_balance', 'petty_cash_total', 'cash_in_transit_total', 'total_position'], screens: ['M50-position', 'M50-branchcash', 'M50-rpt-position', 'M50-cit'] }],
+    ['4', 'Payment Execution', 13, { model: 'fix.payment.execution', cols: ['name', 'payee', 'amount', 'method', 'state'], screens: ['M50-beftn', 'M50-mfs', 'M50-cheques'] }],
+    ['5', 'Gateway/MFS Settlement', 11, { model: 'fix.gateway.settlement', cols: ['provider', 'settlement_date', 'total_net', 'exception_count', 'state'], screens: ['M50-gateway', 'M50-gateway-lines', 'M50-rpt-gateway', 'M50-ridercod'] }],
+    ['6', 'Forecasting', 8, { model: 'fix.cash.forecast.item', cols: ['name', 'direction', 'category', 'amount', 'frequency'], screens: ['M50-forecast', 'M50-recurring'] }],
+    ['7', 'Facilities & Trade Finance', 12, { model: 'fix.bank.facility', cols: ['name', 'lender_id', 'facility_type', 'limit_amount', 'state'], screens: ['M50-facilities', 'M50-repayments', 'M50-covenants'] }],
+    ['8', 'FX', 5, { model: 'fix.fx.revaluation', cols: ['rate_date', 'currency_id', 'total_gain', 'total_loss', 'net_amount'], screens: ['M50-fx'] }],
+    ['9', 'Controls', 7, { model: 'fix.imprest.count', cols: ['fund_id', 'count_date', 'counted_amount', 'variance', 'state'], screens: ['M50-petty', 'M50-petty-counts', 'M50-petty-vouchers', 'M50-petty-topups'] }]
   ] }
 };
 

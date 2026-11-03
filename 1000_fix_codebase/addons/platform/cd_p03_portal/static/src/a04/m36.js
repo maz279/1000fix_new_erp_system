@@ -43,11 +43,16 @@ export const MODULE = {
   forms: ['Estimate', 'Quotation (versioned)', 'Tender Bid', 'Counter-Offer'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   freg: { src: 86, sub: [
-    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'] }], ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }], ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'] }],
-    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'] }], ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'] }],
-    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }], ['7', 'e-Signature', 6, { screens: ['M36-esign'] }],
-    ['8', 'Declined Handling', 6, { screens: ['M36-declined', 'M36-rpt-decline'] }], ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-bonds', 'M36-rpt-tender'] }],
-    ['10', 'Templates & Bilingual Gen', 8, { screens: ['M36-compliance'] }]
+    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }],
+    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-versions'] }],
+    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-internal'] }],
+    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quote.review', cols: ['quotation_id', 'reviewer_id', 'decision', 'reviewed_at'], screens: ['M36-loop'] }],
+    ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes'] }],
+    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'signed_at', 'state'], screens: ['M36-esign', 'M36-quotes'] }],
+    ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason', 'valid_until'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-quotes'] }],
+    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-bonds', 'M36-rpt-tender'] }],
+    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.document.template', cols: ['code', 'name', 'name_bn', 'document_type', 'bilingual'], screens: ['M36-compliance'] }]
   ] }
 };
 

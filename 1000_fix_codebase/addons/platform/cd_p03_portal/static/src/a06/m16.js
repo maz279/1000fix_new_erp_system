@@ -47,11 +47,16 @@ export const MODULE = {
   forms: ['Purchase Requisition', 'RFQ', 'Purchase Order', 'GRN', 'RTV Request'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
-    ['1', 'Demand Intake', 8], ['2', 'Requisition & Approval', 10],
-    ['3', 'Consolidation', 6], ['4', 'RFQ & Bidding', 12],
-    ['5', 'PO Lifecycle', 11], ['6', 'Blanket Orders', 6],
-    ['7', 'Expediting', 7], ['8', 'GRN & Inspection', 9],
-    ['9', '3-Way Match', 10], ['10', 'Spend Analysis', 9]
+    ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'] }],
+    ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'] }],
+    ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'vendor_id', 'state'], screens: ['M16-consol'] }],
+    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'] }],
+    ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos'] }],
+    ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'] }],
+    ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'] }],
+    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-grn', 'M16-inspection', 'M16-rtv'] }],
+    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], screens: ['M16-match'] }],
+    ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'] }]
   ] }
 };
 

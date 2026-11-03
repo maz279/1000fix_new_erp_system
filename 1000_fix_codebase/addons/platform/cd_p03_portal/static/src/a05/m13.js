@@ -58,11 +58,15 @@ export const MODULE = {
   ],
   cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
   freg: { src: 78, sub: [
-    ['1', 'Fleet Register', 9], ['2', 'Availability & Reservation', 12],
-    ['3', 'Agreements', 10], ['4', 'Deposits & Waivers', 8],
-    ['5', 'Condition & Damage', 10], ['6', 'Returns & Recovery', 8],
-    ['7', 'In-Rental Support', 7], ['8', 'Turnaround & PM', 7],
-    ['9', 'Analytics', 7]
+    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'] }],
+    ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations'] }],
+    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'] }],
+    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method'], screens: ['M13-deposits'] }],
+    ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage'] }],
+    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'] }],
+    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], domain: [['state', 'in', ['delivered', 'active']]] }],
+    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'] }],
+    ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'] }]
   ] }
 };
 

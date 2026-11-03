@@ -41,9 +41,14 @@ export const MODULE = {
   forms: ['API Consumer', 'Event Subscription', 'Connector Credential'],
   cross: ['M29 credentials security', 'M63 automation triggers', 'M48 telemetry', 'M24 evidence'],
   freg: { src: 70, sub: [
-    ['1', 'Gateway', 10], ['2', 'Versioning & Portals', 6], ['3', 'Outbox & Event Bus', 12],
-    ['4', 'Subscriptions & DLQ', 9], ['5', 'Webhooks', 5], ['6', 'Connector Framework (47)', 12],
-    ['7', 'Offline Sync', 10], ['8', 'Reconciliation', 6]
+    ['1', 'Gateway', 10, { model: 'fix.api.endpoint', cols: ['code', 'path', 'method', 'auth_type', 'active'], screens: ['M28-apis', 'M28-quotas'] }],
+    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'name', 'version', 'path', 'active'], screens: ['M28-apis', 'M28-consumers'] }], // gitleaks:allow (screen ids, not a key)
+    ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'] }],
+    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay'] }],
+    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-topics', 'M28-consumers'] }],
+    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-health'] }],
+    ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'] }],
+    ['8', 'Reconciliation', 6, { model: 'fix.sync.conflict', cols: ['res_model', 'res_id', 'field_name', 'local_value', 'remote_value'], screens: ['M28-conflicts', 'M28-health'] }]
   ] }
 };
 

@@ -55,16 +55,16 @@ export const MODULE = {
   freg: {
     src: 95,
     sub: [
-      ['1', 'Token & Queue', 12],
-      ['2', 'Counter Workstation', 14],
-      ['3', 'Device Storage & Retrieval', 10],
-      ['4', 'Collection & Handover', 9],
-      ['5', 'Counter Sales', 8],
-      ['6', 'Cash Drawer', 12],
-      ['7', 'Payment Capture', 9],
-      ['8', 'Shift Operations', 10],
-      ['9', 'Banking & Deposits', 5],
-      ['10', 'Branch Admin', 6]
+      ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority'] }],
+      ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter'] }],
+      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_bin_code', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-uncollected'] }],
+      ['4', 'Collection & Handover', 9, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'handover_method', 'handover_acknowledged_at', 'state'], screens: ['M04-handover', 'M04-uncollected'], domain: [['state', 'in', ['handover_pending', 'completed']]] }],
+      ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-kiosk'] }],
+      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer'] }],
+      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'] }],
+      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-checklists'] }],
+      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'] }],
+      ['10', 'Branch Admin', 6, { model: 'fix.branch', cols: ['code', 'name', 'zone_id', 'manager_id', 'phone'], screens: ['M04-dashboard', 'M04-checklists'] }]
     ]
   }
 };

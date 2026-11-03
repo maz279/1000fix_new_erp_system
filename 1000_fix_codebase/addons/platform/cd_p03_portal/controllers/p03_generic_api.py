@@ -32,6 +32,42 @@ from .p03_service_order_api import _require_internal, _user_error
 
 _logger = logging.getLogger(__name__)
 
+
+def _readonly_changed(rec, field, value) -> bool:
+    """Would writing `value` change read-only `field` on `rec`?
+
+    The form posts every field it shows, read-only ones included, so an
+    unchanged echo must pass. The comparison is deliberately lenient about
+    representation (a datetime-local input drops the seconds; many2one
+    arrives as an id) and strict about meaning."""
+    current = rec[field.name]
+    kind = field.type
+    if kind == "many2one":
+        return (value or False) != (current.id or False)
+    if kind in ("one2many", "many2many", "binary", "properties", "json"):
+        return False  # not editable through the generic form; dropped below
+    if kind in ("float", "monetary", "integer"):
+        try:
+            return abs(float(value or 0) - float(current or 0)) > 0.005
+        except (TypeError, ValueError):
+            return True
+    if kind == "datetime":
+        return str(value or "").replace("T", " ")[:16] != str(current or "")[:16]
+    if kind == "date":
+        return str(value or "")[:10] != str(current or "")[:10]
+    if kind == "boolean":
+        return bool(value) != bool(current)
+    return (value or "") != (current or "")
+
+
+def _locked_fields(records) -> set:
+    """Workflow-locked fields for these records (an empty recordset = a new
+    one): fix.guarded.mixin's guarded fields plus whatever the model freezes
+    by state. Models without the guard lock nothing beyond `readonly`."""
+    hook = getattr(records, "_fix_form_locked_fields", None)
+    return set(hook()) if hook else set()
+
+
 # A08 (finance) + A02 (service operations) + A03 (customer experience) + A11
 # (insights) surfaces, merged: the generic endpoints serve exactly what the
 # per-module files declare.
@@ -425,12 +461,11 @@ class P03GenericApiController(http.Controller):
             return {"error": "Model not served by the workspace screens"}
         try:
             env[model].check_access("read")
-            out_fields = self._form_field_meta(env, model, fields)
+            rec = env[model].sudo().browse(int(record_id)).exists() if record_id else None
+            out_fields = self._form_field_meta(env, model, fields, rec or None)
             record = None
-            if record_id:
-                rec = env[model].sudo().browse(int(record_id)).exists()
-                if rec:
-                    record = self._form_record(rec, out_fields)
+            if rec:
+                record = self._form_record(rec, out_fields)
             line_payload = None
             if lines and lines.get("field"):
                 line_payload = self._form_lines(env, model, lines, record_id)
@@ -447,13 +482,18 @@ class P03GenericApiController(http.Controller):
             _logger.exception("p03 model_form failed for %s", model)
             return {"error": "The form data could not be loaded — see the server log."}
 
-    def _form_field_meta(self, env, model, fields):
+    def _form_field_meta(self, env, model, fields, record=None):
         """Per-field metadata (label, type, required, choices) preserving the
-        fragment's declared order. many2one choices come from the comodel."""
+        fragment's declared order. many2one choices come from the comodel.
+
+        A field the model locks for this record (state, an approval stamp, a
+        posted ledger line's points) is served read-only, so the form never
+        offers an input the save would refuse (A03 workflow audit, R3/R5)."""
         names = [f.get("name") for f in (fields or []) if f.get("name")]
         meta = env[model].fields_get(
             names, attributes=["string", "type", "selection", "required", "readonly"]
         )
+        locked = _locked_fields(record if record is not None else env[model])
         out_fields = []
         for spec in fields or []:
             name = spec.get("name")
@@ -466,7 +506,7 @@ class P03GenericApiController(http.Controller):
                 "label": spec.get("label") or m["string"],
                 "type": field_type,
                 "required": bool(spec.get("required") or m.get("required")),
-                "readonly": bool(spec.get("readonly") or m.get("readonly")),
+                "readonly": bool(spec.get("readonly") or m.get("readonly") or name in locked),
             }
             if field_type == "selection":
                 entry["choices"] = [
@@ -535,6 +575,52 @@ class P03GenericApiController(http.Controller):
         if not conf:
             return {"error": "Model not served by the workspace screens"}
         vals = self._coerce_vals(values)
+        # What the form may not set (A03 audit: this endpoint wrote
+        # dofa_approved, released_by, executed_by... as sent):
+        #  - read-only fields and fields the model locks for this record
+        #    (fix.guarded.mixin), which change only through an action;
+        #  - on a surface that declares `writable` (R3), any field no
+        #    workspace form offers for editing.
+        # The form posts every field it shows, so on edit an unchanged echo
+        # is dropped and only a CHANGE is refused. On create they are dropped
+        # so the model's defaults and computes apply.
+        fields_meta = env[model]._fields
+        current = env[model].browse(int(record_id)).exists() if record_id else env[model]
+        if record_id and not current:
+            return {"error": "Record not found"}
+        locked = _locked_fields(current)
+        workflow = [
+            k for k in vals if k in fields_meta and (fields_meta[k].readonly or k in locked)
+        ]
+        writable = conf.get("writable")
+        off_screen = (
+            [] if writable is None else [k for k in vals if k not in writable and k not in workflow]
+        )
+        if lines and lines.get("field") and writable is not None and lines["field"] not in writable:
+            return {"error": "This screen does not edit %s." % lines["field"]}
+        if record_id:
+            for names, why in (
+                (workflow, "is read-only and changes only through its workflow action."),
+                (off_screen, "is not editable on this screen."),
+            ):
+                changed = [
+                    k
+                    for k in names
+                    if k not in fields_meta or _readonly_changed(current, fields_meta[k], vals[k])
+                ]
+                if changed:
+                    return {
+                        "error": "%s %s"
+                        % (
+                            ", ".join(
+                                (fields_meta[k].string if k in fields_meta else k) or k
+                                for k in changed
+                            ),
+                            why,
+                        )
+                    }
+        for k in workflow + off_screen:
+            vals.pop(k)
         if not record_id:
             # On CREATE an unset many2one must be OMITTED, not sent as NULL: the
             # model's own default (usually the current company) then applies.

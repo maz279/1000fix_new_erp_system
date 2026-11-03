@@ -101,7 +101,7 @@ export const MODULE = {
     src: 87,
     sub: [
       ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice'] }],
-      ['2', 'Digital Channels', 12, { screens: ['M27-digital', 'M27-rpt-channelmix'] }],
+      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
       ['3', 'Unified Conversation Object', 8, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M27-conversations'] }],
       ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'] }],
       ['5', 'Agent Desktop', 10, { model: 'fix.cc.disposition', cols: ['name', 'code', 'active', 'category', 'is_resolved'], screens: ['M27-desktop', 'M27-dispositions'] }],
@@ -123,8 +123,10 @@ export const SCREENS = {
     cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'intent', 'disposition_id', 'state', 'ended_at'],
     stateField: 'state',
     actions: [
+      { m: 'action_claim', l: 'Claim' },
       { m: 'action_resolve', l: 'Resolve (Agent)' },
-      { m: 'action_create_field_work_order', l: 'Dispatch Emergency Field Order' }
+      { m: 'action_create_field_work_order', l: 'Dispatch Emergency Field Order' },
+      { m: 'action_create_complaint', l: 'Create Complaint' }
     ] },
   'M27-desktop': { kind: 'table_report', module: 'M27', report: 'queue_live', title: 'Agent Desktop Preview', period: false },
   'M27-states': { kind: 'table_report', module: 'M27', report: 'agent_states', title: 'Agent States & Wrap-Up', period: false },
@@ -146,7 +148,14 @@ export const SCREENS = {
   'M27-delivery': { kind: 'table_report', module: 'M27', report: 'notification_delivery', title: 'Delivery Tracking & Retry', period: true },
   'M27-preferences': { kind: 'table_report', module: 'M27', report: 'preference_summary', title: 'Consent & DND', period: false },
   'M27-qa': { kind: 'model_list', model: 'fix.cc.qa.evaluation', create: true,
-    cols: ['conversation_id', 'agent_id', 'score', 'evaluated_at'] },
+    cols: ['conversation_id', 'agent_id', 'score', 'state', 'evaluated_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_dispute', l: 'Dispute My Score', ask: 'Why is this score wrong?', kwarg: 'reason' },
+      { m: 'action_send_to_calibration', l: 'Send to Calibration', ask: 'Calibration note', kwarg: 'note' },
+      { m: 'action_finalise', l: 'Finalise', ask: 'Supervisor ruling', kwarg: 'note' }
+    ],
+    note: 'The scored agent can dispute but never edit or delete a score. A supervisor other than the agent calibrates and finalises it.' },
   'M27-wfm': { kind: 'model_list', model: 'fix.cc.wfm.shift', create: true,
     cols: ['agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour', 'state'] },
 
@@ -187,8 +196,8 @@ export const SCREENS = {
       { tab: 'general', title: 'Telephony Session Identification', fields: [
         { name: 'call_sid', required: true, label: 'Telephony Call SID / Session UUID' },
         { name: 'channel', required: true, label: 'Omnichannel Ingress (Voice / Web / WhatsApp)' },
-        { name: 'state', label: 'Conversation Lifecycle State' },
-        { name: 'agent_id', label: 'Assigned Customer Support Agent' },
+        { name: 'state', label: 'Conversation Lifecycle State', readonly: true },
+        { name: 'agent_id', label: 'Assigned Customer Support Agent', readonly: true },
         { name: 'operating_unit_id', label: 'Contact Centre Operating Unit' },
       ]},
       { tab: 'customer', title: 'Customer Telephony & Interaction Timeline', fields: [
@@ -201,7 +210,7 @@ export const SCREENS = {
       { tab: 'utterance', title: 'NLU Intent Detection & AI Agent Routing', fields: [
         { name: 'intent', label: 'Detected Primary Utterance Intent' },
         { name: 'urgency_level', label: 'Urgency Priority Tier (Low / Normal / High / Critical)' },
-        { name: 'ai_resolved', label: 'Resolved Autonomously by AI Agent' },
+        { name: 'ai_resolved', label: 'Resolved Autonomously by AI Agent', readonly: true },
         { name: 'handoff_reason', label: 'Agent Escalation / Handoff Rationale' },
         { name: 'pii_masked', label: 'PII Scrubbing & Audio Masking Applied' },
       ]},
@@ -214,8 +223,11 @@ export const SCREENS = {
           { name: 'company_id', label: 'Operating Corporate Legal Entity' },
         ]},
       { tab: 'dispatch', title: 'Field Operations Escalation & Work Order Creation', fields: [
-        { name: 'field_work_order_ref', label: 'Emergency Field Service Work Order Reference' },
-        { name: 'queue_id', label: 'Contact Centre Routing Queue' },
+        { name: 'field_work_order_ref', label: 'Emergency Field Service Work Order Reference', readonly: true },
+        { name: 'queue_id', label: 'Contact Centre Routing Queue', readonly: true },
+        { name: 'work_item_id', label: 'Routed Work Item', readonly: true },
+        { name: 'routing_note', label: 'Why Not Routed', readonly: true },
+        { name: 'sla_answer_due_at', label: 'Answer Due By (SLA)', readonly: true },
       ]},
       { tab: 'docs', title: 'Statutory Audio Recording Vault & BTRC Retention (FLAW-27.2)',
         note: 'Under Bangladesh Telecommunication Regulatory Commission (BTRC) guidelines, call voice recordings are stored with immutable SHA-256 cryptographic digests for 180 days.',
@@ -379,6 +391,12 @@ export const SCREENS = {
       ]},
       { tab: 'feedback', title: 'Agent Coaching & Remedial Action', fields: [
         { name: 'notes', label: 'Coaching Notes / Feedback Communicated to Agent' },
+        { name: 'state', label: 'Dispute & Calibration State', readonly: true },
+        { name: 'dispute_reason', label: 'Agent Dispute Reason', readonly: true },
+        { name: 'original_score', label: 'Score When Disputed', readonly: true },
+        { name: 'calibration_note', label: 'Calibration Ruling', readonly: true },
+        { name: 'calibrated_by', label: 'Calibrated By', readonly: true },
+        { name: 'finalised_at', label: 'Finalised At', readonly: true },
       ]},
       { tab: 'audio', title: 'BTRC 180-Day Audio Evidence Compliance (FLAW-27.2)',
         note: 'The conversation record carries the audio evidence (recording_url, SHA-256 checksum and the 180-day retention countdown) on its Audio Evidence tab — QA evaluations reference that conversation.',
@@ -458,7 +476,7 @@ export const SCREENS = {
         fields: [
         { name: 'purpose', label: 'Processing Purpose', required: true },
         { name: 'lawful_basis', label: 'Lawful Basis', required: true },
-        { name: 'consent_decision', label: 'Verdict' },
+        { name: 'consent_decision', readonly: true, label: 'Verdict' },
         { name: 'consent_id', label: 'Decisive Consent Record' },
         { name: 'consent_reason', label: 'Verdict In Words' },
         { name: 'consent_checked_at', label: 'Checked At' },
@@ -617,7 +635,8 @@ export const SCREENS = {
       { m: 'action_pick', l: 'Pick' },
       { m: 'action_accept', l: 'Accept' },
       { m: 'action_reject', l: 'Reject' },
-      { m: 'action_start_work', l: 'Start' }
+      { m: 'action_start_work', l: 'Start' },
+      { m: 'action_release_capacity', l: 'Release Capacity (Supervisor)', ask: 'Why is this capacity being released by hand?', kwarg: 'reason' }
     ],
     note: 'Capacity release differs by work type: a record or activity never releases automatically.' },
   'M27-form-workitem': {
@@ -662,13 +681,13 @@ export const SCREENS = {
         tab: 'assignment',
         title: 'Offer & Assignment',
         fields: [
-        { name: 'offered_agent_id', label: 'Offered To' },
-        { name: 'offered_at', label: 'Offered At' },
-        { name: 'offer_expires_at', label: 'Offer Expires' },
-        { name: 'bullseye_ring_id', label: 'Bullseye Ring' },
-        { name: 'assigned_agent_id', label: 'Assigned To' },
-        { name: 'assigned_at', label: 'Assigned At' },
-        { name: 'assignment_mode', label: 'Mode' },
+        { name: 'offered_agent_id', label: 'Offered To', readonly: true },
+        { name: 'offered_at', label: 'Offered At', readonly: true },
+        { name: 'offer_expires_at', label: 'Offer Expires', readonly: true },
+        { name: 'bullseye_ring_id', label: 'Bullseye Ring', readonly: true },
+        { name: 'assigned_agent_id', label: 'Assigned To', readonly: true },
+        { name: 'assigned_at', label: 'Assigned At', readonly: true },
+        { name: 'assignment_mode', label: 'Mode', readonly: true },
         { name: 'is_monitoring', label: 'Monitoring Only (No Capacity)' }
         ]
       },
@@ -677,9 +696,9 @@ export const SCREENS = {
         title: 'Capacity Release',
         note: 'A conversation releases only when the agent ends it AND closes the session; records and activities never release automatically.',
         fields: [
-        { name: 'capacity_released', label: 'Capacity Released' },
-        { name: 'capacity_released_at', label: 'Released At' },
-        { name: 'closed_at', label: 'Closed At' }
+        { name: 'capacity_released', label: 'Capacity Released', readonly: true },
+        { name: 'capacity_released_at', label: 'Released At', readonly: true },
+        { name: 'closed_at', label: 'Closed At', readonly: true }
         ]
       }
     ]
@@ -854,7 +873,8 @@ export const SCREENS = {
     cols: ['name', 'code', 'applies_to', 'state', 'active'],
     stateField: 'state',
     actions: [
-      { m: 'action_publish', l: 'Publish' }
+      { m: 'action_publish', l: 'Publish' },
+      { m: 'action_retire', l: 'Retire' }
     ],
     note: '\'Both\' is the default: scoring the assistant on a different scale than agents makes automation\'s effect unmeasurable.' },
   'M27-form-rubric': {
@@ -886,7 +906,7 @@ export const SCREENS = {
         fields: [
         { name: 'name', label: 'Name', required: true },
         { name: 'code', label: 'Code', required: true },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State', required: true, readonly: true },
         { name: 'active', label: 'Active' }
         ]
       },

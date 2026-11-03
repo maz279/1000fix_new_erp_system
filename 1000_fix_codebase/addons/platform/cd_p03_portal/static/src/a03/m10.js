@@ -55,9 +55,14 @@ export const MODULE = {
   forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation'],
   cross: ['M33 Customer Master', 'M20 AR &Invoicing', 'M07 CRM'],
   freg: { src: 63, sub: [
-    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol'] }], ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes'] }], ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-rpt-earnburn'] }],
-    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet'] }], ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-rpt-voucher'] }], ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'] }],
-    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'points_multiplier'], screens: ['M10-alliance'] }], ['8', 'Liability & Breakage', 7, { screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl'] }]
+    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol'] }],
+    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes'] }],
+    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-rpt-earnburn'] }],
+    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet'] }],
+    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-rpt-voucher'] }],
+    ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'] }],
+    ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'points_multiplier'], screens: ['M10-alliance'] }],
+    ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'points_balance', 'lifetime_points_earned', 'lifetime_points_redeemed'], screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl', 'M10-wallet'] }]
   ] }
 };
 
@@ -66,15 +71,29 @@ export const SCREENS = {
     cols: ['code', 'name', 'min_points_threshold', 'min_spend_bdt', 'points_multiplier',
       'labour_discount_pct', 'parts_discount_pct', 'active'] },
   'M10-enrol': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state',
-    cols: ['name', 'partner_id', 'program_id', 'tier_id', 'points_balance', 'state', 'enrollment_date'] },
+    cols: ['name', 'partner_id', 'program_id', 'tier_id', 'points_balance', 'state', 'approval_state', 'enrollment_date'],
+    actions: [
+      /* A03 R7: a fraud-lock release is decided by a DOFA Tier 2 approver
+       * from the M63 inbox; this only asks for it. */
+      { m: 'action_request_approval', l: 'Request Fraud-Lock Release (Tier 2)', ask: 'What did the investigation find?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Release Request' },
+      { m: 'action_suspend', l: 'Suspend' },
+      { m: 'action_activate', l: 'Re-activate' },
+      { m: 'action_reconcile_balance', l: 'Reconcile Balance with Ledger' }
+    ] },
   'M10-alliance': { kind: 'model_list', model: 'fix.loyalty.tier', stateField: 'active',
     domain: [['active', '=', true]],
     cols: ['name', 'dedicated_support', 'priority_diagnostic', 'labour_discount_pct',
       'parts_discount_pct'] },
   'M10-ledger': { kind: 'model_list', model: 'fix.loyalty.ledger', stateField: 'state',
     cols: ['transaction_type', 'points', 'balance_after', 'order_amount_bdt', 'expiry_date',
-      'state', 'notes'],
-    actions: [{ m: 'action_post', l: 'Post Ledger Line' }] },
+      'state', 'approval_state', 'notes'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_post', l: 'Post Ledger Line' },
+      { m: 'action_reverse', l: 'Reverse Line', ask: 'Why is this posted line being reversed?', kwarg: 'reason' }
+    ] },
   'M10-wallet': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state',
     domain: [['points_balance', '>', 0]],
     cols: ['partner_id', 'tier_id', 'points_balance', 'lifetime_spend_bdt', 'tier_upgraded_date'] },
@@ -223,7 +242,10 @@ export const SCREENS = {
         note: 'Every adjustment carries its reason. Manual point adjustments exceeding 500 points strictly require supervisor DOFA approval and justification.',
         fields: [
           { name: 'justification', label: 'DOFA Adjustment Justification' },
-          { name: 'is_approved', label: 'Supervisor DOFA Approval Granted' },
+          { name: 'dofa_justification', label: 'DOFA Justification (mandatory at Tier 2+)', type: 'text' },
+          { name: 'dofa_tier_required', readonly: true, label: 'DOFA Tier Required' },
+          { name: 'dofa_approved', readonly: true, label: 'DOFA Approval Granted' },
+          { name: 'dofa_approved_by', readonly: true, label: 'DOFA Approver' },
           { name: 'company_id', required: true, label: 'Operating Company' },
           { name: 'notes', label: 'Reason / Narration', type: 'text', required: true }
         ]
@@ -300,7 +322,7 @@ export const SCREENS = {
     title: 'Loyalty & Rewards Programme Master', back: 'M10-programmes',
     tabs: [
       { id: 'general', label: '1. Identity & Branding', bn: '১. পরিচয়', icon: '👑', badge: '6' },
-      { id: 'economics', label: '2. Earn & Burn Economics', bn: '২. অর্থনীতি', icon: '💰', badge: '4' },
+      { id: 'economics', label: '2. Earn & Burn Economics', bn: '২. অর্থনীতি', icon: '💰', badge: '6' },
       { id: 'tiers', label: '3. Configured Tiers', bn: '৩. টিয়ার', icon: '🏷️', badge: '2' },
       { id: 'expiry', label: '4. Expiry & FIFO Breakage', bn: '৪. মেয়াদ নীতি', icon: '⏳', badge: '2' },
       { id: 'liability', label: '5. IFRS 15 Points Liability', bn: '৫. আইএফআরএস ১৫ দায়', icon: '📊', badge: '3' },
@@ -320,6 +342,8 @@ export const SCREENS = {
         { name: 'bdt_per_point', required: true, label: 'BDT Monetary Value per Point' },
         { name: 'min_points_to_redeem', required: true, label: 'Minimum Redeemable Points Threshold' },
         { name: 'active', label: 'Programme Active Operational Status' },
+        { name: 'referral_referrer_points', label: 'Referral Award to Referrer (points, DOFA Tier 3)' },
+        { name: 'referral_referee_points', label: 'Referral Award to New Customer (points, DOFA Tier 3)' },
       ]},
       { tab: 'tiers', title: 'Configured Member Tiers & Progression Levels', fields: [
         { name: 'tier_ids', label: 'Loyalty Tiers' },
@@ -330,8 +354,9 @@ export const SCREENS = {
           { name: 'expiry_months', required: true, label: 'Point Expiration Period (Months)' },
         ]},
       { tab: 'liability', title: 'IFRS 15 Deferred Revenue & Breakage Accounting',
-        note: 'IFRS 15 mandates treating loyalty points as a separate performance obligation. Unredeemed points are recognized as contract liability on the general ledger.',
+        note: 'IFRS 15 mandates treating loyalty points as a separate performance obligation. Unredeemed points are recognized as contract liability on the general ledger, net of the breakage Finance expects. Expected breakage is a Finance ruling (DOFA Tier 3); 0 reports the full gross liability.',
         fields: [
+          { name: 'expected_breakage_pct', label: 'Expected Breakage % (IFRS 15, Finance ruling)' },
           { name: 'account_count', label: 'Total Enrolled Member Accounts', readonly: true },
           { name: 'account_ids', label: 'Enrolled Member Account Records', readonly: true },
         ]},
@@ -349,17 +374,17 @@ export const SCREENS = {
       fields: [
         { name: 'transaction_type', label: 'Type', required: true },
         { name: 'points', label: 'Points', required: true },
-        { name: 'balance_after', label: 'Balance After' },
-        { name: 'state', label: 'State' },
-        { name: 'dofa_tier_required', label: 'DOFA Tier' },
-        { name: 'dofa_approved', label: 'Approved' }
+        { name: 'balance_after', label: 'Balance After', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'dofa_tier_required', label: 'DOFA Tier', readonly: true },
+        { name: 'dofa_approved', label: 'Approved', readonly: true }
       ]
     },
     kind: 'model_form',
     model: 'fix.loyalty.account',
     title: 'Loyalty Enrolment',
     back: 'M10-enrol',
-    status: { field: 'state', labels: { active: 'Active', suspended: 'Suspended', closed: 'Closed' } },
+    status: { field: 'state', labels: { active: 'Active', frozen: 'Frozen — Fraud Review', suspended: 'Suspended', closed: 'Closed' } },
     tabs: [
       { id: 'general', label: 'Member Enrolment', bn: 'সদস্য অন্তর্ভুক্তি', icon: '👤' },
       { id: 'wallet', label: 'Points Wallet', bn: 'পয়েন্ট ওয়ালেট', icon: '💳' },
@@ -376,7 +401,7 @@ export const SCREENS = {
           { name: 'program_id', required: true, label: 'Programme' },
           { name: 'tier_id', label: 'Current Tier' },
           { name: 'enrollment_date', label: 'Enrolment Date' },
-          { name: 'state', required: true, label: 'Account State' }
+          { name: 'state', readonly: true, label: 'Account State' }
         ]
       },
       {
@@ -387,7 +412,9 @@ export const SCREENS = {
           { name: 'points_balance', readonly: true, label: 'Current Points Balance' },
           { name: 'lifetime_points_earned', readonly: true, label: 'Lifetime Points Earned' },
           { name: 'lifetime_points_redeemed', readonly: true, label: 'Lifetime Points Redeemed' },
-          { name: 'lifetime_spend_bdt', readonly: true, label: 'Lifetime Spend (BDT)' }
+          { name: 'lifetime_spend_bdt', readonly: true, label: 'Lifetime Spend (BDT)' },
+          { name: 'balance_reconciled_at', readonly: true, label: 'Balance Last Reconciled' },
+          { name: 'balance_drift', readonly: true, label: 'Drift Found at Reconciliation' }
         ]
       },
       {
@@ -402,7 +429,10 @@ export const SCREENS = {
         tab: 'audit',
         title: 'Governance & Tracking',
         fields: [
-          { name: 'tier_upgraded_date', readonly: true, label: 'Last Tier Upgrade Date' }
+          { name: 'tier_upgraded_date', readonly: true, label: 'Last Tier Upgrade Date' },
+          { name: 'freeze_reason', readonly: true, label: 'Fraud Freeze Reason' },
+          { name: 'approval_state', readonly: true, label: 'Fraud-Lock Release Approval' },
+          { name: 'unlock_supervisor_id', readonly: true, label: 'Released By' }
         ]
       }
     ]
@@ -415,10 +445,11 @@ export const SCREENS = {
    * a bug.
    * ================================================================== */
   'M10-schemes': { kind: 'model_list', model: 'fix.loyalty.scheme', create: true,
-    cols: ['sequence', 'name', 'code', 'program_id', 'state', 'valid_from', 'valid_until', 'estimated_annual_cost', 'dofa_tier_required', 'dofa_approved'],
+    cols: ['sequence', 'name', 'code', 'program_id', 'state', 'valid_from', 'valid_until', 'estimated_annual_cost', 'dofa_tier_required', 'approval_state', 'dofa_approved'],
     stateField: 'state',
     actions: [
-      { m: 'action_dofa_approve', l: 'Approve (DOFA)' },
+      { m: 'action_request_approval', l: 'Request Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_activate', l: 'Activate' },
       { m: 'action_retire', l: 'Retire' }
     ],
@@ -461,7 +492,7 @@ export const SCREENS = {
         { name: 'code', label: 'Code', required: true },
         { name: 'program_id', label: 'Programme', required: true },
         { name: 'sequence', label: 'Priority' },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State', readonly: true },
         { name: 'active', label: 'Active' }
         ]
       },
@@ -480,10 +511,11 @@ export const SCREENS = {
         fields: [
         { name: 'estimated_annual_cost', label: 'Estimated Annual Cost (BDT)' },
         { name: 'currency_id', label: 'Currency', required: true },
-        { name: 'dofa_tier_required', label: 'Tier Required' },
-        { name: 'dofa_approved', label: 'Approved' },
-        { name: 'dofa_approved_by', label: 'Approver' },
-        { name: 'dofa_approved_at', label: 'Approved At' },
+        { name: 'dofa_tier_required', label: 'Tier Required', readonly: true },
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'dofa_approved', label: 'Approved', readonly: true },
+        { name: 'dofa_approved_by', label: 'Approver', readonly: true },
+        { name: 'dofa_approved_at', label: 'Approved At', readonly: true },
         { name: 'dofa_justification', label: 'Justification' }
         ]
       }

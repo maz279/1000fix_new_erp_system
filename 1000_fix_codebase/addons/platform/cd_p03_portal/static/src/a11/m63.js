@@ -16,7 +16,11 @@ export const MODULE = {
     { l: 'Avg Approval Time', m: 'avg_approval_time', suffix: ' h' },
     { l: 'Rule Repository', m: 'rule_repository' },
     { l: 'Escalations MTD', m: 'escalations_mtd' },
-    { l: 'STP Share', m: 'stp_share', suffix: '%' }
+    { l: 'STP Share', m: 'stp_share', suffix: '%' },
+    { l: 'Approvals Pending', m: 'approvals_pending' },
+    { l: 'Pending > 72 h', m: 'approvals_overdue' },
+    { l: 'Approver = Creator', m: 'approver_is_creator' },
+    { l: 'Median Approval', m: 'approval_median_hours', suffix: ' h' }
   ],
   groups: [
     { en: 'Engine', screens: [
@@ -33,16 +37,24 @@ export const MODULE = {
       { id: 'M63-simulation', en: 'Rule Simulation', bn: 'নিয়ম সিমুলেশন', t: 'r' }
     ]},
     { en: 'Task Inbox', screens: [
-      { id: 'M63-inbox', en: 'Unified Task Inbox', bn: 'একত্র কাজের ইনবক্স', t: 'g' }
+      { id: 'M63-inbox', en: 'Awaiting My Approval', bn: 'আমার অনুমোদনের অপেক্ষায়', t: 'g' },
+      { id: 'M63-tasks', en: 'Unified Task Inbox', bn: 'একত্র কাজের ইনবক্স', t: 'g' },
+      { id: 'M63-requests', en: 'Approval Requests', bn: 'অনুমোদনের অনুরোধ', t: 'g' },
+      { id: 'M63-history', en: 'Approval History', bn: 'অনুমোদনের ইতিহাস', t: 'g' },
+      { id: 'M63-rpt-approval', en: 'Approval KPIs', bn: 'অনুমোদন সূচক', t: 'r' }
     ]}
   ],
-  reports: ['Automation Rate by Process', 'Approval Cycle Time', 'Escalation Analysis', 'Rule Change Log'],
+  reports: ['Automation Rate by Process', 'Approval Cycle Time', 'Escalation Analysis', 'Rule Change Log', 'Approval KPIs'],
   forms: ['Workflow Definition', 'Approval Chain', 'Business Rule'],
   cross: ['All modules consume the engine', 'M60 SoD', 'M52 approval matrix', 'M29 access'],
   freg: { src: 54, sub: [
-    ['1', 'Workflow Engine', 11], ['2', 'Approval Chains', 10], ['3', 'DoA Matrix', 6],
-    ['4', 'Business Rules', 9], ['5', 'Scheduled & Event Jobs', 7],
-    ['6', 'Task Inbox', 5], ['7', 'Audit & Performance', 6]
+    ['1', 'Workflow Engine', 11, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'failure_policy', 'active'], screens: ['M63-definitions', 'M63-monitor'] }],
+    ['2', 'Approval Chains', 10, { model: 'fix.workflow.task', cols: ['name', 'instance_id', 'assigned_to_id', 'due_at', 'decision', 'state'], screens: ['M63-inbox', 'M63-substitution'], domain: [['task_type', '=', 'approval']] }],
+    ['3', 'DoA Matrix', 6, { model: 'fix.approval.matrix', cols: ['decision_domain', 'threshold', 'approver_role', 'notes'], screens: ['M63-doa'] }],
+    ['4', 'Business Rules', 9, { model: 'fix.business.rule', cols: ['code', 'name', 'domain_area', 'rule_type', 'version', 'active'], screens: ['M63-rules', 'M63-simulation'] }],
+    ['5', 'Scheduled & Event Jobs', 7, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'], screens: ['M63-jobs'], domain: [['engine', '=', 'airflow']] }],
+    ['6', 'Task Inbox', 5, { model: 'fix.workflow.task', cols: ['name', 'task_type', 'assigned_to_id', 'due_at', 'state'], screens: ['M63-inbox'] }],
+    ['7', 'Audit & Performance', 6, { model: 'fix.workflow.instance', cols: ['name', 'automation_id', 'started_at', 'finished_at', 'escalated', 'state'], screens: ['M63-monitor'] }]
   ] }
 };
 
@@ -60,7 +72,10 @@ export const SCREENS = {
     cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'],
     domain: [['engine', '=', 'airflow']] },
   'M63-doa': { kind: 'model_list', model: 'fix.approval.matrix',
-    cols: ['decision_domain', 'threshold', 'approver_role', 'notes'] },
+    cols: ['name', 'decision_domain', 'res_model', 'approval_policy', 'sla_hours', 'max_escalations',
+      'final_action', 'date_from', 'date_to', 'active'],
+    actions: [{ m: 'action_test_rule', l: 'Test Rule on a Record', ask: 'Record id to simulate against', kwarg: 'res_id' }],
+    note: 'The rule book the approval engine reads. The DOFA ladder sets the tier; a row sets how the approval runs. A new ruling is a new dated row, not an edit.' },
   'M63-substitution': { kind: 'model_list', model: 'fix.approval.substitution', stateField: 'state',
     cols: ['name', 'absent_approver_id', 'delegate_id', 'start_date', 'end_date', 'state'],
     actions: [{ m: 'action_activate', l: 'Activate' }, { m: 'action_expire', l: 'Expire' }] },
@@ -69,11 +84,22 @@ export const SCREENS = {
     actions: [{ m: 'action_new_version', l: 'New Version' }] },
   'M63-simulation': { kind: 'table_report', module: 'M63', report: 'automation_rate', title: 'Rule Simulation', period: false },
   'M63-inbox': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state',
-    cols: ['name', 'task_type', 'instance_id', 'assigned_to_id', 'created_at', 'due_at', 'decision', 'state'],
+    cols: ['name', 'res_name', 'tier', 'amount', 'requested_by_id', 'on_behalf_of_id', 'due_at', 'state'],
+    domain: [['is_mine', '=', true], ['state', '=', 'pending']],
     actions: [
       { m: 'action_approve', l: 'Approve' },
-      { m: 'action_reject', l: 'Reject' }
-    ] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why is this rejected?', kwarg: 'comment' },
+      { m: 'action_return', l: 'Return for Information', ask: 'What information is needed?', kwarg: 'comment' }
+    ],
+    note: 'Only tasks assigned to you. Approving runs the record rules (tier, segregation of duties, justification) under your name.' },
+  'M63-tasks': { kind: 'model_list', model: 'fix.workflow.task', stateField: 'state',
+    cols: ['name', 'task_type', 'res_name', 'assigned_user_id', 'on_behalf_of_id', 'created_at', 'due_at', 'decision', 'state'] },
+  'M63-requests': { kind: 'model_list', model: 'fix.approval.request', stateField: 'state',
+    cols: ['name', 'res_name', 'res_model', 'tier', 'amount', 'requested_by_id', 'requested_at', 'escalation_level', 'decided_by_id', 'cycle_hours', 'state'] },
+  'M63-history': { kind: 'model_list', model: 'fix.approval.history',
+    cols: ['at', 'request_id', 'event', 'user_id', 'on_behalf_of_id', 'tier', 'amount', 'comment'],
+    note: 'Append-only: the server refuses every edit and deletion.' },
+  'M63-rpt-approval': { kind: 'table_report', module: 'M63', report: 'approval_kpis', title: 'Approval KPIs', period: false },
 
   /* Report chips -> their own computed pack */
   'M63-rpt-rate': { kind: 'table_report', module: 'M63', report: 'automation_rate', title: 'Automation Rate by Process', period: false },
@@ -127,10 +153,25 @@ export const SCREENS = {
     sections: [
       { title: 'Delegation of Authority', note: 'One threshold per decision domain and currency (database UNIQUE). The approver role is the chain level that owns decisions above this amount.',
         fields: [
+          { name: 'name', label: 'Rule Name' },
           { name: 'decision_domain', required: true, label: 'Decision Domain' },
-          { name: 'threshold', required: true, label: 'Threshold' },
-          { name: 'approver_role', required: true, label: 'Approver Role' },
+          { name: 'res_model', label: 'Applies to Model' },
+          { name: 'condition', label: 'Condition (domain)' },
+          { name: 'threshold', label: 'Threshold' },
+          { name: 'approver_role', label: 'Approver Role' },
           { name: 'notes', label: 'Notes' }
+        ] },
+      { title: 'How the Approval Runs', note: 'Any one approver or all of them; the SLA before a reminder; how many escalations to the next tier (or the named target); and what happens when those run out too.',
+        fields: [
+          { name: 'approver_group_id', label: 'Approver Group (no DOFA amount)' },
+          { name: 'approval_policy', required: true, label: 'Voting Policy' },
+          { name: 'sla_hours', required: true, label: 'SLA (hours)' },
+          { name: 'max_escalations', required: true, label: 'Escalations' },
+          { name: 'escalate_to_id', label: 'Escalate To' },
+          { name: 'final_action', required: true, label: 'Final Action' },
+          { name: 'date_from', label: 'Effective From' },
+          { name: 'date_to', label: 'Effective To' },
+          { name: 'active', label: 'Active' }
         ] }
     ]
   },
@@ -183,14 +224,21 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       pending: 'Pending', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Task', note: 'Approve or reject records the decision and stamps the time — the cycle-time report reads those stamps.',
+      { title: 'Task', note: 'Decide it with Approve, Reject or Return. The approver, due date and state are set by the approval engine and cannot be typed.',
         fields: [
           { name: 'task_type', required: true, label: 'Task Type' },
           { name: 'instance_id', label: 'Workflow Instance' },
-          { name: 'assigned_to_id', label: 'Assigned To' },
+          { name: 'res_name', readonly: true, label: 'Record' },
+          { name: 'tier', readonly: true, label: 'Tier' },
+          { name: 'amount', readonly: true, label: 'Amount' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'assigned_user_id', readonly: true, label: 'Approver' },
+          { name: 'on_behalf_of_id', readonly: true, label: 'On Behalf Of' },
+          { name: 'assigned_to_id', label: 'Assigned To (employee)' },
           { name: 'created_at', required: true, label: 'Created At' },
-          { name: 'due_at', label: 'Due At' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'due_at', readonly: true, label: 'Due At' },
+          { name: 'comment', readonly: true, label: 'Decision Comment' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   }
@@ -200,7 +248,8 @@ export const REPORT_ROUTES = {
   'M63:Automation Rate by Process': 'M63-rpt-rate',
   'M63:Approval Cycle Time': 'M63-rpt-cycle',
   'M63:Escalation Analysis': 'M63-rpt-esc',
-  'M63:Rule Change Log': 'M63-rpt-rules'
+  'M63:Rule Change Log': 'M63-rpt-rules',
+  'M63:Approval KPIs': 'M63-rpt-approval'
 };
 
 export const FORM_MODELS = {
@@ -228,7 +277,8 @@ export const FORM_CHIPS = {
     'M63-rules': 'M63-form-rule',
     'M63-monitor': 'M63-form-instance',
     'M63-substitution': 'M63-form-substitution',
-    'M63-inbox': 'M63-form-task'
+    'M63-inbox': 'M63-form-task',
+    'M63-tasks': 'M63-form-task'
   }
 };
 

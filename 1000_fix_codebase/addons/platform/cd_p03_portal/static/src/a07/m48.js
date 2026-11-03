@@ -43,10 +43,13 @@ export const MODULE = {
   forms: ['Stream Binding', 'Alert Rule', 'Downsampling Policy'],
   cross: ['M17 asset binding', 'M26 prediction models', 'M05 MSP monitoring', 'M01 prescriptive work orders'],
   freg: { src: 51, sub: [
-    ['1', 'Stream Registry & Onboarding', 8], ['2', 'Protocol Adapters', 7],
-    ['3', 'Ingestion & Storage', 9], ['4', 'Threshold Alerting', 8],
-    ['5', 'Health Scoring', 6], ['6', 'Failure Prediction', 7],
-    ['7', 'Prescriptive Routing', 6]
+    ['1', 'Stream Registry & Onboarding', 8, { model: 'fix.iot.stream', cols: ['name', 'device_id', 'metric', 'unit', 'state'], screens: ['M48-streams', 'M48-iot-device', 'M48-consent'] }],
+    ['2', 'Protocol Adapters', 7, { model: 'fix.iot.adapter', cols: ['name', 'protocol', 'endpoint', 'auth_mode', 'state'], screens: ['M48-adapters'] }],
+    ['3', 'Ingestion & Storage', 9, { model: 'fix.iot.device', cols: ['name', 'device_id', 'device_type', 'last_telemetry', 'status'], screens: ['M48-health', 'M48-iot-device'] }],
+    ['4', 'Threshold Alerting', 8, { model: 'fix.iot.rule', cols: ['name', 'stream_id', 'operator', 'threshold', 'severity', 'state'], screens: ['M48-alerts', 'M48-lifecycle'] }],
+    ['5', 'Health Scoring', 6, { model: 'fix.predictive.maintenance', cols: ['equipment_id', 'prediction', 'confidence', 'last_evaluated', 'model_name'], screens: ['M48-scores'] }],
+    ['6', 'Failure Prediction', 7, { model: 'fix.predictive.maintenance', cols: ['name', 'equipment_id', 'prediction', 'estimated_days_to_failure', 'outcome'], screens: ['M48-failure', 'M48-rul'] }],
+    ['7', 'Prescriptive Routing', 6, { model: 'fix.iot.action', cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'state'], screens: ['M48-routing'] }]
   ] }
 };
 

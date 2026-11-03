@@ -45,9 +45,15 @@ export const MODULE = {
   forms: ['Revenue Schedule', 'Payout Run', 'Clawback', 'Commission Scheme', 'Performance Obligation', 'Subscription Contract'],
   cross: ['Subscriptions & Recurring', 'Marketplace & Sellers', 'Partner & Channel'],
   freg: { src: 74, sub: [
-    ['1', 'Performance Obligations', 10], ['2', 'Allocation & SSP', 8], ['3', 'Schedules & Triggers', 12],
-    ['4', 'Modifications & Reversals', 8], ['5', 'Principal vs Agent', 5], ['6', 'Commission Ledger', 8],
-    ['7', 'Seller Settlement', 10], ['8', 'Partner Payouts', 7], ['9', 'Escrow & Clawbacks', 6]
+    ['1', 'Performance Obligations', 10, { model: 'fix.performance.obligation', cols: ['name', 'obligation_type', 'satisfaction', 'standalone_price', 'state'], screens: ['M53-obligations'] }],
+    ['2', 'Allocation & SSP', 8, { model: 'fix.performance.obligation', cols: ['subscription_id', 'name', 'standalone_price', 'allocated_amount', 'state'], screens: ['M53-obligations', 'M53-contract'] }],
+    ['3', 'Schedules & Triggers', 12, { model: 'fix.revenue.schedule', cols: ['description', 'total_amount', 'recognized_amount', 'deferred_balance', 'state'], screens: ['M53-schedules', 'M53-bridge'] }],
+    ['4', 'Modifications & Reversals', 8, { model: 'fix.subscription', cols: ['name', 'customer_id', 'contract_value', 'last_refund_amount', 'state'], screens: ['M53-subscriptions'] }],
+    ['5', 'Principal vs Agent', 5, { model: 'fix.commission.ledger', cols: ['name', 'seller_partner_id', 'gross_amount', 'commission_amount', 'state'], screens: ['M53-ledger'], domain: [['source_type', '=', 'marketplace']] }],
+    ['6', 'Commission Ledger', 8, { model: 'fix.commission.ledger', cols: ['seller_partner_id', 'commission_amount', 'tds_amount', 'net_payable', 'state'], screens: ['M53-ledger', 'M53-schemes'] }],
+    ['7', 'Seller Settlement', 10, { model: 'fix.seller.statement', cols: ['seller_partner_id', 'period', 'gross_gmv', 'net_payable', 'state'], screens: ['M53-sellers', 'M53-payouts', 'M53-recon'] }],
+    ['8', 'Partner Payouts', 7, { model: 'fix.referral', cols: ['name', 'partner_id', 'referred_partner_id', 'commission_amount', 'state'], screens: ['M53-partners'], domain: [['state', 'in', ['converted', 'commissioned']]] }],
+    ['9', 'Escrow & Clawbacks', 6, { model: 'fix.settlement.adjustment', cols: ['adjustment_type', 'seller_partner_id', 'amount', 'remaining_amount', 'state'], screens: ['M53-escrow'] }]
   ] }
 };
 

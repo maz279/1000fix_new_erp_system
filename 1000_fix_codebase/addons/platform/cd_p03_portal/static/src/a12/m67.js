@@ -41,8 +41,12 @@ export const MODULE = {
   forms: ['Project (6 types)', 'Milestone', 'Task', 'Stage Gate Review'],
   cross: ['M49 capex budgets', 'M54 costing', 'M21 project staffing'],
   freg: { src: 54, sub: [
-    ['1', 'Portfolio', 10], ['2', 'Project Setup', 9], ['3', 'Delivery', 11],
-    ['4', 'Governance', 8], ['5', 'Financials', 9], ['6', 'Audit', 7]
+    ['1', 'Portfolio', 10, { model: 'fix.project', cols: ['name', 'code', 'project_type', 'manager_id', 'state'], screens: ['M67-projects', 'M67-portfolio', 'M67-budget'] }],
+    ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-record'] }],
+    ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-tracker', 'M67-resources'] }],
+    ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-compliance'] }],
+    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'state'], screens: ['M67-billing', 'M67-evm', 'M67-profit'] }],
+    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'state'], screens: ['M67-risks'] }]
   ] }
 };
 

@@ -54,6 +54,9 @@ SURFACES = {
             "action_approve",
             "action_manager_approve",
             "action_dofa_approve",
+            # R7: a seller may also route the discount through the M63 inbox.
+            "action_request_approval",
+            "action_recall_approval",
             "action_reject",
             "action_revise",
         },

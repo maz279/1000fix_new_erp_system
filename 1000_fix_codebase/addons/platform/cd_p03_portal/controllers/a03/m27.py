@@ -14,7 +14,18 @@ SURFACES = {
     "fix.conversation": {
         "order": "started_at desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # Resolve runs the REQ-27.1 wrap-up and REQ-27.2 digest gates; it was
+        # refused here, so agents closed calls by editing state instead. The
+        # dispatch hand-off opens an on-site service order and hands it to
+        # M02 (it used to raise on a non-existent 'customer_id').
+        # Create Complaint hands the contact to M34; the method is added by
+        # cd_cx_feedback (A03 audit M27 G6).
+        "actions": {
+            "action_claim",
+            "action_resolve",
+            "action_create_field_work_order",
+            "action_create_complaint",
+        },
     },
     "fix.cc.queue": {
         "order": "sequence, name",
@@ -49,7 +60,9 @@ SURFACES = {
     "fix.cc.qa.evaluation": {
         "order": "evaluated_at desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # A03 audit M27 G11: dispute (the scored agent) and calibration
+        # (a supervisor who is not the scored agent).
+        "actions": {"action_dispute", "action_send_to_calibration", "action_finalise"},
     },
     "fix.cc.wfm.shift": {
         "order": "shift_date, start_hour",
@@ -120,6 +133,8 @@ SURFACES = {
             "action_reject",
             "action_start_work",
             "close_and_release",
+            # Supervisor only (A03 audit M27 G9).
+            "action_release_capacity",
         },
     },
     "fix.cc.wfm.adherence": {
@@ -155,7 +170,7 @@ SURFACES = {
     "fix.cc.qa.rubric": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_publish"},
+        "actions": {"action_publish", "action_retire"},
     },
     "fix.cc.qa.criterion": {
         "order": "rubric_id, sequence, id",

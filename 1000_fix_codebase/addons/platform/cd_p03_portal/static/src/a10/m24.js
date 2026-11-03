@@ -37,10 +37,13 @@ export const MODULE = {
   forms: ['Upload', 'Signature Envelope', 'Share Token', 'Retention Policy'],
   cross: ['M23 QMS', 'M08 Contracts', 'M60 GRC', 'M21 HR'],
   freg: { src: 56, sub: [
-    ['1', 'Repository & Integrity', 7], ['2', 'Auto-Filing', 6],
-    ['3', 'Classification & Search', 9], ['4', 'Versioning & Control', 7],
-    ['5', 'E-Signature', 10], ['6', 'Retention & Holds', 10],
-    ['7', 'Evidence Packs', 7]
+    ['1', 'Repository & Integrity', 7, { model: 'fix.document', cols: ['name', 'document_type', 'version', 'is_current', 'checksum_sha256'], screens: ['M24-browser'] }],
+    ['2', 'Auto-Filing', 6, { model: 'fix.document', cols: ['name', 'document_type', 'res_model', 'res_id', 'template_id'], screens: ['M24-generation', 'M24-browser'] }],
+    ['3', 'Classification & Search', 9, { model: 'fix.document', cols: ['name', 'name_bn', 'document_type', 'isolation_tier', 'retention_class_id'], screens: ['M24-search', 'M24-browser'] }],
+    ['4', 'Versioning & Control', 7, { model: 'fix.document', cols: ['name', 'version', 'is_current', 'previous_version_id', 'template_id'], screens: ['M24-controlled'] }],
+    ['5', 'E-Signature', 10, { model: 'fix.esignature.envelope', cols: ['name', 'document_id', 'state', 'completed_at'], screens: ['M24-envelopes', 'M24-audit'] }],
+    ['6', 'Retention & Holds', 10, { model: 'fix.document', cols: ['name', 'retention_class_id', 'retention_expires', 'legal_hold', 'state'], screens: ['M24-retention', 'M24-holds', 'M24-disposal'] }],
+    ['7', 'Evidence Packs', 7, { model: 'fix.document', cols: ['name', 'version', 'retention_class_id', 'legal_hold', 'state'], screens: ['M24-browser'], domain: [['document_type', '=', 'evidence_pack']] }]
   ] }
 };
 

@@ -43,10 +43,14 @@ export const MODULE = {
   forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template'],
   cross: ['M01 Service Orders', 'M34 Complaints', 'M42 Suppliers', 'M24 Documents'],
   freg: { src: 78, sub: [
-    ['1', 'Policy & Objectives', 6], ['2', 'Process Register', 7],
-    ['3', 'Checklists & Gates', 10], ['4', 'NCR Management', 12],
-    ['5', 'RCA & CAPA', 14], ['6', 'Audit Programme', 13],
-    ['7', 'Management Review', 7], ['8', 'Statistics & CoPQ', 9]
+    ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual'], screens: ['M23-policy'] }],
+    ['2', 'Process Register', 7, { model: 'fix.qms.process', cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'state'], screens: ['M23-processes'] }],
+    ['3', 'Checklists & Gates', 10, { model: 'fix.qms.checklist', cols: ['name', 'checklist_type', 'iso_clause', 'version', 'state'], screens: ['M23-checklists', 'M23-gates'] }],
+    ['4', 'NCR Management', 12, { model: 'fix.ncr', cols: ['name', 'source', 'severity', 'disposition', 'state'], screens: ['M23-ncr'] }],
+    ['5', 'RCA & CAPA', 14, { model: 'fix.capa', cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'state'], screens: ['M23-rca', 'M23-capa'] }],
+    ['6', 'Audit Programme', 13, { model: 'fix.internal.audit', cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'], screens: ['M23-internal', 'M23-external'] }],
+    ['7', 'Management Review', 7, { model: 'fix.qms.review', cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'], screens: ['M23-review'] }],
+    ['8', 'Statistics & CoPQ', 9, { model: 'fix.qms.copq', cols: ['name', 'period', 'category', 'amount'], screens: ['M23-stat', 'M23-copq', 'M23-qms-copq'] }]
   ] }
 };
 

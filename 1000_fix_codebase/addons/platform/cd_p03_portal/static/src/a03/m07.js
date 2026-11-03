@@ -26,7 +26,9 @@ export const MODULE = {
     { en: 'Pipeline', bn: 'পাইপলাইন', screens: [
       { id: 'M07-opps', en: 'Opportunities', bn: 'সুযোগ', t: 'g' },
       { id: 'M07-kanban', en: 'Pipeline Kanban', bn: 'পাইপলাইন কানবান', t: 'd' },
-      { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'r' }
+      { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'r' },
+      { id: 'M07-quotes', en: 'Opportunity Estimates', bn: 'সুযোগের প্রাক্কলন', t: 'g' },
+      { id: 'M07-form-quote', en: 'Opportunity Estimate', bn: 'প্রাক্কলন ফর্ম', t: 'f' }
     ]},
     { en: 'Accounts', bn: 'অ্যাকাউন্ট', screens: [
       { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
@@ -70,7 +72,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Pipeline by Stream', 'Funnel Conversion', 'Win Rate by Source', 'Account Manager Scorecard', 'Renewal Risk Report', 'Cross-Sell Attach Rate'],
-  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model'],
+  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model', 'Opportunity Estimate'],
   cross: ['M33 Party Master', 'M08 Service Contracts', 'M01 Service Orders', 'M20 Credit Control', 'M53 Commissions'],
   freg: {
     src: 79,
@@ -83,8 +85,8 @@ export const MODULE = {
       ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'] }],
       ['7', 'Activities', 8, { model: 'crm.lead', cols: ['name', 'partner_id', 'activity_summary', 'activity_date_deadline', 'activity_user_id'], screens: ['M07-activities'] }],
       ['8', 'Renewal Pipeline', 6, { model: 'fix.renewal', cols: ['state', 'partner_id', 'source_type', 'source_ref', 'value', 'expiry_date'], screens: ['M07-renewals', 'M07-rpt-renewalrisk'] }],
-      ['9', 'Cross-Sell / Upsell', 7, { screens: ['M07-crosssell', 'M07-rpt-crosssell'] }],
-      ['10', 'Competitor Intelligence', 5, { screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'] }]
+      ['9', 'Cross-Sell / Upsell', 7, { model: 'crm.lead', cols: ['name', 'partner_id', 'is_cross_sell', 'expected_revenue', 'stage_id'], screens: ['M07-crosssell', 'M07-rpt-crosssell', 'M07-opps'], domain: [['type', '=', 'opportunity']] }],
+      ['10', 'Competitor Intelligence', 5, { model: 'crm.lead', cols: ['name', 'won_status', 'competitor', 'competitor_price_bdt', 'loss_reason_category'], screens: ['M07-winloss', 'M07-sources', 'M07-rpt-winsrc'], domain: [['won_status', 'in', ['won', 'lost']]] }]
     ]
   }
 };
@@ -101,9 +103,14 @@ export const SCREENS = {
     domain: [['type', '=', 'opportunity']],
     stateField: 'stage_id',
     actions: [
-      { m: 'action_convert_to_service_order', l: 'Convert to Service Order' },
+      { m: 'action_raise_estimate', l: 'Raise Estimate' },
+      { m: 'action_link_estimate', l: 'Link Estimate', ask: 'Estimate number', kwarg: 'estimate' },
+      { m: 'action_request_contract_verification', l: 'Request Contract Verification', ask: 'Note for the verifier', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Verification Request' },
+      { m: 'action_score', l: 'Score Lead' },
       { m: 'action_set_won', l: 'Mark Won' },
-      { m: 'action_set_lost', l: 'Mark Lost', ask: 'Loss reason code', kwarg: 'reason' }
+      { m: 'action_convert_to_service_order', l: 'Convert to Service Order' },
+      { m: 'action_set_lost', l: 'Mark Lost', ask: 'Loss reason code (name the competitor on the form first)', kwarg: 'reason' }
     ] },
   'M07-forecast': { kind: 'model_list', model: 'fix.forecast.snapshot', create: true,
     cols: ['period', 'owner_id', 'pipeline_id', 'pipeline_value', 'best_case_value', 'commit_value', 'taken_at'],
@@ -127,7 +134,8 @@ export const SCREENS = {
     actions: [
       { m: 'action_engage', l: 'Start Engagement' },
       { m: 'action_renew', l: 'Mark Renewed' },
-      { m: 'action_lapse', l: 'Mark Lapsed' }
+      { m: 'action_lapse', l: 'Mark Lapsed' },
+      { m: 'action_close', l: 'Close (No Renewal Possible)', ask: 'Why no renewal is possible', kwarg: 'reason' }
     ] },
   'M07-winloss': { kind: 'table_report', module: 'M07', report: 'winloss_summary', title: 'Win/Loss Analysis', period: true },
   'M07-activities': { kind: 'model_list', model: 'crm.lead', create: false,
@@ -217,7 +225,7 @@ export const SCREENS = {
       { id: 'commercial', label: '4. Commercials & Forecasting', bn: '৪. বাণিজ্যিক শর্ত', icon: '💰', badge: '6' },
       { id: 'competition', label: '5. Competitor Intelligence', bn: '৫. প্রতিযোগী তথ্য', icon: '⚔️', badge: '5' },
       { id: 'stage', label: '6. Stage Gating & Duration', bn: '৬. পর্যায় গেটিং', icon: '📊', badge: '3' },
-      { id: 'docs', label: '7. Contracts, PO & Evidence', bn: '৭. চুক্তি ও নথি', icon: '📎', badge: '4' },
+      { id: 'docs', label: '7. Contracts, PO & Evidence', bn: '৭. চুক্তি ও নথি', icon: '📎', badge: '9' },
       { id: 'audit', label: '8. System Audit Trail', bn: '৮. সিস্টেম অডিট', icon: '⏱️', badge: '4' }
     ],
     sections: [
@@ -267,9 +275,18 @@ export const SCREENS = {
         note: 'REQ-07.1: marking Won requires a verified signed contract or PO captured here, and no receivable more than 60 days overdue. Signed MSAs, SLA schedules and tender documents attach to this record; the checksummed repository (fix.document, M24) is the estate-wide contract archive — a direct opportunity→document relation is a declared platform gap.',
         fields: [
         { name: 'contract_ref', label: 'Contract / Purchase Order Reference' },
-        { name: 'contract_verified', label: 'Contract / PO Verification Status' },
-        { name: 'rate_card_approved', label: 'Approved Commercial Rate Card' },
+        { name: 'contract_verified', label: 'Contract / PO Verified (set by the verifier)', readonly: true },
+        { name: 'rate_card_approved', label: 'Rate Card Confirmed (set by the verifier)', readonly: true },
+        { name: 'approval_state', label: 'Contract Verification Request', readonly: true },
+        { name: 'contract_verified_by', label: 'Verified By', readonly: true },
+        { name: 'contract_verified_at', label: 'Verified On', readonly: true },
         { name: 'company_currency', label: 'Transaction Currency', readonly: true },
+      ]},
+      { tab: 'docs', title: 'Estimate & Quote Approval',
+        note: 'An approved estimate is required before the deal is won or converted (approved quote before order). Raise or link it from the Opportunities screen; add its lines and approve it in M36 Quotations. An edit after approval, or a discount whose approval is pending or was rejected, blocks the win until a revision is approved.',
+        fields: [
+        { name: 'quote_estimate_id', label: 'Current Estimate', readonly: true },
+        { name: 'quote_status', label: 'Quote Status', readonly: true },
       ]},
       { tab: 'audit', title: 'System Governance & Lifecycle Timestamps', fields: [
         { name: 'create_date', label: 'Opportunity Created Timestamp', readonly: true },
@@ -616,6 +633,71 @@ export const SCREENS = {
       }
     ]
   },
+
+  /* A03 P2: the opportunity's pre-sales estimate (approved quote before
+   * order). Raised from M07-opps; priced, sent and approved here. The
+   * workflow fields are read-only: only the estimate's own actions and the
+   * M63 approval engine set them. */
+  'M07-quotes': { kind: 'model_list', model: 'fix.estimate', create: false,
+    cols: ['lead_id', 'version', 'state', 'grand_total', 'discount_pct', 'approval_state', 'approved_total'],
+    domain: [['lead_id', '!=', false]],
+    stateField: 'state',
+    actions: [
+      { m: 'action_send', l: 'Send to Customer' },
+      { m: 'action_approve', l: 'Approve Estimate' },
+      { m: 'action_revise', l: 'Revise (New Version)' }
+    ],
+    note: 'Raise an estimate from the Opportunities screen. A deal is won and converted only on its latest estimate, approved and unchanged since.' },
+  'M07-form-quote': {
+    lines: {
+      field: 'line_ids',
+      title: 'Estimate Lines',
+      note: 'Parts, labour and diagnostic lines quoted to the customer.',
+      fields: [
+        { name: 'line_type', label: 'Type', required: true },
+        { name: 'product_id', label: 'Product' },
+        { name: 'description', label: 'Description', required: true },
+        { name: 'quantity', label: 'Qty', required: true },
+        { name: 'unit_price', label: 'Unit Price', required: true },
+        { name: 'line_total', label: 'Total' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.estimate',
+    title: 'Opportunity Estimate', back: 'M07-quotes',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'quote', label: '1. Quote', bn: '১. প্রাক্কলন', icon: '🧾' },
+      { id: 'commercial', label: '2. Price & Discount', bn: '২. মূল্য ও ছাড়', icon: '💰' },
+      { id: 'approval', label: '3. Approval Evidence', bn: '৩. অনুমোদনের প্রমাণ', icon: '✅' }
+    ],
+    sections: [
+      { tab: 'quote', title: 'Opportunity & Version', fields: [
+        { name: 'lead_id', label: 'Opportunity', readonly: true },
+        { name: 'version', label: 'Version', readonly: true },
+        { name: 'state', label: 'Estimate State', readonly: true },
+        { name: 'expiry_date', label: 'Valid Until' },
+        { name: 'diagnostic_notes', label: 'Scope & Exclusions', type: 'text' }
+      ]},
+      { tab: 'commercial', title: 'Totals & Discount Authority',
+        note: 'A discount above 5% needs DOFA sign-off from someone other than the seller. Changing the discount while its approval is pending withdraws the request.',
+        fields: [
+        { name: 'discount', label: 'Discount (BDT)' },
+        { name: 'discount_pct', label: 'Discount %', readonly: true },
+        { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+        { name: 'dofa_justification', label: 'Discount Justification', type: 'text' },
+        { name: 'grand_total', label: 'Grand Total (BDT)', readonly: true }
+      ]},
+      { tab: 'approval', title: 'Who Approved What', fields: [
+        { name: 'customer_approval_ref', label: 'Customer Approval Reference' },
+        { name: 'approval_state', label: 'Discount Approval Request', readonly: true },
+        { name: 'dofa_approved', label: 'Discount Approved', readonly: true },
+        { name: 'dofa_approved_by', label: 'Discount Approved By', readonly: true },
+        { name: 'manager_approval_uid', label: 'Branch Manager Approval', readonly: true },
+        { name: 'approved_total', label: 'Total When Approved', readonly: true },
+        { name: 'approval_stamped_at', label: 'Approval Recorded On', readonly: true }
+      ]}
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -639,6 +721,7 @@ export const FORM_CHIPS = {
   'M07:Quarterly Business Review': 'M07-form-qbr',
   'M07:Renewal Pursuit': 'M07-form-renewal',
   'M07:Forecast Snapshot': 'M07-form-forecast',
+  'M07:Opportunity Estimate': 'M07-form-quote',
   'M07:__by_model__': {
     'fix.crm.sequence': 'M07-form-sequence',
     'fix.crm.score.model': 'M07-form-score-model',
@@ -648,7 +731,8 @@ export const FORM_CHIPS = {
     'fix.account.assignment': 'M07-form-assignment',
     'fix.qbr': 'M07-form-qbr',
     'fix.renewal': 'M07-form-renewal',
-    'fix.forecast.snapshot': 'M07-form-forecast'
+    'fix.forecast.snapshot': 'M07-form-forecast',
+    'fix.estimate': 'M07-form-quote'
   },
   'M07:__by_screen__': {
     'M07-sequences': 'M07-form-sequence',
@@ -664,7 +748,8 @@ export const FORM_CHIPS = {
     'M07-qbr': 'M07-form-qbr',
     'M07-renewals': 'M07-form-renewal',
     'M07-scoring': 'M07-form-pipeline',
-    'M07-forecast': 'M07-form-forecast'
+    'M07-forecast': 'M07-form-forecast',
+    'M07-quotes': 'M07-form-quote'
   }
 };
 
@@ -679,7 +764,8 @@ export const FORM_MODELS = {
   'M07:Account Assignment': 'fix.account.assignment',
   'M07:Quarterly Business Review': 'fix.qbr',
   'M07:Renewal Pursuit': 'fix.renewal',
-  'M07:Forecast Snapshot': 'fix.forecast.snapshot'
+  'M07:Forecast Snapshot': 'fix.forecast.snapshot',
+  'M07:Opportunity Estimate': 'fix.estimate'
 };
 
 export const CREATE = {

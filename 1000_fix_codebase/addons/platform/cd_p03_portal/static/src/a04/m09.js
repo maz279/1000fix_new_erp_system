@@ -45,12 +45,18 @@ export const MODULE = {
   forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign'],
   cross: ['M01 Service Orders', 'M08 Contracts', 'M20 AR', 'M37 Catalogue'],
   freg: { src: 108, sub: [
-    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register'] }], ['2', 'Manufacturer Validation', 8, { screens: ['M09-validate'] }],
-    ['3', 'Repair Warranty', 8, { screens: ['M09-repair-wty'] }], ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-protection'] }],
-    ['5', 'Protection Products', 13, { model: 'fix.warranty.product', cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit'], screens: ['M09-brandrules'] }], ['6', 'Claim Assessment', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-ageing'] }],
-    ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'sha256_hash'], screens: ['M09-evidence', 'M09-rpt-evidence'] }], ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-cycle'] }],
-    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-rpt-rejection'] }], ['10', 'Reconciliation', 8, { model: 'fix.warranty.provision', cols: ['name', 'state', 'period', 'period_end', 'policy_id', 'revenue_in_warranty'], screens: ['M09-reserves', 'M09-recon'] }],
-    ['11', 'Recalls', 7, { model: 'fix.warranty.recall', cols: ['name', 'state', 'brand_id', 'product_ref', 'affected_units', 'covered_units', 'launched_on'], screens: ['M09-recalls', 'M09-rpt-recall'] }], ['12', 'Fraud Detection', 6, { screens: ['M09-fraud', 'M09-rpt-loss'] }]
+    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register'] }],
+    ['2', 'Manufacturer Validation', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'verification_state', 'verified_by', 'verified_at'], screens: ['M09-validate', 'M09-register'] }],
+    ['3', 'Repair Warranty', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'service_order_id', 'state', 'claim_amount', 'remittance_amount'], screens: ['M09-repair-wty', 'M09-claims'] }],
+    ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-protection'] }],
+    ['5', 'Protection Products', 13, { model: 'fix.warranty.product', cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit'], screens: ['M09-brandrules'] }],
+    ['6', 'Claim Assessment', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-ageing'] }],
+    ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'sha256_hash'], screens: ['M09-evidence', 'M09-rpt-evidence'] }],
+    ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-cycle'] }],
+    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-rpt-rejection'] }],
+    ['10', 'Reconciliation', 8, { model: 'fix.warranty.provision', cols: ['name', 'state', 'period', 'period_end', 'policy_id', 'revenue_in_warranty'], screens: ['M09-reserves', 'M09-recon'] }],
+    ['11', 'Recalls', 7, { model: 'fix.warranty.recall', cols: ['name', 'state', 'brand_id', 'product_ref', 'affected_units', 'covered_units', 'launched_on'], screens: ['M09-recalls', 'M09-rpt-recall'] }],
+    ['12', 'Fraud Detection', 6, { model: 'fix.warranty.claim', cols: ['claim_no', 'device_id', 'evidence_complete', 'missing_evidence', 'state'], screens: ['M09-fraud', 'M09-rpt-loss', 'M09-claims'] }]
   ] }
 };
 

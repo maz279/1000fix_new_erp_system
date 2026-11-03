@@ -54,16 +54,16 @@ export const MODULE = {
   freg: {
     src: 75,
     sub: [
-      ['1', 'Case Management (7 specialisms)', 12],
-      ['2', 'Media Chain of Custody', 11],
-      ['3', 'Evaluation & Quotation', 8],
-      ['4', 'Methodology Logging', 6],
-      ['5', 'Attempt Tracking', 5],
-      ['6', 'Recovered-Data Inventory', 5],
-      ['7', 'Secure Handover & Purge', 7],
-      ['8', 'Backup Plans', 6],
-      ['9', 'Secure Destruction', 9],
-      ['10', 'Access Control & Audit', 6]
+      ['1', 'Case Management (7 specialisms)', 12, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'specialism', 'media_type', 'state'], screens: ['M06-cases', 'M06-record'] }],
+      ['2', 'Media Chain of Custody', 11, { model: 'fix.data.media.unit', cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state'], screens: ['M06-custody', 'M06-cleanroom'] }],
+      ['3', 'Evaluation & Quotation', 8, { model: 'fix.data.quote', cols: ['name', 'case_id', 'amount', 'valid_until', 'state'], screens: ['M06-eval', 'M06-quotes'] }],
+      ['4', 'Methodology Logging', 6, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'method', 'donor_part_used', 'imaged_pct', 'notes'], screens: ['M06-attempts', 'M06-cleanroom'] }],
+      ['5', 'Attempt Tracking', 5, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'sequence', 'started_at', 'finished_at', 'outcome'], screens: ['M06-attempts'] }],
+      ['6', 'Recovered-Data Inventory', 5, { model: 'fix.data.recovery.case', cols: ['name', 'recovered_files_count', 'recovered_volume_gb', 'image_sha256_hash', 'state'], screens: ['M06-inventory'], domain: [['state', 'in', ['recovered', 'handover']]] }],
+      ['7', 'Secure Handover & Purge', 7, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'purge_certificate_id', 'residency_zone', 'state'], screens: ['M06-handover'], domain: [['state', 'in', ['handover', 'purged']]] }],
+      ['8', 'Backup Plans', 6, { model: 'fix.data.backup.plan', cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'next_test_due'], screens: ['M06-backup'] }],
+      ['9', 'Secure Destruction', 9, { model: 'fix.data.wipe.certificate', cols: ['name', 'serial_number', 'method', 'sanitization_status', 'certified_at'], screens: ['M06-destroy', 'M06-certs'] }],
+      ['10', 'Access Control & Audit', 6, { model: 'fix.z4.access.audit', cols: ['case_id', 'user_name', 'access_type', 'access_time', 'step_up_verified'], screens: ['M06-cases'] }]
     ]
   }
 };

@@ -29,7 +29,9 @@ SURFACES = {
     "fix.discount.approval": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # Approval was possible only by writing state (A03 audit); since R7
+        # it is decided from the approver's M63 inbox.
+        "actions": {"action_request_approval", "action_recall_approval"},
     },
     "fix.price.book": {
         "order": "name",

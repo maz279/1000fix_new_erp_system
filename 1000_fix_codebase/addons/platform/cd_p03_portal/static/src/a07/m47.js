@@ -44,11 +44,15 @@ export const MODULE = {
   forms: ['Site', 'Lease', 'Licence', 'Facility Work Order', 'Safety Inspection'],
   cross: ['M04 branch operations', 'M30 branch provisioning', 'M49 ROU assets', 'M59 safety committee'],
   freg: { src: 71, sub: [
-    ['1', 'Site Register', 7], ['2', 'Lease Administration', 11],
-    ['3', 'Statutory Compliance', 9], ['4', 'Utilities', 6],
-    ['5', 'Infrastructure Assets', 9], ['6', 'Building PM', 7],
-    ['7', 'Work Orders', 6], ['8', 'Safety & Security', 10],
-    ['9', 'Open / Close Projects', 6]
+    ['1', 'Site Register', 7, { model: 'fix.site', cols: ['name', 'site_type', 'branch_id', 'floor_area_sqm', 'state'], screens: ['M47-sites', 'M47-occupancy'] }],
+    ['2', 'Lease Administration', 11, { model: 'fix.site.lease', cols: ['name', 'site_id', 'lessor_id', 'end_date', 'monthly_rent', 'state'], screens: ['M47-leases', 'M47-dates'] }],
+    ['3', 'Statutory Compliance', 9, { model: 'fix.site.licence', cols: ['name', 'site_id', 'licence_type', 'valid_to', 'state'], screens: ['M47-licences', 'M47-dates'] }],
+    ['4', 'Utilities', 6, { model: 'fix.site.utility', cols: ['site_id', 'period', 'utility_type', 'amount', 'flagged'], screens: ['M47-utilities'] }],
+    ['5', 'Infrastructure Assets', 9, { model: 'fix.site.asset', cols: ['name', 'site_id', 'asset_type', 'tag', 'warranty_end', 'state'], screens: ['M47-infra'] }],
+    ['6', 'Building PM', 7, { model: 'fix.site.pm', cols: ['name', 'site_id', 'service_type', 'provider_id', 'scheduled_on', 'state'], screens: ['M47-pm'] }],
+    ['7', 'Work Orders', 6, { model: 'fix.facility.work.order', cols: ['name', 'site_id', 'work_type', 'scheduled_date', 'assigned_to', 'state'], screens: ['M47-wo'] }],
+    ['8', 'Safety & Security', 10, { model: 'fix.site.safety', cols: ['name', 'site_id', 'equipment_type', 'next_check', 'state'], screens: ['M47-safety', 'M47-security'] }],
+    ['9', 'Open / Close Projects', 6, { model: 'fix.site.project', cols: ['name', 'site_id', 'project_type', 'planned_on', 'budget', 'state'], screens: ['M47-opening'] }]
   ] }
 };
 

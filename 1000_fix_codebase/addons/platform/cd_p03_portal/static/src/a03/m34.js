@@ -47,10 +47,14 @@ export const MODULE = {
   forms: ['Survey', 'Complaint', 'Goodwill Credit', 'Detractor Follow-up', 'Survey Instrument'],
   cross: ['M01 Service Orders', 'M20 Credit Notes', 'M23 QMS / NCR'],
   freg: { src: 69, sub: [
-    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-design', 'M34-responses'] }], ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'] }],
-    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.cx.review', cols: ['name', 'state', 'customer_id', 'source', 'service_order_id', 'rating'], screens: ['M34-reviews'] }], ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id'], screens: ['M34-detractor', 'M34-rpt-loop'] }],
-    ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'] }], ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-escalation', 'M34-rpt-pareto'] }],
-    ['7', 'Compensation & Goodwill', 6, { screens: ['M34-goodwill'] }], ['8', 'VoC Analytics', 9, { screens: ['M34-voc', 'M34-journey', 'M34-rpt-sentiment'] }]
+    ['1', 'Survey Design & Distribution', 10, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-design', 'M34-responses'] }],
+    ['2', 'CSAT / NPS / CES', 7, { model: 'fix.survey', cols: ['state', 'customer_id', 'service_order_id', 'rating', 'nps_score', 'comment'], screens: ['M34-responses', 'M34-rpt-csat', 'M34-rpt-nps'] }],
+    ['3', 'Multi-Parameter Ratings', 6, { model: 'fix.cx.review', cols: ['name', 'state', 'customer_id', 'source', 'service_order_id', 'rating'], screens: ['M34-reviews'] }],
+    ['4', 'Closed Feedback Loop', 9, { model: 'fix.cx.followup', cols: ['name', 'state', 'customer_id', 'survey_id', 'reason', 'owner_id'], screens: ['M34-detractor', 'M34-rpt-loop'] }],
+    ['5', 'Complaint Management', 14, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-complaints'] }],
+    ['6', 'Categorisation & SLA', 8, { model: 'fix.complaint', cols: ['name', 'state', 'customer_id', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by'], screens: ['M34-escalation', 'M34-rpt-pareto'] }],
+    ['7', 'Compensation & Goodwill', 6, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'state', 'approved_by', 'issued_at'], screens: ['M34-goodwill'], domain: [['reason_code', '=', 'goodwill']] }],
+    ['8', 'VoC Analytics', 9, { model: 'fix.survey', cols: ['service_order_id', 'customer_id', 'rating', 'nps_score', 'ces_score'], screens: ['M34-voc', 'M34-journey', 'M34-rpt-sentiment', 'M34-responses'], domain: [['state', '=', 'responded']] }]
   ] }
 };
 
@@ -61,12 +65,38 @@ export const SCREENS = {
   'M34-throttle': { kind: 'model_list', model: 'fix.cx.throttle', stateField: 'suppressed',
     cols: ['partner_id', 'channel', 'max_per_month', 'sent_this_month', 'last_sent_at', 'suppressed', 'reason'] },
   'M34-complaints': { kind: 'model_list', model: 'fix.complaint', stateField: 'state',
-    cols: ['name', 'customer_id', 'category', 'severity', 'state', 'operating_unit_id', 'service_order_id'] },
+    cols: ['name', 'customer_id', 'category', 'severity', 'state', 'operating_unit_id', 'service_order_id'],
+    // The lifecycle moves only through these actions; the state field is
+    // read-only on the form (A03 workflow audit, 2026-11-03).
+    // ISO 10002 cl. 7, in lifecycle order (A03 P2, M34-3/M34-6).
+    actions: [
+      { m: 'action_take_ownership', l: 'Take Ownership' },
+      { m: 'action_assign', l: 'Assign Owner', ask: 'Login of the person who will own this complaint', kwarg: 'assignee' },
+      { m: 'action_assess', l: 'Assess', ask: 'Confirm the severity (minor, major or critical); leave blank to keep it', kwarg: 'severity' },
+      { m: 'action_reassess', l: 'Reassess Severity', ask: 'New severity (minor, major or critical), then the reason', kwarg: 'severity' },
+      { m: 'action_investigate', l: 'Start Investigation' },
+      { m: 'action_raise_ncr', l: 'Raise NCR' },
+      { m: 'action_record_root_cause', l: 'Record Root Cause' },
+      { m: 'action_verify_root_cause', l: 'Verify 5-Why' },
+      { m: 'action_open_capa', l: 'Open CAPA' },
+      { m: 'action_request_verification', l: 'Send CAPA to Verification' },
+      { m: 'action_request_approval', l: 'Request Concession Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_respond', l: 'Send Response', ask: 'Decision and remedy given to the customer', kwarg: 'response' },
+      { m: 'action_customer_accept', l: 'Customer Accepted', ask: 'What the customer said (optional)', kwarg: 'note' },
+      { m: 'action_customer_reject', l: 'Customer Rejected', ask: 'Why the customer rejected the response', kwarg: 'reason' },
+      { m: 'action_close', l: 'Close Complaint', ask: 'Resolution given to the customer', kwarg: 'resolution' },
+      { m: 'action_decline', l: 'Decline (Not Upheld)', ask: 'Why the complaint is not upheld', kwarg: 'reason' },
+      { m: 'action_reopen', l: 'Reopen', ask: 'Why the complaint is reopened', kwarg: 'reason' }
+    ] },
   'M34-escalation': { kind: 'table_report', module: 'M34', report: 'complaint_escalation', title: 'Severity & Escalation', period: false },
   'M34-goodwill': { kind: 'table_report', module: 'M34', report: 'goodwill_authority', title: 'Goodwill Authority', period: false },
   'M34-detractor': { kind: 'model_list', model: 'fix.cx.followup', stateField: 'state',
     cols: ['survey_id', 'customer_id', 'reason', 'owner_id', 'due_date', 'state'],
-    actions: [{ m: 'action_close_recovered', l: 'Mark Recovered' }] },
+    actions: [
+      { m: 'action_close_recovered', l: 'Mark Recovered' },
+      { m: 'action_raise_complaint', l: 'Raise / Link Complaint' }
+    ] },
   'M34-journey': { kind: 'table_report', module: 'M34', report: 'journey_measurement', title: 'Journey Measurement', period: false },
   'M34-voc': { kind: 'table_report', module: 'M34', report: 'voc_analytics', title: 'VoC Analytics', period: false },
   'M34-reviews': { kind: 'model_list', model: 'fix.cx.review', stateField: 'state',
@@ -141,13 +171,13 @@ export const SCREENS = {
     title: 'ISO 10002 Customer Complaint & Escalation Master', back: 'M34-complaints',
     status: { field: 'state' },
     tabs: [
-      { id: 'intake', label: '1. Intake & Classification', bn: '১. গ্রহণ ও তীব্রতা', icon: '⚠️', badge: '7' },
-      { id: 'acknowledgment', label: '2. Statutory Acknowledgment', bn: '২. স্বীকৃতি', icon: '⏱️', badge: '2' },
-      { id: 'rca_5why', label: '3. 5-Why Root Cause Analysis', bn: '৩. ফাইভ-হোয়াই মূল কারণ', icon: '🔍', badge: '2' },
+      { id: 'intake', label: '1. Intake & Classification', bn: '১. গ্রহণ ও তীব্রতা', icon: '⚠️', badge: '12' },
+      { id: 'acknowledgment', label: '2. Acknowledgment & SLA', bn: '২. স্বীকৃতি', icon: '⏱️', badge: '6' },
+      { id: 'rca_5why', label: '3. 5-Why Root Cause Analysis', bn: '৩. ফাইভ-হোয়াই মূল কারণ', icon: '🔍', badge: '5' },
       { id: 'capa', label: '4. CAPA & Quality NCR', bn: '৪. ক্যাপা ও এনসিআর', icon: '🛠️', badge: '4' },
-      { id: 'concession', label: '5. Concession & DOFA Approval', bn: '৫. ছাড়', icon: '💳', badge: '5' },
+      { id: 'concession', label: '5. Concession & DOFA Approval', bn: '৫. ছাড়', icon: '💳', badge: '10' },
       { id: 'docs', label: '6. Evidence & Documents', bn: '৬. প্রমাণ ও নথি', icon: '📑', badge: '2' },
-      { id: 'resolution', label: '7. Resolution & Closure', bn: '৭. চূড়ান্ত নিষ্পত্তি', icon: '✅', badge: '4' }
+      { id: 'resolution', label: '7. Response, Decision & Closure', bn: '৭. চূড়ান্ত নিষ্পত্তি', icon: '✅', badge: '13' }
     ],
     sections: [
       { tab: 'intake', title: 'Complaint Intake & Severity Tier', fields: [
@@ -156,34 +186,51 @@ export const SCREENS = {
         { name: 'service_order_id', label: 'Linked Service Order Ref' },
         { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
         { name: 'category', required: true, label: 'ISO 10002 Complaint Category' },
-        { name: 'severity', required: true, label: 'Severity Level (Minor / Moderate / Major / Critical)' },
-        { name: 'state', label: 'Complaint Workflow State' },
+        { name: 'severity', required: true, label: 'Severity Level (Minor / Major / Critical)' },
+        { name: 'state', readonly: true, label: 'Complaint Workflow State' },
+        { name: 'owner_id', readonly: true, label: 'Complaint Owner (Assess / Take Ownership / Assign)' },
+        { name: 'assessed_at', readonly: true, label: 'Assessed At' },
+        { name: 'intake_channel', readonly: true, label: 'Received Through' },
+        { name: 'conversation_id', readonly: true, label: 'Contact-Centre Conversation' },
+        { name: 'escalation_owner_id', readonly: true, label: '72-Hour Escalation Owner' },
       ]},
       { tab: 'acknowledgment', title: 'Statutory 24-Hour Customer Acknowledgment (FLAW-34.3)',
         note: 'ISO 10002 and company SLA mandate formal customer acknowledgment via SMS/email within 24 hours of complaint intake.',
         fields: [
           { name: 'acknowledged_at', label: 'Formal Customer Acknowledgment Timestamp', readonly: true },
           { name: 'description', required: true, label: 'Customer Grievance Statement / Description', type: 'text' },
+          { name: 'sla_policy_id', readonly: true, label: 'SLA Policy (from severity and branch)' },
+          { name: 'sla_resolution_state', readonly: true, label: 'Resolution SLA' },
+          { name: 'escalated_at', readonly: true, label: 'Escalated At' },
+          { name: 'quality_warning', readonly: true, label: 'Branch Quality Warning' },
         ]},
       { tab: 'rca_5why', title: 'Mandatory 5-Why Root Cause Analysis (FLAW-34.1)',
-        note: 'Major and Critical complaints CANNOT be resolved without a fully documented 5-Why Root Cause Analysis signed off by Quality Assurance.',
+        note: 'Major and Critical complaints are not answered or closed until the 5-Why is written and then verified by a second person (Verify 5-Why). Editing it afterwards withdraws the verification.',
         fields: [
-          { name: 'root_cause_5why', required: true, label: '5-Why Root Cause Investigation Details', type: 'text' },
-          { name: 'five_why_verified', label: '5-Why Quality Assurance Formal Signoff' },
+          { name: 'root_cause_5why', label: '5-Why Root Cause Investigation Details', type: 'text' },
+          { name: 'root_cause_author_id', readonly: true, label: '5-Why Written By' },
+          { name: 'five_why_verified', readonly: true, label: '5-Why Verified' },
+          { name: 'five_why_verified_by_id', readonly: true, label: '5-Why Verified By' },
+          { name: 'five_why_verified_at', readonly: true, label: '5-Why Verified At' },
         ]},
       { tab: 'capa', title: 'Corrective & Preventive Action (CAPA) & Quality NCR', fields: [
         { name: 'capa_id', label: 'Linked CAPA Action Plan Ref' },
         { name: 'capa_stub_ref', label: 'CAPA Cross-Module Tracking Code' },
-        { name: 'ncr_id', label: 'Non-Conformance Report (NCR) Ref' },
-        { name: 'ncr_stub_ref', label: 'M23 Quality Management NCR Reference' },
+        { name: 'ncr_id', readonly: true, label: 'Non-Conformance Report (NCR) Ref' },
+        { name: 'ncr_stub_ref', readonly: true, label: 'M23 Quality Management NCR Reference' },
       ]},
       { tab: 'concession', title: 'Financial Goodwill Concession & DOFA Gating (FLAW-34.2)',
         note: 'Financial concessions (refunds, goodwill credits, free accessories) mandate DOFA authorization before voucher issuance or accounts posting.',
         fields: [
           { name: 'concession_amount', label: 'Concession Commercial Amount (BDT)' },
           { name: 'concession_type', label: 'Concession Category (Credit Note / Waiver / Replacement)' },
-          { name: 'concession_approved', label: 'DOFA Concession Authorization Granted' },
-          { name: 'concession_approver_id', label: 'Authorized DOFA Executive Approver' },
+          { name: 'dofa_justification', label: 'DOFA Approval Justification (mandatory at Tier 2+)', type: 'text' },
+          { name: 'dofa_tier_required', readonly: true, label: 'DOFA Tier Required' },
+          { name: 'concession_approved', readonly: true, label: 'DOFA Concession Authorization Granted' },
+          { name: 'concession_approver_id', readonly: true, label: 'Authorized DOFA Executive Approver' },
+          { name: 'approval_state', readonly: true, label: 'Approval Request (M63)' },
+          { name: 'concession_settled_amount', readonly: true, label: 'Documented (Credit Note / Voucher)' },
+          { name: 'concession_settlement_note', readonly: true, label: 'Settlement', type: 'text' },
           { name: 'currency_id', label: 'Transaction Currency', readonly: true },
         ]},
       { tab: 'docs', title: 'Complaint Evidence & Document Repository (ISO 10002 / CRPA 2009)',
@@ -192,8 +239,18 @@ export const SCREENS = {
           { name: 'ncr_id', label: 'Quality NCR Evidence Ref', readonly: true },
           { name: 'capa_id', label: 'CAPA Action Evidence Ref', readonly: true },
         ]},
-      { tab: 'resolution', title: 'Customer Resolution Letter & Service Recovery', fields: [
-        { name: 'resolution', required: true, label: 'Formal Customer Resolution Statement', type: 'text' },
+      { tab: 'resolution', title: 'Response, Customer Decision & Closure (ISO 10002 cl. 7.7-7.9)',
+        note: 'Send Response records what was offered; the customer then accepts or rejects it. Only an accepted response closes, and closing raises the concession credit note or voucher and the post-resolution survey.',
+        fields: [
+        { name: 'customer_response', readonly: true, label: 'Response Given to the Customer', type: 'text' },
+        { name: 'responded_at', readonly: true, label: 'Responded At' },
+        { name: 'customer_decision', readonly: true, label: 'Customer Decision' },
+        { name: 'customer_decision_note', readonly: true, label: 'Customer Comment', type: 'text' },
+        { name: 'customer_rejection_count', readonly: true, label: 'Responses Rejected' },
+        { name: 'resolution', readonly: true, label: 'Formal Customer Resolution Statement (set on Close)', type: 'text' },
+        { name: 'closed_at', readonly: true, label: 'Closed At' },
+        { name: 'reopen_count', readonly: true, label: 'Times Reopened' },
+        { name: 'reopen_reason', readonly: true, label: 'Last Reopen Reason', type: 'text' },
         { name: 'company_id', label: 'Operating Corporate Legal Entity' },
         { name: 'create_date', label: 'Complaint Intake Timestamp', readonly: true },
         { name: 'write_date', label: 'Final Resolution Timestamp', readonly: true },
@@ -262,7 +319,8 @@ export const SCREENS = {
           { name: 'survey_id', required: true, label: 'Survey Response' },
           { name: 'reason', required: true, label: 'Detractor Trigger' },
           { name: 'owner_id', label: 'Recovery Owner' },
-          { name: 'due_date', required: true, label: 'Follow-up Due Date' }
+          { name: 'due_date', required: true, label: 'Follow-up Due Date' },
+          { name: 'complaint_id', readonly: true, label: 'Linked Complaint' }
         ]
       },
       {

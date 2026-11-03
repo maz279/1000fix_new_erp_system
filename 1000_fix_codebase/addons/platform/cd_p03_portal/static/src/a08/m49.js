@@ -52,9 +52,14 @@ export const MODULE = {
   forms: ['Capex Request', 'Asset Capitalisation', 'Transfer', 'Disposal', 'Revaluation / Impairment', 'Lease Contract'],
   cross: ['Financial Accounting & GL', 'Enterprise Assets & Test Equipment', 'Fleet & Vehicles'],
   freg: { src: 66, sub: [
-    ['1', 'Capex & Approval', 9], ['2', 'Register & Capitalisation', 11], ['3', 'Componentisation', 5],
-    ['4', 'Dual-Book Depreciation', 12], ['5', 'Revaluation & Impairment', 7], ['6', 'Transfers & Custody', 6],
-    ['7', 'Verification & Tagging', 7], ['8', 'Disposal', 9]
+    ['1', 'Capex & Approval', 9, { model: 'fix.capex.request', cols: ['name', 'title', 'request_date', 'amount', 'state'], screens: ['M49-requests', 'M49-budget', 'M49-capex-budget'] }],
+    ['2', 'Register & Capitalisation', 11, { model: 'fix.fixed.asset', cols: ['code', 'name', 'category_id', 'gross', 'state'], screens: ['M49-register', 'M49-categories', 'M49-nbv', 'M49-leases'] }],
+    ['3', 'Componentisation', 5, { model: 'fix.cwip.entry', cols: ['name', 'category_id', 'life_months', 'amount', 'asset_id'], screens: ['M49-cwip'] }],
+    ['4', 'Dual-Book Depreciation', 12, { model: 'fix.asset.depreciation.run', cols: ['name', 'book', 'period_start', 'total_amount', 'state'], screens: ['M49-dep', 'M49-dualbook', 'M49-schedules', 'M49-taxrates'] }],
+    ['5', 'Revaluation & Impairment', 7, { model: 'fix.asset.revaluation', cols: ['asset_id', 'kind', 'date', 'new_value', 'state'], screens: ['M49-impairment'] }],
+    ['6', 'Transfers & Custody', 6, { model: 'fix.asset.transfer', cols: ['asset_id', 'date', 'from_operating_unit_id', 'operating_unit_id', 'state'], screens: ['M49-transfer'] }],
+    ['7', 'Verification & Tagging', 7, { model: 'fix.asset.verification.campaign', cols: ['name', 'date', 'operating_unit_id', 'responsible_id', 'state'], screens: ['M49-verify', 'M49-verify-results'] }],
+    ['8', 'Disposal', 9, { model: 'fix.asset.disposal', cols: ['asset_id', 'kind', 'date', 'gain_loss', 'state'], screens: ['M49-disposal', 'M49-disposal-gl'] }]
   ] }
 };
 

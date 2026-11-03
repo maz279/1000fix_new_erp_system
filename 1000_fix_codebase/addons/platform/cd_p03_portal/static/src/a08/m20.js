@@ -58,9 +58,16 @@ export const MODULE = {
   forms: ['Invoice Request', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 99, sub: [
-    ['1', 'Billable-Event Intake', 12], ['2', 'Invoice Assembly', 12], ['3', 'Mushak 6.3 Rendering', 8],
-    ['4', 'Delivery Channels', 6], ['5', 'Receipt Capture (8 methods)', 14], ['6', 'Matching & Allocation', 11],
-    ['7', 'Credit Control', 9], ['8', 'Dunning & Collections', 12], ['9', 'Credit Notes & Refunds', 8], ['10', 'Leakage Detection', 7]
+    ['1', 'Billable-Event Intake', 12, { model: 'fix.ar.invoice', cols: ['name', 'source_model', 'source_id', 'invoice_date', 'state'], screens: ['M20-events'] }],
+    ['2', 'Invoice Assembly', 12, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'invoice_date', 'total_payable', 'state'], screens: ['M20-invoices', 'M20-consolidated', 'M20-brand'] }],
+    ['3', 'Mushak 6.3 Rendering', 8, { model: 'fix.ar.invoice', cols: ['name', 'mushak_id', 'generated_at', 'vat_amount', 'total_payable'], screens: ['M20-invoice'] }],
+    ['4', 'Delivery Channels', 6, { model: 'fix.ar.consolidated.bill', cols: ['bill_ref', 'customer_id', 'period_start', 'total_payable', 'state'], screens: ['M20-statements', 'M20-ar-consolidated-bill'] }],
+    ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links'] }],
+    ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-closeout', 'M20-vds', 'M20-vds-register'] }],
+    ['7', 'Credit Control', 9, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'exposure', 'over_limit', 'credit_hold'], screens: ['M20-credit', 'M20-aging', 'M20-ecl'] }],
+    ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-disputes', 'M20-ar-dispute'] }],
+    ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register'] }],
+    ['10', 'Leakage Detection', 7, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'manual_reason', 'total_payable', 'state'], screens: ['M20-leakage'] }]
   ] }
 };
 

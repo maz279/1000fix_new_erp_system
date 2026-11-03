@@ -44,10 +44,16 @@ export const MODULE = {
   forms: ['Partner', 'Deal Registration', 'Rebate Scheme', 'Franchise Agreement'],
   cross: ['M07 CRM', 'M12 Marketplace', 'M35 Marketing', 'M20 AR'],
   freg: { src: 80, sub: [
-    ['1', 'Partner Master', 10, { model: 'fix.partner', cols: ['name', 'state', 'partner_type', 'commission_rate', 'territory', 'technical_audit_score'], screens: ['M40-partners'] }], ['2', 'Recruitment & Onboarding', 8, { model: 'fix.partner.authorisation', cols: ['name', 'state', 'partner_id', 'brand_id', 'scope', 'valid_from', 'valid_to'], screens: ['M40-authorisation'] }],
-    ['3', 'Brand Relations', 9, { screens: ['M40-brand'] }], ['4', 'Alliances', 6, { screens: ['M40-alliance', 'M40-comarketing'] }], ['5', 'Referrals', 8, { model: 'fix.referral', cols: ['name', 'state', 'partner_id', 'referred_partner_id', 'base_amount', 'commission_amount'], screens: ['M40-referral', 'M40-rpt-referral'] }],
-    ['6', 'Deal Registration', 7, { model: 'fix.partner.deal', cols: ['name', 'state', 'partner_id', 'customer_id', 'value', 'registered_on'], screens: ['M40-dealreg', 'M40-rpt-deals'] }], ['7', 'Resellers', 6, { screens: ['M40-reseller'] }], ['8', 'Franchise', 9, { model: 'fix.partner.franchise', cols: ['name', 'state', 'partner_id', 'territory', 'fee', 'start_date', 'end_date'], screens: ['M40-franchise'] }],
-    ['9', 'Commercial Terms', 8, { model: 'fix.partner.rebate', cols: ['name', 'state', 'partner_id', 'amount', 'period', 'basis', 'rate'], screens: ['M40-rebates', 'M40-rpt-rebates'] }], ['10', 'Performance', 9, { model: 'fix.partner.conflict', cols: ['name', 'state', 'customer_id', 'partner_a_id', 'partner_b_id', 'dofa_arbitrator_id', 'dofa_decision'], screens: ['M40-conflict', 'M40-health', 'M40-ranking'] }]
+    ['1', 'Partner Master', 10, { model: 'fix.partner', cols: ['name', 'state', 'partner_type', 'commission_rate', 'territory', 'technical_audit_score'], screens: ['M40-partners'] }],
+    ['2', 'Recruitment & Onboarding', 8, { model: 'fix.partner.authorisation', cols: ['name', 'state', 'partner_id', 'brand_id', 'scope', 'valid_from', 'valid_to'], screens: ['M40-authorisation'] }],
+    ['3', 'Brand Relations', 9, { model: 'fix.partner.authorisation', cols: ['name', 'partner_id', 'brand_id', 'valid_to', 'state'], screens: ['M40-brand', 'M40-authorisation'] }],
+    ['4', 'Alliances', 6, { model: 'fix.partner', cols: ['name', 'territory', 'commission_rate', 'contract_id', 'state'], screens: ['M40-alliance', 'M40-comarketing', 'M40-partners'], domain: [['partner_type', '=', 'alliance']] }],
+    ['5', 'Referrals', 8, { model: 'fix.referral', cols: ['name', 'state', 'partner_id', 'referred_partner_id', 'base_amount', 'commission_amount'], screens: ['M40-referral', 'M40-rpt-referral'] }],
+    ['6', 'Deal Registration', 7, { model: 'fix.partner.deal', cols: ['name', 'state', 'partner_id', 'customer_id', 'value', 'registered_on'], screens: ['M40-dealreg', 'M40-rpt-deals'] }],
+    ['7', 'Resellers', 6, { model: 'fix.partner', cols: ['name', 'partner_id', 'territory', 'commission_rate', 'state'], screens: ['M40-reseller', 'M40-partners'], domain: [['partner_type', '=', 'reseller']] }],
+    ['8', 'Franchise', 9, { model: 'fix.partner.franchise', cols: ['name', 'state', 'partner_id', 'territory', 'fee', 'start_date', 'end_date'], screens: ['M40-franchise'] }],
+    ['9', 'Commercial Terms', 8, { model: 'fix.partner.rebate', cols: ['name', 'state', 'partner_id', 'amount', 'period', 'basis', 'rate'], screens: ['M40-rebates', 'M40-rpt-rebates'] }],
+    ['10', 'Performance', 9, { model: 'fix.partner.conflict', cols: ['name', 'state', 'customer_id', 'partner_a_id', 'partner_b_id', 'dofa_arbitrator_id', 'dofa_decision'], screens: ['M40-conflict', 'M40-health', 'M40-ranking'] }]
   ] }
 };
 

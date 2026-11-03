@@ -45,11 +45,17 @@ export const MODULE = {
   forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request'],
   cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR'],
   freg: { src: 97, sub: [
-    ['1', 'Pricing Engine', 12, { screens: ['M11-engine'] }], ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }], ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-labour'] }],
-    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-parts'] }], ['5', 'Customer/Contract Pricing', 8, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }],
-    ['6', 'Brand Reimbursement', 7, { screens: ['M11-brand', 'M11-rpt-brand'] }], ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-rpt-discount'] }],
-    ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'] }], ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'] }],
-    ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'] }], ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions'] }]
+    ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation'] }],
+    ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }],
+    ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-labour'] }],
+    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from'], screens: ['M11-parts'] }],
+    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books'] }],
+    ['6', 'Brand Reimbursement', 7, { model: 'fix.warranty.claim', cols: ['brand_id', 'claim_no', 'claim_amount', 'remittance_amount', 'state'], screens: ['M11-brand', 'M11-rpt-brand'] }],
+    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-rpt-discount'] }],
+    ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'] }],
+    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'] }],
+    ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'] }],
+    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions'] }]
   ] }
 };
 
@@ -69,7 +75,12 @@ export const SCREENS = {
   'M11-adjust': { kind: 'model_list', model: 'fix.dynamic.price.rule', stateField: 'active',
     cols: ['name', 'channel', 'rule_type', 'adjustment_pct', 'surge_multiplier', 'active'] },
   'M11-discounts': { kind: 'model_list', model: 'fix.discount.approval', stateField: 'state',
-    cols: ['quotation_id', 'discount_pct', 'state', 'approved_by', 'justification'] },
+    cols: ['quotation_id', 'discount_pct', 'state', 'approval_state', 'approved_by', 'justification'],
+    // Approved or rejected from the approver's M63 inbox (A03 audit R7).
+    actions: [
+      { m: 'action_request_approval', l: 'Request Discount Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
+    ] },
   'M11-floors': { kind: 'model_list', model: 'fix.price.floor', stateField: 'active',
     cols: ['product_code', 'name', 'floor_price', 'book_id', 'active'] },
   'M11-promos': { kind: 'model_list', model: 'fix.promotion', stateField: 'state',

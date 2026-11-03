@@ -45,10 +45,16 @@ export const MODULE = {
   forms: ['Online Order', 'RMA Request', 'Storefront Slot', 'Delivery Slot'],
   cross: ['M20 AR', 'M37 Catalogue', 'M11 Pricing', 'M31 Refurb'],
   freg: { src: 92, sub: [
-    ['1', 'Storefront & Browse', 12, { screens: ['M38-storefront', 'M38-rpt-funnel'] }], ['2', 'Merchandising', 7, { screens: ['M38-merch', 'M38-compat'] }], ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'state', 'customer_id', 'total', 'order_id'], screens: ['M38-carts'] }],
-    ['4', 'Checkout & Payments', 14, { screens: ['M38-checkout', 'M38-rpt-pay'] }], ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['state'], screens: ['M38-orders'] }], ['6', 'Stock Exposure', 6, { model: 'fix.graded.stock', cols: ['name', 'state', 'device_id', 'grade_id', 'location_id'], screens: ['M38-stock', 'M38-rpt-refurb'] }],
-    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-rpt-rma'] }], ['8', 'B2B Commerce', 11, { model: 'fix.storefront.return', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'refund_amount'], screens: ['M38-storefront-return'] }], ['9', 'Recovery & Analytics', 9, { screens: ['M38-recovery', 'M38-rpt-recovery'] }],
-    ['10', 'Service Booking Commerce', 6, { screens: ['M38-delivery', 'M38-rpt-delivery'] }]
+    ['1', 'Storefront & Browse', 12, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-storefront', 'M38-rpt-funnel', 'M38-carts'] }],
+    ['2', 'Merchandising', 7, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M38-merch', 'M38-compat', 'M38-stock'] }],
+    ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'state', 'customer_id', 'total', 'order_id'], screens: ['M38-carts'] }],
+    ['4', 'Checkout & Payments', 14, { model: 'fix.storefront.order', cols: ['name', 'customer_id', 'payment_rail', 'total_amount', 'state'], screens: ['M38-checkout', 'M38-rpt-pay', 'M38-orders'] }],
+    ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['state'], screens: ['M38-orders'] }],
+    ['6', 'Stock Exposure', 6, { model: 'fix.graded.stock', cols: ['name', 'state', 'device_id', 'grade_id', 'location_id'], screens: ['M38-stock', 'M38-rpt-refurb'] }],
+    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-rpt-rma'] }],
+    ['8', 'B2B Commerce', 11, { model: 'fix.storefront.return', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'refund_amount'], screens: ['M38-storefront-return'] }],
+    ['9', 'Recovery & Analytics', 9, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-recovery', 'M38-rpt-recovery', 'M38-carts'], domain: [['state', 'in', ['open', 'checkout']]] }],
+    ['10', 'Service Booking Commerce', 6, { model: 'fix.storefront.slot', cols: ['name', 'slot_date', 'capacity', 'booked', 'state'], screens: ['M38-delivery', 'M38-rpt-delivery'] }]
   ] }
 };
 

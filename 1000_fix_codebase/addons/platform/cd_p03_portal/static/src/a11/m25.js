@@ -47,9 +47,13 @@ export const MODULE = {
   forms: ['Dashboard', 'Distribution Schedule', 'Alert Subscription'],
   cross: ['All Modules'],
   freg: { src: 58, sub: [
-    ['1', 'Role Dashboards', 12], ['2', 'Standard Report Library', 10], ['3', 'Self-Service', 8],
-    ['4', 'Distribution & Alerting', 9], ['5', 'Embedded Analytics', 7], ['6', 'Mobile', 5],
-    ['7', 'Lifecycle & Usage', 7]
+    ['1', 'Role Dashboards', 12, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-ceo', 'M25-coo', 'M25-cfo', 'M25-ccO'] }],
+    ['2', 'Standard Report Library', 10, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'is_shared', 'owner_id'], screens: ['M25-weekly', 'M25-branch', 'M25-service', 'M25-finance'] }],
+    ['3', 'Self-Service', 8, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'is_shared', 'last_viewed_at'], screens: ['M25-builder', 'M25-datasets', 'M25-bi'] }],
+    ['4', 'Distribution & Alerting', 9, { model: 'fix.bi.distribution.schedule', cols: ['name', 'report_key', 'cadence', 'format', 'last_status'], screens: ['M25-schedules', 'M25-alerts'] }],
+    ['5', 'Embedded Analytics', 7, { model: 'fix.bi.sync.config', cols: ['name', 'dataset_scope', 'target_workspace', 'sync_frequency', 'enabled'], screens: ['M25-sync', 'M25-logs'] }],
+    ['6', 'Mobile', 5, { model: 'fix.bi.dashboard', cols: ['name', 'role', 'owner_id', 'last_viewed_at'], screens: ['M25-coo', 'M25-people', 'M25-quality'] }],
+    ['7', 'Lifecycle & Usage', 7, { model: 'fix.bi.dashboard', cols: ['name', 'owner_id', 'last_viewed_at', 'is_shared'], screens: ['M25-builder', 'M25-logs'] }]
   ] }
 };
 

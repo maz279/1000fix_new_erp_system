@@ -55,26 +55,30 @@ export const MODULE = {
       { id: 'M32-asks', en: 'Grounded Answers Log', bn: 'গ্রাউন্ডেড উত্তর', t: 'g' },
       { id: 'M32-form-ask', en: 'Grounded Answer', bn: 'উত্তর ফর্ম', t: 'f' }
     ]},
+    { en: 'NLU Release Gate', bn: 'এনএলইউ রিলিজ গেট', screens: [
+      { id: 'M32-datasets', en: 'NLU Release Bundles', bn: 'এনএলইউ রিলিজ বান্ডেল', t: 'g' },
+      { id: 'M32-form-dataset', en: 'NLU Release Bundle', bn: 'রিলিজ বান্ডেল ফর্ম', t: 'f' }
+    ]},
     { en: 'Intent Mining', bn: 'ইনটেন্ট মাইনিং', screens: [
       { id: 'M32-intent-candidates', en: 'Candidate Intents', bn: 'প্রস্তাবিত ইনটেন্ট', t: 'g' },
       { id: 'M32-form-intent-candidate', en: 'Candidate Intent', bn: 'প্রস্তাব ফর্ম', t: 'f' }
     ]}
   ],
   reports: ['Intent Coverage & FCR', 'Handoff Reasons', 'Guard-Rail Intervention Log', 'Bengali vs English Performance', 'Assistant CSAT'],
-  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'Grounded Answer', 'Candidate Intent'],
+  forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'Grounded Answer', 'Candidate Intent', 'NLU Release Bundle'],
   cross: ['M27 Contact Centre', 'M33 Party Master', 'M01 Service Orders Central Hub', 'M61 Knowledge Base'],
   freg: {
     src: 62,
     sub: [
       ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-rpt-coverage'] }],
-      ['2', 'Entity Extraction', 7, { screens: ['M32-entities'] }],
+      ['2', 'Entity Extraction', 7, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'question', 'language', 'grounded'], screens: ['M32-entities', 'M32-asks'] }],
       ['3', 'Dialogue Management', 8, { model: 'fix.assistant.dialogue', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M32-dialogue'] }],
       ['4', 'RAG Grounding', 7, { model: 'fix.assistant.rag.source', cols: ['name', 'active', 'source_type', 'reference', 'chunk_count', 'last_indexed_at'], screens: ['M32-rag'] }],
       ['5', 'Authenticated Actions', 6, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M32-sessions'] }],
       ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'active', 'rule', 'action', 'note'], screens: ['M32-guardrails', 'M32-rpt-guardlog'] }],
-      ['7', 'Handoff Decision', 5, { screens: ['M32-handoff', 'M32-rpt-handoffrsn'] }],
-      ['8', 'Agent Assistance', 6, { screens: ['M32-assist'] }],
-      ['9', 'Analytics', 7, { screens: ['M32-analytics', 'M32-rpt-langperf', 'M32-rpt-csat'] }]
+      ['7', 'Handoff Decision', 5, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'handoff_reason', 'state'], screens: ['M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], domain: [['state', 'in', ['with_agent', 'resolved_agent']]] }],
+      ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human'], screens: ['M32-assist', 'M32-asks'], domain: [['consumer', '=', 'm27_agent_assist']] }],
+      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'] }]
     ]
   }
 };
@@ -283,9 +287,10 @@ export const SCREENS = {
   'M32-asks': { kind: 'model_list', model: 'fix.assistant.ask', create: false,
     cols: ['asked_at', 'consumer', 'intent', 'engine', 'grounded', 'guardrail_verdict', 'requires_human', 'latency_ms'],
     actions: [
-      { m: 'action_mark_reviewed', l: 'Mark Reviewed' }
+      { m: 'action_mark_reviewed', l: 'Mark Reviewed' },
+      { m: 'action_send_to_customer', l: 'Send to Customer' }
     ],
-    note: 'Every AI answer with its basis and citations. An answer that cites nothing is refused rather than shown.' },
+    note: 'Every AI answer with its basis and citations. An answer that cites nothing is refused rather than shown. One that needs review is sent only after someone other than the asker reviews it.' },
   'M32-form-ask': {
     kind: 'model_form', model: 'fix.assistant.ask',
     title: 'Grounded Answer', back: 'M32-asks',
@@ -300,14 +305,14 @@ export const SCREENS = {
         tab: 'question',
         title: 'What Was Asked',
         fields: [
-        { name: 'asked_at', label: 'Asked At', required: true },
-        { name: 'asked_by', label: 'Asked By' },
-        { name: 'consumer', label: 'Consumer', required: true },
-        { name: 'intent', label: 'Intent' },
-        { name: 'question', label: 'Question', required: true },
-        { name: 'language', label: 'Language' },
-        { name: 'conversation_id', label: 'Conversation' },
-        { name: 'partner_id', label: 'Customer' }
+        { name: 'asked_at', label: 'Asked At', required: true, readonly: true },
+        { name: 'asked_by', label: 'Asked By', readonly: true },
+        { name: 'consumer', label: 'Consumer', required: true, readonly: true },
+        { name: 'intent', label: 'Intent', readonly: true },
+        { name: 'question', label: 'Question', required: true, readonly: true },
+        { name: 'language', label: 'Language', readonly: true },
+        { name: 'conversation_id', label: 'Conversation', readonly: true },
+        { name: 'partner_id', label: 'Customer', readonly: true }
         ]
       },
       {
@@ -315,13 +320,13 @@ export const SCREENS = {
         title: 'Answer And Its Basis',
         note: 'An answer that cites nothing is refused rather than shown. The engine column is never hidden: a rule-based answer presented as generative misleads whoever is deciding how much to trust it.',
         fields: [
-        { name: 'answer_bn', label: 'Answer (Bengali)' },
-        { name: 'answer_en', label: 'Answer (English)' },
-        { name: 'grounded', label: 'Grounded' },
-        { name: 'citations', label: 'Citations' },
-        { name: 'engine', label: 'Engine', required: true },
-        { name: 'provider_id', label: 'Provider' },
-        { name: 'latency_ms', label: 'Latency (ms)' }
+        { name: 'answer_bn', label: 'Answer (Bengali)', readonly: true },
+        { name: 'answer_en', label: 'Answer (English)', readonly: true },
+        { name: 'grounded', label: 'Grounded', readonly: true },
+        { name: 'citations', label: 'Citations', readonly: true },
+        { name: 'engine', label: 'Engine', required: true, readonly: true },
+        { name: 'provider_id', label: 'Provider', readonly: true },
+        { name: 'latency_ms', label: 'Latency (ms)', readonly: true }
         ]
       },
       {
@@ -329,11 +334,88 @@ export const SCREENS = {
         title: 'Guardrails & Human Review',
         note: 'A generated answer always needs a human before it reaches a customer; a rule-grounded one does not, because its text was authored.',
         fields: [
-        { name: 'guardrail_verdict', label: 'Guardrail Verdict', required: true },
-        { name: 'guardrail_reason', label: 'Guardrail Reason' },
-        { name: 'requires_human', label: 'Requires Human Review' },
-        { name: 'human_reviewed_by', label: 'Reviewed By' },
-        { name: 'human_reviewed_at', label: 'Reviewed At' }
+        { name: 'guardrail_verdict', label: 'Guardrail Verdict', required: true, readonly: true },
+        { name: 'guardrail_reason', label: 'Guardrail Reason', readonly: true },
+        { name: 'requires_human', label: 'Requires Human Review', readonly: true },
+        { name: 'human_reviewed_by', label: 'Reviewed By', readonly: true },
+        { name: 'human_reviewed_at', label: 'Reviewed At', readonly: true },
+        { name: 'sent_at', label: 'Sent To Customer At', readonly: true },
+        { name: 'sent_by', label: 'Sent By', readonly: true },
+        { name: 'release_id', label: 'Released Bundle Used', readonly: true },
+        { name: 'runtime_basis', label: 'Model & Prompt Basis', readonly: true }
+        ]
+      }
+    ]
+  },
+  'M32-datasets': { kind: 'model_list', model: 'fix.assistant.dataset', create: true,
+    cols: ['name', 'dataset_type', 'language', 'prompt_version', 'benchmark_accuracy_pct', 'approval_state', 'state', 'released_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_compute_digest', l: 'Compute Digest' },
+      { m: 'action_run_benchmark', l: 'Run Benchmark' },
+      { m: 'action_request_approval', l: 'Request Release Approval', ask: 'Why should this bundle go to production?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' }
+    ],
+    note: 'Accuracy is measured against an independent golden set, never typed. A Tier-3 director other than the author and the requester releases from the approval inbox; the live assistant then runs on the released corpus, model and prompt.' },
+  'M32-form-dataset': {
+    kind: 'model_form', model: 'fix.assistant.dataset',
+    title: 'NLU Release Bundle', back: 'M32-datasets',
+    status: { field: 'state', labels: { draft: 'Draft', benchmarked: 'Benchmarked', released: 'Released', superseded: 'Superseded', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'bundle', label: '1. Bundle', bn: '১. বান্ডেল', icon: '📦' },
+      { id: 'runtime', label: '2. Model & Prompt', bn: '২. মডেল ও প্রম্পট', icon: '🤖' },
+      { id: 'evidence', label: '3. Benchmark Evidence', bn: '৩. বেঞ্চমার্ক প্রমাণ', icon: '📏' },
+      { id: 'release', label: '4. Release', bn: '৪. রিলিজ', icon: '🚀' }
+    ],
+    sections: [
+      {
+        tab: 'bundle',
+        title: 'What Is Being Released',
+        note: 'The corpus adds utterances to intents the assistant can already answer. Its digest is taken from the file itself.',
+        fields: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'dataset_type', label: 'Dataset Type', required: true },
+        { name: 'language', label: 'Language', required: true },
+        { name: 'authored_by_native_speaker', label: 'Native-Speaker Authored' },
+        { name: 'attachment_id', label: 'Stored File' },
+        { name: 'file_name', label: 'File Name' },
+        { name: 'sha256_checksum', label: 'SHA-256 Digest', readonly: true }
+        ]
+      },
+      {
+        tab: 'runtime',
+        title: 'What The Live Assistant Runs On',
+        note: 'Once released, the bot and the generator read these from this record. With nothing released they fall back to the built-in intents, the environment model and the code prompt, and the server log says so.',
+        fields: [
+        { name: 'model_name', label: 'Model Tag' },
+        { name: 'prompt_version', label: 'Prompt Version' },
+        { name: 'system_prompt', label: 'System Prompt' }
+        ]
+      },
+      {
+        tab: 'evidence',
+        title: 'Independent Benchmark',
+        note: 'The golden set must be prepared by someone other than the corpus author. Run Benchmark measures the accuracy; it cannot be typed.',
+        fields: [
+        { name: 'benchmark_dataset_id', label: 'Golden Benchmark Set' },
+        { name: 'benchmark_accuracy_pct', label: 'Measured Accuracy (%)', readonly: true },
+        { name: 'benchmark_cases', label: 'Golden Cases', readonly: true },
+        { name: 'benchmark_correct', label: 'Correct', readonly: true },
+        { name: 'benchmark_run_at', label: 'Benchmark Run At', readonly: true },
+        { name: 'benchmark_run_by', label: 'Benchmark Run By', readonly: true },
+        { name: 'benchmark_training_sha256', label: 'Corpus Digest Measured', readonly: true },
+        { name: 'benchmark_set_sha256', label: 'Golden Set Digest Used', readonly: true }
+        ]
+      },
+      {
+        tab: 'release',
+        title: 'Four-Eyes Release (M63)',
+        fields: [
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'approval_request_id', label: 'Approval Request', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'released_by', label: 'Released By', readonly: true },
+        { name: 'released_at', label: 'Released At', readonly: true }
         ]
       }
     ]
@@ -396,6 +478,7 @@ export const FORM_CHIPS = {
   'M32:Model Provider': 'M32-form-llm-provider',
   'M32:Grounded Answer': 'M32-form-ask',
   'M32:Candidate Intent': 'M32-form-intent-candidate',
+  'M32:NLU Release Bundle': 'M32-form-dataset',
   'M32:Intent': 'M32-form-intent',
   'M32:Dialogue Flow': 'M32-form-dialogue',
   'M32:Guard-Rail Rule': 'M32-form-guardrail',
@@ -404,6 +487,7 @@ export const FORM_CHIPS = {
     'fix.assistant.llm.provider': 'M32-form-llm-provider',
     'fix.assistant.ask': 'M32-form-ask',
     'fix.assistant.intent.candidate': 'M32-form-intent-candidate',
+    'fix.assistant.dataset': 'M32-form-dataset',
     'fix.assistant.intent': 'M32-form-intent',
     'fix.assistant.dialogue': 'M32-form-dialogue',
     'fix.assistant.guardrail': 'M32-form-guardrail',
@@ -413,6 +497,7 @@ export const FORM_CHIPS = {
     'M32-llm-providers': 'M32-form-llm-provider',
     'M32-asks': 'M32-form-ask',
     'M32-intent-candidates': 'M32-form-intent-candidate',
+    'M32-datasets': 'M32-form-dataset',
     'M32-intents': 'M32-form-intent',
     'M32-form-intent': 'M32-form-intent',
     'M32-dialogue': 'M32-form-dialogue',
@@ -423,6 +508,7 @@ export const FORM_CHIPS = {
 
 export const FORM_MODELS = {
   'M32:Candidate Intent': 'fix.assistant.intent.candidate',
+  'M32:NLU Release Bundle': 'fix.assistant.dataset',
   'M32:Grounded Answer': 'fix.assistant.ask',
   'M32:Model Provider': 'fix.assistant.llm.provider',
   'M32:Intent': 'fix.assistant.intent',

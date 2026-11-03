@@ -46,9 +46,14 @@ export const MODULE = {
   forms: ['Budget Version', 'Allocation Rule', 'Allocation Cycle', 'Scenario', 'Board Pack'],
   cross: ['Financial Accounting & GL', 'Workshop & Depot Repair', 'Business Intelligence'],
   freg: { src: 70, sub: [
-    ['1', 'Cost Model', 9], ['2', 'Allocation Cycles', 10], ['3', 'Job & Contract Costing', 11],
-    ['4', 'Business-Line Profitability', 9], ['5', 'Branch & Channel Profitability', 8], ['6', 'Budgeting', 11],
-    ['7', 'Variance & Forecast', 8], ['8', 'Board Pack', 4]
+    ['1', 'Cost Model', 9, { model: 'fix.cost.pool', cols: ['code', 'name', 'pool_type', 'receiver_type', 'allocation_basis'], screens: ['M54-pools', 'M54-loaded'] }],
+    ['2', 'Allocation Cycles', 10, { model: 'fix.cost.allocation', cols: ['name', 'pool_id', 'date_from', 'allocated_overhead', 'state'], screens: ['M54-allocation'] }],
+    ['3', 'Job & Contract Costing', 11, { model: 'fix.workshop.job', cols: ['name', 'customer_id', 'parts_total', 'labour_total', 'total_repair_cost'], screens: ['M54-jobs', 'M54-jobdist'] }],
+    ['4', 'Business-Line Profitability', 9, { model: 'fix.business.line', cols: ['code', 'name', 'revenue_stream_no', 'is_profit_centre'], screens: ['M54-lines', 'M54-streams', 'M54-unitecon'] }],
+    ['5', 'Branch & Channel Profitability', 8, { model: 'fix.journal.dimension', cols: ['branch_id', 'channel', 'business_line', 'cost_centre', 'move_line_id'], screens: ['M54-branches', 'M54-customers'] }],
+    ['6', 'Budgeting', 11, { model: 'fix.budget', cols: ['name', 'budget_type', 'fiscal_year', 'planned_amount', 'state'], screens: ['M54-budgets', 'M54-workflow'] }],
+    ['7', 'Variance & Forecast', 8, { model: 'fix.budget', cols: ['name', 'fiscal_year', 'planned_amount', 'actual_amount', 'variance'], screens: ['M54-bva', 'M54-rolling', 'M54-scenario'] }],
+    ['8', 'Board Pack', 4, { model: 'fix.board.pack', cols: ['name', 'date_from', 'date_to', 'issued_by', 'state'], screens: ['M54-board', 'M54-boardpacks'] }]
   ] }
 };
 

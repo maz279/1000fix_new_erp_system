@@ -59,18 +59,18 @@ export const MODULE = {
   freg: {
     src: 93,
     sub: [
-      ['1', 'Consignment Creation & Manifest', 10],
-      ['2', 'Multi-Leg Journey Planning', 8],
-      ['3', 'Chain-of-Custody Scanning', 9],
-      ['4', 'POD with OTP Verification', 7],
-      ['5', 'Sealing & Tamper Evidence', 6],
-      ['6', 'Rider Assignment & Shifts', 9],
-      ['7', 'Route Manifest & Load Planning', 8],
-      ['8', 'Rider App Offline Sync (P09)', 8],
-      ['9', 'Courier Partner Integration', 10],
-      ['10', 'COD Collection & Handover', 7],
-      ['11', 'Loss / Damage Claims', 6],
-      ['12', 'Distance & Zone Charging', 5]
+      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'] }],
+      ['2', 'Multi-Leg Journey Planning', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'location_branch_id', 'scanned_at'], screens: ['M03-journeys'] }],
+      ['3', 'Chain-of-Custody Scanning', 9, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'exception_reason'], screens: ['M03-custody', 'M03-record'] }],
+      ['4', 'POD with OTP Verification', 7, { model: 'fix.consignment', cols: ['name', 'recipient_name', 'pod_verified_at', 'pod_verified_by', 'state'], screens: ['M03-pod'], domain: [['state', '=', 'delivered']] }],
+      ['5', 'Sealing & Tamper Evidence', 6, { model: 'fix.consignment', cols: ['name', 'outbound_seal_number', 'inbound_seal_number', 'seal_status', 'weight_variance_g'], screens: ['M03-seals'] }],
+      ['6', 'Rider Assignment & Shifts', 9, { model: 'fix.consignment', cols: ['name', 'rider_id', 'scheduled_date', 'consignment_type', 'state'], screens: ['M03-riders'], domain: [['rider_id', '!=', false]] }],
+      ['7', 'Route Manifest & Load Planning', 8, { model: 'fix.consignment', cols: ['name', 'rider_id', 'vehicle_registration', 'chargeable_weight_kg', 'scheduled_date'], screens: ['M03-routes'], domain: [['state', 'in', ['confirmed', 'in_transit']]] }],
+      ['8', 'Rider App Offline Sync (P09)', 8, { model: 'fix.custody.scan', cols: ['consignment_id', 'step', 'scanned_by', 'scanned_at', 'device_serial'], screens: ['M03-app'] }],
+      ['9', 'Courier Partner Integration', 10, { model: 'fix.courier.booking', cols: ['name', 'partner_id', 'awb_no', 'booked_on', 'state'], screens: ['M03-bookings', 'M03-couriers', 'M03-recon'] }],
+      ['10', 'COD Collection & Handover', 7, { model: 'fix.cod.settlement', cols: ['name', 'rider_id', 'expected_amount', 'remitted_amount', 'state'], screens: ['M03-cod'] }],
+      ['11', 'Loss / Damage Claims', 6, { model: 'fix.damage.claim', cols: ['name', 'consignment_id', 'damage_kind', 'claimed_amount', 'state'], screens: ['M03-damage-claim', 'M03-exc'] }],
+      ['12', 'Distance & Zone Charging', 5, { model: 'fix.consignment', cols: ['name', 'chargeable_weight_kg', 'base_freight_bdt', 'volumetric_surcharge_bdt', 'insurance_fee_bdt'], screens: ['M03-charges'] }]
     ]
   }
 };

@@ -17,7 +17,12 @@ SURFACES = {
         # the lifecycle engine acts from the grid: budget DOFA approval and the
         # FLAW-35.1/35.2 launch gate fire from these actions
         "actions": {
-            "action_approve_budget",
+            # R7: the budget is decided from the M63 inbox.
+            "action_request_approval",
+            "action_recall_approval",
+            # A03 audit G-M35-8: the BTRC DND scrub had no screen, so no SMS
+            # campaign could pass the launch gate through the workspace.
+            "action_scrub_dnd",
             "action_launch",
             "action_pause",
             "action_resume",
@@ -32,7 +37,8 @@ SURFACES = {
     "fix.campaign.journey": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        # A03 audit G-M35-8: journeys could be authored but never started.
+        "actions": {"action_activate", "action_pause_journey", "action_resume_journey"},
     },
     "fix.campaign.trigger": {
         "order": "name",
@@ -47,7 +53,15 @@ SURFACES = {
     "fix.campaign.creative": {
         "order": "name",
         "limit": 200,
-        "actions": set(),
+        # A03 audit G-M35-10: content approval is routed through M63; the
+        # approver decides from the inbox, so there is no Approve here.
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_withdraw",
+            "action_retire",
+            "action_reset_to_draft",
+        },
     },
     "fix.campaign.ad": {
         "order": "name",
@@ -317,6 +331,13 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
                 "budget": round(c.budget, 2),
                 "consent_verified": "✓" if c.pdpa_consent_verified else "✗",
                 "excluded_no_consent": c.excluded_no_consent_count,
+                "dnd_scrub": (
+                    "%s (%d excluded)" % (c.dnd_scrubbed_at, c.dnd_excluded_count)
+                    if c.dnd_scrubbed_at
+                    else "not run"
+                ),
+                "approval": c.approval_state,
+                "creatives_waiting": c.creative_unapproved_count,
                 "start": str(c.start_date) if c.start_date else "—",
             }
         )
@@ -329,6 +350,9 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
             "budget",
             "consent_verified",
             "excluded_no_consent",
+            "dnd_scrub",
+            "approval",
+            "creatives_waiting",
             "start",
         ],
         {
@@ -338,12 +362,17 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
             "budget": "Budget",
             "consent_verified": "PDPA Consent Verified",
             "excluded_no_consent": "Excluded (no consent)",
+            "dnd_scrub": "BTRC DND Scrub",
+            "approval": "Budget Approval",
+            "creatives_waiting": "Creatives Not Approved",
             "start": "Start Date",
         },
         rows,
         [
             "A campaign cannot run until PDPA consent is verified; the excluded count is "
-            "the audience deliberately dropped for missing consent."
+            "the audience deliberately dropped for missing consent. SMS, e-mail and "
+            "portal campaigns also need a DND scrub within 24 hours of launch, and every "
+            "creative must be approved."
         ],
         empty="No campaigns awaiting approval.",
     )
@@ -351,12 +380,16 @@ def campaign_approval(env, date_from=None, date_to=None, **params):
 
 def budget_roi(env, date_from=None, date_to=None, **params):
     pack = attribution_roi(env)
+    spend = {c.name: c for c in _campaigns(env)}
     rows = []
     for row in pack["rows"]:
+        campaign = spend.get(row["campaign"])
         rows.append(
             {
                 "campaign": row["campaign"],
                 "budget": row["budget"],
+                "actual_spend": round(campaign.actual_spend, 2) if campaign else 0.0,
+                "variance": round(campaign.budget_variance, 2) if campaign else 0.0,
                 "cost_per_response": row["cost_per_response"],
                 "cost_per_conversion": row["cost_per_conversion"],
                 "responses": row["responses"],
@@ -368,6 +401,8 @@ def budget_roi(env, date_from=None, date_to=None, **params):
         [
             "campaign",
             "budget",
+            "actual_spend",
+            "variance",
             "cost_per_response",
             "cost_per_conversion",
             "responses",
@@ -376,6 +411,8 @@ def budget_roi(env, date_from=None, date_to=None, **params):
         {
             "campaign": "Campaign",
             "budget": "Budget",
+            "actual_spend": "Recorded Spend",
+            "variance": "Budget Remaining",
             "cost_per_response": "Cost / Response",
             "cost_per_conversion": "Cost / Conversion",
             "responses": "Responses",
@@ -384,7 +421,9 @@ def budget_roi(env, date_from=None, date_to=None, **params):
         rows,
         [
             "ROI ratio needs attributed revenue, which the response record does not carry "
-            "— cost metrics are shown instead of an invented return."
+            "— cost metrics are shown instead of an invented return.",
+            "Recorded spend is the S1 message cost of the campaign's sends plus offer "
+            "discounts redeemed; spend booked outside the estate is not on file.",
         ],
         empty="No campaigns yet.",
     )

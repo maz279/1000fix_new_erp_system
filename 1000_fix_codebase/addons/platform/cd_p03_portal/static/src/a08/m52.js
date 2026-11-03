@@ -51,9 +51,15 @@ export const MODULE = {
   forms: ['Vendor Bill', 'Expense Claim', 'Employee Advance', 'Debit Note', 'Vendor Tax Profile'],
   cross: ['Procurement & Sourcing', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
   freg: { src: 82, sub: [
-    ['1', 'Invoice Capture', 10], ['2', 'Matching', 11], ['3', 'Approval', 8],
-    ['4', 'Payable Ledger', 8], ['5', 'Payment Runs', 9], ['6', 'TDS/VDS', 9],
-    ['7', 'Employee Expenses', 14], ['8', 'Advances & Cards', 8], ['9', 'GRNI', 5]
+    ['1', 'Invoice Capture', 10, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'invoice_date', 'due_date', 'total_payable'], screens: ['M52-bills', 'M52-dupes'] }],
+    ['2', 'Matching', 11, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'bill_type', 'total_payable', 'match_state'], screens: ['M52-match'], domain: [['match_state', 'in', ['unmatched', 'blocked']]] }],
+    ['3', 'Approval', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'gross_amount', 'approval_level', 'approval_state'], screens: ['M52-approval', 'M52-matrix'], domain: [['approval_state', '!=', 'draft']] }],
+    ['4', 'Payable Ledger', 8, { model: 'fix.vendor.invoice', cols: ['vendor_id', 'invoice_ref', 'due_date', 'total_payable', 'payment_state'], screens: ['M52-aging', 'M52-notes'], domain: [['payment_state', '!=', 'paid']] }],
+    ['5', 'Payment Runs', 9, { model: 'fix.payment.run', cols: ['name', 'rail', 'payment_date', 'total_amount', 'state'], screens: ['M52-runs'] }],
+    ['6', 'TDS/VDS', 9, { model: 'fix.withholding.line', cols: ['document_date', 'tax_kind', 'partner_id', 'amount', 'state'], screens: ['M52-tds', 'M52-taxprofile'] }],
+    ['7', 'Employee Expenses', 14, { model: 'fix.expense.claim', cols: ['employee_id', 'description', 'expense_date', 'amount', 'state'], screens: ['M52-claims', 'M52-policy', 'M52-perdiem', 'M52-expcat'] }],
+    ['8', 'Advances & Cards', 8, { model: 'fix.employee.advance', cols: ['employee_id', 'advance_type', 'amount', 'balance', 'state'], screens: ['M52-advances'] }],
+    ['9', 'GRNI', 5, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M52-grni'] }]
   ] }
 };
 

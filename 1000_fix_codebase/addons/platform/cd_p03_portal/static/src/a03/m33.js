@@ -125,8 +125,15 @@ export const SCREENS = {
 
   /* --- Identity & Verification --- */
   'M33-identity': { kind: 'model_list', model: 'fix.identity.document',
-    cols: ['partner_id', 'document_type', 'checksum_valid', 'verification_status', 'expiry_date'],
-    stateField: 'verification_status' },
+    cols: ['partner_id', 'document_type', 'checksum_valid', 'verification_status', 'verified_by', 'expiry_date'],
+    stateField: 'verification_status',
+    // A03 audit M33-9: KYC is a data-steward decision that stamps the
+    // verifier; whoever captured the document cannot verify it.
+    actions: [
+      { m: 'action_kyc_submit', l: 'Submit for Verification' },
+      { m: 'action_kyc_verify', l: 'Verify (Data Steward)' },
+      { m: 'action_kyc_fail', l: 'Fail Verification', ask: 'Why did the verification fail?', kwarg: 'reason' }
+    ] },
   'M33-otp': { kind: 'model_list', model: 'fix.otp.log', create: false,
     cols: ['requested_at', 'partner_id', 'channel', 'destination_masked', 'state', 'verified_at'],
     stateField: 'state',
@@ -135,11 +142,12 @@ export const SCREENS = {
       { m: 'action_expire', l: 'Expire' }
     ] },
   'M33-approval': { kind: 'model_list', model: 'fix.registration.approval', create: true,
-    cols: ['requested_at', 'partner_id', 'party_class', 'lm_state', 'admin_state'],
+    cols: ['requested_at', 'partner_id', 'party_class', 'current_step', 'lm_state', 'admin_state', 'approval_state'],
+    // A03 audit M33-1: each step is decided (approve / reject) from the M63
+    // approval inbox, by a different person per step. Here it is only routed.
     actions: [
-      { m: 'action_lm_approve', l: 'Line Manager Approve' },
-      { m: 'action_admin_approve', l: '1000FiX Admin Approve' },
-      { m: 'action_reject', l: 'Reject', ask: 'Rejection reason', kwarg: 'reason' }
+      { m: 'action_request_approval', l: 'Request Approval', ask: 'Note for the approver (optional)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
 
   /* --- Data Quality --- */
@@ -194,7 +202,11 @@ export const SCREENS = {
   'M33-status': { kind: 'model_list', model: 'res.partner', create: false,
     cols: ['name', 'party_status', 'status_reason', 'status_since', 'write_date'],
     stateField: 'party_status',
-    domain: [['party_status', '!=', false]] },
+    domain: [['party_status', '!=', false]],
+    // Activation is a decision with an owner, not a field edit.
+    actions: [
+      { m: 'action_reactivate_party', l: 'Reactivate Party (Tier 2)', ask: 'Reason for reactivation', kwarg: 'reason' }
+    ] },
 /* the registry's six built-in reports as in-workspace table reports */
   'M33-rpt-growth': { kind: 'table_report', module: 'M33', report: 'customer_growth_by_district', title: 'Customer Growth by District', period: true },
   'M33-rpt-scorecard': { kind: 'table_report', module: 'M33', report: 'data_quality_scorecard', title: 'Data Quality Scorecard', period: false },
@@ -242,6 +254,7 @@ export const SCREENS = {
         { name: 'ref', label: 'Party Reference Code' },
         { name: 'is_company', label: 'Corporate Entity Flag' },
         { name: 'company_type', label: 'Company Structure Type' },
+        { name: 'party_class', label: 'Party Class (Dealer / Corporate / Government open a registration approval)' },
         { name: 'preferred_language', label: 'Preferred Communication Language' },
         { name: 'company_id', label: 'Primary Operating Unit / Company' },
       ]},
@@ -395,6 +408,7 @@ export const SCREENS = {
         { name: 'issuing_country', label: 'Issuing Country' },
         { name: 'verified_by', readonly: true, label: 'Verified By' },
         { name: 'verified_at', readonly: true, label: 'Verified Timestamp' },
+        { name: 'verification_note', readonly: true, label: 'Verification Note' },
       ]},
       { tab: 'residency', title: 'Residency Classification (PDPA Z4)',
         note: 'RESIDENCY-CLASSIFIED: The document number routes through the residency service to the Bangladesh-resident store (Z4); the regional database holds only the pointer — the value never appears in caches, logs, or exports (FR-CPM-021, NFR-086/099).',
@@ -476,7 +490,8 @@ export const SCREENS = {
         { name: 'partner_id', required: true, label: 'Party' },
         { name: 'purpose', required: true, label: 'Processing Purpose' },
         { name: 'channel', required: true, label: 'Communication Channel' },
-        { name: 'state', required: true, label: 'Consent State' },
+        // Guarded (append-only consent): a grant is born 'granted'; withdrawal is an action.
+        { name: 'state', readonly: true, label: 'Consent State' },
       ]},
       { tab: 'evidence', title: 'Evidence & Transparency Notice Link', fields: [
         { name: 'notice_version_id', label: 'Transparency Notice Version' },
@@ -508,18 +523,22 @@ export const SCREENS = {
         { name: 'request_type', required: true, label: 'Request Type (Access/Rectification/Erasure)' },
         { name: 'received_at', readonly: true, label: 'Received Timestamp' },
         { name: 'statutory_due', readonly: true, label: 'Statutory Due Date (30 Days)' },
+        { name: 'handler_id', label: 'Handler (receives the 30-day reminder)' },
       ]},
       { tab: 'decision', title: 'Decision & Fulfillment Evidence', fields: [
         { name: 'identity_verified', readonly: true, label: 'Identity Verified' },
-        { name: 'evidence_ref', label: 'Evidence Reference / Export Link' },
+        { name: 'evidence_ref', readonly: true, label: 'Evidence Reference / Export Link' },
         { name: 'fulfilled_at', readonly: true, label: 'Fulfilled Timestamp' },
         { name: 'notified_at', label: 'Party Notified Timestamp' },
         { name: 'decision', label: 'Decision Summary' },
-        { name: 'rejected_reason', label: 'Rejection Legal Basis' },
+        { name: 'rejected_reason', readonly: true, label: 'Rejection Legal Basis' },
       ]},
       { tab: 'sla', title: 'PDPA 30-Day Statutory Clock',
-        note: 'Bangladesh PDPA mandates that data subject requests must be fulfilled or legally refused within 30 calendar days of verified identity receipt.',
-        fields: [] },
+        note: 'Bangladesh PDPA mandates that data subject requests must be fulfilled or legally refused within 30 calendar days of verified identity receipt. A daily job reminds the handler inside the reminder window and escalates to every Data Protection Officer once the date has passed.',
+        fields: [
+          { name: 'reminded_at', readonly: true, label: 'Reminder Sent' },
+          { name: 'escalated_at', readonly: true, label: 'Escalated to DPO' },
+        ] },
       { tab: 'audit', title: 'Data Protection Officer (DPO) Action',
         note: 'Verification and fulfillment actions must be authenticated by the designated Data Protection Officer. Rectification requests must issue notifications to all integrated services.',
         fields: [] }
@@ -594,10 +613,13 @@ export const SCREENS = {
         { name: 'partner_id', required: true, label: 'Party' },
         { name: 'party_class', required: true, label: 'Party Classification' },
         { name: 'requested_at', readonly: true, label: 'Requested Timestamp' },
+        { name: 'current_step', readonly: true, label: 'Awaiting' },
+        { name: 'approval_state', readonly: true, label: 'Approval Inbox State (M63)' },
       ]},
       { tab: 'tier1', title: 'Tier 1 — Client Line Manager Sign-off', fields: [
         { name: 'lm_state', readonly: true, label: 'Line Manager Decision' },
         { name: 'lm_decided_by', readonly: true, label: 'Line Manager Approver' },
+        { name: 'lm_on_behalf_of_id', readonly: true, label: 'Decided On Behalf Of' },
         { name: 'lm_decided_at', readonly: true, label: 'Decision Timestamp' },
       ]},
       { tab: 'tier2', title: 'Tier 2 — 1000FiX Corporate Administrator', fields: [

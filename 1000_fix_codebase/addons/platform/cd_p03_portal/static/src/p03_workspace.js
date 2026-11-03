@@ -3127,9 +3127,16 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         mod.groups.forEach(g => {
             g.screens.forEach(s => all.push({ ...s, groupEn: g.en }));
         });
-        const screens = map && map.screens
-            ? map.screens.map(id => all.find(s => s.id === id)).filter(Boolean)
-            : [];
+        // Report screens are declared in SCREENS and reached through the
+        // module's report chips, not its nav groups - resolve them there too,
+        // or a mapped report silently drops out of the panel.
+        const resolve = (id) => {
+            const nav = all.find(s => s.id === id);
+            if (nav) return nav;
+            const cfg = P03_DATA_SCREENS[id];
+            return cfg ? { id, en: cfg.title || id, bn: cfg.title_bn || cfg.bn, t: "r", groupEn: "Reports" } : null;
+        };
+        const screens = map && map.screens ? map.screens.map(resolve).filter(Boolean) : [];
 
         this.state.activeFreg = {
             mid,
@@ -3161,6 +3168,9 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
             const res = await this.rpc("/p03/model/records", {
                 model: map.model,
                 cols: map.cols || [],
+                // a sub-module is often a SLICE of a shared model (holds,
+                // rework, escalations) - the same safe domain list screens use
+                domain: map.domain || [],
                 lang: this.state.lang === "bn" ? "bn_BD" : "en_US",
             });
             if (!this.state.activeFreg || this.state.activeFreg !== fr) return;

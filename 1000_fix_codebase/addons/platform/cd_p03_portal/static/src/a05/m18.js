@@ -56,11 +56,16 @@ export const MODULE = {
   ],
   cross: ['M17 retired assets', 'M14 non-repairable trade-ins', 'M06 customer drop-offs', 'M03 hazardous transit'],
   freg: { src: 82, sub: [
-    ['1', 'Intake & Channels', 8], ['2', 'Triage & Disposition', 10],
-    ['3', 'Data Destruction', 7], ['4', 'Outbound Recycler', 8],
-    ['5', 'Green Certificates', 7], ['6', 'Public Drives & Bins', 7],
-    ['7', 'Hazardous Fraction', 9], ['8', 'EPR Reporting', 8],
-    ['9', 'ESG & Carbon', 9], ['10', 'Compliance Pack', 9]
+    ['1', 'Intake & Channels', 8, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-intake'] }],
+    ['2', 'Triage & Disposition', 10, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'decision', 'data_bearing', 'decided_on'], screens: ['M18-triage'] }],
+    ['3', 'Data Destruction', 7, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'data_bearing', 'wipe_required', 'decided_on'], screens: ['M18-triage'], domain: [['wipe_required', '=', true]] }],
+    ['4', 'Outbound Recycler', 8, { model: 'fix.ewaste.batch', cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-batches', 'M18-partners', 'M18-manifest'] }],
+    ['5', 'Green Certificates', 7, { model: 'fix.ewaste.certificate', cols: ['name', 'certificate_no', 'partner_id', 'weight_kg', 'issued_on'], screens: ['M18-certs'] }],
+    ['6', 'Public Drives & Bins', 7, { model: 'fix.ewaste.event', cols: ['name', 'venue', 'event_date', 'collected_kg', 'state'], screens: ['M18-drives'] }],
+    ['7', 'Hazardous Fraction', 9, { model: 'fix.ewaste.battery', cols: ['name', 'chemistry', 'hazard_class', 'weight_kg', 'state'], screens: ['M18-battery'] }],
+    ['8', 'EPR Reporting', 8, { model: 'fix.ewaste.return', cols: ['name', 'authority', 'period', 'recovery_rate_pct', 'state'], screens: ['M18-returns'] }],
+    ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit'], screens: ['M18-esg'] }],
+    ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.return', cols: ['name', 'form_type', 'due_date', 'submitted_on', 'is_overdue'], screens: ['M18-epr', 'M18-partners'] }]
   ] }
 };
 

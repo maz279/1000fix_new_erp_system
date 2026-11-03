@@ -45,7 +45,22 @@ SURFACES = {
     "fix.assistant.ask": {
         "order": "asked_at desc, id desc",
         "limit": 300,
-        "actions": {"action_mark_reviewed"},
+        # Review is four-eyes, and an answer that needs review is sent only
+        # after it (A03 audit M32 G12).
+        "actions": {"action_mark_reviewed", "action_send_to_customer"},
+    },
+    # The NLU release bundle (A03 audit M32 G4): digest, a measured
+    # benchmark, then a four-eyes release routed through M63. There is no
+    # Release button: the Tier-3 approver releases from their inbox.
+    "fix.assistant.dataset": {
+        "order": "create_date desc, id desc",
+        "limit": 200,
+        "actions": {
+            "action_compute_digest",
+            "action_run_benchmark",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.assistant.intent.candidate": {
         "order": "frequency desc, id desc",

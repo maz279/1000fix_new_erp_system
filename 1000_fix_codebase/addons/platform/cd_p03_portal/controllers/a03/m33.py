@@ -17,7 +17,7 @@ SURFACES = {
     "res.partner": {
         "order": "write_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_reactivate_party"},
     },
     "fix.party.role": {
         "order": "partner_id, role_type",
@@ -39,7 +39,8 @@ SURFACES = {
     "fix.identity.document": {
         "order": "partner_id, document_type",
         "limit": 300,
-        "actions": set(),
+        # A03 audit M33-9: KYC verification by a data steward (four eyes).
+        "actions": {"action_kyc_submit", "action_kyc_verify", "action_kyc_fail"},
     },
     "fix.transparency.notice": {
         "order": "version desc",
@@ -59,7 +60,9 @@ SURFACES = {
     "fix.registration.approval": {
         "order": "requested_at desc, id desc",
         "limit": 200,
-        "actions": {"action_lm_approve", "action_admin_approve", "action_reject"},
+        # A03 audit M33-1: the steps are decided in the M63 inbox; pressing
+        # approve on the record was one person doing both steps.
+        "actions": {"action_request_approval", "action_recall_approval"},
     },
     "fix.party.duplicate": {
         "order": "score desc, id desc",

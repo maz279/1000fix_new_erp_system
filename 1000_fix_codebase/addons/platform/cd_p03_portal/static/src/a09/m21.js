@@ -46,10 +46,14 @@ export const MODULE = {
   forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
-    ['1', 'Employee Master', 12], ['2', 'Employment Contracts', 7],
-    ['3', 'Org Structure', 9], ['4', 'Lifecycle Events', 12],
-    ['5', 'Statutory Documents', 7], ['6', 'Dependants & Nominees', 5],
-    ['7', 'ESS / MSS', 9], ['8', 'Exit Process', 9]
+    ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-form-employee', 'M21-education', 'M21-experience'] }],
+    ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'] }],
+    ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-orgchart'] }],
+    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement'] }],
+    ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook'] }],
+    ['6', 'Dependants & Nominees', 5, { model: 'fix.hr.dependant', cols: ['employee_id', 'name', 'relation', 'is_nominee', 'nominee_pct'], screens: ['M21-nominees'] }],
+    ['7', 'ESS / MSS', 9, { model: 'hr.employee', cols: ['name', 'employee_code', 'employment_type', 'joining_date', 'confirmation_date'], screens: ['M21-ess'] }],
+    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit'] }]
   ] }
 };
 

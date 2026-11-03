@@ -43,10 +43,14 @@ export const MODULE = {
   forms: ['Risk', 'Control Test', 'Licence', 'Policy', 'Whistleblow Report'],
   cross: ['M23 QMS', 'M51 Tax', 'M24 Documents', 'M19 GL'],
   freg: { src: 70, sub: [
-    ['1', 'Risk Register', 12], ['2', 'Control Framework & Testing', 14],
-    ['3', 'SoD & Authority', 8], ['4', 'Compliance Obligations', 9],
-    ['5', 'Policy Governance', 6], ['6', 'Legal & IP', 7],
-    ['7', 'PDPA Governance', 9], ['8', 'Whistleblowing', 5]
+    ['1', 'Risk Register', 12, { model: 'fix.risk.register', cols: ['name', 'category', 'risk_score', 'residual_band', 'state'], screens: ['M60-register', 'M60-appetite'] }],
+    ['2', 'Control Framework & Testing', 14, { model: 'fix.control', cols: ['control_code', 'name', 'control_type', 'frequency', 'test_result'], screens: ['M60-framework', 'M60-testing'] }],
+    ['3', 'SoD & Authority', 8, { model: 'fix.grc.sod.rule', cols: ['name', 'role_a', 'role_b', 'severity', 'state'], screens: ['M60-sod', 'M60-authority'] }],
+    ['4', 'Compliance Obligations', 9, { model: 'fix.compliance.obligation', cols: ['name', 'framework_id', 'clause_reference', 'mandatory', 'compliance_status'], screens: ['M60-obligations', 'M60-compliance-framework', 'M60-licences'] }],
+    ['5', 'Policy Governance', 6, { model: 'fix.grc.policy', cols: ['code', 'name', 'policy_type', 'review_due', 'state'], screens: ['M60-policies'] }],
+    ['6', 'Legal & IP', 7, { model: 'fix.grc.legal', cols: ['name', 'matter_type', 'counterparty', 'opened_on', 'state'], screens: ['M60-legal'] }],
+    ['7', 'PDPA Governance', 9, { model: 'fix.grc.pdpa', cols: ['name', 'request_type', 'received_on', 'due_on', 'outcome'], screens: ['M60-pdpa'] }],
+    ['8', 'Whistleblowing', 5, { model: 'fix.grc.whistle', cols: ['name', 'channel', 'category', 'reported_on', 'state'], screens: ['M60-whistle'] }]
   ] }
 };
 

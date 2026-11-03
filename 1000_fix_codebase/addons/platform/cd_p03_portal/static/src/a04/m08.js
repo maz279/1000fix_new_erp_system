@@ -50,12 +50,18 @@ export const MODULE = {
   forms: ['Contract (14 families)', 'Amendment', 'Asset Attach/Detach', 'Renewal Quote', 'PM Schedule'],
   cross: ['M05 MSP', 'M01 Service Orders', 'M20 AR', 'M37 Catalogue'],
   freg: { src: 108, sub: [
-    ['1', 'Template-Driven Creation', 12, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value'], screens: ['M08-contracts'] }], ['2', 'Parties & Approval', 8, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value'], screens: ['M08-master'] }],
-    ['3', 'Coverage Scope', 10, { screens: ['M08-scope'] }], ['4', 'Entitlement Engine', 14, { model: 'fix.contract.entitlement', cols: ['contract_id', 'entitlement_type', 'quantity_included', 'quantity_consumed', 'quantity_remaining'], screens: ['M08-entitle', 'M08-balance'] }],
-    ['5', 'SLA & Service Credits', 10, { screens: ['M08-sla', 'M08-rpt-sla'] }], ['6', 'PM Schedules', 9, { model: 'fix.contract.pm.visit', cols: ['contract_id', 'state'], screens: ['M08-pm', 'M08-rpt-pm'] }],
-    ['7', 'Amendments', 8, { model: 'fix.contract.amendment', cols: ['contract_id', 'state'], screens: ['M08-amend'] }], ['8', 'Renewal Governance', 9, { model: 'fix.contract.renewal', cols: ['contract_id', 'state'], screens: ['M08-renewals', 'M08-rpt-renew'] }],
-    ['9', 'Churn & Win-Back', 6, { model: 'fix.contract.termination', cols: ['contract_id', 'state'], screens: ['M08-termination', 'M08-churn'] }], ['10', 'Pricing & Profitability', 10, { screens: ['M08-pricing', 'M08-profit', 'M08-rpt-pnl'] }],
-    ['11', 'Documents & Signature', 7, { screens: ['M08-rpt-base'] }], ['12', 'Obligation Calendar', 5, { screens: ['M08-auto-work'] }]
+    ['1', 'Template-Driven Creation', 12, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value'], screens: ['M08-contracts'] }],
+    ['2', 'Parties & Approval', 8, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value'], screens: ['M08-master'] }],
+    ['3', 'Coverage Scope', 10, { model: 'fix.contract.entitlement', cols: ['contract_id', 'device_id', 'entitlement_type', 'quantity_included', 'quantity_remaining'], screens: ['M08-scope', 'M08-entitle'] }],
+    ['4', 'Entitlement Engine', 14, { model: 'fix.contract.entitlement', cols: ['contract_id', 'entitlement_type', 'quantity_included', 'quantity_consumed', 'quantity_remaining'], screens: ['M08-entitle', 'M08-balance'] }],
+    ['5', 'SLA & Service Credits', 10, { model: 'fix.msp.sla.credit', cols: ['msp_contract_id', 'period_label', 'attainment_pct', 'breach_count', 'credit_amount'], screens: ['M08-sla', 'M08-rpt-sla'] }],
+    ['6', 'PM Schedules', 9, { model: 'fix.contract.pm.visit', cols: ['contract_id', 'state'], screens: ['M08-pm', 'M08-rpt-pm'] }],
+    ['7', 'Amendments', 8, { model: 'fix.contract.amendment', cols: ['contract_id', 'state'], screens: ['M08-amend'] }],
+    ['8', 'Renewal Governance', 9, { model: 'fix.contract.renewal', cols: ['contract_id', 'state'], screens: ['M08-renewals', 'M08-rpt-renew'] }],
+    ['9', 'Churn & Win-Back', 6, { model: 'fix.contract.termination', cols: ['contract_id', 'state'], screens: ['M08-termination', 'M08-churn'] }],
+    ['10', 'Pricing & Profitability', 10, { model: 'fix.contract', cols: ['name', 'customer_id', 'annual_value', 'total_delivery_cost', 'contract_margin_pct'], screens: ['M08-pricing', 'M08-profit', 'M08-rpt-pnl', 'M08-contracts'] }],
+    ['11', 'Documents & Signature', 7, { model: 'fix.contract', cols: ['name', 'state', 'esignature_envelope_id', 'has_signed_contract_doc', 'stamp_duty_cert_no'], screens: ['M08-rpt-base', 'M08-contracts'] }],
+    ['12', 'Obligation Calendar', 5, { model: 'fix.contract.pm.visit', cols: ['contract_id', 'device_id', 'scheduled_date', 'service_order_id', 'state'], screens: ['M08-auto-work', 'M08-pm'] }]
   ] }
 };
 

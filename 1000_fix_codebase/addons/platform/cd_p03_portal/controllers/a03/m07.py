@@ -12,7 +12,18 @@ SURFACES = {
     "crm.lead": {
         "order": "write_date desc, id desc",
         "limit": 200,
-        "actions": set(),  # conversion/lost flows stay on the Odoo substrate forms
+        # A03 audit G-M07-7: the Opportunities buttons were refused because
+        # this set was empty. The real transitions, each with its own gate.
+        "actions": {
+            "action_convert_to_service_order",
+            "action_set_won",
+            "action_set_lost",
+            "action_raise_estimate",
+            "action_link_estimate",
+            "action_request_contract_verification",
+            "action_recall_approval",
+            "action_score",
+        },
     },
     # NOTE: mail.activity is deliberately NOT served: the generic endpoint
     # reads company-wide (sudo) and activities are per-user private. The
@@ -25,7 +36,7 @@ SURFACES = {
     "fix.account.assignment": {
         "order": "effective_from desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_assign_unowned"},
     },
     "fix.account.plan": {
         "order": "period desc, id desc",
@@ -45,7 +56,8 @@ SURFACES = {
     "fix.renewal": {
         "order": "expiry_date, id",
         "limit": 200,
-        "actions": {"action_win", "action_lapse"},
+        # action_engage / action_renew were buttons with no method (G-M07-7).
+        "actions": {"action_engage", "action_renew", "action_win", "action_lapse", "action_close"},
     },
     "fix.forecast.snapshot": {
         "order": "period desc, id desc",

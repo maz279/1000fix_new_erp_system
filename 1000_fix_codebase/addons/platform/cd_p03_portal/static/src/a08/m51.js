@@ -50,9 +50,15 @@ export const MODULE = {
   forms: ['Challan', 'TDS Return', 'Input VAT Adjustment', 'Filing Evidence', 'Tax Rate'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Financial Accounting & GL'],
   freg: { src: 78, sub: [
-    ['1', 'Determination Service', 9], ['2', 'VAT Output/Input', 12], ['3', 'Mushak Registers', 11],
-    ['4', 'VAT Return 9.1', 8], ['5', 'VDS', 7], ['6', 'TDS', 12],
-    ['7', 'Challans & Certificates', 7], ['8', 'High-Value Register', 4], ['9', 'Calendar & Audit', 8]
+    ['1', 'Determination Service', 9, { model: 'fix.vat.treatment', cols: ['code', 'name', 'treatment_type', 'rate', 'active'], screens: ['M51-determination', 'M51-rates', 'M51-params'] }],
+    ['2', 'VAT Output/Input', 12, { model: 'fix.input.vat.credit', cols: ['partner_id', 'invoice_date', 'taxable_amount', 'vat_amount', 'state'], screens: ['M51-input', 'M51-mushak61'] }],
+    ['3', 'Mushak Registers', 11, { model: 'fix.mushak.register', cols: ['mushak_no', 'invoice_ref', 'invoice_date', 'vat_amount', 'posted'], screens: ['M51-mushak62', 'M51-mushak63', 'M51-notes'] }],
+    ['4', 'VAT Return 9.1', 8, { model: 'fix.vat.return', cols: ['period', 'output_vat', 'input_vat', 'net_payable', 'state'], screens: ['M51-vat91'] }],
+    ['5', 'VDS', 7, { model: 'fix.withholding.line', cols: ['document_date', 'partner_id', 'base_amount', 'amount', 'state'], screens: ['M51-vds'], domain: [['tax_kind', '=', 'vds']] }],
+    ['6', 'TDS', 12, { model: 'fix.tds.return', cols: ['quarter', 'fiscal_year', 'total_withheld', 'due_date', 'state'], screens: ['M51-tds'] }],
+    ['7', 'Challans & Certificates', 7, { model: 'fix.tax.challan', cols: ['challan_no', 'challan_date', 'tax_kind', 'amount', 'state'], screens: ['M51-challans', 'M51-certs'] }],
+    ['8', 'High-Value Register', 4, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'amount', 'nid_captured'], screens: ['M51-nid'] }],
+    ['9', 'Calendar & Audit', 8, { model: 'fix.statutory.due.rule', cols: ['obligation', 'name', 'frequency', 'due_day', 'roll_to_working_day'], screens: ['M51-calendar', 'M51-duerules', 'M51-filings', 'M51-audit'] }]
   ] }
 };
 

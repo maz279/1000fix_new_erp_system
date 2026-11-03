@@ -13,9 +13,19 @@ SURFACES = {
     "fix.workflow.task": {
         "order": "created_at desc, id desc",
         "limit": 500,
-        "actions": {"action_approve", "action_reject"},
+        # R7: decided only by the assignee; the record's own approve method
+        # runs inside the decision with the DOFA checks.
+        "actions": {"action_approve", "action_reject", "action_return"},
     },
-    "fix.approval.matrix": {"order": "decision_domain, threshold", "limit": 200, "actions": set()},
+    "fix.approval.matrix": {
+        "order": "res_model, decision_domain, date_from desc, id",
+        "limit": 200,
+        "actions": {"action_test_rule"},
+    },
+    # Read-only evidence: requests change only through their tasks, and the
+    # history refuses every write.
+    "fix.approval.request": {"order": "requested_at desc, id desc", "limit": 500, "actions": set()},
+    "fix.approval.history": {"order": "at desc, id desc", "limit": 1000, "actions": set()},
     "fix.approval.substitution": {
         "order": "start_date desc, id desc",
         "limit": 200,
@@ -228,7 +238,41 @@ def fields_datetime_now():
     return _f.Datetime.now()
 
 
+def approval_kpis(env, date_from=None, date_to=None, **params):
+    """R11: the approval engine's health - pending by age, approvals by tier,
+    approver = creator (must be 0), voids, escalations and cycle time."""
+    k = env["fix.approval.request"].approval_kpis()
+    rows = [
+        {"measure": "Pending (all)", "value": k["pending"]},
+        {"measure": "Pending under 24 h", "value": k["pending_under_24h"]},
+        {"measure": "Pending 24-72 h", "value": k["pending_24_72h"]},
+        {"measure": "Pending over 72 h", "value": k["pending_over_72h"]},
+    ]
+    rows += [
+        {"measure": "Approved at %s" % tier.replace("_", " ").title(), "value": n}
+        for tier, n in sorted(k["approved_by_tier"].items())
+    ]
+    rows += [
+        {"measure": "Approver = creator (must be 0)", "value": k["approver_is_creator"]},
+        {"measure": "Approvals voided by a change", "value": k["voided_by_change"]},
+        {"measure": "Escalations", "value": k["escalations"]},
+        {"measure": "Median cycle time (h)", "value": k["median_cycle_hours"]},
+    ]
+    return _pack(
+        "Approval KPIs",
+        ["measure", "value"],
+        {"measure": "Measure", "value": "Value"},
+        rows,
+        [
+            "Counted from fix.approval.request and its append-only history. Cycle time is "
+            "request to decision, wall-clock hours."
+        ],
+        empty="No approval requests yet.",
+    )
+
+
 REPORTS = {
+    "approval_kpis": approval_kpis,
     "automation_rate": automation_rate,
     "approval_cycle_time": approval_cycle_time,
     "escalation_analysis": escalation_analysis,
@@ -249,6 +293,7 @@ def kpis(env):
     running = instances.filtered(lambda i: i.state == "running")
     completed = instances.filtered(lambda i: i.state == "completed")
     total_hours = sum((t.decided_at - t.created_at).total_seconds() / 3600.0 for t in decided)
+    approvals = env["fix.approval.request"].approval_kpis()
     return {
         "automation_rate": round(len(completed) / len(instances) * 100.0, 1) if instances else 0.0,
         "open_workflows": len(running),
@@ -261,4 +306,8 @@ def kpis(env):
         if instances
         else 0.0,
         "automations": len(automations),
+        "approvals_pending": approvals["pending"],
+        "approvals_overdue": approvals["pending_over_72h"],
+        "approver_is_creator": approvals["approver_is_creator"],
+        "approval_median_hours": approvals["median_cycle_hours"],
     }

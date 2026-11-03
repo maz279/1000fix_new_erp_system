@@ -49,18 +49,24 @@ export const MODULE = {
   forms: ['Campaign', 'Journey (multi-step)', 'Offer', 'Creative Asset', 'Journey Member'],
   cross: ['M33 Customer Master', 'M10 Loyalty', 'M34 CX Feedback'],
   freg: { src: 58, sub: [
-    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval'] }], ['2', 'Audience from Segments', 6, { screens: ['M35-campaigns'] }],
-    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers'] }], ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'reference'], screens: ['M35-content', 'M35-offers'] }],
-    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variant_a_pct', 'metric', 'result_note'], screens: ['M35-ab'] }], ['6', 'Budget & Attribution', 8, { screens: ['M35-attribution', 'M35-roi', 'M35-rpt-roi'] }],
-    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'impressions', 'clicks'], screens: ['M35-ads'] }], ['8', 'Co-Marketing', 6, { screens: ['M35-rpt-co'] }]
+    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval'] }],
+    ['2', 'Audience from Segments', 6, { model: 'fix.campaign', cols: ['name', 'target_audience_type', 'audience_domain', 'excluded_no_consent_count', 'state'], screens: ['M35-campaigns'] }],
+    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers'] }],
+    ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'reference'], screens: ['M35-content', 'M35-offers'] }],
+    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variant_a_pct', 'metric', 'result_note'], screens: ['M35-ab'] }],
+    ['6', 'Budget & Attribution', 8, { model: 'fix.campaign.touch', cols: ['occurred_at', 'campaign_id', 'touch_type', 'channel', 'value_bdt'], screens: ['M35-attribution', 'M35-roi', 'M35-rpt-roi', 'M35-touches'] }],
+    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'impressions', 'clicks'], screens: ['M35-ads'] }],
+    ['8', 'Co-Marketing', 6, { model: 'fix.campaign', cols: ['name', 'channel', 'budget', 'start_date', 'state'], screens: ['M35-rpt-co', 'M35-campaigns'] }]
   ] }
 };
 
 export const SCREENS = {
   'M35-campaigns': { kind: 'model_list', model: 'fix.campaign', stateField: 'state',
-    cols: ['name', 'channel', 'target_audience_type', 'budget', 'response_count', 'recipient_count', 'state'],
+    cols: ['name', 'channel', 'target_audience_type', 'budget', 'approval_state', 'dnd_scrubbed_at', 'creative_unapproved_count', 'response_count', 'recipient_count', 'state'],
     actions: [
-      { m: 'action_approve_budget', l: 'Approve Budget (DOFA)' },
+      { m: 'action_request_approval', l: 'Request Budget Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_scrub_dnd', l: 'Run BTRC DND Scrub' },
       { m: 'action_launch', l: 'Launch Campaign' },
       { m: 'action_pause', l: 'Pause' },
       { m: 'action_resume', l: 'Resume' },
@@ -68,13 +74,27 @@ export const SCREENS = {
     ] },
   'M35-approval': { kind: 'table_report', module: 'M35', report: 'campaign_approval', title: 'Planning & Approval', period: false },
   'M35-journeys': { kind: 'model_list', model: 'fix.campaign.journey', stateField: 'state',
-    cols: ['name', 'campaign_id', 'trigger_event', 'state', 'active'] },
+    cols: ['name', 'campaign_id', 'journey_kind', 'step_count', 'member_active_count', 'state', 'paused_by_campaign', 'active'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Journey' },
+      { m: 'action_pause_journey', l: 'Pause Journey' },
+      { m: 'action_resume_journey', l: 'Resume Journey' }
+    ],
+    note: 'A journey runs only under a running campaign. Launching a campaign activates its journeys that have steps; pausing it pauses them.' },
   'M35-triggers': { kind: 'model_list', model: 'fix.campaign.trigger', stateField: 'active',
-    cols: ['name', 'campaign_id', 'event', 'delay_hours', 'active'] },
+    cols: ['name', 'campaign_id', 'event', 'outbox_event_type', 'consumer_registered', 'producer_missing', 'delay_hours', 'active'] },
   'M35-offers': { kind: 'model_list', model: 'fix.campaign.offer', stateField: 'active',
     cols: ['name', 'campaign_id', 'offer_type', 'value', 'valid_from', 'valid_until', 'active'] },
   'M35-content': { kind: 'model_list', model: 'fix.campaign.creative', stateField: 'state',
-    cols: ['name', 'campaign_id', 'asset_type', 'channel', 'reference', 'state'] },
+    cols: ['name', 'campaign_id', 'asset_type', 'channel', 'reference', 'approval_state', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Content Approval', ask: 'What should the approver check?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_withdraw', l: 'Withdraw for Editing' },
+      { m: 'action_retire', l: 'Retire' },
+      { m: 'action_reset_to_draft', l: 'Back to Draft' }
+    ],
+    note: 'Content is approved from the approver\'s inbox (M63). An approved creative must be withdrawn before it is edited, and every live creative must be approved before the campaign launches.' },
   'M35-ads': { kind: 'model_list', model: 'fix.campaign.ad', stateField: 'active',
     cols: ['name', 'campaign_id', 'placement', 'active', 'impressions', 'clicks'] },
   'M35-ab': { kind: 'model_list', model: 'fix.campaign.experiment', stateField: 'state',
@@ -107,10 +127,10 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. Campaign Definition', bn: '১. ক্যাম্পেইন শিরোনাম', icon: '📢', badge: '6' },
-      { id: 'budget', label: '2. Budget & DOFA Memo', bn: '২. বাজেট ও ডোফা', icon: '💰', badge: '6' },
+      { id: 'budget', label: '2. Budget & DOFA Memo', bn: '২. বাজেট ও ডোফা', icon: '💰', badge: '10' },
       { id: 'audience', label: '3. Audience Segmentation', bn: '৩. অডিয়েন্স সেগমেন্ট', icon: '👥', badge: '3' },
       { id: 'compliance', label: '4. BTRC Curfew & PDPA', bn: '৪. কমপ্লায়েন্স ও কার্ফিউ', icon: '🛡️', badge: '4' },
-      { id: 'docs', label: '5. Creative Assets & Approvals', bn: '৫. ক্রিয়েটিভ সম্পদ ও অনুমোদন', icon: '🎨', badge: '2' },
+      { id: 'docs', label: '5. Creative Assets & Approvals', bn: '৫. ক্রিয়েটিভ সম্পদ ও অনুমোদন', icon: '🎨', badge: '8' },
       { id: 'attribution', label: '6. Attribution & ROI', bn: '৬. অ্যাট্রিবিউশন ও আরওআই', icon: '📈', badge: '5' },
       { id: 'audit', label: '7. System Governance', bn: '৭. অডিট ট্রেইল', icon: '⏱️', badge: '3' }
     ],
@@ -119,7 +139,7 @@ export const SCREENS = {
         { name: 'name', required: true, label: 'Campaign Title (English)' },
         { name: 'name_bn', label: 'Campaign Title (Bengali Bangla)' },
         { name: 'channel', required: true, label: 'Primary Delivery Channel (SMS / Email / Push / Social)' },
-        { name: 'state', label: 'Campaign Lifecycle State' },
+        { name: 'state', label: 'Campaign Lifecycle State', readonly: true },
         { name: 'operating_unit_id', label: 'Operating Business Unit' },
         { name: 'company_id', label: 'Operating Legal Entity' },
       ]},
@@ -128,10 +148,14 @@ export const SCREENS = {
         fields: [
           { name: 'budget', required: true, label: 'Allocated Campaign Budget (BDT)' },
           { name: 'budget_memo_ref', required: true, label: 'Internal Finance Memo Reference' },
-          { name: 'budget_approved', label: 'DOFA Executive Budget Approval Confirmed' },
-          { name: 'budget_approver_id', label: 'Authorized DOFA Executive Signoff' },
+          { name: 'budget_approved', label: 'DOFA Executive Budget Approval Confirmed', readonly: true },
+          { name: 'approval_state', label: 'Budget Approval Request (M63)', readonly: true },
+          { name: 'budget_approver_id', label: 'Authorized DOFA Executive Signoff', readonly: true },
           { name: 'budget_approval_date', label: 'DOFA Budget Approval Date', readonly: true },
           { name: 'currency_id', label: 'Budget Currency', readonly: true },
+          { name: 'actual_spend', label: 'Recorded Actual Spend (BDT)', readonly: true },
+          { name: 'budget_variance', label: 'Budget Remaining (BDT)', readonly: true },
+          { name: 'budget_utilisation_pct', label: 'Budget Used (%)', readonly: true },
       ]},
       { tab: 'audience', title: 'Target Audience Profile & Criteria Filter', fields: [
         { name: 'target_audience_type', required: true, label: 'Target Audience Classification' },
@@ -139,10 +163,10 @@ export const SCREENS = {
         { name: 'recipient_count', label: 'Total Targeted Customer Count', readonly: true },
       ]},
       { tab: 'compliance', title: 'BTRC Telecom Curfew & PDPA Consent Verification (FLAW-35.2)',
-        note: 'BTRC Telecommunication Directive: Outbound SMS marketing broadcasts are restricted strictly to 08:00 to 22:00 BST. Do-Not-Disturb (DND) customers are scrubbed automatically.',
+        note: 'BTRC Telecommunication Directive: outbound marketing is restricted to 08:00 to 22:00 BST. Run the DND scrub (Campaign Manager) within 24 hours of launch; parties on the DND registry are removed from the recipients at launch and are never enrolled in a journey.',
         fields: [
-          { name: 'pdpa_consent_verified', label: 'Statutory PDPA Consent Verification Completed' },
-          { name: 'excluded_no_consent_count', label: 'DND & Non-Consented Excluded Customers', readonly: true },
+          { name: 'pdpa_consent_verified', label: 'Statutory PDPA Consent Verification Completed', readonly: true },
+          { name: 'excluded_no_consent_count', label: 'Excluded For No Consent', readonly: true },
           { name: 'start_date', required: true, label: 'Campaign Scheduled Start Date' },
           { name: 'end_date', required: true, label: 'Campaign Scheduled End Date' },
       ]},
@@ -155,6 +179,8 @@ export const SCREENS = {
           { name: 'sms_opt_out_text', label: 'Mandatory Opt-Out Instruction' },
           { name: 'dnd_scrubbed_at', label: 'DND Registry Scrubbed At', readonly: true },
           { name: 'dnd_excluded_count', label: 'Recipients Excluded by BTRC DND', readonly: true },
+          { name: 'dnd_excluded_partner_ids', label: 'Parties Excluded by BTRC DND', readonly: true },
+          { name: 'creative_unapproved_count', label: 'Creatives Not Yet Approved', readonly: true },
       ]},
       { tab: 'attribution', title: 'Marketing Attribution & Customer Acquisition Economics', fields: [
         { name: 'utm_source', label: 'UTM Tracking Source' },
@@ -181,7 +207,7 @@ export const SCREENS = {
         { name: 'step_type', label: 'Type', required: true },
         { name: 'wait_minutes', label: 'Wait Before (min)' },
         { name: 'channel', label: 'Channel' },
-        { name: 'purpose', label: 'Purpose' },
+        { name: 'purpose', label: 'Purpose (from the template)', readonly: true },
         { name: 'template_id', label: 'Template' },
         { name: 'segment_id', label: 'Segment' },
         { name: 'event_type', label: 'Event Type' },
@@ -216,7 +242,7 @@ export const SCREENS = {
       {
         tab: 'kind',
         title: 'Which Kind Of Journey',
-        note: 'D365 ships two kinds with different membership semantics, and the estate conflated them. A SEGMENT-BASED journey enumerates its audience at launch; a TRIGGER-BASED one admits one member per event and must be idempotent. The constraint refuses a journey whose kind has no starter, because it would silently enrol nobody.',
+        note: 'A SEGMENT-BASED journey enumerates its audience at launch; a TRIGGER-BASED one admits one member per event and must be idempotent; a CAMPAIGN-AUDIENCE one enrols the recipients the campaign launch resolved (consented and DND-scrubbed). The constraint refuses a journey whose kind has no starter, because it would silently enrol nobody.',
         fields: [
           { name: 'journey_kind', required: true, label: 'Journey Kind' },
           { name: 'segment_id', label: 'Audience Segment (segment-based)' },
@@ -230,7 +256,7 @@ export const SCREENS = {
         title: 'Orchestration Steps',
         note: 'The steps grid below is the definition the runtime executes. steps_json is the pre-runtime config field and is kept for records authored before the executor existed.',
         fields: [
-          { name: 'step_count', label: 'Steps' },
+          { name: 'step_count', label: 'Steps', readonly: true },
           { name: 'steps_json', label: 'Legacy Steps Definition (JSON)', type: 'text' }
         ]
       },
@@ -238,11 +264,12 @@ export const SCREENS = {
         tab: 'audit',
         title: 'Journey State & Membership',
         fields: [
-          { name: 'state', required: true, label: 'Execution State' },
-          { name: 'launched_at', label: 'Activated At' },
-          { name: 'member_active_count', label: 'Active Members' },
-          { name: 'member_completed_count', label: 'Completed' },
-          { name: 'member_exited_count', label: 'Exited / Failed' },
+          { name: 'state', required: true, label: 'Execution State', readonly: true },
+          { name: 'paused_by_campaign', label: 'Paused With Its Campaign', readonly: true },
+          { name: 'launched_at', label: 'Activated At', readonly: true },
+          { name: 'member_active_count', label: 'Active Members', readonly: true },
+          { name: 'member_completed_count', label: 'Completed', readonly: true },
+          { name: 'member_exited_count', label: 'Exited / Failed', readonly: true },
           { name: 'active', label: 'Active Status' }
         ]
       }
@@ -338,8 +365,12 @@ export const SCREENS = {
       {
         tab: 'governance',
         title: 'Approval & Lifecycle',
+        note: 'Request approval from the Creative Library. The approver decides from the M63 inbox; an approved creative is frozen until it is withdrawn.',
         fields: [
-          { name: 'state', required: true, label: 'Approval State' }
+          { name: 'state', required: true, label: 'Content State', readonly: true },
+          { name: 'approval_state', label: 'Approval Request', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_at', label: 'Approved At', readonly: true }
         ]
       }
     ]
@@ -496,10 +527,10 @@ export const SCREENS = {
         fields: [
         { name: 'journey_id', label: 'Journey', required: true },
         { name: 'partner_id', label: 'Party', required: true },
-        { name: 'enrol_source', label: 'Joined Via', required: true },
-        { name: 'source_event_id', label: 'Outbox Event' },
-        { name: 'enrol_key', label: 'Idempotency Key' },
-        { name: 'entered_at', label: 'Joined At', required: true }
+        { name: 'enrol_source', label: 'Joined Via', required: true, readonly: true },
+        { name: 'source_event_id', label: 'Outbox Event', readonly: true },
+        { name: 'enrol_key', label: 'Idempotency Key', readonly: true },
+        { name: 'entered_at', label: 'Joined At', required: true, readonly: true }
         ]
       },
       {
@@ -507,20 +538,20 @@ export const SCREENS = {
         title: 'Where They Are',
         note: 'Membership and consent are re-evaluated before every step, not trusted from the launch-time snapshot.',
         fields: [
-        { name: 'current_step_id', label: 'Current Step' },
-        { name: 'next_action_at', label: 'Next Action' },
-        { name: 'steps_executed', label: 'Steps Run' },
-        { name: 'state', label: 'State', required: true },
-        { name: 'exited_at', label: 'Left At' },
-        { name: 'exit_reason', label: 'Why They Stopped' }
+        { name: 'current_step_id', label: 'Current Step', readonly: true },
+        { name: 'next_action_at', label: 'Next Action', readonly: true },
+        { name: 'steps_executed', label: 'Steps Run', readonly: true },
+        { name: 'state', label: 'State', required: true, readonly: true },
+        { name: 'exited_at', label: 'Left At', readonly: true },
+        { name: 'exit_reason', label: 'Why They Stopped', readonly: true }
         ]
       },
       {
         tab: 'messages',
         title: 'Delivery Rows',
         fields: [
-        { name: 'delivery_ids', label: 'Messages' },
-        { name: 'last_send_state', label: 'Last Send Outcome' }
+        { name: 'delivery_ids', label: 'Messages', readonly: true },
+        { name: 'last_send_state', label: 'Last Send Outcome', readonly: true }
         ]
       }
     ]

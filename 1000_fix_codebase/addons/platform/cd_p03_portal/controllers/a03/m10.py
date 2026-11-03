@@ -23,12 +23,30 @@ SURFACES = {
     "fix.loyalty.account": {
         "order": "points_balance desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # action_activate refuses a frozen wallet. The Tier-2 release is
+        # requested here and decided from the M63 inbox; action_unfreeze is
+        # the engine's apply method, so it is not offered directly (A03 R7).
+        # Reconcile proves the derived balance equals the posted ledger.
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_suspend",
+            "action_activate",
+            "action_reconcile_balance",
+        },
     },
     "fix.loyalty.ledger": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_post"},
+        # Without action_dofa_approve no adjustment above 500 points could
+        # be approved from any screen (A03 audit). A posted line is corrected
+        # by action_reverse, which raises an opposite draft line (R2).
+        "actions": {
+            "action_post",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_reverse",
+        },
     },
     "fix.loyalty.voucher": {
         "order": "valid_from desc, id desc",
@@ -53,7 +71,12 @@ SURFACES = {
     "fix.loyalty.scheme": {
         "order": "sequence, id",
         "limit": 200,
-        "actions": {"action_activate", "action_dofa_approve", "action_retire"},
+        "actions": {
+            "action_activate",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_retire",
+        },
     },
     "fix.loyalty.earn.rule": {
         "order": "scheme_id, priority, id",
@@ -304,6 +327,11 @@ def _program_liability(env):
             {
                 "program": program.name if program else "No programme",
                 "rate": program.bdt_per_point if program else 0.0,
+                # IFRS 15: the liability is carried net of the breakage
+                # Finance expects. The rate is the programme's
+                # expected_breakage_pct, default 0 = the gross figure this
+                # report always showed (A03 audit, open finance decision).
+                "expected_breakage": program.breakage_rate() if program else 0.0,
                 "accounts": 0,
                 "outstanding": 0,
                 "expired": 0,
@@ -317,7 +345,9 @@ def _program_liability(env):
             0, acc.lifetime_points_earned - acc.lifetime_points_redeemed - acc.points_balance
         )
     for row in out.values():
-        row["liability"] = round(row["outstanding"] * row["rate"], 2)
+        row["gross_liability"] = round(row["outstanding"] * row["rate"], 2)
+        row["liability"] = round(row["gross_liability"] * (1.0 - row["expected_breakage"]), 2)
+        row["expected_breakage_pct"] = round(row["expected_breakage"] * 100.0, 2)
         row["breakage_pct"] = (
             round(row["expired"] / row["earned"] * 100.0, 1) if row["earned"] else 0.0
         )
@@ -332,6 +362,8 @@ def points_liability(env, date_from=None, date_to=None, **params):
             "accounts": r["accounts"],
             "outstanding": r["outstanding"],
             "rate": r["rate"],
+            "gross_liability": r["gross_liability"],
+            "expected_breakage_pct": r["expected_breakage_pct"],
             "liability": r["liability"],
             "breakage_pct": r["breakage_pct"],
         }
@@ -342,24 +374,41 @@ def points_liability(env, date_from=None, date_to=None, **params):
         "program": "Total",
         "accounts": sum(r["accounts"] for r in rows),
         "outstanding": sum(r["outstanding"] for r in rows),
+        "gross_liability": round(sum(r["gross_liability"] for r in rows), 2),
         "liability": round(sum(r["liability"] for r in rows), 2),
         "breakage_pct": round(sum(r["breakage_pct"] for r in rows) / len(rows), 1) if rows else 0.0,
     }
     return _pack(
         "Liability & Breakage (IFRS 15) — outstanding points valued per programme",
-        ["program", "accounts", "outstanding", "rate", "liability", "breakage_pct"],
+        [
+            "program",
+            "accounts",
+            "outstanding",
+            "rate",
+            "gross_liability",
+            "expected_breakage_pct",
+            "liability",
+            "breakage_pct",
+        ],
         {
             "program": "Programme",
             "accounts": "Accounts",
             "outstanding": "Outstanding Points",
             "rate": "BDT per Point",
-            "liability": "Points Liability",
-            "breakage_pct": "Breakage %",
+            "gross_liability": "Gross Liability",
+            "expected_breakage_pct": "Expected Breakage %",
+            "liability": "Points Liability (net)",
+            "breakage_pct": "Realised Breakage %",
         },
         rows,
         [
-            "Liability = outstanding points × the programme's own BDT-per-point rate. "
-            "Breakage = unredeemed and unexpired points over lifetime earned."
+            "Gross liability = outstanding points × the programme's own BDT-per-point rate. "
+            "Points liability = gross × (1 − expected breakage), the IFRS 15 contract "
+            "liability net of the points Finance expects never to be redeemed.",
+            "Expected breakage is the programme's 'Expected Breakage %' setting; 0 until "
+            "Finance rules on it, so the liability is then the full gross figure.",
+            "Realised breakage = points earned but neither redeemed nor still outstanding, "
+            "over lifetime earned.",
         ],
         totals=totals if rows else None,
         empty="No loyalty accounts yet — liability is zero until members enrol.",

@@ -46,10 +46,13 @@ export const MODULE = {
   forms: ['Data Contract', 'Metric Definition', 'Quality Test'],
   cross: ['M25 BI', 'M26 ML', 'M29 classification', 'M60 controls'],
   freg: { src: 62, sub: [
-    ['1', 'Ingestion', 10], ['2', 'Medallion & Transformation', 9],
-    ['3', 'Dimensional Model', 10], ['4', 'Semantic Layer', 9],
-    ['5', 'Quality & Observability', 10], ['6', 'Catalogue & Lineage', 8],
-    ['7', 'Security & Cost', 6]
+    ['1', 'Ingestion', 10, { model: 'fix.data.pipeline', cols: ['code', 'name', 'source_system', 'load_mode', 'schedule', 'state'], screens: ['M62-ingestion', 'M62-backfill'] }],
+    ['2', 'Medallion & Transformation', 9, { model: 'fix.data.run', cols: ['name', 'pipeline_id', 'stage', 'started_at', 'rows_written', 'state'], screens: ['M62-medallion', 'M62-backfill'] }],
+    ['3', 'Dimensional Model', 10, { model: 'fix.data.entity', cols: ['name', 'entity_type', 'owner_module', 'steward_id', 'classification'], screens: ['M62-dimensional'] }],
+    ['4', 'Semantic Layer', 9, { model: 'fix.metric.definition', cols: ['code', 'name', 'domain_area', 'grain', 'owner_role', 'state'], screens: ['M62-metrics', 'M62-contracts'] }],
+    ['5', 'Quality & Observability', 10, { model: 'fix.data.quality.rule', cols: ['name', 'entity_id', 'rule_type', 'threshold', 'last_result', 'state'], screens: ['M62-rules', 'M62-quality', 'M62-observability', 'M62-incidents'] }],
+    ['6', 'Catalogue & Lineage', 8, { model: 'fix.data.lineage', cols: ['name', 'source_entity_id', 'target_entity_id', 'lineage_order'], screens: ['M62-data-lineage', 'M62-catalog'] }],
+    ['7', 'Security & Cost', 6, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M62-masking', 'M62-retention'] }]
   ] }
 };
 

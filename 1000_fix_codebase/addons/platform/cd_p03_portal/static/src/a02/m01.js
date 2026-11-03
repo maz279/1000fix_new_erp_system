@@ -73,19 +73,19 @@ export const MODULE = {
   freg: {
     src: 128,
     sub: [
-      ['1', 'Omni-Channel Intake (12 channels)', 14],
-      ['2', 'Lifecycle State Machine & Stepper', 9],
-      ['3', 'Entitlement Evaluation & SLA Clock', 8],
-      ['4', 'Complaint & Fault Taxonomy Coding', 10],
-      ['5', 'Diagnostic Templates & Benchmarks', 7],
-      ['6', 'Estimate & Customer Approval Loop', 12],
-      ['7', 'Assignment & Field Dispatch Handoff', 6],
-      ['8', 'SLA Policy, Clock & Escalations', 13],
-      ['9', 'Customer Hold & Release Management', 5],
-      ['10', 'QC Checkpoints & Rework Detection', 11],
-      ['11', 'Service Reports & Repair Warranty', 12],
-      ['12', 'Operations Boards & WIP Analysis', 11],
-      ['13', 'API & Domain Event Broadcasting', 10]
+      ['1', 'Omni-Channel Intake (12 channels)', 14, { model: 'fix.service.order', cols: ['name', 'service_type', 'customer_id', 'device_id', 'create_date'], screens: ['M01-intake', 'M01-channels', 'M01-hotline'] }],
+      ['2', 'Lifecycle State Machine & Stepper', 9, { model: 'fix.service.order', cols: ['name', 'state', 'order_category', 'priority', 'technician_id'], screens: ['M01-order', 'M01-all', 'M01-types'] }],
+      ['3', 'Entitlement Evaluation & SLA Clock', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'end_date', 'verification_state'], screens: ['M01-entitle', 'M01-sla-instances'] }],
+      ['4', 'Complaint & Fault Taxonomy Coding', 10, { model: 'fix.fault.code', cols: ['code', 'name', 'category', 'default_severity', 'active'], screens: ['M01-fault'] }],
+      ['5', 'Diagnostic Templates & Benchmarks', 7, { model: 'fix.diagnostic.node', cols: ['code', 'name', 'parent_id', 'fault_code', 'is_terminal'], screens: ['M01-templates'] }],
+      ['6', 'Estimate & Customer Approval Loop', 12, { model: 'fix.estimate', cols: ['order_id', 'version', 'grand_total', 'state', 'approved_at'], screens: ['M01-estimates', 'M01-thresholds'] }],
+      ['7', 'Assignment & Field Dispatch Handoff', 6, { model: 'fix.service.order', cols: ['name', 'technician_id', 'preferred_technician_id', 'triage_verdict', 'state'], screens: ['M01-all', 'M01-order'], domain: [['service_type', '=', 'onsite']] }],
+      ['8', 'SLA Policy, Clock & Escalations', 13, { model: 'fix.sla.policy', cols: ['code', 'name', 'priority', 'response_hours', 'resolution_hours'], screens: ['M01-sla', 'M01-esc', 'M01-sla-rep', 'M01-sla-items'] }],
+      ['9', 'Customer Hold & Release Management', 5, { model: 'fix.service.order', cols: ['name', 'customer_id', 'deferred_reason', 'deferred_until', 'state'], screens: ['M01-holds'], domain: [['is_deferred_block', '=', true]] }],
+      ['10', 'QC Checkpoints & Rework Detection', 11, { model: 'fix.qc.checklist', cols: ['order_id', 'inspector_id', 'state', 'all_passed', 'checked_at'], screens: ['M01-qc', 'M01-rework'] }],
+      ['11', 'Service Reports & Repair Warranty', 12, { model: 'fix.service.order', cols: ['name', 'service_warranty_days', 'service_warranty_until', 'service_warranty_issued_by', 'state'], screens: ['M01-rwty', 'M01-reports'], domain: [['state', 'in', ['ready', 'delivered', 'closed']]] }],
+      ['12', 'Operations Boards & WIP Analysis', 11, { model: 'fix.service.order', cols: ['name', 'state', 'branch_id', 'priority', 'create_date'], screens: ['M01-board', 'M01-wip'], domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']]] }],
+      ['13', 'API & Domain Event Broadcasting', 10, { model: 'fix.device.history', cols: ['event_type', 'service_order_id', 'device_id', 'date', 'branch_id'], screens: ['M01-reports'] }]
     ]
   }
 };

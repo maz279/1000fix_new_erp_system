@@ -50,10 +50,16 @@ export const MODULE = {
   cross: ['M21 Workforce', 'M55 Attendance', 'M19 General Ledger', 'M51 TDS', 'M50 Treasury'],
   freg: {
     src: 82, sub: [
-      ['1', 'Gross-to-Net Engine', 14], ['2', 'BD Income Tax', 12], ['3', 'Provident Fund', 7],
-      ['4', 'Gratuity', 7], ['5', 'Bonus & Encashment', 7], ['6', 'Loans & Advances', 6],
-      ['7', 'Runs & Off-Cycle', 9], ['8', 'BEFTN & Payslips', 8],
-      ['9', 'Returns & Certificates', 7], ['10', 'Final Settlement', 5]
+      ['1', 'Gross-to-Net Engine', 14, { model: 'fix.payslip', cols: ['period_id', 'employee_id', 'gross', 'tax_withheld', 'net'], screens: ['M56-payslips', 'M56-structures'] }],
+      ['2', 'BD Income Tax', 12, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'taxpayer_category', 'annual_taxable_other', 'tax_withheld'], screens: ['M56-tax'] }],
+      ['3', 'Provident Fund', 7, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'basic', 'pf_employee', 'pf_employer'], screens: ['M56-pf'] }],
+      ['4', 'Gratuity', 7, { model: 'fix.payslip', cols: ['employee_id', 'period_id', 'completed_years', 'basic', 'gratuity_amount'], screens: ['M56-gratuity'] }],
+      ['5', 'Bonus & Encashment', 7, { model: 'fix.payroll.bonus.run', cols: ['name', 'festival', 'bonus_date', 'total_amount', 'state'], screens: ['M56-bonus', 'M56-wppf'] }],
+      ['6', 'Loans & Advances', 6, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-offcycle'], domain: [['payment_type', '=', 'advance']] }],
+      ['7', 'Runs & Off-Cycle', 9, { model: 'fix.payroll.period', cols: ['name', 'period_start', 'period_end', 'calculator_id', 'state'], screens: ['M56-runs', 'M56-offcycle'] }],
+      ['8', 'BEFTN & Payslips', 8, { model: 'fix.beftn.batch', cols: ['period_id', 'settlement_date', 'employee_count', 'total_amount', 'state'], screens: ['M56-beftn', 'M56-payslips'] }],
+      ['9', 'Returns & Certificates', 7, { model: 'fix.payroll.return', cols: ['name', 'period', 'total_tax', 'challan_number', 'state'], screens: ['M56-returns', 'M56-certificates'] }],
+      ['10', 'Final Settlement', 5, { model: 'fix.payroll.offcycle', cols: ['name', 'employee_id', 'payment_date', 'amount', 'state'], screens: ['M56-settlement'], domain: [['payment_type', '=', 'settlement']] }]
     ]
   }
 };

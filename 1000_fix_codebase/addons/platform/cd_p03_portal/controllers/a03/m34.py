@@ -18,12 +18,35 @@ SURFACES = {
     "fix.complaint": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # The workflow's own actions. With an empty set the only route to
+        # 'closed' was writing the state field, skipping RCA, DOFA and CAPA.
+        # A03 P2 (M34-3/M34-6): the full ISO 10002 cl. 7 lifecycle.
+        "actions": {
+            "action_take_ownership",
+            "action_assign",
+            "action_assess",
+            "action_reassess",
+            "action_investigate",
+            "action_raise_ncr",
+            "action_record_root_cause",
+            "action_verify_root_cause",
+            "action_open_capa",
+            "action_request_verification",
+            # R7: the concession is decided from the M63 inbox.
+            "action_request_approval",
+            "action_recall_approval",
+            "action_respond",
+            "action_customer_accept",
+            "action_customer_reject",
+            "action_close",
+            "action_decline",
+            "action_reopen",
+        },
     },
     "fix.cx.followup": {
         "order": "due_date, id",
         "limit": 300,
-        "actions": {"action_close_recovered"},
+        "actions": {"action_close_recovered", "action_raise_complaint"},
     },
     "fix.cx.throttle": {
         "order": "partner_id",
@@ -60,7 +83,9 @@ SURFACES = {
     },
 }
 
-CLOSED_COMPLAINT = ("closed", "verification")
+# A03 audit M34-12: 'verification' is CAPA verification, an open state; it
+# was counted as closed. Declined (not upheld) complaints are finished.
+CLOSED_COMPLAINT = ("closed", "rejected")
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -310,7 +335,7 @@ def closed_loop(env, date_from=None, date_to=None, **params):
         {
             "metric": "Complaints closed",
             "value": len(closed),
-            "basis": "state in verification/closed",
+            "basis": "state in closed/declined",
         },
         {
             "metric": "Complaints open",
@@ -423,7 +448,7 @@ def complaint_escalation(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Open = not in verification/closed. Age is calendar days since creation; "
+            "Open = not closed or declined. Age is calendar days since creation; "
             "escalation follows severity, with age as the tie-breaker."
         ],
         empty="No open complaints — the queue is clear.",
