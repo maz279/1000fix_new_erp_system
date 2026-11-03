@@ -15,3 +15,7 @@ from . import (
 # S9 SLA instance engine: extends fix.sla.policy, so it imports after the
 # module that defines it.
 from . import fix_sla_instance
+
+# A03 audit M33-5: party.merged consumers; extends fix.service.order and
+# fix.device, so it imports after them.
+from . import fix_party_merge_consumer

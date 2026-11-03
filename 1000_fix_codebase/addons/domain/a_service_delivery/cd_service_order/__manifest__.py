@@ -24,6 +24,7 @@ unit-testable without a database (AR-007 section 3.1).
         "cd_document_core",
         "cd_event_outbox",
         "cd_employee_core",
+        "cd_workflow_engine",
     ],
     "data": [
         "data/fix_sla_instance_cron.xml",
@@ -31,6 +32,7 @@ unit-testable without a database (AR-007 section 3.1).
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/fix_fault_codes.xml",
+        "data/fix_party_merge_consumers.xml",
         "views/fix_service_order_views.xml",
         "views/fix_estimate_views.xml",
         "views/fix_fault_code_views.xml",

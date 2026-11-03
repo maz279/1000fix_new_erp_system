@@ -532,8 +532,28 @@ def test_approval_above_25000_needs_customer_then_manager(base):
     est.customer_approval_ref = "SIG-77"
     with _refused(base.env, UserError, "BRU-SRM-08"):
         est.action_approve()
-    est.action_manager_approve()
-    assert est.manager_approval_uid == base.env.user
+    # The second key is a branch manager's (DOFA Tier 2), and not the
+    # preparer's own: whoever called this used to become the manager.
+    manager = base.env["res.users"].create(
+        {
+            "name": "Branch Manager",
+            "login": "so-branch-manager@a02.test",
+            "group_ids": [
+                (
+                    6,
+                    0,
+                    [
+                        base.env.ref("base.group_user").id,
+                        base.env.ref("cd_entity_config.group_dofa_tier_2").id,
+                    ],
+                )
+            ],
+        }
+    )
+    with _refused(base.env, UserError, "Branch Manager authority"):
+        est.action_manager_approve()  # the superuser holds no Tier 2
+    est.with_user(manager).action_manager_approve()
+    assert est.manager_approval_uid == manager
     est.action_approve()
     assert est.state == "approved"
 

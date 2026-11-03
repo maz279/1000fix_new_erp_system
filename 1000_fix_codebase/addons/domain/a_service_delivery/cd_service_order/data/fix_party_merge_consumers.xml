@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers of party.merged for M01 (A03 audit M33-5): open service
+     orders and device owners follow a supervised party merge. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_party_merged_service_order" model="fix.event.consumer">
+            <field name="name">M01: open service orders follow the merged customer</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+        <record id="consumer_party_merged_device" model="fix.event.consumer">
+            <field name="name">M01: device owners follow the merged customer</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
+    </data>
+</odoo>

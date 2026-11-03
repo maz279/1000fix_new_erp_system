@@ -3,13 +3,52 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+# BRU-SRM-08's second key is a Branch Manager, i.e. DOFA Tier 2.
+_BRANCH_MANAGER_GROUP = "cd_entity_config.group_dofa_tier_2"
+
 
 class FixEstimate(models.Model):
     """A repair estimate — parts + labour + total, sent for customer approval."""
 
     _name = "fix.estimate"
     _description = "Repair Estimate"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # The approval keys are evidence; only their actions stamp them. The
+        # DOFA stamp (dofa_approved, _by, _tier, _amount) comes with the mixin.
+        return super()._fix_guarded_fields() | {"manager_approval_uid"}
+
+    # Discount authority, in percent of the chargeable total. Up to 5% is
+    # front-desk authority (Tier 1) and needs no sign-off; above it the
+    # discount goes through fix.dofa.mixin like every other approval, so it
+    # gets the same tier check, self-approval refusal, mandatory
+    # justification, amount pin and M30 ladder (A03 audit, R4).
+    _DOFA_DISCOUNT_THRESHOLDS = [
+        (0.0, "tier_0"),
+        (5.0, "tier_1"),
+        (15.0, "tier_2"),
+        (30.0, "tier_3"),
+        (50.0, "tier_4"),
+        (float("inf"), "tier_5"),
+    ]
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        return self.discount_pct or 0.0
+
+    def _dofa_thresholds(self):
+        return self._DOFA_DISCOUNT_THRESHOLDS
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "a %.1f%% discount (BDT %.2f)" % (self.discount_pct or 0.0, self.discount or 0.0)
+
+    def _dofa_current_tier(self) -> str:
+        # Tier 1 is the front desk's own authority: nothing to sign off.
+        tier = super()._dofa_current_tier()
+        return "tier_0" if tier == "tier_1" else tier
+
     _order = "order_id, version desc"
 
     company_id = fields.Many2one(
@@ -135,6 +174,7 @@ class FixEstimate(models.Model):
     dofa_approved_by = fields.Many2one(
         "res.users",
         string="DOFA Discount Approver",
+        readonly=True,
         copy=False,
         tracking=True,
         help="Required when discount_pct > 5.0% (Tier 2+ DOFA governance).",
@@ -166,18 +206,7 @@ class FixEstimate(models.Model):
             est.grand_total = subtotal + est.vat_amount
             pct = (est.discount / chargeable * 100.0) if chargeable > 0 else 0.0
             est.discount_pct = round(pct, 2)
-            if pct <= 0.0:
-                est.dofa_tier_required = "tier_0"
-            elif pct <= 5.0:
-                est.dofa_tier_required = "tier_1"
-            elif pct <= 15.0:
-                est.dofa_tier_required = "tier_2"
-            elif pct <= 30.0:
-                est.dofa_tier_required = "tier_3"
-            elif pct <= 50.0:
-                est.dofa_tier_required = "tier_4"
-            else:
-                est.dofa_tier_required = "tier_5"
+            est.dofa_tier_required = est._dofa_tier_for_amount(pct) if pct > 0.0 else "tier_0"
 
     def _chargeable_total(self) -> float:
         """Parts + labour + diagnostic: the VAT-exclusive amount before discount."""
@@ -241,6 +270,12 @@ class FixEstimate(models.Model):
                     "BRU-SRM-07: documented customer approval is required before "
                     "approving an estimate above BDT %.0f" % customer_threshold
                 )
+            # A discount above front-desk authority is approved before the
+            # estimate is. action_approve used to ignore the DOFA tier, so a
+            # 40% discount whose only approval was REJECTED was approved,
+            # quoted and accepted (A03 audit). The approval must also still
+            # cover the discount: one signed off at 12% does not cover 14%.
+            est._dofa_assert_approved("Estimate approval")
             est.state = "approved"
             est.approved_at = fields.Datetime.now()
             est._emit_event("estimate.approved")
@@ -257,16 +292,19 @@ class FixEstimate(models.Model):
                     "BRU-SRM-08: customer approval must be documented before "
                     "the manager approves"
                 )
-            est.manager_approval_uid = self.env.user
-
-    def action_dofa_approve(self):
-        """Record DOFA commercial discount approval (Tier 2..Tier 5)."""
-        for est in self:
-            est.dofa_approved_by = self.env.user
-            est.message_post(
-                body=f"DOFA discount approval recorded for {est.dofa_tier_required} "
-                f"({est.discount_pct:.1f}% / BDT {est.discount:.2f})."
-            )
+            # The "second key" had no key: whoever called this became the
+            # branch manager (A03 audit).
+            if not self.env.user.has_group(_BRANCH_MANAGER_GROUP):
+                raise UserError(
+                    "BRU-SRM-08: the second approval needs Branch Manager authority "
+                    "(DOFA Tier 2)."
+                )
+            if est.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: the person who prepared the estimate "
+                    "cannot give the branch-manager approval."
+                )
+            est._guarded().write({"manager_approval_uid": self.env.user.id})
 
     def action_reject(self):
         for est in self:
