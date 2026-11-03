@@ -29,6 +29,7 @@ CD-M10-01 (P05-M08-T01..T03):
         "cd_campaign",
         "cd_billing_engine",
         "cd_contact_centre",
+        "cd_workflow_engine",
     ],
     "data": [
         "data/fix_loyalty_gap_cron.xml",
@@ -36,6 +37,7 @@ CD-M10-01 (P05-M08-T01..T03):
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
         "data/fix_loyalty_cron.xml",
+        "data/fix_loyalty_event_consumers.xml",
         "views/fix_loyalty_views.xml",
     ],
     "installable": True,

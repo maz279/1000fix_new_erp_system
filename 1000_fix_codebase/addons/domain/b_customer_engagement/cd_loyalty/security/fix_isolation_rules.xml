@@ -40,6 +40,11 @@
         <field name="model_id" ref="model_fix_loyalty_card"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_loyalty_event_receipt_company" model="ir.rule">
+        <field name="name">fix.loyalty.event.receipt: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_event_receipt"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_loyalty_ledger_company" model="ir.rule">
         <field name="name">fix.loyalty.ledger: allowed companies</field>
         <field name="model_id" ref="model_fix_loyalty_ledger"/>

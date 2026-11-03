@@ -101,7 +101,10 @@
                     <button name="check_and_update_tier" string="Recalculate Tier" type="object" class="btn-primary"/>
                     <button name="action_suspend" string="Suspend" type="object" invisible="state != 'active'"/>
                     <button name="action_activate" string="Activate" type="object" invisible="state != 'suspended'"/>
-                    <field name="state" widget="statusbar" statusbar_visible="active,suspended,closed"/>
+                    <button name="action_request_approval" string="Request Fraud-Lock Release" type="object" invisible="state != 'frozen' or approval_state == 'pending'"/>
+                    <button name="action_reconcile_balance" string="Reconcile Balance" type="object"/>
+                    <field name="approval_state" invisible="1"/>
+                    <field name="state" widget="statusbar" statusbar_visible="active,frozen,suspended,closed"/>
                 </header>
                 <sheet>
                     <div class="oe_title">

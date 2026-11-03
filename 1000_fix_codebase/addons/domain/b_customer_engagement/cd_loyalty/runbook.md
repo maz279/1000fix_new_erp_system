@@ -105,6 +105,14 @@ The module depends on the following prerequisite modules:
    - Verify access control rights in `security/ir.model.access.csv`.
    - Ensure company and operating unit isolation policies (`res.company`, `fix.operating.unit`) are active.
 
+### 4.3 Lifecycle controls added by the A03 P2 repair (November 2026)
+- **Earning**: the R8 relay delivers `service_order.closed` to `fix.loyalty.account.consume_service_order_closed`. Each account earns once per order and programme (receipt key `earn:service_order:<order>:<programme>` in `fix.loyalty.event.receipt`), using the live scheme's earn rules or the programme rate. A frozen or suspended wallet keeps the earned line as a draft. The same event converts a pending referral whose referee it is.
+- **Merges**: `party.merged` is consumed by `consume_party_merged`. A lone victim account is re-pointed; when both parties hold an account, the balance moves as posted `merge_transfer` lines and the victim account closes. A frozen victim's points are not moved (`loyalty.merge_transfer_blocked`).
+- **Balance**: `points_balance` is derived from posted ledger lines. The daily cron *Loyalty: reconcile every balance with its posted ledger* (or the account's *Reconcile Balance* button) records any drift in `balance_drift`, publishes `loyalty.balance_drift` and re-derives the balance.
+- **Fraud-lock release**: requested with *Request Fraud-Lock Release*; decided by a DOFA Tier 2 holder from the M63 inbox (`loyalty_release` decision domain). Pressing `action_unfreeze` directly is refused.
+- **Expiry**: point expiry runs one account per savepoint (a frozen account is retried next day); *Loyalty: expire vouchers past their Valid Until date* runs daily.
+- **Business switches on the programme (DOFA Tier 3 to change)**: `expected_breakage_pct` (IFRS 15, default 0 = gross liability), `referral_referrer_points` and `referral_referee_points` (default 0 = no award). Each awaits a business ruling.
+
 ---
 
 ## 5. Troubleshooting & Diagnostic Playbooks

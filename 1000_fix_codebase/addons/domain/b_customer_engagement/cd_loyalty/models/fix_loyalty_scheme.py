@@ -211,6 +211,10 @@ class FixLoyaltyScheme(models.Model):
     _name = "fix.loyalty.scheme"
     _description = "Loyalty Scheme"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
+
+    # A03 audit R7: the scheme's cost is approved from the M63 inbox.
+    _approval_domain = "loyalty_scheme"
+    _approval_routed = True
     _order = "sequence, id"
 
     sequence = fields.Integer(default=10)
@@ -269,6 +273,10 @@ class FixLoyaltyScheme(models.Model):
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
+    def _fix_guarded_fields(self) -> set:
+        # Writing state='active' put a Tier-4 scheme live with no approval.
+        return super()._fix_guarded_fields() | {"state"}
+
     def action_activate(self):
         for rec in self:
             if rec.state == "active":
@@ -279,7 +287,7 @@ class FixLoyaltyScheme(models.Model):
                     "redemption rule before activating."
                 )
             rec._dofa_assert_approved(what="Activating loyalty scheme '%s'" % rec.name)
-            rec.state = "active"
+            rec._guarded().write({"state": "active"})
             publish(
                 self.env,
                 "loyalty.scheme_activated",
@@ -297,7 +305,10 @@ class FixLoyaltyScheme(models.Model):
 
     def action_retire(self):
         for rec in self:
-            rec.state = "retired"
+            rec._guarded().write({"state": "retired"})
+            # Re-activation is a new commitment. The old sign-off covered the
+            # scheme as it stood then, not whatever it is edited into later.
+            rec._dofa_void_approval("scheme retired; re-activation needs a fresh approval")
         return True
 
     def is_live(self, on_date=None):

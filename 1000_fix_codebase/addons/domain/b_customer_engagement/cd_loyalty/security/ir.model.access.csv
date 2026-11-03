@@ -23,3 +23,5 @@ access_fix_loyalty_earn_rule,fix.loyalty.earn.rule,model_fix_loyalty_earn_rule,b
 access_fix_loyalty_burn_rule,fix.loyalty.burn.rule,model_fix_loyalty_burn_rule,base.group_user,1,1,1,1
 access_fix_loyalty_card,fix.loyalty.card,model_fix_loyalty_card,base.group_user,1,1,1,0
 access_fix_loyalty_card_mgr,fix.loyalty.card manager,model_fix_loyalty_card,cd_entity_config.group_dofa_tier_2,1,1,1,1
+access_fix_loyalty_event_receipt,fix.loyalty.event.receipt,model_fix_loyalty_event_receipt,base.group_user,1,0,0,0
+access_fix_loyalty_event_receipt_admin,fix.loyalty.event.receipt.admin,model_fix_loyalty_event_receipt,base.group_system,1,1,1,1

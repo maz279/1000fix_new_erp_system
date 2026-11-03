@@ -1,15 +1,23 @@
 # fix_loyalty_ledger — M10 Append-Only Points Ledger (CD-M10-01).
+import logging
+
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+_logger = logging.getLogger(__name__)
+
 
 class FixLoyaltyLedger(models.Model):
     _name = "fix.loyalty.ledger"
     _description = "Loyalty Points Audit Ledger"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
+
+    # A03 audit R7: a metered adjustment is approved from the M63 inbox.
+    _approval_domain = "loyalty_adjustment"
+    _approval_routed = True
     _order = "create_date desc, id desc"
 
     # REQ-10.3 thresholds, stated in points. The specification's REQ text and
@@ -25,12 +33,23 @@ class FixLoyaltyLedger(models.Model):
     ]
 
     def _dofa_amount(self) -> float:
-        """Only manual adjustments carry financial authority. An accrual is
-        earned and a redemption is already balance-checked."""
+        """Manual adjustments, and manual credits of any type, carry authority.
+
+        Only 'adjustment' used to count, so a plain user posted a 1,000,000
+        point 'accrual' and a 50,000 point 'campaign_bonus' with no approval
+        (A03 audit). Lines raised by a system path (campaign hook, expiry,
+        redemption) are flagged system_generated and are governed where that
+        path is configured. A redemption is already balance-checked."""
         self.ensure_one()
-        if self.transaction_type != "adjustment":
-            return 0.0
-        return abs(self.points or 0)
+        if self.transaction_type == "adjustment":
+            return abs(self.points or 0)
+        # Any credit a person keys in mints points, whatever type it is
+        # labelled: a positive 'redemption' line used to post at tier_0.
+        # System earn paths (closed-order accrual, referral award, campaign
+        # hook, merge transfer) are flagged system_generated and stay out.
+        if (self.points or 0) > 0 and not self.system_generated:
+            return self.points
+        return 0.0
 
     def _dofa_thresholds(self):
         return self._DOFA_POINT_THRESHOLDS
@@ -40,9 +59,60 @@ class FixLoyaltyLedger(models.Model):
         direction = "credit" if (self.points or 0) >= 0 else "debit"
         return "a manual %s of %d points" % (direction, abs(self.points or 0))
 
-    @api.depends("points", "transaction_type")
+    @api.depends("points", "transaction_type", "system_generated")
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
+
+    # A posted line is the record of what happened. Corrections are new,
+    # reversing lines; editing the old one rewrites history.
+    _POSTED_IMMUTABLE = (
+        "account_id",
+        "partner_id",
+        "transaction_type",
+        "points",
+        "service_order_id",
+        "order_amount_bdt",
+        "expiry_date",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "balance_after",
+            "system_generated",
+            "points_expired",
+            "is_approved",
+            "approved_by",
+            "reversal_of_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self.state == "posted":
+            return locked | set(self._POSTED_IMMUTABLE)
+        return locked
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # Superuser code is a system path (data loading, crons, service
+        # calls), the same trust the field guard extends to it. A person
+        # keying in points is never superuser, so their credits stay metered.
+        if self.env.su:
+            for vals in vals_list:
+                vals.setdefault("system_generated", True)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if (
+            not self._fix_guard_open()
+            and set(vals) & set(self._POSTED_IMMUTABLE)
+            and any(rec.state == "posted" for rec in self)
+        ):
+            raise UserError(
+                "A posted loyalty ledger line cannot be edited. Reverse it instead "
+                "(Reverse Line), so the correction is on the record."
+            )
+        return super().write(vals)
 
     # AS-03: Company and Operating Unit scoping
     company_id = fields.Many2one(
@@ -79,6 +149,7 @@ class FixLoyaltyLedger(models.Model):
             ("referral_bonus", "Referral Reward"),
             ("campaign_bonus", "Campaign Promotion"),
             ("expiration", "Points Expiration"),
+            ("merge_transfer", "Party Merge Transfer"),
         ],
         string="Transaction Type",
         required=True,
@@ -160,6 +231,37 @@ class FixLoyaltyLedger(models.Model):
         index=True,
     )
     notes = fields.Text(string="Reason / Narration")
+    reversal_of_id = fields.Many2one(
+        "fix.loyalty.ledger",
+        string="Reverses",
+        readonly=True,
+        copy=False,
+        index=True,
+        help="The posted line this line corrects. Set only by Reverse.",
+    )
+    system_generated = fields.Boolean(
+        readonly=True,
+        copy=False,
+        help="Raised by a system path (campaign hook, expiry, redemption), not "
+        "keyed in by a person. Only those paths can set it.",
+    )
+
+    @api.constrains("transaction_type", "points", "system_generated")
+    def _check_type_direction(self):
+        for rec in self:
+            # A positive 'redemption' or 'expiration' is a credit wearing a
+            # debit's label; it would also read as negative breakage.
+            if rec.transaction_type in ("redemption", "expiration") and rec.points > 0:
+                raise ValidationError(
+                    "A %s line removes points, so its points must be negative or zero."
+                    % dict(self._fields["transaction_type"].selection)[rec.transaction_type]
+                )
+            # Only the party-merge consumer moves a balance between members.
+            if rec.transaction_type == "merge_transfer" and not rec.system_generated:
+                raise ValidationError(
+                    "A party merge transfer is raised by the merge itself, not keyed in. "
+                    "Use a Customer Care Adjustment for a manual correction."
+                )
 
     def action_post(self):
         """Post the ledger line, recalculate account balance, and evaluate tier.
@@ -203,10 +305,13 @@ class FixLoyaltyLedger(models.Model):
                     )
 
             new_balance = current_balance + rec.points
-            rec.balance_after = new_balance
+            posting = rec._guarded()
+            posting.write({"balance_after": new_balance})
 
-            # Update account lifetime accumulators
-            acc_updates = {"points_balance": new_balance}
+            # Update account lifetime accumulators. points_balance is not
+            # among them: it is derived from the posted lines (A03 audit
+            # M10-2), so marking this line posted is what moves it.
+            acc_updates = {}
             if rec.points > 0:
                 acc_updates["lifetime_points_earned"] = account.lifetime_points_earned + rec.points
                 if rec.order_amount_bdt:
@@ -220,12 +325,20 @@ class FixLoyaltyLedger(models.Model):
 
             # Auto-calculate expiration date for accruals (365 days / FIFO)
             if rec.points > 0 and not rec.expiry_date and account.program_id.expiry_months:
-                rec.expiry_date = fields.Date.today() + relativedelta(
-                    months=account.program_id.expiry_months
+                posting.write(
+                    {
+                        "expiry_date": fields.Date.today()
+                        + relativedelta(months=account.program_id.expiry_months)
+                    }
                 )
 
-            account.write(acc_updates)
-            rec.state = "posted"
+            if acc_updates:
+                account._guarded().write(acc_updates)
+            posting.write({"state": "posted"})
+            if rec.reversal_of_id:
+                # The original stays as it was posted; it is marked, not
+                # rewritten. An accrual taken back must not lapse later too.
+                rec.reversal_of_id._guarded().write({"state": "reversed", "points_expired": True})
 
             # Check tier progression
             account.check_and_update_tier()
@@ -251,6 +364,47 @@ class FixLoyaltyLedger(models.Model):
                 },
             )
 
+    def action_reverse(self, reason=None):
+        """Correct a posted line by posting its opposite (REQ-10.3).
+
+        A posted line is never edited: the correction is a new draft line for
+        the negated points, linked to the original. It is a manual adjustment,
+        so above the DOFA threshold a second person approves it before it can
+        post, and posting it marks the original 'reversed'. Returns the draft.
+        """
+        self.ensure_one()
+        if not (reason or "").strip():
+            raise UserError("State why this line is being reversed.")
+        if self.state != "posted":
+            raise UserError("Only a posted line can be reversed; edit or delete a draft instead.")
+        if self.reversal_of_id:
+            raise UserError(
+                "This line is itself a reversal. Post a new line rather than reversing a reversal."
+            )
+        if self.transaction_type != "expiration" and self.points_expired:
+            raise UserError(
+                "These points already lapsed through expiry. Reverse the expiration line instead."
+            )
+        open_reversal = self.search([("reversal_of_id", "=", self.id), ("state", "!=", "reversed")])
+        if open_reversal:
+            raise UserError(
+                "Line %s already has a reversal (%s)." % (self.id, open_reversal[0].state)
+            )
+        reversal = self._guarded().create(
+            {
+                "account_id": self.account_id.id,
+                "transaction_type": "adjustment",
+                "points": -self.points,
+                "service_order_id": self.service_order_id.id,
+                "reversal_of_id": self.id,
+                "justification": reason.strip(),
+                "notes": "Reversal of ledger line %s: %s" % (self.id, reason.strip()),
+                "state": "draft",
+            }
+        )
+        self.message_post(body="Reversal raised as line %s: %s" % (reversal.id, reason.strip()))
+        return {"reversal_id": reversal.id}
+
     @api.model
     def cron_expire_points(self):
         """REQ-10.2: daily FIFO expiry of accruals past their 365-day life.
@@ -269,16 +423,39 @@ class FixLoyaltyLedger(models.Model):
                 ("points_expired", "=", False),
                 ("expiry_date", "!=", False),
                 ("expiry_date", "<=", today),
+                # A closed account (a merged party's, say) holds nothing to
+                # expire; its balance was moved or written off on closing.
+                ("account_id.state", "!=", "closed"),
             ],
             order="expiry_date asc, id asc",  # FIFO: oldest entitlement first
         )
         expired_count = 0
-        for entry in expired_ledgers:
+        accounts = expired_ledgers.mapped("account_id")
+        for account in accounts:
+            entries = expired_ledgers.filtered(lambda e, a=account: e.account_id == a)
+            # One account per savepoint. A frozen wallet refuses the posting,
+            # and that UserError used to abort the whole run, so no member's
+            # points expired until the freeze was lifted (A03 audit M10-7).
+            # The failed account's entries stay unstamped and retry tomorrow.
+            try:
+                with self.env.cr.savepoint():
+                    expired_count += entries._expire_entries()
+            except Exception as exc:  # one broken account must not stop the others
+                _logger.warning(
+                    "Loyalty expiry skipped account %s (%s): %s", account.name, account.state, exc
+                )
+        return expired_count
+
+    def _expire_entries(self) -> int:
+        """Post the expiration lines for these lapsed accruals of ONE account."""
+        expired = 0
+        for entry in self.sorted(lambda e: (e.expiry_date, e.id)):
             account = entry.account_id
             points_to_expire = min(entry.points, max(account.points_balance, 0))
             if points_to_expire > 0:
-                self.create(
+                self._guarded().create(
                     {
+                        "system_generated": True,
                         "account_id": account.id,
                         "transaction_type": "expiration",
                         "points": -points_to_expire,
@@ -286,11 +463,11 @@ class FixLoyaltyLedger(models.Model):
                         "state": "draft",
                     }
                 ).action_post()
-                expired_count += 1
+                expired += 1
             # Stamped whether or not points were available: the entitlement has
             # lapsed either way and must not be revisited.
-            entry.points_expired = True
-        return expired_count
+            entry._guarded().write({"points_expired": True})
+        return expired
 
     def cron_warn_expiring_points(self):
         """REQ-10.2: notify members 30 and 7 days before their points lapse."""

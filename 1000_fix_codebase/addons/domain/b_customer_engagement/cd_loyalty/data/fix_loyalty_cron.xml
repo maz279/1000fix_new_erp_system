@@ -28,5 +28,27 @@
             <field name="active" eval="True"/>
         </record>
 
+        <record id="ir_cron_loyalty_expire_vouchers" model="ir.cron">
+            <field name="name">Loyalty: expire vouchers past their Valid Until date</field>
+            <field name="model_id" ref="model_fix_loyalty_voucher"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_vouchers()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- A03 audit M10-2: the balance is derived from the ledger; this
+             proves it every day and flags any account that drifted. -->
+        <record id="ir_cron_loyalty_reconcile_balances" model="ir.cron">
+            <field name="name">Loyalty: reconcile every balance with its posted ledger</field>
+            <field name="model_id" ref="model_fix_loyalty_account"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_reconcile_balances()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
     </data>
 </odoo>

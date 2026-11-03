@@ -196,3 +196,28 @@ class FixLoyaltyVoucher(models.Model):
             if rec.state == "redeemed":
                 raise UserError("Cannot cancel an already-redeemed voucher.")
             rec.state = "cancelled"
+
+    @api.model
+    def cron_expire_vouchers(self) -> int:
+        """Daily: a voucher past its Valid Until date becomes 'expired'.
+
+        Nothing ever expired a voucher: action_redeem set 'expired' and then
+        raised, so the rollback undid it, and a lapsed voucher sat 'active'
+        in the liability and fraud counts for ever (A03 audit M10-10)."""
+        lapsed = self.search(
+            [("state", "in", ("draft", "active")), ("valid_until", "<", fields.Date.today())]
+        )
+        for voucher in lapsed:
+            voucher.write({"state": "expired"})
+            publish(
+                self.env,
+                "loyalty.voucher_expired",
+                "fix.loyalty.voucher",
+                voucher.id,
+                {
+                    "voucher_code": voucher.name,
+                    "partner_id": voucher.partner_id.id,
+                    "valid_until": str(voucher.valid_until),
+                },
+            )
+        return len(lapsed)

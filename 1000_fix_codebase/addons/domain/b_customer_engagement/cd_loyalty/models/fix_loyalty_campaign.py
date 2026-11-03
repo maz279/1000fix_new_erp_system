@@ -103,14 +103,21 @@ class FixLoyaltyCampaignHook(models.Model):
                 )
 
             if self.reward_type == "bonus_points" and self.bonus_points > 0:
-                ledger = self.env["fix.loyalty.ledger"].create(
-                    {
-                        "account_id": account.id,
-                        "transaction_type": "campaign_bonus",
-                        "points": self.bonus_points,
-                        "notes": f"Campaign bonus: {self.campaign_id.name}",
-                        "company_id": self.company_id.id,
-                    }
+                # system_generated: the hook's own configuration is what
+                # authorises the bonus, not a person keying in points.
+                ledger = (
+                    self.env["fix.loyalty.ledger"]
+                    ._guarded()
+                    .create(
+                        {
+                            "system_generated": True,
+                            "account_id": account.id,
+                            "transaction_type": "campaign_bonus",
+                            "points": self.bonus_points,
+                            "notes": f"Campaign bonus: {self.campaign_id.name}",
+                            "company_id": self.company_id.id,
+                        }
+                    )
                 )
                 ledger.action_post()
                 rewarded_count += 1

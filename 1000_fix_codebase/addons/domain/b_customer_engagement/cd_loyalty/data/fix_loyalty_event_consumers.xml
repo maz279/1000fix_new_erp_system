@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M10 in-Odoo event consumers (A03 audit R8, M10-10 / M10-11).
+
+  Nothing consumed service_order.closed or party.merged, so a closed repair
+  earned no points and a merged party's points stayed on the tombstone. The
+  relay cron hands each event to these methods once; each method is also
+  idempotent on its own (fix.loyalty.event.receipt), because a failed
+  delivery is retried.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="event_consumer_service_order_closed" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: earn on a closed service order</field>
+            <field name="event_type">service_order.closed</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_service_order_closed</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+        <record id="event_consumer_party_merged" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: move loyalty accounts to the surviving party</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+    </data>
+</odoo>
