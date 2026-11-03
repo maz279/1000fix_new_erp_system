@@ -3,8 +3,16 @@
 # verification, out-of-service, PM and usage.
 import datetime
 
+from ..p03_service_order_api import _company_domain
+
 SURFACES = {
-    "fix.equipment": {"order": "code", "limit": 400, "actions": {"action_assert_usable"}},
+    # A07 P0 recipe (2026-11-03): the write-off is requested here and decided
+    # from the approver's M63 inbox (routed); the approve method is not offered.
+    "fix.equipment": {
+        "order": "code",
+        "limit": 400,
+        "actions": {"action_assert_usable", "action_request_approval", "action_recall_approval"},
+    },
     "fix.calibration": {"order": "calibrated_on desc, id desc", "limit": 400, "actions": set()},
     "fix.equipment.kit": {"order": "code", "limit": 200, "actions": set()},
     "fix.equipment.issue": {
@@ -15,7 +23,7 @@ SURFACES = {
     "fix.equipment.transfer": {
         "order": "transfer_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_dispatch", "action_receive", "action_cancel"},
     },
     "fix.equipment.verification": {
         "order": "verified_on desc, id desc",
@@ -48,8 +56,33 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _scoped(env, model, domain=None):
+    """sudo() read for a report or KPI, fenced to the caller's companies.
+
+    A07 audit (2026-11-03) M45-10: every pack read `sudo().search([])`, so the
+    calibration schedule of one company listed another company's instruments.
+    The ops models (issue, OOS, PM, usage, verification) carry no company_id;
+    they follow their equipment."""
+    Model = env[model].sudo()
+    if "company_id" in Model._fields:
+        fence = _company_domain(env, model)
+    else:
+        fence = [
+            "|",
+            ("equipment_id.company_id", "=", False),
+            ("equipment_id.company_id", "in", env.user.company_ids.ids),
+        ]
+    return Model.search(list(domain or []) + fence)
+
+
 def _equipment(env):
-    return env["fix.equipment"].sudo().search([])
+    return _scoped(env, "fix.equipment")
+
+
+def _calibration_label(equipment):
+    return dict(equipment._fields["calibration_state"].selection).get(
+        equipment.calibration_state, equipment.calibration_state
+    )
 
 
 def classification(env, date_from=None, date_to=None, **params):
@@ -118,6 +151,7 @@ def calibration_schedule(env, date_from=None, date_to=None, **params):
                 else "—",
                 "days_left": days if days is not None else "—",
                 "overdue": equipment.calibration_overdue,
+                "calibration": _calibration_label(equipment),
                 "status": equipment.operational_status,
             }
         )
@@ -132,6 +166,7 @@ def calibration_schedule(env, date_from=None, date_to=None, **params):
             "next_calibration",
             "days_left",
             "overdue",
+            "calibration",
             "status",
         ],
         {
@@ -142,35 +177,63 @@ def calibration_schedule(env, date_from=None, date_to=None, **params):
             "next_calibration": "Next Due",
             "days_left": "Days Left",
             "overdue": "Overdue",
+            "calibration": "Calibration",
             "status": "Status",
         },
         rows,
         [
             "Days-left is negative when overdue; an equipment without a calibration "
-            "shows '—' rather than a fabricated date."
+            "shows '—' rather than a fabricated date.",
+            "Last and Calibration come from the latest calibration only: a failed latest "
+            "calibration has no next-due, because it certifies nothing.",
         ],
         empty="No equipment registered yet.",
     )
 
 
+def _cal_key(calibration):
+    return (calibration.calibrated_on, calibration.id)
+
+
 def retrospective_impact(env, date_from=None, date_to=None, **params):
-    usages = env["fix.equipment.usage"].sudo().search([])
-    calibrations = env["fix.calibration"].sudo().search([])
+    """BRU-EAM-03 / ISO 9001 7.1.5.2: every measurement made since the
+    instrument was last known good is suspect.
+
+    A07 audit (2026-11-03) M45-3: the window started AT the failure, so the uses
+    between the last pass and the fail (the drifting instrument's measurements)
+    were missed: 1 of 3 suspect QC passes was reported. The window now runs
+    from the last passing calibration before the latest fail up to the first
+    pass after it (or stays open while the instrument has not passed again)."""
+    usages = _scoped(env, "fix.equipment.usage")
+    # a superseded calibration was corrected by a later record: not evidence
+    calibrations = _scoped(env, "fix.calibration", [("superseded_by_id", "=", False)])
     rows = []
-    for equipment in _equipment(env).filtered(
-        lambda e: e.calibration_overdue
-        or calibrations.filtered(
-            lambda c, eid=e.id: c.equipment_id.id == eid and c.result == "fail"
-        )
-    ):
-        failed = calibrations.filtered(
-            lambda c, eid=equipment.id: c.equipment_id.id == eid and c.result == "fail"
-        )
-        last_fail = max(failed.mapped("calibrated_on")) if failed else None
-        affected = usages.filtered(
-            lambda u, eid=equipment.id, since=last_fail: u.equipment_id.id == eid
-            and (not since or u.used_on >= since)
-        )
+    for equipment in _equipment(env):
+        cals = calibrations.filtered(lambda c, eid=equipment.id: c.equipment_id.id == eid)
+        cals = cals.sorted(_cal_key)
+        failed = cals.filtered(lambda c: c.result == "fail")
+        if not failed and not equipment.calibration_overdue:
+            continue
+        uses = usages.filtered(lambda u, eid=equipment.id: u.equipment_id.id == eid)
+        last_fail = None
+        if failed:
+            fail = failed[-1]
+            last_fail = fail.calibrated_on
+            key = _cal_key(fail)
+            before = cals.filtered(lambda c, k=key: c.result == "pass" and _cal_key(c) < k)
+            after = cals.filtered(lambda c, k=key: c.result == "pass" and _cal_key(c) > k)
+            since = before[-1].calibrated_on if before else None
+            until = after[0].calibrated_on if after else None
+            affected = uses.filtered(
+                lambda u, a=since, b=until: (a is None or u.used_on >= a)
+                and (b is None or u.used_on < b)
+            )
+            window = "%s to %s" % (since or "first use", until or "open")
+        else:
+            # overdue, never failed: the uses made after the certificate lapsed
+            lapsed = equipment.next_calibration
+            affected = uses.filtered(lambda u, d=lapsed: u.used_on > d)
+            window = "after %s (lapsed)" % lapsed
         rows.append(
             {
                 "code": equipment.code,
@@ -180,21 +243,23 @@ def retrospective_impact(env, date_from=None, date_to=None, **params):
                 else "—",
                 "overdue": equipment.calibration_overdue,
                 "failed_calibrations": len(failed),
-                "affected_uses": len(affected),
                 "last_failure": str(last_fail) if last_fail else "—",
+                "window": window,
+                "affected_uses": len(affected),
             }
         )
     rows.sort(key=lambda r: -r["affected_uses"])
     return _pack(
-        "Retrospective Impact — uses since the last failed/overdue calibration",
+        "Retrospective Impact — uses since the last good calibration",
         [
             "code",
             "name",
             "next_calibration",
             "overdue",
             "failed_calibrations",
-            "affected_uses",
             "last_failure",
+            "window",
+            "affected_uses",
         ],
         {
             "code": "Code",
@@ -202,14 +267,17 @@ def retrospective_impact(env, date_from=None, date_to=None, **params):
             "next_calibration": "Next Due",
             "overdue": "Overdue",
             "failed_calibrations": "Failed Cals",
-            "affected_uses": "Uses Since Failure",
             "last_failure": "Last Failure",
+            "window": "Suspect Window",
+            "affected_uses": "Suspect Uses",
         },
         rows,
         [
-            "Affected uses are recorded usage rows on or after the last failed "
-            "calibration; overdue equipment with no failure lists uses against the "
-            "current window."
+            "For a failed calibration the suspect window runs from the last PASSING "
+            "calibration before the latest failure (the last time the instrument was "
+            "known good) to the first pass after it, or stays open until it passes again.",
+            "Overdue equipment with no failure lists the uses made after its certificate "
+            "lapsed. Only recorded usage rows are counted.",
         ],
         empty="No equipment is overdue or has a failed calibration.",
     )
@@ -220,14 +288,19 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
     horizon = today + datetime.timedelta(days=30)
     rows = []
     for equipment in _equipment(env):
-        if equipment.calibration_overdue:
+        # A07 audit (2026-11-03) M45-1: a failed instrument showed as "current"
+        # because only passing rows were read; the latest calibration decides
+        state = equipment.calibration_state
+        if state == "overdue":
             status = "overdue"
-        elif equipment.next_calibration and equipment.next_calibration <= horizon:
-            status = "due within 30 days"
-        elif equipment.next_calibration:
-            status = "current"
-        else:
+        elif state == "failed":
+            status = "failed"
+        elif state == "never":
             status = "never calibrated"
+        elif equipment.next_calibration <= horizon:
+            status = "due within 30 days"
+        else:
+            status = "current"
         rows.append(
             {
                 "code": equipment.code,
@@ -256,13 +329,17 @@ def calibration_compliance(env, date_from=None, date_to=None, **params):
             "operational": "Operational",
         },
         rows,
-        ["Status counts: " + ", ".join("%s %d" % (k, v) for k, v in sorted(counts.items()))],
+        [
+            "Status counts: " + ", ".join("%s %d" % (k, v) for k, v in sorted(counts.items())),
+            "From the latest calibration only: failed, overdue and never calibrated are "
+            "not current, and the fitness gate refuses them.",
+        ],
         empty="No equipment registered yet.",
     )
 
 
 def utilisation(env, date_from=None, date_to=None, **params):
-    usages = env["fix.equipment.usage"].sudo().search([])
+    usages = _scoped(env, "fix.equipment.usage")
     rows = []
     for equipment in _equipment(env):
         uses = usages.filtered(lambda u, eid=equipment.id: u.equipment_id.id == eid)
@@ -305,7 +382,7 @@ def utilisation(env, date_from=None, date_to=None, **params):
 
 
 def loss_writeoff(env, date_from=None, date_to=None, **params):
-    verifications = env["fix.equipment.verification"].sudo().search([("state", "=", "missing")])
+    verifications = _scoped(env, "fix.equipment.verification", [("state", "=", "missing")])
     rows = []
     for record in verifications:
         rows.append(
@@ -345,8 +422,8 @@ def loss_writeoff(env, date_from=None, date_to=None, **params):
 
 
 def cost_of_ownership(env, date_from=None, date_to=None, **params):
-    pms = env["fix.equipment.pm"].sudo().search([])
-    calibrations = env["fix.calibration"].sudo().search([])
+    pms = _scoped(env, "fix.equipment.pm")
+    calibrations = _scoped(env, "fix.calibration")
     rows = []
     for equipment in _equipment(env):
         equipment_pm = pms.filtered(lambda p, eid=equipment.id: p.equipment_id.id == eid)
@@ -402,12 +479,15 @@ REPORTS = {
 
 def kpis(env):
     equipment = _equipment(env)
-    issues = env["fix.equipment.issue"].sudo().search([("state", "=", "issued")])
+    in_use = equipment.filtered(lambda e: e.operational_status != "retired")
     return {
         "equipment_total": len(equipment),
         "calibration_overdue": len(equipment.filtered(lambda e: e.calibration_overdue)),
-        "oos_open": env["fix.equipment.oos"].sudo().search_count([("state", "=", "open")]),
-        "issued_out": len(issues),
-        "kits": env["fix.equipment.kit"].sudo().search_count([("active", "=", True)]),
-        "pm_open": env["fix.equipment.pm"].sudo().search_count([("state", "=", "open")]),
+        # A07 audit (2026-11-03) M45-1: failed and never-calibrated instruments
+        # are not current either (retired items are no longer in use)
+        "calibration_not_current": len(in_use.filtered(lambda e: e.calibration_state != "current")),
+        "oos_open": len(_scoped(env, "fix.equipment.oos", [("state", "=", "open")])),
+        "issued_out": len(_scoped(env, "fix.equipment.issue", [("state", "=", "issued")])),
+        "kits": len(_scoped(env, "fix.equipment.kit", [("active", "=", True)])),
+        "pm_open": len(_scoped(env, "fix.equipment.pm", [("state", "=", "open")])),
     }

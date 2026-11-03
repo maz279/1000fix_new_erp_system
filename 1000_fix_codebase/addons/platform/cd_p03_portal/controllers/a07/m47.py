@@ -3,11 +3,18 @@
 # orders, safety equipment, incidents and site projects.
 import datetime
 
+from odoo import fields
+
+from ..p03_service_order_api import _company_domain
+
 SURFACES = {
+    # A07 P0 recipe (2026-11-03): workflow fields are guarded on the models;
+    # every transition below checks its source state, and the approvals are
+    # requested here and decided from the approver's M63 inbox.
     "fix.site": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_close", "action_reopen"},
+        "actions": {"action_close", "action_reopen", "action_request_approval"},
     },
     "fix.site.condition": {
         "order": "inspected_on desc, id desc",
@@ -17,9 +24,25 @@ SURFACES = {
     "fix.site.asset": {
         "order": "site_id, asset_type, name",
         "limit": 400,
-        "actions": {"action_maintenance", "action_restore", "action_retire"},
+        "actions": {
+            "action_maintenance",
+            "action_restore",
+            "action_retire",
+            "action_request_approval",
+        },
     },
-    "fix.site.lease": {"order": "end_date desc, id desc", "limit": 200, "actions": set()},
+    "fix.site.lease": {
+        "order": "end_date desc, id desc",
+        "limit": 200,
+        "actions": {
+            "action_open_modification",
+            "action_discard_modification",
+            "action_request_approval",
+            "action_apply_modification",
+            "action_expire",
+            "action_terminate",
+        },
+    },
     "fix.site.licence": {
         "order": "valid_to desc, id desc",
         "limit": 300,
@@ -38,7 +61,15 @@ SURFACES = {
     "fix.facility.work.order": {
         "order": "scheduled_date desc, id desc",
         "limit": 300,
-        "actions": {"action_schedule", "action_start", "action_complete"},
+        "actions": {
+            "action_request_approval",
+            "action_schedule",
+            "action_start",
+            "action_complete",
+            "action_verify",
+            "action_reopen",
+            "action_cancel",
+        },
     },
     "fix.site.safety": {
         "order": "next_check",
@@ -53,7 +84,7 @@ SURFACES = {
     "fix.site.project": {
         "order": "planned_on desc, id desc",
         "limit": 200,
-        "actions": {"action_start", "action_done"},
+        "actions": {"action_start", "action_done", "action_request_approval"},
     },
 }
 
@@ -70,37 +101,143 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _read(env, model, domain=None):
+    """sudo() read fenced to the caller's companies.
+
+    A07 audit (2026-11-03, M47-14): every KPI and report read with
+    `sudo().search([])`, so a company-B user was shown company A's estate.
+    Sites and work orders carry `company_id`; the other M47 records do not,
+    so they are fenced through their site's company."""
+    if "company_id" in env[model]._fields:
+        scope = _company_domain(env, model)
+    else:
+        scope = [("site_id.company_id", "in", env.user.company_ids.ids)]
+    return env[model].sudo().search(scope + list(domain or []))
+
+
 def _sites(env):
-    return env["fix.site"].sudo().search([])
+    return _read(env, "fix.site")
+
+
+# Work done: a completed (awaiting verification) or verified work order.
+_WO_DONE = ("completed", "verified")
+
+
+def _wo_spend(order):
+    """What a work order has spent: its actual cost once the work is done.
+
+    A07 audit (2026-11-03, M47-7): a completed WO with no actual cost was
+    reported at its estimate, and open WOs' estimates were reported as spend.
+    An estimate is a forecast; only completed work is spend."""
+    return (order.actual_cost or 0.0) if order.state in _WO_DONE else 0.0
+
+
+def _today(env):
+    # the models derive validity and overdue status on the Dhaka date; the
+    # figures here must use the same date, not the server's UTC one
+    return fields.Date.context_today(env["fix.site"])
+
+
+# BRU-FAC-01: every operational site holds a current trade licence, and a fire
+# licence "where required by site type". No site-type requirement is recorded
+# anywhere, so fire (and every other type) is a gap only where a licence of
+# that type exists at the site and none of them is current. The rule is not
+# guessed per site type.
+_REQUIRED_LICENCE_TYPES = ("trade",)
+
+
+def _licence_basis(licence, today):
+    """Why a licence row is, or is not, valid today (one source for all packs)."""
+    if not licence:
+        return "Missing: no licence on record (required for every operational site)"
+    if licence.state == "suspended":
+        return "Suspended"
+    if licence.state == "expired":
+        return "Expired"
+    if not licence.valid_to:
+        return "No expiry date recorded: treated as not valid (AC-21)"
+    if licence.valid_to < today:
+        return "Lapsed on %s" % licence.valid_to
+    return "Valid"
+
+
+def _licence_gaps(env, sites, licences, today):
+    """One gap per ACTIVE site and licence type with no current licence: a
+    required type held by nobody, or a type whose rows have all lapsed. A
+    lapsed licence that a current renewal of the same type supersedes is not
+    a gap; a lapsed licence at a closed site is not either."""
+    gaps = []
+    for site in sites.filtered(lambda s: s.state == "active"):
+        held = licences.filtered(lambda ln, sid=site.id: ln.site_id.id == sid)
+        for ltype in sorted(set(_REQUIRED_LICENCE_TYPES) | set(held.mapped("licence_type"))):
+            rows = held.filtered(lambda ln, t=ltype: ln.licence_type == t)
+            if any(rows.mapped("is_valid")):
+                continue
+            latest = rows.sorted(
+                key=lambda ln: (ln.valid_to or datetime.date.min, ln.id), reverse=True
+            )[:1]
+            gaps.append(
+                {
+                    "site": site,
+                    "type": ltype,
+                    "licence": latest,
+                    "basis": _licence_basis(latest, today),
+                }
+            )
+    return gaps
+
+
+def _licence_type_label(env, ltype):
+    return dict(env["fix.site.licence"]._fields["licence_type"].selection).get(ltype, ltype)
 
 
 def critical_dates(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
+    today = _today(env)
     horizon = today + datetime.timedelta(days=180)
     rows = []
-    for lease in env["fix.site.lease"].sudo().search([("state", "=", "active")]):
+    # An active lease past its end date stays listed (negative days-left):
+    # nothing expires a lease automatically, so it is overdue for a decision.
+    for lease in _read(env, "fix.site.lease", [("state", "=", "active")]):
         if lease.end_date and lease.end_date <= horizon:
             rows.append(
                 {
                     "date": str(lease.end_date),
-                    "kind": "Lease end",
+                    "kind": "Lease end" if lease.end_date >= today else "Lease ended, still active",
                     "site": lease.site_id.name,
                     "reference": lease.name,
                     "days_left": (lease.end_date - today).days,
                 }
             )
-    for licence in env["fix.site.licence"].sudo().search([("state", "=", "valid")]):
-        if licence.valid_to and licence.valid_to <= today + datetime.timedelta(days=90):
-            rows.append(
-                {
-                    "date": str(licence.valid_to),
-                    "kind": "Licence expiry (%s)" % licence.licence_type,
-                    "site": licence.site_id.name,
-                    "reference": licence.name,
-                    "days_left": (licence.valid_to - today).days,
-                }
-            )
-    for safety in env["fix.site.safety"].sudo().search([]):
+    sites = _sites(env)
+    licences = _read(env, "fix.site.licence")
+    # current licences expiring inside 90 days ...
+    for licence in licences.filtered(
+        lambda ln: ln.is_valid and ln.valid_to <= today + datetime.timedelta(days=90)
+    ):
+        rows.append(
+            {
+                "date": str(licence.valid_to),
+                "kind": "Licence expiry (%s)" % _licence_type_label(env, licence.licence_type),
+                "site": licence.site_id.name,
+                "reference": licence.name,
+                "days_left": (licence.valid_to - today).days,
+            }
+        )
+    # ... and every licence gap at an active site: lapsed, undated or missing
+    for gap in _licence_gaps(env, sites, licences, today):
+        licence = gap["licence"]
+        dated = bool(licence and licence.valid_to)
+        rows.append(
+            {
+                "date": str(licence.valid_to) if dated else "—",
+                "kind": "Licence gap (%s): %s"
+                % (_licence_type_label(env, gap["type"]), gap["basis"]),
+                "site": gap["site"].name,
+                "reference": licence.name if licence else "—",
+                "days_left": (licence.valid_to - today).days if dated else "—",
+            }
+        )
+    for safety in _read(env, "fix.site.safety"):
         if safety.next_check and safety.next_check <= today + datetime.timedelta(days=30):
             rows.append(
                 {
@@ -111,7 +248,8 @@ def critical_dates(env, date_from=None, date_to=None, **params):
                     "days_left": (safety.next_check - today).days,
                 }
             )
-    rows.sort(key=lambda r: r["date"])
+    # undated gaps (missing or open-ended licences) first, then by date
+    rows.sort(key=lambda r: (r["date"] != "—", r["date"]))
     return _pack(
         "Critical-Date Control — leases (180d), licences (90d) and safety checks (30d)",
         ["date", "kind", "site", "reference", "days_left"],
@@ -123,13 +261,20 @@ def critical_dates(env, date_from=None, date_to=None, **params):
             "days_left": "Days Left",
         },
         rows,
-        ["Negative days-left means the date has passed and the item is overdue."],
+        [
+            "Negative days-left means the date has passed and the item is overdue. An "
+            "active lease past its end date stays listed until it is expired, renewed or "
+            "terminated.",
+            "Licence gaps: an operational site with no current trade licence, or a "
+            "licence type held at the site whose every row has lapsed. A licence with no "
+            "expiry date is not treated as valid.",
+        ],
         empty="No critical date inside the horizons.",
     )
 
 
 def branch_assets(env, date_from=None, date_to=None, **params):
-    orders = env["fix.facility.work.order"].sudo().search([])
+    orders = _read(env, "fix.facility.work.order")
     rows = []
     for site in _sites(env):
         site_orders = orders.filtered(lambda o, sid=site.id: o.site_id.id == sid)
@@ -142,10 +287,7 @@ def branch_assets(env, date_from=None, date_to=None, **params):
                 "assets": len(site.asset_ids),
                 "asset_value": round(sum(site.asset_ids.mapped("value")), 2),
                 "work_orders": len(site_orders),
-                "spend": round(
-                    sum((o.actual_cost or o.estimated_cost or 0.0) for o in site_orders),
-                    2,
-                ),
+                "spend": round(sum(_wo_spend(o) for o in site_orders), 2),
             }
         )
     rows.sort(key=lambda r: -r["spend"])
@@ -165,7 +307,8 @@ def branch_assets(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Plant assets are the site infrastructure register (HVAC, lift, generator, "
-            "fire pump, UPS, CCTV); spend is the actual cost, else the estimate."
+            "fire pump, UPS, CCTV); spend is the actual cost of completed and verified "
+            "work orders (an open work order's estimate is not spend)."
         ],
         totals={
             "site": "Total",
@@ -179,19 +322,16 @@ def branch_assets(env, date_from=None, date_to=None, **params):
 
 
 def cost_per_site(env, date_from=None, date_to=None, **params):
-    utilities = env["fix.site.utility"].sudo().search([])
-    pms = env["fix.site.pm"].sudo().search([])
-    orders = env["fix.facility.work.order"].sudo().search([])
+    utilities = _read(env, "fix.site.utility")
+    pms = _read(env, "fix.site.pm")
+    orders = _read(env, "fix.facility.work.order")
     rows = []
     for site in _sites(env):
         utility = sum(
             utilities.filtered(lambda u, sid=site.id: u.site_id.id == sid).mapped("amount")
         )
         pm = sum(pms.filtered(lambda p, sid=site.id: p.site_id.id == sid).mapped("cost"))
-        wo = sum(
-            (o.actual_cost or o.estimated_cost or 0.0)
-            for o in orders.filtered(lambda o, sid=site.id: o.site_id.id == sid)
-        )
+        wo = sum(_wo_spend(o) for o in orders.filtered(lambda o, sid=site.id: o.site_id.id == sid))
         rows.append(
             {
                 "site": site.name,
@@ -217,7 +357,8 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
         rows,
         [
             "The site's monthly rent comes from the site record; utilities, PM and "
-            "work orders are the recorded records (no period filter applied here)."
+            "work orders are the recorded records (no period filter applied here). "
+            "Work orders count the actual cost of completed and verified work."
         ],
         totals={
             "site": "Total",
@@ -232,9 +373,9 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
 
 
 def lease_expiry(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
+    today = _today(env)
     rows = []
-    for lease in env["fix.site.lease"].sudo().search([]):
+    for lease in _read(env, "fix.site.lease"):
         rows.append(
             {
                 "lease": lease.name,
@@ -244,7 +385,11 @@ def lease_expiry(env, date_from=None, date_to=None, **params):
                 "end": str(lease.end_date),
                 "rent": round(lease.monthly_rent, 2),
                 "days_left": (lease.end_date - today).days if lease.end_date else "—",
-                "state": dict(lease._fields["state"].selection).get(lease.state),
+                "state": (
+                    "Active, past end date (no decision recorded)"
+                    if lease.state == "active" and lease.end_date and lease.end_date < today
+                    else dict(lease._fields["state"].selection).get(lease.state)
+                ),
             }
         )
     rows.sort(key=lambda r: r["end"])
@@ -262,29 +407,52 @@ def lease_expiry(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Days-left is computed from the lease end date."],
+        [
+            "Days-left is computed from the lease end date. A lease still Active after "
+            "its end date is overdue for a renewal, expiry or termination decision; it is "
+            "not changed automatically."
+        ],
         empty="No leases recorded.",
     )
 
 
 def licence_compliance(env, date_from=None, date_to=None, **params):
+    today = _today(env)
+    licences = _read(env, "fix.site.licence")
+    gaps = _licence_gaps(env, _sites(env), licences, today)
     rows = []
-    for licence in env["fix.site.licence"].sudo().search([]):
+    for licence in licences:
         rows.append(
             {
                 "licence": licence.name,
                 "site": licence.site_id.name,
-                "type": dict(licence._fields["licence_type"].selection).get(licence.licence_type),
+                "type": _licence_type_label(env, licence.licence_type),
                 "number": licence.number or "—",
                 "valid_to": str(licence.valid_to) if licence.valid_to else "—",
                 "valid": licence.is_valid,
+                "basis": _licence_basis(licence, today),
                 "state": dict(licence._fields["state"].selection).get(licence.state),
             }
         )
+    # a required licence that no row exists for is a gap the register must show
+    for gap in gaps:
+        if not gap["licence"]:
+            rows.append(
+                {
+                    "licence": "—",
+                    "site": gap["site"].name,
+                    "type": _licence_type_label(env, gap["type"]),
+                    "number": "—",
+                    "valid_to": "—",
+                    "valid": False,
+                    "basis": gap["basis"],
+                    "state": "Missing",
+                }
+            )
     rows.sort(key=lambda r: (r["valid"], r["valid_to"]))
     return _pack(
         "Licence Compliance — statutory licences per site",
-        ["licence", "site", "type", "number", "valid_to", "valid", "state"],
+        ["licence", "site", "type", "number", "valid_to", "valid", "basis", "state"],
         {
             "licence": "Licence",
             "site": "Site",
@@ -292,17 +460,24 @@ def licence_compliance(env, date_from=None, date_to=None, **params):
             "number": "Number",
             "valid_to": "Valid To",
             "valid": "Valid Today",
+            "basis": "Basis",
             "state": "State",
         },
         rows,
-        ["Valid today = state valid AND the end date has not passed."],
+        [
+            "Valid today = state Valid AND an end date is recorded AND it has not passed. "
+            "A licence with no end date is not treated as valid (AC-21).",
+            "%d licence gap(s) at operational sites: every operational site needs a current "
+            "trade licence; fire and other types are a gap where the site holds that type "
+            "and none is current (no site-type requirement is recorded)." % len(gaps),
+        ],
         empty="No licences recorded.",
     )
 
 
 def utilities_variance(env, date_from=None, date_to=None, **params):
     rows = []
-    for utility in env["fix.site.utility"].sudo().search([]):
+    for utility in _read(env, "fix.site.utility"):
         rows.append(
             {
                 "record": utility.name,
@@ -341,7 +516,7 @@ def utilities_variance(env, date_from=None, date_to=None, **params):
 
 
 def work_order_performance(env, date_from=None, date_to=None, **params):
-    orders = env["fix.facility.work.order"].sudo().search([])
+    orders = _read(env, "fix.facility.work.order")
     rows = []
     for order in orders:
         rows.append(
@@ -357,7 +532,7 @@ def work_order_performance(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: str(r["scheduled"]), reverse=True)
-    done = len([r for r in rows if r["state"] == "Completed"])
+    done = len(orders.filtered(lambda o: o.state in _WO_DONE))
     return _pack(
         "Facility Work Order Performance",
         ["order", "site", "type", "scheduled", "engineer", "estimate", "actual", "state"],
@@ -372,7 +547,7 @@ def work_order_performance(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["%d of %d work orders completed." % (done, len(rows))],
+        ["%d of %d work orders completed or verified." % (done, len(rows))],
         totals={
             "order": "Total",
             "estimate": round(sum(r["estimate"] for r in rows), 2),
@@ -393,29 +568,53 @@ REPORTS = {
 }
 
 
+_SQFT_PER_SQM = 10.7639
+
+
+def _utilities_cost_per_sqft(utilities, today):
+    """Utilities cost per sq ft for ONE month: the latest complete period.
+
+    A07 audit (2026-11-03, M47-13): the KPI divided every bill ever recorded
+    by the floor area, so it grew each month (live ৳41.11 for six months,
+    about ৳6.9 a month). It now takes the latest period before the current
+    month (the current month is still being billed) and divides that
+    period's bills by the floor area of the sites billed in it, so an
+    unbilled or area-less site neither inflates nor dilutes the figure."""
+    current = today.strftime("%Y-%m")
+    billed = utilities.filtered(
+        lambda u: u.period and u.period < current and u.site_id.floor_area_sqm > 0
+    )
+    if not billed:
+        return None, 0.0
+    period = max(billed.mapped("period"))
+    rows = billed.filtered(lambda u: u.period == period)
+    sqft = sum(rows.mapped("site_id").mapped("floor_area_sqm")) * _SQFT_PER_SQM
+    return period, (round(sum(rows.mapped("amount")) / sqft, 2) if sqft else 0.0)
+
+
 def kpis(env):
     sites = _sites(env)
-    today = datetime.date.today()
+    today = _today(env)
     horizon = today + datetime.timedelta(days=90)
-    leases = env["fix.site.lease"].sudo().search([("state", "=", "active")])
-    licences = env["fix.site.licence"].sudo().search([])
-    utilities = env["fix.site.utility"].sudo().search([])
-    orders = env["fix.facility.work.order"].sudo().search([])
-    safety = env["fix.site.safety"].sudo().search([])
-    total_sqft = sum(sites.mapped("floor_area_sqm")) * 10.7639
+    leases = _read(env, "fix.site.lease", [("state", "=", "active")])
+    licences = _read(env, "fix.site.licence")
+    utilities = _read(env, "fix.site.utility")
+    orders = _read(env, "fix.facility.work.order")
+    safety = _read(env, "fix.site.safety")
+    period, cost_per_sqft = _utilities_cost_per_sqft(utilities, today)
     return {
         "sites_active": len(sites.filtered(lambda s: s.state == "active")),
-        "leases_expiring_90d": len(
-            leases.filtered(lambda ln: ln.end_date and today <= ln.end_date <= horizon)
-        ),
-        "licences_expired": len(licences.filtered(lambda ln: not ln.is_valid)),
+        # an active lease already past its end date is overdue for a decision,
+        # not off the list (A07 audit 2026-11-03, M47-8): nothing expires it
+        "leases_expiring_90d": len(leases.filtered(lambda ln: ln.end_date <= horizon)),
+        "leases_past_end": len(leases.filtered(lambda ln: ln.end_date < today)),
+        # gaps, not rows: lapsed / undated / missing per active site and type
+        "licences_expired": len(_licence_gaps(env, sites, licences, today)),
         "utilities_flagged": len(utilities.filtered(lambda u: u.flagged)),
-        "utilities_cost_per_sqft": (
-            round(sum(utilities.mapped("amount")) / total_sqft, 2) if total_sqft else 0.0
-        ),
-        "open_work_orders": len(
-            orders.filtered(lambda o: o.state not in ("completed", "cancelled"))
-        ),
+        "utilities_cost_per_sqft": cost_per_sqft,
+        "utilities_cost_period": period,
+        "open_work_orders": len(orders.filtered(lambda o: o.state not in (*_WO_DONE, "cancelled"))),
+        # derived from next_check, not a typed status (M47-9)
         "safety_overdue": len(safety.filtered(lambda s: s.state == "overdue")),
         "safety_due": len(safety.filtered(lambda s: s.state in ("due", "overdue"))),
     }

@@ -7,7 +7,7 @@
 # writable.py: R3 of the A03 audit, A2 of the A02 audit) and for the tests
 # that keep them in step. Not imported by the server; run it to regenerate:
 #
-#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02 --a07
 import re
 import sys
 from pathlib import Path
@@ -16,7 +16,7 @@ PORTAL = Path(__file__).resolve().parents[1]
 STATIC = PORTAL / "static" / "src"
 CONTROLLERS = PORTAL / "controllers"
 A03 = CONTROLLERS / "a03"
-AREAS = ("a02", "a03")
+AREAS = ("a02", "a03", "a07")
 
 SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
 MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")
@@ -96,7 +96,11 @@ def render(area):
             continue
         body = "".join('            "%s",\n' % n for n in names)
         rows.append('    "%s": frozenset(\n        {\n%s        }\n    ),' % (model, body))
-    return HEADER.replace("A03", area.upper()) + "WRITABLE = {\n" + "\n".join(rows) + "\n}\n"
+    header = HEADER.replace("A03", area.upper())
+    if area not in ("a02", "a03"):
+        # The a02/a03 files predate per-area flags; later areas name their own.
+        header = header.replace("--a03 --a02", "--" + area)
+    return header + "WRITABLE = {\n" + "\n".join(rows) + "\n}\n"
 
 
 def render_a03():

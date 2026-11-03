@@ -4,6 +4,7 @@ from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 from . import m17, m45, m46, m47, m48
+from .writable import WRITABLE
 
 MODULES = {
     "M17": m17,
@@ -19,6 +20,13 @@ for _mod in MODULES.values():
         if _model in SURFACES:
             raise ValueError("A07 surface %s is declared by two modules" % _model)
         SURFACES[_model] = _conf
+
+# A07 workflow audit (2026-11-03) D1: no A07 surface declared what
+# /p03/model/write may set, so the form endpoint wrote any non-readonly field
+# it was sent - a work order's state, a calibration's result, a consent's
+# state. Generated from the workspace forms (form_fields.py --a07).
+for _model, _conf in SURFACES.items():
+    _conf["writable"] = WRITABLE[_model]
 
 
 def kpis(env, module=None):

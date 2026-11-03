@@ -2,6 +2,11 @@
 # register, dispatch assignments, drivers, documents, off-road records, checks,
 # PM, fuel, telemetry and accidents.
 import datetime
+import itertools
+
+from odoo import fields
+
+from ..p03_service_order_api import _company_domain
 
 SURFACES = {
     "fleet.vehicle": {
@@ -14,11 +19,17 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
-    "fix.driver": {"order": "name", "limit": 200, "actions": {"action_suspend"}},
+    # A07 P0 recipe M46-6: reinstatement is its own action (second person,
+    # reason, licence in date); `state` is guarded.
+    "fix.driver": {
+        "order": "name",
+        "limit": 200,
+        "actions": {"action_suspend", "action_reinstate"},
+    },
     "fix.vehicle.document": {
         "order": "valid_to desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_expire"},
     },
     "fix.vehicle.offroad": {
         "order": "started_on desc, id desc",
@@ -35,10 +46,12 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_done"},
     },
+    # A07 P0 recipe M46-9: a held fill is reviewed by someone other than
+    # its recorder.
     "fix.vehicle.fuel": {
         "order": "filled_on desc, id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_clear_exception", "action_reject_fill"},
     },
     "fix.vehicle.telemetry": {
         "order": "last_ping desc, id desc",
@@ -48,7 +61,8 @@ SURFACES = {
     "fix.vehicle.accident": {
         "order": "occurred_on desc, id desc",
         "limit": 200,
-        "actions": {"action_claim", "action_close"},
+        # A07 P0 recipe M46-10: the settlement is DOFA-routed (M63 inbox).
+        "actions": {"action_claim", "action_request_approval", "action_close"},
     },
 }
 
@@ -65,19 +79,93 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+# A07 audit (2026-11-03) M46-12 (D6): every KPI and pack read sudo().search([])
+# across all companies, so an officer's "Vehicles" counted vans they cannot
+# read. sudo() stays (the packs aggregate over models a plain user may not
+# list), and the company fence is re-applied: on fleet.vehicle directly, and
+# on the M46 ops models (no company_id) through their vehicle.
 def _vehicles(env):
-    return env["fleet.vehicle"].sudo().search([])
+    return env["fleet.vehicle"].sudo().search(_company_domain(env, "fleet.vehicle"))
+
+
+def _scoped(env, model, vehicles, extra=None):
+    return env[model].sudo().search([("vehicle_id", "in", vehicles.ids)] + (extra or []))
 
 
 def _vehicle_name(vehicle):
     return getattr(vehicle, "name", None) or vehicle.license_plate or "—"
 
 
+def _drivers(env):
+    ids = env.user.company_ids.ids
+    return (
+        env["fix.driver"]
+        .sudo()
+        .search(
+            ["|", ("employee_id.company_id", "=", False), ("employee_id.company_id", "in", ids)]
+        )
+    )
+
+
+def _today(env):
+    # the statutory and operating day is the Dhaka date (cd_vehicle_ext gate)
+    return fields.Date.context_today(env["fix.vehicle.check"].with_context(tz="Asia/Dhaka"))
+
+
+def _day(value):
+    """A report period bound ("YYYY-MM-DD"), or None when not given."""
+    try:
+        return fields.Date.to_date(value) if value and value != "…" else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _in_period(day, date_from, date_to):
+    return bool(day) and (not date_from or day >= date_from) and (not date_to or day <= date_to)
+
+
+def _fill_to_fill(fills):
+    """Distance and the fuel that drove it, measured fill to fill.
+
+    A07 audit M46-11 (D5): km/l and cost/km divided by ALL litres and all
+    fuel spend, including the first fill, whose fuel was burnt before the
+    odometer range began (7.94 km/l reported vs 11.63 true). The first fill
+    in the period only opens the range. Fewer than two fills, or an odometer
+    that goes backwards between fills, has no measured distance: the figure
+    is provisional (BRU-FLT-18), never 0.00 presented as fact."""
+    ordered = fills.sorted(lambda f: (f.filled_on, f.odometer, f.id))
+    out = {
+        "fills": len(ordered),
+        "litres": round(sum(ordered.mapped("litres")), 2),
+        "spend": round(sum(ordered.mapped("amount")), 2),
+        "km": None,
+        "litres_in_range": None,
+        "fuel_in_range": None,
+        "basis": "provisional: %d fill(s), no measured distance" % len(ordered),
+    }
+    if len(ordered) < 2:
+        return out
+    if any(b.odometer < a.odometer for a, b in itertools.pairwise(ordered)):
+        out["basis"] = "provisional: odometer goes backwards between fills"
+        return out
+    rest = ordered[1:]
+    out.update(
+        km=ordered[-1].odometer - ordered[0].odometer,
+        litres_in_range=round(sum(rest.mapped("litres")), 2),
+        fuel_in_range=round(sum(rest.mapped("amount")), 2),
+        basis="measured: %d fills, fill to fill" % len(ordered),
+    )
+    if not out["km"]:
+        out.update(km=None, basis="provisional: no distance between fills")
+    return out
+
+
 def driver_behaviour(env, date_from=None, date_to=None, **params):
-    checks = env["fix.vehicle.check"].sudo().search([])
-    accidents = env["fix.vehicle.accident"].sudo().search([])
+    vehicles = _vehicles(env)
+    checks = _scoped(env, "fix.vehicle.check", vehicles)
+    accidents = _scoped(env, "fix.vehicle.accident", vehicles)
     rows = []
-    for driver in env["fix.driver"].sudo().search([]):
+    for driver in _drivers(env):
         driver_checks = checks.filtered(lambda c, d=driver.id: c.driver_id.id == d)
         driver_accidents = accidents.filtered(lambda a, d=driver.id: a.driver_id.id == d)
         failed = len(driver_checks.filtered(lambda c: not c.passed))
@@ -114,70 +202,115 @@ def driver_behaviour(env, date_from=None, date_to=None, **params):
     )
 
 
+def _period_fills(env, vehicles, date_from, date_to):
+    fills = _scoped(env, "fix.vehicle.fuel", vehicles)
+    return fills.filtered(lambda f: _in_period(f.filled_on, date_from, date_to))
+
+
+def _period_note(date_from, date_to):
+    if not (date_from or date_to):
+        return "All recorded history (no period chosen)."
+    return "Period %s → %s." % (date_from or "…", date_to or "…")
+
+
 def cost_per_km(env, date_from=None, date_to=None, **params):
-    fuels = env["fix.vehicle.fuel"].sudo().search([])
-    pms = env["fix.vehicle.pm"].sudo().search([])
+    date_from, date_to = _day(date_from), _day(date_to)
+    vehicles = _vehicles(env)
+    fuels = _period_fills(env, vehicles, date_from, date_to)
+    # a PM job belongs to the day it was done, else the day it was scheduled
+    pms = _scoped(env, "fix.vehicle.pm", vehicles).filtered(
+        lambda p: _in_period(p.done_on or p.scheduled_on, date_from, date_to)
+    )
     rows = []
-    for vehicle in _vehicles(env):
-        vehicle_fuel = fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid)
-        vehicle_pm = pms.filtered(lambda p, vid=vehicle.id: p.vehicle_id.id == vid)
-        odos = vehicle_fuel.mapped("odometer")
-        km = (max(odos) - min(odos)) if len(odos) > 1 else 0
-        fuel_cost = sum(vehicle_fuel.mapped("amount"))
-        pm_cost = sum(vehicle_pm.mapped("cost"))
-        total = fuel_cost + pm_cost
+    for vehicle in vehicles:
+        f2f = _fill_to_fill(fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid))
+        pm_cost = round(
+            sum(pms.filtered(lambda p, vid=vehicle.id: p.vehicle_id.id == vid).mapped("cost")), 2
+        )
+        km = f2f["km"]
         rows.append(
             {
                 "vehicle": _vehicle_name(vehicle),
                 "plate": vehicle.license_plate or "—",
+                "fills": f2f["fills"],
                 "km": km,
-                "fuel_cost": round(fuel_cost, 2),
-                "pm_cost": round(pm_cost, 2),
-                "total_cost": round(total, 2),
-                "cost_per_km": round(total / km, 2) if km else 0.0,
+                "fuel_cost": f2f["spend"],
+                "fuel_in_range": f2f["fuel_in_range"],
+                "pm_cost": pm_cost,
+                "total_cost": round(f2f["spend"] + pm_cost, 2),
+                "cost_per_km": round((f2f["fuel_in_range"] + pm_cost) / km, 2) if km else None,
+                "basis": f2f["basis"],
             }
         )
-    rows.sort(key=lambda r: -r["cost_per_km"])
+    rows.sort(key=lambda r: (r["cost_per_km"] is None, -(r["cost_per_km"] or 0)))
+    measured = [r for r in rows if r["km"]]
     return _pack(
-        "Cost per Kilometre — fuel + PM over the recorded odometer range",
-        ["vehicle", "plate", "km", "fuel_cost", "pm_cost", "total_cost", "cost_per_km"],
+        "Cost per Kilometre — fuel + PM over the measured distance",
+        [
+            "vehicle", "plate", "fills", "km", "fuel_cost", "fuel_in_range",
+            "pm_cost", "total_cost", "cost_per_km", "basis",
+        ],
         {
             "vehicle": "Vehicle",
             "plate": "Plate",
-            "km": "Recorded km",
-            "fuel_cost": "Fuel Cost",
+            "fills": "Fills",
+            "km": "Measured km",
+            "fuel_cost": "Fuel Spend",
+            "fuel_in_range": "Fuel in Range",
             "pm_cost": "PM Cost",
-            "total_cost": "Total",
+            "total_cost": "Total Spend",
             "cost_per_km": "Cost / km",
+            "basis": "Basis",
         },
         rows,
         [
-            "km = highest − lowest fuel odometer for the vehicle; a vehicle with one "
-            "fuel record has no range and shows 0."
+            _period_note(date_from, date_to),
+            "Measured km = last − first fuel odometer in the period. Cost / km = "
+            "(fuel of the fills after the first + PM cost) / measured km: the first "
+            "fill's fuel was burnt before the range began.",
+            "Provisional (no figure) where the period has fewer than two fills or the "
+            "odometer goes backwards. Depreciation, insurance, document fees and "
+            "downtime are not included.",
         ],
         totals={
             "vehicle": "Total",
-            "km": sum(r["km"] for r in rows),
+            "km": sum(r["km"] for r in measured),
+            "fuel_cost": round(sum(r["fuel_cost"] for r in rows), 2),
+            "pm_cost": round(sum(r["pm_cost"] for r in rows), 2),
             "total_cost": round(sum(r["total_cost"] for r in rows), 2),
         },
         empty="No vehicles registered yet.",
-    )
+    )  # fmt: skip
+
+
+def _availability(env, vehicles):
+    """Per vehicle id: the dispatch-gate blockers today (cd_vehicle_ext)."""
+    return vehicles._fix_dispatch_blockers(day=_today(env))
 
 
 def fleet_availability(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
-    offroad = env["fix.vehicle.offroad"].sudo().search([("state", "=", "offroad")])
-    assignments = env["fix.vehicle.assignment"].sudo().search([("date", "=", today)])
+    today = _today(env)
+    vehicles = _vehicles(env)
+    blockers = _availability(env, vehicles)
+    offroad = set(
+        _scoped(env, "fix.vehicle.offroad", vehicles, [("state", "=", "offroad")])
+        .mapped("vehicle_id")
+        .ids
+    )
+    assigned = set(
+        _scoped(env, "fix.vehicle.assignment", vehicles, [("date", "=", today)])
+        .mapped("vehicle_id")
+        .ids
+    )
     rows = []
-    for vehicle in _vehicles(env):
-        row_offroad = offroad.filtered(lambda o, vid=vehicle.id: o.vehicle_id.id == vid)
-        row_assigned = assignments.filtered(lambda a, vid=vehicle.id: a.vehicle_id.id == vid)
-        if row_offroad:
+    for vehicle in vehicles:
+        reasons = blockers.get(vehicle.id, [])
+        if vehicle.id in offroad:
             status = "off road"
-        elif row_assigned:
+        elif reasons:
+            status = "not dispatchable"
+        elif vehicle.id in assigned:
             status = "assigned today"
-        elif not vehicle.compliance_ok:
-            status = "not compliant"
         else:
             status = "available"
         rows.append(
@@ -186,69 +319,84 @@ def fleet_availability(env, date_from=None, date_to=None, **params):
                 "plate": vehicle.license_plate or "—",
                 "driver": vehicle.fix_driver_id.name if vehicle.fix_driver_id else "—",
                 "compliance_ok": vehicle.compliance_ok,
+                "dispatchable": not reasons,
                 "status": status,
+                "blockers": "; ".join(reasons) or "—",
             }
         )
     rows.sort(key=lambda r: r["status"])
-    available = len([r for r in rows if r["status"] == "available"])
+    passing = len([r for r in rows if r["dispatchable"]])
+    busy = len([r for r in rows if r["status"] == "assigned today"])
     return _pack(
         "Fleet Availability — today's status per vehicle",
-        ["vehicle", "plate", "driver", "compliance_ok", "status"],
+        ["vehicle", "plate", "driver", "compliance_ok", "dispatchable", "status", "blockers"],
         {
             "vehicle": "Vehicle",
             "plate": "Plate",
             "driver": "Driver",
-            "compliance_ok": "Compliant",
+            "compliance_ok": "Documents Valid",
+            "dispatchable": "Passes Gate",
             "status": "Availability",
+            "blockers": "Why Not",
         },
         rows,
         [
-            "%d of %d vehicles available today; off-road and today's assignments "
-            "are read from their records." % (available, len(rows))
+            "%d of %d vehicles pass the dispatch gate today (%d of them already "
+            "assigned today). The gate reads the document register, open off-road "
+            "records, open accidents, today's pre-use checks and the assigned "
+            "driver; the header fitness/insurance dates are information only."
+            % (passing, len(rows), busy)
         ],
         empty="No vehicles registered yet.",
     )
 
 
 def fuel_efficiency(env, date_from=None, date_to=None, **params):
-    fuels = env["fix.vehicle.fuel"].sudo().search([])
+    date_from, date_to = _day(date_from), _day(date_to)
+    vehicles = _vehicles(env)
+    fuels = _period_fills(env, vehicles, date_from, date_to)
     rows = []
-    for vehicle in _vehicles(env):
-        records = fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid)
-        odos = records.mapped("odometer")
-        km = (max(odos) - min(odos)) if len(odos) > 1 else 0
-        litres = sum(records.mapped("litres"))
+    for vehicle in vehicles:
+        f2f = _fill_to_fill(fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid))
+        km, litres = f2f["km"], f2f["litres_in_range"]
         rows.append(
             {
                 "vehicle": _vehicle_name(vehicle),
-                "records": len(records),
-                "litres": round(litres, 2),
+                "records": f2f["fills"],
+                "litres": f2f["litres"],
                 "km": km,
-                "km_per_litre": round(km / litres, 2) if litres else 0.0,
-                "spend": round(sum(records.mapped("amount")), 2),
+                "litres_in_range": litres,
+                "km_per_litre": round(km / litres, 2) if km and litres else None,
+                "spend": f2f["spend"],
+                "basis": f2f["basis"],
             }
         )
-    rows.sort(key=lambda r: -r["km_per_litre"])
+    rows.sort(key=lambda r: (r["km_per_litre"] is None, -(r["km_per_litre"] or 0)))
+    measured = [r for r in rows if r["km"]]
     return _pack(
-        "Fuel Efficiency Trend — km per litre over recorded fills",
-        ["vehicle", "records", "litres", "km", "km_per_litre", "spend"],
+        "Fuel Efficiency Trend — km per litre, fill to fill",
+        ["vehicle", "records", "litres", "km", "litres_in_range", "km_per_litre", "spend", "basis"],
         {
             "vehicle": "Vehicle",
             "records": "Fills",
             "litres": "Litres",
-            "km": "Recorded km",
+            "km": "Measured km",
+            "litres_in_range": "Litres in Range",
             "km_per_litre": "km/l",
             "spend": "Spend",
+            "basis": "Basis",
         },
         rows,
         [
-            "Efficiency uses the odometer range across fills; a single fill shows 0. "
-            "Fuel-card imports are M52's; these are recorded transactions."
+            _period_note(date_from, date_to),
+            "km/l = (last − first fuel odometer) / litres of the fills after the "
+            "first; provisional (no figure) with fewer than two fills or a backwards "
+            "odometer. Fuel-card imports are M52's; these are recorded transactions.",
         ],
         totals={
             "vehicle": "Total",
             "litres": round(sum(r["litres"] for r in rows), 2),
-            "km": sum(r["km"] for r in rows),
+            "km": sum(r["km"] for r in measured),
             "spend": round(sum(r["spend"] for r in rows), 2),
         },
         empty="No fuel transactions recorded yet.",
@@ -256,9 +404,10 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
 
 
 def maintenance_cost(env, date_from=None, date_to=None, **params):
-    pms = env["fix.vehicle.pm"].sudo().search([])
+    vehicles = _vehicles(env)
+    pms = _scoped(env, "fix.vehicle.pm", vehicles)
     rows = []
-    for vehicle in _vehicles(env):
+    for vehicle in vehicles:
         records = pms.filtered(lambda p, vid=vehicle.id: p.vehicle_id.id == vid)
         rows.append(
             {
@@ -293,11 +442,12 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
 
 
 def statutory_compliance(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
+    today = _today(env)
     horizon = today + datetime.timedelta(days=90)
-    docs = env["fix.vehicle.document"].sudo().search([])
+    vehicles = _vehicles(env)
+    docs = _scoped(env, "fix.vehicle.document", vehicles)
     rows = []
-    for vehicle in _vehicles(env):
+    for vehicle in vehicles:
         vehicle_docs = docs.filtered(lambda d, vid=vehicle.id: d.vehicle_id.id == vid)
         expiring = vehicle_docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
         rows.append(
@@ -318,23 +468,24 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
         {
             "vehicle": "Vehicle",
             "plate": "Plate",
-            "fitness": "Fitness Expiry",
-            "insurance": "Insurance Expiry",
+            "fitness": "Fitness (header)",
+            "insurance": "Insurance (header)",
             "compliant": "Compliant",
             "valid_docs": "Valid Docs",
             "expiring_90d": "Expiring (90d)",
         },
         rows,
         [
-            "Compliant = the vehicle's fitness and insurance are both present and "
-            "not past; the document register adds the supporting papers."
+            "Compliant = every mandatory document type is in the register and valid "
+            "today (the dispatch gate's own test). The header fitness and insurance "
+            "dates are shown for information; they do not decide compliance."
         ],
         empty="No vehicles registered yet.",
     )
 
 
 def incident_summary(env, date_from=None, date_to=None, **params):
-    accidents = env["fix.vehicle.accident"].sudo().search([])
+    accidents = _scoped(env, "fix.vehicle.accident", _vehicles(env))
     rows = []
     for record in accidents:
         rows.append(
@@ -381,21 +532,25 @@ REPORTS = {
 
 def kpis(env):
     vehicles = _vehicles(env)
-    today = datetime.date.today()
+    today = _today(env)
     horizon = today + datetime.timedelta(days=90)
-    offroad = env["fix.vehicle.offroad"].sudo().search([("state", "=", "offroad")])
-    docs = env["fix.vehicle.document"].sudo().search([])
+    offroad = _scoped(env, "fix.vehicle.offroad", vehicles, [("state", "=", "offroad")])
+    docs = _scoped(env, "fix.vehicle.document", vehicles)
     expiring = docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
-    fuels = env["fix.vehicle.fuel"].sudo().search([])
     month_start = today.replace(day=1)
-    fuel_mtd = sum(f.amount or 0.0 for f in fuels if f.filled_on and f.filled_on >= month_start)
-    accidents_open = env["fix.vehicle.accident"].sudo().search_count([("state", "!=", "closed")])
-    available = len(vehicles) - len(offroad)
+    fuels = _scoped(env, "fix.vehicle.fuel", vehicles, [("filled_on", ">=", month_start)])
+    accidents_open = len(
+        _scoped(env, "fix.vehicle.accident", vehicles, [("state", "!=", "closed")])
+    )
+    # M46-12 (D6): "Available" was vehicles minus open off-road RECORDS (a van
+    # with two records counted twice) and counted uninsured vans. It is now
+    # the vehicles the dispatch gate passes today.
+    blocked = _availability(env, vehicles)
     return {
         "vehicles": len(vehicles),
-        "fleet_available": max(available, 0),
+        "fleet_available": len(vehicles) - len(blocked),
         "docs_expiring_90d": len(expiring),
-        "offroad": len(offroad),
-        "fuel_mtd": round(fuel_mtd, 2),
+        "offroad": len(offroad.mapped("vehicle_id")),
+        "fuel_mtd": round(sum(f.amount or 0.0 for f in fuels), 2),
         "accidents_open": accidents_open,
     }

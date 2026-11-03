@@ -11,7 +11,7 @@ export const MODULE = {
   desc: 'Equipment register and classification, kits, tool-crib issue and return, transfers, physical verification, calibration schedule with certificates and trace, out-of-service enforcement, retrospective impact, PM/corrective jobs, usage per job and quality control.',
   kpis: [
     { l: 'Equipment', m: 'equipment_total' },
-    { l: 'Calibration Overdue', m: 'calibration_overdue' },
+    { l: 'Calibration Not Current', m: 'calibration_not_current' },
     { l: 'Out of Service', m: 'oos_open' },
     { l: 'Issued Out', m: 'issued_out' },
     { l: 'Kits', m: 'kits' },
@@ -55,8 +55,10 @@ export const MODULE = {
 
 export const SCREENS = {
   'M45-register': { kind: 'model_list', model: 'fix.equipment', stateField: 'operational_status',
-    cols: ['code', 'name', 'category', 'custodian_id', 'branch_id', 'next_calibration', 'calibration_overdue', 'operational_status'],
-    actions: [{ m: 'action_assert_usable', l: 'Assert Usable' }] },
+    cols: ['code', 'name', 'category', 'custodian_id', 'branch_id', 'next_calibration', 'calibration_state', 'operational_status', 'approval_state'],
+    actions: [{ m: 'action_assert_usable', l: 'Assert Usable' },
+      { m: 'action_request_approval', l: 'Request Write-Off Approval' },
+      { m: 'action_recall_approval', l: 'Recall Write-Off Request' }] },
   'M45-classes': { kind: 'table_report', module: 'M45', report: 'classification', title: 'Classification', period: false },
   'M45-kits': { kind: 'model_list', model: 'fix.equipment.kit',
     cols: ['code', 'name', 'active'] },
@@ -64,12 +66,15 @@ export const SCREENS = {
     cols: ['name', 'equipment_id', 'custodian_id', 'reference', 'issued_on', 'due_on', 'is_overdue', 'state'],
     actions: [{ m: 'action_return', l: 'Return Item' }] },
   'M45-transfer': { kind: 'model_list', model: 'fix.equipment.transfer', stateField: 'state',
-    cols: ['name', 'equipment_id', 'from_branch_id', 'to_branch_id', 'from_custodian_id', 'to_custodian_id', 'transfer_date', 'state'] },
+    cols: ['name', 'equipment_id', 'from_branch_id', 'to_branch_id', 'from_custodian_id', 'to_custodian_id', 'transfer_date', 'dispatched_by_id', 'received_by_id', 'state'],
+    actions: [{ m: 'action_dispatch', l: 'Dispatch' },
+      { m: 'action_receive', l: 'Confirm Receipt' },
+      { m: 'action_cancel', l: 'Cancel Transfer' }] },
   'M45-audits': { kind: 'model_list', model: 'fix.equipment.verification', stateField: 'state',
     cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'location', 'found', 'state'] },
   'M45-calibration': { kind: 'table_report', module: 'M45', report: 'calibration_schedule', title: 'Calibration Schedule', period: false },
   'M45-certificates': { kind: 'model_list', model: 'fix.calibration',
-    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'trace_no'] },
+    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'performed_by', 'trace_no', 'superseded_by_id'] },
   'M45-oos': { kind: 'model_list', model: 'fix.equipment.oos', stateField: 'state',
     cols: ['name', 'equipment_id', 'reason', 'started_on', 'resolved_on', 'state'],
     actions: [{ m: 'action_resolve', l: 'Resolve' }] },
@@ -96,14 +101,23 @@ export const SCREENS = {
       available: 'Available', issued: 'Issued',
       out_of_service: 'Out of Service', retired: 'Retired' } },
     sections: [
-      { title: 'Equipment', note: 'Calibration dates are computed from the calibration records; the register stores the code, category and custodian.',
+      { title: 'Equipment', note: 'Calibration dates are computed from the calibration records. The operational status changes only through issue, return, out of service and an approved write-off; once registered, the branch and custodian move only on a received transfer.',
         fields: [
           { name: 'code', required: true, label: 'Equipment Code' },
           { name: 'name', required: true, label: 'Name' },
           { name: 'category', label: 'Category' },
           { name: 'custodian_id', label: 'Custodian' },
           { name: 'branch_id', label: 'Branch' },
-          { name: 'operational_status', required: true, label: 'Operational Status' }
+          { name: 'operational_status', readonly: true, label: 'Operational Status' }
+        ] },
+      { title: 'Write-Off', note: 'State the reason and the acquisition cost, then Request Write-Off Approval. Up to BDT 25,000 it is decided at Tier 2 (Quality Manager), above that at Tier 4 (CFO), from the approver\'s inbox. The requester cannot approve it; cost and reason are locked while it is pending.',
+        fields: [
+          { name: 'acquisition_cost', label: 'Acquisition Cost (BDT)' },
+          { name: 'retirement_reason', type: 'text', label: 'Write-Off Reason' },
+          { name: 'dofa_tier_required', readonly: true, label: 'Approval Tier' },
+          { name: 'approval_state', readonly: true, label: 'Write-Off Approval' },
+          { name: 'retired_on', readonly: true, label: 'Retired On' },
+          { name: 'retired_by_id', readonly: true, label: 'Approved By' }
         ] }
     ]
   },
@@ -114,7 +128,7 @@ export const SCREENS = {
     title: 'Calibration Record',
     back: 'M45-certificates',
     sections: [
-      { title: 'Calibration', note: 'A pass with a future next-due keeps the equipment usable; a fail or an overdue date blocks Assert Usable.',
+      { title: 'Calibration', note: 'The latest calibration decides: only a pass whose next-due is not past keeps the equipment usable. A fail, an overdue date or no calibration at all blocks issue, usage and QC. Choose the result; there is no default. A pass needs the certificate and who performed it; the date cannot be in the future. Once saved only the notes change: to correct a record, create a new one that names it under Corrects (a fail cannot be corrected into a pass).',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'calibrated_on', required: true, label: 'Calibrated On' },
@@ -123,7 +137,10 @@ export const SCREENS = {
           { name: 'next_due', required: true, label: 'Next Due' },
           { name: 'performed_by', label: 'Performed By' },
           { name: 'certificate_ref', label: 'Certificate Reference' },
-          { name: 'trace_no', label: 'Trace Number' }
+          { name: 'trace_no', label: 'Trace Number' },
+          { name: 'supersedes_id', label: 'Corrects' },
+          { name: 'superseded_by_id', readonly: true, label: 'Superseded By' },
+          { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
   },
@@ -135,7 +152,7 @@ export const SCREENS = {
     back: 'M45-issue',
     status: { field: 'state', labels: { issued: 'Issued', returned: 'Returned' } },
     sections: [
-      { title: 'Issue', note: 'Issuing makes the equipment status Issued; returning restores Available. Overdue is computed against the due date.',
+      { title: 'Issue', note: 'Only an available, calibrated item can be issued, and to one custodian at a time. Before returning, record the condition: a serviceable item goes back to Available (unless it went out of service meanwhile), a damaged one goes Out of Service. Overdue is computed against the due date.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'custodian_id', required: true, label: 'Custodian' },
@@ -143,7 +160,10 @@ export const SCREENS = {
           { name: 'issued_on', required: true, label: 'Issued On' },
           { name: 'due_on', label: 'Due On' },
           { name: 'condition_out', label: 'Condition Out' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'return_condition', label: 'Condition on Return' },
+          { name: 'condition_in', label: 'Condition In (damage detail)' },
+          { name: 'returned_on', readonly: true, label: 'Returned On' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -151,16 +171,19 @@ export const SCREENS = {
   'M45-form-oos': {
     kind: 'model_form',
     model: 'fix.equipment.oos',
-    title: 'Write-Off / Out of Service',
+    title: 'Out of Service',
     back: 'M45-oos',
     status: { field: 'state', labels: { open: 'Open', resolved: 'Resolved' } },
     sections: [
-      { title: 'Out of Service', note: 'Opening an out-of-service record sets the equipment status to Out of Service; resolving restores Available.',
+      { title: 'Out of Service', note: 'Opening an out-of-service record sets the equipment status to Out of Service. Resolving needs a passing calibration recorded after the item went out of service, and someone other than the person who opened the record. Write-off is requested on the equipment.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'reason', required: true, label: 'Reason' },
-          { name: 'started_on', required: true, label: 'Started On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'started_on', readonly: true, label: 'Started On' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'resolved_on', readonly: true, label: 'Resolved On' },
+          { name: 'resolved_by_id', readonly: true, label: 'Resolved By' },
+          { name: 'resolution_calibration_id', readonly: true, label: 'Re-calibration' }
         ] }
     ]
   },
@@ -191,15 +214,24 @@ export const SCREENS = {
     model: 'fix.equipment.transfer',
     title: 'Equipment Transfer',
     back: 'M45-transfer',
+    status: { field: 'state', labels: {
+      draft: 'Draft', dispatched: 'Dispatched', received: 'Received',
+      cancelled: 'Cancelled', posted: 'Posted (legacy)' } },
     sections: [
-      { title: 'Transfer', note: 'A posted transfer records both branches and both custodians at the transfer date.',
+      { title: 'Transfer', note: 'Draft, then Dispatch, then Confirm Receipt. The origin is taken from the register. Only an available item travels. The sender stays accountable until someone other than the sender confirms receipt; only then do the equipment\'s branch and custodian change.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
-          { name: 'from_branch_id', label: 'From Branch' },
+          { name: 'from_branch_id', readonly: true, label: 'From Branch' },
           { name: 'to_branch_id', required: true, label: 'To Branch' },
-          { name: 'from_custodian_id', label: 'From Custodian' },
+          { name: 'from_custodian_id', readonly: true, label: 'From Custodian' },
           { name: 'to_custodian_id', label: 'To Custodian' },
-          { name: 'transfer_date', required: true, label: 'Transfer Date' }
+          { name: 'transfer_date', required: true, label: 'Transfer Date' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'dispatched_by_id', readonly: true, label: 'Dispatched By' },
+          { name: 'dispatched_on', readonly: true, label: 'Dispatched On' },
+          { name: 'received_by_id', readonly: true, label: 'Received By' },
+          { name: 'received_on', readonly: true, label: 'Received On' }
         ] }
     ]
   },
@@ -212,7 +244,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       verified: 'Verified', missing: 'Missing' } },
     sections: [
-      { title: 'Verification', note: 'A record created with Found = No is stored as Missing and feeds the loss report.',
+      { title: 'Verification', note: 'The state follows Found: Found = No is stored as Missing and feeds the loss report. A Missing result is final.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'campaign_ref', required: true, label: 'Campaign' },
@@ -221,7 +253,7 @@ export const SCREENS = {
           { name: 'found', label: 'Found' },
           { name: 'condition', label: 'Condition' },
           { name: 'verifier_id', label: 'Verifier' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -233,13 +265,16 @@ export const SCREENS = {
     back: 'M45-pm',
     status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
     sections: [
-      { title: 'Job', fields: [
+      { title: 'Job', note: 'Mark Done needs completion notes and the technician; a done job is frozen.',
+        fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'pm_type', required: true, label: 'Type' },
           { name: 'scheduled_on', required: true, label: 'Scheduled On' },
           { name: 'cost', label: 'Cost' },
-          { name: 'state', required: true, label: 'State' },
-          { name: 'notes', label: 'Notes' }
+          { name: 'technician_id', label: 'Technician' },
+          { name: 'notes', label: 'Completion Notes' },
+          { name: 'done_on', readonly: true, label: 'Done On' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -274,14 +309,14 @@ export const FORM_MODELS = {
   'M45:Equipment': 'fix.equipment',
   'M45:Calibration Record': 'fix.calibration',
   'M45:Issue/Return': 'fix.equipment.issue',
-  'M45:Write-Off': 'fix.equipment.oos'
+  'M45:Write-Off': 'fix.equipment'
 };
 
 export const FORM_CHIPS = {
   'M45:Equipment': 'M45-form-equipment',
   'M45:Calibration Record': 'M45-form-calibration',
   'M45:Issue/Return': 'M45-form-issue',
-  'M45:Write-Off': 'M45-form-oos',
+  'M45:Write-Off': 'M45-form-equipment',
   'M45:__by_model__': {
     'fix.equipment': 'M45-form-equipment',
     'fix.calibration': 'M45-form-calibration',

@@ -4,8 +4,24 @@
 # and read through the merge (single-owner rule).
 import datetime
 
+from odoo import fields
+
+from ..p03_service_order_api import _company_domain
+
 SURFACES = {
-    "fix.device": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.device": {
+        "order": "id desc",
+        "limit": 400,
+        # A07 audit M17-8: the lifecycle moves only through these. Scrap is a
+        # routed M63 decision (Tier 2, never the requester); here it is only
+        # requested. Lost is cleared by someone other than the flagger.
+        "actions": {
+            "action_mark_lost",
+            "action_clear_lost",
+            "action_request_approval",
+            "action_recall_approval",
+        },
+    },
     # fix.device.history is declared by M01 — read through the merge.
     "fix.device.ownership": {
         "order": "transfer_date desc, id desc",
@@ -16,7 +32,7 @@ SURFACES = {
     "fix.device.pm": {
         "order": "next_due",
         "limit": 300,
-        "actions": {"action_complete"},
+        "actions": {"action_complete", "action_pause", "action_resume"},
     },
     "fix.device.condition": {
         "order": "graded_on desc, id desc",
@@ -26,7 +42,10 @@ SURFACES = {
     "fix.device.identity": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_merge", "action_reject"},
+        # A07 audit M17-3: the merge is decided from the M63 approval inbox by a
+        # Tier 2 holder who neither raised nor requested it; here it is only
+        # routed. action_merge is the engine's apply method, not a button.
+        "actions": {"action_request_approval", "action_recall_approval", "action_reject"},
     },
     "fix.device.custody": {"order": "event_date desc, id desc", "limit": 400, "actions": set()},
     "fix.device.component": {
@@ -50,24 +69,48 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _scoped(env, model, domain=None):
+    """sudo() read for a report or KPI, fenced to the caller's companies.
+
+    A07 audit (2026-11-03) M17-6: every pack read `sudo().search([])`, so a
+    user of one company saw another company's devices, owners and IMEIs.
+    Satellite models carry no company_id; they follow their device."""
+    Model = env[model].sudo()
+    if "company_id" in Model._fields:
+        fence = _company_domain(env, model)
+    else:
+        fence = [
+            "|",
+            ("device_id.company_id", "=", False),
+            ("device_id.company_id", "in", env.user.company_ids.ids),
+        ]
+    return Model.search(list(domain or []) + fence)
+
+
 def _devices(env):
-    return env["fix.device"].sudo().search([])
+    return _scoped(env, "fix.device")
 
 
 def _history(env):
-    return env["fix.device.history"].sudo().search([])
+    return _scoped(env, "fix.device.history")
 
 
 def asset_360(env, date_from=None, date_to=None, **params):
-    warranties = env["fix.warranty"].sudo().search([])
+    warranties = _scoped(env, "fix.warranty")
     history = _history(env)
-    custody = env["fix.device.custody"].sudo().search([])
+    custody = _scoped(env, "fix.device.custody")
     # single-pass counts: 691 devices × 3,000 events must not be O(N×M)
     w_counts, w_active, h_counts, last_custody = {}, {}, {}, {}
+    today = fields.Date.context_today(env.user)
     for warranty in warranties:
         dev_id = warranty.device_id.id
         w_counts[dev_id] = w_counts.get(dev_id, 0) + 1
-        if warranty.status == "active":
+        if (
+            warranty.status == "active"
+            and warranty.start_date
+            and warranty.end_date
+            and warranty.start_date <= today <= warranty.end_date
+        ):
             w_active[dev_id] = w_active.get(dev_id, 0) + 1
     for event in history:
         h_counts[event.device_id.id] = h_counts.get(event.device_id.id, 0) + 1
@@ -183,7 +226,7 @@ def identifiers(env, date_from=None, date_to=None, **params):
 
 def parts_genealogy(env, date_from=None, date_to=None, **params):
     rows = []
-    for component in env["fix.device.component"].sudo().search([]):
+    for component in _scoped(env, "fix.device.component"):
         rows.append(
             {
                 "device": component.device_id.name,
@@ -295,7 +338,7 @@ def installed_base(env, date_from=None, date_to=None, **params):
 
 def estate_coverage(env, date_from=None, date_to=None, **params):
     devices = _devices(env)
-    estates = env["fix.device.estate"].sudo().search([])
+    estates = _scoped(env, "fix.device.estate")
     rows = []
     for estate in estates:
         linked = devices.filtered(lambda d, e=estate: d.estate_id.id == e.id)
@@ -341,7 +384,7 @@ def estate_coverage(env, date_from=None, date_to=None, **params):
 
 
 def custody_exceptions(env, date_from=None, date_to=None, **params):
-    custody = env["fix.device.custody"].sudo().search([])
+    custody = _scoped(env, "fix.device.custody")
     rows = []
     for event in custody.filtered(lambda c: c.event in ("lost", "found")):
         rows.append(
@@ -382,7 +425,7 @@ def custody_exceptions(env, date_from=None, date_to=None, **params):
 
 
 def data_quality(env, date_from=None, date_to=None, **params):
-    conditions = env["fix.device.condition"].sudo().search([("state", "=", "confirmed")])
+    conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
     conditioned = set(conditions.mapped("device_id").ids)
     rows = []
     for device in _devices(env):
@@ -429,7 +472,7 @@ def data_quality(env, date_from=None, date_to=None, **params):
 
 
 def bulk_registration(env, date_from=None, date_to=None, **params):
-    conditions = env["fix.device.condition"].sudo().search([("state", "=", "confirmed")])
+    conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
     conditioned = set(conditions.mapped("device_id").ids)
     rows = []
     for device in _devices(env):
@@ -485,12 +528,19 @@ REPORTS = {
 
 def kpis(env):
     devices = _devices(env)
-    today = datetime.date.today()
+    # The business date (Dhaka), not the server machine's: the A04 date-basis rule.
+    today = fields.Date.context_today(env.user)
     horizon = today + datetime.timedelta(days=30)
-    pms = env["fix.device.pm"].sudo().search([("state", "=", "active")])
-    custody = env["fix.device.custody"].sudo().search([])
-    conditions = env["fix.device.condition"].sudo().search([("state", "=", "confirmed")])
-    warranties = env["fix.warranty"].sudo().search([("status", "=", "active")])
+    pms = _scoped(env, "fix.device.pm", [("state", "=", "active")])
+    custody = _scoped(env, "fix.device.custody")
+    conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
+    # Cover running today, not every row still marked `active`: 53 such rows had
+    # all ended by 1 Oct 2026, so the KPI read 53 against a true 0 (M17-5).
+    warranties = _scoped(
+        env,
+        "fix.warranty",
+        [("status", "=", "active"), ("start_date", "<=", today), ("end_date", ">=", today)],
+    )
     lost = custody.filtered(lambda c: c.event == "lost")
     open_lost = 0
     for event in lost:
@@ -503,7 +553,7 @@ def kpis(env):
             open_lost += 1
     return {
         "devices_active": len(devices.filtered(lambda d: d.active)),
-        "estates": env["fix.device.estate"].sudo().search_count([]),
+        "estates": len(_scoped(env, "fix.device.estate")),
         "pm_due_30d": len(pms.filtered(lambda p: p.next_due and p.next_due <= horizon)),
         "custody_open_lost": open_lost,
         "without_condition": len(devices) - len(set(conditions.mapped("device_id").ids)),

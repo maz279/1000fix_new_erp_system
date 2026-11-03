@@ -55,17 +55,27 @@ export const MODULE = {
 
 export const SCREENS = {
   'M46-vehicles': { kind: 'model_list', model: 'fleet.vehicle',
-    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry', 'insurance_expiry', 'compliance_ok'],
+    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'compliance_ok', 'dispatch_blockers', 'fitness_expiry', 'insurance_expiry'],
     actions: [{ m: 'action_assert_dispatchable', l: 'Assert Dispatchable' }] },
   'M46-drivers': { kind: 'model_list', model: 'fix.driver', stateField: 'state',
-    cols: ['name', 'employee_id', 'license_no', 'license_class', 'license_expiry', 'state'],
-    actions: [{ m: 'action_suspend', l: 'Suspend' }] },
+    cols: ['name', 'employee_id', 'license_no', 'license_class', 'license_expiry', 'state', 'suspended_by_id'],
+    /* A07 P0 recipe M46-6: both take a reason (kept in the chatter); the
+     * suspender cannot reinstate, nor can anyone while the licence is expired. */
+    actions: [
+      { m: 'action_suspend', l: 'Suspend', ask: 'Reason for the suspension', kwarg: 'reason' },
+      { m: 'action_reinstate', l: 'Reinstate', ask: 'Reason for the reinstatement', kwarg: 'reason' }
+    ] },
+  /* A07 audit M46-1: assignments are made by M02 dispatch (a field order
+   * that names a vehicle), which runs the gate; hence no create here. */
   'M46-assign': { kind: 'model_list', create: false, model: 'fix.vehicle.assignment',
-    cols: ['vehicle_id', 'date', 'technician_id', 'order_id'] },
+    cols: ['vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'field_order_ids'] },
   'M46-docs': { kind: 'model_list', model: 'fix.vehicle.document', stateField: 'state',
-    cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'is_valid', 'state'] },
+    cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'is_valid', 'state'],
+    actions: [{ m: 'action_expire', l: 'Mark Expired' }] },
   'M46-renewal': { kind: 'model_list', model: 'fix.vehicle.offroad', stateField: 'state',
-    cols: ['name', 'vehicle_id', 'reason', 'started_on', 'ended_on', 'state'],
+    cols: ['name', 'vehicle_id', 'reason', 'started_on', 'ended_on', 'state', 'returned_by_id', 'return_check_id'],
+    /* M46-8: needs a passed pre-use check recorded after the off-road start,
+     * and a user other than the one who opened the record. */
     actions: [{ m: 'action_return', l: 'Return to Service' }] },
   'M46-preuse': { kind: 'model_list', model: 'fix.vehicle.check',
     cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'odometer', 'passed', 'defects'] },
@@ -73,21 +83,30 @@ export const SCREENS = {
     cols: ['name', 'vehicle_id', 'pm_type', 'odometer', 'due_odometer', 'scheduled_on', 'done_on', 'cost', 'state'],
     actions: [{ m: 'action_done', l: 'Mark Done' }] },
   'M46-fuel': { kind: 'model_list', model: 'fix.vehicle.fuel',
-    cols: ['name', 'vehicle_id', 'driver_id', 'filled_on', 'litres', 'odometer', 'amount', 'station'] },
+    cols: ['name', 'vehicle_id', 'driver_id', 'filled_on', 'litres', 'odometer', 'amount', 'station', 'exception_summary', 'review_state'],
+    /* M46-9: a fill breaking an exception rule is held; its recorder cannot review it. */
+    actions: [
+      { m: 'action_clear_exception', l: 'Clear Exception', ask: 'What was checked (receipt, odometer, route)?', kwarg: 'note' },
+      { m: 'action_reject_fill', l: 'Reject Fill', ask: 'Reason for rejecting the fill', kwarg: 'reason' }
+    ] },
   'M46-telematics': { kind: 'model_list', model: 'fix.vehicle.telemetry', stateField: 'state',
     cols: ['name', 'vehicle_id', 'device_ref', 'last_ping', 'odometer', 'fuel_level_pct', 'state'] },
   'M46-accidents': { kind: 'model_list', model: 'fix.vehicle.accident', stateField: 'state',
-    cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'claim_ref', 'state'],
+    cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'claim_ref', 'settlement_amount', 'approval_state', 'state'],
+    /* M46-10: the claim carries the insurer's reference; a settlement above
+     * Tier 0 is approved from the approver's inbox (M63); the reporter cannot close. */
     actions: [
-      { m: 'action_claim', l: 'File Claim' },
-      { m: 'action_close', l: 'Close Incident' }
+      { m: 'action_claim', l: 'File Claim', ask: "Insurer's claim reference (blank = the one on the record)", kwarg: 'claim_ref' },
+      { m: 'action_request_approval', l: 'Request Settlement Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_close', l: 'Close Claim', ask: 'Settled amount in BDT (0 if declined)', kwarg: 'settlement' }
     ] },
   'M46-behaviour': { kind: 'table_report', module: 'M46', report: 'driver_behaviour', title: 'Driver Behaviour', period: false },
-  'M46-cost': { kind: 'table_report', module: 'M46', report: 'cost_per_km', title: 'Cost per Kilometre', period: false },
+  /* M46-11: cost/km and km/l honour the chosen period (fill to fill) */
+  'M46-cost': { kind: 'table_report', module: 'M46', report: 'cost_per_km', title: 'Cost per Kilometre' },
 
   /* Report chips -> their own computed pack */
   'M46-rpt-availability': { kind: 'table_report', module: 'M46', report: 'fleet_availability', title: 'Fleet Availability', period: false },
-  'M46-rpt-fuel': { kind: 'table_report', module: 'M46', report: 'fuel_efficiency', title: 'Fuel Efficiency Trend', period: false },
+  'M46-rpt-fuel': { kind: 'table_report', module: 'M46', report: 'fuel_efficiency', title: 'Fuel Efficiency Trend' },
   'M46-rpt-maintenance': { kind: 'table_report', module: 'M46', report: 'maintenance_cost', title: 'Maintenance Cost per Vehicle', period: false },
   'M46-rpt-statutory': { kind: 'table_report', module: 'M46', report: 'statutory_compliance', title: 'Statutory Compliance Register', period: false },
   'M46-rpt-incident': { kind: 'table_report', module: 'M46', report: 'incident_summary', title: 'Incident Summary', period: false },
@@ -99,7 +118,7 @@ export const SCREENS = {
     title: 'Vehicle',
     back: 'M46-vehicles',
     sections: [
-      { title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet); fitness and insurance dates drive the compliance flag that blocks dispatch.',
+      { title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet). The fitness and insurance dates here are information only: dispatch is decided from the statutory document register.',
         fields: [
           { name: 'model_id', required: true, label: 'Vehicle Model' },
           { name: 'license_plate', required: true, label: 'Licence Plate' },
@@ -119,7 +138,7 @@ export const SCREENS = {
     back: 'M46-drivers',
     status: { field: 'state', labels: { active: 'Active', suspended: 'Suspended' } },
     sections: [
-      { title: 'Driver', note: 'One driver record per employee; the licence expiry is recorded, not enforced by a gate yet.',
+      { title: 'Driver', note: 'One driver record per employee. The dispatch gate refuses a driver who is not active or whose licence expiry is past or not recorded; the licence class is recorded, not matched to the vehicle.',
         fields: [
           { name: 'name', required: true, label: 'Driver Name' },
           { name: 'employee_id', required: true, label: 'Employee' },
@@ -127,7 +146,8 @@ export const SCREENS = {
           { name: 'license_class', label: 'Licence Class' },
           { name: 'license_expiry', label: 'Licence Expiry' },
           { name: 'phone', label: 'Phone' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'suspended_by_id', label: 'Suspended By', readonly: true }
         ] }
     ]
   },
@@ -138,15 +158,23 @@ export const SCREENS = {
     title: 'Fuel Transaction',
     back: 'M46-fuel',
     sections: [
-      { title: 'Fuel', note: 'Litres, amount and odometer are the basis of the efficiency and cost-per-km packs.',
+      { title: 'Fuel', note: 'Litres, amount and odometer are the basis of the efficiency and cost-per-km packs. Every fill names the driver and the amount. The server checks each fill against the exception rules (odometer below the previous fill, litres above the tank capacity, a duplicate, a fill on an off-road vehicle); a breach holds the fill for review by someone other than its recorder. Only the recorder corrects a fill, and a reviewed fill is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
-          { name: 'driver_id', label: 'Driver' },
+          { name: 'driver_id', required: true, label: 'Driver' },
           { name: 'filled_on', required: true, label: 'Filled On' },
           { name: 'litres', required: true, label: 'Litres' },
           { name: 'odometer', required: true, label: 'Odometer (km)' },
-          { name: 'amount', label: 'Amount' },
+          { name: 'amount', required: true, label: 'Amount' },
           { name: 'station', label: 'Station' }
+        ] },
+      { title: 'Exception Review',
+        fields: [
+          { name: 'exception_summary', label: 'Exceptions', readonly: true },
+          { name: 'review_state', label: 'Review', readonly: true },
+          { name: 'reviewed_by_id', label: 'Reviewed By', readonly: true },
+          { name: 'reviewed_on', label: 'Reviewed On', readonly: true },
+          { name: 'review_note', label: 'Review Note', readonly: true }
         ] }
     ]
   },
@@ -159,7 +187,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       reported: 'Reported', claimed: 'Claim Filed', closed: 'Closed' } },
     sections: [
-      { title: 'Incident', note: 'Reported → claimed → closed; the claim reference is recorded when filed.',
+      { title: 'Incident', note: 'Reported → claim filed (with the insurer claim reference) → closed. The person who reported the accident cannot close its claim; a settlement above Tier 0 needs a DOFA approval from the approver inbox, and changing the figure afterwards withdraws it. A closed claim is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'driver_id', label: 'Driver' },
@@ -167,7 +195,17 @@ export const SCREENS = {
           { name: 'description', required: true, type: 'text', label: 'Description' },
           { name: 'damage_cost', label: 'Damage Cost' },
           { name: 'claim_ref', label: 'Insurance Claim Ref' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'settlement_amount', label: 'Settlement Amount' },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { title: 'Settlement Approval',
+        fields: [
+          { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
+          { name: 'dofa_approved_amount', label: 'Amount Approved', readonly: true },
+          { name: 'closed_by_id', label: 'Closed By', readonly: true },
+          { name: 'closed_on', label: 'Closed On', readonly: true }
         ] }
     ]
   },
@@ -179,7 +217,7 @@ export const SCREENS = {
     back: 'M46-pm',
     status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
     sections: [
-      { title: 'Service', note: 'The odometer at service and the due odometer record the PM interval actually used.',
+      { title: 'Service', note: 'The odometer at service and the due odometer record the PM interval actually used. Mark Done needs the odometer at service and a cost of zero or more; a completed PM is locked.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'pm_type', required: true, label: 'Type' },
@@ -187,7 +225,8 @@ export const SCREENS = {
           { name: 'due_odometer', label: 'Due Odometer' },
           { name: 'scheduled_on', required: true, label: 'Scheduled On' },
           { name: 'cost', label: 'Cost' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'done_on', label: 'Done On', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -200,14 +239,14 @@ export const SCREENS = {
     back: 'M46-docs',
     status: { field: 'state', labels: { valid: 'Valid', expired: 'Expired' } },
     sections: [
-      { title: 'Document', note: 'Validity is the state AND the end date.',
+      { title: 'Document', note: 'Valid = state Valid and today between Valid From and Valid To. A new document is valid only with an end date that is not past. An expired document cannot be made valid again: record the renewal as a new document.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'doc_type', required: true, label: 'Document Type' },
           { name: 'number', label: 'Document Number' },
           { name: 'valid_from', label: 'Valid From' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
         ] }
     ]
   },
@@ -220,12 +259,15 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       offroad: 'Off Road', returned: 'Returned to Service' } },
     sections: [
-      { title: 'Off-Road', note: 'An open record removes the vehicle from availability until returned.',
+      { title: 'Off-Road', note: 'An open record removes the vehicle from availability until returned. Return to Service needs a passed pre-use check recorded after the vehicle went off-road, by someone other than the person who opened this record.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'started_on', required: true, label: 'Started On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'ended_on', label: 'Returned On', readonly: true },
+          { name: 'returned_by_id', label: 'Returned By', readonly: true },
+          { name: 'return_check_id', label: 'Re-Check', readonly: true }
         ] }
     ]
   },
@@ -236,7 +278,7 @@ export const SCREENS = {
     title: 'Pre-Use Check',
     back: 'M46-preuse',
     sections: [
-      { title: 'Daily Check', note: 'Passed is computed: all four checks must be true; defects are recorded either way.',
+      { title: 'Daily Check', note: 'Passed is computed: each of the four items must be ticked OK (an unanswered item fails the check); defects are recorded either way. A saved check cannot be changed: record a new one.',
         fields: [
           { name: 'vehicle_id', required: true, label: 'Vehicle' },
           { name: 'driver_id', label: 'Driver' },

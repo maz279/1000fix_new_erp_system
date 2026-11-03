@@ -86,16 +86,28 @@ export const SCREENS = {
   },
 
   'M17-assets': { kind: 'model_list', model: 'fix.device', stateField: 'state',
-    cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'state', 'lifecycle_stage'] },
+    cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'state', 'lifecycle_stage', 'approval_state'],
+    // A07 audit M17-8: the state moves only through these. Someone other than
+    // the flagger clears a lost flag; scrap is decided from the M63 approval
+    // inbox by a Tier 2 holder who did not request it.
+    actions: [
+      { m: 'action_mark_lost', l: 'Flag Lost / Stolen', ask: 'How was the loss or theft reported?', kwarg: 'reason' },
+      { m: 'action_clear_lost', l: 'Clear Lost Flag', ask: 'How was it recovered, or why is the report withdrawn?', kwarg: 'reason' },
+      { m: 'action_request_approval', l: 'Request Scrap Approval (Tier 2)', ask: 'Why should this device be scrapped?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
+    ] },
   'M17-asset': { kind: 'model_list', model: 'fix.device',
     cols: ['serial_number', 'imei_1', 'imei_2', 'mac_address', 'legacy_reference', 'estate_id'] },
   'M17-360': { kind: 'table_report', module: 'M17', report: 'asset_360', title: 'Asset 360', period: false },
   'M17-identifiers': { kind: 'table_report', module: 'M17', report: 'identifiers', title: 'Multi-Identifier Model', period: false },
   'M17-merge': { kind: 'model_list', model: 'fix.device.identity', stateField: 'state',
-    cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_reason', 'match_score', 'state'],
+    cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_reason', 'match_score', 'state', 'approval_state'],
+    // A07 audit M17-3: a Tier 2 holder who neither raised nor requested the
+    // candidate merges it from the M63 approval inbox. Here it is only routed.
     actions: [
-      { m: 'action_merge', l: 'Merge' },
-      { m: 'action_reject', l: 'Reject' }
+      { m: 'action_request_approval', l: 'Request Merge Approval (Tier 2)', ask: 'Why are these the same device? (required if owners or models differ)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_reject', l: 'Reject (not a duplicate)' }
     ] },
   'M17-history': { kind: 'model_list', create: false, model: 'fix.device.history', stateField: 'event_type',
     cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'] },
@@ -118,7 +130,11 @@ export const SCREENS = {
     cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'] },
   'M17-pm': { kind: 'model_list', model: 'fix.device.pm', stateField: 'state',
     cols: ['name', 'device_id', 'plan_type', 'interval_months', 'last_done', 'next_due', 'state'],
-    actions: [{ m: 'action_complete', l: 'Mark Done' }] },
+    actions: [
+      { m: 'action_complete', l: 'Mark Done' },
+      { m: 'action_pause', l: 'Pause Plan' },
+      { m: 'action_resume', l: 'Resume Plan' }
+    ] },
 
   /* Report chips -> their own computed pack */
   'M17-rpt-base': { kind: 'table_report', module: 'M17', report: 'installed_base', title: 'Installed Base by Brand/Model', period: false },
@@ -134,8 +150,9 @@ export const SCREENS = {
     title: 'Asset (6 identifiers)',
     back: 'M17-assets',
     status: { field: 'state', labels: {
-      registered: 'Registered', in_service: 'In Service', under_repair: 'Under Repair',
-      retired: 'Retired', lost: 'Lost', transferred: 'Transferred' } },
+      registered: 'Registered', in_service: 'In Service', repaired: 'Repaired',
+      returned: 'Returned to Owner', transferred: 'Ownership Transferred',
+      scrapped: 'Scrapped', lost: 'Lost/Stolen' } },
     sections: [
       { title: 'Identifiers', note: 'At least the serial is mandatory; IMEI-2 and MAC are optional for devices that have them.',
         fields: [
@@ -152,6 +169,13 @@ export const SCREENS = {
           { name: 'branch_id', label: 'Registered At' },
           { name: 'purchase_date', label: 'Purchase Date' },
           { name: 'lifecycle_stage', label: 'Lifecycle Stage' }
+        ] },
+      { title: 'Lifecycle', note: 'Changed only by Flag Lost, Clear Lost Flag, an ownership transfer or an approved scrap.',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'approval_state', label: 'Scrap Approval', readonly: true },
+          { name: 'lost_reason', label: 'Lost / Stolen Report', readonly: true },
+          { name: 'lost_flagged_by_id', label: 'Flagged Lost By', readonly: true }
         ] }
     ]
   },
@@ -200,7 +224,7 @@ export const SCREENS = {
     back: 'M17-assets',
     status: { field: 'state', labels: { draft: 'Draft', confirmed: 'Confirmed' } },
     sections: [
-      { title: 'Condition', note: 'The confirmed grade is what the data-quality scorecard and bulk readiness read.',
+      { title: 'Condition', note: 'The confirmed grade is what the data-quality scorecard and bulk readiness read. Someone other than the grader confirms it, and a confirmed grade is never edited.',
         fields: [
           { name: 'device_id', required: true, label: 'Device' },
           { name: 'grade', required: true, label: 'Grade' },
@@ -209,7 +233,8 @@ export const SCREENS = {
           { name: 'cosmetic_notes', label: 'Cosmetic Notes' },
           { name: 'inspector_id', label: 'Inspector' },
           { name: 'graded_on', required: true, label: 'Graded On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true }
         ] }
     ]
   },
@@ -225,9 +250,9 @@ export const SCREENS = {
           { name: 'device_id', required: true, label: 'Device' },
           { name: 'plan_type', required: true, label: 'Plan Type' },
           { name: 'interval_months', label: 'Interval (months)' },
-          { name: 'last_done', label: 'Last Done' },
+          { name: 'last_done', label: 'Last Done', readonly: true },
           { name: 'next_due', required: true, label: 'Next Due' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -241,13 +266,15 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       candidate: 'Candidate', merged: 'Merged', rejected: 'Rejected' } },
     sections: [
-      { title: 'Resolution', note: 'Merging deactivates the duplicate device; it is never deleted, so its history stays auditable.',
+      { title: 'Resolution', note: 'An approved merge deactivates the duplicate device; it is never deleted, so its history stays auditable. A Tier 2 approver decides it from the approval inbox.',
         fields: [
           { name: 'primary_device_id', required: true, label: 'Surviving Device' },
           { name: 'duplicate_device_id', required: true, label: 'Duplicate Device' },
           { name: 'match_reason', required: true, label: 'Match Reason' },
           { name: 'match_score', label: 'Match Score %' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'approval_state', label: 'Merge Approval', readonly: true },
+          { name: 'resolved_by_id', label: 'Resolved By', readonly: true },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -262,7 +289,7 @@ export const SCREENS = {
       issued: 'Issued', returned: 'Returned', transferred: 'Transferred',
       lost: 'Lost', found: 'Recovered' } },
     sections: [
-      { title: 'Custody', note: 'A lost event with no later found event is a custody exception.',
+      { title: 'Custody', note: 'A lost event with no later found event is a custody exception. Events are permanent: never edited or dated in the future; record the next event instead.',
         fields: [
           { name: 'device_id', required: true, label: 'Device' },
           { name: 'event', required: true, label: 'Event' },
@@ -291,7 +318,8 @@ export const SCREENS = {
           { name: 'serial_no', label: 'Component Serial' },
           { name: 'installed_on', required: true, label: 'Installed On' },
           { name: 'source_ref', label: 'Source Order / PO' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'removed_on', label: 'Removed On', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
     ]

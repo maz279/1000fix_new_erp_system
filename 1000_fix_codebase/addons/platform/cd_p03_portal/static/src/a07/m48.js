@@ -68,31 +68,42 @@ export const SCREENS = {
     ] },
   'M48-health': { kind: 'table_report', module: 'M48', report: 'pipeline_health', title: 'Pipeline Observability', period: false },
   'M48-alerts': { kind: 'model_list', model: 'fix.iot.rule', stateField: 'state',
-    cols: ['name', 'stream_id', 'operator', 'threshold', 'severity', 'duration_min', 'cooldown_min', 'state'],
+    cols: ['name', 'stream_id', 'operator', 'threshold', 'severity', 'duration_min', 'cooldown_min', 'suppression_kind', 'suppression_until', 'approval_state', 'state'],
     actions: [
-      { m: 'action_pause', l: 'Pause Rule' },
-      { m: 'action_activate', l: 'Activate Rule' }
+      /* A07 P0 recipe (M48-3): pausing or loosening is a suppression with a
+       * reason and an expiry, decided from the M63 inbox by someone other
+       * than the requester and the rule's author. Tightening and resuming
+       * apply at once. */
+      { m: 'action_pause', l: 'Request Pause (approval)', ask: 'Why pause this rule? (set Suppressed Until on the rule first)', kwarg: 'reason' },
+      { m: 'action_change_threshold', l: 'Change Threshold', ask: 'New threshold (tightening applies now; loosening needs the rule Suppression Reason and Suppressed Until, and approval)', kwarg: 'threshold' },
+      { m: 'action_request_approval', l: 'Re-request Suppression Approval', ask: 'Note for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Suppression Request' },
+      { m: 'action_activate', l: 'Resume Rule / Lift Suppression' }
     ] },
   'M48-lifecycle': { kind: 'model_list', model: 'fix.iot.alert', stateField: 'state', create: false,
-    cols: ['name', 'device_id', 'severity', 'message', 'acked_on', 'resolved_on', 'state'],
+    cols: ['name', 'device_id', 'severity', 'message', 'acked_on', 'acked_by', 'resolved_on', 'resolved_by', 'state'],
     actions: [
       { m: 'action_ack', l: 'Acknowledge' },
-      { m: 'action_resolve', l: 'Resolve' }
+      { m: 'action_resolve', l: 'Resolve', ask: 'How was the alert resolved?', kwarg: 'resolution_note' }
     ] },
   'M48-scores': { kind: 'table_report', module: 'M48', report: 'asset_health', title: 'Asset Health Scoring', period: false },
   'M48-failure': { kind: 'model_list', model: 'fix.predictive.maintenance',
-    cols: ['name', 'equipment_id', 'prediction', 'confidence', 'estimated_days_to_failure', 'model_name', 'outcome', 'work_order_created'],
+    cols: ['name', 'equipment_id', 'prediction', 'confidence', 'estimated_days_to_failure', 'model_name', 'outcome', 'outcome_action_id', 'work_order_created'],
     actions: [{ m: 'action_create_preventive_wo', l: 'Create Preventive WO' }] },
   'M48-rul': { kind: 'table_report', module: 'M48', report: 'rul_estimation', title: 'RUL Estimation', period: false },
   'M48-routing': { kind: 'model_list', model: 'fix.iot.action', stateField: 'state',
-    cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'scheduled_on', 'state'],
+    cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'scheduled_on', 'approval_state', 'approved_by', 'outcome', 'state'],
     actions: [
-      { m: 'action_approve', l: 'Approve Action' },
+      /* A07 P0 recipe (M48-2): a DOFA Tier 2 (operations manager) approver
+       * other than the proposer decides from the M63 inbox; this only asks. */
+      { m: 'action_request_approval', l: 'Request Approval (Tier 2)', ask: 'Why is this intervention needed?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_dispatch', l: 'Dispatch' },
-      { m: 'action_done', l: 'Complete' }
+      { m: 'action_done_confirmed', l: 'Complete: Failure Confirmed', ask: 'What did the intervention find?', kwarg: 'note' },
+      { m: 'action_done_not_confirmed', l: 'Complete: Failure Not Confirmed', ask: 'What did the intervention find?', kwarg: 'note' }
     ] },
   'M48-consent': { kind: 'model_list', model: 'fix.iot.consent', stateField: 'state',
-    cols: ['name', 'subject_type', 'device_id', 'purpose', 'granted_on', 'valid_to', 'state'],
+    cols: ['name', 'subject_type', 'device_id', 'site_id', 'partner_id', 'purpose', 'granted_on', 'valid_to', 'revoked_on', 'state'],
     actions: [{ m: 'action_revoke', l: 'Revoke Consent' }] },
 
   /* Report chips -> their own computed pack */
@@ -118,7 +129,7 @@ export const SCREENS = {
           { name: 'unit', label: 'Unit' },
           { name: 'sample_interval_sec', required: true, label: 'Sample Interval (s)' },
           { name: 'retention_days', required: true, label: 'Raw Retention (days)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
         ] }
     ]
   },
@@ -130,7 +141,7 @@ export const SCREENS = {
     back: 'M48-alerts',
     status: { field: 'state', labels: { active: 'Active', paused: 'Paused' } },
     sections: [
-      { title: 'Threshold Rule', note: 'A reading that compares true against the threshold raises an alert at the rule severity. Ingest evaluates only active rules.',
+      { title: 'Threshold Rule', note: 'A reading that compares true against the threshold raises an alert at the rule severity. Ingest evaluates only active rules. Stream, operator and threshold are set when the rule is created; afterwards the threshold changes only through Change Threshold, and the stream and operator not at all.',
         fields: [
           { name: 'name', required: true, label: 'Rule Reference' },
           { name: 'stream_id', required: true, label: 'Stream' },
@@ -139,7 +150,19 @@ export const SCREENS = {
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'duration_min', label: 'Sustained For (minutes)' },
           { name: 'cooldown_min', label: 'Cooldown (minutes)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { title: 'Suppression', note: 'Pausing a rule or loosening its threshold is a suppression: give a reason and an expiry here, then Request Pause or Change Threshold. An approver other than the requester and the rule author decides it from the approval inbox. It ends after Suppressed Until, when the rule alerts again at its earlier threshold.',
+        fields: [
+          { name: 'suppression_reason', label: 'Suppression Reason' },
+          { name: 'suppression_until', label: 'Suppressed Until' },
+          { name: 'suppression_kind', label: 'Suppression', readonly: true },
+          { name: 'proposed_threshold', label: 'Proposed Threshold', readonly: true },
+          { name: 'baseline_threshold', label: 'Threshold Before Suppression', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'suppression_requested_by', label: 'Requested By', readonly: true },
+          { name: 'suppressed_by', label: 'Approved By', readonly: true },
+          { name: 'suppressed_on', label: 'Approved On', readonly: true }
         ] }
     ]
   },
@@ -178,7 +201,7 @@ export const SCREENS = {
           { name: 'protocol', required: true, label: 'Protocol' },
           { name: 'endpoint', label: 'Endpoint' },
           { name: 'auth_mode', required: true, label: 'Authentication' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
         ] }
     ]
   },
@@ -192,7 +215,7 @@ export const SCREENS = {
       proposed: 'Proposed', approved: 'Approved', dispatched: 'Dispatched',
       done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Action', note: 'Proposed → approved → dispatched → done; each transition is refused out of order.',
+      { title: 'Action', note: 'Proposed → approved → dispatched → done; the state changes only through the actions. Approval is requested here and decided from the approval inbox by a Tier 2 approver other than the proposer, never on a healthy prediction. Changing the action type, priority or prediction after approval withdraws it. Dispatch needs a technician; completion records whether the failure was confirmed.',
         fields: [
           { name: 'name', required: true, label: 'Action Reference' },
           { name: 'prediction_id', required: true, label: 'Prediction' },
@@ -200,8 +223,18 @@ export const SCREENS = {
           { name: 'priority', required: true, label: 'Priority' },
           { name: 'technician_id', label: 'Technician' },
           { name: 'scheduled_on', required: true, label: 'Scheduled On' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
           { name: 'notes', label: 'Notes' }
+        ] },
+      { title: 'Approval & Outcome', fields: [
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'dispatched_on', label: 'Dispatched On', readonly: true },
+          { name: 'completed_by', label: 'Completed By', readonly: true },
+          { name: 'completed_on', label: 'Completed On', readonly: true },
+          { name: 'outcome', label: 'Outcome', readonly: true },
+          { name: 'outcome_note', label: 'Outcome Note', readonly: true }
         ] }
     ]
   },
@@ -213,7 +246,7 @@ export const SCREENS = {
     back: 'M48-consent',
     status: { field: 'state', labels: { active: 'Active', revoked: 'Revoked' } },
     sections: [
-      { title: 'Consent', note: 'A consent is scoped to a device, site or customer and a purpose; revoking is final for the record.',
+      { title: 'Consent', note: 'A consent must name its subject (the device, site or customer of its subject type) and cannot end before it is granted. Ingest checks it: an active consent in date covers the device. Revoke Consent records who and when, and suspends the streams it covered that no other valid consent covers. A revoked consent is never reactivated, and the state changes only through Revoke.',
         fields: [
           { name: 'name', required: true, label: 'Consent Reference' },
           { name: 'subject_type', required: true, label: 'Subject Type' },
@@ -223,7 +256,9 @@ export const SCREENS = {
           { name: 'purpose', required: true, label: 'Purpose' },
           { name: 'granted_on', required: true, label: 'Granted On' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'revoked_by', label: 'Revoked By', readonly: true },
+          { name: 'revoked_on', label: 'Revoked On', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -235,7 +270,7 @@ export const SCREENS = {
     title: 'Failure Prediction',
     back: 'M48-failure',
     sections: [
-      { title: 'Prediction', note: 'Confidence is 0–1; days-to-failure 0 means imminent. Only a failure prediction can create a preventive work order, once.',
+      { title: 'Prediction', note: 'Confidence must be within 0–1 and days-to-failure cannot be negative (0 means imminent). Only a failure prediction can create a preventive work order, once. The verified outcome is recorded by completing a prescriptive action, never typed.',
         fields: [
           { name: 'name', required: true, label: 'Prediction Reference' },
           { name: 'equipment_id', required: true, label: 'Equipment' },
@@ -243,7 +278,11 @@ export const SCREENS = {
           { name: 'confidence', label: 'Confidence (0-1)' },
           { name: 'estimated_days_to_failure', label: 'Days to Failure' },
           { name: 'model_name', label: 'Model' },
-          { name: 'outcome', required: true, label: 'Verified Outcome' }
+          { name: 'outcome', label: 'Verified Outcome', readonly: true },
+          { name: 'outcome_note', label: 'Outcome Note', readonly: true },
+          { name: 'outcome_action_id', label: 'Outcome From Action', readonly: true },
+          { name: 'outcome_recorded_by', label: 'Outcome Recorded By', readonly: true },
+          { name: 'work_order_created', label: 'Work Order Created', readonly: true }
         ] }
     ]
   },
@@ -266,7 +305,8 @@ export const SCREENS = {
           { name: 'device_type', required: true, label: "Device Type" },
           { name: 'operating_unit_id', label: "Operating Unit" },
           { name: 'equipment_id', label: "Equipment (M45)" },
-          { name: 'site_id', label: "Site (M47)" }
+          { name: 'site_id', label: "Site (M47)" },
+          { name: 'partner_id', label: "Customer (data subject)" }
         ] }
     ]
   },
