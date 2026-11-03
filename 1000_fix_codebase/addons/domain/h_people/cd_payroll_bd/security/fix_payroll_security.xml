@@ -29,4 +29,19 @@
         <!-- the back office keeps working: the administrator holds the role -->
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
+
+    <!-- A09 P0 (A5 coordination): plain users read only their own contract.
+         Payroll prepares every employee's run from the contract basic and
+         allowances, so the payroll groups read every contract (still inside
+         the company isolation rule). Read only: payroll never edits a contract. -->
+    <record id="rule_fix_employment_contract_payroll_read" model="ir.rule">
+        <field name="name">fix.employment.contract: payroll reads every contract</field>
+        <field name="model_id" ref="cd_hr_core.model_fix_employment_contract"/>
+        <field name="groups" eval="[(4, ref('group_payroll_officer'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
 </odoo>

@@ -65,6 +65,32 @@ msgid "Approved"
 msgstr ""
 
 #. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__approved_by_id
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_net_total
+msgid "Approved Net Total"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_on
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__approved_on
+msgid "Approved On"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__approved_digest
+msgid "Approved Payslip Digest"
+msgstr ""
+
+#. module: cd_payroll_bd
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_offcycle__payment_type__arrear
 msgid "Arrear"
 msgstr ""
@@ -168,6 +194,7 @@ msgstr ""
 
 #. module: cd_payroll_bd
 #: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__calculator_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__calculated_by_id
 msgid "Calculated By"
 msgstr ""
 
@@ -657,6 +684,13 @@ msgstr ""
 #. module: cd_payroll_bd
 #: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__posted
 msgid "Posted"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_bonus_run__prepared_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_offcycle__prepared_by_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_wppf_allocation__prepared_by_id
+msgid "Prepared By"
 msgstr ""
 
 #. module: cd_payroll_bd

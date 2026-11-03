@@ -182,7 +182,7 @@ export const SCREENS = {
     },
     tabs: [
       { id: 'schedule', label: 'Period Scope', bn: 'সময়সীমা ও শাখা', icon: '📅', badge: '4' },
-      { id: 'controls', label: 'Processing & Accounting', bn: 'প্রক্রিয়াকরণ ও হিসাব', icon: '⚙️', badge: '1' }
+      { id: 'controls', label: 'Processing & Accounting', bn: 'প্রক্রিয়াকরণ ও হিসাব', icon: '⚙️', badge: '5' }
     ],
     sections: [
       {
@@ -199,9 +199,13 @@ export const SCREENS = {
       {
         tab: 'controls',
         title: 'Workflow & Gating Controls',
-        note: 'Draft → attendance locked → calculated → approved → paid → posted.',
+        note: 'Draft → attendance locked → calculated → approved → paid → posted. The state and the approval stamps change only through the actions above (maker-checker), never by editing.',
         fields: [
-          { name: 'state', required: true, label: 'Payroll State' }
+          { name: 'state', readonly: true, label: 'Payroll State' },
+          { name: 'calculator_id', readonly: true, label: 'Calculated By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_on', readonly: true, label: 'Approved On' },
+          { name: 'approved_net_total', readonly: true, label: 'Approved Net Total (BDT)' }
         ]
       }
     ]
@@ -239,7 +243,7 @@ export const SCREENS = {
         fields: [
           { name: 'basis', required: true, label: 'Calculation Basis (Basic / Gross)' },
           { name: 'multiplier', required: true, label: 'Multiplier (Fraction of Basic)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' }
         ]
       }
     ]
@@ -257,7 +261,7 @@ export const SCREENS = {
     },
     tabs: [
       { id: 'claim', label: 'Payment Claim', bn: 'দাবির বিবরণ', icon: '💳', badge: '4' },
-      { id: 'execution', label: 'Approval & Reason', bn: 'কারণ ও অনুমোদন', icon: '🏦', badge: '2' }
+      { id: 'execution', label: 'Approval & Reason', bn: 'কারণ ও অনুমোদন', icon: '🏦', badge: '5' }
     ],
     sections: [
       {
@@ -274,10 +278,13 @@ export const SCREENS = {
       {
         tab: 'execution',
         title: 'Business Reason & Authorization',
-        note: 'Authorized off-cycle payment tracking.',
+        note: 'Approved by a Payroll Manager other than the preparer; amount and payee freeze at approval.',
         fields: [
           { name: 'reason', label: 'Operational Reason' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_on', readonly: true, label: 'Approved On' }
         ]
       }
     ]
@@ -299,13 +306,13 @@ export const SCREENS = {
       {
         tab: 'employee',
         title: 'Payslip Period & Taxpayer Classification',
-        note: 'Employee payroll period and Income Tax Act 2023 slab classification.',
+        note: 'Employee payroll period and Income Tax Act 2023 slab classification. A payslip is produced by the payroll run (Calculate Gross-to-Net) and is never typed.',
         fields: [
-          { name: 'period_id', required: true, label: 'Payroll Period' },
-          { name: 'employee_id', required: true, label: 'Employee' },
-          { name: 'taxpayer_category', label: 'Taxpayer Slab Category' },
-          { name: 'minimum_tax_location', label: 'Minimum Tax Jurisdiction' },
-          { name: 'has_disabled_child', label: 'Disabled Child Tax Relief (+BDT 50,000)' }
+          { name: 'period_id', readonly: true, label: 'Payroll Period' },
+          { name: 'employee_id', readonly: true, label: 'Employee' },
+          { name: 'taxpayer_category', readonly: true, label: 'Taxpayer Slab Category' },
+          { name: 'minimum_tax_location', readonly: true, label: 'Minimum Tax Jurisdiction' },
+          { name: 'has_disabled_child', readonly: true, label: 'Disabled Child Tax Relief (+BDT 50,000)' }
         ]
       },
       {
@@ -313,15 +320,15 @@ export const SCREENS = {
         title: 'Monthly Basic & Contract Allowances (BDT)',
         note: 'Pulled from active employment contract (F-1 contract-to-payslip allowance seam).',
         fields: [
-          { name: 'basic', required: true, label: 'Basic Salary (BDT)' },
-          { name: 'house_rent', label: 'House Rent Allowance (BDT)' },
-          { name: 'medical_allowance', label: 'Medical Allowance (BDT)' },
-          { name: 'conveyance_allowance', label: 'Conveyance Allowance (BDT)' },
-          { name: 'technical_allowance', label: 'Technical Skill Allowance (BDT)' },
-          { name: 'other_allowance', label: 'Other Monthly Allowance (BDT)' },
-          { name: 'dearness_allowance', label: 'Dearness Allowance (BDT)' },
-          { name: 'adhoc_allowance', label: 'Ad-hoc Relief Allowance (BDT)' },
-          { name: 'gross', label: 'Total Monthly Gross Pay (BDT)' }
+          { name: 'basic', readonly: true, label: 'Basic Salary (BDT)' },
+          { name: 'house_rent', readonly: true, label: 'House Rent Allowance (BDT)' },
+          { name: 'medical_allowance', readonly: true, label: 'Medical Allowance (BDT)' },
+          { name: 'conveyance_allowance', readonly: true, label: 'Conveyance Allowance (BDT)' },
+          { name: 'technical_allowance', readonly: true, label: 'Technical Skill Allowance (BDT)' },
+          { name: 'other_allowance', readonly: true, label: 'Other Monthly Allowance (BDT)' },
+          { name: 'dearness_allowance', readonly: true, label: 'Dearness Allowance (BDT)' },
+          { name: 'adhoc_allowance', readonly: true, label: 'Ad-hoc Relief Allowance (BDT)' },
+          { name: 'gross', readonly: true, label: 'Total Monthly Gross Pay (BDT)' }
         ]
       },
       {
@@ -329,14 +336,14 @@ export const SCREENS = {
         title: 'Overtime (208 Divisor), Incentives & Statutory Deductions',
         note: 'BLA s.108 double-rate overtime (208-hour divisor), M57 incentives, PF, and ITA 2023 TDS.',
         fields: [
-          { name: 'ot_hours', label: 'Approved Overtime Hours' },
-          { name: 'overtime', label: 'Overtime Pay (2x Rate, 208 Divisor)' },
-          { name: 'incentive', label: 'Performance Incentive (M57)' },
-          { name: 'pf_employee_pct', label: 'PF Employee Contribution %' },
-          { name: 'pf_employee', label: 'PF Employee Deduction (BDT)' },
-          { name: 'pf_employer', label: 'PF Employer Contribution (BDT)' },
-          { name: 'tax_withheld', label: 'Monthly Income Tax Withheld (TDS)' },
-          { name: 'net', label: 'Net Take-Home Pay (BDT)' }
+          { name: 'ot_hours', readonly: true, label: 'Approved Overtime Hours' },
+          { name: 'overtime', readonly: true, label: 'Overtime Pay (2x Rate, 208 Divisor)' },
+          { name: 'incentive', readonly: true, label: 'Performance Incentive (M57)' },
+          { name: 'pf_employee_pct', readonly: true, label: 'PF Employee Contribution %' },
+          { name: 'pf_employee', readonly: true, label: 'PF Employee Deduction (BDT)' },
+          { name: 'pf_employer', readonly: true, label: 'PF Employer Contribution (BDT)' },
+          { name: 'tax_withheld', readonly: true, label: 'Monthly Income Tax Withheld (TDS)' },
+          { name: 'net', readonly: true, label: 'Net Take-Home Pay (BDT)' }
         ]
       },
       {
@@ -344,12 +351,12 @@ export const SCREENS = {
         title: 'Separation Gratuity & Retrenchment Compensation',
         note: 'BLA s.2(10)/s.27 gratuity, s.117 leave encashment, and s.20 retrenchment.',
         fields: [
-          { name: 'completed_years', label: 'Completed Service Years' },
-          { name: 'unused_leave_days', label: 'Unavailed Earned Leave Days (Cap 40)' },
-          { name: 'gratuity_amount', label: 'Computed Gratuity (BDT)' },
-          { name: 'leave_encashment_amount', label: 'Leave Encashment (BDT)' },
-          { name: 'retrenchment_compensation', label: 'Retrenchment Compensation (BDT)' },
-          { name: 'notice_pay_amount', label: 'Notice Pay (BDT)' }
+          { name: 'completed_years', readonly: true, label: 'Completed Service Years' },
+          { name: 'unused_leave_days', readonly: true, label: 'Unavailed Earned Leave Days (Cap 40)' },
+          { name: 'gratuity_amount', readonly: true, label: 'Computed Gratuity (BDT)' },
+          { name: 'leave_encashment_amount', readonly: true, label: 'Leave Encashment (BDT)' },
+          { name: 'retrenchment_compensation', readonly: true, label: 'Retrenchment Compensation (BDT)' },
+          { name: 'notice_pay_amount', readonly: true, label: 'Notice Pay (BDT)' }
         ]
       }
     ]
@@ -375,11 +382,11 @@ export const SCREENS = {
         title: 'Bangladesh Electronic Funds Transfer Network (BEFTN) Batch',
         note: 'Automated salary credit instruction batch for commercial bank clearing.',
         fields: [
-          { name: 'period_id', required: true, label: 'Payroll Period' },
-          { name: 'settlement_date', label: 'Target Settlement Date' },
-          { name: 'employee_count', label: 'Payee Count' },
-          { name: 'total_amount', label: 'Total Disbursement Amount (BDT)' },
-          { name: 'operating_unit_id', label: 'Operating Unit' }
+          { name: 'period_id', readonly: true, label: 'Payroll Period' },
+          { name: 'settlement_date', readonly: true, label: 'Target Settlement Date' },
+          { name: 'employee_count', readonly: true, label: 'Payee Count' },
+          { name: 'total_amount', readonly: true, label: 'Total Disbursement Amount (BDT)' },
+          { name: 'operating_unit_id', readonly: true, label: 'Operating Unit' }
         ]
       },
       {
@@ -387,9 +394,9 @@ export const SCREENS = {
         title: 'Generated Clearing File & Status',
         note: 'Generated CSV/XML clearing file payload and settlement state.',
         fields: [
-          { name: 'file_name', label: 'Generated BEFTN File Name' },
-          { name: 'submitted_at', label: 'Submitted Timestamp' },
-          { name: 'state', required: true, label: 'Settlement State' }
+          { name: 'file_name', readonly: true, label: 'Generated BEFTN File Name' },
+          { name: 'submitted_at', readonly: true, label: 'Submitted Timestamp' },
+          { name: 'state', readonly: true, label: 'Settlement State' }
         ]
       }
     ]
@@ -415,8 +422,8 @@ export const SCREENS = {
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'certificate_type', required: true, label: 'Certificate Type' },
           { name: 'fiscal_year', required: true, label: 'Fiscal Year (e.g. 2025-26)' },
-          { name: 'issued_on', label: 'Issue Date' },
-          { name: 'state', label: 'Certificate State' }
+          { name: 'issued_on', readonly: true, label: 'Issue Date' },
+          { name: 'state', readonly: true, label: 'Certificate State' }
         ]
       },
       {
@@ -424,12 +431,12 @@ export const SCREENS = {
         title: 'Aggregated Annual Remuneration & Treasury Challans',
         note: 'Computed from posted payslips for the fiscal year.',
         fields: [
-          { name: 'amount', label: 'Total Certified Amount (BDT)' },
-          { name: 'total_gross', label: 'Annual Gross Salary (BDT)' },
-          { name: 'total_basic', label: 'Annual Basic Salary (BDT)' },
-          { name: 'total_allowances', label: 'Annual Allowances (BDT)' },
-          { name: 'total_tax_withheld', label: 'Total Tax Deducted at Source (BDT)' },
-          { name: 'total_pf_deducted', label: 'Total PF Employee Contribution (BDT)' },
+          { name: 'amount', readonly: true, label: 'Total Certified Amount (BDT)' },
+          { name: 'total_gross', readonly: true, label: 'Annual Gross Salary (BDT)' },
+          { name: 'total_basic', readonly: true, label: 'Annual Basic Salary (BDT)' },
+          { name: 'total_allowances', readonly: true, label: 'Annual Allowances (BDT)' },
+          { name: 'total_tax_withheld', readonly: true, label: 'Total Tax Deducted at Source (BDT)' },
+          { name: 'total_pf_deducted', readonly: true, label: 'Total PF Employee Contribution (BDT)' },
           { name: 'challan_refs', label: 'Treasury / e-TDS Challan References' }
         ]
       }
@@ -456,8 +463,8 @@ export const SCREENS = {
           { name: 'period', required: true, label: 'Return Quarter / Period' },
           { name: 'period_start', label: 'Period Start Date' },
           { name: 'period_end', label: 'Period End Date' },
-          { name: 'employee_count', label: 'Taxable Employees Count' },
-          { name: 'total_tax', label: 'Total Tax Withheld (BDT)' }
+          { name: 'employee_count', readonly: true, label: 'Taxable Employees Count' },
+          { name: 'total_tax', readonly: true, label: 'Total Tax Withheld (BDT)' }
         ]
       },
       {
@@ -469,7 +476,7 @@ export const SCREENS = {
           { name: 'challan_date', label: 'Challan Deposit Date' },
           { name: 'tax_zone', label: 'NBR Tax Zone' },
           { name: 'acknowledgement', label: 'NBR Filing Acknowledgement No' },
-          { name: 'state', required: true, label: 'Filing State' }
+          { name: 'state', readonly: true, label: 'Filing State' }
         ]
       }
     ]
@@ -500,7 +507,7 @@ export const SCREENS = {
           { name: 'fiscal_year', required: true, label: 'Fiscal Year (e.g. 2025-26)' },
           { name: 'fiscal_year_end_date', required: true, label: 'Fiscal Year End Date' },
           { name: 'net_profit', required: true, label: 'Audited Net Profit Before Tax (BDT)' },
-          { name: 'total_wppf_pool', label: 'Total 5% Statutory Allocation (BDT)' }
+          { name: 'total_wppf_pool', readonly: true, label: 'Total 5% Statutory Allocation (BDT)' }
         ]
       },
       {
@@ -508,10 +515,10 @@ export const SCREENS = {
         title: 'Statutory 80 : 10 : 10 Three-Fund Split (BLA s.240)',
         note: '80% Participatory Fund, 10% Employee Welfare Fund, 10% Govt BWWF Foundation.',
         fields: [
-          { name: 'participatory_fund_amount', label: '80% Participatory Fund (BDT)' },
-          { name: 'welfare_fund_amount', label: '10% Welfare Fund (BDT)' },
-          { name: 'welfare_foundation_amount', label: '10% BWWF Govt Foundation Fund (BDT)' },
-          { name: 'state', required: true, label: 'Allocation State' }
+          { name: 'participatory_fund_amount', readonly: true, label: '80% Participatory Fund (BDT)' },
+          { name: 'welfare_fund_amount', readonly: true, label: '10% Welfare Fund (BDT)' },
+          { name: 'welfare_foundation_amount', readonly: true, label: '10% BWWF Govt Foundation Fund (BDT)' },
+          { name: 'state', readonly: true, label: 'Allocation State' }
         ]
       },
       {
@@ -519,11 +526,11 @@ export const SCREENS = {
         title: 'Beneficiary Equal Distribution & 9-Month Statutory Deadline (BLA s.242)',
         note: 'Two-thirds distributed equally in cash to eligible workers (>=9 months service); one-third invested.',
         fields: [
-          { name: 'equal_distribution_pool', label: '2/3 Cash Distribution Pool (BDT)' },
-          { name: 'investment_pool_share', label: '1/3 Investment Units Pool (BDT)' },
+          { name: 'equal_distribution_pool', readonly: true, label: '2/3 Cash Distribution Pool (BDT)' },
+          { name: 'investment_pool_share', readonly: true, label: '1/3 Investment Units Pool (BDT)' },
           { name: 'eligible_workers_count', label: 'Eligible Beneficiaries Count' },
-          { name: 'per_worker_equal_share', label: 'Equal Cash Share per Worker (BDT)' },
-          { name: 'distribution_due_date', label: 'Statutory 9-Month Transfer Deadline' },
+          { name: 'per_worker_equal_share', readonly: true, label: 'Equal Cash Share per Worker (BDT)' },
+          { name: 'distribution_due_date', readonly: true, label: 'Statutory 9-Month Transfer Deadline' },
           { name: 'bwwf_challan_ref', label: 'BWWF Deposit Challan Ref' }
         ]
       }

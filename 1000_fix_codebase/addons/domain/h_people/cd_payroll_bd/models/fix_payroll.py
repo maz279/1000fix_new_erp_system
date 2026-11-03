@@ -1,4 +1,19 @@
 # fix_payroll — M56: period, payslips, BEFTN batch, GL posting (P08-M03).
+#
+# A09 workflow audit (2026-11-03), P0 A3/A4: every control of the payroll
+# cycle lived in an action method, while the fields it protects were plain
+# writable fields. A payroll officer wrote `state='approved'`, rewrote a
+# colleague's payslip bank account after approval and had the BEFTN file pay
+# his own account, edited an approved basic 30,000 -> 300,000, and added a
+# ghost payslip to an approved period. Now:
+#   * state, the actor stamps and every amount/payee field are guarded
+#     (fix.guarded.mixin): only the transition methods set them;
+#   * a payslip of an approved, paid or posted period cannot be created,
+#     changed or deleted at all;
+#   * approval stores a digest of (slip, employee, net, account, routing) and
+#     the approved total, and the BEFTN file refuses a run that differs.
+import hashlib
+import json
 from datetime import datetime, timedelta
 from decimal import Decimal
 
@@ -45,6 +60,116 @@ PERIOD_FLOW = [
     ("posted", "Posted"),
 ]
 
+# A period in one of these states is committed: its payslips are frozen.
+FROZEN_PERIOD_STATES = ("approved", "paid", "posted")
+
+# Every payslip field that decides what is paid, to whom and into which
+# account. Only action_calculate and the separation/retrenchment computations
+# set them (through _guarded()); the stored computes follow from them.
+PAYSLIP_GUARDED_FIELDS = frozenset(
+    {
+        "period_id",
+        "employee_id",
+        "company_id",
+        "currency_id",
+        "basic",
+        "house_rent",
+        "medical_allowance",
+        "conveyance_allowance",
+        "technical_allowance",
+        "other_allowance",
+        "dearness_allowance",
+        "adhoc_allowance",
+        "ot_hours",
+        "incentive",
+        "pf_employee_pct",
+        "pf_employer_pct",
+        "annual_taxable_other",
+        "taxpayer_category",
+        "has_disabled_child",
+        "minimum_tax_location",
+        "investment_allowance",
+        "bank_account_no",
+        "routing_no",
+        "bank_name",
+        "allowances_total",
+        "annual_exemption",
+        "gross",
+        "overtime",
+        "pf_employee",
+        "pf_employer",
+        "tax_withheld",
+        "net",
+        "completed_years",
+        "gratuity_amount",
+        "resignation_compensation_amount",
+        "retrenchment_compensation",
+        "notice_pay_amount",
+        "unused_leave_days",
+        "leave_encashment_amount",
+    }
+)
+
+
+def payslip_digest(slips) -> str:
+    """SHA-256 over what a run pays: (slip, employee, net, account, routing),
+    sorted so the digest does not depend on read order."""
+    rows = sorted(
+        (
+            slip.id,
+            slip.employee_id.id,
+            "%.2f" % (slip.net or 0.0),
+            (slip.bank_account_no or "").strip(),
+            (slip.routing_no or "").strip(),
+        )
+        for slip in slips
+    )
+    return hashlib.sha256(json.dumps(rows).encode()).hexdigest()
+
+
+class FixPayrollStateLock(models.AbstractModel):
+    """fix.guarded.mixin plus the fields a payroll document freezes by state.
+
+    The guarded fields (state, stamps, computed amounts) change only inside a
+    transition. The state-locked fields are ordinary inputs while the document
+    is a draft and freeze once it moves on: an approved off-cycle payment's
+    amount and payee, a trustee-approved WPPF profit (A09 probes O4, W4)."""
+
+    _name = "fix.payroll.state.lock"
+    _description = "Payroll Document State Lock"
+    _inherit = ["fix.guarded.mixin"]
+
+    def _payroll_state_locked_fields(self) -> set:
+        """Fields frozen by THIS record's state. Extend per model."""
+        return set()
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        for rec in self:
+            locked |= rec._payroll_state_locked_fields()
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self:
+                changed = [
+                    name
+                    for name in rec._payroll_state_locked_fields() & set(vals)
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                ]
+                if changed:
+                    state = dict(rec._fields["state"].selection).get(rec.state, rec.state)
+                    raise UserError(
+                        "%s %s is %s: %s can no longer be changed."
+                        % (
+                            rec._description,
+                            rec.display_name,
+                            state,
+                            ", ".join(sorted(rec._fields[n].string for n in changed)),
+                        )
+                    )
+        return super().write(vals)
+
 
 class FixPayrollPeriod(models.Model):
     """Journey 13's spine: lock -> calculate -> approve -> BEFTN -> payslips
@@ -53,7 +178,7 @@ class FixPayrollPeriod(models.Model):
 
     _name = "fix.payroll.period"
     _description = "Payroll Period"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.payroll.state.lock"]
     _order = "period_start desc"
 
     company_id = fields.Many2one(
@@ -90,6 +215,62 @@ class FixPayrollPeriod(models.Model):
     # these the pay step could never produce a file.
     company_account_no = fields.Char(string="Company Originating Account")
     company_routing_no = fields.Char(string="Company Routing No (9 digits)")
+    # The approval, pinned (A09 P0 A3): who approved, when, and what. The
+    # BEFTN file is built only while the slips still hash to approved_digest
+    # and add up to approved_net_total.
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
+    approved_on = fields.Datetime(string="Approved On", readonly=True)
+    approved_digest = fields.Char(string="Approved Payslip Digest", readonly=True)
+    approved_net_total = fields.Monetary(
+        currency_field="currency_id", string="Approved Net Total", readonly=True
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "calculator_id",
+            "approved_by_id",
+            "approved_on",
+            "approved_digest",
+            "approved_net_total",
+            "beftn_batch_id",
+            "gl_move_id",
+            "payslip_ids",
+        }
+
+    def _payroll_state_locked_fields(self) -> set:
+        """Fields frozen by this period's state: the scope once calculated,
+        the originating account once the bank file exists."""
+        locked = super()._payroll_state_locked_fields()
+        if self.state not in ("draft", "attendance_locked"):
+            locked |= {"period_start", "period_end", "company_id", "currency_id"}
+            locked |= {"operating_unit_id"}
+        if self.state in ("paid", "posted"):
+            locked |= {"company_account_no", "company_routing_no"}
+        return locked
+
+    def _payroll_snapshot(self):
+        """(digest, net total) of this period's payslips as they stand now."""
+        self.ensure_one()
+        slips = self.payslip_ids
+        return payslip_digest(slips), self.currency_id.round(sum(slips.mapped("net")))
+
+    def _check_approved_snapshot(self):
+        """Refuse a period whose payslips no longer match what was approved."""
+        for rec in self:
+            digest, total = rec._payroll_snapshot()
+            if not rec.approved_digest or digest != rec.approved_digest:
+                raise UserError(
+                    "Payroll period %s does not match its approval: a payslip's employee, "
+                    "net pay or bank details differ from what was approved (or the period "
+                    "was never approved through its approval action). Nothing is paid "
+                    "from a changed run." % rec.name
+                )
+            if rec.currency_id.compare_amounts(total, rec.approved_net_total) != 0:
+                raise UserError(
+                    "Payroll period %s totals %.2f but %.2f was approved - nothing is paid "
+                    "from a changed run." % (rec.name, total, rec.approved_net_total)
+                )
 
     @api.depends(
         "payslip_ids.net",
@@ -111,6 +292,13 @@ class FixPayrollPeriod(models.Model):
     def action_verify_attendance_locked(self):
         """T05: the gate — no calculation without the month's lock."""
         for rec in self:
+            # A committed run is never re-opened for recalculation: that
+            # silently voided the approval (A09 probe A7).
+            if rec.state in FROZEN_PERIOD_STATES:
+                raise UserError(
+                    "Payroll period %s is %s - a committed run is not recalculated."
+                    % (rec.name, dict(PERIOD_FLOW)[rec.state])
+                )
             lock = self.env["fix.attendance.lock"].search(
                 [
                     ("period_start", "<=", rec.period_start),
@@ -135,7 +323,7 @@ class FixPayrollPeriod(models.Model):
                     "may not calculate on unverified attendance: %s"
                     % (len(pending), rec.name, ", ".join(pending.mapped("display_label")))
                 )
-            rec.state = "attendance_locked"
+            rec._guarded().write({"state": "attendance_locked"})
             publish(
                 self.env,
                 "payroll.attendance_locked",
@@ -148,8 +336,10 @@ class FixPayrollPeriod(models.Model):
         for rec in self:
             if rec.state != "attendance_locked":
                 raise UserError("Lock attendance before calculating")
-            rec.calculator_id = self.env.user
-            rec.payslip_ids.unlink()
+            rec._guarded().write({"calculator_id": self.env.user.id})
+            # A recalculation replaces this run's earlier slips. The officer
+            # holds no unlink ACL on payslips: only this transition removes them.
+            rec.payslip_ids.sudo().unlink()
             # Only this period's company: a superuser/multi-company run must not
             # pay another company's staff out of this company's BEFTN batch.
             employees = self.env["hr.employee"].search([("company_id", "=", rec.company_id.id)])
@@ -180,40 +370,51 @@ class FixPayrollPeriod(models.Model):
                     )
                 )
 
+                # TODO(A09 P1, needs a tax adviser): the tax inputs below are
+                # still read from contract fields that do not exist, so every
+                # slip is taxed general/Dhaka (A09 M56-6). Left as-is in P0.
                 tax_cat = getattr(contract, "taxpayer_category", False) or "general"
                 tax_loc = getattr(contract, "tax_location", False) or "dhaka_chattogram"
                 has_child = getattr(contract, "has_disabled_child", False)
                 inv_allow = float(getattr(contract, "investment_allowance", 0.0) or 0.0)
+                # The employee master's sensitive fields (bank, routing,
+                # allowances) are HR-group fields a payroll officer does not
+                # read directly: the run reads them with sudo.
+                master = emp.sudo()
                 # Only REAL bank details are carried onto the payslip. A missing
                 # account/routing number stays empty and blocks the BEFTN file
                 # (R01 re-audit 2026-10-22: placeholders "1234567890123" /
                 # "020260123" / "BRAC Bank PLC" used to be substituted, which
                 # would have routed a salary to a fabricated account).
-                # Odoo 19 replaced hr.employee.bank_account_id with
-                # bank_account_ids / primary_bank_account_id (an HR-group
-                # field, read with sudo for the payroll run): the old name
-                # silently dropped every employee's registered salary account.
-                primary_bank = emp.sudo().primary_bank_account_id
-                bank_acc = getattr(contract, "bank_account_no", False) or primary_bank.acc_number
-                routing = getattr(contract, "bank_routing_no", False)
-                bank_n = getattr(contract, "bank_name", False) or primary_bank.bank_id.name
+                # The account is the employee's registered bank account record
+                # (Odoo 19 bank_account_ids / primary_bank_account_id), the
+                # routing number the employee master's BEFTN routing code. They
+                # used to be read from contract fields that do not exist
+                # (bank_account_no / bank_routing_no), so routing was always
+                # empty and officers typed bank details onto the slips (A09 A3).
+                primary_bank = master.primary_bank_account_id
+                bank_acc = (primary_bank.acc_number or "").strip() or False
+                routing = (master.routing_number or "").strip() or False
+                bank_n = primary_bank.bank_id.name or False
 
                 house_rent = float(
-                    getattr(contract, "house_rent", 0.0) or getattr(emp, "house_rent", 0.0) or 0.0
+                    getattr(contract, "house_rent", 0.0)
+                    or getattr(master, "house_rent", 0.0)
+                    or 0.0
                 )
                 med_allow = float(
                     getattr(contract, "medical_allowance", 0.0)
-                    or getattr(emp, "medical_allowance", 0.0)
+                    or getattr(master, "medical_allowance", 0.0)
                     or 0.0
                 )
                 conv_allow = float(
                     getattr(contract, "conveyance_allowance", 0.0)
-                    or getattr(emp, "conveyance_allowance", 0.0)
+                    or getattr(master, "conveyance_allowance", 0.0)
                     or 0.0
                 )
                 tech_allow = float(
                     getattr(contract, "technical_allowance", 0.0)
-                    or getattr(emp, "technical_allowance", 0.0)
+                    or getattr(master, "technical_allowance", 0.0)
                     or 0.0
                 )
                 other_allow = float(getattr(contract, "other_allowance", 0.0) or 0.0)
@@ -224,53 +425,67 @@ class FixPayrollPeriod(models.Model):
                 inc_line = None
                 if "fix.incentive.line" in self.env:
                     ym = rec.period_start.strftime("%Y-%m") if rec.period_start else ""
-                    inc_line = self.env["fix.incentive.line"].search(
-                        [
-                            ("employee_id", "=", emp.id),
-                            ("run_id.state", "=", "applied"),
-                            "|",
-                            ("run_id.period", "=", rec.name),
-                            ("run_id.period", "=", ym),
-                        ],
-                        order="id desc",
-                        limit=1,
+                    # M57's lines are own-record for plain users; the payroll
+                    # run reads (and marks) the applied line of every employee.
+                    inc_line = (
+                        self.env["fix.incentive.line"]
+                        .sudo()
+                        .search(
+                            [
+                                ("employee_id", "=", emp.id),
+                                ("run_id.state", "=", "applied"),
+                                "|",
+                                ("run_id.period", "=", rec.name),
+                                ("run_id.period", "=", ym),
+                            ],
+                            order="id desc",
+                            limit=1,
+                        )
                     )
                     if inc_line:
                         inc_amount = float(inc_line.amount or 0.0)
 
-                slip = self.env["fix.payslip"].create(
-                    {
-                        "period_id": rec.id,
-                        "company_id": rec.company_id.id,
-                        "employee_id": emp.id,
-                        "basic": float(contract.basic_monthly),
-                        "house_rent": house_rent,
-                        "medical_allowance": med_allow,
-                        "conveyance_allowance": conv_allow,
-                        "technical_allowance": tech_allow,
-                        "other_allowance": other_allow,
-                        "dearness_allowance": da_allow,
-                        "adhoc_allowance": adhoc_allow,
-                        "ot_hours": float(ot_hours),
-                        "incentive": inc_amount,
-                        "taxpayer_category": tax_cat,
-                        "minimum_tax_location": tax_loc,
-                        "has_disabled_child": has_child,
-                        "investment_allowance": inv_allow,
-                        "bank_account_no": bank_acc,
-                        "routing_no": routing,
-                        "bank_name": bank_n,
-                    }
+                slip = (
+                    self.env["fix.payslip"]
+                    ._guarded()
+                    .create(
+                        {
+                            "period_id": rec.id,
+                            "company_id": rec.company_id.id,
+                            "employee_id": emp.id,
+                            "basic": float(contract.basic_monthly),
+                            "house_rent": house_rent,
+                            "medical_allowance": med_allow,
+                            "conveyance_allowance": conv_allow,
+                            "technical_allowance": tech_allow,
+                            "other_allowance": other_allow,
+                            "dearness_allowance": da_allow,
+                            "adhoc_allowance": adhoc_allow,
+                            "ot_hours": float(ot_hours),
+                            "incentive": inc_amount,
+                            "taxpayer_category": tax_cat,
+                            "minimum_tax_location": tax_loc,
+                            "has_disabled_child": has_child,
+                            "investment_allowance": inv_allow,
+                            "bank_account_no": bank_acc,
+                            "routing_no": routing,
+                            "bank_name": bank_n,
+                        }
+                    )
                 )
                 if inc_line:
                     inc_line.write({"payslip_ref_id": slip.id, "applied_to_payslip": True})
-            rec.state = "calculated"
+            rec._guarded().write({"state": "calculated"})
 
     def action_approve(self):
         """SoD: approver must differ from the calculator (DoD-04) and hold
         the Payroll Manager role. There is no context bypass: the former
         ``bypass_payroll_sod`` context key let any caller (RPC included)
-        self-approve."""
+        self-approve. calculator_id and state are guarded, so neither can be
+        rewritten to get past this check.
+
+        Approval pins the run: the approver, the time, a digest of what each
+        slip pays and to which account, and the net total."""
         if not self.env.user.has_group("cd_payroll_bd.group_payroll_manager"):
             raise AccessError("Only a Payroll Manager can approve a payroll period.")
         for rec in self:
@@ -281,7 +496,16 @@ class FixPayrollPeriod(models.Model):
                     "Maker-Checker SoD violation: Approver cannot be the same user (%s) who calculated the payroll period."
                     % rec.calculator_id.name
                 )
-            rec.state = "approved"
+            digest, total = rec._payroll_snapshot()
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.user.id,
+                    "approved_on": fields.Datetime.now(),
+                    "approved_digest": digest,
+                    "approved_net_total": total,
+                }
+            )
             publish(
                 self.env,
                 "payroll.approved",
@@ -296,20 +520,27 @@ class FixPayrollPeriod(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Approve before paying")
+            rec._check_approved_snapshot()
             submitted = datetime.now()
-            batch = self.env["fix.beftn.batch"].create(
-                {
-                    "period_id": rec.id,
-                    "submitted_at": submitted,
-                    "settlement_date": beftn_settlement_date(submitted),
-                    "employee_count": rec.slip_count,
-                    "total_amount": rec.net_total,
-                    "company_account_no": rec.company_account_no,
-                    "company_routing_no": rec.company_routing_no,
-                }
+            # The batch carries the APPROVED total, not a fresh sum: the file
+            # must pay exactly what the approver saw.
+            batch = (
+                self.env["fix.beftn.batch"]
+                ._guarded()
+                .create(
+                    {
+                        "period_id": rec.id,
+                        "submitted_at": submitted,
+                        "settlement_date": beftn_settlement_date(submitted),
+                        "employee_count": rec.slip_count,
+                        "total_amount": rec.approved_net_total,
+                        "company_account_no": rec.company_account_no,
+                        "company_routing_no": rec.company_routing_no,
+                    }
+                )
             )
             batch.action_generate_beftn_file()
-            rec.write({"state": "paid", "beftn_batch_id": batch.id})
+            rec._guarded().write({"state": "paid", "beftn_batch_id": batch.id})
             publish(
                 self.env,
                 "payroll.beftn_submitted",
@@ -454,7 +685,7 @@ class FixPayrollPeriod(models.Model):
                 },
                 {idx: {"operating_unit_id": rec.operating_unit_id.id} for idx in range(len(lines))},
             )
-            rec.write({"gl_move_id": move.id, "state": "posted"})
+            rec._guarded().write({"gl_move_id": move.id, "state": "posted"})
             publish(
                 self.env,
                 "payroll.posted",
@@ -478,7 +709,51 @@ class FixPayslip(models.Model):
 
     _name = "fix.payslip"
     _description = "Payslip"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | PAYSLIP_GUARDED_FIELDS
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if any(slip.period_id.state in FROZEN_PERIOD_STATES for slip in self):
+            locked |= set(self._fields)  # a frozen slip offers no input at all
+        return locked
+
+    def _check_period_open(self, periods):
+        """No payslip of a committed period is created, changed or deleted -
+        not even through a transition (a ghost slip rode an approved run's
+        BEFTN file, A09 probe A6). Superuser code (data repair, seeds) is
+        trusted, as everywhere the guard applies."""
+        if self.env.su:
+            return
+        frozen = periods.filtered(lambda p: p.state in FROZEN_PERIOD_STATES)
+        if frozen:
+            raise UserError(
+                "Payroll period %s is %s: its payslips are frozen. A change to an "
+                "approved run goes through a correction run, never an edit."
+                % (
+                    ", ".join(frozen.mapped("name")),
+                    dict(PERIOD_FLOW)[frozen[0].state],
+                )
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        period_ids = {vals["period_id"] for vals in vals_list if vals.get("period_id")}
+        self._check_period_open(self.env["fix.payroll.period"].browse(period_ids))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        periods = self.period_id
+        if vals.get("period_id"):
+            periods |= self.env["fix.payroll.period"].browse(vals["period_id"])
+        self._check_period_open(periods)
+        return super().write(vals)
+
+    def unlink(self):
+        self._check_period_open(self.period_id)
+        return super().unlink()
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -515,7 +790,7 @@ class FixPayslip(models.Model):
     incentive = fields.Monetary(
         string="Incentive (M57)",
         currency_field="currency_id",
-        help="Applied by the M57 incentive engine " "before approval",
+        help="Applied by the M57 incentive engine before approval",
     )
     pf_employee_pct = fields.Float(string="PF Employee %", default=10.0)
     pf_employer_pct = fields.Float(string="PF Employer %", default=10.0)
@@ -644,8 +919,10 @@ class FixPayslip(models.Model):
         "has_disabled_child",
         "minimum_tax_location",
         "investment_allowance",
-        "company_id.ot_divisor_hours",
-        "company_id.ita_exemption_ceiling",
+        # Not company_id.ot_divisor_hours / ita_exemption_ceiling: the slip
+        # takes the company configuration when it is calculated and keeps it.
+        # As a dependency, an administrator's later change recomputed the net
+        # of slips already approved, paid and posted (A09 probe M8).
     )
     def _compute_slip(self):
         for rec in self:
@@ -707,7 +984,7 @@ class FixPayslip(models.Model):
         )
         # Record the settlement on the slip: it is the payable document, and the
         # figures must survive the call that produced them.
-        self.write(
+        self._guarded().write(
             {
                 "completed_years": completed_years(
                     fields.Date.to_date(contract.joining_date), separation_date
@@ -755,7 +1032,7 @@ class FixPayslip(models.Model):
         # split it here to show the operator what each part is.
         daily = Decimal(str(self.basic)) / Decimal(30)
         notice_pay = daily * Decimal(max(120 - notice_given_days, 0))
-        self.write(
+        self._guarded().write(
             {
                 "completed_years": completed_years(
                     fields.Date.to_date(contract.joining_date), termination_date
@@ -772,8 +1049,27 @@ class FixBeftnBatch(models.Model):
 
     _name = "fix.beftn.batch"
     _description = "BEFTN Batch"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "submitted_at desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # The batch is built by action_pay and its file by
+        # action_generate_beftn_file; nothing on it is typed (A09 probe A11b:
+        # a manager rewrote file_content and total_amount by write()).
+        return super()._fix_guarded_fields() | {
+            "state",
+            "period_id",
+            "company_id",
+            "currency_id",
+            "submitted_at",
+            "settlement_date",
+            "employee_count",
+            "total_amount",
+            "company_account_no",
+            "company_routing_no",
+            "file_content",
+            "file_name",
+        }
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -808,6 +1104,27 @@ class FixBeftnBatch(models.Model):
         self.ensure_one()
         if not self.period_id:
             raise UserError("No payroll period linked to this BEFTN batch.")
+        # A file once generated has been submitted to the bank: it is never
+        # rebuilt (A09 probe A11 regenerated a paid batch from a changed slip).
+        if self.file_content:
+            raise UserError(
+                "BEFTN batch %s already holds its submitted file - a submitted file is "
+                "never regenerated." % (self.file_name or self.id)
+            )
+        period = self.period_id
+        if period.state != "approved":
+            raise UserError(
+                "A BEFTN file is built only for an APPROVED payroll period; %s is %s."
+                % (period.name, dict(PERIOD_FLOW)[period.state])
+            )
+        # the slips still pay exactly what was approved, to the same accounts
+        period._check_approved_snapshot()
+        currency = period.currency_id
+        if currency.compare_amounts(self.total_amount, period.approved_net_total) != 0:
+            raise UserError(
+                "BEFTN batch total %.2f differs from the %.2f approved for %s."
+                % (self.total_amount, period.approved_net_total, period.name)
+            )
         company_account = (self.company_account_no or "").strip()
         company_routing = (self.company_routing_no or "").strip()
         if not company_account or not company_routing:
@@ -830,8 +1147,9 @@ class FixBeftnBatch(models.Model):
                 "over BEFTN." % self.period_id.name
             )
         missing = payable.filtered(
-            lambda slip: not (slip.routing_no or "").strip()
-            or not (slip.bank_account_no or "").strip()
+            lambda slip: (
+                not (slip.routing_no or "").strip() or not (slip.bank_account_no or "").strip()
+            )
         )
         if missing:
             raise UserError(
@@ -866,6 +1184,16 @@ class FixBeftnBatch(models.Model):
                     amount_bdt=Decimal(str(round(slip.net, 2))),
                 )
             )
+        # Control total: the credits in the file are the approved total. A
+        # slip with a negative net was silently left out of the file, so the
+        # employee went unpaid while the run "balanced" (A09 probe M6).
+        credits = float(sum(entry.amount_bdt for entry in entries))
+        if currency.compare_amounts(credits, self.total_amount) != 0:
+            raise UserError(
+                "The BEFTN credits for %s total %.2f but the approved run totals %.2f - "
+                "a payslip with a negative net pay cannot be left out silently."
+                % (period.name, credits, self.total_amount)
+            )
 
         batch_header = BeftnBatchHeader(
             company_name="1000FIX SERVICES LTD",
@@ -877,7 +1205,7 @@ class FixBeftnBatch(models.Model):
         )
 
         content = generate_beftn_batch_file(batch_header, entries)
-        self.write(
+        self._guarded().write(
             {
                 "file_content": content,
                 "file_name": f"BEFTN_{self.period_id.name or 'BATCH'}_{self.id}.txt",
@@ -892,7 +1220,7 @@ class FixBeftnBatch(models.Model):
                     "BEFTN settles %s — before the settlement date the batch "
                     "cannot be marked settled" % rec.settlement_date
                 )
-            rec.state = "settled"
+            rec._guarded().write({"state": "settled"})
             publish(
                 self.env,
                 "payroll.beftn_settled",
