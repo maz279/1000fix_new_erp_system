@@ -23,7 +23,7 @@ class FixForecastSnapshot(models.Model):
     pipeline_id = fields.Many2one("fix.pipeline", string="Pipeline", required=True, index=True)
     commit_value = fields.Monetary(string="Commit", readonly=True)
     best_case_value = fields.Monetary(string="Best Case", readonly=True)
-    pipeline_value = fields.Monetary(string="Pipeline", readonly=True)
+    pipeline_value = fields.Monetary(string="Pipeline Value", readonly=True)
     currency_id = fields.Many2one(
         "res.currency", string="Currency", default=lambda self: self.env.company.currency_id
     )

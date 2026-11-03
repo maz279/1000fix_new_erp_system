@@ -20,10 +20,16 @@ M07 rebuild (2026-10-27) adds:
 - crm.lead: pipeline, forecast category, competitor/price position, loss
   reason code, cross-sell flag, stage-gate confirmation
 
+A03 P2 (2026-11-03) adds:
+- opportunity -> estimate link; Won and conversion need the approved estimate
+- contract verification routed through the M63 engine (no self-certification)
+- standard stage gates as data; schedulers for QBR, forecast and renewals
+- the journey.lead_requested consumer (R8)
+
 D365 screen convention: the user-facing screens are the in-workspace surfaces
 in cd_p03_portal (static/src/a03/m07.js); Odoo views here are substrate only.
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer Engagement/CRM",
@@ -36,10 +42,13 @@ in cd_p03_portal (static/src/a03/m07.js); Odoo views here are substrate only.
         "cd_event_outbox",
         "cd_service_order",
         "cd_contact_centre",
+        "cd_workflow_engine",
     ],
     "data": [
         "data/fix_lead_score_data.xml",
         "data/fix_crm_gap_cron.xml",
+        "data/fix_pipeline_default.xml",
+        "data/fix_crm_event_consumers.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/crm_lead_views.xml",

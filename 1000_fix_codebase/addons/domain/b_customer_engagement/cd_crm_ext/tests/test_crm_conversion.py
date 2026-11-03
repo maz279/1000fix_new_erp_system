@@ -53,7 +53,15 @@ def _notes(lead):
 def _won(lead):
     """FLAW-07.1 / REQ-07.1 / REQ-07.2: conversion is gated to won deals with a
     verified contract, an approved rate card and no credit hold — tests must
-    qualify their leads through the full gate ladder before converting."""
+    qualify their leads through the full gate ladder before converting.
+
+    A03 P2: the ladder includes the approved estimate the order is built on
+    (approved quote before order)."""
+    estimate = lead.env["fix.estimate"].create({"lead_id": lead.id})
+    lead.env["fix.estimate.line"].create(
+        {"estimate_id": estimate.id, "description": "Screen", "unit_price": 1500.0}
+    )
+    estimate.action_approve()
     lead.write(
         {
             "probability": 100,

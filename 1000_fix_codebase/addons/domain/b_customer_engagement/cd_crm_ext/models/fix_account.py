@@ -3,6 +3,7 @@
 # a named owner at all times; the plan is institutional memory that survives
 # the account manager's departure.
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 
 class FixAccountAssignment(models.Model):
@@ -66,7 +67,15 @@ class FixAccountAssignment(models.Model):
     @api.model
     def action_assign_unowned(self, default_owner_id=None):
         """BRU-CRM-08 safety net: give every active party-account an owner.
-        Returns the number of coverage gaps closed."""
+        Returns the number of coverage gaps closed.
+
+        A03 P2: now a P03 button (G-M07-7). It assigns every unowned customer
+        in the estate, so it is a sales manager's decision, not any user's."""
+        if not self.env.su and not self.env.user.has_group("sales_team.group_sale_manager"):
+            raise UserError(
+                "Assigning every unowned account is a sales manager's decision. "
+                "Ask a sales manager to run it."
+            )
         owner = default_owner_id or self.env.user.id
         parties = self.env["res.partner"].search(
             ["|", ("customer_rank", ">", 0), ("role_ids.role_type", "=", "customer")]

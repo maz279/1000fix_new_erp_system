@@ -17,11 +17,14 @@
 # measure whether it should have. So `score_basis` is a field, it is shown,
 # and the band thresholds are stated.
 import json
+import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
+
+_logger = logging.getLogger(__name__)
 
 # Band boundaries. Stated here rather than configured, because a band nobody
 # can point at is a band that drifts to flatter the pipeline.
@@ -417,9 +420,12 @@ class CrmLeadScoring(models.Model):
         Sequence = self.env["fix.crm.sequence"]
         target = sequence
         if target is None:
+            # fix.crm.sequence has no `sequence` field (A03 audit G-M07-4:
+            # ordering by it raised "Invalid field"); the oldest active
+            # cadence is the default route.
             target = Sequence.sudo().search(
                 [("state", "=", "active"), ("sequence_kind", "=", "cadence")],
-                order="sequence, id",
+                order="id",
                 limit=1,
             )
         if not target:
@@ -447,9 +453,33 @@ class CrmLeadScoring(models.Model):
 
     @api.model
     def cron_rescore_open_leads(self, limit=2000):
-        """Re-score open pipeline nightly. A stale score misleads."""
+        """Re-score open pipeline nightly. A stale score misleads.
+
+        A03 audit G-M07-8: cron 56 on fix_dev failed on its only run
+        (failure_count=1, 0 leads ever scored), while the same method scores
+        cleanly on fix_test and fix_test_m07, run directly and through its
+        ir.cron server action (where the cron also shows failure_count 0).
+        The cron was created with nextcall=now, so its one run was the
+        install-time first fire, and two other A03 crons (M33 dedup, M10
+        requalify) failed in the same second on fix_dev (2026-11-02 01:16).
+        That points to a shared trigger, most likely the running 8069 server
+        firing new crons with Python classes that predated the `-u`, rather
+        than to this code; fix_dev's log was not available to confirm it.
+        Whatever the trigger, the old method ran every lead in one
+        transaction, so any one failure scored nobody. Now each lead is scored
+        in its own savepoint and a failure is counted and logged, and new M07
+        crons are first scheduled for the following night.
+        """
         leads = self.sudo().search(
             [("active", "=", True), ("stage_id.is_won", "=", False)], limit=limit
         )
-        leads.action_score()
-        return {"scored": len(leads)}
+        scored, failed = 0, 0
+        for lead in leads:
+            try:
+                with self.env.cr.savepoint():
+                    lead.action_score()
+                scored += 1
+            except Exception:  # one lead must not cost the others their score
+                failed += 1
+                _logger.exception("M07 rescore: lead %s could not be scored", lead.id)
+        return {"scored": scored, "failed": failed}

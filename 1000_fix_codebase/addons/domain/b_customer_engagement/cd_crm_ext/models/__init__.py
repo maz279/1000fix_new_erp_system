@@ -15,3 +15,7 @@ from . import (
 # Lead scoring EXTENDS crm.lead, so it imports after crm_lead_ext,
 # and it enrols hot leads on a cadence, so after fix_crm_sequence.
 from . import fix_lead_scoring
+
+# The estimate hand-off and the journey-lead consumer extend crm.lead (and
+# fix.estimate from cd_service_order), so they load after crm_lead_ext.
+from . import crm_lead_quote, crm_lead_intake

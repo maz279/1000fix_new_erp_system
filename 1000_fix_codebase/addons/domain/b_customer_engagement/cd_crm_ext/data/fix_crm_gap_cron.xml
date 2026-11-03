@@ -35,5 +35,43 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+
+        <!--
+          A03 audit G-M07-8: account management had methods and no scheduler.
+          Each first runs on the following night, not at install: a cron
+          created with nextcall=now fires at once on whatever server is
+          running, and on fix_dev that first fire is what failed the rescore
+          cron and two others in the same second.
+        -->
+        <record id="ir_cron_qbr_at_risk" model="ir.cron">
+            <field name="name">M07: flag key accounts with no QBR in 105 days (REQ-07.4)</field>
+            <field name="model_id" ref="model_fix_account"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_flag_qbr_at_risk()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.today() + relativedelta(days=1)).strftime('%Y-%m-%d 20:00:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_forecast_snapshot" model="ir.cron">
+            <field name="name">M07: take the period forecast snapshot (AUT-CRM-10, once per period)</field>
+            <field name="model_id" ref="model_fix_forecast_snapshot"/>
+            <field name="state">code</field>
+            <field name="code">model.action_take_snapshot()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.today() + relativedelta(days=1)).strftime('%Y-%m-%d 20:15:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_renewal_creation" model="ir.cron">
+            <field name="name">M07: open renewal pursuits for contracts entering their lead time (AUT-CRM-05)</field>
+            <field name="model_id" ref="model_fix_renewal"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_create_renewals()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.today() + relativedelta(days=1)).strftime('%Y-%m-%d 20:30:00')"/>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

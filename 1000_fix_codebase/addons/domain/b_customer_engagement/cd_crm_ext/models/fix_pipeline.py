@@ -79,3 +79,21 @@ class FixPipeline(models.Model):
             for entry in json.loads(pipeline.stages_json or "[]"):
                 rules[entry["stage"]] = entry
         return rules
+
+    @api.model
+    def _apply_default_stage_gates(self):
+        """Give every pipeline without stage rules the shipped standard ones.
+
+        A03 audit G-M07-11: the only pipeline on fix_dev had stages_json NULL,
+        so BRU-CRM-03 gated nothing. The standard rules ship as data
+        (data/fix_pipeline_default.xml, noupdate) and this copies them to
+        pipelines that have none; a pipeline someone configured is untouched.
+        Called once by the 19.0.1.2.0 migration."""
+        standard = self.env.ref("cd_crm_ext.pipeline_standard", raise_if_not_found=False)
+        if not standard or not standard.stages_json:
+            return 0
+        bare = (
+            self.sudo().with_context(active_test=False).search([("stages_json", "in", (False, ""))])
+        )
+        bare.write({"stages_json": standard.stages_json})
+        return len(bare)

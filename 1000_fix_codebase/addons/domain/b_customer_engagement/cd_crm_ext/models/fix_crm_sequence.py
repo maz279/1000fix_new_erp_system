@@ -206,6 +206,29 @@ class FixCrmSequence(models.Model):
             return False, "Deal is lost."
         return True, ""
 
+    def _runtime_advance_one(self, member):
+        """A seller who has not yet closed a call is not a runaway flow.
+
+        A03 audit G-M07-5: every 30-minute recheck of a waiting manual step
+        counted as an executed step, so the shared engine's 500-step loop
+        guard failed the enrolment after 10-21 days of seller inaction, with
+        a "branch that points backwards" reason that was untrue. A pass that
+        only found the activity still open is counted separately
+        (manual_rechecks) and given back to the loop guard. The engine itself
+        is shared with M35 journeys and is not changed here.
+        """
+        self.ensure_one()
+        before = member.steps_executed
+        rechecks = member.manual_rechecks
+        outcome = super()._runtime_advance_one(member)
+        if (
+            member.manual_rechecks > rechecks
+            and outcome == "waiting"
+            and member.steps_executed == before + 1
+        ):
+            member.sudo().write({"steps_executed": before})
+        return outcome
+
     def _runtime_execute_step(self, member, step):
         self.ensure_one()
         if step.step_type in MANUAL_STEP_TYPES:
@@ -258,6 +281,8 @@ class FixCrmSequence(models.Model):
             )
             member.sudo().write({"last_manual_step_id": step.id})
             return {"action": "wait", "wait_minutes": MANUAL_RECHECK_MINUTES}
+        # Still open: a recheck, not progress (see _runtime_advance_one).
+        member.sudo().write({"manual_rechecks": member.manual_rechecks + 1})
         return {"action": "wait", "wait_minutes": MANUAL_RECHECK_MINUTES}
 
     def _step_wait(self, member, step):
@@ -276,9 +301,10 @@ class FixCrmSequence(models.Model):
                 "action": "next",
                 "reason": "No e-mail address on the lead; step skipped.",
             }
+        basis, purpose = self._email_basis(member.lead_id, partner)
         delivery = self.env["fix.notif.delivery"].queue(
             channel="email",
-            purpose="service_updates",
+            purpose=purpose,
             partner=partner or None,
             to_address=address,
             subject=step.email_subject or self.name,
@@ -287,18 +313,49 @@ class FixCrmSequence(models.Model):
                 "name": (partner.name if partner else member.lead_id.contact_name) or "",
                 "lead": member.lead_id.name or "",
             },
-            # A seller following up a deal the prospect asked about is
-            # contract-preparatory contact, not a marketing blast. Declared
-            # and recorded on the row so it can be reviewed as a class.
-            lawful_basis="contract",
+            # Declared and recorded on the row so it can be reviewed as a
+            # class: contract for a customer under contract, consent for a
+            # cold prospect (see _email_basis).
+            lawful_basis=basis,
             source_model="fix.crm.sequence.enrolment",
             source_id=member.id,
             dedup_key="sequence:%d:step:%d:enrol:%d" % (self.id, step.id, member.id),
             company=self.company_id,
         )
         member.sudo().write({"delivery_ids": [(4, delivery.id)]})
+        if delivery.state == "suppressed":
+            # A message the consent check stopped is not a touch, and must
+            # not stop the first-touch SLA clock.
+            return {
+                "action": "next",
+                "reason": "E-mail suppressed: %s" % (delivery.consent_reason or "no consent"),
+            }
         member._register_touch(step)
         return {"action": "next"}
+
+    def _email_basis(self, lead, partner):
+        """(lawful_basis, purpose) for a cadence e-mail to this lead.
+
+        A03 audit G-M07-6: every cadence e-mail went out under
+        lawful_basis='contract', which the consent service accepts without
+        looking for a consent record, so a cold prospect was e-mailed with no
+        marketing consent. The contract basis now applies only where a
+        contract exists: the deal's own verified contract / PO, or an active
+        M08 service contract with the customer. Everyone else is a prospect,
+        and a prospect is e-mailed for marketing only with their consent.
+        """
+        if lead.contract_verified:
+            return "contract", "service_updates"
+        commercial = partner.commercial_partner_id if partner else partner
+        if commercial and "fix.contract" in self.env:
+            Contract = self.env["fix.contract"].sudo()
+            customer_field = "customer_id" if "customer_id" in Contract._fields else "partner_id"
+            domain = [(customer_field, "child_of", commercial.id)]
+            if "state" in Contract._fields:
+                domain.append(("state", "in", ("active", "expiring")))
+            if Contract.search_count(domain, limit=1):
+                return "contract", "service_updates"
+        return "consent", "marketing"
 
     def _step_branch(self, member, step):
         result = step._evaluate(member)
@@ -493,6 +550,14 @@ class FixCrmSequenceEnrolment(models.Model):
     first_touch_at = fields.Datetime(string="First Touch Completed", readonly=True)
     first_touch_breached = fields.Boolean(readonly=True, index=True)
     touches_completed = fields.Integer(default=0, readonly=True)
+    manual_rechecks = fields.Integer(
+        string="Waiting Checks",
+        default=0,
+        readonly=True,
+        help="How many times the engine found a manual step's activity still "
+        "open. Counted here, not in Steps Executed, so a seller's inaction "
+        "never trips the loop guard (A03 audit G-M07-5).",
+    )
     delivery_ids = fields.Many2many("fix.notif.delivery", string="Messages Sent", readonly=True)
 
     _enrol_key_unique = models.Constraint(
