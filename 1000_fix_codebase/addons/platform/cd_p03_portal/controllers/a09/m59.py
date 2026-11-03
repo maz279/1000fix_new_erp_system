@@ -66,7 +66,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def incident_statistics(env, date_from=None, date_to=None, **params):
     """Incident statistics by type and severity."""
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     groups = {}
     for inc in incidents:
         key = dict(inc._fields["incident_type"].selection).get(inc.incident_type)
@@ -117,18 +117,16 @@ def leading_indicators(env, date_from=None, date_to=None, **params):
     """Leading indicators: near-miss reports, inspections and hazards controlled."""
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     near_miss = incidents.filtered(
-        lambda i: i.incident_type == "near_miss"
-        and i.reported_at
-        and i.reported_at.date() >= month_start
+        lambda i: (
+            i.incident_type == "near_miss" and i.reported_at and i.reported_at.date() >= month_start
+        )
     )
-    inspections = (
-        env["fix.safety.inspection"].sudo().search([("inspected_on", ">=", str(month_start))])
-    )
-    hazards = env["fix.hse.hazard"].sudo().search([])
+    inspections = env["fix.safety.inspection"].search([("inspected_on", ">=", str(month_start))])
+    hazards = env["fix.hse.hazard"].search([])
     controlled = hazards.filtered(lambda h: h.state in ("controlled", "closed"))
-    drills = env["fix.hse.drill"].sudo().search([("state", "=", "completed")])
+    drills = env["fix.hse.drill"].search([("state", "=", "completed")])
     rows = [
         {"indicator": "Near-miss reports MTD", "value": len(near_miss)},
         {"indicator": "Safety inspections MTD", "value": len(inspections)},
@@ -152,7 +150,7 @@ def leading_indicators(env, date_from=None, date_to=None, **params):
 def statutory_compliance(env, date_from=None, date_to=None, **params):
     """Statutory notification clock from the accident register (the model that
     actually carries the DIFE flag and lost work days)."""
-    registers = env["fix.statutory.accident.register"].sudo().search([])
+    registers = env["fix.statutory.accident.register"].search([])
     rows = []
     for reg in registers:
         reported = reg.accident_date
@@ -206,7 +204,7 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
 def ppe_compliance(env, date_from=None, date_to=None, **params):
     """PPE register: item types with their regulatory standard, stock and the
     model's computed state (adequate / low stock)."""
-    ppe = env["fix.ppe.register"].sudo().search([])
+    ppe = env["fix.ppe.register"].search([])
     rows = []
     for item in ppe:
         rows.append(
@@ -249,7 +247,7 @@ def ppe_compliance(env, date_from=None, date_to=None, **params):
 
 def drill_coverage(env, date_from=None, date_to=None, **params):
     """Drill calendar coverage by drill type."""
-    drills = env["fix.hse.drill"].sudo().search([])
+    drills = env["fix.hse.drill"].search([])
     groups = {}
     for drill in drills:
         key = dict(drill._fields["drill_type"].selection).get(drill.drill_type)
@@ -302,20 +300,20 @@ def kpis(env):
     today = datetime.date.today()
     year_start = today.replace(month=1, day=1)
     month_start = today.replace(day=1)
-    incidents = env["fix.hse.incident"].sudo().search([])
+    incidents = env["fix.hse.incident"].search([])
     ytd = incidents.filtered(lambda i: i.reported_at and i.reported_at.date() >= year_start)
     lost_time = ytd.filtered(
         lambda i: i.severity in ("medium", "high") and i.incident_type == "injury"
     )
     near_miss = incidents.filtered(
-        lambda i: i.incident_type == "near_miss"
-        and i.reported_at
-        and i.reported_at.date() >= month_start
+        lambda i: (
+            i.incident_type == "near_miss" and i.reported_at and i.reported_at.date() >= month_start
+        )
     )
-    registers = env["fix.statutory.accident.register"].sudo().search([])
+    registers = env["fix.statutory.accident.register"].search([])
     pending_dife = registers.filtered(lambda r: not r.dife_notified)
-    ppe = env["fix.ppe.register"].sudo().search([])
-    drills = env["fix.hse.drill"].sudo().search([("state", "=", "completed")])
+    ppe = env["fix.ppe.register"].search([])
+    drills = env["fix.hse.drill"].search([("state", "=", "completed")])
     return {
         "recordable_incidents_ytd": len(ytd),
         "lost_time_injuries": len(lost_time),

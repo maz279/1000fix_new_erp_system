@@ -54,7 +54,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def rating_distribution(env, date_from=None, date_to=None, **params):
     """Rating distribution across review cycles (calibrated where present)."""
-    reviews = env["fix.performance.review"].sudo().search([])
+    reviews = env["fix.performance.review"].search([])
     groups = {}
     for rev in reviews:
         rating = rev.calibrated_rating or rev.manager_rating or 0.0
@@ -93,10 +93,10 @@ def rating_distribution(env, date_from=None, date_to=None, **params):
 
 def incentive_payout(env, date_from=None, date_to=None, **params):
     """Incentive payout by run and scheme band."""
-    runs = env["fix.incentive.run"].sudo().search([])
+    runs = env["fix.incentive.run"].search([])
     rows = []
     for run in runs:
-        lines = env["fix.incentive.line"].sudo().search([("run_id", "=", run.id)])
+        lines = env["fix.incentive.line"].search([("run_id", "=", run.id)])
         rows.append(
             {
                 "period": run.period,
@@ -129,7 +129,7 @@ def incentive_payout(env, date_from=None, date_to=None, **params):
 
 def technician_scorecards(env, date_from=None, date_to=None, **params):
     """Technician scorecards: FTF, SLA, CSAT, rework and composite score."""
-    cards = env["fix.performance.scorecard"].sudo().search([])
+    cards = env["fix.performance.scorecard"].search([])
     rows = []
     for card in cards:
         rows.append(
@@ -168,7 +168,7 @@ def technician_scorecards(env, date_from=None, date_to=None, **params):
 
 def calibration_summary(env, date_from=None, date_to=None, **params):
     """Calibration summary: manager vs calibrated rating movement."""
-    reviews = env["fix.performance.review"].sudo().search([])
+    reviews = env["fix.performance.review"].search([])
     rows = []
     for rev in reviews:
         if not (rev.manager_rating or rev.calibrated_rating):
@@ -204,7 +204,7 @@ def calibration_summary(env, date_from=None, date_to=None, **params):
 
 def pip_outcomes(env, date_from=None, date_to=None, **params):
     """PIP outcomes."""
-    pips = env["fix.performance.pip"].sudo().search([])
+    pips = env["fix.performance.pip"].search([])
     rows = []
     for pip in pips:
         rows.append(
@@ -246,15 +246,15 @@ REPORTS = {
 
 
 def kpis(env):
-    reviews = env["fix.performance.review"].sudo().search([])
-    goals = env["fix.performance.goal"].sudo().search([])
-    pips = env["fix.performance.pip"].sudo().search([("state", "=", "active")])
-    runs = env["fix.incentive.run"].sudo().search([])
+    reviews = env["fix.performance.review"].search([])
+    goals = env["fix.performance.goal"].search([])
+    pips = env["fix.performance.pip"].search([("state", "=", "active")])
+    runs = env["fix.incentive.run"].search([])
     today = datetime.date.today()
     month = today.strftime("%Y-%m")
     pool_mtd = sum(float(r.total or 0.0) for r in runs if r.period == month)
     closed = len(reviews.filtered(lambda r: r.state == "closed"))
-    employees = env["hr.employee"].sudo().search_count([])
+    employees = env["hr.employee"].search_count([])
     goals_active = len(goals.filtered(lambda g: g.state in ("active", "achieved", "missed")))
     return {
         "reviews_on_track": round(closed / len(reviews) * 100.0, 1) if reviews else 0.0,

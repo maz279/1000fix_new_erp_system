@@ -48,7 +48,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def funnel_conversion(env, date_from=None, date_to=None, **params):
     """Funnel & conversion: candidates by pipeline stage."""
-    candidates = env["fix.candidate"].sudo().search([])
+    candidates = env["fix.candidate"].search([])
     stages = [
         ("applied", "Applied"),
         ("screening", "Screening"),
@@ -79,8 +79,8 @@ def funnel_conversion(env, date_from=None, date_to=None, **params):
 
 def time_to_fill(env, date_from=None, date_to=None, **params):
     """Time to fill by requisition, from opened to first hire."""
-    reqs = env["fix.job.requisition"].sudo().search([])
-    candidates = env["fix.candidate"].sudo().search([("state", "=", "hired")])
+    reqs = env["fix.job.requisition"].search([])
+    candidates = env["fix.candidate"].search([("state", "=", "hired")])
     rows = []
     for req in reqs:
         hired = candidates.filtered(lambda c, r=req.id: c.requisition_id.id == r)
@@ -119,7 +119,7 @@ def time_to_fill(env, date_from=None, date_to=None, **params):
 def source_effectiveness(env, date_from=None, date_to=None, **params):
     """Source effectiveness: applications and hires by channel (from the
     candidate's requisition)."""
-    candidates = env["fix.candidate"].sudo().search([])
+    candidates = env["fix.candidate"].search([])
     groups = {}
     for cand in candidates:
         key = "Direct / Referral"
@@ -156,7 +156,7 @@ def source_effectiveness(env, date_from=None, date_to=None, **params):
 
 def first90_retention(env, date_from=None, date_to=None, **params):
     """First-90 retention: reviews and whether the hire is on track."""
-    reviews = env["fix.talent.first90"].sudo().search([])
+    reviews = env["fix.talent.first90"].search([])
     rows = []
     for rev in reviews:
         rows.append(
@@ -191,7 +191,7 @@ def first90_retention(env, date_from=None, date_to=None, **params):
 
 def practical_results(env, date_from=None, date_to=None, **params):
     """Practical assessment results per candidate."""
-    assessments = env["fix.talent.assessment"].sudo().search([])
+    assessments = env["fix.talent.assessment"].search([])
     rows = []
     for a in assessments:
         rows.append(
@@ -233,13 +233,13 @@ REPORTS = {
 
 
 def kpis(env):
-    reqs = env["fix.job.requisition"].sudo().search([])
-    candidates = env["fix.candidate"].sudo().search([])
-    offers = env["fix.talent.offer"].sudo().search([])
+    reqs = env["fix.job.requisition"].search([])
+    candidates = env["fix.candidate"].search([])
+    offers = env["fix.talent.offer"].search([])
     hired = candidates.filtered(lambda c: c.state == "hired")
     accepted = offers.filtered(lambda o: o.state == "accepted")
     issued = offers.filtered(lambda o: o.state in ("issued", "accepted", "declined"))
-    reviews = env["fix.talent.first90"].sudo().search([])
+    reviews = env["fix.talent.first90"].search([])
     on_track = len(reviews.filtered(lambda r: r.on_track))
     # Real time-to-fill: average days from requisition creation to its first hire.
     fill_days = []

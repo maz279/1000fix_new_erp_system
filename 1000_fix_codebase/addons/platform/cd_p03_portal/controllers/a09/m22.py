@@ -50,7 +50,7 @@ def _today():
 
 def certification_coverage(env, date_from=None, date_to=None, **params):
     """Certification coverage by brand/competency: valid vs expired holders."""
-    certs = env["fix.certification"].sudo().search([])
+    certs = env["fix.certification"].search([])
     today = _today()
     groups = {}
     for cert in certs:
@@ -102,7 +102,7 @@ def certification_coverage(env, date_from=None, date_to=None, **params):
 
 def expiry_forecast(env, date_from=None, date_to=None, **params):
     """Expiry forecast: certificates expiring in the next 180 days, by month."""
-    certs = env["fix.certification"].sudo().search([("expires_on", "!=", False)])
+    certs = env["fix.certification"].search([("expires_on", "!=", False)])
     today = _today()
     horizon = today + datetime.timedelta(days=180)
     rows = []
@@ -139,10 +139,10 @@ def expiry_forecast(env, date_from=None, date_to=None, **params):
 
 def training_effectiveness(env, date_from=None, date_to=None, **params):
     """Training effectiveness: enrolments, completions and pass rate per course."""
-    courses = env["fix.training.course"].sudo().search([])
+    courses = env["fix.training.course"].search([])
     rows = []
     for course in courses:
-        enrolments = env["fix.training.enrollment"].sudo().search([("course_id", "=", course.id)])
+        enrolments = env["fix.training.enrollment"].search([("course_id", "=", course.id)])
         completed = len(enrolments.filtered(lambda e: e.state == "completed"))
         total = len(enrolments)
         rows.append(
@@ -183,9 +183,9 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
     """Skill-gap heatmap derived from the records that exist: valid
     certifications (L3+ evidence) and the latest assessment level per
     employee/competency. There is no separate skill-matrix model."""
-    competencies = env["fix.competency"].sudo().search([])
-    certs = env["fix.certification"].sudo().search([("status", "!=", "expired")])
-    assessments = env["fix.competency.assessment"].sudo().search([], order="assessed_on desc")
+    competencies = env["fix.competency"].search([])
+    certs = env["fix.certification"].search([("status", "!=", "expired")])
+    assessments = env["fix.competency.assessment"].search([], order="assessed_on desc")
     rows = []
     for comp in competencies:
         held = certs.filtered(lambda c, cid=comp.id: c.competency_id.id == cid)
@@ -258,7 +258,7 @@ def skill_gap_heatmap(env, date_from=None, date_to=None, **params):
 
 def audit_evidence_pack(env, date_from=None, date_to=None, **params):
     """Audit evidence pack: evidence records with their standard clause."""
-    records = env["fix.audit.evidence"].sudo().search([])
+    records = env["fix.audit.evidence"].search([])
     rows = []
     for rec in records:
         rows.append(
@@ -301,8 +301,8 @@ REPORTS = {
 
 def kpis(env):
     today = _today()
-    certs = env["fix.certification"].sudo().search([])
-    employees = env["hr.employee"].sudo().search([])
+    certs = env["fix.certification"].search([])
+    employees = env["hr.employee"].search([])
     certified = {c.employee_id.id for c in certs if not c.expires_on or c.expires_on >= today}
     expiring = len(
         [
@@ -314,9 +314,9 @@ def kpis(env):
     expired_working = len(
         {c.employee_id.id for c in certs if c.expires_on and c.expires_on < today}
     )
-    assessments = env["fix.competency.assessment"].sudo().search([])
+    assessments = env["fix.competency.assessment"].search([])
     passed = len(assessments.filtered(lambda a: a.passed))
-    ojt = env["fix.ojt.record"].sudo().search([])
+    ojt = env["fix.ojt.record"].search([])
     technicians = (
         len(
             [e for e in employees if e.position_id and "tech" in (e.position_id.name or "").lower()]
