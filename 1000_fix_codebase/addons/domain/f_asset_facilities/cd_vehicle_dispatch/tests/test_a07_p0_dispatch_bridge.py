@@ -31,6 +31,10 @@ def refused(env, fn):
 @pytest.fixture
 def w(odoo_env):
     env = odoo_env
+    # The bridge ships uninstalled (a new dependency in cd_vehicle_ext would
+    # break an un-upgraded server on plain restart); `-u all` leaves it out.
+    if "vehicle_assignment_id" not in env["fix.field.order"]._fields:
+        pytest.skip("cd_vehicle_dispatch not installed")
     ou = env["operating.unit"].search([], limit=1)
     co = env.company
     x = types.SimpleNamespace(env=env, ou=ou)

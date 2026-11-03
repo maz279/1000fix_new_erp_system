@@ -35,7 +35,8 @@
         "order",
         "site",
         "work_type",
-        "cost"
+        "cost",
+        "estimated_cost"
       ],
       "properties": {
         "order": {
@@ -48,6 +49,9 @@
           "type": "string"
         },
         "cost": {
+          "type": "number"
+        },
+        "estimated_cost": {
           "type": "number"
         }
       },
