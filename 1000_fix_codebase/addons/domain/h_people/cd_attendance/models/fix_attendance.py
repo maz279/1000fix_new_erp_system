@@ -627,6 +627,14 @@ class FixAttendanceLock(models.Model):
         from libs.py.payroll_engine import OT_DIVISOR_HOURS, overtime_amount
 
         self.ensure_one()
+        # The register prices overtime from each worker's basic wage, which
+        # is HR/payroll data (A09 audit M21-4): the attendance supervisor's run
+        # reads contracts and wages through sudo, so the run itself is the
+        # supervisor's only.
+        if not (
+            self.env.su or self.env.user.has_group("cd_attendance.group_attendance_supervisor")
+        ):
+            raise AccessError("Only an Attendance Supervisor may export the Form 10 register.")
         records = self.env["fix.attendance.record"].search(
             [
                 ("company_id", "=", self.company_id.id),
@@ -660,12 +668,16 @@ class FixAttendanceLock(models.Model):
 
         rows = []
         for idx, (emp_id, data) in enumerate(by_emp.items(), start=1):
-            contract = self.env["fix.employment.contract"].search(
-                [("employee_id", "=", emp_id), ("state", "=", "active")],
-                order="joining_date desc, id desc",
-                limit=1,
+            contract = (
+                self.env["fix.employment.contract"]
+                .sudo()
+                .search(
+                    [("employee_id", "=", emp_id), ("state", "=", "active")],
+                    order="joining_date desc, id desc",
+                    limit=1,
+                )
             )
-            emp = self.env["hr.employee"].browse(emp_id)
+            emp = self.env["hr.employee"].sudo().browse(emp_id)
             basic = Decimal(str((contract.basic_monthly if contract else emp.basic_wage) or 0.0))
             dearness = Decimal(str((contract.dearness_allowance if contract else 0.0) or 0.0))
             adhoc = Decimal(str((contract.adhoc_allowance if contract else 0.0) or 0.0))
