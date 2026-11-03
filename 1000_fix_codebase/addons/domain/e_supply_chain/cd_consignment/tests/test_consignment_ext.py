@@ -70,6 +70,18 @@ def lg(odoo_env):
     )
 
 
+@pytest.fixture
+def sms(odoo_env, monkeypatch):
+    """Capture the POD code instead of handing it to the SMS dispatcher."""
+    sent = []
+    monkeypatch.setattr(
+        odoo_env.registry["fix.consignment"],
+        "_pod_send_otp",
+        lambda self, phone, code: sent.append((phone, code)),
+    )
+    return sent
+
+
 # --- state machine guards -------------------------------------------------
 
 
@@ -87,6 +99,7 @@ def test_start_transit_reachable_and_stamps_first_scan(lg):
     cons.action_start_transit()
     assert cons.state == "in_transit"
     assert cons.custody_ids[:1].step == "picked_up"  # chain auto-started
+    assert cons.custody_ids.mapped("step") == ["picked_up", "in_transit"]
     assert not cons.chain_broken
 
 
@@ -99,26 +112,30 @@ def test_start_transit_requires_confirmed(lg):
 # --- POD with OTP -----------------------------------------------------------
 
 
-def test_pod_otp_full_flow(lg):
-    cons = lg.consignment()
+def test_pod_otp_full_flow(lg, sms):
+    cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
+    cons.action_out_for_delivery()
     cons.action_generate_otp()
-    assert cons.pod_otp and len(cons.pod_otp) == 6
-    otp = cons.pod_otp
-    with pytest.raises(UserError, match="POD OTP mismatch"):
+    # A02 audit M03-4: the code goes to the customer's phone and is kept
+    # only as a keyed hash.
+    ((phone, otp),) = sms
+    assert phone == "01711000303" and len(otp) == 6
+    assert cons.sudo().pod_otp_hash and otp not in cons.sudo().pod_otp_hash
+    with pytest.raises(UserError, match="POD OTP mismatch"), cons.env.cr.savepoint():
         cons.action_verify_pod("000000")
     assert cons.state == "in_transit"  # refused — device stays in custody
     cons.action_verify_pod(otp)
     assert cons.state == "delivered"
-    assert cons.pod_verified_at and cons.pod_verified_by
-    assert not cons.pod_otp  # single-use
+    assert cons.pod_verified_at and cons.pod_verified_by and cons.delivered_at
+    assert not cons.sudo().pod_otp_hash  # single-use
     assert cons.custody_ids[-1:].step == "delivered"
     assert not cons.chain_broken
 
 
 def test_pod_requires_issued_otp(lg):
-    cons = lg.consignment()
+    cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
     with pytest.raises(UserError, match="No POD OTP"):
@@ -126,17 +143,18 @@ def test_pod_requires_issued_otp(lg):
 
 
 def test_generate_otp_only_in_transit(lg):
-    cons = lg.consignment()
+    cons = lg.consignment(consignment_type="delivery")
     with pytest.raises(UserError, match="issued for consignments in transit"):
         cons.action_generate_otp()
 
 
-def test_lost_refuses_delivered(lg):
-    cons = lg.consignment()
+def test_lost_refuses_delivered(lg, sms):
+    cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
+    cons.action_out_for_delivery()
     cons.action_generate_otp()
-    cons.action_verify_pod(cons.pod_otp)
+    cons.action_verify_pod(sms[-1][1])
     with pytest.raises(UserError, match="cannot be reported lost"):
         cons.action_report_lost()
 

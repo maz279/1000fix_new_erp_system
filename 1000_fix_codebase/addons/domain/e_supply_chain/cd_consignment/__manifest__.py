@@ -11,7 +11,7 @@ CD-M03-01/02: the logistics core.
   raises an incident event
 - Events: consignment.lost (+ custody scan events via chatter)
 """,
-    "version": "19.0.2.0.0",
+    "version": "19.0.2.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Logistics",
@@ -27,6 +27,7 @@ CD-M03-01/02: the logistics core.
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_consignment_groups.xml",
         "security/ir.model.access.csv",
         "data/damage_claim_sequences.xml",
         "data/courier_sequences.xml",

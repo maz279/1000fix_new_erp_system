@@ -58,12 +58,29 @@ def test_no_scans_is_an_intact_empty_chain(consignment):
     assert (consignment.chain_broken, consignment.custody_summary) == (False, "no scans")
 
 
-def test_ordered_chain_with_skips_is_intact(consignment):
+def test_a_skipped_required_step_breaks_the_chain(consignment):
+    """A02 audit M03-2: a gap breaks the chain (the manifest's promise). A
+    delivery leg must go out for delivery; skipping that step silently used
+    to read as intact because only the order was checked."""
     _scan(consignment, "picked_up", 0)
     _scan(consignment, "in_transit", 10)
-    _scan(consignment, "delivered", 30)  # hub/out-for-delivery skipped: still monotonic
-    assert consignment.chain_broken is False
+    _scan(consignment, "delivered", 30)  # out-for-delivery skipped
+    assert consignment.chain_broken is True
+    assert "Out for Delivery was skipped" in consignment.chain_problem
     assert consignment.custody_summary == "Picked Up -> In Transit -> Delivered"
+
+
+def test_a_named_exception_explains_a_skipped_step(consignment):
+    _scan(consignment, "picked_up", 0)
+    _scan(consignment, "out_for_delivery", 10, exception_reason="Rider went door to door")
+    assert consignment.chain_broken is False
+
+
+def test_an_optional_hub_scan_may_be_skipped_on_a_delivery_leg(consignment):
+    _scan(consignment, "picked_up", 0)
+    _scan(consignment, "in_transit", 5)
+    _scan(consignment, "out_for_delivery", 10)
+    assert consignment.chain_broken is False
 
 
 def test_a_backwards_scan_breaks_the_chain(consignment):
@@ -78,9 +95,10 @@ def test_chain_is_evaluated_in_scan_time_order(consignment):
     # created out of order, but scanned in canonical order: intact
     _scan(consignment, "picked_up", 0)
     _scan(consignment, "delivered", 30)
+    _scan(consignment, "out_for_delivery", 20)
     _scan(consignment, "in_transit", 15)
     assert consignment.chain_broken is False
-    assert consignment.custody_summary == "Picked Up -> In Transit -> Delivered"
+    assert consignment.custody_summary == "Picked Up -> In Transit -> Out for Delivery -> Delivered"
 
 
 def test_chain_must_start_at_pickup_unless_explained(consignment):
@@ -123,7 +141,14 @@ def test_lost_consignment_raises_an_incident_event(consignment):
     ]
 
 
+def _in_transit_with_pod(consignment):
+    """Setup as the superuser: a consignment in transit whose POD was
+    verified (the transitions that set these are tested in test_a02_p0_m03)."""
+    consignment.write({"state": "in_transit", "pod_verified_at": T0})
+
+
 def test_delivery_requires_an_intact_chain(consignment):
+    _in_transit_with_pod(consignment)
     _scan(consignment, "picked_up", 0)
     _scan(consignment, "out_for_delivery", 10)
     _scan(consignment, "in_transit", 20)
@@ -132,24 +157,29 @@ def test_delivery_requires_an_intact_chain(consignment):
 
 
 def test_delivery_requires_a_terminal_scan(consignment):
+    _in_transit_with_pod(consignment)
     with (
         pytest.raises(UserError, match="terminal 'delivered' custody scan missing"),
         consignment.env.cr.savepoint(),
     ):
         consignment.action_deliver()  # no scans at all
     _scan(consignment, "picked_up", 0)
+    _scan(consignment, "in_transit", 5)
     _scan(consignment, "out_for_delivery", 10)
     with (
         pytest.raises(UserError, match="terminal 'delivered' custody scan missing"),
         consignment.env.cr.savepoint(),
     ):
         consignment.action_deliver()
-    assert consignment.state == "draft"
+    assert consignment.state == "in_transit"
 
 
 def test_delivery_on_an_intact_chain(consignment):
+    _in_transit_with_pod(consignment)
     _scan(consignment, "picked_up", 0)
+    _scan(consignment, "in_transit", 5)
     _scan(consignment, "hub_scan", 10)
+    _scan(consignment, "out_for_delivery", 15)
     _scan(consignment, "delivered", 20)
     consignment.action_deliver()
     assert consignment.state == "delivered"
@@ -159,7 +189,8 @@ def test_delivery_on_an_intact_chain(consignment):
 
 
 def test_return_publishes(consignment):
-    consignment.action_return()
+    consignment.action_confirm()
+    consignment.action_return(reason="Customer cancelled the delivery")
     assert consignment.state == "returned"
     (event,) = _events(consignment.env, "consignment.returned", consignment)
     assert event["consignment"] == consignment.name

@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M03 Service Logistics roles (A02 audit 2026-11-03, M03-5 and M03-12).
+
+  Every logistics step and the damage-claim payout were open to any internal
+  user, and M03 defined no group at all.
+
+  - Rider: takes custody (start transit, out for delivery), issues the POD
+    code to the recipient and enters it at the door. Records custody scans.
+  - Hub operator: confirms legs for dispatch, runs the hub intake (seal and
+    weight), confirms receipt at a branch, returns or reports a leg lost,
+    and closes courier bookings.
+  - Logistics manager: implies both, releases exception holds, and settles
+    approved damage claims.
+  - Damage claim approver: decides claim payouts, within the DOFA tier the
+    approver also holds, never on a claim they raised.
+
+  The three operational groups carry the development admin so the workspace
+  keeps working; segregation of duties still applies to it. The approver
+  group ships EMPTY: who decides payouts is a business appointment.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_logistics" model="res.groups.privilege">
+            <field name="name">Service Logistics (Pick &amp; Drop)</field>
+            <field name="description">Custody, hub and claim roles of the M03 logistics module.</field>
+            <field name="sequence">41</field>
+        </record>
+
+        <record id="group_fix_logistics_rider" model="res.groups">
+            <field name="name">Logistics Rider</field>
+            <field name="privilege_id" ref="privilege_fix_logistics"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Takes custody of consignments, records custody scans, issues the POD code to the recipient and enters it at the hand-over.</field>
+        </record>
+
+        <record id="group_fix_logistics_hub" model="res.groups">
+            <field name="name">Logistics Hub Operator</field>
+            <field name="privilege_id" ref="privilege_fix_logistics"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Confirms consignments for dispatch, runs the hub intake seal and weight check, confirms receipt at a branch, returns or reports a consignment lost, and closes courier bookings.</field>
+        </record>
+
+        <record id="group_fix_logistics_manager" model="res.groups">
+            <field name="name">Logistics Manager</field>
+            <field name="privilege_id" ref="privilege_fix_logistics"/>
+            <field name="implied_ids" eval="[(4, ref('group_fix_logistics_rider')), (4, ref('group_fix_logistics_hub'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Everything a rider and a hub operator do, plus releasing exception holds and settling approved damage claims.</field>
+        </record>
+
+        <record id="group_fix_damage_claim_approver" model="res.groups">
+            <field name="name">Damage Claim Approver</field>
+            <field name="privilege_id" ref="privilege_fix_logistics"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves or rejects damage-claim payouts, within the DOFA tier the approver also holds, and never on a claim they raised.</field>
+        </record>
+
+    </data>
+</odoo>

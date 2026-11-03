@@ -1,6 +1,11 @@
 # Courier partners and bookings for M03 (pick & drop via Pathao / RedX / Steadfast).
 # The consignment module previously had no courier master at all, so the courier
 # screens could only show a placeholder.
+#
+# A02 audit (2026-11-03) M03-1/10: a booking was marked delivered with no POD
+# and its state was a plain writable field. The state and the POD evidence are
+# now guarded, and delivery needs proof: the consignment's verified POD, or the
+# courier's POD scan recorded by the hub.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -52,6 +57,7 @@ class FixCourierPartner(models.Model):
 class FixCourierBooking(models.Model):
     _name = "fix.courier.booking"
     _description = "Courier Booking"
+    _inherit = ["fix.guarded.mixin"]
     _order = "booked_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -87,6 +93,11 @@ class FixCourierBooking(models.Model):
     pod_attachment_id = fields.Many2one(
         "ir.attachment",
         string="Signed Courier Waybill / POD Scan",
+        readonly=True,
+        help="Recorded by the hub with Record Courier POD.",
+    )
+    pod_recorded_by_id = fields.Many2one(
+        "res.users", string="POD Recorded By", readonly=True, copy=False
     )
     state = fields.Selection(
         [
@@ -99,9 +110,24 @@ class FixCourierBooking(models.Model):
         required=True,
         default="booked",
         index=True,
+        readonly=True,
+        copy=False,
     )
-    delivered_on = fields.Date()
-    cod_settled_on = fields.Date()
+    delivered_on = fields.Date(readonly=True, copy=False)
+    cod_settled_on = fields.Date(readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M03-1: the booking's lifecycle and its delivery evidence
+        # change only through the actions below.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "delivered_on",
+            "cod_settled_on",
+            "pod_attachment_id",
+            "pod_recorded_by_id",
+            "volumetric_weight_kg",
+            "chargeable_weight_kg",
+        }
 
     @api.depends("weight_kg", "length_cm", "width_cm", "height_cm", "partner_id.volumetric_divisor")
     def _compute_volumetric_booking(self):
@@ -122,8 +148,39 @@ class FixCourierBooking(models.Model):
                 )
         return super().create(vals_list)
 
+    def _courier_require_hub(self, what):
+        if self.env.su or self.env.user.has_group("cd_consignment.group_fix_logistics_hub"):
+            return
+        raise UserError("%s needs the Logistics Hub Operator role." % what)
+
+    def action_record_pod(self, attachment_id=None):
+        """Record the courier's signed waybill / POD scan for a 3PL delivery."""
+        self._courier_require_hub("Recording a courier POD")
+        attachment = self.env["ir.attachment"].browse(int(attachment_id or 0)).exists()
+        if not attachment:
+            raise UserError("Attach the courier's signed POD scan.")
+        for rec in self:
+            if rec.state not in ("booked", "picked_up"):
+                raise UserError("The POD is recorded before the booking is closed.")
+            rec._guarded().write(
+                {"pod_attachment_id": attachment.id, "pod_recorded_by_id": self.env.user.id}
+            )
+        return True
+
     def action_deliver(self):
+        """Close the booking as delivered. A02 audit M03-10: it needs proof —
+        the consignment's POD verified by the recipient or the receiving hub,
+        or the courier's POD scan recorded by the hub."""
+        self._courier_require_hub("Marking a courier booking delivered")
         for rec in self:
             if rec.state not in ("booked", "picked_up"):
                 raise UserError("Only a booked or picked-up delivery can be marked delivered")
-            rec.write({"state": "delivered", "delivered_on": fields.Date.context_today(rec)})
+            if not (rec.consignment_id.pod_verified_at or rec.pod_attachment_id):
+                raise UserError(
+                    "%s has no proof of delivery: deliver its consignment with the POD "
+                    "first, or record the courier's POD scan." % rec.name
+                )
+            rec._guarded().write(
+                {"state": "delivered", "delivered_on": fields.Date.context_today(rec)}
+            )
+        return True

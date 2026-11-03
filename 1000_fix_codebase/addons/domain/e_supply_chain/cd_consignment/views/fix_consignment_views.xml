@@ -24,7 +24,7 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="confirmed,in_transit,delivered,returned"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,confirmed,in_transit,delivered"/>
                 </header>
                 <sheet>
                     <div class="oe_title"><h1><field name="name" readonly="1"/></h1></div>
@@ -43,8 +43,9 @@
                             <field name="custody_summary"/>
                         </group>
                     </group>
-                    <field name="custody_ids">
-                        <list editable="bottom">
+                    <!-- A02 audit M03-3: scans are append-only and server-stamped. -->
+                    <field name="custody_ids" readonly="1">
+                        <list>
                             <field name="scanned_at"/>
                             <field name="step"/>
                             <field name="scanned_by"/>

@@ -57,7 +57,9 @@ class TestCustodyChain:
                 "odoo.addons.cd_consignment.models.fix_consignment", fromlist=["FixConsignment"]
             ).FixConsignment.action_deliver
         )
-        assert "chain_broken" in source
+        # A02 audit M03-2: the gate re-checks the chain itself rather than
+        # trusting the stored chain_broken flag.
+        assert "_custody_chain_problem" in source
         assert "Cannot deliver consignment" in source
         assert '"consignment.delivered"' in source
 
