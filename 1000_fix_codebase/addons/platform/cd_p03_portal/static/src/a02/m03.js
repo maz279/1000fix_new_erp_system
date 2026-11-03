@@ -123,7 +123,7 @@ export const SCREENS = {
           { name: 'consignment_id', label: 'Consignment' },
           { name: 'awb_no', label: 'AWB / Tracking No' },
           { name: 'booked_on', required: true, label: 'Booked On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
         ] },
       { tab: 'freight', title: 'Weight & Volumetric Pricing (FLAW-03.2)',
         fields: [
@@ -137,27 +137,41 @@ export const SCREENS = {
     ]
   },
 
+  /* A02 audit M03-11: the lifecycle runs from these buttons; the status
+   * field is read-only on the form. The server checks the role, the state,
+   * the custody chain and the POD for every one of them. */
   'M03-cons': { kind: 'model_list', model: 'fix.consignment', create: false,
-    cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id', 'dest_branch_id', 'rider_id', 'chain_broken'],
-    stateField: 'state' },
+    cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id', 'dest_branch_id', 'rider_id', 'chain_broken', 'seal_status'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_confirm', l: 'Confirm for Dispatch' },
+      { m: 'action_start_transit', l: 'Start Transit' },
+      { m: 'action_verify_hub_intake', l: 'Hub Intake (seal check)', ask: 'Inbound seal number (blank if unsealed)', kwarg: 'inbound_seal' },
+      { m: 'action_confirm_receipt', l: 'Confirm Receipt at Hub' },
+      { m: 'action_out_for_delivery', l: 'Out for Delivery' },
+      { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
+      { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' },
+      { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' }
+    ] },
   'M03-record': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'service_order_id', 'custody_summary', 'chain_broken',
-      'pod_verified_at', 'pod_verified_by', 'create_date'],
+      'chain_problem', 'pod_verified_at', 'pod_verified_by', 'delivered_at', 'create_date'],
     stateField: 'state' },
   'M03-journeys': { kind: 'model_list', model: 'fix.custody.scan', create: false,
-    cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'location_branch_id', 'device_serial', 'exception_reason'] },
+    cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'scanned_by_user_id', 'location_branch_id', 'device_serial', 'exception_reason'] },
   'M03-manifest': { kind: 'table_report', module: 'M03', report: 'cycle_time', period: false },
   'M03-custody': { kind: 'model_list', model: 'fix.custody.scan', create: false,
     cols: ['consignment_id', 'step', 'scanned_at', 'exception_reason', 'device_serial'],
     domain: [['exception_reason', '!=', false]] },
   'M03-pod': { kind: 'model_list', model: 'fix.consignment', create: false,
-    cols: ['name', 'state', 'service_order_id', 'rider_id', 'pod_verified_at', 'pod_verified_by', 'custody_summary'],
+    cols: ['name', 'state', 'service_order_id', 'rider_id', 'pod_otp_channel', 'pod_verified_at', 'pod_verified_by', 'custody_summary'],
     domain: [['state', 'in', ['confirmed', 'in_transit', 'delivered']]],
     stateField: 'state',
     actions: [
-      { m: 'action_generate_otp', l: 'Generate POD OTP' },
       { m: 'action_start_transit', l: 'Start Transit' },
-      { m: 'action_verify_pod', l: 'Verify POD (OTP)', ask: 'Customer OTP' }
+      { m: 'action_out_for_delivery', l: 'Out for Delivery' },
+      { m: 'action_generate_otp', l: 'Send POD Code to Recipient' },
+      { m: 'action_verify_pod', l: 'Verify POD (OTP)', ask: 'Code the recipient received by SMS' }
     ] },
   'M03-seals': { kind: 'table_report', module: 'M03', report: 'custody_exceptions', period: false },
   'M03-riders': { kind: 'model_list', model: 'fix.consignment', create: false,
@@ -166,11 +180,17 @@ export const SCREENS = {
   'M03-routes': { kind: 'table_report', module: 'M03', report: 'reverse_volume', period: false },
   'M03-app': { kind: 'table_report', module: 'M03', report: 'cycle_time', period: false },
   'M03-couriers': { kind: 'model_list', model: 'fix.courier.partner', cols: ['name', 'code', 'service_area', 'base_rate', 'cod_supported', 'cod_cycle_days', 'active'] },
-  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [{ m: 'action_deliver', l: 'Mark Delivered' }] },
+  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [{ m: 'action_deliver', l: 'Mark Delivered (needs POD)' }] },
   'M03-recon': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Performance & COD', period: false },
   'M03-exc': { kind: 'model_list', model: 'fix.consignment', create: false,
-    cols: ['name', 'consignment_type', 'state', 'chain_broken', 'custody_summary', 'rider_id'],
-    domain: [['chain_broken', '=', true], ['state', '=', 'lost']] },
+    cols: ['name', 'consignment_type', 'state', 'chain_broken', 'chain_problem', 'seal_status', 'hold_reason', 'custody_summary', 'rider_id'],
+    domain: ['|', '|', ['chain_broken', '=', true], ['state', '=', 'lost'], ['state', '=', 'held']],
+    stateField: 'state',
+    actions: [
+      { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' },
+      { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
+      { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' }
+    ] },
   'M03-charges': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Charges', period: false },
   'M03-cod': { kind: 'table_report', module: 'M03', report: 'cod_settlement', period: false },
 
@@ -182,13 +202,13 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.consignment',
     title: "Consignment (5 types)",
-    back: 'M03-consignments',
-    status: { field: 'state', labels: { draft: "Draft", assigned: "Assigned", in_transit: "In Transit", delivered: "Delivered", cancelled: "Cancelled" } },
+    back: 'M03-cons',
+    status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", in_transit: "In Transit", held: "Exception Hold", delivered: "Delivered", returned: "Returned", lost: "Lost" } },
     tabs: [
       { id: 'journey', label: '1. Journey & Legs', bn: '১. রুট ও স্থানান্তর', icon: '🚚', badge: '8' },
-      { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '8' },
+      { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '10' },
       { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '8' },
-      { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '6' }
+      { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '7' }
     ],
     sections: [
       { tab: 'journey', title: "Multi-Leg Consignment Route & Rider Assignment", note: "A pick-and-drop job: origin and destination branch, rider, service order, and custody chain.",
@@ -200,19 +220,21 @@ export const SCREENS = {
           { name: 'dest_branch_id', label: "Destination Branch" },
           { name: 'rider_id', label: "Assigned Rider" },
           { name: 'service_order_id', label: "Service Order Reference" },
-          { name: 'state', required: true, label: "Consignment Status" }
+          { name: 'state', label: "Consignment Status", readonly: true }
         ] },
       { tab: 'custody', title: "Tamper-Evident Security Seals & Scale Verification (FLAW-03.3)",
         note: "Seal numbers and intake scale weights are verified at hub transfers with a strict 20g threshold.",
         fields: [
           { name: 'security_bag_barcode', label: "Tamper-Evident Bag Barcode" },
           { name: 'outbound_seal_number', label: "Outbound Security Seal No" },
-          { name: 'inbound_seal_number', label: "Inbound Received Seal No" },
-          { name: 'seal_status', label: "Seal Integrity Verdict" },
+          { name: 'inbound_seal_number', label: "Inbound Received Seal No (hub intake)", readonly: true },
+          { name: 'seal_status', label: "Seal Integrity Verdict", readonly: true },
           { name: 'dispatch_weight_g', label: "Dispatch Scale Weight (g)" },
-          { name: 'receive_weight_g', label: "Intake Scale Weight (g)" },
+          { name: 'receive_weight_g', label: "Intake Scale Weight (g) (hub intake)", readonly: true },
           { name: 'weight_variance_g', label: "Weight Variance (g)", readonly: true },
-          { name: 'chain_broken', label: "Custody Chain Broken Alert" }
+          { name: 'chain_broken', label: "Custody Chain Broken Alert", readonly: true },
+          { name: 'chain_problem', label: "Chain Problem", readonly: true },
+          { name: 'hold_reason', label: "Exception Hold Reason", readonly: true }
         ] },
       { tab: 'volumetric', title: "IATA Volumetric Weight & Freight Rating (FLAW-03.2)",
         fields: [
@@ -222,17 +244,18 @@ export const SCREENS = {
           { name: 'height_cm', label: "Height (cm)" },
           { name: 'volumetric_divisor', label: "Volumetric Divisor" },
           { name: 'chargeable_weight_kg', label: "Chargeable Weight (kg)", readonly: true },
-          { name: 'base_freight_bdt', label: "Base Freight (BDT)" },
-          { name: 'insurance_fee_bdt', label: "Transit Insurance (BDT)" }
+          { name: 'base_freight_bdt', label: "Base Freight (BDT)", readonly: true },
+          { name: 'insurance_fee_bdt', label: "Transit Insurance (BDT)", readonly: true }
         ] },
       { tab: 'pod', title: "Proof of Delivery (POD) & OTP Handover",
         fields: [
-          { name: 'pod_otp_code', label: "POD Customer OTP Code" },
-          { name: 'pod_verified_at', label: "POD OTP Verified At", readonly: true },
-          { name: 'pod_verified_by', label: "Verified Recipient Name" },
-          { name: 'cod_amount_collected', label: "COD Cash Collected (BDT)" },
-          { name: 'cod_settlement_ref', label: "COD Settlement Ref (M50)" },
-          { name: 'pod_signature_attachment_id', label: "Signed POD Sheet / Photo Proof" }
+          { name: 'pod_otp_channel', label: "POD Code Sent To", readonly: true },
+          { name: 'pod_otp_issued_at', label: "POD Code Issued At", readonly: true },
+          { name: 'pod_verified_at', label: "POD Verified At", readonly: true },
+          { name: 'pod_verified_by', label: "POD Verified By", readonly: true },
+          { name: 'delivered_at', label: "Delivered At", readonly: true },
+          { name: 'recipient_name', label: "Recipient Name" },
+          { name: 'waybill_attachment_id', label: "Signed Waybill / Manifest" }
         ] }
     ]
   },
@@ -242,31 +265,38 @@ export const SCREENS = {
     title: "Rider Shift Open/Close",
     back: 'M03-custody',
     tabs: [
-      { id: 'scan', label: '1. Custody Hop', bn: '১. স্ক্যান তথ্য', icon: '📡', badge: '6' },
-      { id: 'device', label: '2. Device & Serial', bn: '২. ডিভাইস ও অবস্থা', icon: '📱', badge: '3' }
+      { id: 'scan', label: '1. Custody Hop', bn: '১. স্ক্যান তথ্য', icon: '📡', badge: '7' },
+      { id: 'device', label: '2. Device & Serial', bn: '২. ডিভাইস ও অবস্থা', icon: '📱', badge: '1' }
     ],
     sections: [
-      { tab: 'scan', title: "Custody Scan & Location Verification", note: "A custody scan: each hop of the chain is a scanned step with who scanned it and where.",
+      { tab: 'scan', title: "Custody Scan & Location Verification", note: "A custody scan is append-only evidence, stamped by the server with who scanned it and when. Scans are recorded by the workflow buttons and the rider app.",
         fields: [
-          { name: 'consignment_id', required: true, label: "Consignment" },
-          { name: 'step', required: true, label: "Custody Step" },
-          { name: 'scanned_at', required: true, label: "Scanned At" },
-          { name: 'location_branch_id', label: "At Branch" },
-          { name: 'scanned_by', label: "Scanned By User" },
-          { name: 'exception_reason', label: "Custody Exception Note" }
+          { name: 'consignment_id', label: "Consignment", readonly: true },
+          { name: 'step', label: "Custody Step", readonly: true },
+          { name: 'scanned_at', label: "Scanned At", readonly: true },
+          { name: 'location_branch_id', label: "At Branch", readonly: true },
+          { name: 'scanned_by', label: "Scanned By (Employee)", readonly: true },
+          { name: 'scanned_by_user_id', label: "Scanned By (User)", readonly: true },
+          { name: 'exception_reason', label: "Custody Exception Note", readonly: true }
         ] },
-      { tab: 'device', title: "Device & Seal Verification",
+      { tab: 'device', title: "Device Verification",
         fields: [
-          { name: 'device_serial', label: "Scanned Device Serial / IMEI" },
-          { name: 'seal_number_scanned', label: "Scanned Security Seal" },
-          { name: 'weight_at_scan_g', label: "Scale Weight at Scan (g)" }
+          { name: 'device_serial', label: "Scanned Device Serial / IMEI", readonly: true }
         ] }
     ]
   },
 
   /* ===== triage coverage screens ===== */
+  /* A02 audit M03-5/11: approve, reject and settle. The server checks the
+   * claim-approver role and the DOFA tier, refuses the claim's creator, caps
+   * the payout at the claim and the insured value, and pins the amount. */
   'M03-damage-claim': { kind: 'model_list', model: 'fix.damage.claim', stateField: 'state',
-    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'consignment_id', 'claimed_on', 'claimant', 'claimed_amount_bdt', 'dofa_tier'] },
+    cols: ['name', 'state', 'operating_unit_id', 'consignment_id', 'claimed_on', 'claimant', 'claimed_amount', 'approved_amount', 'dofa_tier', 'settled_amount'],
+    actions: [
+      { m: 'action_approve', l: 'Approve Payout', ask: 'Approved amount in BDT (blank = amount claimed)', kwarg: 'approved_amount' },
+      { m: 'action_reject', l: 'Reject Claim', ask: 'Reason for rejecting', kwarg: 'reason' },
+      { m: 'action_settle', l: 'Settle Payout', ask: 'Amount paid in BDT (blank = approved amount)', kwarg: 'settled_amount' }
+    ] },
 
   'M03-form-damage-claim': {
     kind: 'model_form',
@@ -275,25 +305,32 @@ export const SCREENS = {
     back: 'M03-damage-claim',
     status: { field: 'state' },
     tabs: [
-      { id: 'claim', label: '1. Incident Claim', bn: '১. দাবির বিবরণ', icon: '⚠️', badge: '6' },
-      { id: 'dofa', label: '2. DOFA & Financial Sign-Off', bn: '২. অনুমোদন ও আর্থিক সিদ্ধান্ত', icon: '✍️', badge: '5' }
+      { id: 'claim', label: '1. Incident Claim', bn: '১. দাবির বিবরণ', icon: '⚠️', badge: '9' },
+      { id: 'dofa', label: '2. DOFA & Financial Sign-Off', bn: '২. অনুমোদন ও আর্থিক সিদ্ধান্ত', icon: '✍️', badge: '9' }
     ],
     sections: [
       { tab: 'claim', title: "Transit Damage / Loss Incident Claim", note: "Opened from the module's own record set. Every field here is the model's real field.",
         fields: [
           { name: 'name', required: true, label: "Claim Reference", readonly: true },
-          { name: 'state', required: true, label: "Claim Status" },
+          { name: 'state', label: "Claim Status", readonly: true },
           { name: 'consignment_id', required: true, label: "Consignment" },
           { name: 'claimed_on', required: true, label: "Incident / Claim Date" },
           { name: 'claimant', required: true, label: "Claimant / Consignee" },
-          { name: 'description', label: "Damage Incident Details", type: "text" }
+          { name: 'damage_kind', required: true, label: "Damage Kind" },
+          { name: 'liability', required: true, label: "Liability" },
+          { name: 'evidence_ref', label: "Evidence Reference" },
+          { name: 'description', required: true, label: "Damage Incident Details", type: "text" }
         ] },
       { tab: 'dofa', title: "DOFA Tier & Settlement Approval",
         fields: [
-          { name: 'claimed_amount_bdt', label: "Claimed Amount (BDT)" },
-          { name: 'approved_amount_bdt', label: "Approved Settlement (BDT)" },
+          { name: 'claimed_amount', label: "Claimed Amount (BDT)" },
           { name: 'dofa_tier', label: "Required DOFA Approval Tier", readonly: true },
-          { name: 'approved_by_id', label: "Authorizing Manager / Director", readonly: true },
+          { name: 'dofa_justification', label: "Approval Justification (required)", type: "text" },
+          { name: 'approved_amount', label: "Approved Payout (BDT)", readonly: true },
+          { name: 'approved_by_id', label: "Authorizing Approver", readonly: true },
+          { name: 'approved_at', label: "Approved At", readonly: true },
+          { name: 'settled_amount', label: "Settled Amount (BDT)", readonly: true },
+          { name: 'settled_by_id', label: "Settled By", readonly: true },
           { name: 'incident_photo_attachment_id', label: "Damage Photo / Police GD Proof" }
         ] }
     ]
@@ -338,7 +375,7 @@ export const FORM_CHIPS = {
     'M03-couriers': 'M03-form-courier',
     'M03-bookings': 'M03-form-booking',
     'M03-damage-claim': 'M03-form-damage-claim',
-    'M03-consignments': 'M03-form-consignment',
+    'M03-cons': 'M03-form-consignment',
     'M03-custody': 'M03-form-rider-shift',
   }
 };

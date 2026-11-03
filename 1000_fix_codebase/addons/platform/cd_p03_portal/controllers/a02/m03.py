@@ -16,15 +16,20 @@ SURFACES = {
     "fix.consignment": {
         "order": "scheduled_date desc, id desc",
         "limit": 200,
+        # A02 audit M03-4: action_deliver is the internal delivery gate (it
+        # needs a verified POD); the workspace closes a leg through the POD
+        # code or the hub receipt, never by calling it directly.
         "actions": {
             "action_confirm",
             "action_start_transit",
             "action_verify_hub_intake",
+            "action_out_for_delivery",
             "action_generate_otp",
             "action_verify_pod",
-            "action_deliver",
+            "action_confirm_receipt",
             "action_return",
             "action_report_lost",
+            "action_release_hold",
         },
     },
     "fix.courier.partner": {"order": "name", "limit": 100, "actions": set()},
@@ -59,10 +64,14 @@ def kpis(env):
     in_transit = Cons.search_count([*domain, ("state", "=", "in_transit")])
 
     delivered = Cons.search([*domain, ("state", "=", "delivered")], limit=500)
+    # A02 audit M03-13: the stamped delivery moment, not write_date (any later
+    # edit moved it); rows delivered before the stamp existed fall back.
     on_time = sum(
         1
         for c in delivered
-        if c.scheduled_date and c.write_date and c.write_date <= c.scheduled_date
+        if c.scheduled_date
+        and (c.delivered_at or c.write_date)
+        and (c.delivered_at or c.write_date) <= c.scheduled_date
     )
     # on-time = closed by the scheduled date (schedule = promised window end)
     on_time_pct = round(100.0 * on_time / len(delivered), 1) if delivered else None
@@ -77,9 +86,9 @@ def kpis(env):
         cod_today = Settlement.search_count([("settlement_date", "=", today)])
 
     round_trips = [
-        (c.write_date - c.create_date).total_seconds() / 86400.0
+        ((c.delivered_at or c.write_date) - c.create_date).total_seconds() / 86400.0
         for c in delivered
-        if c.create_date and c.write_date
+        if c.create_date and (c.delivered_at or c.write_date)
     ]
     avg_round_trip = round(sum(round_trips) / len(round_trips), 1) if round_trips else None
 

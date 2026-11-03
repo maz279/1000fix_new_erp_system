@@ -3,18 +3,20 @@
 # Read from the fragment files themselves (static/src/<area>/m*.js): for
 # every `kind: 'model_form'` screen, the header fields not declared
 # `readonly: true`, plus the one2many its `lines:` grid edits. This is the
-# single source for the per-surface write whitelist (controllers/a03/
-# writable.py, R3 of the A03 workflow audit) and for the test that keeps the
-# two in step. Not imported by the server; run it to regenerate:
+# single source for the per-surface write whitelists (controllers/<area>/
+# writable.py: R3 of the A03 audit, A2 of the A02 audit) and for the tests
+# that keep them in step. Not imported by the server; run it to regenerate:
 #
-#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 import re
 import sys
 from pathlib import Path
 
 PORTAL = Path(__file__).resolve().parents[1]
 STATIC = PORTAL / "static" / "src"
-A03 = PORTAL / "controllers" / "a03"
+CONTROLLERS = PORTAL / "controllers"
+A03 = CONTROLLERS / "a03"
+AREAS = ("a02", "a03")
 
 SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
 MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")
@@ -71,26 +73,34 @@ def editable_by_model(root=STATIC):
     return out
 
 
-def a03_surface_models():
+def surface_models(area):
     models = set()
-    for py in sorted(A03.glob("m*.py")):
+    for py in sorted((CONTROLLERS / area).glob("m*.py")):
         text = py.read_text(encoding="utf-8")
         start = text.index("SURFACES = {")
         models.update(SURFACE.findall(text[start:]))
     return models
 
 
-def render_a03():
+def a03_surface_models():
+    return surface_models("a03")
+
+
+def render(area):
     editable = editable_by_model()
     rows = []
-    for model in sorted(a03_surface_models()):
+    for model in sorted(surface_models(area)):
         names = sorted(editable.get(model, ()))
         if not names:
             rows.append('    "%s": frozenset(),' % model)
             continue
         body = "".join('            "%s",\n' % n for n in names)
         rows.append('    "%s": frozenset(\n        {\n%s        }\n    ),' % (model, body))
-    return HEADER + "WRITABLE = {\n" + "\n".join(rows) + "\n}\n"
+    return HEADER.replace("A03", area.upper()) + "WRITABLE = {\n" + "\n".join(rows) + "\n}\n"
+
+
+def render_a03():
+    return render("a03")
 
 
 HEADER = """\
@@ -105,15 +115,18 @@ HEADER = """\
 #
 # test_a03_writable_matches_forms fails when the forms and this file
 # disagree. Regenerate rather than hand-edit:
-#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 """
 
 
 if __name__ == "__main__":
-    if "--a03" in sys.argv:
-        (A03 / "writable.py").write_text(render_a03(), encoding="utf-8", newline="\n")
-        print("wrote", A03 / "writable.py")
-    else:
+    wanted = [a for a in AREAS if "--" + a in sys.argv]
+    for area in wanted:
+        (CONTROLLERS / area / "writable.py").write_text(
+            render(area), encoding="utf-8", newline="\n"
+        )
+        print("wrote", CONTROLLERS / area / "writable.py")
+    if not wanted:
         for model, names in sorted(editable_by_model().items()):
             print(model, sorted(names))

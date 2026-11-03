@@ -359,7 +359,7 @@ export const SCREENS = {
           { name: 'coverage_details', type: 'text', label: 'Statutory Coverage Inclusions & Exclusions' }
         ] },
       { tab: 'governance', title: 'Lifecycle Status', fields: [
-          { name: 'status', required: true, label: 'Policy Status' }
+          { name: 'status', label: 'Policy Status (set by Verify / Void)', readonly: true }
         ] }
     ]
   },

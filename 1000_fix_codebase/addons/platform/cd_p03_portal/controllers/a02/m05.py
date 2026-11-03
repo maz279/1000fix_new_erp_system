@@ -8,6 +8,11 @@
 # credits, on-call rota, maintenance windows, problem & change records),
 # so every surface, KPI and report below is LIVE — only backup/restore
 # test logging stays an honest absence (it belongs to the M06/M48 seam).
+#
+# A02 audit P0 (2026-11-03): the remote-session consent code, maintenance
+# window approval, patch-policy approval and the post-implementation review
+# are whitelisted here with their screen buttons; window "open" is gone (a
+# window's state follows its approval and time range).
 import logging
 from datetime import date, datetime
 
@@ -42,7 +47,12 @@ SURFACES = {
     "fix.remote.session": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_start", "action_end"},
+        "actions": {
+            "action_request_consent",
+            "action_verify_consent",
+            "action_start",
+            "action_end",
+        },
     },
     "fix.msp.service.report": {
         "order": "id desc",
@@ -62,7 +72,7 @@ SURFACES = {
     "fix.msp.patch.policy": {
         "order": "id desc",
         "limit": 100,
-        "actions": set(),
+        "actions": {"action_approve"},
     },
     "fix.msp.patch.update": {
         "order": "id desc",
@@ -82,12 +92,18 @@ SURFACES = {
     "fix.msp.maintenance.window": {
         "order": "start_at desc",
         "limit": 100,
-        "actions": {"action_open", "action_close"},
+        "actions": {"action_approve", "action_close"},
     },
     "fix.msp.change.record": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_approve", "action_reject", "action_implement", "action_close"},
+        "actions": {
+            "action_approve",
+            "action_reject",
+            "action_implement",
+            "action_record_review",
+            "action_close",
+        },
     },
 }
 

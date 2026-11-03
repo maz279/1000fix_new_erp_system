@@ -688,7 +688,7 @@ export const SCREENS = {
         { name: 'grand_total', label: 'Grand Total (BDT)', readonly: true }
       ]},
       { tab: 'approval', title: 'Who Approved What', fields: [
-        { name: 'customer_approval_ref', label: 'Customer Approval Reference' },
+        { name: 'customer_approval_ref', label: 'Customer Approval Reference', readonly: true },
         { name: 'approval_state', label: 'Discount Approval Request', readonly: true },
         { name: 'dofa_approved', label: 'Discount Approved', readonly: true },
         { name: 'dofa_approved_by', label: 'Discount Approved By', readonly: true },

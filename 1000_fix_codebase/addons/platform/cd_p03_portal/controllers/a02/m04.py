@@ -20,17 +20,27 @@ SURFACES = {
     "fix.cash.shift": {
         "order": "id desc",
         "limit": 100,
+        # A02 audit M04-2/-11: the blind count and the manager's variance
+        # approval are workspace buttons; the methods check role and SoD.
         "actions": {
             "action_close_shift",
             "action_submit_blind_count",
             "action_confirm_closed",
+            "action_approve_variance",
             "action_reconcile",
         },
     },
     "fix.counter.sale": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_confirm", "action_refund"},
+        # A02 audit M04-5: a refund is requested with a reason and approved by
+        # someone who did not sell; a price below list is approved first.
+        "actions": {
+            "action_confirm",
+            "action_approve_price_override",
+            "action_request_refund",
+            "action_approve_refund",
+        },
     },
 }
 

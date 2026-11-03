@@ -4,6 +4,7 @@
 # SURFACES entries (fix.token.queue / fix.walkin.intake, owned by m01)
 # were removed — the M04 queue/intake actions live on the m01 entries.
 from . import m01, m02, m03, m04, m05, m06, m31
+from .writable import WRITABLE
 
 MODULES = {
     "M01": m01,
@@ -21,3 +22,8 @@ for _mod in MODULES.values():
         if _model in SURFACES:
             raise ValueError("A02 surface %s is declared by two modules" % _model)
         SURFACES[_model] = _conf
+
+# A2 (A02 workflow audit): every A02 surface declares what /p03/model/write
+# may set on it, generated from the workspace forms (form_fields.py --a02).
+for _model, _conf in SURFACES.items():
+    _conf["writable"] = WRITABLE[_model]

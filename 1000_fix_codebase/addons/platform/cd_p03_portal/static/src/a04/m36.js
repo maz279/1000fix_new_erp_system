@@ -128,8 +128,8 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'version', label: 'Version', required: true },
-        { name: 'state', label: 'State', required: true },
-        { name: 'customer_approval_ref', label: 'Customer Approval Ref' },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'customer_approval_ref', label: 'Customer Approval Ref', readonly: true },
         { name: 'dofa_tier_required', label: 'DOFA Discount Tier', readonly: true },
         { name: 'quotation_state', label: 'Quotation State' },
         { name: 'valid_days', label: 'Valid Days' },
@@ -158,7 +158,7 @@ export const SCREENS = {
         { name: 'manager_approval_uid', label: 'Manager Approval', readonly: true },
         { name: 'currency_id', label: 'Currency', required: true },
         { name: 'approved_by', label: 'Approved By', readonly: true },
-        { name: 'dofa_approved_by', label: 'DOFA Discount Approver' },
+        { name: 'dofa_approved_by', label: 'DOFA Discount Approver', readonly: true },
         { name: 'signed_estimate_attachment_id', label: 'Signed Customer Estimate PDF' }
       ] },
       { tab: 'statutory', title: '5. Statutory', fields: [
@@ -274,7 +274,7 @@ export const SCREENS = {
         { name: 'name', label: 'Sale No.', readonly: true },
         { name: 'quantity', label: 'Quantity', required: true },
         { name: 'payment_method', label: 'Payment Method', required: true },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State', readonly: true },
         { name: 'serial_or_warranty_ref', label: 'Part Serial / Protection Plan Ref' },
         { name: 'transaction_ref', label: 'bKash / Nagad / POS TrxID' },
         { name: 'notes', label: 'Counter Sale Notes' }

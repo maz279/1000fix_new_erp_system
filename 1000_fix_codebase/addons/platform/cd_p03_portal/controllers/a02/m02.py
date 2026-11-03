@@ -20,14 +20,20 @@ SURFACES = {
     "fix.field.order": {
         "order": "scheduled_start desc, id desc",
         "limit": 200,
+        # A02 audit P0: every method checks its own authority (dispatcher for
+        # dispatch, reassign, the geofence waiver and cancel in dispatch; the
+        # assigned technician for accept, decline and progress).
         "actions": {
             "action_request_dispatch",
             "action_dispatch",
+            "action_reassign",
             "action_accept",
             "action_decline",
             "action_start_travel",
+            "action_waive_geofence",
             "action_arrive",
             "action_start_work",
+            "action_record_collection",
             "action_complete",
             "action_handover_field_cash",
             "action_cancel",

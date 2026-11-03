@@ -74,12 +74,19 @@ export const SCREENS = {
   'M06-cases': { kind: 'model_list', model: 'fix.data.recovery.case',
     cols: ['name', 'customer_id', 'media_type', 'specialism', 'residency_zone', 'attempt_count', 'audit_count', 'state'],
     stateField: 'state',
+    /* A02 audit M06: every lifecycle step is a server action (state, zone,
+     * consent and purge certificate are workflow-owned, never typed). */
     actions: [
       { m: 'action_take_custody', l: 'Take Custody', ask: 'Custody handler name', kwarg: 'handler' },
+      { m: 'action_log_custody_transfer', l: 'Log Custody Transfer', ask: 'Handed to (name)', kwarg: 'handler' },
+      { m: 'action_route_to_z4', l: 'Route to Z4' },
+      { m: 'action_record_destructive_consent', l: 'Record Destructive Consent', ask: 'Customer OTP / portal consent reference', kwarg: 'reference' },
       { m: 'action_start_recovery', l: 'Start Recovery' },
       { m: 'action_recovered', l: 'Mark Recovered' },
+      { m: 'action_mark_unrecoverable', l: 'Mark Unrecoverable', ask: 'Reason (no data, no fee)', kwarg: 'reason' },
       { m: 'action_handover', l: 'Secure Handover', ask: 'Handover handler name', kwarg: 'handler' },
-      { m: 'action_purge', l: 'Purge (Verified Cert)' }
+      { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
+      { m: 'action_close', l: 'Close Case' }
     ] },
   'M06-record': { kind: 'model_list', model: 'fix.data.recovery.case', create: true,
     cols: ['name', 'customer_id', 'specialism', 'received_at', 'state', 'purge_certificate_id'],
@@ -95,7 +102,7 @@ export const SCREENS = {
     stateField: 'location',
     actions: [
       { m: 'action_transfer', l: 'Move Media', ask: 'Location (z4_lab/cleanroom/vault/reception)', kwarg: 'location' },
-      { m: 'action_break_seal', l: 'Break Seal' },
+      { m: 'action_break_seal_with_witness', l: 'Break Seal (Witnessed)', ask: 'Witness login (a second person, not you)', kwarg: 'witness_user_id' },
       { m: 'action_return', l: 'Return to Customer' }
     ] },
   'M06-cleanroom': { kind: 'model_list', model: 'fix.data.cleanroom.slot',
@@ -116,8 +123,9 @@ export const SCREENS = {
     stateField: 'state',
     actions: [
       { m: 'action_send', l: 'Send Quote' },
-      { m: 'action_accept', l: 'Accept' },
-      { m: 'action_decline', l: 'Decline' }
+      { m: 'action_accept', l: 'Record Customer Acceptance', ask: 'Customer OTP / portal acceptance reference (blank = the signed quotation attached to the quote)', kwarg: 'acceptance_reference' },
+      { m: 'action_decline', l: 'Decline' },
+      { m: 'action_requote', l: 'Re-quote (new version)' }
     ] },
   /* the console = what is awaiting secure handover / purge right now */
   'M06-handover': { kind: 'model_list', model: 'fix.data.recovery.case', create: false,
@@ -126,7 +134,7 @@ export const SCREENS = {
     stateField: 'state',
     actions: [
       { m: 'action_handover', l: 'Secure Handover', ask: 'Handover handler name', kwarg: 'handler' },
-      { m: 'action_purge', l: 'Purge (Verified Cert)' },
+      { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
       { m: 'action_access_recovered_data', l: 'Z4 Access (TOTP)', ask: '6-digit authenticator code (SC-002)', kwarg: 'step_up_token' }
     ] },
 
@@ -189,10 +197,10 @@ Object.assign(SCREENS, {
       recovered: 'Recovered', handover: 'Handover', purged: 'Purged',
       closed: 'Closed', unrecoverable: 'Unrecoverable' } },
     tabs: [
-      { id: 'case', label: '1. Case Identity & Media', bn: '১. কেস তথ্য ও মিডিয়া', icon: '💾', badge: '8' },
+      { id: 'case', label: '1. Case Identity & Media', bn: '১. কেস তথ্য ও মিডিয়া', icon: '💾', badge: '9' },
       { id: 'forensic', label: '2. Forensic Triage & Hash', bn: '২. ফরেনসিক ট্রায়াজ ও হ্যাশ', icon: '🔍', badge: '7' },
-      { id: 'custody', label: '3. Chain of Custody', bn: '৩. কাস্টডি লেজার', icon: '🔒', badge: '4' },
-      { id: 'security', label: '4. Z4 TOTP & Secure Purge', bn: '৪. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '6' }
+      { id: 'custody', label: '3. Chain of Custody', bn: '৩. কাস্টডি লেজার', icon: '🔒', badge: '3' },
+      { id: 'security', label: '4. Z4 TOTP & Secure Purge', bn: '৪. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '7' }
     ],
     sections: [
       { tab: 'case', title: 'Case Registration & Media Classification', note: 'Intake, custody, recovery, secure handover with purge after a verified certificate. Z4 residency routing is statutory (SC-002).',
@@ -201,36 +209,37 @@ Object.assign(SCREENS, {
           { name: 'customer_id', required: true, label: 'Customer' },
           { name: 'device_id', label: 'Device' },
           { name: 'media_type', required: true, label: 'Storage Media Type' },
+          { name: 'media_serial_number', label: 'Storage Media Factory S/N (wipe certificate key)' },
           { name: 'specialism', label: 'Specialism (7 Disciplines)' },
-          { name: 'residency_zone', required: true, label: 'Residency Zone (Z4 Restricted)' },
+          { name: 'residency_zone', label: 'Residency Zone (set by Route to Z4)', readonly: true },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'Workflow State' }
+          { name: 'state', label: 'Workflow State', readonly: true }
         ] },
       { tab: 'forensic', title: 'Forensic Write-Blocking & Cryptographic Hash',
         fields: [
-          { name: 'media_capacity_gb', label: 'Raw Media Capacity (GB)' },
-          { name: 'write_blocker_used', label: 'Hardware Write-Blocker Used' },
+          { name: 'capacity_gb', label: 'Raw Media Capacity (GB)' },
+          { name: 'form_factor', label: 'Storage Media Form Factor' },
+          { name: 'interface_type', label: 'Physical Interface Protocol' },
+          { name: 'firmware_revision', label: 'Controller / ROM Firmware Version' },
           { name: 'write_blocker_serial', label: 'Hardware Write-Blocker S/N' },
-          { name: 'source_sha256_hash', label: 'Bit-Stream Source SHA-256 Hash' },
-          { name: 'recovered_sha256_hash', label: 'Recovered Image SHA-256 Hash' },
-          { name: 'target_filesystem', label: 'Reported Filesystem' },
-          { name: 'case_intake_photo_attachment_id', label: 'Media Intake Photo Proof' }
+          { name: 'image_sha256_hash', label: 'Bit-Stream Forensic Clone SHA-256 Digest' },
+          { name: 'donor_drive_serial', label: 'Matched Donor Drive / Head Stack S/N' }
         ] },
       { tab: 'custody', title: 'Single-Source Append-Only Chain of Custody Log',
         fields: [
           { name: 'received_at', label: 'Media Received At', readonly: true },
-          { name: 'custody_holder', label: 'Current Evidence Holder' },
           { name: 'custody_chain', label: 'Append-Only Chain-of-Custody Log', type: 'text', readonly: true },
           { name: 'attempt_count', label: 'Recovery Attempts Logged', readonly: true }
         ] },
       { tab: 'security', title: 'Z4 TOTP Step-Up Access & Verified Purge (SC-002)',
         fields: [
           { name: 'audit_count', label: 'Z4 Step-Up Access Audits', readonly: true },
-          { name: 'last_z4_access_at', label: 'Last Z4 Access Timestamp', readonly: true },
-          { name: 'purge_certificate_id', label: 'Verified NIST 800-88 Purge Certificate', readonly: true },
-          { name: 'purge_verified_at', label: 'Data Purge Verified At', readonly: true },
-          { name: 'customer_nda_attachment_id', label: 'Customer Signed NDA & Data Release PDF' },
-          { name: 'chain_of_custody_report_attachment_id', label: 'Exported Chain-of-Custody PDF' }
+          { name: 'purge_certificate_id', label: 'Verified NIST 800-88 Purge Certificate (set by Purge)', readonly: true },
+          { name: 'nda_reference', label: 'PDPA / Corporate NDA Reference' },
+          { name: 'nda_attachment_id', label: 'Signed Confidentiality & NDA Document (PDF)' },
+          { name: 'destructive_consent_at', label: 'Destructive-Work Consent Recorded At', readonly: true },
+          { name: 'destructive_consent_reference', label: 'Customer Consent Reference (OTP / Portal)', readonly: true },
+          { name: 'destructive_consent_by_id', label: 'Consent Recorded By', readonly: true }
         ] }
     ]
   },
@@ -253,14 +262,14 @@ Object.assign(SCREENS, {
           { name: 'seal_number', required: true, label: 'Tamper-Evident Bag / Seal Number' },
           { name: 'media_label', label: 'Drive Make / Model / Label' },
           { name: 'media_type', label: 'Media Type', readonly: true },
-          { name: 'location', required: true, label: 'Physical Storage Location' },
-          { name: 'holder', label: 'Current Physical Custodian' }
+          { name: 'location', label: 'Physical Storage Location (set by Move Media)', readonly: true },
+          { name: 'holder', label: 'Current Physical Custodian', readonly: true }
         ] },
       { tab: 'dual', title: 'Dual-Custody Witness Gate & Write-Blocker (FLAW-06.1)',
         note: 'Unsealing evidence in the lab strictly requires a second witness user sign-off.',
         fields: [
-          { name: 'seal_state', required: true, label: 'Seal Integrity State' },
-          { name: 'witness_user_id', label: 'Second Dual-Custody Witness User' },
+          { name: 'seal_state', label: 'Seal Integrity State (set by Break Seal)', readonly: true },
+          { name: 'witness_user_id', label: 'Second Dual-Custody Witness User', readonly: true },
           { name: 'witness_verified_at', label: 'Witness Verified Timestamp', readonly: true },
           { name: 'write_blocker_serial', label: 'Hardware Write-Blocker S/N' },
           { name: 'source_sha256_hash', label: 'Intake SHA-256 Hash' },
@@ -278,7 +287,7 @@ Object.assign(SCREENS, {
       draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined' } },
     tabs: [
       { id: 'quote', label: '1. Quotation Scope', bn: '১. কোটেশন বিবরণ', icon: '📄', badge: '5' },
-      { id: 'economics', label: '2. No-Data-No-Fee Economics', bn: '২. নো-ডেটা-নো-ফি ও চার্জ', icon: '💰', badge: '5' }
+      { id: 'economics', label: '2. No-Data-No-Fee Economics', bn: '২. নো-ডেটা-নো-ফি ও চার্জ', icon: '💰', badge: '8' }
     ],
     sections: [
       { tab: 'quote', title: 'Recovery Quotation Header', note: 'A firm quote for the recovery work; free evaluation verdict feeds the scope.',
@@ -287,7 +296,7 @@ Object.assign(SCREENS, {
           { name: 'case_id', required: true, label: 'Data Recovery Case' },
           { name: 'description', label: 'Work Scope & Deliverable Files' },
           { name: 'valid_until', label: 'Quotation Valid Until' },
-          { name: 'state', required: true, label: 'Quote Lifecycle State' }
+          { name: 'state', label: 'Quote Lifecycle State', readonly: true }
         ] },
       { tab: 'economics', title: 'No-Data-No-Fee Structure & Non-Refundable Donor Parts',
         fields: [
@@ -295,7 +304,10 @@ Object.assign(SCREENS, {
           { name: 'donor_fee_bdt', label: 'Non-Refundable Donor Parts Fee (BDT)' },
           { name: 'no_data_no_fee_applies', label: 'No-Data-No-Fee Guarantee Applicable' },
           { name: 'currency_id', label: 'Currency', readonly: true },
-          { name: 'signed_quote_attachment_id', label: 'Customer Signed Quotation PDF' }
+          { name: 'signed_quote_attachment_id', label: 'Customer Signed Quotation PDF', readonly: true },
+          { name: 'acceptance_channel', label: 'Customer Acceptance Channel', readonly: true },
+          { name: 'customer_acceptance_reference', label: 'Customer OTP / Portal Reference', readonly: true },
+          { name: 'accepted_by_id', label: 'Acceptance Recorded By', readonly: true }
         ] }
     ]
   },
@@ -310,7 +322,7 @@ Object.assign(SCREENS, {
       failed: 'Failed' } },
     tabs: [
       { id: 'media', label: '1. Media & Sanitization', bn: '১. মিডিয়া ও ডিস্ট্রাকশন', icon: '🗑️', badge: '6' },
-      { id: 'nist', label: '2. NIST 800-88 & Dual-Sign', bn: '২. নিস্ট ৮০০-৮৮ ও যৌথ অনুমোদন', icon: '📜', badge: '6' }
+      { id: 'nist', label: '2. NIST 800-88 & Dual-Sign', bn: '২. নিস্ট ৮০০-৮৮ ও যৌথ অনুমোদন', icon: '📜', badge: '7' }
     ],
     sections: [
       { tab: 'media', title: 'Media Sanitization & Overwrite Tool', note: 'Dual control: the certifying technician records the wipe; a second verifier confirms.',
@@ -320,16 +332,17 @@ Object.assign(SCREENS, {
           { name: 'serial_number', required: true, label: 'Media Serial Number' },
           { name: 'method', required: true, label: 'NIST 800-88 Method (Purge/Clear/Destroy)' },
           { name: 'tool_name', label: 'Sanitization Tool & Version' },
-          { name: 'technician_id', label: 'Certifying Technician' }
+          { name: 'technician_id', label: 'Certifying Technician', readonly: true }
         ] },
       { tab: 'nist', title: 'Dual-Control Verification & SHA-256 Certificate',
         fields: [
           { name: 'sector_count', label: 'Total Overwritten Sectors' },
           { name: 'duration_seconds', label: 'Sanitization Duration (Seconds)' },
-          { name: 'sanitization_status', required: true, label: 'Sanitization Status' },
+          { name: 'sanitization_status', label: 'Sanitization Status (set by Verify Evidence)', readonly: true },
           { name: 'verified_by_id', label: 'Independent Dual-Control Verifier', readonly: true },
           { name: 'verified_at', label: 'Verification Timestamp', readonly: true },
-          { name: 'verification_hash', label: 'Audit Verification Hash (SHA-256)', readonly: true }
+          { name: 'verification_hash', label: 'Audit Verification Hash (SHA-256)', readonly: true },
+          { name: 'evidence_intact', label: 'Evidence Unchanged Since Verification', readonly: true }
         ] }
     ]
   },
@@ -343,7 +356,7 @@ Object.assign(SCREENS, {
       in_progress: 'In Progress', success: 'Success', partial: 'Partial',
       failed: 'Failed', media_damaged: 'Media Damaged' } },
     tabs: [
-      { id: 'attempt', label: '1. Methodology & Cleanroom', bn: '১. পদ্ধতি ও ক্লিনরুম', icon: '🔬', badge: '6' },
+      { id: 'attempt', label: '1. Methodology & Cleanroom', bn: '১. পদ্ধতি ও ক্লিনরুম', icon: '🔬', badge: '7' },
       { id: 'outcome', label: '2. Telemetry & Outcome', bn: '২. ফলাফল ও টেলিমেট্রি', icon: '📊', badge: '5' }
     ],
     sections: [
@@ -351,14 +364,15 @@ Object.assign(SCREENS, {
         fields: [
           { name: 'case_id', required: true, label: 'Data Recovery Case' },
           { name: 'method', required: true, label: 'Recovery Method' },
-          { name: 'cleanroom_slot_id', label: 'Cleanroom ISO-5 Slot (Required for head_swap/chip_off)' },
+          { name: 'cleanroom_slot_id', label: 'Cleanroom ISO-5 Slot (Required for head_swap/chip_off/donor_parts)' },
+          { name: 'destructive', label: 'Destructive / Invasive (needs consent + cleanroom)', readonly: true },
           { name: 'donor_part_used', label: 'Donor Part / Head Assembly S/N' },
           { name: 'started_at', required: true, label: 'Attempt Started At' },
           { name: 'finished_at', label: 'Attempt Finished At', readonly: true }
         ] },
       { tab: 'outcome', title: 'Recovery Sector Map & Attempt Report',
         fields: [
-          { name: 'outcome', required: true, label: 'Attempt Outcome Verdict' },
+          { name: 'outcome', label: 'Attempt Outcome Verdict (set by Finish Attempt)', readonly: true },
           { name: 'bad_sectors_encountered', label: 'Unreadable Bad Sectors' },
           { name: 'imaged_pct', label: 'Sectors Successfully Imaged (%)' },
           { name: 'notes', label: 'Technician Engineering Log', type: 'text' },
@@ -396,7 +410,7 @@ Object.assign(SCREENS, {
           { name: 'temperature_c', label: 'Cleanroom Temperature (°C)' },
           { name: 'humidity_pct', label: 'Relative Humidity (%)' },
           { name: 'interlock_passed', label: 'Environmental Interlock Passed', readonly: true },
-          { name: 'state', required: true, label: 'Slot Booking State' }
+          { name: 'state', label: 'Slot Booking State', readonly: true }
         ] }
     ]
   },

@@ -9,7 +9,7 @@
 #
 # test_a03_writable_matches_forms fails when the forms and this file
 # disagree. Regenerate rather than hand-edit:
-#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03
+#   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02
 
 WRITABLE = {
     "crm.lead": frozenset(

@@ -89,7 +89,12 @@ export const SCREENS = {
   'M02-unassigned': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'zone_id', 'priority', 'scheduled_start', 'state', 'technician_id'],
     domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]],
-    stateField: 'state' },
+    stateField: 'state',
+    /* A02 audit M02-13: the actions the dispatch board does not offer.
+     * The server checks who may run each one (dispatcher / assigned technician). */
+    actions: [
+      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
+    ] },
   'M02-sla-risk': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'zone_id', 'priority', 'sla_deadline', 'scheduled_start', 'state', 'technician_id'],
     domain: [['state', 'in', ['pending_dispatch', 'dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']], ['sla_deadline', '!=', false]] },
@@ -98,8 +103,21 @@ export const SCREENS = {
     stateField: 'state' },
   'M02-record': { kind: 'model_list', model: 'fix.field.order', create: false,
     cols: ['name', 'order_id', 'technician_id', 'zone_id', 'scheduled_start', 'state',
-      'dispatched_at', 'arrived_at', 'actual_travel_minutes', 'on_time_arrival', 'completed_at'],
-    stateField: 'state' },
+      'dispatched_at', 'arrived_at', 'actual_travel_minutes', 'on_time_arrival', 'completed_at', 'onsite_payment_state'],
+    stateField: 'state',
+    /* A02 audit M02-13: decline, cancel and the cash hand-over had no button.
+     * An arrival carries the technician's position (M02-8); completion needs
+     * the customer's sign-off, a post-work photo and the work summary (M02-2),
+     * captured through the technician app's evidence channel. */
+    actions: [
+      { m: 'action_decline', l: 'Decline', ask: 'Reason for declining the job', kwarg: 'reason' },
+      { m: 'action_arrive', l: 'Mark Arrival', ask: 'Your position: latitude, longitude (e.g. 23.8103, 90.4125)', kwarg: 'position' },
+      { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment' },
+      { m: 'action_handover_field_cash', l: 'Hand Over Cash' },
+      { m: 'action_reassign', l: 'Reassign (dispatcher)', ask: 'New technician employee id, then the reason', kwarg: 'reassignment' },
+      { m: 'action_waive_geofence', l: 'Waive Geofence (dispatcher)', ask: 'Reason for waiving the arrival geofence', kwarg: 'reason' },
+      { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason' }
+    ] },
   'M02-exceptions': { kind: 'model_list', model: 'fix.field.decline.log',
     cols: ['name', 'field_order_id', 'technician_id', 'reason', 'decline_date', 'notes'] },
   'M02-crews': { kind: 'table_report', module: 'M02', report: 'crews',
@@ -188,7 +206,7 @@ export const SCREENS = {
           { name: 'sequence', label: 'Sequence' },
           { name: 'start_time', label: 'Start Time' },
           { name: 'end_time', label: 'End Time' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', label: 'State', readonly: true }
         ] },
       { tab: 'execution', title: 'Execution Notes & Directives', fields: [{ name: 'notes', type: 'text', label: 'Notes' }] }
     ]
@@ -201,11 +219,11 @@ export const SCREENS = {
     back: 'M02-record',
     status: { field: 'state' },
     tabs: [
-      { id: 'dispatch', label: '1. Dispatch & Zone', bn: '১. ডিসপ্যাচ ও জোন', icon: '🚐', badge: '6' },
+      { id: 'dispatch', label: '1. Dispatch & Zone', bn: '১. ডিসপ্যাচ ও জোন', icon: '🚐', badge: '5' },
       { id: 'schedule', label: '2. Technician & SLA', bn: '২. টেকনিশিয়ান ও সময়সূচি', icon: '⏱️', badge: '6' },
       { id: 'gps', label: '3. Site GPS & Anti-Spoof', bn: '৩. জিপিএস ও অবস্থান যাচাই', icon: '📍', badge: '8' },
       { id: 'settlement', label: '4. On-Site COD & MFS', bn: '৪. অন-সাইট পেমেন্ট ও নগদ', icon: '💳', badge: '6' },
-      { id: 'safety', label: '5. Lone-Worker & Evidence', bn: '৫. নিরাপত্তা ও প্রমাণক', icon: '🛡️', badge: '5' }
+      { id: 'safety', label: '5. Lone-Worker & Evidence', bn: '৫. নিরাপত্তা ও প্রমাণক', icon: '🛡️', badge: '8' }
     ],
     sections: [
       {
@@ -217,33 +235,32 @@ export const SCREENS = {
           { name: 'order_id', required: true, label: 'Customer Service Order' },
           { name: 'priority', required: true, label: 'SLA Priority Level' },
           { name: 'zone_id', required: true, label: 'Dispatch Territory Zone' },
-          { name: 'geofence_id', label: 'Geofence Boundary' },
-          { name: 'van_stock_verified', label: 'Van Stock Pre-Trip Verified (FLAW-02.1)' }
+          { name: 'geofence_id', label: 'Geofence Boundary' }
         ]
       },
       {
         tab: 'schedule',
         title: 'Technician Assignment & Appointment Windows',
-        note: 'Assign a qualified field engineer and specify the customer service arrival window.',
+        note: 'The technician is assigned by Dispatch (the dispatch board or Reassign); the SLA deadline is derived from the service order and its policy.',
         fields: [
-          { name: 'technician_id', label: 'Assigned Field Technician' },
-          { name: 'helper_technician_id', label: 'Crew Helper / Co-Technician' },
+          { name: 'technician_id', label: 'Assigned Field Technician', readonly: true },
           { name: 'scheduled_start', required: true, label: 'Scheduled Start Window' },
           { name: 'scheduled_end', label: 'Scheduled End Window' },
-          { name: 'sla_deadline', label: 'Guaranteed SLA Deadline' },
-          { name: 'on_time_arrival', label: 'Arrived Within SLA Window', readonly: true }
+          { name: 'sla_deadline', label: 'Guaranteed SLA Deadline', readonly: true },
+          { name: 'on_time_arrival', label: 'Arrived Within SLA Window', readonly: true },
+          { name: 'arrived_at', label: 'Arrived At', readonly: true }
         ]
       },
       {
         tab: 'gps',
         title: 'Customer Site Location, Haversine Distance & GNSS Anti-Spoofing (FLAW-02.2)',
-        note: 'Mock GPS locations are hard-blocked at arrival check-in. GNSS HDOP measures satellite fix precision.',
+        note: 'Mock GPS locations are hard-blocked at arrival check-in, and a geofenced arrival must be inside the fence. Both are set by the device and the arrival action, never on this form.',
         fields: [
           { name: 'customer_address', label: 'Service Site Address', type: 'text' },
           { name: 'latitude', label: 'Site GPS Latitude' },
           { name: 'longitude', label: 'Site GPS Longitude' },
-          { name: 'is_mock_location', label: 'Mock GPS Detected (Hard Block)' },
-          { name: 'gnss_hdop', label: 'GNSS HDOP Precision' },
+          { name: 'is_mock_location', label: 'Mock GPS Detected (Hard Block)', readonly: true },
+          { name: 'gnss_hdop', label: 'GNSS HDOP Precision', readonly: true },
           { name: 'travel_time_est_minutes', label: 'Est. Travel Time (min)' },
           { name: 'distance_km', label: 'Estimated Distance (km)' },
           { name: 'notes', label: 'Site Access & Dispatch Instructions', type: 'text' }
@@ -252,25 +269,29 @@ export const SCREENS = {
       {
         tab: 'settlement',
         title: 'On-Site Payment Collection & M04 Cash Handover (FLAW-02.3 / HS-08)',
-        note: 'bKash/Nagad/Rocket/Upay collections require a verified Gateway TrxID before job completion.',
+        note: 'Recorded with Record Collection on the Work Order Record screen. Cash waits for Hand Over Cash to a branch shift; the field order never marks the service order settled itself.',
         fields: [
-          { name: 'onsite_collection_amount', label: 'On-Site Collection Amount (BDT)' },
-          { name: 'onsite_payment_method', label: 'On-Site Payment Channel' },
-          { name: 'onsite_payment_trx_id', label: 'MFS / POS Gateway TrxID' },
-          { name: 'cash_shift_id', label: 'Handed Over to Branch Cash Shift (M04)' },
-          { name: 'cash_handed_over_at', label: 'Cash Handover Timestamp', readonly: true },
-          { name: 'customer_signature_captured', label: 'Customer Digital Signature Captured' }
+          { name: 'onsite_collection_amount', label: 'On-Site Collection Amount (BDT)', readonly: true },
+          { name: 'onsite_payment_method', label: 'On-Site Payment Channel', readonly: true },
+          { name: 'onsite_payment_trx_id', label: 'MFS / POS Gateway TrxID', readonly: true },
+          { name: 'onsite_payment_state', label: 'On-Site Payment Status', readonly: true },
+          { name: 'cash_shift_id', label: 'Handed Over to Branch Cash Shift (M04)', readonly: true },
+          { name: 'cash_handed_over_at', label: 'Cash Handover Timestamp', readonly: true }
         ]
       },
       {
         tab: 'safety',
         title: 'Lone-Worker Safety Check-In & Field Evidence Pack',
+        note: 'Completion needs the customer sign-off (verified OTP or signature), a post-work photo and the work summary. The signature and photos come from the technician app.',
         fields: [
-          { name: 'safety_checkin_status', label: 'Lone-Worker Safety Status' },
-          { name: 'last_safety_ping_at', label: 'Last Safety Heartbeat At' },
-          { name: 'pre_work_photo_attachment_id', label: 'Pre-Work Site / Nameplate Photo' },
-          { name: 'post_work_photo_attachment_id', label: 'Post-Work Completion Photo' },
-          { name: 'signed_job_sheet_attachment_id', label: 'Signed Field Job Sheet PDF' }
+          { name: 'lone_worker_checkin_at', label: 'Last Safety Heartbeat At' },
+          { name: 'work_summary', label: 'On-Site Work Summary', type: 'text' },
+          { name: 'customer_otp_verified', label: 'Customer OTP Verified', readonly: true },
+          { name: 'customer_signature_attachment_id', label: 'Customer Signature', readonly: true },
+          { name: 'customer_signature_signer', label: 'Signed By', readonly: true },
+          { name: 'pre_work_photo_attachment_id', label: 'Pre-Work Site / Nameplate Photo', readonly: true },
+          { name: 'post_work_photo_attachment_id', label: 'Post-Work Completion Photo', readonly: true },
+          { name: 'field_job_sheet_attachment_id', label: 'Signed Field Job Sheet PDF' }
         ]
       }
     ]
@@ -282,30 +303,26 @@ export const SCREENS = {
     title: 'Technician Dispatch Override',
     back: 'M02-exceptions',
     tabs: [
-      { id: 'target', label: '1. Order & Technician', bn: '১. অর্ডার ও টেকনিশিয়ান', icon: '👷', badge: '4' },
-      { id: 'justification', label: '2. Override & Evidence', bn: '২. অনুমোদন ও প্রমাণক', icon: '🔐', badge: '4' }
+      { id: 'target', label: '1. Order & Technician', bn: '১. অর্ডার ও টেকনিশিয়ান', icon: '👷', badge: '3' },
+      { id: 'justification', label: '2. Reason & Notes', bn: '২. কারণ ও মন্তব্য', icon: '📝', badge: '2' }
     ],
     sections: [
       {
         tab: 'target',
         title: 'Field Order & Technician Assignment',
-        note: 'Select the active field work order requiring supervisor override and specify the technician.',
+        note: 'A decline is recorded by the technician declining the field order (Decline on the Work Order Record screen); a reassignment is the dispatcher\'s Reassign. This record is the audit trail.',
         fields: [
-          { name: 'field_order_id', required: true, label: 'Field Work Order Target' },
-          { name: 'technician_id', required: true, label: 'Declining / Overridden Technician' },
-          { name: 'replacement_technician_id', label: 'Replacement Field Technician' },
-          { name: 'decline_date', label: 'Override Effective Timestamp' }
+          { name: 'field_order_id', label: 'Field Work Order Target', readonly: true },
+          { name: 'technician_id', label: 'Declining Technician', readonly: true },
+          { name: 'decline_date', label: 'Declined At', readonly: true }
         ]
       },
       {
         tab: 'justification',
-        title: 'Override Reason & Supervisor Authorization',
-        note: 'Record supervisor operational justification and reassignment instructions.',
+        title: 'Decline Reason & Notes',
         fields: [
-          { name: 'reason', required: true, label: 'Override Reason Code' },
-          { name: 'supervisor_approved', label: 'Supervisor Override Approved' },
-          { name: 'notes', required: true, label: 'Supervisor Justification / Reassignment Directives', type: 'text' },
-          { name: 'evidence_attachment_id', label: 'Supporting Exception Photo / Document' }
+          { name: 'reason', label: 'Decline Reason Code', readonly: true },
+          { name: 'notes', label: 'Technician Notes', type: 'text' }
         ]
       }
     ]
@@ -330,18 +347,18 @@ export const SCREENS = {
         fields: [
           { name: 'order_id', required: true, label: 'Service Order Target' },
           { name: 'zone_id', required: true, label: 'Dispatch Territory Zone' },
-          { name: 'technician_id', label: 'Reassigned Field Technician' },
+          { name: 'technician_id', label: 'Assigned Field Technician', readonly: true },
           { name: 'priority', label: 'Escalated SLA Priority' }
         ]
       },
       {
         tab: 'windows',
         title: 'Emergency Reschedule Appointment Windows',
-        note: 'Specify the rescheduled customer arrival window and adjusted SLA deadline.',
+        note: 'Specify the rescheduled customer arrival window. The SLA deadline is not moved by a reschedule (A02 audit M02-7).',
         fields: [
           { name: 'scheduled_start', required: true, label: 'New Scheduled Start Window' },
           { name: 'scheduled_end', label: 'New Scheduled End Window' },
-          { name: 'sla_deadline', label: 'Adjusted SLA Resolution Deadline' }
+          { name: 'sla_deadline', label: 'SLA Resolution Deadline', readonly: true }
         ]
       },
       {
@@ -349,10 +366,10 @@ export const SCREENS = {
         title: 'Emergency Justification & Customer Agreement',
         note: 'Document customer agreement, weather conditions, vehicle breakdown, or force majeure.',
         fields: [
-          { name: 'decline_reason', label: 'Incident Trigger / Reschedule Cause' },
-          { name: 'decline_notes', label: 'Customer Confirmation & Delay Justification', type: 'text' },
+          { name: 'decline_reason', label: 'Last Decline Reason', readonly: true },
+          { name: 'decline_notes', label: 'Last Decline Notes', type: 'text', readonly: true },
           { name: 'notes', label: 'Safety, Route & Access Instructions', type: 'text' },
-          { name: 'signed_job_sheet_attachment_id', label: 'Reschedule Confirmation Attachment' }
+          { name: 'field_job_sheet_attachment_id', label: 'Reschedule Confirmation Attachment' }
         ]
       }
     ]
@@ -366,30 +383,27 @@ export const SCREENS = {
     title: 'Field Exception Report',
     back: 'M02-exceptions',
     tabs: [
-      { id: 'source', label: '1. Exception Source', bn: '১. ব্যতিক্রম উৎস', icon: '⚠️', badge: '4' },
-      { id: 'resolution', label: '2. Coded Reason & Evidence', bn: '২. কারণ ও প্রমাণক', icon: '📎', badge: '5' }
+      { id: 'source', label: '1. Exception Source', bn: '১. ব্যতিক্রম উৎস', icon: '⚠️', badge: '3' },
+      { id: 'resolution', label: '2. Coded Reason & Notes', bn: '২. কারণ ও মন্তব্য', icon: '📎', badge: '2' }
     ],
     sections: [
       {
         tab: 'source',
         title: 'Exception Source & Technician',
+        note: 'Written by Decline on the field order; read-only here.',
         fields: [
-          { name: 'field_order_id', required: true, label: 'Field Order' },
-          { name: 'technician_id', required: true, label: 'Technician' },
-          { name: 'replacement_technician_id', label: 'Replacement Technician' },
-          { name: 'decline_date', required: true, label: 'Exception Date' }
+          { name: 'field_order_id', label: 'Field Order', readonly: true },
+          { name: 'technician_id', label: 'Technician', readonly: true },
+          { name: 'decline_date', label: 'Exception Date', readonly: true }
         ]
       },
       {
         tab: 'resolution',
-        title: 'Coded Reason, Supervisor Review & Evidence',
+        title: 'Coded Reason & Notes',
         note: 'Every decline/exception carries a coded reason so the Field Exception Summary report can group them.',
         fields: [
-          { name: 'decline_reason', label: 'Reason Code (from the field order)' },
-          { name: 'reason', label: 'Reason (free text)' },
-          { name: 'supervisor_approved', label: 'Supervisor Reviewed' },
-          { name: 'notes', label: 'Notes', type: 'text' },
-          { name: 'evidence_attachment_id', label: 'Exception Photo / Evidence Attachment' }
+          { name: 'reason', label: 'Reason Code', readonly: true },
+          { name: 'notes', label: 'Notes', type: 'text' }
         ]
       }
     ]
@@ -421,10 +435,10 @@ export const SCREENS = {
         title: 'Measured Route Optimisation Outcome',
         note: 'Build the plan from the Route Optimisation screen (action_optimize_route), then start and complete it here.',
         fields: [
-          { name: 'order_count', label: 'Stops' },
-          { name: 'total_distance_km', label: 'Total Distance (km)' },
-          { name: 'total_duration_hours', label: 'Total Duration (h)' },
-          { name: 'improvement_pct', label: 'Optimisation Gain %' }
+          { name: 'order_count', label: 'Stops', readonly: true },
+          { name: 'total_distance_km', label: 'Total Distance (km)', readonly: true },
+          { name: 'total_duration_hours', label: 'Total Duration (h)', readonly: true },
+          { name: 'improvement_pct', label: 'Optimisation Gain %', readonly: true }
         ]
       }
     ]
@@ -456,10 +470,10 @@ export const SCREENS = {
         ] },
       { tab: 'telemetry', title: "GNSS Anti-Spoofing & Mobile Telemetry (FLAW-02.2)",
         fields: [
-          { name: 'is_mock_location', label: "Mock Location Flagged" },
+          { name: 'is_mock_location', label: "Mock Location Flagged", readonly: true },
           { name: 'gnss_hdop', label: "GNSS HDOP Precision" },
           { name: 'speed_kmh', label: "Speed (km/h)" },
-          { name: 'battery_level', label: "Device Battery (%)" }
+          { name: 'battery_pct', label: "Device Battery (%)" }
         ] }
     ]
   },

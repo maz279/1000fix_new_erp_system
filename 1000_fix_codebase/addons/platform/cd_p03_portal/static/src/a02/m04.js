@@ -78,7 +78,9 @@ export const SCREENS = {
       { m: 'action_call', l: 'Call Token' },
       { m: 'action_serving', l: 'Start Serving' },
       { m: 'action_complete', l: 'Complete' },
-      { m: 'action_no_show', l: 'Mark No-Show' }
+      { m: 'action_no_show', l: 'Mark No-Show' },
+      /* A02 audit M04-9: the wait SLA also runs on a 5-minute cron */
+      { m: 'action_evaluate_wait_sla', l: 'Check Wait SLA' }
     ] },
   'M04-counter': { kind: 'table_report', module: 'M04', report: 'wait_distribution', period: false },
   'M04-priority': { kind: 'model_list', model: 'fix.token.queue', create: false,
@@ -97,9 +99,14 @@ export const SCREENS = {
   'M04-drawer': { kind: 'model_list', model: 'fix.cash.shift', create: false,
     cols: ['shift_date', 'shift_type', 'branch_id', 'operator_id', 'opening_float', 'cash_payments', 'cash_refunds', 'expected_closing', 'closing_counted', 'variance', 'state'],
     stateField: 'state',
+    /* A02 audit M04-2/-11: the cashier submits a BLIND count (it no longer
+     * echoes the variance); a Branch Manager who did not handle the cash
+     * approves a variance beyond tolerance and reconciles (BRU-FRD-11). */
     actions: [
       { m: 'action_close_shift', l: 'Close for Counting' },
+      { m: 'action_submit_blind_count', l: 'Submit Blind Count' },
       { m: 'action_confirm_closed', l: 'Confirm Count' },
+      { m: 'action_approve_variance', l: 'Approve Variance' },
       { m: 'action_reconcile', l: 'Reconcile' }
     ] },
   'M04-payments': { kind: 'model_list', model: 'fix.counter.sale', create: false,
@@ -108,11 +115,15 @@ export const SCREENS = {
   'M04-shift': { kind: 'table_report', module: 'M04', report: 'daily_cash', period: false },
   'M04-banking': { kind: 'table_report', module: 'M04', report: 'variance_register', period: false },
   'M04-sales': { kind: 'model_list', model: 'fix.counter.sale', create: false,
-    cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'sold_by'],
+    cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'refund_state', 'sold_by'],
     stateField: 'state',
+    /* A02 audit M04-5: a price below list and a refund need a manager who
+     * did not sell; the refund leaves the drawer that is open now. */
     actions: [
       { m: 'action_confirm', l: 'Confirm Sale' },
-      { m: 'action_refund', l: 'Refund' }
+      { m: 'action_approve_price_override', l: 'Approve Price' },
+      { m: 'action_request_refund', l: 'Request Refund', ask: 'Reason (defective / wrong_item / customer_cancelled / duplicate / other): note', kwarg: 'reason' },
+      { m: 'action_approve_refund', l: 'Approve Refund' }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
   'M04-checklists': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
@@ -126,8 +137,8 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.token.queue',
     title: "Token Issue",
-    back: 'M04-tokens',
-    status: { field: 'state', labels: { waiting: "Waiting", called: "Called", served: "Served", abandoned: "Abandoned" } },
+    back: 'M04-queue',
+    status: { field: 'state', labels: { waiting: "Waiting", called: "Called", serving: "Serving", completed: "Completed", no_show: "No Show", cancelled: "Cancelled" } },
     tabs: [
       { id: 'token', label: '1. Token & Service', bn: '১. টোকেন ও সেবা', icon: '🎫', badge: '7' },
       { id: 'wait', label: '2. SLA Wait Time & Escalation', bn: '২. অপেক্ষার সময় ও এসকেলেশন', icon: '⏱️', badge: '5' }
@@ -138,18 +149,18 @@ export const SCREENS = {
           { name: 'branch_id', required: true, label: "Branch Hub" },
           { name: 'token_display', label: "Token Number", readonly: true },
           { name: 'customer_id', label: "Customer" },
-          { name: 'customer_phone', label: "Customer Phone (+880)" },
+          { name: 'customer_phone', label: "Customer Phone (+880)", readonly: true },
           { name: 'service_type', required: true, label: "Intake Channel / Stream" },
           { name: 'counter_number', label: "Assigned Service Counter" },
-          { name: 'service_order_id', label: "Linked Service Order" }
+          { name: 'service_order_id', label: "Linked Service Order", readonly: true }
         ] },
       { tab: 'wait', title: "15-Minute Wait SLA & Supervisor Escalation (FLAW-04.1)",
         fields: [
           { name: 'priority_level', label: "Queue Priority Tier" },
           { name: 'wait_seconds', label: "Elapsed Waiting Time (Seconds)", readonly: true },
           { name: 'wait_sla_breached', label: "15-Min Wait SLA Breached Alert", readonly: true },
-          { name: 'supervisor_escalated', label: "Escalated to Branch Supervisor" },
-          { name: 'state', required: true, label: "Token Status" }
+          { name: 'supervisor_escalated', label: "Escalated to Branch Supervisor", readonly: true },
+          { name: 'state', label: "Token Status", readonly: true }
         ] }
     ]
   },
@@ -157,8 +168,8 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.walkin.intake',
     title: "Device Storage Assignment",
-    back: 'M04-intake',
-    status: { field: 'state', labels: { open: "Open", handed_over: "Handed Over", converted: "Converted", abandoned: "Abandoned" } },
+    back: 'M04-storage',
+    status: { field: 'state', labels: { in_progress: "In Progress", handover_pending: "Handover Pending", completed: "Completed" } },
     tabs: [
       { id: 'intake', label: '1. Customer & Device', bn: '১. গ্রাহক ও ডিভাইস', icon: '📱', badge: '6' },
       { id: 'accessory', label: '2. Accessory Bag & Barcode', bn: '২. ব্যাগ ও বারকোড', icon: '🎒', badge: '6' },
@@ -171,7 +182,9 @@ export const SCREENS = {
           { name: 'token_id', label: "Queue Token" },
           { name: 'branch_id', required: true, label: "Branch Center" },
           { name: 'customer_id', required: true, label: "Customer" },
-          { name: 'customer_phone', label: "Customer Phone" },
+          { name: 'customer_phone', label: "Customer Phone", readonly: true },
+          /* BRU-FRD-12 (A02 audit M04-8): the device is identified before handover */
+          { name: 'device_id', label: "Registered Device" },
           { name: 'device_serial_input', label: "Scanned Serial / IMEI" },
           { name: 'fault_description', required: true, label: "Reported Fault & Symptoms", type: "text" }
         ] },
@@ -183,7 +196,7 @@ export const SCREENS = {
           { name: 'has_battery', label: "Battery Included" },
           { name: 'has_cable_stylus', label: "Data Cable / Stylus / Case Included" },
           { name: 'storage_bin_code', label: "Secure Storage Bin Code" },
-          { name: 'state', required: true, label: "Intake Workflow State" }
+          { name: 'state', label: "Intake Workflow State", readonly: true }
         ] },
       { tab: 'condition', title: "6-Point Cosmetic Condition Matrix & Water Ingress",
         fields: [
@@ -195,8 +208,8 @@ export const SCREENS = {
         ] },
       { tab: 'handover', title: "Customer Handover Proof & Temporary Loaner Device",
         fields: [
-          { name: 'handover_acknowledged', label: "Customer Handover Acknowledged" },
-          { name: 'handover_method', label: "Handover Proof Method" },
+          { name: 'handover_acknowledged', label: "Customer Handover Acknowledged", readonly: true },
+          { name: 'handover_method', label: "Handover Proof Method (Digital Signature)" },
           { name: 'loaner_device_id', label: "Issued Temporary Loaner Device" },
           { name: 'customer_signature_attachment_id', label: "Customer Signed Intake Receipt" },
           { name: 'service_order_id', label: "Generated Service Order Ref", readonly: true }
@@ -207,8 +220,8 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.cash.shift',
     title: "Shift Open/Close",
-    back: 'M04-shifts',
-    status: { field: 'state', labels: { open: "Open", closed: "Closed", reconciled: "Reconciled" } },
+    back: 'M04-drawer',
+    status: { field: 'state', labels: { open: "Open", counting: "Counting", closed: "Closed", reconciled: "Reconciled", discrepancy: "Discrepancy" } },
     tabs: [
       { id: 'shift', label: '1. Shift Context', bn: '১. শিফট তথ্য', icon: '🏢', badge: '5' },
       { id: 'blind', label: '2. Bangladesh Taka Denomination Count', bn: '২. টাকার নোট গণনা', icon: '💵', badge: '10' },
@@ -240,13 +253,16 @@ export const SCREENS = {
       { tab: 'reconciliation', title: "M02 Field Service Cash Handover & Supervisor Variance Gate (FLAW-04.2 / HS-08)",
         note: "Variances exceeding ৳১০০ require branch supervisor cryptographic / user sign-off.",
         fields: [
-          { name: 'field_cash_deposited', label: "M02 On-Site Field Cash Deposited (BDT)" },
+          { name: 'field_cash_deposited', label: "M02 On-Site Field Cash Deposited (BDT)", readonly: true },
           { name: 'mfs_settled_amount', label: "bKash / Nagad POS Settled Amount (BDT)" },
           { name: 'variance', label: "Cash Drawer Variance (BDT)", readonly: true },
-          { name: 'supervisor_variance_approved_by', label: "Supervisor Variance Approved By" },
+          /* A02 audit M04-2: stamped by Approve Variance, never typed */
+          { name: 'supervisor_variance_approved_by', label: "Supervisor Variance Approved By", readonly: true },
+          { name: 'variance_approved_amount', label: "Approved Variance (BDT)", readonly: true },
+          { name: 'reconciled_by', label: "Reconciled By", readonly: true },
           { name: 'bank_deposit_slip_no', label: "Bank Deposit Challan / Slip No" },
           { name: 'bank_deposit_attachment_id', label: "Bank Deposit Slip Scanned PDF" },
-          { name: 'state', required: true, label: "Reconciliation Status" }
+          { name: 'state', label: "Reconciliation Status", readonly: true }
         ] }
     ]
   },
@@ -254,8 +270,8 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.counter.sale',
     title: "Counter Sale",
-    back: 'M04-counter',
-    status: { field: 'state', labels: { draft: "Draft", paid: "Paid", refunded: "Refunded" } },
+    back: 'M04-sales',
+    status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", refunded: "Refunded" } },
     tabs: [
       { id: 'sale', label: '1. Sale Line & Product', bn: '১. পণ্য ও বিক্রয়', icon: '🛒', badge: '7' },
       { id: 'mushak', label: '2. Payment & Mushak 6.3', bn: '২. পেমেন্ট ও মূসক ৬.৩', icon: '🧾', badge: '6' }
@@ -269,16 +285,22 @@ export const SCREENS = {
           { name: 'customer_id', label: "Customer" },
           { name: 'product_id', required: true, label: "Sold Product / Spare Part" },
           { name: 'quantity', required: true, label: "Quantity" },
-          { name: 'unit_price', required: true, label: "Unit Price (BDT)" }
+          { name: 'unit_price', required: true, label: "Unit Price (BDT)" },
+          { name: 'list_price_floor', label: "List Price (BDT)", readonly: true },
+          { name: 'price_override_approved_by', label: "Price Below List Approved By", readonly: true }
         ] },
       { tab: 'mushak', title: "Mushak 6.3 VAT & Payment Capture",
         fields: [
           { name: 'payment_method', required: true, label: "Payment Channel (Cash/bKash/Card)" },
-          { name: 'payment_trx_ref', label: "Gateway Transaction Reference" },
-          { name: 'vat_amount', label: "Mushak 15% VAT (BDT)", readonly: true },
-          { name: 'total', required: true, label: "Grand Total (BDT)" },
-          { name: 'invoice_attachment_id', label: "Signed Mushak 6.3 Invoice PDF" },
-          { name: 'state', required: true, label: "Transaction State" }
+          /* A02 audit M04-12: payment_trx_ref / vat_amount / invoice_attachment_id
+           * never existed on the model; transaction_ref is the real field */
+          { name: 'transaction_ref', label: "Gateway Transaction Reference" },
+          { name: 'mushak_63_ref', label: "NBR Mushak-6.3 Tax Challan Ref" },
+          { name: 'total', label: "Grand Total (BDT)", readonly: true },
+          { name: 'state', label: "Transaction State", readonly: true },
+          { name: 'refund_state', label: "Refund Status", readonly: true },
+          { name: 'refund_reason_code', label: "Refund Reason", readonly: true },
+          { name: 'refund_approved_by', label: "Refund Approved By", readonly: true }
         ] }
     ]
   },
@@ -317,9 +339,9 @@ export const FORM_CHIPS = {
     'fix.counter.sale': 'M04-form-countersale',
   },
   'M04:__by_screen__': {
-    'M04-tokens': 'M04-form-token',
-    'M04-intake': 'M04-form-storage',
-    'M04-shifts': 'M04-form-shift',
-    'M04-counter': 'M04-form-countersale',
+    'M04-queue': 'M04-form-token',
+    'M04-storage': 'M04-form-storage',
+    'M04-drawer': 'M04-form-shift',
+    'M04-sales': 'M04-form-countersale',
   }
 };

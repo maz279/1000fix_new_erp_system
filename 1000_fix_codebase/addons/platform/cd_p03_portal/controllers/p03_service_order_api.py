@@ -633,12 +633,10 @@ class P03ServiceOrderApiController(http.Controller):
             }
         try:
             with env.cr.savepoint():
-                if target == "ready":
-                    # BRU-SRM-04: Ready only through the QC-gated action (the
-                    # model's transition check enforces the same gate).
-                    order.action_ready()
-                else:
-                    order.write({"state": target})
+                # Every stage moves through the action that owns it, so its
+                # gates apply (A02 audit M01-2/3: order state is guarded and a
+                # raw write is refused).
+                order.action_transition(target)
         except Exception as e:
             logger.exception("Stage advance refused for order %s", order_id)
             return {"success": False, "error": _user_error(e)}

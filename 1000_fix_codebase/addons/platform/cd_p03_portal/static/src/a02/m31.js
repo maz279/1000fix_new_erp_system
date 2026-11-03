@@ -63,34 +63,89 @@ export const MODULE = {
   }
 };
 
+
+const JOB_FLOW = [
+  { m: 'action_intake', l: 'Intake' },
+  { m: 'action_diagnostic', l: 'Start Diagnosis' },
+  { m: 'action_auto_assign_bench', l: 'Auto-Assign Bench' },
+  { m: 'action_wait_parts', l: 'Wait for Parts' },
+  { m: 'action_start_repair', l: 'Start Repair (Order Approved)' },
+  { m: 'action_submit_qc', l: 'Submit to QC (L1)' },
+  { m: 'action_start_burn_in', l: 'Start Burn-In' },
+  { m: 'action_log_thermal_crash', l: 'Log Thermal Crash', ask: 'What happened (crash, throttle, reboot)?', kwarg: 'note' },
+  { m: 'action_pass_burn_in', l: 'Pass Burn-In' },
+  { m: 'action_fail_burn_in', l: 'Fail Burn-In (Back to Bench)', ask: 'Why did the burn-in fail?', kwarg: 'reason' },
+  { m: 'action_pass_qc', l: 'Pass QC (Inspector)', ask: 'QC inspection findings', kwarg: 'notes' },
+  { m: 'action_fail_qc', l: 'Fail QC (NCR + Rework)', ask: 'Why did the job fail QC?', kwarg: 'reason' },
+  { m: 'action_deliver', l: 'Release / Deliver' },
+  { m: 'action_cancel', l: 'Cancel Job' }
+];
+const JOB_EXCEPTIONS = [
+  { m: 'action_grant_certification_waiver', l: 'Grant Certification Waiver (Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
+  { m: 'action_propose_ber', l: 'Propose BER / Scrap', ask: 'BER reason and the evidence seen', kwarg: 'reason' },
+  { m: 'action_dofa_approve', l: 'Approve BER Write-Off (DOFA)' },
+  { m: 'action_confirm_ber', l: 'Confirm BER (Second Technician)' }
+];
+
 /* In-workspace data screens: model_list over the whitelisted cd_workshop
- * models; table_report over the module REPORTS. */
+ * models; table_report over the module REPORTS. Workflow buttons call the
+ * named job actions only (A02 audit M31-11): the job's state, QC, burn-in
+ * and waiver fields change nowhere else. */
 export const SCREENS = {
   'M31-orders': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'workshop_id', 'bench_id', 'technician_id', 'repair_level', 'priority', 'state'],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [...JOB_FLOW, ...JOB_EXCEPTIONS] },
   'M31-record': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'workshop_id', 'bench_id', 'technician_id', 'repair_level', 'state',
       'burn_in_passed', 'qc_passed', 'is_rework', 'rework_count', 'parts_total', 'labour_total', 'total_repair_cost',
       'intake_date', 'completed_at'],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [...JOB_FLOW, ...JOB_EXCEPTIONS] },
   'M31-transfer': { kind: 'table_report', module: 'M31', report: 'bench_utilisation', period: false },
   'M31-benches': { kind: 'model_list', model: 'fix.workshop.bench', create: false,
     cols: ['code', 'name', 'workshop_id', 'repair_level', 'state', 'current_job_count', 'max_concurrent_jobs', 'technician_id', 'is_esd_safe'],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [
+      { m: 'action_set_maintenance', l: 'Take into Maintenance', ask: 'Reason (calibration, tool fault…)', kwarg: 'reason' },
+      { m: 'action_return_to_service', l: 'Return to Service' },
+      { m: 'action_set_offline', l: 'Close Bench (Supervisor)', ask: 'Why is the bench closing?', kwarg: 'reason' }
+    ] },
   'M31-benchmaster': { kind: 'model_list', model: 'fix.workshop', create: false,
     cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count', 'available_bench_count', 'bench_utilization', 'active_job_count'] },
   'M31-levels': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
   'M31-diag': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'device_serial', 'repair_level', 'priority', 'state', 'technician_id', 'bench_id'],
     domain: [['state', 'in', ['intake', 'diagnostic']]],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [
+      { m: 'action_diagnostic', l: 'Start Diagnosis' },
+      { m: 'action_auto_assign_bench', l: 'Auto-Assign Bench' },
+      { m: 'action_wait_parts', l: 'Wait for Parts' },
+      { m: 'action_start_repair', l: 'Start Repair (Order Approved)' },
+      { m: 'action_grant_certification_waiver', l: 'Grant Certification Waiver (Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
+      { m: 'action_propose_ber', l: 'Propose BER / Scrap', ask: 'BER reason and the evidence seen', kwarg: 'reason' }
+    ] },
   'M31-parts': { kind: 'model_list', model: 'fix.workshop.part.line', create: false,
-    cols: ['job_id', 'part_number', 'quantity', 'unit_cost', 'subtotal', 'lot_serial_number'] },
+    cols: ['job_id', 'part_number', 'quantity', 'unit_cost', 'subtotal', 'lot_serial_number', 'reservation_state'],
+    stateField: 'reservation_state',
+    actions: [
+      { m: 'action_reserve', l: 'Reserve' },
+      { m: 'action_consume_part', l: 'Consume on Bench' },
+      { m: 'action_release_reservation', l: 'Release Reservation' }
+    ] },
   'M31-testing': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'repair_level', 'state', 'burn_in_started_at', 'burn_in_completed_at', 'burn_in_passed', 'qc_passed', 'qc_inspector_id'],
     domain: [['state', 'in', ['burn_in', 'qc_pending', 'qc_failed']]],
-    stateField: 'state' },
+    stateField: 'state',
+    actions: [
+      { m: 'action_log_thermal_crash', l: 'Log Thermal Crash', ask: 'What happened (crash, throttle, reboot)?', kwarg: 'note' },
+      { m: 'action_pass_burn_in', l: 'Pass Burn-In' },
+      { m: 'action_fail_burn_in', l: 'Fail Burn-In (Back to Bench)', ask: 'Why did the burn-in fail?', kwarg: 'reason' },
+      { m: 'action_pass_qc', l: 'Pass QC (Inspector)', ask: 'QC inspection findings', kwarg: 'notes' },
+      { m: 'action_fail_qc', l: 'Fail QC (NCR + Rework)', ask: 'Why did the job fail QC?', kwarg: 'reason' },
+      { m: 'action_start_repair', l: 'Back on Bench (Rework)' }
+    ] },
   'M31-costing': { kind: 'table_report', module: 'M31', report: 'cost_per_repair', period: false },
   'M31-throughput': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
   'M31-methods': { kind: 'table_report', module: 'M31', report: 'rework_loops', period: false },
@@ -100,14 +155,15 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.workshop.job',
     title: "Repair Order",
-    back: 'M31-jobs',
-    status: { field: 'state', labels: { draft: "Draft", in_repair: "In Repair", burn_in: "Burn-In", qc: "QC", completed: "Completed", cancelled: "Cancelled" } },
+    back: 'M31-orders',
+    status: { field: 'state', labels: { draft: "Draft", intake: "Intake", diagnostic: "Diagnosis", waiting_parts: "Waiting Parts", in_repair: "In Repair", burn_in: "Burn-In", qc_pending: "QC Pending", qc_failed: "QC Failed", ready: "Ready", delivered: "Delivered", unrepairable: "Unrepairable (BER)", cancelled: "Cancelled" } },
     tabs: [
       { id: 'job', label: '1. Depot Job & Bench', bn: '১. ওয়ার্কশপ জব ও বেঞ্চ', icon: '🔧', badge: '7' },
       { id: 'soldering', label: '2. Schematic & IPC Rework', bn: '২. স্কিম্যাটিক ও মাইক্রো-সোল্ডারিং', icon: '🔍', badge: '7' },
       { id: 'burnin', label: '3. 240-Min Burn-In Gate', bn: '৩. ২৪০-মিনিট বার্ন-ইন যাচাই', icon: '🔥', badge: '6' },
       { id: 'labor', label: '4. SAM Labor Efficiency', bn: '৪. শ্রম দক্ষতা ও কস্টিং', icon: '⏱️', badge: '6' },
-      { id: 'qc', label: '5. Quality & Evidence Pack', bn: '৫. কিউসি ও প্রমাণক', icon: '🛡️', badge: '6' }
+      { id: 'qc', label: '5. Quality & Evidence Pack', bn: '৫. কিউসি ও প্রমাণক', icon: '🛡️', badge: '8' },
+      { id: 'waiver', label: '6. Waiver & BER Write-Off', bn: '৬. ছাড় ও বিইআর রাইট-অফ', icon: '⚖️', badge: '9' }
     ],
     sections: [
       { tab: 'job', title: "Workshop Repair Job & Bench Routing", note: "A bench repair job. Parts and labour totals roll up from the job lines.",
@@ -136,8 +192,8 @@ export const SCREENS = {
         note: "L2/L3 repairs require >= 240 minutes (4 hours) continuous burn-in with 0 thermal crashes before QC.",
         fields: [
           { name: 'burn_in_duration_hours', label: "Target Burn-In Duration (Hours)" },
-          { name: 'burn_in_actual_minutes', label: "Actual Logged Burn-In Minutes (>= 240m)" },
-          { name: 'thermal_crash_count', label: "Thermal Crashes Observed (Must be 0)" },
+          { name: 'burn_in_actual_minutes', label: "Measured Burn-In Minutes (>= 240m)", readonly: true },
+          { name: 'thermal_crash_count', label: "Thermal Crashes Logged (Must be 0)", readonly: true },
           { name: 'burn_in_temp_celsius', label: "Chamber Ambient Temp (°C)" },
           { name: 'burn_in_started_at', label: "Burn-In Started At", readonly: true },
           { name: 'burn_in_completed_at', label: "Burn-In Completed At", readonly: true },
@@ -151,16 +207,31 @@ export const SCREENS = {
           { name: 'parts_total', label: "Spare Parts Total (BDT)", readonly: true },
           { name: 'labour_total', label: "Labour Cost Allocation (BDT)" },
           { name: 'total_repair_cost', label: "Total Direct Repair Cost (BDT)", readonly: true },
-          { name: 'dofa_writeoff_tier', label: "DOFA Scrap / BER Write-Off Tier" }
+          { name: 'dofa_writeoff_tier', label: "DOFA Scrap / BER Write-Off Tier (derived)", readonly: true }
         ] },
       { tab: 'qc', title: "Independent Quality Control & Post-Rework Photos",
         fields: [
           { name: 'qc_passed', label: "Independent QC Inspection Passed", readonly: true },
-          { name: 'qc_inspector_id', label: "Independent QC Inspector" },
-          { name: 'qc_notes', label: "QC Inspection Findings", type: "text" },
+          { name: 'qc_inspector_id', label: "Independent QC Inspector (stamped)", readonly: true },
+          { name: 'qc_inspector_user_id', label: "QC Inspected By (user)", readonly: true },
+          { name: 'qc_inspected_at', label: "QC Inspected At", readonly: true },
+          { name: 'qc_notes', label: "QC Inspection Findings", type: "text", readonly: true },
           { name: 'post_rework_photo_attachment_id', label: "Post-Rework Finished Board Photo" },
           { name: 'is_rework', label: "Internal Rework Loop Active", readonly: true },
-          { name: 'state', required: true, label: "Repair Job State" }
+          { name: 'state', label: "Repair Job State", readonly: true }
+        ] },
+      { tab: 'waiver', title: "M22 Certification Waiver & BER / Scrap Write-Off (DOFA)",
+        note: "A waiver is granted by a workshop supervisor; a BER write-off is DOFA-approved on its amount and confirmed by a second technician. Use the workflow buttons.",
+        fields: [
+          { name: 'certification_waiver', label: "Certification Waiver Granted", readonly: true },
+          { name: 'certification_waiver_reason', label: "Waiver Justification", readonly: true },
+          { name: 'certification_waiver_by_id', label: "Waiver Granted By", readonly: true },
+          { name: 'ber_reason', label: "BER / Scrap Reason", type: "text", readonly: true },
+          { name: 'ber_writeoff_amount', label: "Write-Off Amount (BDT)", readonly: true },
+          { name: 'dofa_justification', label: "DOFA Justification (Tier 2+)", type: "text" },
+          { name: 'dofa_approved', label: "Write-Off DOFA Approved", readonly: true },
+          { name: 'dofa_approved_by', label: "Write-Off Approved By", readonly: true },
+          { name: 'ber_confirmed_by_id', label: "BER Confirmed By (Second Technician)", readonly: true }
         ] }
     ]
   },
@@ -169,7 +240,7 @@ export const SCREENS = {
     model: 'fix.workshop.bench',
     title: "Bench Allocation",
     back: 'M31-benches',
-    status: { field: 'state', labels: { available: "Available", occupied: "Occupied", maintenance: "Maintenance", retired: "Retired" } },
+    status: { field: 'state', labels: { available: "Available", occupied: "Occupied", maintenance: "Maintenance", offline: "Offline / Closed" } },
     tabs: [
       { id: 'bench', label: '1. Bench Specification', bn: '১. বেঞ্চ পরিচিতি', icon: '🪑', badge: '7' },
       { id: 'esd', label: '2. Daily ESD Verification Interlock', bn: '২. দৈনিক ইএসডি ইন্টারলক', icon: '⚡', badge: '6' }
@@ -184,15 +255,15 @@ export const SCREENS = {
           { name: 'repair_level', required: true, label: "Repair Level Capability (L1/L2/L3)" },
           { name: 'technician_id', label: "Assigned Primary Technician" },
           { name: 'max_concurrent_jobs', label: "Maximum Concurrent Job Capacity" },
-          { name: 'state', required: true, label: "Current Bench State" }
+          { name: 'state', label: "Current Bench State (bench actions)", readonly: true }
         ] },
       { tab: 'esd', title: "Daily ESD Mat & Wrist-Strap Telemetry Interlock (FLAW-31.2)",
-        note: "ANSI/ESD S20.20 requires wrist strap < 35 MΩ and mat worksurface < 1000 MΩ logged daily.",
+        note: "ANSI/ESD S20.20 requires wrist strap < 35 MΩ and mat worksurface < 1000 MΩ logged daily. Readings are recorded by the daily ESD log action, not typed here.",
         fields: [
-          { name: 'is_esd_safe', label: "ESD Protection Certified Station" },
-          { name: 'wrist_strap_mohm', required: true, label: "Wrist Strap Resistance (< 35.0 MΩ)" },
-          { name: 'worksurface_rtg_mohm', required: true, label: "Worksurface RTG Resistance (< 1000.0 MΩ)" },
-          { name: 'esd_last_verified_date', required: true, label: "Daily ESD Verification Date" },
+          { name: 'is_esd_safe', label: "ESD Protection Certified Station", readonly: true },
+          { name: 'wrist_strap_mohm', label: "Wrist Strap Resistance (< 35.0 MΩ)", readonly: true },
+          { name: 'worksurface_rtg_mohm', label: "Worksurface RTG Resistance (< 1000.0 MΩ)", readonly: true },
+          { name: 'esd_last_verified_date', label: "Daily ESD Verification Date", readonly: true },
           { name: 'esd_compliant_today', label: "ESD Verification Compliant Today", readonly: true },
           { name: 'calibration_expiry_date', label: "Oscilloscope / DMM Calibration Expiry" },
           { name: 'calibration_cert_attachment_id', label: "Daily Calibration & ESD Log Sheet" }
@@ -203,7 +274,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.workshop.evidence',
     title: "Test Protocol Result",
-    back: 'M31-evidence',
+    back: 'M31-testing',
     tabs: [
       { id: 'evidence', label: '1. Test Evidence Spec', bn: '১. প্রমাণক তথ্য', icon: '📎', badge: '6' },
       { id: 'document', label: '2. Governed Document File', bn: '২. গভর্নড ফাইল ও টিয়ার', icon: '📄', badge: '4' }
@@ -214,8 +285,8 @@ export const SCREENS = {
           { name: 'job_id', required: true, label: "Target Workshop Job" },
           { name: 'name', required: true, label: "Evidence Title" },
           { name: 'evidence_type', required: true, label: "Evidence Category" },
-          { name: 'captured_at', required: true, label: "Captured Timestamp" },
-          { name: 'captured_by_id', label: "Captured By Technician" },
+          { name: 'captured_at', label: "Captured Timestamp (stamped)", readonly: true },
+          { name: 'captured_by_id', label: "Captured By Technician (stamped)", readonly: true },
           { name: 'description', label: "Evidence Observations / Engineering Notes", type: "text" }
         ] },
       { tab: 'document', title: "cd_document_core Unified Storage Link (AS-01)",
@@ -230,7 +301,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.workshop',
     title: "Workshop Transfer",
-    back: 'M31-workshops',
+    back: 'M31-benchmaster',
     tabs: [
       { id: 'facility', label: '1. Facility Profile', bn: '১. ফ্যাসিলিটি পরিচিতি', icon: '🏢', badge: '7' },
       { id: 'iso', label: '2. ISO 9001 EPA Certification', bn: '২. আইএসও ৯০০১ ও ইপিএ সনদ', icon: '📜', badge: '5' }
@@ -291,9 +362,11 @@ export const FORM_CHIPS = {
     'fix.workshop': 'M31-form-workshop',
   },
   'M31:__by_screen__': {
-    'M31-jobs': 'M31-form-job',
+    'M31-orders': 'M31-form-job',
+    'M31-record': 'M31-form-job',
+    'M31-diag': 'M31-form-job',
+    'M31-testing': 'M31-form-job',
     'M31-benches': 'M31-form-bench',
-    'M31-evidence': 'M31-form-evidence',
-    'M31-workshops': 'M31-form-workshop',
+    'M31-benchmaster': 'M31-form-workshop',
   }
 };

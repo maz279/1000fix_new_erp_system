@@ -16,27 +16,39 @@ SURFACES = {
     "fix.workshop.job": {
         "order": "priority desc, create_date desc, id desc",
         "limit": 200,
+        # A02 audit M31-7 / P31-06: the generic action_transition is NOT
+        # offered — it reached qc_failed with no NCR and no rework count. Only
+        # the named actions, each carrying its own gates and side-effects.
         "actions": {
             "action_intake",
             "action_diagnostic",
             "action_wait_parts",
+            "action_auto_assign_bench",
             "action_start_repair",
+            "action_submit_qc",
             "action_start_burn_in",
+            "action_log_thermal_crash",
             "action_pass_burn_in",
+            "action_fail_burn_in",
             "action_pass_qc",
             "action_fail_qc",
             "action_deliver",
             "action_cancel",
-            "action_auto_assign_bench",
-            # the guarded generic transition — same authority the Odoo form's
-            # statusbar uses (e.g. L1 in_repair → qc_pending submit)
-            "action_transition",
+            "action_grant_certification_waiver",
+            "action_propose_ber",
+            "action_dofa_approve",
+            "action_confirm_ber",
         },
     },
     "fix.workshop.bench": {
         "order": "code",
         "limit": 100,
-        "actions": {"action_log_daily_esd"},
+        "actions": {
+            "action_log_daily_esd",
+            "action_set_maintenance",
+            "action_set_offline",
+            "action_return_to_service",
+        },
     },
     "fix.workshop": {
         "order": "code",
@@ -46,7 +58,7 @@ SURFACES = {
     "fix.workshop.part.line": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_consume_part", "action_release_reservation"},
+        "actions": {"action_reserve", "action_consume_part", "action_release_reservation"},
     },
     "fix.workshop.evidence": {
         "order": "id desc",

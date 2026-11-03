@@ -312,7 +312,7 @@ export const SCREENS = {
           { name: 'warranty_type', required: true, label: "Warranty Type" },
           { name: 'start_date', required: true, label: "Start Date" },
           { name: 'end_date', required: true, label: "End Date" },
-          { name: 'status', required: true, label: "Status" },
+          { name: 'status', label: "Status", readonly: true },
           { name: 'currency_id', required: true, label: "Currency" },
           { name: 'coverage_details', type: 'text', label: "Coverage Details" }
         ] }

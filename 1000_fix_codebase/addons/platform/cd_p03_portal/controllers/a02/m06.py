@@ -12,6 +12,7 @@ import logging
 from datetime import date, datetime
 
 from odoo import http
+from odoo.exceptions import AccessError
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -25,10 +26,14 @@ SURFACES = {
         "actions": {
             "action_take_custody",
             "action_log_custody_transfer",
+            "action_route_to_z4",
+            "action_record_destructive_consent",
             "action_start_recovery",
             "action_recovered",
+            "action_mark_unrecoverable",
             "action_handover",
             "action_purge",
+            "action_close",
             "action_access_recovered_data",
         },
     },
@@ -50,9 +55,9 @@ SURFACES = {
     "fix.data.media.unit": {
         "order": "id desc",
         "limit": 200,
+        # A02 audit M06-11: only the strict seal break (a named witness) is offered
         "actions": {
             "action_transfer",
-            "action_break_seal",
             "action_break_seal_with_witness",
             "action_return",
         },
@@ -70,7 +75,7 @@ SURFACES = {
     "fix.data.quote": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_send", "action_accept", "action_decline"},
+        "actions": {"action_send", "action_accept", "action_decline", "action_requote"},
     },
     "fix.data.backup.plan": {
         "order": "id desc",
@@ -123,6 +128,18 @@ def kpis(env):
 
 
 # ---------------------------------------------------------------- reports
+
+
+def _require_data_operator(env, title):
+    """A02 audit M06-3 (Z2, Z4): the reports read cases through sudo, so
+    they listed customers (and recovered file names) to any internal user.
+    A report that lists cases or customers is for the data-recovery role."""
+    if env.su or env.user.has_group("cd_data_case.group_data_recovery_operator"):
+        return
+    raise AccessError(
+        "%s lists data-recovery cases and customers: it is open to the "
+        "Data Recovery Operator role only." % title
+    )
 
 
 def _success_by_specialism(env, **params):
@@ -209,6 +226,7 @@ def _case_cycle_time(env, **params):
 
 
 def _service_revenue(env, **params):
+    _require_data_operator(env, "Data Service Revenue")
     Quote = env["fix.data.quote"].sudo()
     quotes = Quote.search([("state", "=", "accepted")], limit=300)
     if not quotes:
@@ -244,6 +262,7 @@ def _service_revenue(env, **params):
 
 
 def _destruction_audit(env, **params):
+    _require_data_operator(env, "Destruction & Purge Audit")
     Case = env["fix.data.recovery.case"].sudo()
     Cert = env["fix.data.wipe.certificate"].sudo()
     purged = Case.search([("state", "=", "purged")], limit=200)
@@ -323,50 +342,47 @@ def _backup_compliance(env, **params):
 
 
 def _recovered_inventory(env, **params):
-    """The recovered-data inventory: what is ACTUALLY stored against each
-    active case (its attachments) — honest, including empty."""
+    """The recovered-data inventory: how much is ACTUALLY stored against each
+    active case (its attachments) - honest, including empty.
+
+    A02 audit M06-3 (Z2): this listed recovered FILE NAMES through sudo() to
+    any internal user, with no step-up and no audit row (spec 13: the ERP
+    never shows file names). It now gives counts and sizes only, to the
+    data-recovery role; the files themselves open through the case's Z4
+    step-up access, which is audited per read."""
+    _require_data_operator(env, "The recovered-data inventory")
     Case = env["fix.data.recovery.case"].sudo()
     Attachment = env["ir.attachment"].sudo()
     cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
     rows = []
     for case in cases:
         atts = Attachment.search(
-            [("res_model", "=", "fix.data.recovery.case"), ("res_id", "=", case.id)],
-            limit=50,
+            [("res_model", "=", "fix.data.recovery.case"), ("res_id", "=", case.id)]
         )
-        if atts:
-            for att in atts:
-                rows.append(
-                    {
-                        "case": case.name,
-                        "customer": case.customer_id.name,
-                        "file": att.name,
-                        "size_kb": round(att.file_size / 1024.0, 1),
-                        "zone": case.residency_zone,
-                    }
-                )
-        else:
-            rows.append(
-                {
-                    "case": case.name,
-                    "customer": case.customer_id.name,
-                    "file": "— nothing stored on record —",
-                    "size_kb": 0.0,
-                    "zone": case.residency_zone,
-                }
-            )
+        rows.append(
+            {
+                "case": case.name,
+                "customer": case.customer_id.name,
+                "files": len(atts),
+                "size_kb": round(sum(atts.mapped("file_size")) / 1024.0, 1),
+                "zone": case.residency_zone,
+            }
+        )
     return {
         "title": "Recovered-Data Inventory (Z4)",
-        "cols": ["case", "customer", "file", "size_kb", "zone"],
+        "cols": ["case", "customer", "files", "size_kb", "zone"],
         "labels": {
             "case": "Case",
             "customer": "Customer",
-            "file": "Stored File",
+            "files": "Stored Files",
             "size_kb": "KB",
             "zone": "Zone",
         },
         "rows": rows,
-        "notes": ["Exactly what the case's attachment register holds — nothing invented."],
+        "notes": [
+            "Counts and sizes of what each case's attachment register holds. File names "
+            "are never listed here: open them through the case's Z4 step-up access."
+        ],
     }
 
 

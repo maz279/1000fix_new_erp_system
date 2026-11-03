@@ -23,8 +23,11 @@ SURFACES = {
         "order": "create_date desc, id desc",
         "limit": 200,
         "actions": {
+            "action_intake",
             "action_start_diagnostic",
+            "action_request_estimate",
             "action_send_estimate",
+            "action_await_approval",
             "action_approve",
             "action_start_repair",
             "action_submit_qc",
@@ -35,6 +38,17 @@ SURFACES = {
             "action_cancel",
             "action_resume_order",
             "action_issue_repair_warranty",
+            # A02 workflow audit P0 (M01-1/10/12/15, FR-SRM-080): the workflow
+            # actions that replaced direct writes of guarded fields
+            "action_verify_settlement",
+            "action_send_delivery_otp",
+            "action_verify_delivery_otp",
+            "action_approve_goodwill",
+            "action_approve_rework",
+            "action_change_category",
+            "action_override_priority",
+            "action_fail_qc",
+            "action_mark_unrepairable",
             # M02 bridge (defined in cd_field_service's extension): hand an
             # on-site order to the dispatch pipeline
             "action_create_field_order",
@@ -59,6 +73,11 @@ SURFACES = {
             "action_recall_approval",
             "action_reject",
             "action_revise",
+            # A02 audit M01-9: the customer's approval is a verified code or
+            # a recorded signed estimate, never typed text
+            "action_send_customer_otp",
+            "action_verify_customer_otp",
+            "action_record_signed_approval",
         },
     },
     "fix.qc.checklist": {
