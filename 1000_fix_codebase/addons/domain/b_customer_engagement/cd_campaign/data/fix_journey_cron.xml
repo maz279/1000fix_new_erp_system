@@ -33,6 +33,12 @@
             <field name="code">model.cron_harvest_from_delivery_log()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
+            <!-- A03 audit section 4.7 step 8 (cron 52, failure_count=1): with no
+                 nextcall the job is due the moment the install commits its
+                 row, and a running server picks it up before its registry
+                 has the new model. The failure is then never cleared until
+                 the next DAILY run. Start it at the next 02:00 BST instead. -->
+            <field name="nextcall" eval="(DateTime.now() + relativedelta(days=1)).strftime('%Y-%m-%d 20:00:00')"/>
             <field name="active" eval="True"/>
         </record>
     </data>

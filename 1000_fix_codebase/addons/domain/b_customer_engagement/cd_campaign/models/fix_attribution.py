@@ -18,10 +18,13 @@
 # instead of estimating it, and the conversion COUNT attribution — which is
 # fully supported by the data — is reported separately. A split credit over
 # an unknown total is still unknown.
+import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import ValidationError
+
+_logger = logging.getLogger(__name__)
 
 TOUCH_TYPES = [
     ("send", "Message sent"),
@@ -168,23 +171,32 @@ class FixCampaignTouch(models.Model):
             ],
             limit=limit,
         )
-        created = 0
+        created, failed = 0, 0
         for row in rows:
-            campaign = self._campaign_for_delivery(row)
-            if not campaign:
+            # One row per savepoint (A03 audit §4.7 step 8, cron 52): a single
+            # unrecordable row, such as one whose touch a concurrent run has
+            # just inserted, used to fail the whole daily job.
+            try:
+                with self.env.cr.savepoint():
+                    campaign = self._campaign_for_delivery(row)
+                    if not campaign:
+                        continue
+                    touch = self.record(
+                        campaign,
+                        row.partner_id,
+                        "send",
+                        occurred_at=row.sent_at,
+                        delivery=row,
+                        channel=row.channel,
+                        source_key="delivery:%d" % row.id,
+                    )
+            except Exception as exc:  # one row must not stop the harvest
+                failed += 1
+                _logger.warning("touch harvest skipped delivery %s: %s", row.id, exc)
                 continue
-            touch = self.record(
-                campaign,
-                row.partner_id,
-                "send",
-                occurred_at=row.sent_at,
-                delivery=row,
-                channel=row.channel,
-                source_key="delivery:%d" % row.id,
-            )
             if touch.create_date and touch.create_date >= since:
                 created += 1
-        return {"delivery_rows": len(rows), "touches": created}
+        return {"delivery_rows": len(rows), "touches": created, "failed": failed}
 
     @api.model
     def _campaign_for_delivery(self, delivery):

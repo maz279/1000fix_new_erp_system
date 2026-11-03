@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M35 A03 P2 data: the business switches, and the R8 consumers that wake
+     trigger journeys.
+
+     A03 audit G-M35-8: fix.campaign.journey.enrol_from_event had no caller,
+     so a trigger-based journey never admitted a member. Each event type a
+     fix.campaign.trigger label resolves to (TRIGGER_OUTBOX_EVENTS) is
+     delivered by the event relay to consume_journey_trigger, which is
+     idempotent per (journey, party, event). A trigger edited to a custom
+     event type registers its own consumer when it is saved. -->
+<odoo>
+    <data noupdate="1">
+
+        <!-- Which campaign channels the BTRC DND registry excludes recipients
+             from (A03 audit G-M35-4). Default fail-closed: every addressed
+             channel. A business ruling may narrow it to "sms". -->
+        <record id="icp_dnd_channels" model="ir.config_parameter">
+            <field name="key">cd_campaign.dnd_channels</field>
+            <field name="value">sms,email,portal</field>
+        </record>
+
+        <!-- 1 = a campaign may not launch without at least one approved
+             creative (A03 audit G-M35-10). 0 (default) = a campaign with no
+             creative may launch; any creative it HAS must be approved. -->
+        <record id="icp_launch_requires_approved_creative" model="ir.config_parameter">
+            <field name="key">cd_campaign.launch_requires_approved_creative</field>
+            <field name="value">0</field>
+        </record>
+
+        <!-- The group that approves campaign content when no approval-matrix
+             rule names one. A business ruling; Tier 2 by default. -->
+        <record id="icp_creative_approver_group" model="ir.config_parameter">
+            <field name="key">cd_campaign.creative_approver_group</field>
+            <field name="value">cd_entity_config.group_dofa_tier_2</field>
+        </record>
+    </data>
+
+    <data>
+        <record id="consumer_journey_survey_detractor" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on survey.detractor_flagged</field>
+            <field name="event_type">survey.detractor_flagged</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <record id="consumer_journey_party_role_added" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on party.role_added</field>
+            <field name="event_type">party.role_added</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <record id="consumer_journey_loyalty_tier_upgraded" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on loyalty.tier_upgraded</field>
+            <field name="event_type">loyalty.tier_upgraded</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <record id="consumer_journey_consent_captured" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on consent.captured</field>
+            <field name="event_type">consent.captured</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <!-- No module publishes these three yet (TRIGGER_EVENTS_WITHOUT_PRODUCER).
+             The consumer is registered anyway, so the journey starts working
+             the day a producer ships, without a data change here. -->
+        <record id="consumer_journey_service_order_closed" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on service_order.closed</field>
+            <field name="event_type">service_order.closed</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <record id="consumer_journey_cart_abandoned" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on storefront.cart_abandoned</field>
+            <field name="event_type">storefront.cart_abandoned</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+        <record id="consumer_journey_inactivity" model="fix.event.consumer">
+            <field name="name">M35 journeys: enrol on party.inactivity_detected</field>
+            <field name="event_type">party.inactivity_detected</field>
+            <field name="model">fix.campaign.journey</field>
+            <field name="method">consume_journey_trigger</field>
+            <field name="module">cd_campaign</field>
+        </record>
+    </data>
+</odoo>

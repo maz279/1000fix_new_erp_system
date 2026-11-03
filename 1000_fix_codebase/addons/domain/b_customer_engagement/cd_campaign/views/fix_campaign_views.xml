@@ -24,6 +24,8 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_scrub_dnd" type="object" string="Run DND Scrub"
+                            invisible="state != 'draft' or channel not in ('sms', 'email', 'portal')"/>
                     <button name="action_launch" type="object" string="Launch Campaign"
                             class="btn-primary" invisible="state != 'draft'"/>
                     <button name="action_trigger_loyalty_hook" type="object"
@@ -50,6 +52,9 @@
                             <field name="pdpa_consent_verified"/>
                             <field name="recipient_count"/>
                             <field name="excluded_no_consent_count"/>
+                            <field name="dnd_scrubbed_at"/>
+                            <field name="dnd_excluded_count"/>
+                            <field name="creative_unapproved_count"/>
                             <field name="operating_unit_id"/>
                         </group>
                         <group string="Budget &amp; Schedule">
@@ -58,6 +63,8 @@
                             <field name="start_date"/>
                             <field name="end_date"/>
                             <field name="utm_campaign"/>
+                            <field name="actual_spend"/>
+                            <field name="budget_variance"/>
                         </group>
                     </group>
                     <notebook>

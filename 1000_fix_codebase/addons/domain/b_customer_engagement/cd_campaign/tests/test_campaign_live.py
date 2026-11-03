@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from freezegun import freeze_time
 from odoo import api
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import UserError, ValidationError
 
 
@@ -35,10 +36,12 @@ def test_launch_refuses_unapproved_large_budgets(env):
         "end_date": _dt.date.today() + _dt.timedelta(days=7),
     }
     big = _campaign(env, channel="sms", budget=120000.0, **window)
-    with pytest.raises(UserError, match="50,000"), env.cr.savepoint():
+    # The tier comes from the DOFA ladder (REQ text: > 50,000 Tier 3,
+    # > 200,000 Tier 4), and the refusal names the tier to obtain.
+    with pytest.raises(UserError, match="Tier 3"), env.cr.savepoint():
         big.action_launch()
     bigger = _campaign(env, channel="sms", budget=250000.0, **window)
-    with pytest.raises(UserError, match="200,000"), env.cr.savepoint():
+    with pytest.raises(UserError, match="Tier 4"), env.cr.savepoint():
         bigger.action_launch()
     # Setting budget_approved by hand is now refused: above BDT 50,000 the
     # flag is only legitimate with a recorded DOFA sign-off (A03 audit
@@ -59,7 +62,7 @@ def test_launch_refuses_unapproved_large_budgets(env):
             ],
         }
     )
-    big.with_user(director).action_approve_budget()
+    approve_via_inbox(big, director)  # R7: routed through the M63 inbox
     assert big.budget_approved and big.dofa_approved
 
     # the budget gate is now satisfied: launch proceeds to the PDPA consent

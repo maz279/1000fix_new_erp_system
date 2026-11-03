@@ -78,6 +78,7 @@ class FixCampaignJourney(models.Model):
         [
             ("segment_scheduled", "Segment-based (scheduled against an audience)"),
             ("trigger_immediate", "Trigger-based (immediate, on a customer action)"),
+            ("campaign_audience", "Campaign audience (enrols the launch recipients)"),
         ],
         string="Journey Kind",
         required=True,
@@ -85,7 +86,9 @@ class FixCampaignJourney(models.Model):
         help="D365 makes this distinction and so must we: a segment journey "
         "enumerates its audience at launch, a trigger journey admits one "
         "member per event and must be idempotent. The two cannot share one "
-        "code path.",
+        "code path. A campaign-audience journey enrols the recipients the "
+        "campaign launch resolved (consented and DND-scrubbed), and is how a "
+        "launch starts sending.",
     )
     segment_id = fields.Many2one(
         "fix.segment",
@@ -180,10 +183,18 @@ class FixCampaignJourney(models.Model):
                     "launch gates apply to everything it sends."
                     % (rec.campaign_id.name, rec.campaign_id.state)
                 )
-            rec.write({"state": "active", "launched_at": fields.Datetime.now()})
+            rec._guarded().write(
+                {
+                    "state": "active",
+                    "launched_at": fields.Datetime.now(),
+                    "paused_by_campaign": False,
+                }
+            )
             enrolled = 0
             if rec.journey_kind == "segment_scheduled":
                 enrolled = rec._enrol_segment_members()
+            elif rec.journey_kind == "campaign_audience":
+                enrolled = rec._enrol(rec.campaign_id.recipient_ids, source="launch")
             publish(
                 self.env,
                 "journey.activated",
@@ -203,15 +214,36 @@ class FixCampaignJourney(models.Model):
         for rec in self:
             if rec.state != "active":
                 raise UserError("Only an active journey can be paused.")
-            rec.state = "paused"
+            rec._guarded().write({"state": "paused", "paused_by_campaign": False})
         return True
 
     def action_resume_journey(self):
         for rec in self:
             if rec.state != "paused":
                 raise UserError("Only a paused journey can be resumed.")
-            rec.state = "active"
+            rec._assert_campaign_running()
+            rec._guarded().write({"state": "active", "paused_by_campaign": False})
         return True
+
+    def _assert_campaign_running(self):
+        """A journey sends only while its campaign runs (A03 audit G-M35-5)."""
+        self.ensure_one()
+        if self.campaign_id.state != "running":
+            raise UserError(
+                "Campaign '%s' is %s. Resume the campaign: a journey cannot send "
+                "for a campaign that is not running."
+                % (self.campaign_id.name, self.campaign_id.state)
+            )
+
+    def _pause_for_campaign(self):
+        """Called by fix.campaign.action_pause / action_complete."""
+        self._guarded().write({"state": "paused", "paused_by_campaign": True})
+
+    def _resume_for_campaign(self):
+        """Called by fix.campaign.action_resume: only what the pause stopped."""
+        self.filtered(lambda j: j.state == "paused")._guarded().write(
+            {"state": "active", "paused_by_campaign": False}
+        )
 
     # ------------------------------------------------------------------
     # Enrolment
@@ -232,7 +264,10 @@ class FixCampaignJourney(models.Model):
         Member = self.env["fix.campaign.journey.member"].sudo()
         first = self._runtime_first_step()
         created = 0
-        for partner in partners:
+        # BTRC DND (A03 audit G-M35-4): a listed party is never enrolled, on
+        # any journey kind, so a segment or trigger journey cannot route
+        # around the campaign's recipient scrub.
+        for partner in self.campaign_id._dnd_reachable(partners):
             key = "%d:%d:%s" % (self.id, partner.id, source_event_id or source)
             if Member.search_count([("enrol_key", "=", key)]):
                 continue
@@ -276,6 +311,7 @@ class FixCampaignJourney(models.Model):
         journeys = self.sudo().search(
             [
                 ("state", "=", "active"),
+                ("campaign_id.state", "=", "running"),
                 ("journey_kind", "=", "trigger_immediate"),
                 ("trigger_id.active", "=", True),
                 ("trigger_id.outbox_event_type", "=", event_type),
@@ -304,6 +340,17 @@ class FixCampaignJourney(models.Model):
                 )
             enrolled += created
         return {"enrolled": enrolled, "journeys": len(journeys)}
+
+    @api.model
+    def consume_journey_trigger(self, event):
+        """R8 consumer for every trigger event type (data/fix_journey_consumers.xml).
+
+        A03 audit G-M35-8: enrol_from_event had no caller, so no trigger
+        journey ever admitted a member. Idempotent per (journey, party,
+        event): the member's enrol_key carries the event id, so a redelivered
+        event enrols nobody twice.
+        """
+        return self.enrol_from_event(event)
 
     # ------------------------------------------------------------------
     # The S10 contract
@@ -386,7 +433,9 @@ class FixCampaignJourney(models.Model):
             return {"action": "fail", "reason": "Send step '%s' names no channel." % step.name}
         delivery = self.env["fix.notif.delivery"].queue(
             channel=step.channel,
-            purpose=step.purpose or "marketing",
+            # Bound to the content, re-derived here and never read from the
+            # stored step field (A03 audit G-M35-6).
+            purpose=step._bound_purpose(),
             partner=member.partner_id,
             template=step.template_id or None,
             body=step.body or None,
@@ -496,7 +545,12 @@ class FixCampaignJourney(models.Model):
     @api.model
     def cron_advance_journeys(self, limit=500):
         """Walk every due member of every active journey."""
-        active = self.sudo().search([("state", "=", "active")])
+        # A journey under a campaign that is not running is skipped, not
+        # walked: pausing the campaign pauses its journeys, and this is the
+        # backstop for one paused by any other route (A03 audit G-M35-5).
+        active = self.sudo().search(
+            [("state", "=", "active"), ("campaign_id.state", "=", "running")]
+        )
         if not active:
             return {"considered": 0}
         return active._runtime_advance_due(limit=limit)
@@ -545,14 +599,22 @@ class FixCampaignJourneyStep(models.Model):
     )
     # --- send ---
     channel = fields.Selection(STEP_CHANNELS, string="Channel")
+    # A03 audit G-M35-6: the purpose was a free choice per step, so a
+    # marketer put promotional copy on purpose='service_updates' and escaped
+    # the BTRC curfew and the marketing-consent check. It is now derived from
+    # the CONTENT: only a transactional template sent unedited is a service
+    # update; anything with authored copy is marketing.
     purpose = fields.Selection(
         [
             ("marketing", "Marketing"),
             ("service_updates", "Service Updates"),
             ("research", "Research & Analytics"),
         ],
-        default="marketing",
-        help="The processing purpose the consent decision is taken against.",
+        compute="_compute_purpose",
+        store=True,
+        readonly=True,
+        help="The processing purpose the consent decision is taken against. "
+        "Set by the template's consent class, not chosen per step.",
     )
     template_id = fields.Many2one("fix.cc.notif.template", string="Message Template")
     subject = fields.Char(help="Overrides the template subject when set.")
@@ -639,6 +701,31 @@ class FixCampaignJourneyStep(models.Model):
                 raise ValidationError("Segment step '%s' needs a segment." % rec.name)
             if rec.step_type == "publish_event" and not (rec.event_type or "").strip():
                 raise ValidationError("Publish step '%s' needs an event type." % rec.name)
+
+    def _bound_purpose(self) -> str:
+        """The purpose this step's content binds it to."""
+        self.ensure_one()
+        template = self.template_id
+        authored = (self.body or "").strip() or (self.subject or "").strip()
+        if template and template.consent_class == "transactional" and not authored:
+            return "service_updates"
+        return "marketing"
+
+    @api.depends("step_type", "template_id", "template_id.consent_class", "body", "subject")
+    def _compute_purpose(self):
+        for rec in self:
+            rec.purpose = rec._bound_purpose() if rec.step_type == "send" else False
+
+    @api.constrains("purpose", "step_type", "template_id", "body", "subject")
+    def _check_purpose_is_bound(self):
+        for rec in self:
+            if rec.step_type == "send" and rec.purpose != rec._bound_purpose():
+                raise ValidationError(
+                    "Send step '%s' cannot use purpose '%s': its content makes it a %s "
+                    "message. The purpose follows the template's consent class, so "
+                    "marketing copy is always sent as marketing."
+                    % (rec.name, rec.purpose, rec._bound_purpose().replace("_", " "))
+                )
 
     @api.constrains("true_step_id", "false_step_id", "journey_id")
     def _check_branch_arms_are_in_this_journey(self):

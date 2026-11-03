@@ -2,12 +2,20 @@
 # assets, portal ads and experiments. Campaigns and responses already live in
 # fix.campaign / fix.campaign.response.
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 
 class FixCampaignJourney(models.Model):
     _name = "fix.campaign.journey"
     _description = "Marketing Journey"
+    _inherit = ["fix.guarded.mixin"]
     _order = "name"
+
+    def _fix_guarded_fields(self) -> set:
+        # A journey's state decides whether it sends. Writing state='active'
+        # outran the campaign's launch gates, and writing it back to 'active'
+        # under a paused campaign re-opened sending (A03 audit G-M35-5).
+        return super()._fix_guarded_fields() | {"state", "launched_at", "paused_by_campaign"}
 
     name = fields.Char(required=True)
     campaign_id = fields.Many2one("fix.campaign", required=True, ondelete="cascade", index=True)
@@ -19,6 +27,14 @@ class FixCampaignJourney(models.Model):
         default="draft",
     )
     active = fields.Boolean(default=True)
+    paused_by_campaign = fields.Boolean(
+        string="Paused With Its Campaign",
+        readonly=True,
+        copy=False,
+        help="Set when pausing the campaign paused this journey, so resuming "
+        "the campaign resumes exactly these journeys and not ones a marketer "
+        "paused on purpose.",
+    )
 
 
 # Which outbox event type each friendly trigger label listens for.
@@ -46,6 +62,10 @@ TRIGGER_EVENTS_WITHOUT_PRODUCER = {
     "storefront.cart_abandoned",
     "party.inactivity_detected",
 }
+
+# The R8 consumer every trigger event is delivered to (A03 audit G-M35-8).
+JOURNEY_CONSUMER_MODEL = "fix.campaign.journey"
+JOURNEY_CONSUMER_METHOD = "consume_journey_trigger"
 
 
 class FixCampaignTrigger(models.Model):
@@ -87,12 +107,75 @@ class FixCampaignTrigger(models.Model):
     delay_hours = fields.Integer(required=True, default=0)
     active = fields.Boolean(default=True)
 
+    consumer_registered = fields.Boolean(
+        string="Listening",
+        compute="_compute_consumer_registered",
+        help="True when the event relay (R8) delivers this event type to the "
+        "journey engine. Without it a trigger journey never enrols anybody.",
+    )
+
     @api.depends("event")
     def _compute_outbox_event_type(self):
         for rec in self:
             if not rec.outbox_event_type or rec._origin.event != rec.event:
                 rec.outbox_event_type = TRIGGER_OUTBOX_EVENTS.get(rec.event, "")
             rec.producer_missing = rec.outbox_event_type in TRIGGER_EVENTS_WITHOUT_PRODUCER
+
+    @api.depends("outbox_event_type")
+    def _compute_consumer_registered(self):
+        Consumer = self.env["fix.event.consumer"].sudo()
+        for rec in self:
+            rec.consumer_registered = bool(
+                rec.outbox_event_type
+                and Consumer.search_count(
+                    [
+                        ("event_type", "=", rec.outbox_event_type),
+                        ("model", "=", JOURNEY_CONSUMER_MODEL),
+                        ("method", "=", JOURNEY_CONSUMER_METHOD),
+                        ("active", "=", True),
+                    ]
+                )
+            )
+
+    def _ensure_event_consumer(self):
+        """Register the journey engine as an R8 consumer of this trigger's event.
+
+        A03 audit G-M35-8: enrol_from_event had no caller, so trigger journeys
+        never admitted a member. The seven labelled event types are registered
+        as data (data/fix_journey_consumers.xml); an edited, custom event type
+        is registered here. The consumer's model and method are fixed by this
+        code, never taken from the record, so a marketer can choose only WHICH
+        event wakes the journey engine.
+        """
+        Consumer = self.env["fix.event.consumer"].sudo()
+        for rec in self.filtered("outbox_event_type"):
+            domain = [
+                ("event_type", "=", rec.outbox_event_type),
+                ("model", "=", JOURNEY_CONSUMER_MODEL),
+                ("method", "=", JOURNEY_CONSUMER_METHOD),
+            ]
+            if not Consumer.with_context(active_test=False).search_count(domain):
+                Consumer.create(
+                    {
+                        "name": "M35 journeys: enrol on %s" % rec.outbox_event_type,
+                        "event_type": rec.outbox_event_type,
+                        "model": JOURNEY_CONSUMER_MODEL,
+                        "method": JOURNEY_CONSUMER_METHOD,
+                        "module": "cd_campaign",
+                    }
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        records._ensure_event_consumer()
+        return records
+
+    def write(self, vals):
+        result = super().write(vals)
+        if "outbox_event_type" in vals or "event" in vals:
+            self._ensure_event_consumer()
+        return result
 
 
 class FixCampaignOffer(models.Model):
@@ -237,25 +320,164 @@ class FixCampaignOffer(models.Model):
         )
 
 
+# The content of a creative: what the approver looked at. An approved
+# creative must be withdrawn before any of these changes (SFMC content
+# approval, A03 audit G-M35-10).
+CREATIVE_CONTENT_FIELDS = frozenset({"name", "campaign_id", "asset_type", "channel", "reference"})
+# Who approves campaign content when no fix.approval.matrix rule names a
+# group. A business ruling; Tier 2 (managers) is the default.
+CREATIVE_APPROVER_PARAM = "cd_campaign.creative_approver_group"
+CREATIVE_APPROVER_DEFAULT = "cd_entity_config.group_dofa_tier_2"
+
+
 class FixCampaignCreative(models.Model):
+    """Campaign content, approved through the M63 engine before launch.
+
+    A03 audit G-M35-10: `state` had no methods and launch never read it, so
+    "approved" was a value anyone could type. It now changes only through
+    the transitions below, the approval is routed (`_approval_routed`), and
+    an approved creative is frozen until it is withdrawn.
+    """
+
     _name = "fix.campaign.creative"
     _description = "Marketing Creative Asset"
+    _inherit = ["mail.thread", "fix.approvable.mixin"]
     _order = "name"
 
-    name = fields.Char(required=True)
+    _approval_domain = "creative"
+    _approval_apply_method = "action_approve"
+    _approval_routed = True
+
+    name = fields.Char(required=True, tracking=True)
     campaign_id = fields.Many2one("fix.campaign", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="campaign_id.company_id", store=True, index=True)
+    operating_unit_id = fields.Many2one(related="campaign_id.operating_unit_id", store=True)
     asset_type = fields.Selection(
         [("image", "Image"), ("video", "Video"), ("copy", "Copy"), ("landing", "Landing page")],
         required=True,
         default="image",
+        tracking=True,
     )
-    channel = fields.Char()
-    reference = fields.Char(help="Exact asset reference (S3 key / URL) — never a fabricated path.")
+    channel = fields.Char(tracking=True)
+    reference = fields.Char(
+        tracking=True,
+        help="Exact asset reference (S3 key / URL) — never a fabricated path.",
+    )
     state = fields.Selection(
         [("draft", "Draft"), ("approved", "Approved"), ("retired", "Retired")],
         required=True,
         default="draft",
+        tracking=True,
     )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_at = fields.Datetime(string="Approved At", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "approved_by_id", "approved_at"}
+
+    def _content_frozen(self) -> bool:
+        self.ensure_one()
+        return self.state == "approved" or self.approval_state == "pending"
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self._content_frozen():
+            locked |= CREATIVE_CONTENT_FIELDS
+        return locked
+
+    def write(self, vals):
+        if not self.env.su and CREATIVE_CONTENT_FIELDS & set(vals):
+            frozen = self.filtered(lambda r: r._content_frozen())
+            if frozen:
+                raise UserError(
+                    "Creative '%s' is %s. Withdraw it (or recall the request) before "
+                    "editing it; the edited content then needs a fresh approval."
+                    % (
+                        frozen[0].name,
+                        "approved" if frozen[0].state == "approved" else "awaiting approval",
+                    )
+                )
+        return super().write(vals)
+
+    # --- the M63 engine ---------------------------------------------------
+    def _approval_needed(self) -> bool:
+        return self.state == "draft"
+
+    def _approval_group_xmlid(self):
+        return (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(CREATIVE_APPROVER_PARAM, CREATIVE_APPROVER_DEFAULT)
+        )
+
+    def action_request_approval(self, justification=None):
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft creative can be sent for approval.")
+            if not (rec.reference or "").strip():
+                raise UserError(
+                    "Creative '%s' has no asset reference. The approver must be able "
+                    "to see exactly what is being approved." % rec.name
+                )
+        return super().action_request_approval(justification=justification)
+
+    def action_approve(self):
+        """Approve the content. Runs only from the approver's M63 task."""
+        self._approval_assert_routed()
+        group = self._approval_group_xmlid()
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft creative can be approved.")
+            authority = rec._approval_authority_user()
+            if group and not self.env.su and not authority.has_group(group):
+                raise UserError(
+                    "%s does not hold the authority to approve campaign content." % authority.name
+                )
+            makers = rec.create_uid | rec.approval_request_id.sudo().requested_by_id
+            if not self.env.su and rec._approval_acting_users() & makers:
+                raise UserError(
+                    "Segregation of duties: the person who created or submitted a "
+                    "creative cannot approve it."
+                )
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": authority.id,
+                    "approved_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def _approval_on_rejected(self, comment):
+        self.message_post(body="Creative rejected: %s" % (comment or ""))
+
+    def action_withdraw(self):
+        """Back to draft so the content can be edited; the approval is void."""
+        for rec in self:
+            if rec.state != "approved":
+                raise UserError("Only an approved creative can be withdrawn.")
+            rec._guarded().write({"state": "draft", "approved_by_id": False, "approved_at": False})
+            rec._approval_void("creative withdrawn for editing")
+            rec.message_post(body="Creative withdrawn for editing; it needs a fresh approval.")
+        return True
+
+    def action_retire(self):
+        for rec in self:
+            if rec.state == "retired":
+                raise UserError("This creative is already retired.")
+            if rec.approval_state == "pending":
+                rec._approval_void("creative retired while awaiting approval")
+            elif rec.state == "approved":
+                rec._approval_void("creative retired")
+            rec._guarded().write({"state": "retired"})
+        return True
+
+    def action_reset_to_draft(self):
+        for rec in self:
+            if rec.state != "retired":
+                raise UserError("Only a retired creative returns to draft.")
+            rec._guarded().write({"state": "draft", "approved_by_id": False, "approved_at": False})
+        return True
 
 
 class FixCampaignAd(models.Model):
