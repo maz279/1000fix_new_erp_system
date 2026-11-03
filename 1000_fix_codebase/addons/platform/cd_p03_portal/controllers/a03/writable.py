@@ -577,7 +577,6 @@ WRITABLE = {
             "name",
             "program_id",
             "reward_type",
-            "state",
             "voucher_discount_type",
             "voucher_discount_value",
             "voucher_validity_days",

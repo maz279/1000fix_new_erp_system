@@ -219,6 +219,10 @@ def campaign(env):
 
 
 def _hook(env, campaign, program, **vals):
+    # A hook goes live only on a running campaign (A03 audit M10-8); the
+    # superuser fixture stands in for the DOFA-gated launch.
+    if campaign.state == "draft":
+        campaign.write({"state": "running"})
     return env["fix.loyalty.campaign.hook"].create(
         {"name": "LY hook", "campaign_id": campaign.id, "program_id": program.id, **vals}
     )
@@ -257,7 +261,11 @@ def test_voucher_hooks_and_empty_bonus_hooks(env, program, campaign, customer):
         date.today() + timedelta(days=7),
     )
     zero = _hook(env, campaign, program, bonus_points=0)
-    zero.action_activate()
+    # An empty bonus never goes live (A03 audit M10-8) ...
+    with pytest.raises(UserError, match="positive bonus"), env.cr.savepoint():
+        zero.action_activate()
+    # ... and one forced live by trusted code still pays nothing.
+    zero._guarded().write({"state": "active"})
     assert zero.action_execute_campaign_rewards(customer) == 0
 
 

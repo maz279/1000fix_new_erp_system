@@ -56,7 +56,8 @@ SURFACES = {
     "fix.loyalty.campaign.hook": {
         "order": "create_date desc, id desc",
         "limit": 100,
-        "actions": set(),
+        # A03 audit M10-8: the hook moves only through its transitions.
+        "actions": {"action_activate", "action_complete"},
     },
     "fix.loyalty.referral.code": {
         "order": "create_date desc, id desc",

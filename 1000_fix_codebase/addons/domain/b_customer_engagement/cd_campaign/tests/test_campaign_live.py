@@ -211,6 +211,10 @@ def loyalty(env):
 
 
 def _hook(env, campaign, program, **vals):
+    # A hook goes live only on a running campaign (A03 audit M10-8); the
+    # superuser fixture stands in for the DOFA-gated launch.
+    if campaign.state == "draft":
+        campaign.write({"state": "running"})
     return env["fix.loyalty.campaign.hook"].create(
         {"name": "Responder bonus", "campaign_id": campaign.id, "program_id": program.id, **vals}
     )

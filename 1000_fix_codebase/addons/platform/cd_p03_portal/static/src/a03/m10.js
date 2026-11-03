@@ -32,6 +32,7 @@ export const MODULE = {
     ]},
     { en: 'Vouchers & Referrals', screens: [
       { id: 'M10-vouchers', en: 'Vouchers & Coupons', bn: 'ভাউচার', t: 'g' },
+      { id: 'M10-hooks', en: 'Campaign Reward Hooks', bn: 'ক্যাম্পেইন হুক', t: 'g' },
       { id: 'M10-referral', en: 'Referral Programme', bn: 'রেফারেল কর্মসূচি', t: 'g' },
       { id: 'M10-fraud', en: 'Fraud Controls', bn: 'প্রতারণা নিয়ন্ত্রণ', t: 'g' }
     ]},
@@ -100,6 +101,13 @@ export const SCREENS = {
   'M10-redemption': { kind: 'table_report', module: 'M10', report: 'redemption_rules', title: 'Redemption Rules', period: false },
   'M10-vouchers': { kind: 'model_list', create: false, model: 'fix.loyalty.voucher', stateField: 'state',
     cols: ['name', 'partner_id', 'discount_type', 'discount_value', 'valid_from', 'state'] },
+  'M10-hooks': { kind: 'model_list', model: 'fix.loyalty.campaign.hook', stateField: 'state',
+    cols: ['name', 'campaign_id', 'program_id', 'reward_type', 'bonus_points', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Hook' },
+      { m: 'action_complete', l: 'Complete Hook' }
+    ],
+    note: 'A hook goes live only on a running campaign; its reward terms are then fixed (A03 audit M10-8).' },
   'M10-referral': { kind: 'model_list', model: 'fix.loyalty.referral.code', stateField: 'state',
     cols: ['name', 'referrer_partner_id', 'referee_partner_id', 'state', 'points_awarded', 'converted_at'],
     actions: [{ m: 'action_mark_converted', l: 'Mark Converted' }] },
@@ -205,7 +213,7 @@ export const SCREENS = {
         tab: 'audit',
         title: 'State & Governance',
         fields: [
-          { name: 'state', label: 'Lifecycle State' }
+          { name: 'state', readonly: true, label: 'Lifecycle State' }
         ]
       }
     ]
@@ -613,7 +621,8 @@ export const FORM_CHIPS = {
     'M10-wallet': 'M10-form-account',
     'M10-referral': 'M10-form-referral',
     'M10-ledger': 'M10-form-adjustment',
-    'M10-vouchers': 'M10-form-voucher-campaign'
+    'M10-vouchers': 'M10-form-voucher-campaign',
+    'M10-hooks': 'M10-form-voucher-campaign'
   }
 };
 
