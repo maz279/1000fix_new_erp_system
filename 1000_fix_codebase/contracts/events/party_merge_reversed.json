@@ -33,13 +33,17 @@
       "type": "object",
       "required": [
         "survivor_id",
-        "restored_id"
+        "restored_id",
+        "merge_id"
       ],
       "properties": {
         "survivor_id": {
           "type": "integer"
         },
         "restored_id": {
+          "type": "integer"
+        },
+        "merge_id": {
           "type": "integer"
         }
       },

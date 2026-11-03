@@ -34,7 +34,9 @@
       "required": [
         "survivor_id",
         "victim_id",
-        "mandated_consumers"
+        "mandated_consumers",
+        "merge_id",
+        "executed_at"
       ],
       "properties": {
         "survivor_id": {
@@ -44,6 +46,12 @@
           "type": "integer"
         },
         "mandated_consumers": {
+          "type": "string"
+        },
+        "merge_id": {
+          "type": "integer"
+        },
+        "executed_at": {
           "type": "string"
         }
       },

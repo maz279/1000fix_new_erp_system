@@ -45,7 +45,7 @@
           "type": "string"
         },
         "capacity_released": {
-          "description": "Type not statically derivable from `releases` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:516)."
+          "description": "Type not statically derivable from `releases` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:570)."
         },
         "reason": {
           "type": "string"

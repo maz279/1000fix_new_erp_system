@@ -49,10 +49,10 @@
           "type": "integer"
         },
         "consent_basis": {
-          "description": "Type not statically derivable from `verdict['state']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:456)."
+          "description": "Type not statically derivable from `verdict['state']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:726)."
         },
         "consent_id": {
-          "description": "Type not statically derivable from `verdict['consent_id'] or None` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:456)."
+          "description": "Type not statically derivable from `verdict['consent_id'] or None` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:726)."
         }
       },
       "additionalProperties": false

@@ -64,7 +64,7 @@
           ]
         },
         "progress_points": {
-          "description": "Type not statically derivable from `progress` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_scheme_engine.py:419)."
+          "description": "Type not statically derivable from `progress` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_scheme_engine.py:407)."
         },
         "trigger": {
           "type": "string"

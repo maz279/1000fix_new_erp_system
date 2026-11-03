@@ -41,7 +41,7 @@
           "type": "string"
         },
         "window_days": {
-          "description": "Type not statically derivable from `window` (addons/domain/c_commercial/cd_contract_core/models/fix_contract.py:490)."
+          "description": "Type not statically derivable from `window` (addons/domain/c_commercial/cd_contract_core/models/fix_contract.py:494)."
         },
         "date_end": {
           "type": "string"

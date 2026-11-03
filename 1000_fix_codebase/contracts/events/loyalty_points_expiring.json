@@ -55,7 +55,7 @@
           "type": "string"
         },
         "days_remaining": {
-          "description": "Type not statically derivable from `horizon` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_ledger.py:315)."
+          "description": "Type not statically derivable from `horizon` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_ledger.py:494)."
         }
       },
       "additionalProperties": false

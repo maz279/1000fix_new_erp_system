@@ -41,16 +41,16 @@
       ],
       "properties": {
         "res_model": {
-          "description": "Type not statically derivable from `record._name` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:372)."
+          "description": "Type not statically derivable from `record._name` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:368)."
         },
         "res_id": {
           "type": "integer"
         },
         "kpi": {
-          "description": "Type not statically derivable from `kpi_code` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:372)."
+          "description": "Type not statically derivable from `kpi_code` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:368)."
         },
         "policy": {
-          "description": "Type not statically derivable from `policy_rec.code` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:372)."
+          "description": "Type not statically derivable from `policy_rec.code` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:368)."
         },
         "target_at": {
           "type": "string"

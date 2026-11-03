@@ -37,7 +37,7 @@
       ],
       "properties": {
         "period": {
-          "description": "Type not statically derivable from `period` (addons/domain/b_customer_engagement/cd_crm_ext/models/fix_forecast.py:111)."
+          "description": "Type not statically derivable from `period` (addons/domain/b_customer_engagement/cd_crm_ext/models/fix_forecast.py:117)."
         },
         "count": {
           "type": "integer"

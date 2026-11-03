@@ -35,7 +35,8 @@
         "complaint",
         "partner_id",
         "severity",
-        "channel"
+        "channel",
+        "cycle"
       ],
       "properties": {
         "complaint": {
@@ -49,6 +50,9 @@
         },
         "channel": {
           "type": "string"
+        },
+        "cycle": {
+          "type": "integer"
         }
       },
       "additionalProperties": false

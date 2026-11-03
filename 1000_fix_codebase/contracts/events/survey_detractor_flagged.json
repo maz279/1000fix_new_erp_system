@@ -51,7 +51,7 @@
           "type": "integer"
         },
         "reason": {
-          "description": "Type not statically derivable from `reason` (addons/domain/b_customer_engagement/cd_cx_feedback/models/fix_survey_designer.py:468)."
+          "description": "Type not statically derivable from `reason` (addons/domain/b_customer_engagement/cd_cx_feedback/models/fix_survey_designer.py:465)."
         },
         "rating": {
           "type": [

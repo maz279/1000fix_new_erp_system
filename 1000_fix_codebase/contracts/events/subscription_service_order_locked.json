@@ -41,7 +41,7 @@
           "type": "integer"
         },
         "days_overdue": {
-          "description": "Type not statically derivable from `overdue` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:269)."
+          "description": "Type not statically derivable from `overdue` (addons/domain/c_commercial/cd_subscription/models/fix_subscription.py:279)."
         },
         "step": {
           "type": "string"

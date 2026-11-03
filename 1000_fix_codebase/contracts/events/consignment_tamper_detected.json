@@ -1,0 +1,79 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "consignment.tamper_detected",
+  "description": "Published by cd_consignment through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "consignment.tamper_detected"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_consignment"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "consignment",
+        "reason",
+        "outbound_seal",
+        "inbound_seal",
+        "dispatch_weight_g",
+        "receive_weight_g"
+      ],
+      "properties": {
+        "consignment": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "reason": {
+          "description": "Type not statically derivable from `reason` (addons/domain/e_supply_chain/cd_consignment/models/fix_consignment_ext.py:301)."
+        },
+        "outbound_seal": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "inbound_seal": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "dispatch_weight_g": {
+          "type": "number"
+        },
+        "receive_weight_g": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_consignment",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_consignment/models/fix_consignment_ext.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

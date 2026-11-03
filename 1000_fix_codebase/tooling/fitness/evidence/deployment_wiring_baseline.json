@@ -171,7 +171,6 @@
     "outbox.relay_unhealthy",
     "partner.onboarded",
     "party.activated",
-    "party.merge_reversed",
     "payment.executed",
     "payment.failed",
     "payment.requested",

@@ -50,7 +50,7 @@
           "type": "string"
         },
         "held_business_minutes": {
-          "description": "Type not statically derivable from `held` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:486)."
+          "description": "Type not statically derivable from `held` (addons/domain/a_service_delivery/cd_service_order/models/fix_sla_instance.py:476)."
         },
         "supersedes": {
           "type": "integer"

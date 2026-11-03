@@ -40,7 +40,7 @@
           "type": "integer"
         },
         "entered": {
-          "description": "Type not statically derivable from `entered` (addons/platform/cd_party_master/models/fix_segment.py:84)."
+          "description": "Type not statically derivable from `entered` (addons/platform/cd_party_master/models/fix_segment.py:85)."
         }
       },
       "additionalProperties": false

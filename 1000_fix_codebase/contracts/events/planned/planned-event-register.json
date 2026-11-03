@@ -43,6 +43,11 @@
       "status": "planned"
     },
     {
+      "event_type": "geofence.breach.detected",
+      "filename": "geofence_breach_detected.json",
+      "status": "planned"
+    },
+    {
       "event_type": "marketplace.commission_calculated",
       "filename": "marketplace_commission_calculated.json",
       "status": "planned"

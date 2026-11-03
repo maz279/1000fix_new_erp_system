@@ -32,7 +32,7 @@
     "payload": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Payload built dynamically (`dict(result, days=days)`, addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_quality.py:337); its keys are not statically derivable."
+      "description": "Payload built dynamically (`dict(result, days=days)`, addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_quality.py:577); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_contact_centre",
