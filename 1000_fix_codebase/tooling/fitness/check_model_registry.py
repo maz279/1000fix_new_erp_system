@@ -117,6 +117,9 @@ EXEMPT_MODELS = {
     # R07 M06 forensic audit log: Z4 access audit records belong to their
     # recovery case (immutable child log; chatter disabled to preserve statutory immutability)
     "fix.z4.access.audit",
+    # A02 audit M06-6: append-only custody ledger; no mail.thread on purpose
+    # (a ledger row is immutable, so it carries no chatter of its own).
+    "fix.data.custody.event",
 }
 
 
