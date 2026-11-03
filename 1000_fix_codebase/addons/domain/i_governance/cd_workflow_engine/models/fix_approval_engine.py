@@ -24,9 +24,11 @@
 # model inherits it below, so the 9 DOFA tables get the engine with no change
 # of their own. `_approval_routed = True` makes the engine the ONLY way in:
 # the record's approve method then refuses unless a task is deciding it.
+import logging
 import statistics
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 from odoo.models import BaseModel
@@ -34,7 +36,24 @@ from odoo.tools.safe_eval import safe_eval
 
 from libs.py.fix_events import publish
 
+_logger = logging.getLogger(__name__)
+
 TASK_KEY = "fix_approval_task"
+
+# Company-wide default working calendar for approval SLAs (A03 audit R7, W2):
+# the id of a fix.working.calendar. Used when neither the matrix row nor the
+# record's branch names one; unset means wall-clock hours, today's behaviour.
+CALENDAR_PARAM = "cd_workflow_engine.approval_calendar_id"
+# fix.working.calendar.line.weekday keys, in date.weekday() order.
+WEEKDAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+# The walk gives up after this many days. A calendar whose every day is a
+# holiday (or whose lines hold no time) would otherwise never end.
+MAX_CALENDAR_DAYS = 400
+# Writes of only these fields cannot move the amount at risk, so the mixin's
+# write() does not re-read it (they are the engine's own bookkeeping).
+_APPROVAL_BOOKKEEPING = frozenset(
+    {"approval_state", "approval_request_id", "approval_amount_changed_by_id"}
+)
 
 APPROVAL_STATES = [
     ("none", "Not Requested"),
@@ -171,6 +190,13 @@ class FixApprovalMatrix(models.Model):
         required=True,
         help="What happens once every escalation has also run out of time",
     )
+    calendar_id = fields.Many2one(
+        "fix.working.calendar",
+        string="Working Calendar",
+        help="The SLA counts working hours on this calendar (A03 audit R7). Empty: "
+        "the record's branch calendar, then the company default "
+        "(cd_workflow_engine.approval_calendar_id), then wall-clock hours.",
+    )
     date_from = fields.Date(string="Effective From")
     date_to = fields.Date(string="Effective To")
     active = fields.Boolean(default=True)
@@ -240,9 +266,24 @@ class FixApprovableMixin(models.AbstractModel):
     approval_request_id = fields.Many2one(
         "fix.approval.request", string="Approval Request", readonly=True, copy=False
     )
+    # A03 audit R7 (W3): "exclude anyone who last changed the amount". Whoever
+    # set the figure must not be the one who signs it off: raising a refund
+    # and then approving it is the same conflict as creating it.
+    approval_amount_changed_by_id = fields.Many2one(
+        "res.users",
+        string="Amount Last Changed By",
+        readonly=True,
+        copy=False,
+        help="The last user who changed the amount at risk. The approval engine "
+        "never routes this record to them.",
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"approval_state", "approval_request_id"}
+        return super()._fix_guarded_fields() | {
+            "approval_state",
+            "approval_request_id",
+            "approval_amount_changed_by_id",
+        }
 
     # ---- per-model hooks --------------------------------------------------
     def _approval_amount(self) -> float:
@@ -313,9 +354,10 @@ class FixApprovableMixin(models.AbstractModel):
         return self.env.ref(xmlid, raise_if_not_found=False) if xmlid else None
 
     def _approval_excluded(self):
-        """Requester and creator never decide their own record."""
+        """Requester, creator and whoever last changed the amount never
+        decide the record (A03 audit R7, W3)."""
         self.ensure_one()
-        return (self.env.user | self.create_uid).sudo()
+        return (self.env.user | self.create_uid | self.approval_amount_changed_by_id).sudo()
 
     def _approval_holders(self, group):
         self.ensure_one()
@@ -487,17 +529,30 @@ class FixApprovableMixin(models.AbstractModel):
                     req._log("voided", comment=reason)
 
     def write(self, vals):
+        if set(vals) <= _APPROVAL_BOOKKEEPING:
+            return super().write(vals)
         pending = self.filtered(lambda r: r.approval_state == "pending")
-        before = {rec.id: rec._approval_amount() for rec in pending}
+        # W3: a user's write is measured on every record, to learn who moved
+        # the amount. Superuser code (crons, seeds, service calls) is trusted,
+        # as the guard trusts it, and is measured only where a request is
+        # pending. The amount is often a related or computed value of the
+        # record's own fields (DOFA), so it is compared before and after the
+        # whole write, the DOFA mixin's own write included. Read as sudo: a
+        # user allowed to write the record must not be refused for reading
+        # an amount field outside their groups.
+        tracked = pending if self.env.su else self
+        before = {rec.id: rec.sudo()._approval_amount() for rec in tracked}
         result = super().write(vals)
-        for rec in pending:
-            if (
-                abs(rec._approval_amount() - before[rec.id]) > 0.005
-                and rec.approval_state == "pending"
-            ):
+        changed = tracked.filtered(
+            lambda r: abs(r.sudo()._approval_amount() - before[r.id]) > 0.005
+        )
+        if changed and not self.env.su:
+            changed._guarded().write({"approval_amount_changed_by_id": self.env.uid})
+        for rec in changed & pending:
+            if rec.approval_state == "pending":
                 rec._approval_void(
                     "the amount changed from %.2f to %.2f while approval was pending; "
-                    "request it again." % (before[rec.id], rec._approval_amount())
+                    "request it again." % (before[rec.id], rec.sudo()._approval_amount())
                 )
         return result
 
@@ -603,11 +658,104 @@ class FixApprovalRequest(models.Model):
     def _rule_value(self, key):
         return self.matrix_id[key] if self.matrix_id else DEFAULT_RULE[key]
 
+    # ---- business hours (A03 audit R7, W2) ---------------------------------
+    # R7: escalation "uses the working calendar". A 24-hour SLA raised on a
+    # Thursday evening fell due on Friday, the weekend, and escalated before
+    # any approver was at work; an Eid closure did the same for days.
+    def _approval_calendar(self, record=None):
+        """The working calendar an SLA on this request counts, in order: the
+        rule's own calendar, the record's branch calendar, the company default
+        (config parameter), else none (wall-clock hours)."""
+        Calendar = self.env["fix.working.calendar"].sudo()
+        rule = self.matrix_id if len(self) == 1 else self.env["fix.approval.matrix"]
+        if rule.calendar_id.active:
+            return rule.calendar_id.sudo()
+        if record is None and len(self) == 1:
+            record = self._record(self.env(su=True))
+        field = record._fields.get("branch_id") if record else None
+        if field is not None and field.type == "many2one" and field.comodel_name == "fix.branch":
+            calendar = record.sudo()[:1].branch_id.calendar_id
+            if calendar.active:
+                return calendar
+        raw = self.env["ir.config_parameter"].sudo().get_param(CALENDAR_PARAM)
+        try:
+            calendar = Calendar.browse(int(raw)).exists() if raw else Calendar
+        except (TypeError, ValueError):
+            _logger.warning("%s is not a calendar id: %r", CALENDAR_PARAM, raw)
+            calendar = Calendar
+        return calendar if calendar.active else Calendar
+
+    @api.model
+    def _approval_calendar_rules(self, calendar):
+        """({weekday: [(hour_from, hour_to)]}, [(date_from, date_to)]) for a
+        calendar, with its template chain: the nearest calendar's lines for a
+        weekday win; holidays add up."""
+        lines, holidays, seen = {}, [], set()
+        cal = calendar.sudo() if calendar else None
+        while cal and cal.id not in seen:
+            seen.add(cal.id)
+            own = {}
+            for line in cal.line_ids:
+                own.setdefault(line.weekday, []).append((line.hour_from, line.hour_to))
+            for weekday, windows in own.items():
+                lines.setdefault(weekday, sorted(windows))
+            holidays += [(h.date_from, h.date_to) for h in cal.holiday_ids]
+            cal = cal.template_id
+        return lines, holidays
+
+    @api.model
+    def _approval_add_business_hours(self, start_utc, hours, calendar):
+        """The moment `hours` of working time after `start_utc`.
+
+        Both datetimes are naive UTC (Odoo's convention). The calendar's
+        windows are Dhaka local time, so the walk runs in the calendar's zone.
+        Holidays close the whole day. With no calendar, or a calendar with no
+        lines, the hours are wall-clock hours. A calendar with no working time
+        in MAX_CALENDAR_DAYS also falls back to wall clock, with a warning: a
+        deadline that is merely early beats a request that never falls due."""
+        span = timedelta(hours=max(hours or 0.0, 0.0))
+        lines, holidays = self._approval_calendar_rules(calendar)
+        if not lines or span <= timedelta(0):
+            return start_utc + span
+        zone = pytz.timezone(calendar.timezone or "Asia/Dhaka")
+        cursor = pytz.utc.localize(start_utc).astimezone(zone).replace(tzinfo=None)
+        remaining = span
+        for _ in range(MAX_CALENDAR_DAYS):
+            day = cursor.date()
+            if not any(d_from <= day <= d_to for d_from, d_to in holidays):
+                midnight = datetime.combine(day, time.min)
+                for hour_from, hour_to in lines.get(WEEKDAY_KEYS[day.weekday()], ()):
+                    win_end = midnight + timedelta(hours=hour_to)
+                    begin = max(cursor, midnight + timedelta(hours=hour_from))
+                    if win_end <= begin:
+                        continue
+                    if win_end - begin >= remaining:
+                        local = begin + remaining
+                        return zone.localize(local).astimezone(pytz.utc).replace(tzinfo=None)
+                    remaining -= win_end - begin
+            cursor = datetime.combine(day + timedelta(days=1), time.min)
+        _logger.warning(
+            "Working calendar %r has no working time in %d days; approval SLA "
+            "counted in wall-clock hours.",
+            calendar.display_name,
+            MAX_CALENDAR_DAYS,
+        )
+        return start_utc + span
+
+    def _approval_due(self, start=None, record=None):
+        """When an approver's task on this request falls due, from `start`."""
+        self.ensure_one()
+        return self._approval_add_business_hours(
+            start or fields.Datetime.now(),
+            max(self._rule_value("sla_hours"), 1),
+            self._approval_calendar(record),
+        )
+
     def _open_tasks(self, approvers, level=0):
         """One inbox task (and to-do activity) per approver."""
         self.ensure_one()
-        due = fields.Datetime.now() + timedelta(hours=max(self._rule_value("sla_hours"), 1))
         record = self._record(self.env(su=True))
+        due = self._approval_due(record=record)
         Task = self.env["fix.workflow.task"].sudo()._guarded()
         tasks = Task
         for user, behalf in approvers:
@@ -737,7 +885,8 @@ class FixApprovalRequest(models.Model):
     @api.model
     def cron_escalate_overdue(self):
         """Overdue: remind once, then escalate up to the rule's limit, then
-        apply its final action. Wall-clock hours (no working calendar yet)."""
+        apply its final action. Every new deadline counts working hours on
+        the request's calendar (_approval_calendar), else wall-clock hours."""
         now = fields.Datetime.now()
         overdue = (
             self.sudo()
@@ -752,11 +901,11 @@ class FixApprovalRequest(models.Model):
             record = req._record(self.env(su=True))
             if not record:
                 continue
-            sla = timedelta(hours=max(req._rule_value("sla_hours"), 1))
+            due = req._approval_due(now, record)
             pending_tasks = req.task_ids.filtered(lambda t: t.state == "pending")
             if not req.reminded_at:
                 req.write({"reminded_at": now})
-                pending_tasks._guarded().write({"due_at": now + sla})
+                pending_tasks._guarded().write({"due_at": due})
                 req._log("reminded", user=self.env.user, comment="approval overdue; reminder sent")
                 publish(
                     self.env, "approval.reminder", req.res_model, req.res_id, {"request": req.name}
@@ -768,7 +917,7 @@ class FixApprovalRequest(models.Model):
                     level = req.escalation_level + 1
                     req.write({"escalation_level": level})
                     req._open_tasks(targets, level=level)
-                    pending_tasks._guarded().write({"due_at": now + sla})
+                    pending_tasks._guarded().write({"due_at": due})
                     req._log(
                         "escalated",
                         user=self.env.user,
@@ -945,7 +1094,10 @@ class FixWorkflowTask(models.Model):
             task._decide_check()
             req = task.request_id.sudo()
             if req:
-                record = req._record()
+                # In the approver's env, not the request's sudo one: an apply
+                # method ran as superuser, so the guard and every env.su check
+                # were open for each inbox decision (A03 audit W4 finding).
+                record = req._record(self.env)
                 if not record:
                     raise UserError("The record this approval was for no longer exists.")
                 # The record's own approve method, in the approver's env, with
@@ -972,7 +1124,7 @@ class FixWorkflowTask(models.Model):
                     comment=comment,
                     record_state="rejected",
                 )
-                record = req._record()
+                record = req._record(self.env)
                 if record:
                     record.with_context(**{TASK_KEY: task})._approval_on_rejected(comment)
         return True

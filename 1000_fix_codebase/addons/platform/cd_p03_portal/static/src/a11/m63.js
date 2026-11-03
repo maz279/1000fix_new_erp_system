@@ -161,11 +161,12 @@ export const SCREENS = {
           { name: 'approver_role', label: 'Approver Role' },
           { name: 'notes', label: 'Notes' }
         ] },
-      { title: 'How the Approval Runs', note: 'Any one approver or all of them; the SLA before a reminder; how many escalations to the next tier (or the named target); and what happens when those run out too.',
+      { title: 'How the Approval Runs', note: 'Any one approver or all of them; the SLA before a reminder, counted in working hours on the calendar (empty: the branch calendar, then the company default, then clock hours); how many escalations to the next tier (or the named target); and what happens when those run out too.',
         fields: [
           { name: 'approver_group_id', label: 'Approver Group (no DOFA amount)' },
           { name: 'approval_policy', required: true, label: 'Voting Policy' },
           { name: 'sla_hours', required: true, label: 'SLA (hours)' },
+          { name: 'calendar_id', label: 'Working Calendar' },
           { name: 'max_escalations', required: true, label: 'Escalations' },
           { name: 'escalate_to_id', label: 'Escalate To' },
           { name: 'final_action', required: true, label: 'Final Action' },
