@@ -12,6 +12,12 @@ wave: 1
 
 checks:
   # --- BLOCKING (14): the Wave 1 set ---------------------------------------
+  - id: FF-48
+    name: deployment wiring - crons scheduled, events consumed, surface actions and buttons real (A03 audit R10)
+    blocking: true
+    stage: model-registry
+    script: check_deployment_wiring.py
+    rationale: a cron with no ir.cron, an event with no consumer and a button the surface refuses all pass unit tests and never run; ratchet baseline in evidence/deployment_wiring_baseline.json
   - id: FF-02
     name: module naming convention (AS-04)
     blocking: true
