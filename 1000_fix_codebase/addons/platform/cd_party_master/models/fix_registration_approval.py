@@ -250,8 +250,17 @@ class FixRegistrationApproval(models.Model):
                 raise ValidationError("This registration approval is already decided.")
         return True
 
+    def _registration_system_trusted(self) -> bool:
+        """Superuser code with no deciding task (crons, data loading).
+
+        Not an inbox decision: the engine hands the record to the apply
+        method through its sudo request, so env.su is true there as well,
+        and the group and segregation-of-duties checks below were silently
+        skipped for every inbox approval (found while routing W4)."""
+        return self.env.su and not self._approval_task()
+
     def _registration_check_group(self, xmlid: str, step_label: str):
-        if self.env.su:
+        if self._registration_system_trusted():
             return
         authority = self._approval_authority_user()
         if not authority.has_group(xmlid):
@@ -267,7 +276,7 @@ class FixRegistrationApproval(models.Model):
                 raise ValidationError("The line-manager step is already %s" % approval.lm_state)
             approval._registration_check_group(LM_GROUP, "line-manager")
             acting = approval._approval_acting_users()
-            if not self.env.su and approval.create_uid in acting:
+            if not approval._registration_system_trusted() and approval.create_uid in acting:
                 raise UserError(
                     "Segregation of duties: you raised this registration request, so "
                     "another person must give the line-manager approval."
@@ -313,7 +322,10 @@ class FixRegistrationApproval(models.Model):
             # BRU-CPM-02 is a TWO-person chain. One user did both steps on
             # live approval id 2, and on the probe, inside the same second.
             already = approval._registration_prior_parties() | approval.create_uid
-            if not self.env.su and approval._approval_acting_users() & already:
+            if (
+                not approval._registration_system_trusted()
+                and approval._approval_acting_users() & already
+            ):
                 raise UserError(
                     "Segregation of duties: the 1000FiX administrator approval must "
                     "come from someone other than the requester and the line manager."

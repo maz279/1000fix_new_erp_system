@@ -5,5 +5,6 @@ from . import (
     fix_device_ops,
     fix_device_ownership,
     fix_device_part_compatibility,
+    fix_party_merge_consumer,
     fix_warranty,
 )

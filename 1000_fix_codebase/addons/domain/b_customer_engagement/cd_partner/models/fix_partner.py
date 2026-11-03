@@ -108,6 +108,9 @@ class FixPartner(models.Model):
 
     def action_onboard(self):
         for rec in self:
+            # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
+            if hasattr(rec.partner_id, "_fix_assert_party_usable_downstream"):
+                rec.partner_id._fix_assert_party_usable_downstream("partner onboarding")
             # FLAW-33.1: Validate statutory credentials for business partners
             if rec.partner_type in ("reseller", "franchise", "alliance"):
                 if rec.tin_number:

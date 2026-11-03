@@ -1788,6 +1788,13 @@ class FixServiceOrder(models.Model):
         # order instead of a new one. Per vals, in input order: the old body
         # RETURNED on the first replayed key, silently dropping every other vals
         # of the batch.
+        # A03 audit W5 (M33-3): the draft-party switch. A no-op under the
+        # default 'allow' (cd_party_master.draft_party_policy).
+        Partner = self.env["res.partner"]
+        if hasattr(Partner, "_fix_assert_party_usable_downstream"):
+            Partner.browse(
+                {vals["customer_id"] for vals in vals_list if vals.get("customer_id")}
+            )._fix_assert_party_usable_downstream("a service order")
         result_ids = []  # existing order id, or None for "created below"
         to_create = []
         for vals in vals_list:

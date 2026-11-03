@@ -514,6 +514,9 @@ class FixArInvoice(models.Model):
                 raise UserError("Invoice total must be positive")
             if not (inv.manual_reason or "").strip():
                 raise UserError("Manual invoices need a reason code (FR-ARB-010)")
+            # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
+            if hasattr(inv.customer_id, "_fix_assert_party_usable_downstream"):
+                inv.customer_id._fix_assert_party_usable_downstream("an invoice")
             inv._credit_hold_check()
             company = inv.company_id
             mushak = self.env["fix.mushak.register"].create(

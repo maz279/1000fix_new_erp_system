@@ -10,3 +10,4 @@ from . import fix_survey_designer
 from . import fix_complaint_lifecycle
 from . import fix_complaint_intake
 from . import fix_complaint_concession
+from . import fix_complaint_party_merge

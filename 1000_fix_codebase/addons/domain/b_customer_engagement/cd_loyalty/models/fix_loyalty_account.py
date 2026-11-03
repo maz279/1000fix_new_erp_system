@@ -1,10 +1,13 @@
 # fix_loyalty_account — M10 Customer Loyalty Account (CD-M10-01).
+import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
+
+_logger = logging.getLogger(__name__)
 
 
 class FixLoyaltyAccount(models.Model):
@@ -188,6 +191,13 @@ class FixLoyaltyAccount(models.Model):
                 )
                 if initial_tier:
                     vals["tier_id"] = initial_tier.id
+        # A03 audit W5 (M33-3): the draft-party switch at enrolment. A no-op
+        # under the default 'allow'; hasattr keeps it optional.
+        Partner = self.env["res.partner"]
+        if hasattr(Partner, "_fix_assert_party_usable_downstream"):
+            Partner.browse(
+                {vals["partner_id"] for vals in vals_list if vals.get("partner_id")}
+            )._fix_assert_party_usable_downstream("loyalty enrolment")
         records = super().create(vals_list)
         for rec in records:
             publish(
@@ -279,6 +289,9 @@ class FixLoyaltyAccount(models.Model):
                 "Release' so a DOFA Tier 2 approver can release it, instead of "
                 "re-activating it."
             )
+        # A03 audit W5 (M33-3): the draft-party switch at activation.
+        if hasattr(self.partner_id, "_fix_assert_party_usable_downstream"):
+            self.partner_id._fix_assert_party_usable_downstream("an active loyalty account")
         self._guarded().write({"state": "active"})
 
     def action_close(self):
@@ -587,6 +600,15 @@ class FixLoyaltyAccount(models.Model):
         if not victim or not survivor or victim == survivor:
             Receipt._record(key, event, "Ignored: the event names no victim/survivor pair.")
             return {"skipped": "no victim/survivor pair"}
+        # A03 audit W1: the merge record, when there is one, is what the
+        # reversal unwinds. A merge reversed before this delivery moves
+        # nothing; a stray late delivery must not move points onto a party
+        # that was already restored.
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if payload.get("merge_id") and not merge:
+            Receipt._record(key, event, "Ignored: the merge no longer stands (reversed).")
+            return {"skipped": "merge no longer stands"}
         outcomes = []
         for account in self.sudo().search([("partner_id", "=", victim.id)]):
             target = self.sudo().search(
@@ -594,9 +616,13 @@ class FixLoyaltyAccount(models.Model):
                 limit=1,
             )
             if target:
-                outcomes.append(account._merge_into(target, event))
+                outcomes.append(account._merge_into(target, event, merge))
             else:
-                account.write({"partner_id": survivor.id})
+                if merge:
+                    # Logged, so party.merge_reversed gives the account back.
+                    Log.repoint(merge, account, "partner_id", victim, survivor)
+                else:
+                    account.write({"partner_id": survivor.id})
                 account.message_post(
                     body="Re-pointed from %s to %s by the party merge."
                     % (victim.name, survivor.name)
@@ -604,6 +630,62 @@ class FixLoyaltyAccount(models.Model):
                 outcomes.append("%s re-pointed to the survivor." % account.name)
         Receipt._record(key, event, " ".join(outcomes) or "The victim had no loyalty account.")
         return {"outcomes": outcomes}
+
+    def consume_merge_reversal_settlement(self, event: dict) -> dict:
+        """R8 consumer of loyalty.merge_reversal_blocked / _shortfall.
+
+        A merge reversal that cannot hand all the points back (a frozen
+        wallet, or a survivor who spent them) needs a DOFA-approved
+        adjustment. The alert had no reader (FF-48), so the settlement was
+        left to chance: each Tier 2 holder in the account's company now gets
+        a to-do on the restored account. Idempotent per event."""
+        self._assert_system_consumer()
+        Receipt = self.env["fix.loyalty.event.receipt"]
+        key = "%s:%s" % (event.get("event_type") or "", event.get("event_id") or "")
+        if Receipt._seen(key):
+            return {"skipped": "already applied"}
+        account = self.browse(int(event.get("aggregate_id") or 0)).exists()
+        if not account:
+            Receipt._record(key, event, "Ignored: the account no longer exists.")
+            return {"assigned": 0}
+        payload = event.get("payload") or {}
+        if event.get("event_type") == "loyalty.merge_reversal_shortfall":
+            note = (
+                "Merge reversal returned %s of %s points from %s. Settle the %s-point "
+                "shortfall by a DOFA-approved adjustment."
+                % (
+                    payload.get("returned"),
+                    payload.get("points"),
+                    payload.get("survivor_account"),
+                    int(payload.get("points") or 0) - int(payload.get("returned") or 0),
+                )
+            )
+        else:
+            note = (
+                "Merge reversal could not return the points from %s: one of the wallets "
+                "is not active. Settle by a DOFA-approved adjustment."
+                % payload.get("survivor_account")
+            )
+        group = self.env.ref(self._approval_group, raise_if_not_found=False)
+        users = (
+            group.sudo().all_user_ids.filtered(
+                lambda u: u.active and not u.share and account.company_id in u.company_ids
+            )
+            if group
+            else self.env["res.users"]
+        )
+        for user in users:
+            account.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Settle loyalty points after a merge reversal",
+                note=note,
+                user_id=user.id,
+            )
+        if not users:
+            _logger.warning("loyalty account %s: %s, but nobody holds Tier 2", account.id, note)
+        account.message_post(body=note)
+        Receipt._record(key, event, "%d settlement to-do(s): %s" % (len(users), note), account)
+        return {"assigned": len(users)}
 
     def _transfer_allocations(self, balance: int) -> list:
         """[(points, expiry_date)] covering `balance`, newest credit first.
@@ -632,8 +714,11 @@ class FixLoyaltyAccount(models.Model):
             out.append((left, False))
         return out
 
-    def _merge_into(self, target, event: dict) -> str:
-        """Move this (victim) account's balance to `target` and close this one."""
+    def _merge_into(self, target, event: dict, merge=None) -> str:
+        """Move this (victim) account's balance to `target` and close this one.
+
+        With the merge record, the transfer is recorded
+        (fix.loyalty.merge.transfer) so a reversal can undo it (A03 audit W1)."""
         self.ensure_one()
         balance = self.points_balance
         if balance > 0 and (self.state != "active" or target.state != "active"):
@@ -655,6 +740,7 @@ class FixLoyaltyAccount(models.Model):
             )
             return note
         Ledger = self.env["fix.loyalty.ledger"].sudo()
+        lines = Ledger
         reason = "Party merge (event %s): %s into %s." % (
             event.get("event_id"),
             self.partner_id.name,
@@ -672,8 +758,9 @@ class FixLoyaltyAccount(models.Model):
                 }
             )
             debit.action_post()
+            lines |= debit
             for points, expiry in allocations:
-                Ledger.create(
+                credit = Ledger.create(
                     {
                         "account_id": target.id,
                         "transaction_type": "merge_transfer",
@@ -682,13 +769,20 @@ class FixLoyaltyAccount(models.Model):
                         "company_id": target.company_id.id,
                         "notes": "%s Balance received from account %s." % (reason, self.name),
                     }
-                ).action_post()
-        if self.qualifying_points_balance:
+                )
+                credit.action_post()
+                lines |= credit
+        qualifying = self.qualifying_points_balance or 0
+        if qualifying:
             target.sudo().award_qualifying_points(
-                self.qualifying_points_balance, reason="Party merge from %s" % self.name
+                qualifying, reason="Party merge from %s" % self.name
             )
             self.sudo().write({"qualifying_points_balance": 0})
         self._guarded().write({"state": "closed"})
+        if merge:
+            self.env["fix.loyalty.merge.transfer"]._record(
+                merge, self, target, max(balance, 0), qualifying, lines
+            )
         self.message_post(body="%s Account closed." % reason)
         target.message_post(body="%s %d points received." % (reason, balance))
         publish(

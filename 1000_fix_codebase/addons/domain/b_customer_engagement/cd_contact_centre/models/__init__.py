@@ -20,3 +20,7 @@ from . import fix_cc_quality
 # S7 grounding service + translation: extends fix.assistant.intent and
 # fix.conversation.turn, so it imports last.
 from . import fix_assistant_llm
+
+# A03 audit W1: open conversations follow a merged party (extends
+# fix.conversation).
+from . import fix_conversation_party_merge

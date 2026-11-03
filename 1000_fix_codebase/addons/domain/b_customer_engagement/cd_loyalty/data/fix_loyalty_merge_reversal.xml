@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M10 party-merge reversal (A03 audit W1).
+
+  A merge reversal left the loyalty side of the merge in place: the restored
+  party came back with a closed account and no points. The party.merged
+  consumer now records each balance transfer (fix.loyalty.merge.transfer);
+  this consumer reverses it with posted counter-lines and re-opens the
+  account the merge closed. A re-pointed account is given back by
+  cd_party_master's generic re-point log consumer.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="event_consumer_party_merge_reversed" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: undo the merge transfer when a party merge is reversed</field>
+            <field name="event_type">party.merge_reversed</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_party_merge_reversed</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+        <!-- A reversal that cannot return every point needs a Tier 2 adjustment. -->
+        <record id="event_consumer_merge_reversal_blocked" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: settle points a merge reversal could not return (frozen wallet)</field>
+            <field name="event_type">loyalty.merge_reversal_blocked</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_merge_reversal_settlement</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+        <record id="event_consumer_merge_reversal_shortfall" model="fix.event.consumer">
+            <field name="name">M10 Loyalty: settle points a merge reversal could not return (spent)</field>
+            <field name="event_type">loyalty.merge_reversal_shortfall</field>
+            <field name="model">fix.loyalty.account</field>
+            <field name="method">consume_merge_reversal_settlement</field>
+            <field name="module">cd_loyalty</field>
+        </record>
+    </data>
+    <data>
+        <!-- Evidence: readable by staff, written only by the consumers. -->
+        <record id="access_fix_loyalty_merge_transfer" model="ir.model.access">
+            <field name="name">fix.loyalty.merge.transfer</field>
+            <field name="model_id" ref="model_fix_loyalty_merge_transfer"/>
+            <field name="group_id" ref="base.group_user"/>
+            <field name="perm_read" eval="True"/>
+            <field name="perm_write" eval="False"/>
+            <field name="perm_create" eval="False"/>
+            <field name="perm_unlink" eval="False"/>
+        </record>
+    </data>
+</odoo>

@@ -41,6 +41,8 @@ CD-M34-nn + CD-M42-nn (P07-M06):
         "data/fix_cx_event_consumers.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
         "views/fix_cx_feedback_views.xml",
     ],
     "installable": True,

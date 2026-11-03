@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumer of party.merged for M17 (A03 audit W1): corporate estates follow a
+     supervised party merge. Each re-point is logged in
+     fix.party.repoint.log, so a merge reversal moves it back. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_party_merged_device_estate" model="fix.event.consumer">
+            <field name="name">M17: corporate estates follow the merged client</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">fix.device.estate</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+
+    </data>
+</odoo>

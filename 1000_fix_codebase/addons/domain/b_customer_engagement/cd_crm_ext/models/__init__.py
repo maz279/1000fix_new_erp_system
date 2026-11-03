@@ -19,3 +19,6 @@ from . import fix_lead_scoring
 # The estimate hand-off and the journey-lead consumer extend crm.lead (and
 # fix.estimate from cd_service_order), so they load after crm_lead_ext.
 from . import crm_lead_quote, crm_lead_intake
+
+# A03 audit W1: open leads follow a merged party (extends crm.lead).
+from . import crm_lead_party_merge

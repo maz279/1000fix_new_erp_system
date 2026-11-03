@@ -39,8 +39,10 @@ SURFACES = {
     "fix.identity.document": {
         "order": "partner_id, document_type",
         "limit": 300,
-        # A03 audit M33-9: KYC verification by a data steward (four eyes).
-        "actions": {"action_kyc_submit", "action_kyc_verify", "action_kyc_fail"},
+        # A03 audit M33-9 / W4: KYC verification by a data steward (four
+        # eyes), decided (verify / fail) from the M63 approval inbox.
+        # Submitting requests it; pressing verify on the record is refused.
+        "actions": {"action_kyc_submit", "action_request_approval", "action_recall_approval"},
     },
     "fix.transparency.notice": {
         "order": "version desc",
@@ -72,7 +74,9 @@ SURFACES = {
     "fix.party.merge": {
         "order": "requested_at desc, id desc",
         "limit": 200,
-        "actions": {"action_execute", "action_reverse"},
+        # A03 audit W4: execution is decided from the M63 approval inbox by a
+        # steward who created neither party (SOD-15); here it is only routed.
+        "actions": {"action_request_approval", "action_recall_approval", "action_reverse"},
     },
     "fix.party.quality": {
         "order": "composite desc, id desc",

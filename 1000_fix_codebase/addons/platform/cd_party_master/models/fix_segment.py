@@ -123,11 +123,14 @@ class FixSegmentMembership(models.Model):
         Where the survivor is already a member of the segment the victim's
         membership is closed (UNIQUE segment/partner), never deleted; past
         memberships stay on the victim as history. Idempotent: a second
-        delivery finds no current membership on the victim."""
-        parties = self.env["res.partner"]._fix_merge_event_parties(event)
-        if not parties:
+        delivery finds no current membership on the victim. A moved
+        membership is logged, so a merge reversal moves it back (A03 audit
+        W1); a closed one stays closed (the steward re-adds it if needed)."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
             return 0
-        survivor, victim = parties
+        survivor, victim = merge.survivor_id, merge.victim_id
         Membership = self.sudo()
         current = Membership.search([("partner_id", "=", victim.id), ("exited_at", "=", False)])
         for membership in current:
@@ -140,5 +143,5 @@ class FixSegmentMembership(models.Model):
                 if held.exited_at:
                     held.write({"exited_at": False, "entered_at": fields.Datetime.now()})
             else:
-                membership.write({"partner_id": survivor.id})
+                Log.repoint(merge, membership, "partner_id", victim, survivor)
         return len(current)

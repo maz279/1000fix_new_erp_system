@@ -12,6 +12,7 @@ from . import (
     fix_party_hierarchy,
     fix_party_merge,
     fix_party_quality,
+    fix_party_repoint_log,
     fix_party_role,
     fix_registration_approval,
     fix_rights_request,

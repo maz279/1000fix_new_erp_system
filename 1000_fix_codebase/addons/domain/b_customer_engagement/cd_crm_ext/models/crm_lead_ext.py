@@ -296,6 +296,9 @@ class CrmLeadExt(models.Model):
                 "Cannot mark opportunity as Won: Linked customer party '%s' is on credit hold or blocked."
                 % partner.name
             )
+        # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
+        if partner and hasattr(partner, "_fix_assert_party_usable_downstream"):
+            partner._fix_assert_party_usable_downstream("a won opportunity")
         # REQ-07.1 also bars a win while the client carries receivables more
         # than 60 days overdue. party_status is a manual flag; this measures
         # the ledger (audit 2026-10-31: the gate never looked at invoices).
@@ -523,6 +526,9 @@ class CrmLeadExt(models.Model):
 
             if not lead.partner_id:
                 raise ValidationError("Cannot convert: No customer linked to this lead.")
+            # A03 audit W5 (M33-3): the draft-party switch (no-op under 'allow').
+            if hasattr(lead.partner_id, "_fix_assert_party_usable_downstream"):
+                lead.partner_id._fix_assert_party_usable_downstream("a converted service order")
 
             device = self.env["fix.device"].search(
                 [("owner_id", "child_of", lead.partner_id.commercial_partner_id.id)],

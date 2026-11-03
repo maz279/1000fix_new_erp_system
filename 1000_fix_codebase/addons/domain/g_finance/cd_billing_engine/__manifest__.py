@@ -39,6 +39,8 @@ CD-M20-01: the M20 accounts-receivable core.
         "security/fix_vds_rules.xml",
         "data/ir_sequence_data.xml",
         "data/fix_ar_cron.xml",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
         "views/fix_billing_engine_views.xml",
         "views/fix_ar_engine_views.xml",
         "views/fix_vds_certificate_views.xml",

@@ -23,6 +23,8 @@ CD-M40-01 (P10) — Partner, Channel & Franchise.
         "security/fix_isolation_rules.xml",
         "security/fix_partner_security.xml",
         "security/ir.model.access.csv",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
         "views/cd_partner_views.xml",
     ],
     "installable": True,

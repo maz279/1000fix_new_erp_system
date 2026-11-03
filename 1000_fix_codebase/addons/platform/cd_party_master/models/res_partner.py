@@ -335,16 +335,50 @@ class ResPartner(models.Model):
     def _fix_merge_event_parties(self, event):
         """(survivor, victim) for a party.merged event, or None when the merge
         no longer stands (reversed before delivery). Every consumer checks
-        this, so a late delivery never re-points onto a restored party."""
-        payload = event.get("payload") or {}
+        this, so a late delivery never re-points onto a restored party.
+
+        The pair is read from the executed fix.party.merge, not trusted from
+        the payload (A03 audit W1): consumers are public methods, so a
+        hand-made event could otherwise name any party as the survivor."""
+        merge = self.env["fix.party.repoint.log"]._event_merge(event)
+        if not merge:
+            return None
         Partner = self.sudo().with_context(active_test=False)
-        survivor = Partner.browse(payload.get("survivor_id") or 0).exists()
-        victim = Partner.browse(payload.get("victim_id") or 0).exists()
-        if not survivor or not victim or survivor == victim:
-            return None
-        if victim.party_status != "merged":
-            return None
-        return survivor, victim
+        return Partner.browse(merge.survivor_id.id), Partner.browse(merge.victim_id.id)
+
+    @api.model
+    def consume_party_merged(self, event):
+        """R8 consumer: the victim's child contacts move to the survivor.
+
+        A company's contact people (res.partner.parent_id) stayed under the
+        tombstone (A03 audit W1). The survivor itself is never made its own
+        child. Logged, so a reversal moves them back. Idempotent: a second
+        delivery finds no child left on the victim."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
+            return 0
+        survivor, victim = merge.survivor_id, merge.victim_id
+        children = (
+            self.sudo()
+            .with_context(active_test=False)
+            .search([("parent_id", "=", victim.id), ("id", "!=", survivor.id)])
+        )
+        return len(Log.repoint(merge, children, "parent_id", victim, survivor))
+
+    # --- the draft-party gate at downstream call sites (A03 audit W5) ---------
+    def _fix_assert_party_usable_downstream(self, purpose: str) -> str:
+        """The gate other modules call before using a party (an order, a won
+        deal, an enrolment, an onboarding, an invoice).
+
+        Under the default 'allow' it does nothing, so those modules behave
+        exactly as before the switch existed: switching it on is the business
+        ruling (cd_party_master.draft_party_policy). Under 'warn' or 'refuse'
+        it applies _fix_assert_party_usable, which also refuses merged,
+        blocked and blacklisted parties and unregistered dealers."""
+        if self._fix_draft_party_policy() == "allow":
+            return ""
+        return self._fix_assert_party_usable(purpose)
 
     def _get_notification_language(self) -> str:
         """The dispatcher's language lookup: preferred_language, defaulting bn."""

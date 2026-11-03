@@ -5,6 +5,7 @@ from . import (
     fix_loyalty_campaign,
     fix_loyalty_event_receipt,
     fix_loyalty_ledger,
+    fix_loyalty_merge_transfer,
     fix_loyalty_program,
     fix_loyalty_referral,
     fix_loyalty_scheme,

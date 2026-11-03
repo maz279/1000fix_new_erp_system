@@ -282,16 +282,18 @@ class FixRightsRequest(models.Model):
     def consume_party_merged(self, event):
         """Open requests follow the data subject to the surviving record;
         decided ones stay where they were made (they are the statutory record).
-        Idempotent: a second delivery finds no open request on the victim."""
-        parties = self.env["res.partner"]._fix_merge_event_parties(event)
-        if not parties:
+        Idempotent: a second delivery finds no open request on the victim.
+        Logged, so a merge reversal moves them back (A03 audit W1)."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
             return 0
-        survivor, victim = parties
+        survivor, victim = merge.survivor_id, merge.victim_id
         open_reqs = self.sudo().search(
             [("partner_id", "=", victim.id), ("state", "in", _OPEN_STATES)]
         )
+        open_reqs = Log.repoint(merge, open_reqs, "partner_id", victim, survivor)
         for req in open_reqs:
-            req.write({"partner_id": survivor.id})
             req.message_post(
                 body="Re-pointed from merged party %s to %s."
                 % (victim.display_name, survivor.display_name)

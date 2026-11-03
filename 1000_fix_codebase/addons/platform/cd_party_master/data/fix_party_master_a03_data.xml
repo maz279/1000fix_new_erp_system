@@ -57,5 +57,24 @@
             <field name="module">cd_party_master</field>
         </record>
 
+        <!-- A03 audit W1: a company's child contacts follow the merged party. -->
+        <record id="consumer_party_merged_child_contacts" model="fix.event.consumer">
+            <field name="name">M33: child contacts follow the merged party</field>
+            <field name="event_type">party.merged</field>
+            <field name="model">res.partner</field>
+            <field name="method">consume_party_merged</field>
+            <field name="module">cd_party_master</field>
+        </record>
+
+        <!-- A03 audit W1: a merge reversal unwinds every logged downstream
+             re-point (fix.party.repoint.log), whichever module made it. -->
+        <record id="consumer_party_merge_reversed_repoints" model="fix.event.consumer">
+            <field name="name">M33: a merge reversal restores the logged re-points</field>
+            <field name="event_type">party.merge_reversed</field>
+            <field name="model">fix.party.repoint.log</field>
+            <field name="method">consume_party_merge_reversed</field>
+            <field name="module">cd_party_master</field>
+        </record>
+
     </data>
 </odoo>

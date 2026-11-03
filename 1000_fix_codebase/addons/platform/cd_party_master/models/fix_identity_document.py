@@ -7,7 +7,7 @@ import logging
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_party_security import STEWARD_GROUP, require_group
+from .fix_party_security import STEWARD_GROUP
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,16 @@ class FixIdentityDocument(models.Model):
 
     _name = "fix.identity.document"
     _description = "Identity Document"
-    _inherit = ["mail.thread", "mail.activity.mixin", "residency.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin already carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "residency.mixin", "fix.approvable.mixin"]
+
+    # A03 audit W4 (R7): KYC is a routed M63 decision. Submitting requests
+    # it; a data steward other than the capturer approves (verify) or
+    # rejects (fail, with the reason) from the approval inbox.
+    _approval_domain = "kyc"
+    _approval_apply_method = "action_kyc_verify"
+    _approval_group = STEWARD_GROUP
+    _approval_routed = True
 
     def _fix_guarded_fields(self) -> set:
         # KYC was a plain field edit and verified_by was never written
@@ -135,9 +144,15 @@ class FixIdentityDocument(models.Model):
 
     def write(self, vals):
         stale = self.browse()
+        awaiting = self.browse()
         if _KYC_SUBJECT_FIELDS & set(vals) and not self._fix_guard_has_token():
             stale = self.filtered(lambda d: d.verification_status == "verified")
+            # The steward would verify a document other than the one routed.
+            awaiting = self.filtered(lambda d: d.approval_state == "pending")
         result = super().write(vals)
+        if awaiting:
+            awaiting._approval_void("the document changed while awaiting verification")
+            awaiting._guarded().write({"verification_status": "unverified"})
         if stale:
             # A verified NID whose number is then edited is not verified.
             stale._guarded().write(
@@ -146,35 +161,74 @@ class FixIdentityDocument(models.Model):
                     "verified_by": False,
                     "verified_at": False,
                     "verification_note": "Document changed after verification",
+                    # The approval covered the old document (A03 audit W4).
+                    "approval_state": "none",
                 }
             )
         return result
 
-    # ---- KYC verification (A03 audit M33-9) ----------------------------------
+    # ---- KYC verification (A03 audit M33-9, W4) -------------------------------
     def action_kyc_submit(self):
-        """Ask a data steward to verify the document."""
+        """Ask a data steward to verify the document: the submission is the
+        approval request (A03 audit W4). When no steward other than the
+        submitter and the capturer can take it yet, the document still waits
+        as pending and says why; Request Approval routes it later."""
         for doc in self:
             if doc.verification_status not in ("unverified", "failed"):
                 raise ValidationError(
                     "Only an unverified or failed document is submitted for verification."
                 )
             doc._guarded().write({"verification_status": "pending", "verification_note": False})
+            try:
+                with self.env.cr.savepoint():
+                    doc.action_request_approval()
+            except UserError as exc:
+                doc.message_post(
+                    body="Submitted for verification but not yet routed: %s Press 'Request "
+                    "Approval' once a data steward is appointed." % exc.args[0]
+                )
         return True
 
+    # ---- engine hooks ---------------------------------------------------------
+    def _approval_needed(self) -> bool:
+        return self.verification_status == "pending"
+
+    def _approval_on_rejected(self, comment):
+        # An inbox rejection is the failed verification, stamped with the
+        # rejecting steward and the reason they gave.
+        task = self._approval_task()
+        decider = self.with_user(task.assigned_user_id) if task.assigned_user_id else self
+        decider.action_kyc_fail(comment or "Rejected in the approval inbox")
+
+    def _kyc_system_trusted(self) -> bool:
+        """Superuser code with no deciding task. Not an inbox decision: the
+        engine hands the record over through its sudo request, so env.su is
+        true there too, and the steward and four-eyes checks must still bind."""
+        return self.env.su and not self._approval_task()
+
     def _kyc_check_decider(self, what: str):
-        require_group(self.env, STEWARD_GROUP, what)
+        self._approval_assert_routed()
+        if not self._kyc_system_trusted():
+            authority = self._approval_authority_user()
+            if not authority.has_group(STEWARD_GROUP):
+                group = self.env.ref(STEWARD_GROUP, raise_if_not_found=False)
+                raise UserError(
+                    "%s needs the '%s' group." % (what, group.name if group else STEWARD_GROUP)
+                )
+        acting = self._approval_acting_users()
         for doc in self:
             if doc.verification_status not in ("unverified", "pending"):
                 raise ValidationError("This document is already %s." % doc.verification_status)
             # Four eyes: whoever captured the document does not verify it.
-            if not self.env.su and doc.create_uid == self.env.user:
+            if not doc._kyc_system_trusted() and doc.create_uid in acting:
                 raise UserError(
                     "Segregation of duties: you captured this identity document, so "
                     "another data steward must verify it."
                 )
 
     def action_kyc_verify(self):
-        """Stamp the verifier: verified_by / verified_at were never written."""
+        """Stamp the verifier: verified_by / verified_at were never written.
+        Routed: it runs only from a steward's approval-inbox task."""
         self._kyc_check_decider("Verifying an identity document")
         now = fields.Datetime.now()
         for doc in self:

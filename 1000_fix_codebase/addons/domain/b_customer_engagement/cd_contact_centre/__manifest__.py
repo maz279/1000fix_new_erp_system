@@ -38,6 +38,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/fix_cc_presence_data.xml",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
         "views/fix_contact_centre_views.xml",
     ],
     "installable": True,

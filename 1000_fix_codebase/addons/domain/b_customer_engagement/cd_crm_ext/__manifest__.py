@@ -51,6 +51,8 @@ in cd_p03_portal (static/src/a03/m07.js); Odoo views here are substrate only.
         "data/fix_crm_event_consumers.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        # A03 audit W1: party.merged consumer (re-points are logged).
+        "data/fix_party_merge_consumers.xml",
         "views/crm_lead_views.xml",
         "views/fix_crm_rebuild_views.xml",
     ],

@@ -38,6 +38,8 @@ CD-M10-01 (P05-M08-T01..T03):
         "data/ir_sequence_data.xml",
         "data/fix_loyalty_cron.xml",
         "data/fix_loyalty_event_consumers.xml",
+        # A03 audit W1: a merge reversal undoes the loyalty transfer.
+        "data/fix_loyalty_merge_reversal.xml",
         "views/fix_loyalty_views.xml",
     ],
     "installable": True,

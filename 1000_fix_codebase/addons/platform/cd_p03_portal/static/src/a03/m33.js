@@ -127,12 +127,13 @@ export const SCREENS = {
   'M33-identity': { kind: 'model_list', model: 'fix.identity.document',
     cols: ['partner_id', 'document_type', 'checksum_valid', 'verification_status', 'verified_by', 'expiry_date'],
     stateField: 'verification_status',
-    // A03 audit M33-9: KYC is a data-steward decision that stamps the
-    // verifier; whoever captured the document cannot verify it.
+    // A03 audit M33-9 / W4: KYC is a data-steward decision that stamps the
+    // verifier; whoever captured the document cannot verify it. Submitting
+    // routes it; the steward verifies or fails it from the M63 inbox.
     actions: [
       { m: 'action_kyc_submit', l: 'Submit for Verification' },
-      { m: 'action_kyc_verify', l: 'Verify (Data Steward)' },
-      { m: 'action_kyc_fail', l: 'Fail Verification', ask: 'Why did the verification fail?', kwarg: 'reason' }
+      { m: 'action_request_approval', l: 'Request Approval', ask: 'Note for the steward (optional)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M33-otp': { kind: 'model_list', model: 'fix.otp.log', create: false,
     cols: ['requested_at', 'partner_id', 'channel', 'destination_masked', 'state', 'verified_at'],
@@ -162,8 +163,11 @@ export const SCREENS = {
   'M33-merge': { kind: 'model_list', model: 'fix.party.merge', create: true,
     cols: ['requested_at', 'survivor_id', 'victim_id', 'state', 'executed_by', 'reversible_until'],
     stateField: 'state',
+    // A03 audit W4: a steward who created neither party executes the merge
+    // from the M63 approval inbox (SOD-15). Here it is only routed.
     actions: [
-      { m: 'action_execute', l: 'Execute Merge' },
+      { m: 'action_request_approval', l: 'Request Merge Approval', ask: 'Note for the steward (optional)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_reverse', l: 'Reverse (inside window)' }
     ] },
   'M33-quality': { kind: 'model_list', model: 'fix.party.quality', create: false,

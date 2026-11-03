@@ -8,6 +8,7 @@ fix.party.merge.action_execute(); the consumers are then driven both directly
 from datetime import timedelta
 
 import pytest
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
 STEWARD = "cd_party_master.group_party_data_steward"
 
@@ -94,7 +95,8 @@ def _merge_and_execute(env):
         )
     )
     merge = env["fix.party.merge"].create({"survivor_id": survivor.id, "victim_id": victim.id})
-    merge.with_user(steward).action_execute()
+    # A03 audit W4: the steward executes the merge from the M63 approval inbox.
+    approve_via_inbox(merge, steward)
     event = env["fix.event.outbox"].search(
         [("event_type", "=", "party.merged"), ("aggregate_id", "=", survivor.id)],
         order="id desc",
@@ -141,13 +143,14 @@ def test_the_relay_delivers_to_both_consumers(env):
     mine = Consumer.search(
         [("event_type", "=", "party.merged"), ("module", "=", "cd_service_order")]
     )
-    assert set(mine.mapped("model")) == {"fix.service.order", "fix.device"}
+    # A03 audit W1 added the running SLA clocks.
+    assert set(mine.mapped("model")) == {"fix.service.order", "fix.device", "fix.sla.kpi.instance"}
     (Consumer.search([]) - mine).write({"active": False})
     mine.write({"active_from": env.cr.now() - timedelta(minutes=1)})
     data = _merge_and_execute(env)  # after the consumers start
     env["fix.event.outbox"].cron_relay()
     deliveries = env["fix.event.consumer.delivery"].search([("event_id", "=", data["event"].id)])
-    assert len(deliveries) == 2 and set(deliveries.mapped("state")) == {"done"}
+    assert len(deliveries) == 3 and set(deliveries.mapped("state")) == {"done"}
     assert (
         data["open"].customer_id == data["survivor"] and data["device"].owner_id == data["survivor"]
     )

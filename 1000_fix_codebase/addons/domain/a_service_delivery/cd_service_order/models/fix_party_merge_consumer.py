@@ -5,6 +5,10 @@
 # re-points its own references. Nothing listened, so a merged customer's open
 # repair stayed on the tombstone. Delivered, closed and cancelled orders are
 # history and stay where they were made.
+#
+# A03 audit W1: every re-point goes through fix.party.repoint.log.repoint(),
+# so cd_party_master's party.merge_reversed consumer can move it back. Running
+# SLA clocks follow the customer too.
 import logging
 
 from odoo import api, models
@@ -22,18 +26,20 @@ class FixServiceOrderPartyMerge(models.Model):
     def consume_party_merged(self, event):
         """Open and draft orders of the merged-away customer move to the
         survivor. Idempotent: a second delivery finds none left on the victim,
-        and a merge reversed before delivery re-points nothing."""
-        parties = self.env["res.partner"]._fix_merge_event_parties(event)
-        if not parties:
+        and a merge reversed before delivery re-points nothing. Logged, so a
+        merge reversal moves them back (A03 audit W1)."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
             return 0
-        survivor, victim = parties
+        survivor, victim = merge.survivor_id, merge.victim_id
         orders = (
             self.sudo()
             .with_context(active_test=False)
             .search([("customer_id", "=", victim.id), ("state", "not in", _DONE_STATES)])
         )
+        orders = Log.repoint(merge, orders, "customer_id", victim, survivor)
         for order in orders:
-            order.write({"customer_id": survivor.id})
             order.message_post(
                 body="Customer re-pointed from merged party %s to %s (merge #%s)."
                 % (
@@ -60,12 +66,33 @@ class FixDevicePartyMerge(models.Model):
         """A device's CURRENT owner follows the merge: the owner is the same
         person under one record now. Past ownership transfers
         (fix.device.ownership) are history and are not rewritten.
-        Idempotent: a second delivery finds no device owned by the victim."""
-        parties = self.env["res.partner"]._fix_merge_event_parties(event)
-        if not parties:
+        Idempotent: a second delivery finds no device owned by the victim.
+        Logged, so a merge reversal gives them back (A03 audit W1)."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
             return 0
-        survivor, victim = parties
+        survivor, victim = merge.survivor_id, merge.victim_id
         devices = self.sudo().with_context(active_test=False).search([("owner_id", "=", victim.id)])
-        if devices:
-            devices.write({"owner_id": survivor.id})
-        return len(devices)
+        return len(Log.repoint(merge, devices, "owner_id", victim, survivor))
+
+
+class FixSlaKpiInstancePartyMerge(models.Model):
+    _inherit = "fix.sla.kpi.instance"
+
+    @api.model
+    def consume_party_merged(self, event):
+        """Running SLA clocks name the surviving customer (A03 audit W1).
+
+        Only clocks still running or paused move; a finished instance is the
+        evidence of what was promised to whom and stays as it was. Logged,
+        so a merge reversal moves them back. Idempotent."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
+            return 0
+        survivor, victim = merge.survivor_id, merge.victim_id
+        clocks = self.sudo().search(
+            [("partner_id", "=", victim.id), ("state", "in", ("in_progress", "paused"))]
+        )
+        return len(Log.repoint(merge, clocks, "partner_id", victim, survivor))

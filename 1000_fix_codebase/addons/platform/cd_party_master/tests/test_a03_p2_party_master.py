@@ -10,7 +10,11 @@ from datetime import timedelta
 
 import pytest
 from odoo import fields
-from odoo.addons.cd_workflow_engine.tests.approval_helpers import assigned, inbox_task
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
+    approve_via_inbox,
+    assigned,
+    inbox_task,
+)
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -337,10 +341,13 @@ class TestStewardGroup:
         victim, survivor, _cand = _merge_pair(env)
         merge = env["fix.party.merge"].create({"survivor_id": survivor.id, "victim_id": victim.id})
         clerk, steward = make_user(CONTACTS), make_user(CONTACTS, STEWARD)
-        with pytest.raises(UserError, match="Party Data Steward"):
-            merge.with_user(clerk).action_execute()
-        merge.with_user(steward).action_execute()
-        assert merge.state == "executed"
+        # A03 audit W4: a direct press is refused, for the steward too; the
+        # clerk requests and the steward decides from the inbox.
+        for user in (clerk, steward):
+            with pytest.raises(UserError, match="inbox"):
+                merge.with_user(user).action_execute()
+        approve_via_inbox(merge, steward, requester=clerk)
+        assert merge.state == "executed" and merge.executed_by == steward
         with pytest.raises(UserError, match="Party Data Steward"):
             merge.with_user(clerk).action_reverse()
         merge.with_user(steward).action_reverse()
@@ -361,39 +368,48 @@ class TestKyc:
 
     def test_verification_is_a_stamped_four_eyes_steward_action(self, env, make_user):
         capturer = make_user(CONTACTS, STEWARD)
+        verifier = make_user(CONTACTS, STEWARD)
         doc = self._doc(env, capturer)
         with pytest.raises(UserError):
             doc.with_user(capturer).write({"verification_status": "verified"})
+        # A03 audit W4: submitting routes the verification to the steward
+        # inbox, never to the capturer; a direct press is refused.
         doc.with_user(capturer).action_kyc_submit()
-        assert doc.verification_status == "pending"
-        with pytest.raises(UserError, match="Segregation"):
-            doc.with_user(capturer).action_kyc_verify()
-        with pytest.raises(UserError, match="Party Data Steward"):
-            doc.with_user(make_user(CONTACTS)).action_kyc_verify()
-        verifier = make_user(CONTACTS, STEWARD)
-        doc.with_user(verifier).action_kyc_verify()
-        assert doc.verification_status == "verified"
+        assert doc.verification_status == "pending" and doc.approval_state == "pending"
+        assert verifier in assigned(doc) and capturer not in assigned(doc)
+        for user in (capturer, verifier, make_user(CONTACTS)):
+            with pytest.raises(UserError, match="inbox"):
+                doc.with_user(user).action_kyc_verify()
+        _approve(doc, verifier)
+        assert doc.verification_status == "verified" and doc.approval_state == "approved"
         assert doc.verified_by == verifier and doc.verified_at
         assert _events(env, "party.identity_verified", doc.id)
-        with pytest.raises(ValidationError, match="already verified"):
+        with pytest.raises(UserError, match="inbox"):
             doc.with_user(verifier).action_kyc_fail("second thoughts")
 
     def test_a_failure_needs_a_reason_and_can_be_resubmitted(self, env, make_user):
-        doc = self._doc(env, make_user(CONTACTS))
+        clerk = make_user(CONTACTS)
+        doc = self._doc(env, clerk)
         steward = make_user(CONTACTS, STEWARD)
-        with pytest.raises(ValidationError, match="reason"):
-            doc.with_user(steward).action_kyc_fail()
-        doc.with_user(steward).action_kyc_fail("Photo does not match")
+        doc.with_user(clerk).action_kyc_submit()
+        task = inbox_task(doc, steward)
+        with pytest.raises(UserError, match="State why"):
+            task.with_user(steward).action_reject()
+        task.with_user(steward).action_reject("Photo does not match")
         assert (
             doc.verification_status == "failed" and doc.verification_note == "Photo does not match"
         )
-        doc.action_kyc_submit()
-        assert doc.verification_status == "pending"
+        assert doc.verified_by == steward and doc.approval_state == "rejected"
+        doc.with_user(clerk).action_kyc_submit()
+        assert doc.verification_status == "pending" and doc.approval_state == "pending"
 
     def test_editing_a_verified_document_voids_the_verification(self, env, make_user):
         capturer = make_user(CONTACTS)
+        steward = make_user(CONTACTS, STEWARD)
         doc = self._doc(env, capturer)
-        doc.with_user(make_user(CONTACTS, STEWARD)).action_kyc_verify()
+        doc.with_user(capturer).action_kyc_submit()
+        _approve(doc, steward)
+        assert doc.verification_status == "verified"
         doc.with_user(capturer).write({"document_type": "tin"})
         assert doc.verification_status == "unverified" and not doc.verified_by
 
@@ -515,7 +531,7 @@ class TestMergeConsumers:
         seg_a.action_add_members(partner_ids=[victim.id])
         seg_b.action_add_members(partner_ids=[victim.id, survivor.id])
         merge = env["fix.party.merge"].create({"survivor_id": survivor.id, "victim_id": victim.id})
-        merge.with_user(make_user(CONTACTS, STEWARD)).action_execute()
+        approve_via_inbox(merge, make_user(CONTACTS, STEWARD))  # A03 audit W4: routed
         return locals()
 
     def test_the_payload_keeps_its_keys_and_adds_the_merge(self, env, make_user):
@@ -558,7 +574,8 @@ class TestMergeConsumers:
         mine = Consumer.search(
             [("event_type", "=", "party.merged"), ("module", "=", "cd_party_master")]
         )
-        assert len(mine) == 3
+        # duplicates, rights requests, segments, and (A03 audit W1) child contacts
+        assert len(mine) == 4
         # Only this test's events: the other consumers sit out, and ours start
         # just before this transaction.
         (Consumer.search([]) - mine).write({"active": False})
@@ -567,5 +584,5 @@ class TestMergeConsumers:
         env["fix.event.outbox"].cron_relay()
         event = _merged_event(env, s["merge"])
         deliveries = env["fix.event.consumer.delivery"].search([("event_id", "=", event.id)])
-        assert set(deliveries.mapped("state")) == {"done"} and len(deliveries) == 3
+        assert set(deliveries.mapped("state")) == {"done"} and len(deliveries) == 4
         assert s["open_req"].partner_id == s["survivor"] and s["cand"].state == "merged"

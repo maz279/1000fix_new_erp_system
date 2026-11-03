@@ -8,7 +8,7 @@ import json
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
 
 from .fix_party_security import STEWARD_GROUP, require_group
 
@@ -19,7 +19,16 @@ class FixPartyMerge(models.Model):
 
     _name = "fix.party.merge"
     _description = "Supervised Party Merge"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin already carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
+
+    # A03 audit W4 (R7): execution is a routed M63 decision. A steward who
+    # did not create either party, and did not request the merge, decides it
+    # from the approval inbox; pressing Execute on the record is refused.
+    _approval_domain = "party_merge"
+    _approval_apply_method = "action_execute"
+    _approval_group = STEWARD_GROUP
+    _approval_routed = True
 
     def _fix_guarded_fields(self) -> set:
         # state='executed' with a forged executor moved nothing (A03 audit).
@@ -69,6 +78,48 @@ class FixPartyMerge(models.Model):
             if merge.survivor_id == merge.victim_id:
                 raise ValidationError("A party cannot merge into itself")
 
+    def _fix_form_locked_fields(self) -> set:
+        # An executed or reversed merge is FOR one pair (A03 audit W4).
+        locked = super()._fix_form_locked_fields()
+        if self and self.state != "draft":
+            return locked | {"survivor_id", "victim_id"}
+        return locked
+
+    def write(self, vals):
+        # A03 audit W4: the steward approves one pair. Re-pointing a merge
+        # after it was requested would have them execute a different one.
+        voided = self.browse()
+        if {"survivor_id", "victim_id"} & set(vals) and not self._fix_guard_open():
+            if any(merge.state != "draft" for merge in self):
+                raise UserError(
+                    "An executed or reversed merge cannot be moved to other parties. "
+                    "Raise a new merge instead."
+                )
+            voided = self.filtered(lambda m: m.approval_state in ("pending", "approved"))
+        result = super().write(vals)
+        if voided:
+            voided._approval_void("the merge pair changed after approval was requested")
+        return result
+
+    # ---- engine hooks (A03 audit W4) -------------------------------------
+    def _approval_needed(self) -> bool:
+        return self.state == "draft"
+
+    def _approval_excluded(self):
+        # SOD-15 at routing time: the creators of either party are never sent
+        # the decision (the engine already excludes requester and creator).
+        return (
+            super()._approval_excluded() | self.survivor_id.create_uid | self.victim_id.create_uid
+        ).sudo()
+
+    def _merge_system_trusted(self) -> bool:
+        """Superuser code with no deciding task (crons, data loading).
+
+        Not an inbox decision: the engine hands the record to action_execute
+        through its sudo request, so env.su is true there too, and the
+        steward and SOD-15 checks must still bind the approver."""
+        return self.env.su and not self._approval_task()
+
     def _merge_window_days(self) -> int:
         icp = self.env["ir.config_parameter"].sudo()
         days = int(icp.get_param("fix_party.merge_window_days", "14") or 14)
@@ -77,20 +128,37 @@ class FixPartyMerge(models.Model):
     def action_execute(self):
         """Execute the supervised merge. All activity transfers (BRU-CPM-05):
         nothing is deleted — the victim is tombstoned as 'merged'."""
-        # "Only a data steward executes" (module header) had no group behind
-        # it: any user with Contact write could merge (A03 audit M33-6).
-        require_group(self.env, STEWARD_GROUP, "Executing a party merge")
+        # Routed (A03 audit W4): only an inbox task assigned to a steward
+        # carries the merge through; a direct press is refused here.
+        self._approval_assert_routed()
         for merge in self:
             if merge.state != "draft":
                 raise ValidationError("Only a draft merge can be executed")
+            # "Only a data steward executes" (module header) had no group
+            # behind it: any user with Contact write could merge (A03 audit
+            # M33-6). A delegate decides on the absent steward's authority.
+            authority = merge._approval_authority_user()
+            if not merge._merge_system_trusted() and not authority.has_group(STEWARD_GROUP):
+                raise UserError(
+                    "Executing a party merge needs the 'Party Data Steward' group, which "
+                    "%s does not hold." % authority.name
+                )
             survivor, victim = merge.survivor_id, merge.victim_id
             # SOD-15: the steward who executes cannot have created either
             # record (the 24h refinement of the window is an open item).
+            # The acting users are the approver and whom they act for.
+            acting = merge._approval_acting_users()
             creator_ids = {u.id for u in (victim.create_uid | survivor.create_uid) if u}
-            if self.env.user.id in creator_ids:
+            if set(acting.ids) & creator_ids:
                 raise ValidationError(
                     "The steward executing the merge cannot be the creator of "
                     "either record (SOD-15)"
+                )
+            requester = merge.approval_request_id.requested_by_id
+            if requester and requester in acting and not merge._merge_system_trusted():
+                raise ValidationError(
+                    "Segregation of duties: you requested this merge, so another data "
+                    "steward must execute it."
                 )
             moves, skips = {}, {}
 

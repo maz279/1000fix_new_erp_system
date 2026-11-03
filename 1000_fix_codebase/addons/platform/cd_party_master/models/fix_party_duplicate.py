@@ -126,11 +126,13 @@ class FixPartyDuplicate(models.Model):
         Other open candidates naming the victim are re-pointed at the
         survivor, or closed when that would pair the survivor with itself or
         repeat a pair already queued. Idempotent: a second delivery finds no
-        open candidate naming the victim."""
-        parties = self.env["res.partner"]._fix_merge_event_parties(event)
-        if not parties:
+        open candidate naming the victim. Re-points are logged so a merge
+        reversal moves them back (A03 audit W1)."""
+        Log = self.env["fix.party.repoint.log"]
+        merge = Log._event_merge(event)
+        if not merge:
             return 0
-        survivor, victim = parties
+        survivor, victim = merge.survivor_id, merge.victim_id
         Cand = self.sudo()._guarded()
         touched = 0
         for cand in Cand.search(
@@ -162,8 +164,8 @@ class FixPartyDuplicate(models.Model):
             if other == survivor or duplicate_pair:
                 cand.write({"state": "merged", "decision": note})
             elif cand.party_a == victim:
-                cand.write({"party_a": survivor.id})
+                Log.repoint(merge, cand, "party_a", victim, survivor)
             else:
-                cand.write({"party_b": survivor.id})
+                Log.repoint(merge, cand, "party_b", victim, survivor)
             touched += 1
         return touched

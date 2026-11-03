@@ -7,6 +7,7 @@
 import json
 
 import pytest
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import ValidationError
 from psycopg2 import IntegrityError
 
@@ -206,8 +207,9 @@ def test_merge_is_sod_guarded_transfers_activity_and_is_reversible(odoo_env):
     with pytest.raises(ValidationError, match="SOD-15"):
         merge.action_execute()
 
+    # A03 audit W4: the steward executes it from the M63 approval inbox.
     steward = _steward(odoo_env)
-    merge.with_user(steward.id).action_execute()
+    approve_via_inbox(merge, steward)
     assert merge.state == "executed"
     victim.invalidate_recordset()
     assert victim.party_status == "merged" and not victim.active
@@ -234,7 +236,7 @@ def test_merge_reversal_is_refused_after_the_window(odoo_env):
     cand.action_review()
     cand.action_confirm()
     merge = odoo_env["fix.party.merge"].search([("state", "=", "draft")], limit=1)
-    merge.with_user(_steward(odoo_env).id).action_execute()
+    approve_via_inbox(merge, _steward(odoo_env))  # A03 audit W4: routed
     merge.reversible_until = "2020-01-01 00:00:00"  # window closed (test surgery)
     with pytest.raises(ValidationError, match="reversal window closed"):
         merge.action_reverse()
