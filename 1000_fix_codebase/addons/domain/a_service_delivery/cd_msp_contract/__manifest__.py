@@ -32,6 +32,7 @@ CD-M05-01 (P08-M07) — the managed-services business on M08's engine:
         "cd_event_outbox",
     ],
     "data": [
+        "security/fix_msp_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "views/fix_msp_views.xml",

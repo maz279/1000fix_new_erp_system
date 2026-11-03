@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M05 roles (A02 audit M05-1, M05-2, M05-5, M05-6).
+
+     The module defined no group, and every ACL row granted base.group_user
+     read, write and create, so each of the 11 internal users was engineer,
+     CAB, credit approver and window owner at once: a requester approved and
+     implemented his own high-risk change, and a typed BDT 5,000,000 credit
+     was self-approved and applied.
+
+     - MSP Engineer: the daily operational role (alerts, sessions, patches,
+       change requests, credit computation). The dev admin is a member so the
+       workspace keeps working; segregation of duties still applies to it.
+     - CAB Member / Change Manager: approve changes, maintenance windows and
+       auto-approve patch policies. The change manager approves emergency
+       changes. Membership is a business appointment, so both ship EMPTY.
+     - SLA Credit Approver (MSP finance): approves and applies computed SLA
+       credits. Ships EMPTY. Manual credits also need the DOFA tier. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_msp" model="res.groups.privilege">
+            <field name="name">Managed Services (M05)</field>
+            <field name="description">Remote support, change control and SLA credit decisions on the managed estate (M05).</field>
+            <field name="sequence">31</field>
+        </record>
+
+        <record id="group_msp_engineer" model="res.groups">
+            <field name="name">MSP Engineer</field>
+            <field name="privilege_id" ref="privilege_msp"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Works the managed estate: alerts and tickets, remote sessions (with the client's consent code), patches, on-call shifts, runbooks, change requests and the monthly SLA credit computation.</field>
+        </record>
+
+        <record id="group_msp_cab_member" model="res.groups">
+            <field name="name">MSP CAB Member</field>
+            <field name="privilege_id" ref="privilege_msp"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Change Advisory Board: approves or rejects normal changes, approves maintenance windows (estate-wide windows need a CAB member), approves auto-approve patch policies and critical patches, and records post-implementation reviews. Never on a change the member requested.</field>
+        </record>
+
+        <record id="group_msp_change_manager" model="res.groups">
+            <field name="name">MSP Change Manager</field>
+            <field name="privilege_id" ref="privilege_msp"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Approves emergency changes (with a post-implementation review before close), approves contract-scoped maintenance windows and auto-approve patch policies. Never on a change the manager requested.</field>
+        </record>
+
+        <record id="group_msp_credit_approver" model="res.groups">
+            <field name="name">MSP SLA Credit Approver</field>
+            <field name="privilege_id" ref="privilege_msp"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">MSP finance: approves and applies SLA credits computed from the monthly service report. Never a credit the approver raised. A manual credit additionally needs the DOFA tier its amount requires.</field>
+        </record>
+
+    </data>
+</odoo>

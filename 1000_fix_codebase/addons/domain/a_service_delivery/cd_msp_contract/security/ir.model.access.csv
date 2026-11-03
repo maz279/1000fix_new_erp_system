@@ -1,14 +1,35 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_msp_contract,fix.msp.contract,model_fix_msp_contract,base.group_user,1,1,1,0
-access_fix_monitored_asset,fix.monitored.asset,model_fix_monitored_asset,base.group_user,1,1,1,0
-access_fix_msp_alert,fix.msp.alert,model_fix_msp_alert,base.group_user,1,1,1,0
-access_fix_remote_session,fix.remote.session,model_fix_remote_session,base.group_user,1,1,1,0
-access_fix_msp_service_report,fix.msp.service.report,model_fix_msp_service_report,base.group_user,1,1,1,0
-access_fix_msp_runbook,fix.msp.runbook,model_fix_msp_runbook,base.group_user,1,1,1,1
-access_fix_msp_runbook_run,fix.msp.runbook.run,model_fix_msp_runbook_run,base.group_user,1,1,1,1
-access_fix_msp_patch_policy,fix.msp.patch.policy,model_fix_msp_patch_policy,base.group_user,1,1,1,1
-access_fix_msp_patch_update,fix.msp.patch.update,model_fix_msp_patch_update,base.group_user,1,1,1,0
-access_fix_msp_sla_credit,fix.msp.sla.credit,model_fix_msp_sla_credit,base.group_user,1,1,1,0
-access_fix_msp_oncall_shift,fix.msp.oncall.shift,model_fix_msp_oncall_shift,base.group_user,1,1,1,0
-access_fix_msp_maintenance_window,fix.msp.maintenance.window,model_fix_msp_maintenance_window,base.group_user,1,1,1,0
-access_fix_msp_change_record,fix.msp.change.record,model_fix_msp_change_record,base.group_user,1,1,1,0
+access_fix_msp_contract,fix.msp.contract,model_fix_msp_contract,base.group_user,1,0,0,0
+access_fix_msp_contract_eng,fix.msp.contract engineer,model_fix_msp_contract,group_msp_engineer,1,1,1,0
+access_fix_monitored_asset,fix.monitored.asset,model_fix_monitored_asset,base.group_user,1,0,0,0
+access_fix_monitored_asset_eng,fix.monitored.asset engineer,model_fix_monitored_asset,group_msp_engineer,1,1,1,0
+access_fix_msp_alert,fix.msp.alert,model_fix_msp_alert,base.group_user,1,0,0,0
+access_fix_msp_alert_eng,fix.msp.alert engineer,model_fix_msp_alert,group_msp_engineer,1,1,1,0
+access_fix_remote_session,fix.remote.session,model_fix_remote_session,base.group_user,1,0,0,0
+access_fix_remote_session_eng,fix.remote.session engineer,model_fix_remote_session,group_msp_engineer,1,1,1,0
+access_fix_msp_service_report,fix.msp.service.report,model_fix_msp_service_report,base.group_user,1,0,0,0
+access_fix_msp_service_report_eng,fix.msp.service.report engineer,model_fix_msp_service_report,group_msp_engineer,1,1,1,0
+access_fix_msp_runbook,fix.msp.runbook,model_fix_msp_runbook,base.group_user,1,0,0,0
+access_fix_msp_runbook_eng,fix.msp.runbook engineer,model_fix_msp_runbook,group_msp_engineer,1,1,1,1
+access_fix_msp_runbook_run,fix.msp.runbook.run,model_fix_msp_runbook_run,base.group_user,1,0,0,0
+access_fix_msp_runbook_run_eng,fix.msp.runbook.run engineer,model_fix_msp_runbook_run,group_msp_engineer,1,1,1,0
+access_fix_msp_patch_policy,fix.msp.patch.policy,model_fix_msp_patch_policy,base.group_user,1,0,0,0
+access_fix_msp_patch_policy_cab,fix.msp.patch.policy cab,model_fix_msp_patch_policy,group_msp_cab_member,1,1,1,1
+access_fix_msp_patch_policy_cm,fix.msp.patch.policy change manager,model_fix_msp_patch_policy,group_msp_change_manager,1,1,1,1
+access_fix_msp_patch_update,fix.msp.patch.update,model_fix_msp_patch_update,base.group_user,1,0,0,0
+access_fix_msp_patch_update_eng,fix.msp.patch.update engineer,model_fix_msp_patch_update,group_msp_engineer,1,1,1,0
+access_fix_msp_patch_update_cab,fix.msp.patch.update cab,model_fix_msp_patch_update,group_msp_cab_member,1,1,0,0
+access_fix_msp_patch_update_cm,fix.msp.patch.update change manager,model_fix_msp_patch_update,group_msp_change_manager,1,1,0,0
+access_fix_msp_sla_credit,fix.msp.sla.credit,model_fix_msp_sla_credit,base.group_user,1,0,0,0
+access_fix_msp_sla_credit_eng,fix.msp.sla.credit engineer,model_fix_msp_sla_credit,group_msp_engineer,1,1,1,0
+access_fix_msp_sla_credit_fin,fix.msp.sla.credit approver,model_fix_msp_sla_credit,group_msp_credit_approver,1,1,1,0
+access_fix_msp_sla_credit_dofa4,fix.msp.sla.credit dofa tier 4,model_fix_msp_sla_credit,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_msp_oncall_shift,fix.msp.oncall.shift,model_fix_msp_oncall_shift,base.group_user,1,0,0,0
+access_fix_msp_oncall_shift_eng,fix.msp.oncall.shift engineer,model_fix_msp_oncall_shift,group_msp_engineer,1,1,1,0
+access_fix_msp_maintenance_window,fix.msp.maintenance.window,model_fix_msp_maintenance_window,base.group_user,1,0,0,0
+access_fix_msp_maintenance_window_cab,fix.msp.maintenance.window cab,model_fix_msp_maintenance_window,group_msp_cab_member,1,1,1,0
+access_fix_msp_maintenance_window_cm,fix.msp.maintenance.window change manager,model_fix_msp_maintenance_window,group_msp_change_manager,1,1,1,0
+access_fix_msp_change_record,fix.msp.change.record,model_fix_msp_change_record,base.group_user,1,0,0,0
+access_fix_msp_change_record_eng,fix.msp.change.record engineer,model_fix_msp_change_record,group_msp_engineer,1,1,1,0
+access_fix_msp_change_record_cab,fix.msp.change.record cab,model_fix_msp_change_record,group_msp_cab_member,1,1,0,0
+access_fix_msp_change_record_cm,fix.msp.change.record change manager,model_fix_msp_change_record,group_msp_change_manager,1,1,0,0

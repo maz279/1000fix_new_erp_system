@@ -240,8 +240,10 @@
         <field name="arch" type="xml">
             <form>
                 <header>
+                    <button name="action_request_consent" type="object" string="Request Consent"
+                            invisible="consent_captured or started or ended_at"/>
                     <button name="action_start" type="object" string="Start Session"
-                            class="btn-primary" invisible="started and not ended_at"/>
+                            class="btn-primary" invisible="not consent_captured or started or ended_at"/>
                     <button name="action_end" type="object" string="End Session"
                             invisible="not started or ended_at"/>
                 </header>
@@ -254,7 +256,10 @@
                             <field name="tool"/>
                         </group>
                         <group>
+                            <field name="consent_partner_id"/>
                             <field name="consent_captured"/>
+                            <field name="consent_token_ref"/>
+                            <field name="recording_url"/>
                             <field name="started" readonly="1"/>
                             <field name="started_at"/>
                             <field name="ended_at"/>
@@ -493,9 +498,9 @@
             <form>
                 <header>
                     <button name="action_approve" type="object" string="Approve"
-                            invisible="state not in ('missing', 'deferred')"/>
+                            invisible="state not in ('missing', 'deferred', 'failed')"/>
                     <button name="action_install" type="object" string="Mark Installed"
-                            class="btn-primary" invisible="state == 'installed'"/>
+                            class="btn-primary" invisible="state != 'approved'"/>
                     <button name="action_defer" type="object" string="Defer 7 Days"
                             invisible="state == 'installed'"/>
                     <button name="action_fail" type="object" string="Mark Failed"
@@ -572,12 +577,17 @@
                             <field name="service_report_id"/>
                             <field name="period_label"/>
                             <field name="reason"/>
+                            <field name="manual_amount"/>
+                            <field name="dofa_justification" invisible="not manual_amount"/>
                         </group>
                         <group>
                             <field name="attainment_pct"/>
                             <field name="target_pct"/>
                             <field name="breach_count"/>
+                            <field name="computed_amount"/>
                             <field name="credit_amount"/>
+                            <field name="approved_by_id"/>
+                            <field name="approved_amount"/>
                             <field name="currency_id" invisible="1"/>
                         </group>
                     </group>
@@ -676,10 +686,10 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_open" type="object" string="Open Window"
-                            class="btn-primary" invisible="state != 'planned'"/>
+                    <button name="action_approve" type="object" string="Approve Window"
+                            class="btn-primary" invisible="approved_at or state == 'closed'"/>
                     <button name="action_close" type="object" string="Close Window"
-                            invisible="state != 'active'"/>
+                            invisible="state == 'closed'"/>
                     <field name="state" widget="statusbar"/>
                 </header>
                 <sheet>
@@ -693,6 +703,9 @@
                             <field name="start_at"/>
                             <field name="end_at"/>
                             <field name="suppress_alerts"/>
+                            <field name="approved_by_id"/>
+                            <field name="approved_at"/>
+                            <field name="closed_at" invisible="not closed_at"/>
                         </group>
                     </group>
                 </sheet>

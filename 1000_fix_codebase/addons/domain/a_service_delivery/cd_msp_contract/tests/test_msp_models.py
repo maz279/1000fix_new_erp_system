@@ -164,6 +164,19 @@ def test_ticket_needs_the_asset_linked_to_a_registered_device_with_a_branch(msp)
 # --- remote sessions ------------------------------------------------------------------------
 
 
+def _grant_consent(session):
+    """A02 audit M05-4: consent is the client's one-time code, not a tickbox."""
+    sent = {}
+
+    def _send(self, partner, code, ttl_seconds):
+        sent["code"] = code
+        return {"destination": "017*****000"}
+
+    with patch.object(type(session), "_consent_send_code", _send):
+        session.action_request_consent()
+    session.action_verify_consent(code=sent["code"])
+
+
 def test_remote_session_requires_consent(msp):
     env = msp.env
     session = env["fix.remote.session"].create(
@@ -171,9 +184,9 @@ def test_remote_session_requires_consent(msp):
     )
     with _refused(env, UserError, "PDPA: remote sessions require captured consent"):
         session.action_start()
-    session.consent_captured = True
+    _grant_consent(session)
     session.action_start()
-    session.action_end()
+    session.action_end(recording_url="mesh://recordings/1")
     assert session.ended_at
     started, ended = _events(env, "fix.remote.session", session.id)
     assert (started.event_type, json.loads(started.payload)) == (
@@ -186,9 +199,9 @@ def test_remote_session_requires_consent(msp):
             "msp_contract_id": msp.msp.id,
             "asset_id": msp.bare.id,
             "technician_id": msp.tech.id,
-            "consent_captured": True,
         }
     )
+    _grant_consent(bare_session)
     bare_session.action_start()
     assert json.loads(_events(env, "fix.remote.session", bare_session.id).payload) == {
         "asset": "AGT-MSP-2"

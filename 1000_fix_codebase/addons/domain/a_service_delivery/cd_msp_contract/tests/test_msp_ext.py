@@ -3,6 +3,8 @@
 ``odoo_env`` (addons/conftest.py): fix_test, rolled back after every test.
 """
 
+from unittest.mock import patch
+
 import pytest
 from odoo import fields
 from odoo.exceptions import UserError
@@ -108,6 +110,19 @@ def test_alert_resolve_refuses_resolved(ms):
 # --- remote session guards -------------------------------------------------
 
 
+def _grant_consent(session):
+    """A02 audit M05-4: consent is the client's one-time code, not a tickbox."""
+    sent = {}
+
+    def _send(self, partner, code, ttl_seconds):
+        sent["code"] = code
+        return {"destination": "017*****000"}
+
+    with patch.object(type(session), "_consent_send_code", _send):
+        session.action_request_consent()
+    session.action_verify_consent(code=sent["code"])
+
+
 def test_remote_session_start_end_flow(ms):
     env = ms.env
     # consent required first
@@ -117,13 +132,13 @@ def test_remote_session_start_end_flow(ms):
             "asset_id": ms.asset.id,
             "technician_id": ms.tech.id,
             "tool": "rustdesk",
-            "consent_captured": True,
         }
     )
+    _grant_consent(session)
     session.action_start()
     with pytest.raises(UserError, match="already running"):
         session.action_start()
-    session.action_end()
+    session.action_end(recording_url="mesh://recordings/1")
     assert session.ended_at
     with pytest.raises(UserError, match="already ended"):
         session.action_end()

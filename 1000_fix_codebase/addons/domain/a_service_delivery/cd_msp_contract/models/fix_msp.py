@@ -2,7 +2,7 @@
 from datetime import datetime, time, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -73,24 +73,30 @@ class FixMspContract(models.Model):
         resolved = alerts.filtered(lambda a: a.state == "resolved")
         sla_pct = round((len(resolved) / len(alerts)) if alerts else 1.0, 4)
         device_cnt = self.device_count or len(self.asset_ids)
-        report = self.env["fix.msp.service.report"].create(
-            {
-                "msp_contract_id": self.id,
-                "period_label": period[2],
-                "alert_count": len(alerts),
-                "resolved_count": len(resolved),
-                "sla_attainment": sla_pct,
-                "summary_en": (
-                    f"Monthly Managed Services Operations Report for {period[2]}: "
-                    f"{len(alerts)} alerts processed, {len(resolved)} incidents resolved within SLA. "
-                    f"SLA attainment achieved: {sla_pct * 100:.1f}% across {device_cnt} covered endpoints."
-                ),
-                "summary_bn": (
-                    f"{period[2]} মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: "
-                    f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {len(resolved)}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
-                    f"এসএলএ অর্জনের হার {sla_pct * 100:.1f}%, আওতাভুক্ত সচল ডিভাইস সংখ্যা {device_cnt}টি।"
-                ),
-            }
+        # The figures are guarded on the report (A02 audit M05-2): they drive
+        # the SLA credit, so only this computation may write them.
+        report = (
+            self.env["fix.msp.service.report"]
+            ._guarded()
+            .create(
+                {
+                    "msp_contract_id": self.id,
+                    "period_label": period[2],
+                    "alert_count": len(alerts),
+                    "resolved_count": len(resolved),
+                    "sla_attainment": sla_pct,
+                    "summary_en": (
+                        f"Monthly Managed Services Operations Report for {period[2]}: "
+                        f"{len(alerts)} alerts processed, {len(resolved)} incidents resolved within SLA. "
+                        f"SLA attainment achieved: {sla_pct * 100:.1f}% across {device_cnt} covered endpoints."
+                    ),
+                    "summary_bn": (
+                        f"{period[2]} মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: "
+                        f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {len(resolved)}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
+                        f"এসএলএ অর্জনের হার {sla_pct * 100:.1f}%, আওতাভুক্ত সচল ডিভাইস সংখ্যা {device_cnt}টি।"
+                    ),
+                }
+            )
         )
         publish(
             self.env,
@@ -99,7 +105,7 @@ class FixMspContract(models.Model):
             report.id,
             {"contract": self.name, "period": period[2]},
         )
-        return report
+        return report.with_env(self.env)
 
 
 class FixMonitoredAsset(models.Model):
@@ -188,8 +194,13 @@ class FixMspAlert(models.Model):
 
     _name = "fix.msp.alert"
     _description = "MSP Alert"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M05-3: /p03/model/write set state='resolved' on an untouched
+        # alert, which lifts SLA attainment and so removes the credit owed.
+        return super()._fix_guarded_fields() | {"state", "order_id"}
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -218,7 +229,7 @@ class FixMspAlert(models.Model):
         for rec in self:
             if rec.state != "new":
                 raise UserError("Only NEW alerts acknowledge")
-            rec.state = "acked"
+            rec._guarded().write({"state": "acked"})
 
     def action_to_ticket(self):
         """Journey 6: alert -> ticket. The ticket IS a service order with
@@ -247,7 +258,7 @@ class FixMspAlert(models.Model):
                     "order_category": "amc",
                 }
             )
-            rec.write({"state": "ticketed", "order_id": order.id})
+            rec._guarded().write({"state": "ticketed", "order_id": order.id})
             publish(self.env, "msp.alert_ticketed", "fix.msp.alert", rec.id, {"order": order.name})
 
 
@@ -257,8 +268,21 @@ class FixRemoteSession(models.Model):
 
     _name = "fix.remote.session"
     _description = "Remote Session"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "started_at desc"
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M05-4: consent was a tickbox anyone ticked, and started /
+        # ended_at could be forged by an ORM write. Consent, timing and the
+        # recording are evidence; only the consent capture and the start / end
+        # actions write them.
+        return super()._fix_guarded_fields() | {
+            "consent_captured",
+            "consent_token_ref",
+            "started_at",
+            "ended_at",
+            "recording_url",
+        }
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -275,8 +299,11 @@ class FixRemoteSession(models.Model):
     consent_captured = fields.Boolean(
         required=True,
         default=False,
+        readonly=True,
+        copy=False,
         help="PDPA: the client user's consent to the remote session - "
-        "without it the session does not start",
+        "without it the session does not start. Set only by verifying the "
+        "client's consent code (action_verify_consent), never ticked by hand.",
     )
     started_at = fields.Datetime(default=fields.Datetime.now, required=True)
     ended_at = fields.Datetime(readonly=True)
@@ -293,10 +320,17 @@ class FixRemoteSession(models.Model):
     )
     consent_token_ref = fields.Char(
         string="PDPA Client Consent Token / OTP Ref",
-        help="Cryptographic or OTP consent reference captured from endpoint user.",
+        readonly=True,
+        copy=False,
+        help="The reference of the verified client consent (the M33 OTP "
+        "verification log row). Stamped by action_verify_consent.",
     )
     recording_url = fields.Char(
         string="Immutable Session Audit Recording URI",
+        readonly=True,
+        copy=False,
+        help="Given when the session is ended (action_end); required unless the "
+        "recording switch is off.",
     )
     session_summary = fields.Text(
         string="Remote Remediation Actions Summary",
@@ -307,11 +341,33 @@ class FixRemoteSession(models.Model):
         ondelete="set null",
     )
 
+    @api.constrains("asset_id", "msp_contract_id")
+    def _check_asset_on_contract(self):
+        # A02 audit M05-4 (probe R5): a session started on an asset of another
+        # contract, so one client's consent opened another client's endpoint.
+        for rec in self:
+            if rec.asset_id and rec.asset_id.msp_contract_id != rec.msp_contract_id:
+                raise ValidationError(
+                    "Asset %s is not covered by MSP contract %s - a remote session "
+                    "may only open an endpoint of its own contract."
+                    % (rec.asset_id.hostname or rec.asset_id.agent_id, rec.msp_contract_id.name)
+                )
+
     def action_start(self):
         for rec in self:
-            if not rec.consent_captured:
+            # PDPA: the tickbox alone is not consent (A02 audit M05-4). The
+            # client's consent code must have been verified, which stamps the
+            # token reference.
+            if not (rec.consent_captured and rec.consent_token_ref):
                 raise UserError(
-                    "PDPA: remote sessions require captured consent - " "this one did not start"
+                    "PDPA: remote sessions require captured consent - this one did not "
+                    "start. Send the client the consent code (Request Consent) and "
+                    "verify the code they read back (Verify Consent)."
+                )
+            if rec.asset_id.msp_contract_id != rec.msp_contract_id:
+                raise UserError(
+                    "Asset %s is not covered by this session's contract - the session "
+                    "did not start." % (rec.asset_id.hostname or rec.asset_id.agent_id)
                 )
             publish(
                 self.env,
@@ -323,7 +379,7 @@ class FixRemoteSession(models.Model):
 
     def action_end(self):
         for rec in self:
-            rec.ended_at = fields.Datetime.now()
+            rec._guarded().write({"ended_at": fields.Datetime.now()})
             publish(self.env, "msp.remote_session_ended", "fix.remote.session", rec.id, {})
 
 
@@ -332,7 +388,18 @@ class FixMspServiceReport(models.Model):
 
     _name = "fix.msp.service.report"
     _description = "MSP Service Report"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M05-2: the report's figures decide the SLA credit owed, so
+        # a typed attainment would be a typed credit. action_monthly_report
+        # computes them; the credit run flags a report with no figure.
+        return super()._fix_guarded_fields() | {
+            "alert_count",
+            "resolved_count",
+            "sla_attainment",
+            "attainment_flagged",
+        }
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -343,6 +410,29 @@ class FixMspServiceReport(models.Model):
     alert_count = fields.Integer()
     resolved_count = fields.Integer()
     sla_attainment = fields.Float(string="SLA Attainment (0-1)")
+
+    _FIGURES = ("alert_count", "resolved_count", "sla_attainment")
+
+    def write(self, vals):
+        # The guard lets an unchanged value through, and an EMPTY attainment
+        # reads as 0.0: writing 0.0 onto a report with no figure would turn
+        # "no credit, flagged" into a full credit (A02 audit M05-11). No form
+        # edits these figures, so outside a transition any write of them is
+        # refused.
+        if self.filtered("id") and not self._fix_guard_open():
+            touched = [k for k in self._FIGURES if k in vals]
+            if touched:
+                self._fix_guard_refuse(touched)
+        return super().write(vals)
+
+    attainment_flagged = fields.Boolean(
+        string="Attainment Missing (Flagged)",
+        readonly=True,
+        copy=False,
+        help="Set by the SLA credit run when the report carries no attainment "
+        "figure: such a report produces no credit until it is regenerated "
+        "(A02 audit M05-11).",
+    )
     summary_bn = fields.Text(string="সারসংক্ষেপ (Bengali)", help="DE-17")
     summary_en = fields.Text(string="Summary (English)")
 

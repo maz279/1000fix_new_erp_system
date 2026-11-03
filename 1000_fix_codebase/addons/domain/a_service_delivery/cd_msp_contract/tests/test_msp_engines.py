@@ -201,7 +201,7 @@ def test_patch_policy_auto_approve_on_create(ms):
             "auto_approve": True,
             "operating_unit_id": ms.ou.id,
         }
-    )
+    ).action_approve()  # A02 audit M05-6: only an approved policy auto-approves
     upd = env["fix.msp.patch.update"].create(
         {
             "msp_contract_id": ms.msp.id,
@@ -350,7 +350,7 @@ def test_maintenance_window_suppresses_alerting(ms):
             "operating_unit_id": ms.ou.id,
         }
     )
-    window.action_open()
+    window.action_approve()  # A02 audit M05-5: approval + time range open it
     assert env["fix.msp.maintenance.window"].alerting_suppressed(ms.asset) is True
 
     # a healthy -> degraded transition under the window: NO alert
@@ -372,6 +372,18 @@ def test_maintenance_window_suppresses_alerting(ms):
 
 def test_change_record_full_lifecycle(ms):
     env = ms.env
+    # A02 audit M05-1: a high-risk change needs a rollback plan and runs
+    # inside an approved, open maintenance window.
+    now = fields.Datetime.now()
+    window = env["fix.msp.maintenance.window"].create(
+        {
+            "name": "Core switch window",
+            "msp_contract_id": ms.msp.id,
+            "start_at": now - timedelta(minutes=10),
+            "end_at": now + timedelta(hours=2),
+        }
+    )
+    window.action_approve()
     rec = env["fix.msp.change.record"].create(
         {
             "name": "Swap core switch",
@@ -382,6 +394,8 @@ def test_change_record_full_lifecycle(ms):
             "asset_id": ms.asset.id,
             "requested_by": ms.tech.id,
             "description": "Replace the failing uplink module",
+            "rollback_plan": "Re-seat the old uplink module",
+            "maintenance_window_id": window.id,
             "operating_unit_id": ms.ou.id,
         }
     )
