@@ -398,7 +398,12 @@ class CustomerApiController(http.Controller):
         device = _su_env()["fix.device"].browse(_to_int(device_id) or 0).exists()
         if not device:
             return _error("no_device", "Device not found")
-        if device.owner_id.id != _scoped_partner(kwargs):
+        # The OWNER transfers, always as themself. `_scoped_partner` lets an internal
+        # user act for any customer (the support read view); for a transfer that
+        # meant any staff login could give any customer's device away, as
+        # superuser (A07 audit 2026-11-03, M17-1). Staff transfers go through the
+        # back office, which records them.
+        if device.owner_id != request.env.user.partner_id:
             return _error("not_owner", "Only the current owner can transfer this device")
         new_owner = _su_env()["res.partner"].browse(_to_int(to_partner_id) or 0).exists()
         if not new_owner:

@@ -4,9 +4,28 @@
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 logger = logging.getLogger(__name__)
+
+# A07 audit (2026-11-03), M17-1/M17-2: any internal user could hand a
+# customer's device to someone else by writing `owner_id`, and could rewrite a
+# serviced phone's IMEI or move it onto another device, leaving no trail - the
+# laundering path for a stolen handset. Once set, the owner changes only through
+# `action_transfer_ownership` and an identifier only through
+# `action_correct_identifier`; first capture at registration stays open.
+IDENTIFIER_FIELDS = ("serial_number", "imei_1", "imei_2")
+# Until the registry supervisor role exists (P1), identifier correction is an
+# administrator act.
+IDENTIFIER_CORRECTION_GROUP = "base.group_system"
+# A07 audit (2026-11-03), M17-8/M17-3: scrapping a customer's device and
+# merging two devices are not money decisions, so they carry no DOFA amount.
+# The spec's decider is the branch manager (BRU-AST-09/19); no such role group
+# exists yet (P1), so the DOFA tier whose label matches is used:
+# "Tier 2 - Branch / Operations Manager". A default the business must confirm.
+DEVICE_DECISION_GROUP = "cd_entity_config.group_dofa_tier_2"
+# A lost or scrapped device is not in anyone's hands to scrap or hand on.
+NOT_SCRAPPABLE = ("lost", "scrapped")
 
 
 class FixDevice(models.Model):
@@ -18,8 +37,37 @@ class FixDevice(models.Model):
 
     _name = "fix.device"
     _description = "Device"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    # fix.approvable.mixin already carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+
+    # A07 audit (2026-11-03) M17-8: `state='scrapped'` was a plain write. Scrap
+    # is now a routed M63 decision: Request Approval (the reason is the
+    # justification), and a Tier 2 holder who neither requested it nor
+    # registered the device scraps it from the approval inbox.
+    _approval_domain = "device_scrap"
+    _approval_apply_method = "action_scrap"
+    _approval_group = DEVICE_DECISION_GROUP
+    _approval_routed = True
+
+    def _fix_guarded_fields(self) -> set:
+        # Every state was writable by any user: scrapped, lost and cleared by
+        # the flagger himself, transferred with no ownership row; and a plain
+        # archive made a customer's device vanish from the register (M17-8,
+        # M17-2). They move only through the actions below, the transfer and
+        # the merge; superuser service code stays trusted.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "active",
+            "lost_prior_state",
+            "lost_reason",
+            "lost_flagged_by_id",
+            "lost_flagged_at",
+            "lost_cleared_by_id",
+            "lost_cleared_at",
+            "scrapped_by_id",
+            "scrapped_at",
+        }
 
     # AS-03
     company_id = fields.Many2one(
@@ -35,9 +83,12 @@ class FixDevice(models.Model):
         help="Manufacturer serial number — unique when present",
     )
     imei_1 = fields.Char(
-        string="IMEI 1", index=True, help="Primary IMEI for mobile devices — unique when present"
+        string="IMEI 1",
+        index=True,
+        tracking=True,
+        help="Primary IMEI for mobile devices — unique when present",
     )
-    imei_2 = fields.Char(string="IMEi 2 (Dual SIM)", index=True)
+    imei_2 = fields.Char(string="IMEI 2 (Dual SIM)", index=True, tracking=True)
     mac_address = fields.Char(string="MAC Address", index=True)
     legacy_reference = fields.Char(
         string="Legacy Reference",
@@ -60,6 +111,7 @@ class FixDevice(models.Model):
         "res.partner",
         string="Current Owner",
         domain=[("is_company", "=", False)],
+        tracking=True,
         help="The party currently owning this device",
     )
     purchase_date = fields.Date(string="Purchase Date")
@@ -83,9 +135,11 @@ class FixDevice(models.Model):
             ("extended", "Extended Warranty"),
             ("unknown", "Unknown"),
         ],
+        # Not stored: the label depends on today's date, and a stored value froze
+        # at the warranty's last write - on 3 Nov 2026 50 devices read
+        # "in_warranty" with no running cover (A07 audit M17-5).
         compute="_compute_warranty_status",
-        store=True,
-        tracking=True,
+        search="_search_warranty_status",
         help="Derived from the warranty record's dates and status",
     )
 
@@ -105,6 +159,20 @@ class FixDevice(models.Model):
         tracking=True,
         index=True,
     )
+    # BRU-AST-09: who flagged the device lost and when, and who cleared it -
+    # never the same person. The state before the flag is what clearing restores.
+    lost_prior_state = fields.Char(string="State Before Lost Flag", readonly=True, copy=False)
+    lost_reason = fields.Char(string="Lost / Stolen Report", readonly=True, copy=False)
+    lost_flagged_by_id = fields.Many2one(
+        "res.users", string="Flagged Lost By", readonly=True, copy=False
+    )
+    lost_flagged_at = fields.Datetime(string="Flagged Lost At", readonly=True, copy=False)
+    lost_cleared_by_id = fields.Many2one(
+        "res.users", string="Lost Flag Cleared By", readonly=True, copy=False
+    )
+    lost_cleared_at = fields.Datetime(string="Lost Flag Cleared At", readonly=True, copy=False)
+    scrapped_by_id = fields.Many2one("res.users", string="Scrapped By", readonly=True, copy=False)
+    scrapped_at = fields.Datetime(string="Scrapped At", readonly=True, copy=False)
 
     # Branch scope
     branch_id = fields.Many2one("fix.branch", string="Registered At")
@@ -185,6 +253,25 @@ class FixDevice(models.Model):
             else:
                 rec.warranty_status = "unknown"
 
+    def _search_warranty_status(self, operator, value):
+        if operator not in ("=", "!=", "in", "not in"):
+            raise UserError("Unsupported search on Warranty Status: %s" % operator)
+        wanted = {value} if operator in ("=", "!=") else set(value or ())
+        today = fields.Date.context_today(self)
+        Warranty = self.env["fix.warranty"].sudo().with_context(active_test=False)
+        active = Warranty.search([("status", "=", "active")])
+        running = set(active.filtered(lambda w: w.end_date and w.end_date >= today).device_id.ids)
+        with_active = set(active.device_id.ids)
+        ids = set()
+        if "in_warranty" in wanted:
+            ids |= running
+        if "out_of_warranty" in wanted:
+            ids |= with_active - running
+        domain = [("id", "in", list(ids))]
+        if "unknown" in wanted:
+            domain = ["|", ("id", "not in", list(with_active)), *domain]
+        return ["!", *domain] if operator in ("!=", "not in") else domain
+
     @api.constrains("serial_number", "imei_1")
     def _check_identity_format(self):
         for rec in self:
@@ -201,7 +288,38 @@ class FixDevice(models.Model):
             self._emit("device.registered", rec)
         return records
 
+    def _fix_locked_identity(self, vals) -> set:
+        """The owner/identifier fields in ``vals`` that would CHANGE a value
+        already set on one of these devices. Filling an empty one is first
+        capture (registration, or the first IMEI read at intake) and stays open."""
+        names = {"owner_id", *IDENTIFIER_FIELDS} & set(vals)
+        return {
+            name
+            for rec in self
+            for name in names
+            if rec[name] and rec._fix_guard_differs(name, vals[name], rec[name])
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1:
+            locked |= {n for n in ("owner_id", *IDENTIFIER_FIELDS) if self[n]}
+        return locked
+
     def write(self, vals):
+        if not self._fix_guard_open():
+            locked = self._fix_locked_identity(vals)
+            if "owner_id" in locked:
+                raise UserError(
+                    "The owner of a device changes only through an ownership transfer, "
+                    "which records who it passed from and to."
+                )
+            if locked:
+                raise UserError(
+                    "%s of a registered device cannot be overwritten. Use the identifier "
+                    "correction, which needs a reason and keeps the old value on record."
+                    % ", ".join(sorted(self._fields[n].string for n in locked))
+                )
         result = super().write(vals)
         if "owner_id" in vals:
             for rec in self:
@@ -211,19 +329,161 @@ class FixDevice(models.Model):
                 self._emit("device.warranty_updated", rec)
         return result
 
-    def action_transfer_ownership(self, new_owner_id: int):
-        """Transfer ownership (T05: portal P01 exposes this in Phase 5)."""
+    def action_transfer_ownership(self, new_owner_id: int, transfer_type="sale", notes=None):
+        """Transfer ownership (T05: portal P01 exposes this in Phase 5).
+
+        BRU-AST-09: a device flagged lost/stolen or scrapped is never handed on.
+        The owner and the ownership trail are written together, through the guard,
+        so neither can be changed without the other."""
         self.ensure_one()
+        if self.state in ("lost", "scrapped"):
+            raise UserError(
+                "%s is %s and cannot change owner."
+                % (self.display_name, dict(self._fields["state"].selection)[self.state])
+            )
+        new_owner = self.env["res.partner"].browse(int(new_owner_id)).exists()
+        if not new_owner:
+            raise UserError("The new owner does not exist.")
         old_owner = self.owner_id
-        self.write({"owner_id": new_owner_id, "state": "transferred"})
-        self.env["fix.device.ownership"].create(
+        if old_owner == new_owner:
+            raise UserError("%s already belongs to %s." % (self.display_name, new_owner.name))
+        self._guarded().write({"owner_id": new_owner.id, "state": "transferred"})
+        self.env["fix.device.ownership"]._guarded().create(
             {
                 "device_id": self.id,
                 "from_partner_id": old_owner.id if old_owner else False,
-                "to_partner_id": new_owner_id,
-                "transfer_date": fields.Date.today(),
+                "to_partner_id": new_owner.id,
+                "transfer_date": fields.Date.context_today(self),
+                "transfer_type": transfer_type,
+                "notes": notes,
             }
         )
+        # A scrap requested for the old owner's device is not the new owner's.
+        self._approval_void("the device changed owner while scrap approval was pending")
+
+    def action_correct_identifier(self, field_name: str, value, reason: str):
+        """Privileged correction of a serial number or IMEI (e.g. a board swap or
+        a mis-keyed intake). The old value is kept in the chatter with the reason."""
+        self.ensure_one()
+        if field_name not in IDENTIFIER_FIELDS:
+            raise UserError("Only the serial number and IMEIs are corrected this way.")
+        if not self.env.su and not self.env.user.has_group(IDENTIFIER_CORRECTION_GROUP):
+            raise AccessError("Only an administrator can correct a device identifier.")
+        if not (reason or "").strip():
+            raise UserError("A reason is required to correct a device identifier.")
+        old = self[field_name]
+        self._guarded().write({field_name: value or False})
+        self.message_post(
+            body="%s corrected from %s to %s. Reason: %s"
+            % (self._fields[field_name].string, old or "(empty)", value or "(empty)", reason)
+        )
+
+    # ---- lifecycle actions (A07 audit 2026-11-03, M17-8 / M17-2) ----------
+    def _state_label(self):
+        return dict(self._fields["state"].selection).get(self.state, self.state)
+
+    def action_mark_lost(self, reason=None):
+        """Flag the device lost or stolen (BRU-AST-09). Any internal user may
+        raise the flag - holding a reported device is the safe side - but who
+        and when are stamped, and someone else must clear it."""
+        if not (reason or "").strip():
+            raise UserError("Say how the loss or theft was reported.")
+        for rec in self:
+            if rec.state in NOT_SCRAPPABLE:
+                raise UserError("%s is already %s." % (rec.display_name, rec._state_label()))
+            rec._guarded().write(
+                {
+                    "lost_prior_state": rec.state,
+                    "state": "lost",
+                    "lost_reason": reason.strip(),
+                    "lost_flagged_by_id": self.env.uid,
+                    "lost_flagged_at": fields.Datetime.now(),
+                    "lost_cleared_by_id": False,
+                    "lost_cleared_at": False,
+                }
+            )
+            rec._approval_void("the device was flagged lost while scrap approval was pending")
+            rec.message_post(body="Flagged lost/stolen by %s: %s" % (self.env.user.name, reason))
+        return True
+
+    def action_clear_lost(self, reason=None):
+        """Clear a lost/stolen flag. SoD: never by the user who raised it (the
+        flagger clearing his own flag was the laundering path, M17-2)."""
+        if not (reason or "").strip():
+            raise UserError("Say how the device was recovered or the report withdrawn.")
+        for rec in self:
+            if rec.state != "lost":
+                raise UserError("Only a device flagged lost can be cleared.")
+            if not self.env.su and rec.lost_flagged_by_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you flagged %s lost, so another user must "
+                    "clear the flag." % rec.display_name
+                )
+            restore = rec.lost_prior_state
+            if restore not in dict(rec._fields["state"].selection) or restore in NOT_SCRAPPABLE:
+                restore = "registered"
+            rec._guarded().write(
+                {
+                    "state": restore,
+                    "lost_cleared_by_id": self.env.uid,
+                    "lost_cleared_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(
+                body="Lost/stolen flag cleared by %s (back to %s): %s"
+                % (self.env.user.name, rec._state_label(), reason)
+            )
+        return True
+
+    def _approval_needed(self) -> bool:
+        return self.state not in NOT_SCRAPPABLE
+
+    def action_request_approval(self, justification=None):
+        """Request scrap approval. The justification IS the scrap reason, and
+        the approver reads it, so it is required."""
+        if not (justification or "").strip():
+            raise UserError("State why the device should be scrapped.")
+        for rec in self:
+            if rec.state in NOT_SCRAPPABLE:
+                raise UserError(
+                    "%s is %s and cannot be scrapped." % (rec.display_name, rec._state_label())
+                )
+        return super().action_request_approval(justification=justification)
+
+    def action_scrap(self):
+        """Scrap the device: the M63 apply method, reached only from the
+        approver's inbox (a direct press is refused). Tier 2 authority is
+        checked on the approver - the absent one when a delegate decides - and
+        the requester never scraps the device he asked to scrap."""
+        self._approval_assert_routed()
+        trusted = self.env.su and not self._approval_task()
+        authority = self._approval_authority_user()
+        acting = self._approval_acting_users()
+        for rec in self:
+            if rec.state in NOT_SCRAPPABLE:
+                raise UserError(
+                    "%s is %s and cannot be scrapped." % (rec.display_name, rec._state_label())
+                )
+            if not trusted:
+                if not authority.has_group(DEVICE_DECISION_GROUP):
+                    raise UserError(
+                        "Scrapping a device requires DOFA Tier 2 (Branch / Operations "
+                        "Manager) authority, which %s does not hold." % authority.name
+                    )
+                if acting & rec.approval_request_id.sudo().requested_by_id:
+                    raise UserError("You requested this scrap, so someone else must approve it.")
+            rec._guarded().write(
+                {
+                    "state": "scrapped",
+                    "scrapped_by_id": self.env.uid,
+                    "scrapped_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(
+                body="Scrapped by %s. Reason: %s"
+                % (self.env.user.name, rec.approval_request_id.sudo().justification or "-")
+            )
+        return True
 
     def _emit(self, event_type: str, rec) -> None:
         from libs.py.fix_events import publish
