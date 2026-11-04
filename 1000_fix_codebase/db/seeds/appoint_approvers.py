@@ -92,6 +92,44 @@ APPROVERS = [
         "আরিফুল হক (Service Order Supervisor)",
         ["cd_service_order.group_so_supervisor"],
     ),
+    # A06 supply chain (DE-12). Approver roles ship empty; one synthetic holder
+    # each, never the operational users who raise the documents. An LC and a
+    # supplier reinstatement are decided under DOFA Tier 4 as well.
+    (
+        "seed.inventory.controller@1000fix.local",
+        "সাইফুল ইসলাম (Inventory Controller)",
+        ["cd_wms_structure.group_inventory_controller"],
+    ),
+    (
+        "seed.procurement.approver@1000fix.local",
+        "তানজিলা হক (Procurement Approver)",
+        ["cd_requisition.group_fix_procurement_approver"],
+    ),
+    (
+        "seed.procurement.manager@1000fix.local",
+        "কামরুল হাসান (Procurement Manager)",
+        ["cd_requisition.group_fix_procurement_manager"],
+    ),
+    (
+        "seed.supplier.approver@1000fix.local",
+        "শারমিন সুলতানা (Supplier Approver)",
+        ["cd_vendor_portal.group_fix_supplier_approver", "cd_entity_config.group_dofa_tier_4"],
+    ),
+    (
+        "seed.demand.approver@1000fix.local",
+        "জাহিদ হাসান (Demand Plan Approver)",
+        ["cd_demand_plan.group_fix_demand_approver"],
+    ),
+    (
+        "seed.import.approver@1000fix.local",
+        "নুসরাত জাহান (Import Approver)",
+        ["cd_import_order.group_fix_import_approver", "cd_entity_config.group_dofa_tier_4"],
+    ),
+    (
+        "seed.doa.admin@1000fix.local",
+        "আবদুল্লাহ আল মামুন (DoA Administrator)",
+        ["cd_workflow_engine.group_doa_administrator"],
+    ),
 ]
 
 Users = env["res.users"].with_context(no_reset_password=True)
