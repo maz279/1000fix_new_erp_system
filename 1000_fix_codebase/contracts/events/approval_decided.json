@@ -41,7 +41,7 @@
           "type": "string"
         },
         "state": {
-          "description": "Type not statically derivable from `state` (addons/domain/i_governance/cd_workflow_engine/models/fix_approval_engine.py:847)."
+          "description": "Type not statically derivable from `state` (addons/domain/i_governance/cd_workflow_engine/models/fix_approval_engine.py:1065)."
         },
         "decided_by": {
           "type": "integer"

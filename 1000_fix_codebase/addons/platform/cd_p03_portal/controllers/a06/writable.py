@@ -90,6 +90,7 @@ WRITABLE = {
     "fix.import.arrival": frozenset(
         {
             "bl_no",
+            "cnf_agent_id",
             "eta",
             "etd",
             "free_days",
@@ -104,6 +105,7 @@ WRITABLE = {
             "asycuda_ref",
             "boe_date",
             "boe_no",
+            "cnf_agent_id",
             "customs_assessed_total",
             "line_ids",
             "order_id",
@@ -112,12 +114,33 @@ WRITABLE = {
         }
     ),
     "fix.import.boe.line": frozenset(),
+    "fix.import.cnf.agent": frozenset(
+        {
+            "licence_authority",
+            "licence_expiry",
+            "licence_no",
+            "name",
+            "supplier_id",
+        }
+    ),
     "fix.import.hs": frozenset(
         {
             "description",
             "hs_code",
             "product_id",
             "ruling_ref",
+        }
+    ),
+    "fix.import.insurance": frozenset(
+        {
+            "cover_from",
+            "cover_to",
+            "currency_id",
+            "insurer_id",
+            "order_id",
+            "policy_no",
+            "premium",
+            "sum_insured",
         }
     ),
     "fix.import.irc": frozenset(
@@ -198,6 +221,18 @@ WRITABLE = {
             "supplier_id",
         }
     ),
+    "fix.import.permit": frozenset(
+        {
+            "document",
+            "document_name",
+            "issued_on",
+            "issuer",
+            "order_id",
+            "permit_no",
+            "restriction_id",
+            "valid_to",
+        }
+    ),
     "fix.import.proforma": frozenset(
         {
             "amount",
@@ -206,6 +241,19 @@ WRITABLE = {
             "order_id",
             "proforma_no",
             "valid_until",
+        }
+    ),
+    "fix.import.restriction": frozenset(
+        {
+            "date_from",
+            "date_to",
+            "hs_code_pattern",
+            "issuing_authority",
+            "legal_ref",
+            "name",
+            "permit_type",
+            "product_id",
+            "restriction_type",
         }
     ),
     "fix.import.shipdoc": frozenset(

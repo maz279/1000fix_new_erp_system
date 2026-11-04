@@ -58,7 +58,7 @@
           ]
         },
         "expected_qty": {
-          "description": "Type not statically derivable from `expected` (addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:1499 via _event() at addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:84)."
+          "description": "Type not statically derivable from `expected` (addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:1546 via _event() at addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:84)."
         },
         "counted_qty": {
           "type": "number"

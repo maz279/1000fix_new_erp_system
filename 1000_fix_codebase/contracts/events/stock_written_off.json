@@ -58,7 +58,7 @@
           "type": "number"
         },
         "value": {
-          "description": "Type not statically derivable from `self._writeoff_value()` (addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:1768 via _event() at addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:84)."
+          "description": "Type not statically derivable from `self._writeoff_value()` (addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:1844 via _event() at addons/domain/e_supply_chain/cd_inventory/models/fix_inventory_ops.py:84)."
         },
         "reason": {
           "type": "string"

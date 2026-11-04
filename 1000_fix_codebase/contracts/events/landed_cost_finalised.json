@@ -53,10 +53,10 @@
           "type": "number"
         },
         "revalued": {
-          "description": "Type not statically derivable from `stock_total` (addons/domain/e_supply_chain/cd_import_order/models/fix_import_ops.py:2505)."
+          "description": "Type not statically derivable from `stock_total` (addons/domain/e_supply_chain/cd_import_order/models/fix_import_ops.py:2530)."
         },
         "variance": {
-          "description": "Type not statically derivable from `var_total` (addons/domain/e_supply_chain/cd_import_order/models/fix_import_ops.py:2505)."
+          "description": "Type not statically derivable from `var_total` (addons/domain/e_supply_chain/cd_import_order/models/fix_import_ops.py:2530)."
         },
         "recoverable": {
           "type": "object"
