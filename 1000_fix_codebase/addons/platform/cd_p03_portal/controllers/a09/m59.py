@@ -32,14 +32,32 @@ SURFACES = {
         "limit": 400,
         "actions": {
             "action_investigate",
+            "action_triage",
             "action_record_action_taken",
-            "action_verify_capa",
             "action_close",
             "action_escalate",
             "action_notify_dife",
             "action_dispatch_dife_notice",
         },
     },
+    # Round 2 (M59-F8): the investigation team, root causes and CAPA actions
+    # are child records; a CAPA is done by its owner and verified by another
+    # HSE Officer.
+    "fix.hse.investigation.member": {"order": "incident_id, role", "limit": 500, "actions": set()},
+    "fix.hse.root.cause": {"order": "incident_id, id", "limit": 500, "actions": set()},
+    "fix.hse.capa": {
+        "order": "due_date, id",
+        "limit": 500,
+        "actions": {"action_mark_done", "action_verify", "action_cancel"},
+    },
+    # Round 2 (FR-HSE-037): the publishable fitness status; read-only here.
+    # Round 2: the follow-up of a lapsed M22 safety certification.
+    "fix.hse.safety.followup": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_close"},
+    },
+    "fix.hse.fitness.status": {"order": "valid_from desc, id desc", "limit": 500, "actions": set()},
     "fix.statutory.accident.register": {
         "order": "accident_date desc",
         "limit": 300,
@@ -47,6 +65,7 @@ SURFACES = {
             "action_notify_dife",
             "action_request_approval",
             "action_recall_approval",
+            "action_record_return_to_work",
             "action_close",
         },
     },
@@ -79,7 +98,7 @@ SURFACES = {
     "fix.hse.health": {
         "order": "record_date desc, id desc",
         "limit": 300,
-        "actions": {"action_close"},
+        "actions": {"action_publish_fitness", "action_close"},
     },
     "fix.safety.inspection": {"order": "id desc", "limit": 400, "actions": {"action_complete"}},
 }

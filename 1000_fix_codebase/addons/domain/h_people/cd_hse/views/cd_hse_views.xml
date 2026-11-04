@@ -24,7 +24,6 @@
                 <header>
                     <button name="action_investigate" string="Investigate" type="object" invisible="state != 'reported'" class="btn-primary"/>
                     <button name="action_record_action_taken" string="Record Action Taken" type="object" invisible="state != 'investigating'" class="btn-primary"/>
-                    <button name="action_verify_capa" string="Verify CAPA" type="object" invisible="state != 'action_taken' or capa_verified_by_id" class="btn-secondary"/>
                     <button name="action_close" string="Close Incident" type="object" invisible="state != 'action_taken'" class="btn-success"/>
                     <field name="state" widget="statusbar" statusbar_visible="reported,investigating,action_taken,closed"/>
                 </header>
@@ -51,12 +50,32 @@
                         <page string="Description">
                             <field name="description"/>
                         </page>
-                        <page string="Corrective Actions">
-                            <field name="root_cause"/>
-                            <field name="corrective_action"/>
-                            <field name="capa_owner_id"/>
-                            <field name="capa_due_date"/>
-                            <field name="capa_verified_by_id"/>
+                        <page string="Investigation">
+                            <field name="investigation_findings"/>
+                            <field name="investigation_member_ids">
+                                <list editable="bottom">
+                                    <field name="employee_id"/>
+                                    <field name="role"/>
+                                </list>
+                            </field>
+                            <field name="root_cause_ids">
+                                <list editable="bottom">
+                                    <field name="category"/>
+                                    <field name="description"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="CAPA">
+                            <field name="capa_ids">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="action_type"/>
+                                    <field name="owner_id"/>
+                                    <field name="due_date"/>
+                                    <field name="verified_by_id"/>
+                                    <field name="state"/>
+                                </list>
+                            </field>
                         </page>
                     </notebook>
                 </sheet>

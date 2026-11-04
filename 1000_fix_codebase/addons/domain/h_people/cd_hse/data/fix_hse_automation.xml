@@ -34,11 +34,28 @@
             <field name="value">0</field>
         </record>
 
+        <!-- FR-HSE-032 (round 2): days past the replace-by date before a PPE
+             replacement escalates to the line manager. No figure in the
+             repository; 0 = escalate the day after the replace-by date. -->
+        <record id="param_ppe_replacement_grace_days" model="ir.config_parameter">
+            <field name="key">cd_hse.ppe_replacement_grace_days</field>
+            <field name="value">0</field>
+        </record>
+
         <record id="consumer_hse_incident_alert" model="fix.event.consumer">
             <field name="name">M59: a serious incident alerts the HSE Officers and DIFE authority (BRU-HSE-03)</field>
             <field name="event_type">hse.incident_reported</field>
             <field name="model">fix.hse.incident</field>
             <field name="method">consume_incident_reported</field>
+            <field name="module">cd_hse</field>
+        </record>
+        <!-- round 2: M22 publishes certification.safety_lapsed when a
+             "Statutory / Safety" competency lapses; HSE follows it up. -->
+        <record id="consumer_hse_safety_lapsed" model="fix.event.consumer">
+            <field name="name">M59: a lapsed safety certification opens an HSE follow-up</field>
+            <field name="event_type">certification.safety_lapsed</field>
+            <field name="model">fix.hse.safety.followup</field>
+            <field name="method">consume_certification_safety_lapsed</field>
             <field name="module">cd_hse</field>
         </record>
         <record id="consumer_hse_loneworker_escalated" model="fix.event.consumer">
@@ -76,6 +93,16 @@
         <field name="model_id" ref="model_fix_safety_committee"/>
         <field name="state">code</field>
         <field name="code">model.cron_flag_overdue_meetings()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="cron_hse_ppe_replacement" model="ir.cron">
+        <field name="name">M59: Alert and escalate PPE past its replace-by date</field>
+        <field name="model_id" ref="model_fix_ppe_issue"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_ppe_replacement_alerts()</field>
         <field name="interval_number">1</field>
         <field name="interval_type">days</field>
         <field name="user_id" ref="base.user_root"/>

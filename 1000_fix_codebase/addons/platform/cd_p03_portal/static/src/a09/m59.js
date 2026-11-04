@@ -28,6 +28,9 @@ export const MODULE = {
     { en: 'Incidents', screens: [
       { id: 'M59-report', en: 'Incident & Near-Miss Reporting', bn: 'ঘটনা রিপোর্ট', t: 'g' },
       { id: 'M59-investigate', en: 'Investigation & RCA', bn: 'তদন্ত', t: 'g' },
+      { id: 'M59-capa', en: 'CAPA Actions', bn: 'সংশোধনী পদক্ষেপ', t: 'g' },
+      { id: 'M59-root-causes', en: 'Root Causes', bn: 'মূল কারণ', t: 'g' },
+      { id: 'M59-investigation-team', en: 'Investigation Team', bn: 'তদন্ত দল', t: 'g' },
       { id: 'M59-statutory', en: 'Statutory Notification Clock', bn: 'আইনি ঘড়ি', t: 'r' }
     ]},
     { en: 'Field Safety', screens: [
@@ -40,11 +43,13 @@ export const MODULE = {
       { id: 'M59-committee', en: 'Safety Committee', bn: 'নিরাপত্তা কমিটি', t: 'g' },
       { id: 'M59-committee-members', en: 'Committee Members', bn: 'কমিটির সদস্য', t: 'g' },
       { id: 'M59-committee-meetings', en: 'Committee Meetings', bn: 'কমিটির সভা', t: 'g' },
-      { id: 'M59-wellbeing', en: 'Occupational Health', bn: 'পেশাগত স্বাস্থ্য', t: 'g' }
+      { id: 'M59-wellbeing', en: 'Occupational Health', bn: 'পেশাগত স্বাস্থ্য', t: 'g' },
+      { id: 'M59-fitness', en: 'Fitness for Work', bn: 'কাজের উপযুক্ততা', t: 'g' },
+      { id: 'M59-safety-followups', en: 'Lapsed Safety Certifications', bn: 'মেয়াদোত্তীর্ণ নিরাপত্তা সনদ', t: 'g' }
     ]}
   ],
   reports: ['Incident Statistics', 'Leading Indicators', 'Statutory Compliance', 'PPE Compliance', 'Drill Calendar Coverage'],
-  forms: ['Incident Report', 'JSA', 'PPE Issue', 'Return-to-Work'],
+  forms: ['Incident Report', 'Anonymous Safety Report', 'JSA', 'PPE Issue', 'Return-to-Work'],
   cross: ['M47 Facility safety', 'M21 Workforce', 'M46 Fleet', 'M02 Field Safety'],
   freg: { src: 60, sub: [
     ['1', 'Hazard Register & Risk', 9, { model: 'fix.hse.hazard', cols: ['name', 'hazard_type', 'risk_score', 'residual_risk', 'state'], screens: ['M59-hazards', 'M59-safety-inspection'] }],
@@ -71,6 +76,7 @@ export const SCREENS = {
       { m: 'action_notify_dife', l: 'Record DIFE Notice', ask: 'DIFE dispatch / acknowledgement reference', kwarg: 'notice_ref' },
       { m: 'action_request_approval', l: 'Request Compensation Approval' },
       { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_record_return_to_work', l: 'Record Return to Work', ask: 'Return date (YYYY-MM-DD)', kwarg: 'return_date' },
       { m: 'action_close', l: 'Close Entry' }
     ] },
   'M59-hazards': { kind: 'model_list', model: 'fix.hse.hazard', stateField: 'state',
@@ -87,7 +93,7 @@ export const SCREENS = {
     ] },
   /* A09 M59-F13: an issue to one worker, acknowledged by that worker only. */
   'M59-ppe-issue': { kind: 'model_list', model: 'fix.ppe.issue',
-    cols: ['employee_id', 'ppe_id', 'quantity', 'issued_on', 'replace_by', 'issued_by_id', 'acknowledged', 'acknowledged_on'],
+    cols: ['employee_id', 'ppe_id', 'quantity', 'issued_on', 'replace_by', 'replacement_alert_level', 'replaced', 'issued_by_id', 'acknowledged', 'acknowledged_on'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge Receipt' }] },
   'M59-committee-members': { kind: 'model_list', model: 'fix.safety.committee.member',
     cols: ['committee_id', 'employee_id', 'side', 'term_start'] },
@@ -96,29 +102,49 @@ export const SCREENS = {
   'M59-ppe': { kind: 'model_list', model: 'fix.ppe.register', stateField: 'state',
     cols: ['name', 'item_type', 'regulatory_standard', 'stock_quantity', 'min_required_quantity', 'state'] },
   'M59-report': { kind: 'model_list', model: 'fix.hse.incident', stateField: 'state',
-    cols: ['name', 'incident_type', 'severity', 'branch_id', 'accident_datetime', 'notice_due', 'notice_form', 'dife_notice_ref', 'state'],
+    cols: ['name', 'incident_type', 'severity', 'branch_id', 'anonymous', 'accident_datetime', 'notice_due', 'notice_form', 'dife_notice_ref', 'state'],
     actions: [
+      { m: 'action_triage', l: 'Triage', ask: 'Triage note', kwarg: 'note' },
       { m: 'action_dispatch_dife_notice', l: 'Record DIFE Notice (s.80)', ask: 'DIFE dispatch / acknowledgement reference', kwarg: 'notice_ref' },
       { m: 'action_investigate', l: 'Investigate' },
       { m: 'action_escalate', l: 'Escalate Severity', ask: 'Why is the severity raised?', kwarg: 'reason' },
       { m: 'action_record_action_taken', l: 'Record Action Taken' },
-      { m: 'action_verify_capa', l: 'Verify CAPA' },
       { m: 'action_close', l: 'Close Incident' }
     ] },
+  /* Round 2 (M59-F8): investigation team, root causes and CAPA actions are
+   * child records; every CAPA is verified by an HSE Officer who neither owns
+   * nor completed it. */
   'M59-investigate': { kind: 'model_list', model: 'fix.hse.incident', stateField: 'state',
-    cols: ['name', 'incident_type', 'severity', 'branch_id', 'reported_at', 'capa_owner_id', 'capa_due_date', 'capa_verified_by_id', 'state'],
+    cols: ['name', 'incident_type', 'severity', 'branch_id', 'reported_at', 'triaged_by_id', 'capa_open_count', 'capa_verified', 'state'],
     actions: [
       { m: 'action_investigate', l: 'Investigate' },
       { m: 'action_record_action_taken', l: 'Record Action Taken' },
-      { m: 'action_verify_capa', l: 'Verify CAPA' },
       { m: 'action_close', l: 'Close Incident' }
     ] },
+  'M59-capa': { kind: 'model_list', model: 'fix.hse.capa', stateField: 'state',
+    cols: ['incident_id', 'name', 'action_type', 'owner_id', 'due_date', 'overdue', 'completed_by_id', 'verified_by_id', 'state'],
+    actions: [
+      { m: 'action_mark_done', l: 'Mark Done (owner)', ask: 'What was done?', kwarg: 'note' },
+      { m: 'action_verify', l: 'Verify Effective (another HSE Officer)', ask: 'How was it verified effective?', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is it cancelled?', kwarg: 'reason' }
+    ] },
+  'M59-root-causes': { kind: 'model_list', model: 'fix.hse.root.cause',
+    cols: ['incident_id', 'category', 'description'] },
+  'M59-investigation-team': { kind: 'model_list', model: 'fix.hse.investigation.member',
+    cols: ['incident_id', 'employee_id', 'role'] },
+  /* Round 2 (FR-HSE-037, BRU-HSE-15): the status and the functional
+   * restriction only; the medical record stays with Occupational Health. */
+  'M59-safety-followups': { kind: 'model_list', model: 'fix.hse.safety.followup', stateField: 'state',
+    cols: ['name', 'employee_id', 'competency', 'expired_on', 'assigned_to_id', 'closed_by_id', 'state'],
+    actions: [{ m: 'action_close', l: 'Close Follow-up', ask: 'What was done?', kwarg: 'outcome' }] },
+  'M59-fitness': { kind: 'model_list', model: 'fix.hse.fitness.status', stateField: 'state',
+    cols: ['employee_id', 'status', 'work_restriction', 'valid_from', 'valid_until', 'decided_by_id', 'state'] },
   'M59-statutory': { kind: 'table_report', module: 'M59', report: 'statutory_compliance', title: 'Statutory Notification Clock', period: true },
   'M59-loneworker': { kind: 'model_list', model: 'fix.hse.loneworker', stateField: 'state',
-    cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'buddy_id', 'state'],
+    cols: ['name', 'employee_id', 'field_order_id', 'opened_by_id', 'checkin_time', 'expected_end', 'buddy_id', 'state'],
     actions: [{ m: 'action_checkout', l: 'Check Out' }, { m: 'action_escalate', l: 'Escalate' }] },
   'M59-road': { kind: 'model_list', model: 'fix.hse.roadcheck',
-    cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'tyres_ok', 'brakes_ok', 'documents_ok', 'passed'] },
+    cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'licence_class', 'licence_expiry', 'tyres_ok', 'brakes_ok', 'documents_ok', 'passed'] },
   'M59-battery': { kind: 'model_list', model: 'fix.hazardous.substance.register', stateField: 'state',
     cols: ['name', 'un_number', 'storage_location', 'current_stock_litres', 'max_allowable_litres', 'msds_on_file', 'fire_suppression_type', 'state'],
     actions: [
@@ -140,8 +166,11 @@ export const SCREENS = {
       { m: 'action_dissolve', l: 'Dissolve' }
     ] },
   'M59-wellbeing': { kind: 'model_list', model: 'fix.hse.health', stateField: 'state',
-    cols: ['name', 'employee_id', 'record_type', 'record_date', 'valid_until', 'fitness', 'restrictions', 'clinician', 'state'],
-    actions: [{ m: 'action_close', l: 'Close Record' }] },
+    cols: ['name', 'employee_id', 'record_type', 'record_date', 'valid_until', 'fitness', 'restrictions', 'work_restriction', 'clinician', 'fitness_status_id', 'state'],
+    actions: [
+      { m: 'action_publish_fitness', l: 'Publish Fitness Status' },
+      { m: 'action_close', l: 'Close Record' }
+    ] },
 
   /* Report chips -> their own computed pack */
   'M59-rpt-incidents': { kind: 'table_report', module: 'M59', report: 'incident_statistics', title: 'Incident Statistics', period: true },
@@ -175,7 +204,8 @@ export const SCREENS = {
           { name: 'severity', required: true, label: 'Severity Classification' },
           { name: 'branch_id', label: 'Incident Location / Branch' },
           { name: 'employee_id', label: 'Reporting Employee' },
-          { name: 'injured_employee_id', label: 'Injured Employee / Technician' }
+          { name: 'injured_employee_id', label: 'Injured Employee / Technician' },
+          { name: 'anonymous', label: 'Report Anonymously (no reporter is recorded)' }
         ]
       },
       {
@@ -195,21 +225,45 @@ export const SCREENS = {
       },
       {
         tab: 'corrective',
-        title: 'Root Cause & Corrective Actions',
-        note: 'Root cause analysis and corrective action to prevent recurrence.',
+        title: 'Investigation & CAPA (child records)',
+        note: 'Team, root causes and CAPA actions are kept on their own screens; each CAPA has an owner, a due date and an independent verifier.',
         fields: [
-          { name: 'root_cause', type: 'text', label: 'Root Cause (BRU-HSE-05)' },
           { name: 'investigation_findings', type: 'text', label: 'Investigation Findings' },
-          { name: 'corrective_action', type: 'text', label: 'Corrective & Preventive Action (CAPA)' },
-          { name: 'capa_owner_id', label: 'CAPA Owner' },
-          { name: 'capa_due_date', label: 'CAPA Due Date' },
-          { name: 'capa_verified_by_id', label: 'CAPA Verified By (another HSE Officer)', readonly: true },
+          { name: 'triaged_by_id', label: 'Triaged By', readonly: true },
+          { name: 'triage_note', type: 'text', label: 'Triage Note', readonly: true },
+          { name: 'capa_open_count', label: 'CAPA Not Yet Verified', readonly: true },
+          { name: 'capa_verified', label: 'Every CAPA Verified', readonly: true },
           { name: 'state', label: 'Incident Lifecycle State', readonly: true }
         ]
       }
     ]
   },
 
+  /* BRU-HSE-01 / T-10: the dedicated anonymous entry. It carries only what
+   * an anonymous report may hold (what happened, where, when, who was hurt);
+   * the server files it as the system user, so no reporter, author or
+   * follower is recorded and the reporter keeps no access to it. */
+  'M59-form-anonymous': {
+    kind: 'model_form',
+    model: 'fix.hse.incident',
+    title: 'Anonymous Safety Report',
+    back: 'M59-report',
+    sections: [
+      {
+        title: 'What happened (no reporter is recorded)',
+        note: 'Your name is not stored with this report. An HSE Officer triages it.',
+        fields: [
+          { name: 'anonymous', label: 'Report Anonymously', value: true },
+          { name: 'incident_type', required: true, label: 'Incident Type' },
+          { name: 'severity', required: true, label: 'Severity' },
+          { name: 'branch_id', label: 'Where (Branch)' },
+          { name: 'accident_datetime', label: 'When' },
+          { name: 'injured_employee_id', label: 'Who Was Hurt (if anyone)' },
+          { name: 'description', type: 'text', label: 'What Happened' }
+        ]
+      }
+    ]
+  },
   'M59-form-hazard': {
     kind: 'model_form',
     model: 'fix.hse.hazard',
@@ -356,8 +410,126 @@ export const SCREENS = {
         fields: [
           { name: 'clinician', label: 'Examining Medical Officer' },
           { name: 'fitness', required: true, label: 'Clinical Fitness Status' },
-          { name: 'restrictions', label: 'Operational Work Restrictions' },
+          { name: 'restrictions', label: 'Medical Restrictions (clinical, Occupational Health only)' },
+          { name: 'work_restriction', label: 'Work Restriction to Publish (functional, no diagnosis)' },
+          { name: 'fitness_status_id', label: 'Published Fitness Status', readonly: true },
           { name: 'state', label: 'Record State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-capa': {
+    kind: 'model_form',
+    model: 'fix.hse.capa',
+    title: 'CAPA Action',
+    back: 'M59-capa',
+    status: { field: 'state', labels: {
+      open: 'Open', done: 'Done', verified: 'Verified Effective', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'plan', label: 'Action & Owner', bn: 'পদক্ষেপ ও দায়িত্ব', icon: '🔧', badge: '5' },
+      { id: 'verify', label: 'Completion & Verification', bn: 'সম্পাদন ও যাচাই', icon: '✅', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'plan',
+        title: 'Corrective / Preventive Action (BRU-HSE-06)',
+        note: 'Planned by HSE; owned by one person with a due date.',
+        fields: [
+          { name: 'incident_id', required: true, label: 'Incident' },
+          { name: 'name', required: true, label: 'Action' },
+          { name: 'action_type', label: 'Type' },
+          { name: 'owner_id', required: true, label: 'Owner' },
+          { name: 'due_date', required: true, label: 'Due Date' }
+        ]
+      },
+      {
+        tab: 'verify',
+        title: 'Done by the Owner, Verified by Another HSE Officer',
+        note: 'Use the Mark Done and Verify Effective actions; nothing here is typed.',
+        fields: [
+          { name: 'completion_note', type: 'text', label: 'What Was Done', readonly: true },
+          { name: 'completed_by_id', label: 'Completed By', readonly: true },
+          { name: 'verification_note', type: 'text', label: 'Verification', readonly: true },
+          { name: 'verified_by_id', label: 'Verified By', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-root-cause': {
+    kind: 'model_form',
+    model: 'fix.hse.root.cause',
+    title: 'Root Cause',
+    back: 'M59-root-causes',
+    tabs: [{ id: 'cause', label: 'Root Cause', bn: 'মূল কারণ', icon: '🔍', badge: '3' }],
+    sections: [
+      {
+        tab: 'cause',
+        title: 'Root Cause (BRU-HSE-05)',
+        note: 'One row per cause; added by HSE, frozen once the incident closes.',
+        fields: [
+          { name: 'incident_id', required: true, label: 'Incident' },
+          { name: 'category', required: true, label: 'Category' },
+          { name: 'description', type: 'text', required: true, label: 'Cause' }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-investigation-member': {
+    kind: 'model_form',
+    model: 'fix.hse.investigation.member',
+    title: 'Investigation Team Member',
+    back: 'M59-investigation-team',
+    tabs: [{ id: 'member', label: 'Team Member', bn: 'দলের সদস্য', icon: '👥', badge: '3' }],
+    sections: [
+      {
+        tab: 'member',
+        title: 'Investigation Team',
+        note: 'Lost-time and reportable incidents need a team before the action is recorded.',
+        fields: [
+          { name: 'incident_id', required: true, label: 'Incident' },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'role', required: true, label: 'Role' }
+        ]
+      }
+    ]
+  },
+
+  'M59-form-ppe-issue': {
+    kind: 'model_form',
+    model: 'fix.ppe.issue',
+    title: 'PPE Issue',
+    back: 'M59-ppe-issue',
+    tabs: [
+      { id: 'issue', label: 'Issue', bn: 'বিতরণ', icon: '🦺', badge: '6' },
+      { id: 'status', label: 'Acknowledgement & Replacement', bn: 'স্বীকৃতি ও প্রতিস্থাপন', icon: '🔁', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'issue',
+        title: 'PPE Issued to a Named Employee (FR-HSE-031)',
+        note: 'A replacement names the issue it replaces; that issue then stops alerting.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'ppe_id', required: true, label: 'PPE Item' },
+          { name: 'quantity', required: true, label: 'Quantity' },
+          { name: 'issued_on', required: true, label: 'Issued On' },
+          { name: 'replace_by', label: 'Replace By' },
+          { name: 'replaces_id', label: 'Replaces Issue' }
+        ]
+      },
+      {
+        tab: 'status',
+        title: 'Acknowledgement & Replacement Alerts (FR-HSE-032)',
+        note: 'The daily cron alerts on the replace-by date and escalates once overdue.',
+        fields: [
+          { name: 'acknowledged', label: 'Acknowledged by the Employee', readonly: true },
+          { name: 'replacement_alert_level', label: 'Replacement Alert Level', readonly: true },
+          { name: 'replaced', label: 'Replaced', readonly: true },
+          { name: 'issued_by_id', label: 'Issued By', readonly: true }
         ]
       }
     ]
@@ -438,7 +610,8 @@ export const SCREENS = {
           { name: 'affected_body_part', label: 'Affected Body Part' },
           { name: 'nature_of_injury', label: 'Nature of Injury / Exposure' },
           { name: 'lost_work_days', label: 'Lost Work Days' },
-          { name: 'return_to_work_date', label: 'Return-to-Work Date' }
+          { name: 'return_to_work_date', label: 'Return-to-Work Date (from the fitness status)', readonly: true },
+          { name: 'return_fitness_status', label: 'Returned As', readonly: true }
         ]
       },
       {
@@ -493,6 +666,8 @@ export const SCREENS = {
         note: 'Escalating emits hse.loneworker.escalated to M02 Dispatch.',
         fields: [
           { name: 'buddy_id', label: 'Assigned Safety Buddy' },
+          { name: 'field_order_id', label: 'Field Order (a dispatcher opening it for the technician)' },
+          { name: 'opened_by_id', label: 'Opened By', readonly: true },
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'state', label: 'Session State', readonly: true }
         ]
@@ -530,8 +705,9 @@ export const SCREENS = {
           { name: 'brakes_ok', label: 'Front & Rear Brakes OK' },
           { name: 'lights_ok', label: 'Headlights, Indicators & Horn OK' },
           { name: 'documents_ok', label: 'BRTA License, Fitness & Insurance Valid' },
-          { name: 'licence_number', label: 'Driving Licence No.' },
-          { name: 'licence_expiry', label: 'Licence Valid Until' },
+          { name: 'licence_number', label: 'Driving Licence No. (from the licence record)', readonly: true },
+          { name: 'licence_class', label: 'Licence Class', readonly: true },
+          { name: 'licence_expiry', label: 'Licence Valid Until', readonly: true },
           { name: 'passed', label: 'Overall Road Safety Check Passed', readonly: true }
         ]
       }
@@ -664,6 +840,7 @@ export const REPORT_ROUTES = {
 
 export const FORM_MODELS = {
   'M59:Incident Report': 'fix.hse.incident',
+  'M59:Anonymous Safety Report': 'fix.hse.incident',
   'M59:JSA': 'fix.hse.jsa',
   'M59:PPE Issue': 'fix.ppe.register',
   'M59:Return-to-Work': 'fix.hse.health'
@@ -671,6 +848,7 @@ export const FORM_MODELS = {
 
 export const FORM_CHIPS = {
   'M59:Incident Report': 'M59-form-incident',
+  'M59:Anonymous Safety Report': 'M59-form-anonymous',
   'M59:JSA': 'M59-form-jsa',
   'M59:PPE Issue': 'M59-form-ppe',
   'M59:Return-to-Work': 'M59-form-health',
@@ -686,7 +864,11 @@ export const FORM_CHIPS = {
     'fix.hazardous.substance.register': 'M59-form-substance',
     'fix.hse.drill': 'M59-form-drill',
     'fix.safety.committee': 'M59-form-committee',
-    'fix.hse.health': 'M59-form-health'
+    'fix.hse.health': 'M59-form-health',
+    'fix.hse.capa': 'M59-form-capa',
+    'fix.hse.root.cause': 'M59-form-root-cause',
+    'fix.hse.investigation.member': 'M59-form-investigation-member',
+    'fix.ppe.issue': 'M59-form-ppe-issue'
   },
   'M59:__by_screen__': {
     'M59-safety-inspection': 'M59-form-inspection',
@@ -701,7 +883,11 @@ export const FORM_CHIPS = {
     'M59-battery': 'M59-form-substance',
     'M59-drills': 'M59-form-drill',
     'M59-committee': 'M59-form-committee',
-    'M59-wellbeing': 'M59-form-health'
+    'M59-wellbeing': 'M59-form-health',
+    'M59-capa': 'M59-form-capa',
+    'M59-root-causes': 'M59-form-root-cause',
+    'M59-investigation-team': 'M59-form-investigation-member',
+    'M59-ppe-issue': 'M59-form-ppe-issue'
   }
 };
 

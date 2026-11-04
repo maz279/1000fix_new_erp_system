@@ -6,6 +6,7 @@ HSE_ALL_READERS = (
     "cd_hse.group_statutory_notifier",
     "cd_hse.group_injury_compensation_approver",
 )
+OCC_HEALTH = "cd_hse.group_occupational_health"
 
 
 class ResUsersHse(models.Model):
@@ -20,3 +21,10 @@ class ResUsersHse(models.Model):
         self.ensure_one()
         groups = [self.env.ref(x, raise_if_not_found=False) for x in HSE_ALL_READERS]
         return any(g and g in self.sudo().all_group_ids for g in groups)
+
+    def fix_hse_reads_fitness(self):
+        """The HSE roles and Occupational Health read every fitness status;
+        everyone else reads their own and their direct reports' (round 2)."""
+        self.ensure_one()
+        oh = self.env.ref(OCC_HEALTH, raise_if_not_found=False)
+        return self.fix_hse_reads_all() or bool(oh and oh in self.sudo().all_group_ids)

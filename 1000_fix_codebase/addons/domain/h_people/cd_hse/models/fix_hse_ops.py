@@ -16,6 +16,11 @@ from libs.py.fix_events import publish
 
 from .fix_hse import _group_users, _int_param, _is_hse, _param, _require_hse
 
+DISPATCHER_GROUP = "cd_field_service.group_fix_field_service_manager"
+ACTIVE_ORDER_STATES = ("dispatched", "accepted", "en_route", "arrived", "in_progress")
+OCC_HEALTH = "cd_hse.group_occupational_health"
+FITNESS_TO_STATUS = {"fit": "fit", "fit_restricted": "restricted", "unfit": "unfit"}
+
 
 def _risk_band(env, score):
     """Bands of the 5x5 matrix. The bounds are a company convention (a
@@ -336,6 +341,14 @@ class FixHseLoneWorker(models.Model):
     expected_end = fields.Datetime(string="Expected End")
     location = fields.Char()
     buddy_id = fields.Many2one("hr.employee", string="Emergency Contact")
+    # Round 2: a dispatcher opens the session for the technician they sent,
+    # on the field order that sent them (FR-HSE-022: M02's job flow).
+    field_order_id = fields.Many2one(
+        "fix.field.order", string="Field Order", index=True, ondelete="set null"
+    )
+    opened_by_id = fields.Many2one(
+        "res.users", string="Opened By", readonly=True, default=lambda self: self.env.user
+    )
     checked_out_at = fields.Datetime(readonly=True, copy=False)
     escalated_on = fields.Datetime(readonly=True, copy=False)
     state = fields.Selection(
@@ -351,13 +364,46 @@ class FixHseLoneWorker(models.Model):
     notes = fields.Char()
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "checked_out_at", "escalated_on"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "checked_out_at",
+            "escalated_on",
+            "opened_by_id",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self:
-            locked |= {"employee_id", "checkin_time"}
+            locked |= {"employee_id", "checkin_time", "field_order_id"}
         return locked
+
+    def _fix_is_dispatcher(self):
+        group = self.env.ref(DISPATCHER_GROUP, raise_if_not_found=False)
+        return bool(group) and group in self.env.user.all_group_ids
+
+    def _fix_check_dispatch(self, vals):
+        """A dispatcher opens a session only for the technician of an active
+        field order they can see (their own operating units and companies)."""
+        if not self._fix_is_dispatcher():
+            raise AccessError("You check in for yourself only.")
+        order_id = vals.get("field_order_id")
+        if not order_id:
+            raise AccessError(
+                "A dispatcher opens a session for a technician on the field order that "
+                "dispatched them: name the field order."
+            )
+        Order = self.env["fix.field.order"]
+        order = Order.browse(order_id).exists()
+        if not order or not order._filtered_access("read"):
+            raise AccessError("That field order is not one you dispatch.")
+        order = order.sudo()
+        if order.technician_id.id != vals.get("employee_id"):
+            raise AccessError(
+                "Field order %s is dispatched to %s, not to this employee."
+                % (order.name, order.technician_id.name or "nobody")
+            )
+        if order.state not in ACTIVE_ORDER_STATES:
+            raise UserError("Field order %s is not active (%s)." % (order.name, order.state))
 
     @api.constrains("expected_end", "checkin_time")
     def _check_window(self):
@@ -377,7 +423,7 @@ class FixHseLoneWorker(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.hse.loneworker") or "LW/New"
                 )
             if not _is_hse(self.env) and vals.get("employee_id", own.id) != own.id:
-                raise AccessError("You check in for yourself only.")
+                self._fix_check_dispatch(vals)
         return super().create(vals_list)
 
     def write(self, vals):
@@ -408,10 +454,17 @@ class FixHseLoneWorker(models.Model):
         return True
 
     def action_escalate(self):
-        """Escalate now: the buddy or an HSE Officer raises the alarm."""
+        """Escalate now: the buddy, the dispatcher who opened the session or an
+        HSE Officer raises the alarm."""
         for rec in self:
-            if not (_is_hse(self.env) or rec.buddy_id.user_id == self.env.user):
-                raise AccessError("The emergency contact or an HSE Officer escalates a session.")
+            if not (
+                _is_hse(self.env)
+                or rec.buddy_id.user_id == self.env.user
+                or (rec.field_order_id and rec.opened_by_id == self.env.user)
+            ):
+                raise AccessError(
+                    "The emergency contact, the dispatcher or an HSE Officer escalates a session."
+                )
         self._fix_escalate()
         return True
 
@@ -460,6 +513,8 @@ class FixHseLoneWorker(models.Model):
         users = rec.buddy_id.user_id | _group_users(
             self.env, "cd_hse.group_hse_officer", rec.company_id
         )
+        if rec.field_order_id and rec.opened_by_id != rec.employee_id.user_id:
+            users |= rec.opened_by_id
         for user in users.filtered(lambda u: u.active):
             rec.activity_schedule(
                 "mail.mail_activity_data_todo",
@@ -473,8 +528,13 @@ class FixHseLoneWorker(models.Model):
 
 
 class FixHseRoadCheck(models.Model):
+    """A driver's pre-journey check. It needs a valid driving licence record
+    (fix.driver: number, class and expiry), read from the register, never
+    typed (BRU-HSE-07, FR-HSE-019)."""
+
     _name = "fix.hse.roadcheck"
     _description = "Road & Vehicle Safety Check"
+    _inherit = ["fix.guarded.mixin"]
     _order = "checked_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -492,8 +552,10 @@ class FixHseRoadCheck(models.Model):
     brakes_ok = fields.Boolean(string="Brakes OK", default=False)
     lights_ok = fields.Boolean(string="Lights OK", default=False)
     documents_ok = fields.Boolean(string="Fitness / Insurance OK", default=False)
-    licence_number = fields.Char(string="Driving Licence No.")
-    licence_expiry = fields.Date(string="Licence Valid Until")
+    driver_id = fields.Many2one("fix.driver", string="Licence Record", readonly=True)
+    licence_number = fields.Char(string="Driving Licence No.", readonly=True)
+    licence_class = fields.Char(string="Licence Class", readonly=True)
+    licence_expiry = fields.Date(string="Licence Valid Until", readonly=True)
     defects = fields.Char()
     passed = fields.Boolean(string="Passed", compute="_compute_passed", store=True)
 
@@ -511,15 +573,34 @@ class FixHseRoadCheck(models.Model):
                 and licence_valid
             )
 
+    _LICENCE = ("driver_id", "licence_number", "licence_class", "licence_expiry")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | set(self._LICENCE)
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self:
+            locked |= {"employee_id", "checked_on"}
+        return locked
+
     def write(self, vals):
         # `passed` is computed from the checklist and the licence.
         if "passed" in vals and not self.env.su:
             raise UserError("Passed is computed and cannot be set directly.")
+        if not self._fix_guard_open() and {"employee_id", "checked_on"} & set(vals):
+            for rec in self:
+                if any(
+                    rec._fix_guard_differs(n, vals[n], rec[n])
+                    for n in {"employee_id", "checked_on"} & set(vals)
+                ):
+                    raise UserError("Whose check it is, and when, is a record.")
         return super().write(vals)
 
     @api.model_create_multi
     def create(self, vals_list):
         own = self.env.user.employee_id
+        Employee = self.env["hr.employee"].sudo()
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
@@ -527,7 +608,20 @@ class FixHseRoadCheck(models.Model):
                 )
             if not _is_hse(self.env) and vals.get("employee_id", own.id) != own.id:
                 raise AccessError("A road check is recorded by its driver or an HSE Officer.")
-        return super().create(vals_list)
+            driver = Employee.browse(vals.get("employee_id", own.id))
+            day = fields.Date.to_date(vals.get("checked_on")) or fields.Date.context_today(self)
+            licence, reason = driver._fix_driving_licence(day)
+            if not licence:
+                raise UserError("Road check refused: %s (BRU-HSE-07)." % reason)
+            vals.update(
+                {
+                    "driver_id": licence.id,
+                    "licence_number": licence.license_no,
+                    "licence_class": licence.license_class,
+                    "licence_expiry": licence.license_expiry,
+                }
+            )
+        return super(FixHseRoadCheck, self._guarded()).create(vals_list)
 
 
 class FixHseDrill(models.Model):
@@ -655,14 +749,24 @@ class FixHseHealth(models.Model):
         default="pending",
         tracking=True,
     )
-    restrictions = fields.Char(tracking=True)
+    restrictions = fields.Char(string="Medical Restrictions (clinical)", tracking=True)
+    # BRU-HSE-15 / T-06: what scheduling and the manager may see. Functional
+    # only ("no ladder work"), never the diagnosis.
+    work_restriction = fields.Char(
+        string="Work Restriction (shareable)",
+        tracking=True,
+        help="Published with the fitness status. Functional terms only, never a diagnosis.",
+    )
+    fitness_status_id = fields.Many2one(
+        "fix.hse.fitness.status", string="Published Fitness Status", readonly=True, copy=False
+    )
     clinician = fields.Char(tracking=True)
     state = fields.Selection(
         [("open", "Open"), ("closed", "Closed")], required=True, default="open", tracking=True
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state"}
+        return super()._fix_guarded_fields() | {"state", "fitness_status_id"}
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -670,6 +774,33 @@ class FixHseHealth(models.Model):
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.hse.health") or "OH/New"
         return super().create(vals_list)
+
+    def action_publish_fitness(self):
+        """Occupational Health publishes the decision as a fitness status:
+        fit, restricted or unfit, with the functional restriction only. HSE,
+        the line manager and return-to-work read that, never this record."""
+        if not (self.env.su or self.env.user.has_group(OCC_HEALTH)):
+            raise AccessError("Only Occupational Health publishes a fitness status.")
+        Status = self.env["fix.hse.fitness.status"].sudo()
+        for rec in self:
+            if rec.fitness == "pending":
+                raise UserError("%s has no fitness decision yet." % rec.name)
+            status = FITNESS_TO_STATUS[rec.fitness]
+            if status == "restricted" and not (rec.work_restriction or "").strip():
+                raise UserError(
+                    "State the work restriction to publish (functional terms, no diagnosis)."
+                )
+            new = Status._fix_publish(
+                rec.employee_id,
+                status,
+                (rec.work_restriction or "").strip() if status == "restricted" else False,
+                rec.record_date,
+                rec.valid_until,
+                health=rec,
+                decided_by=self.env.user,
+            )
+            rec._guarded().write({"fitness_status_id": new.id})
+        return True
 
     def write(self, vals):
         if (

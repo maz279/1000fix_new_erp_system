@@ -19,7 +19,7 @@
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
-from odoo import api, fields, models
+from odoo import SUPERUSER_ID, api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -155,18 +155,29 @@ class FixHseIncident(models.Model):
         store=True,
         help="Opens a Form 28 register entry and needs the DIFE notice before closure.",
     )
-    # investigation (BRU-HSE-05) and CAPA (BRU-HSE-06), added, never substituted
-    root_cause = fields.Text(string="Root Cause")
+    # BRU-HSE-01 / T-10: an anonymous report keeps no link to its reporter:
+    # it is written by the system user, with no reporter, no chatter author
+    # and no follower (create()). Set at reporting, never changed.
+    anonymous = fields.Boolean(
+        string="Reported Anonymously",
+        help="The system does not record or resolve the reporter's identity.",
+    )
+    triaged_by_id = fields.Many2one("res.users", string="Triaged By", readonly=True, copy=False)
+    triaged_on = fields.Datetime(readonly=True, copy=False)
+    triage_note = fields.Text(readonly=True, copy=False)
+    # investigation (BRU-HSE-05) and CAPA (BRU-HSE-06), added, never
+    # substituted. Round 2 (F8): the team, the root causes and the CAPA
+    # actions are child records with owners, due dates and verification.
     investigation_findings = fields.Text()
-    corrective_action = fields.Text(string="Corrective / Preventive Action")
-    capa_owner_id = fields.Many2one("hr.employee", string="CAPA Owner")
-    capa_due_date = fields.Date(string="CAPA Due")
+    investigation_member_ids = fields.One2many(
+        "fix.hse.investigation.member", "incident_id", string="Investigation Team"
+    )
+    root_cause_ids = fields.One2many("fix.hse.root.cause", "incident_id", string="Root Causes")
+    capa_ids = fields.One2many("fix.hse.capa", "incident_id", string="CAPA Actions")
+    capa_open_count = fields.Integer(compute="_compute_capa", string="CAPA Not Verified")
+    capa_verified = fields.Boolean(compute="_compute_capa", string="Every CAPA Verified")
     investigated_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     investigation_started_on = fields.Datetime(readonly=True, copy=False)
-    capa_verified_by_id = fields.Many2one(
-        "res.users", string="CAPA Verified By", readonly=True, copy=False
-    )
-    capa_verified_on = fields.Datetime(readonly=True, copy=False)
     closed_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     closed_on = fields.Datetime(readonly=True, copy=False)
     alert_sent_on = fields.Datetime(string="Serious-Incident Alert Sent", readonly=True, copy=False)
@@ -216,8 +227,9 @@ class FixHseIncident(models.Model):
             "dife_notice_ref",
             "investigated_by_id",
             "investigation_started_on",
-            "capa_verified_by_id",
-            "capa_verified_on",
+            "triaged_by_id",
+            "triaged_on",
+            "triage_note",
             "closed_by_id",
             "closed_on",
             "alert_sent_on",
@@ -226,16 +238,17 @@ class FixHseIncident(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self:
-            locked |= set(self._REPORT)
+            locked |= set(self._REPORT) | {"anonymous"}
         if any(r.state == "closed" for r in self):
-            locked |= {
-                "root_cause",
-                "investigation_findings",
-                "corrective_action",
-                "capa_owner_id",
-                "capa_due_date",
-            }
+            locked |= {"investigation_findings"}
         return locked
+
+    @api.depends("capa_ids.state")
+    def _compute_capa(self):
+        for rec in self:
+            live = rec.sudo().capa_ids.filtered(lambda c: c.state != "cancelled")
+            rec.capa_open_count = len(live.filtered(lambda c: c.state != "verified"))
+            rec.capa_verified = bool(live) and not rec.capa_open_count
 
     @api.depends("accident_datetime", "reported_at", "incident_type", "severity")
     def _compute_notice_due(self):
@@ -267,10 +280,17 @@ class FixHseIncident(models.Model):
     # ---- reporting --------------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
+        if any(v.get("anonymous") for v in vals_list) and self.env.uid != SUPERUSER_ID:
+            return self._fix_create_anonymous(vals_list)
         own = self.env.user.employee_id
         for vals in vals_list:
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.hse.incident") or "HSE/New"
-            if not _is_hse(self.env) and vals.get("employee_id") and vals["employee_id"] != own.id:
+            if (
+                not vals.get("anonymous")
+                and not _is_hse(self.env)
+                and vals.get("employee_id")
+                and vals["employee_id"] != own.id
+            ):
                 raise AccessError("You report incidents in your own name.")
         recs = super().create(vals_list)
         for rec in recs:
@@ -284,8 +304,52 @@ class FixHseIncident(models.Model):
         recs._fix_open_register()
         return recs
 
+    def _fix_create_anonymous(self, vals_list):
+        """BRU-HSE-01 / T-10: file the report as the system user, so neither
+        create_uid, the reporter, a chatter author nor a follower links it to
+        the person who filed it. Returned in the system user's environment:
+        the reporter keeps no access to what they filed."""
+        if len(vals_list) != 1:
+            raise UserError("File one anonymous report at a time.")
+        if not self.env.user.has_group("base.group_user"):
+            raise AccessError("Only an employee files an anonymous safety report.")
+        vals = dict(vals_list[0])
+        allowed = {
+            "anonymous",
+            "incident_type",
+            "severity",
+            "description",
+            "branch_id",
+            "operating_unit_id",
+            "accident_datetime",
+            "injured_employee_id",
+            "company_id",
+        }
+        unknown = set(vals) - allowed
+        if unknown:
+            raise UserError(
+                "An anonymous report carries what happened, where and when, and who was hurt; "
+                "not %s." % ", ".join(sorted(unknown))
+            )
+        if vals.get("company_id") and vals["company_id"] not in self.env.user.company_ids.ids:
+            raise AccessError("Report for a company you work for.")
+        vals.setdefault("company_id", self.env.company.id)
+        vals.update({"anonymous": True, "employee_id": False})
+        system = self.with_user(SUPERUSER_ID).with_context(
+            mail_create_nolog=True,
+            mail_create_nosubscribe=True,
+            mail_notrack=True,
+            tracking_disable=True,
+        )
+        return system.create([vals])
+
     def write(self, vals):
         if not self._fix_guard_open():
+            if "anonymous" in vals and any(
+                r.id and r._fix_guard_differs("anonymous", vals["anonymous"], r.anonymous)
+                for r in self
+            ):
+                raise UserError("Whether a report was anonymous is fixed when it is filed.")
             touched = set(self._REPORT) & set(vals)
             for rec in self:
                 if not touched or not rec.id:
@@ -313,6 +377,14 @@ class FixHseIncident(models.Model):
             if not rec.is_reportable or rec.statutory_record_id:
                 continue
             worker = rec.injured_employee_id or rec.employee_id
+            if not worker and rec.anonymous:
+                # never refuse a safety report: the HSE Officer names the
+                # injured worker at triage, which opens the register entry
+                rec.message_post(
+                    body="Reportable, filed anonymously with no injured worker named: triage "
+                    "must name the worker to open the Form 28 entry."
+                )
+                continue
             if not worker:
                 raise UserError(
                     "A %s-severity %s must name the injured worker or the reporter: "
@@ -365,33 +437,21 @@ class FixHseIncident(models.Model):
         for rec in self:
             if rec.state != "investigating":
                 raise UserError("Record the action on an incident under investigation.")
+            data = rec.sudo()
+            live = data.capa_ids.filtered(lambda c: c.state != "cancelled")
             missing = []
-            if not (rec.corrective_action or "").strip():
-                missing.append("the corrective / preventive action")
+            if not live:
+                missing.append("at least one corrective / preventive action (CAPA)")
+            elif live.filtered(lambda c: not c.owner_id or not c.due_date):
+                missing.append("an owner and a due date on every CAPA")
             if rec._needs_investigation():
-                if not (rec.root_cause or "").strip():
+                if not data.root_cause_ids:
                     missing.append("the root cause (BRU-HSE-05)")
-                if not rec.capa_owner_id or not rec.capa_due_date:
-                    missing.append("the CAPA owner and due date")
+                if not data.investigation_member_ids:
+                    missing.append("the investigation team")
             if missing:
                 raise UserError("%s needs %s." % (rec.name, ", ".join(missing)))
             rec._guarded().write({"state": "action_taken"})
-        return True
-
-    def action_verify_capa(self):
-        """BRU-HSE-06: the corrective action is verified effective by an HSE
-        Officer who did not investigate the incident."""
-        _require_hse(self.env, "verify a corrective action")
-        for rec in self:
-            if rec.state != "action_taken":
-                raise UserError("Verify the CAPA of an incident whose action is recorded.")
-            if not self.env.su and self.env.user == rec.investigated_by_id:
-                raise UserError(
-                    "You investigated %s; another HSE Officer verifies its CAPA." % rec.name
-                )
-            rec._guarded().write(
-                {"capa_verified_by_id": self.env.user.id, "capa_verified_on": fields.Datetime.now()}
-            )
         return True
 
     def _fix_close_problems(self):
@@ -399,10 +459,14 @@ class FixHseIncident(models.Model):
         problems = []
         if self.state != "action_taken":
             problems.append("the investigation and corrective action are not recorded")
-        if not (self.corrective_action or "").strip():
+        live = self.sudo().capa_ids.filtered(lambda c: c.state != "cancelled")
+        if not live:
             problems.append("no corrective action")
-        if self._needs_investigation() and not self.capa_verified_by_id:
-            problems.append("the CAPA is not verified effective (BRU-HSE-06)")
+        elif self._needs_investigation():
+            if live.filtered(lambda c: c.state != "verified"):
+                problems.append("a CAPA is not verified effective (BRU-HSE-06)")
+        elif live.filtered(lambda c: c.state == "open"):
+            problems.append("a CAPA is not done")
         if self.is_reportable and not self.statutory_record_id.dife_notified:
             problems.append(
                 "BLA 2006 s.80 / BLR 2015 r.70: the DIFE Form 27/27(a) notice is not dispatched"
@@ -422,6 +486,30 @@ class FixHseIncident(models.Model):
                     "closed_on": fields.Datetime.now(),
                 }
             )
+        return True
+
+    def action_triage(self, note=None, injured_employee=None):
+        """An HSE Officer triages a report (an anonymous one above all): the
+        triage note, and the injured worker where the report did not name one,
+        which opens the Form 28 entry."""
+        _require_hse(self.env, "triage a report")
+        if not (note or "").strip():
+            raise UserError("Record the triage note.")
+        for rec in self:
+            if rec.state == "closed":
+                raise UserError("%s is closed." % rec.name)
+            vals = {
+                "triaged_by_id": self.env.uid,
+                "triaged_on": fields.Datetime.now(),
+                "triage_note": note.strip(),
+            }
+            if injured_employee and not rec.injured_employee_id:
+                emp = self.env["hr.employee"].sudo().browse(int(str(injured_employee).strip()))
+                if not emp.exists():
+                    raise UserError("No employee %s." % injured_employee)
+                vals["injured_employee_id"] = emp.id
+            rec._guarded().write(vals)
+            rec._fix_open_register()
         return True
 
     def action_reclassify(self, severity=None, incident_type=None, reason=None):
@@ -909,8 +997,17 @@ class FixStatutoryAccidentRegister(models.Model):
     half_year_return_filed_on = fields.Date(string="Form 28 Return Filed On")
     return_to_work_date = fields.Date(
         string="Worker Returned to Work On",
+        readonly=True,
+        copy=False,
         help="Closes the lost-time period for the Form 28 return and the "
-        "BLA 2006 Ch. XII compensation assessment.",
+        "BLA 2006 Ch. XII compensation assessment. Recorded only against an "
+        "Occupational Health fitness decision (action_record_return_to_work).",
+    )
+    return_fitness_id = fields.Many2one(
+        "fix.hse.fitness.status", string="Return-to-Work Fitness", readonly=True, copy=False
+    )
+    return_fitness_status = fields.Selection(
+        related="return_fitness_id.status", string="Returned As"
     )
     compensation_basis = fields.Selection(
         [
@@ -959,7 +1056,47 @@ class FixStatutoryAccidentRegister(models.Model):
             "statutory_compensation_bdt",
             "compensation_approved_by_id",
             "compensation_approved_on",
+            "return_to_work_date",
+            "return_fitness_id",
         }
+
+    def action_record_return_to_work(self, return_date=None):
+        """The worker returns on the strength of Occupational Health's fitness
+        decision: fit, or fit with restrictions, valid on the return date and
+        made after the accident. HSE sees the status, never the medical record."""
+        _require_hse(self.env, "record a return to work")
+        day = fields.Date.to_date(return_date) if return_date else fields.Date.context_today(self)
+        for rec in self:
+            if rec.return_to_work_date:
+                raise UserError("The return to work of %s is recorded." % rec.name)
+            if day < rec.accident_date:
+                raise UserError("A worker returns after the accident, not before it.")
+            status = rec.employee_id._fix_fitness_status(day)
+            if not status:
+                raise UserError(
+                    "%s has no Occupational Health fitness decision valid on %s: a return to "
+                    "work needs one." % (rec.employee_id.name, day)
+                )
+            if status.status == "unfit":
+                raise UserError(
+                    "Occupational Health has %s unfit for work; the return is refused."
+                    % rec.employee_id.name
+                )
+            if status.valid_from < rec.accident_date:
+                raise UserError(
+                    "The fitness decision of %s predates the accident: Occupational Health "
+                    "assesses the worker again before the return." % rec.employee_id.name
+                )
+            rec._guarded().write({"return_to_work_date": day, "return_fitness_id": status.id})
+            rec.message_post(
+                body="Returned to work on %s as %s%s."
+                % (
+                    day,
+                    dict(status._fields["status"].selection)[status.status],
+                    ": %s" % status.work_restriction if status.work_restriction else "",
+                )
+            )
+        return True
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1264,7 +1401,7 @@ class FixPpeIssue(models.Model):
 
     _name = "fix.ppe.issue"
     _description = "PPE Issue to Employee"
-    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "issued_on desc, id desc"
 
     company_id = fields.Many2one(
@@ -1278,9 +1415,27 @@ class FixPpeIssue(models.Model):
     issued_by_id = fields.Many2one("res.users", readonly=True, default=lambda self: self.env.user)
     acknowledged = fields.Boolean(readonly=True, copy=False, tracking=True)
     acknowledged_on = fields.Datetime(readonly=True, copy=False)
+    # FR-HSE-032: replacement. A new issue that replaces this one closes it;
+    # until then the cron alerts once the replace-by date is reached and
+    # escalates once it is overdue.
+    replaces_id = fields.Many2one(
+        "fix.ppe.issue", string="Replaces Issue", ondelete="set null", copy=False
+    )
+    replaced = fields.Boolean(readonly=True, copy=False)
+    replacement_alert_level = fields.Integer(
+        readonly=True, copy=False, help="0 none, 1 replacement due, 2 overdue and escalated."
+    )
+    replacement_alerted_on = fields.Datetime(readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"acknowledged", "acknowledged_on", "issued_by_id"}
+        return super()._fix_guarded_fields() | {
+            "acknowledged",
+            "acknowledged_on",
+            "issued_by_id",
+            "replaced",
+            "replacement_alert_level",
+            "replacement_alerted_on",
+        }
 
     @api.constrains("quantity")
     def _check_quantity(self):
@@ -1297,7 +1452,62 @@ class FixPpeIssue(models.Model):
             if item.stock_quantity < rec.quantity:
                 raise UserError("Only %d of %s in stock." % (item.stock_quantity, item.name))
             item.write({"stock_quantity": item.stock_quantity - rec.quantity})
+            old = rec.replaces_id.sudo()
+            if old:
+                if old.employee_id != rec.employee_id or old.ppe_id != rec.ppe_id:
+                    raise UserError("A replacement is the same item for the same employee.")
+                if old.replaced:
+                    raise UserError("%s was already replaced." % old.display_name)
+                old._guarded().write({"replaced": True})
         return recs
+
+    @api.model
+    def cron_ppe_replacement_alerts(self):
+        """FR-HSE-032 / BRU-HSE-12: PPE past its replace-by date alerts the
+        holder and the HSE Officers (level 1); once it is overdue beyond the
+        grace period it escalates to the line manager too (level 2). Each
+        level once per issue: idempotent. Superuser."""
+        today = fields.Date.context_today(self)
+        grace = _int_param(self.env, "cd_hse.ppe_replacement_grace_days", 0)
+        due = self.sudo().search(
+            [
+                ("replaced", "=", False),
+                ("replace_by", "!=", False),
+                ("replace_by", "<=", today),
+                ("replacement_alert_level", "<", 2),
+            ]
+        )
+        raised = 0
+        for rec in due:
+            overdue = (today - rec.replace_by).days > grace
+            level = 2 if overdue else 1
+            if rec.replacement_alert_level >= level:
+                continue
+            emp = rec.employee_id.sudo()
+            users = _group_users(self.env, "cd_hse.group_hse_officer", rec.company_id)
+            users |= emp.user_id
+            if level == 2:
+                users |= emp.parent_id.user_id
+            what = (
+                "is OVERDUE for replacement since %s" % rec.replace_by
+                if level == 2
+                else "is due for replacement (%s)" % rec.replace_by
+            )
+            note = "%s issued to %s %s." % (rec.ppe_id.name, emp.name, what)
+            for user in users.filtered(lambda u: u.active and not u.share):
+                rec.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=today,
+                    summary="PPE replacement: %s" % emp.name,
+                    note=note,
+                    user_id=user.id,
+                )
+            rec.message_post(body=note)
+            rec._guarded().write(
+                {"replacement_alert_level": level, "replacement_alerted_on": fields.Datetime.now()}
+            )
+            raised += 1
+        return raised
 
     def write(self, vals):
         if not self._fix_guard_open() and self.filtered(lambda r: r.id and r.acknowledged):

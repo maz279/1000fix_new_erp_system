@@ -30,3 +30,9 @@ access_fix_ppe_issue_role,fix.ppe.issue.role,model_fix_ppe_issue,cd_hse.group_hs
 access_fix_statutory_register_notifier,fix.statutory.accident.register.notifier,model_fix_statutory_accident_register,cd_hse.group_statutory_notifier,1,1,0,0
 access_fix_hse_incident_notifier,fix.hse.incident.notifier,model_fix_hse_incident,cd_hse.group_statutory_notifier,1,0,0,0
 access_fix_statutory_register_comp,fix.statutory.accident.register.comp,model_fix_statutory_accident_register,cd_hse.group_injury_compensation_approver,1,0,0,0
+access_fix_hse_investigation_member_role,fix.hse.investigation.member.role,model_fix_hse_investigation_member,cd_hse.group_hse_officer,1,1,1,1
+access_fix_hse_root_cause_role,fix.hse.root.cause.role,model_fix_hse_root_cause,cd_hse.group_hse_officer,1,1,1,1
+access_fix_hse_capa_user,fix.hse.capa.owner,model_fix_hse_capa,base.group_user,1,0,0,0
+access_fix_hse_capa_role,fix.hse.capa.role,model_fix_hse_capa,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_fitness_status_user,fix.hse.fitness.status.reader,model_fix_hse_fitness_status,base.group_user,1,0,0,0
+access_fix_hse_safety_followup_role,fix.hse.safety.followup.role,model_fix_hse_safety_followup,cd_hse.group_hse_officer,1,1,0,0

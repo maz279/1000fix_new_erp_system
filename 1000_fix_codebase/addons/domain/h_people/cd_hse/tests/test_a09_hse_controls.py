@@ -99,7 +99,11 @@ def call():
 
 @pytest.fixture
 def x(odoo_env):
-    env = odoo_env
+    return make_x(odoo_env)
+
+
+def make_x(env):
+    """The cast of the M59 suites (also used by test_a09_hse_r2.py)."""
     c = SimpleNamespace(env=env)
     c.plain = _user(env)
     c.colleague = _user(env)
@@ -144,17 +148,36 @@ def _notify(x, incident):
     return reg
 
 
-def _investigated(x, incident):
-    incident.with_user(x.hse).action_investigate()
-    incident.with_user(x.hse).write(
+def _capa(x, incident, owner=None, name="Stands fitted; toolbox talk"):
+    return x.env(user=x.hse.id)["fix.hse.capa"].create(
         {
-            "root_cause": "Iron left on without a stand",
-            "corrective_action": "Stands fitted; toolbox talk",
-            "capa_owner_id": x.hse.employee_id.id,
-            "capa_due_date": x.today + timedelta(days=7),
+            "incident_id": incident.id,
+            "name": name,
+            "owner_id": (owner or x.hse).employee_id.id,
+            "due_date": x.today + timedelta(days=7),
         }
     )
+
+
+def _investigated(x, incident, owner=None):
+    """Investigation team, root cause and one CAPA owned by `owner`, then the
+    action recorded (round 2: child records, M59-F8)."""
+    incident.with_user(x.hse).action_investigate()
+    x.env(user=x.hse.id)["fix.hse.investigation.member"].create(
+        {"incident_id": incident.id, "employee_id": x.hse.employee_id.id, "role": "lead"}
+    )
+    x.env(user=x.hse.id)["fix.hse.root.cause"].create(
+        {"incident_id": incident.id, "category": "equipment", "description": "Iron left on"}
+    )
+    capa = _capa(x, incident, owner=owner)
     incident.with_user(x.hse).action_record_action_taken()
+    return capa
+
+
+def _verified(x, capa, owner=None):
+    """The owner marks it done; another HSE Officer verifies it effective."""
+    capa.with_user(owner or x.hse).action_mark_done(note="Stands fitted on all benches")
+    capa.with_user(x.hse2).action_verify(note="Walked the benches; all fitted")
 
 
 # =================================================================== reporting
@@ -190,7 +213,7 @@ def test_plain_employee_cannot_see_or_touch_a_colleagues_incident(x):
     inc = _serious(x, x.colleague)
     assert not x.env(user=x.plain.id)["fix.hse.incident"].search([("id", "=", inc.id)])
     with pytest.raises(AccessError):
-        _rpc_write(x.env, x.plain, inc, {"corrective_action": "none"})
+        _rpc_write(x.env, x.plain, inc, {"investigation_findings": "none"})
 
 
 # =================================================================== closure gates
@@ -222,22 +245,24 @@ def test_close_needs_investigation_verified_capa_and_the_dife_notice(x):
     with pytest.raises(UserError, match="investigation"):
         inc.with_user(x.hse).action_close()
     inc.with_user(x.hse).action_investigate()
+    capa = _capa(x, inc)
     with pytest.raises(UserError, match="root cause"):
         inc.with_user(x.hse).action_record_action_taken()
-    inc.invalidate_recordset()
-    _investigate_rest = {
-        "root_cause": "Iron left on",
-        "corrective_action": "Stands fitted",
-        "capa_owner_id": x.hse.employee_id.id,
-        "capa_due_date": x.today,
-    }
-    inc.with_user(x.hse).write(_investigate_rest)
+    x.env(user=x.hse.id)["fix.hse.root.cause"].create(
+        {"incident_id": inc.id, "category": "equipment", "description": "Iron left on"}
+    )
+    with pytest.raises(UserError, match="investigation team"):
+        inc.with_user(x.hse).action_record_action_taken()
+    x.env(user=x.hse.id)["fix.hse.investigation.member"].create(
+        {"incident_id": inc.id, "employee_id": x.hse.employee_id.id, "role": "lead"}
+    )
     inc.with_user(x.hse).action_record_action_taken()
     with pytest.raises(UserError, match="CAPA is not verified"):
         inc.with_user(x.hse).action_close()
+    capa.with_user(x.hse).action_mark_done(note="Stands fitted")
     with pytest.raises(UserError, match="another HSE Officer"):
-        inc.with_user(x.hse).action_verify_capa()  # the investigator
-    inc.with_user(x.hse2).action_verify_capa()
+        capa.with_user(x.hse).action_verify(note="ok")  # the owner
+    capa.with_user(x.hse2).action_verify(note="Checked every bench")
     with pytest.raises(UserError, match=r"s\.80"):
         inc.with_user(x.hse).action_close()
     _notify(x, inc)
@@ -267,8 +292,8 @@ def test_escalated_incident_enters_the_register_and_cannot_close_unnotified(x):
     inc.with_user(x.hse).action_escalate(reason="Hospitalised overnight")
     inc.with_user(x.hse).action_escalate(reason="Lost-time over 20 days")
     assert inc.severity == "high" and inc.statutory_record_id
-    _investigated(x, inc)
-    inc.with_user(x.hse2).action_verify_capa()
+    capa = _investigated(x, inc)
+    _verified(x, capa)
     with pytest.raises(UserError, match=r"s\.80"):
         inc.with_user(x.hse).action_close()
 
@@ -524,8 +549,27 @@ def test_inspection_does_not_pass_by_default(x):
         _rpc_write(x.env, x.hse, insp, {"state": "done"})
 
 
+def _driver(x, user, expiry, licence_class="Light Motor Vehicle"):
+    return (
+        x.env["fix.driver"]
+        .sudo()
+        .create(
+            {
+                "name": user.name,
+                "employee_id": user.employee_id.id,
+                "license_no": "DK-%d" % next(_SEQ),
+                "license_class": licence_class,
+                "license_expiry": expiry,
+            }
+        )
+    )
+
+
 def test_road_check_needs_every_item_and_a_valid_licence(x):
     Road = x.env(user=x.plain.id)["fix.hse.roadcheck"]
+    with pytest.raises(UserError, match="no driving licence on record"):
+        Road.create({"vehicle_ref": "DHA-0"})
+    _driver(x, x.plain, x.today + timedelta(days=90))
     blank = Road.create({"vehicle_ref": "DHA-1"})
     assert not blank.passed and blank.employee_id == x.plain.employee_id
     with pytest.raises(UserError, match="computed"):
@@ -533,10 +577,8 @@ def test_road_check_needs_every_item_and_a_valid_licence(x):
     with pytest.raises(AccessError):
         Road.create({"employee_id": x.colleague.employee_id.id, "vehicle_ref": "DHA-2"})
     ok = {"tyres_ok": True, "brakes_ok": True, "lights_ok": True, "documents_ok": True}
-    assert not Road.create(
-        {**ok, "licence_expiry": x.today - timedelta(days=1), "vehicle_ref": "DHA-3"}
-    ).passed
-    assert Road.create({**ok, "licence_expiry": x.today + timedelta(days=90)}).passed
+    passed = Road.create({**ok, "vehicle_ref": "DHA-3"})
+    assert passed.passed and passed.licence_class == "Light Motor Vehicle"
 
 
 def test_substance_and_ppe_state_follow_the_figures(x):
