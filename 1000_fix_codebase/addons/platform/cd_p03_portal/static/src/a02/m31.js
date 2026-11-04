@@ -80,11 +80,13 @@ const JOB_FLOW = [
   { m: 'action_deliver', l: 'Release / Deliver' },
   { m: 'action_cancel', l: 'Cancel Job' }
 ];
+/* A02 audit B1: the waiver and the BER write-off are routed M63 approvals,
+ * decided from the approver's inbox (M63 workspace), never pressed here. */
 const JOB_EXCEPTIONS = [
-  { m: 'action_grant_certification_waiver', l: 'Grant Certification Waiver (Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
-  { m: 'action_propose_ber', l: 'Propose BER / Scrap', ask: 'BER reason and the evidence seen', kwarg: 'reason' },
-  { m: 'action_dofa_approve', l: 'Approve BER Write-Off (DOFA)' },
-  { m: 'action_confirm_ber', l: 'Confirm BER (Second Technician)' }
+  { m: 'action_request_certification_waiver', l: 'Request Certification Waiver (to Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
+  { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', ask: 'BER reason and the evidence seen', kwarg: 'reason' },
+  { m: 'action_confirm_ber', l: 'Confirm BER & Route Write-Off (Second Technician)' },
+  { m: 'action_recall_approval', l: 'Recall BER Approval Request' }
 ];
 
 /* In-workspace data screens: model_list over the whitelisted cd_workshop
@@ -112,7 +114,11 @@ export const SCREENS = {
       { m: 'action_set_offline', l: 'Close Bench (Supervisor)', ask: 'Why is the bench closing?', kwarg: 'reason' }
     ] },
   'M31-benchmaster': { kind: 'model_list', model: 'fix.workshop', create: false,
-    cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count', 'available_bench_count', 'bench_utilization', 'active_job_count'] },
+    cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count', 'available_bench_count', 'bench_utilization', 'active_job_count'],
+    /* A02 audit M31 step 1: the M31 side of the M01 hand-off */
+    actions: [
+      { m: 'action_receive_service_order', l: 'Receive Device from M01', ask: 'Service order reference (e.g. SO/2026/00123)', kwarg: 'order_ref' }
+    ] },
   'M31-levels': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
   'M31-diag': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'device_serial', 'repair_level', 'priority', 'state', 'technician_id', 'bench_id'],
@@ -123,16 +129,18 @@ export const SCREENS = {
       { m: 'action_auto_assign_bench', l: 'Auto-Assign Bench' },
       { m: 'action_wait_parts', l: 'Wait for Parts' },
       { m: 'action_start_repair', l: 'Start Repair (Order Approved)' },
-      { m: 'action_grant_certification_waiver', l: 'Grant Certification Waiver (Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
-      { m: 'action_propose_ber', l: 'Propose BER / Scrap', ask: 'BER reason and the evidence seen', kwarg: 'reason' }
+      { m: 'action_request_certification_waiver', l: 'Request Certification Waiver (to Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
+      { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', ask: 'BER reason and the evidence seen', kwarg: 'reason' }
     ] },
   'M31-parts': { kind: 'model_list', model: 'fix.workshop.part.line', create: false,
-    cols: ['job_id', 'part_number', 'quantity', 'unit_cost', 'subtotal', 'lot_serial_number', 'reservation_state'],
+    cols: ['job_id', 'part_number', 'quantity', 'unit_cost', 'subtotal', 'lot_serial_number', 'reservation_state', 'approval_state', 'consumption_ref'],
     stateField: 'reservation_state',
     actions: [
-      { m: 'action_reserve', l: 'Reserve' },
+      { m: 'action_reserve', l: 'Reserve (Stock Move)' },
       { m: 'action_consume_part', l: 'Consume on Bench' },
-      { m: 'action_release_reservation', l: 'Release Reservation' }
+      { m: 'action_release_reservation', l: 'Release Reservation' },
+      { m: 'action_request_approval', l: 'Request Extra-Part Approval (beyond estimate)', ask: 'Why is this part needed beyond the approved estimate?', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M31-testing': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'repair_level', 'state', 'burn_in_started_at', 'burn_in_completed_at', 'burn_in_passed', 'qc_passed', 'qc_inspector_id'],
@@ -158,7 +166,8 @@ export const SCREENS = {
     back: 'M31-orders',
     status: { field: 'state', labels: { draft: "Draft", intake: "Intake", diagnostic: "Diagnosis", waiting_parts: "Waiting Parts", in_repair: "In Repair", burn_in: "Burn-In", qc_pending: "QC Pending", qc_failed: "QC Failed", ready: "Ready", delivered: "Delivered", unrepairable: "Unrepairable (BER)", cancelled: "Cancelled" } },
     tabs: [
-      { id: 'job', label: '1. Depot Job & Bench', bn: '১. ওয়ার্কশপ জব ও বেঞ্চ', icon: '🔧', badge: '7' },
+      { id: 'job', label: '1. Depot Job & Bench', bn: '১. ওয়ার্কশপ জব ও বেঞ্চ', icon: '🔧', badge: '12' },
+      { id: 'bookin', label: '1b. Book-In Receipt', bn: '১খ. বুক-ইন রসিদ', icon: '📥', badge: '8' },
       { id: 'soldering', label: '2. Schematic & IPC Rework', bn: '২. স্কিম্যাটিক ও মাইক্রো-সোল্ডারিং', icon: '🔍', badge: '7' },
       { id: 'burnin', label: '3. 240-Min Burn-In Gate', bn: '৩. ২৪০-মিনিট বার্ন-ইন যাচাই', icon: '🔥', badge: '6' },
       { id: 'labor', label: '4. SAM Labor Efficiency', bn: '৪. শ্রম দক্ষতা ও কস্টিং', icon: '⏱️', badge: '6' },
@@ -175,7 +184,23 @@ export const SCREENS = {
           { name: 'bench_id', label: "Assigned Workbench (ESD Compliant Today)" },
           { name: 'technician_id', label: "Assigned Depot Technician" },
           { name: 'priority', required: true, label: "Repair Priority Tier" },
-          { name: 'device_serial', label: "Device Serial / IMEI" }
+          { name: 'device_serial', label: "Device Serial / IMEI" },
+          { name: 'estimate_id', label: "Approved Estimate (governing version)", readonly: true },
+          { name: 'estimate_ceiling', label: "Approved Amount (BDT)", readonly: true },
+          { name: 'cost_over_estimate', label: "Cost Above Approval (re-approval needed)", readonly: true },
+          { name: 'rework_of_id', label: "Comeback Of Job", readonly: true }
+        ] },
+      { tab: 'bookin', title: "Book-In: Condition & Accessories (A02 audit M31 step 2)",
+        note: "Copied from the M01 intake where recorded. Intake needs the condition and the accessories (or 'received without accessories'); the book-in is frozen once the job is booked in.",
+        fields: [
+          { name: 'bookin_condition', label: "Condition at Book-In", type: "text" },
+          { name: 'bookin_accessories', label: "Accessories Received", type: "text" },
+          { name: 'bookin_no_accessories', label: "Received Without Accessories" },
+          { name: 'bookin_accessory_bag', label: "Accessory Bag Barcode" },
+          { name: 'bookin_lci_tripped', label: "Liquid Contact Indicator Tripped" },
+          { name: 'bookin_photo_attachment_id', label: "Book-In Photo" },
+          { name: 'bookin_by_id', label: "Booked In By", readonly: true },
+          { name: 'bookin_at', label: "Booked In At", readonly: true }
         ] },
       { tab: 'soldering', title: "IPC-7711/7721 Micro-Soldering & Component Diagnostics (FLAW-31.2 / HS-05)",
         note: "DC power rail measurements, boardview schematics, and IPC visual inspection verification.",
@@ -231,6 +256,7 @@ export const SCREENS = {
           { name: 'dofa_justification', label: "DOFA Justification (Tier 2+)", type: "text" },
           { name: 'dofa_approved', label: "Write-Off DOFA Approved", readonly: true },
           { name: 'dofa_approved_by', label: "Write-Off Approved By", readonly: true },
+          { name: 'approval_state', label: "Write-Off Approval (M63)", readonly: true },
           { name: 'ber_confirmed_by_id', label: "BER Confirmed By (Second Technician)", readonly: true }
         ] }
     ]

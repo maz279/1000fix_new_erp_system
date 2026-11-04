@@ -74,6 +74,8 @@ def ws(odoo_env):
             "service_type": "walk_in",
         }
     )
+    # A02 audit M31 step 1: only a booked-in order reaches the workshop
+    order.state = "intake"
     return SimpleNamespace(
         env=env,
         workshop=workshop,

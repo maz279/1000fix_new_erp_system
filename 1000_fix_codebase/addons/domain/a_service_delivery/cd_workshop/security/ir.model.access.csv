@@ -12,3 +12,5 @@ access_fix_workshop_evidence_mgr,fix.workshop.evidence.mgr,model_fix_workshop_ev
 access_fix_workshop_internal_base,fix.workshop.internal.base,model_fix_workshop,base.group_user,1,0,0,0
 access_fix_workshop_bench_internal_base,fix.workshop.bench.internal.base,model_fix_workshop_bench,base.group_user,1,0,0,0
 access_fix_workshop_job_internal_base,fix.workshop.job.internal.base,model_fix_workshop_job,base.group_user,1,0,0,0
+access_fix_workshop_waiver_request_user,fix.workshop.waiver.request.user,model_fix_workshop_waiver_request,cd_workshop.group_fix_workshop_user,1,1,1,0
+access_fix_workshop_waiver_request_mgr,fix.workshop.waiver.request.mgr,model_fix_workshop_waiver_request,cd_workshop.group_fix_workshop_manager,1,1,1,0

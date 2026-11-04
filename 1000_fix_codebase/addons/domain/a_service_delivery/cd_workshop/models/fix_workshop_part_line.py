@@ -44,7 +44,10 @@ class FixWorkshopPartLine(models.Model):
 
     _name = "fix.workshop.part.line"
     _description = "Workshop Consumed Part Line"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.dofa.mixin brings fix.guarded.mixin and the M63 routed approval
+    # used for a part beyond the approved estimate (A02 audit B1; the rules
+    # are in fix_workshop_part_line_p1p2.py)
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "job_id, id"
 
     def _fix_guarded_fields(self) -> set:

@@ -34,10 +34,14 @@ SURFACES = {
             "action_fail_qc",
             "action_deliver",
             "action_cancel",
+            # A02 audit B1: the waiver is a routed request; the BER write-off
+            # is requested by Confirm BER and approved from the M63 inbox, so
+            # neither action_dofa_approve nor a direct grant is offered.
+            "action_request_certification_waiver",
             "action_grant_certification_waiver",
             "action_propose_ber",
-            "action_dofa_approve",
             "action_confirm_ber",
+            "action_recall_approval",
         },
     },
     "fix.workshop.bench": {
@@ -53,12 +57,21 @@ SURFACES = {
     "fix.workshop": {
         "order": "code",
         "limit": 50,
-        "actions": set(),
+        # A02 audit M31 step 1: receive a device from M01 on the M31 side
+        "actions": {"action_receive_service_order"},
     },
     "fix.workshop.part.line": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_reserve", "action_consume_part", "action_release_reservation"},
+        # A02 audit B1: a part beyond the approved estimate is fitted after a
+        # routed extra-part approval (Request Approval), decided in M63
+        "actions": {
+            "action_reserve",
+            "action_consume_part",
+            "action_release_reservation",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.workshop.evidence": {
         "order": "id desc",

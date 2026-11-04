@@ -7,7 +7,9 @@ import math
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
-from libs.py.fix_events import publish  # FF-28
+# FF-28. A02 audit B2: every event is a literal publish(...) call so FF-48
+# sees it; the private _emit_field_event wrapper hid them.
+from libs.py.fix_events import publish
 
 _logger = logging.getLogger(__name__)
 
@@ -22,6 +24,11 @@ DISPATCHER_GROUP = "cd_field_service.group_fix_field_service_manager"
 # taken. The switch is a business decision; the default fails closed.
 EVIDENCE_PROFILE_PARAM = "cd_field_service.completion_evidence_profile"
 EVIDENCE_PROFILES = ("strict", "no_photo")
+
+# A02 audit M02-4 (P2): a dispatched job nobody accepts goes back to the
+# dispatcher after this many minutes. The timeout is a business decision, so
+# unset or 0 keeps today's behaviour (no timeout).
+ACCEPT_TIMEOUT_PARAM = "cd_field_service.acceptance_timeout_minutes"
 
 MFS_METHODS = ("bkash", "nagad", "sslcommerz")
 OPEN_STATES = ("pending_dispatch", "dispatched", "accepted", "en_route", "arrived", "in_progress")
@@ -99,24 +106,32 @@ _FROZEN_WHEN_CLOSED = frozenset(
 def _point_in_fence(fence, lat, lon):
     """True when (lat, lon) lies inside ``fence`` (circle or polygon).
 
-    A fence whose geometry cannot be read tests True: a broken fence is a
-    configuration fault, logged, and must not strand every technician."""
+    A02 audit M02-8 (P2): a fence whose geometry cannot be read used to test
+    True, so a broken (or blanked) fence let any position check in. It now
+    tests False: the arrival is refused and the dispatcher either repairs the
+    fence or waives it for the order (action_waive_geofence), with a reason."""
     try:
         geom = json.loads(fence.geometry_json or "")
     except (TypeError, ValueError):
         _logger.warning("geofence %s has unreadable geometry", getattr(fence, "id", "?"))
-        return True
+        return False
     if not isinstance(geom, dict):
-        return True
+        _logger.warning("geofence %s geometry is not an object", getattr(fence, "id", "?"))
+        return False
     if fence.geofence_type == "circle":
-        center_lat = float(geom.get("lat", 0.0))
-        center_lon = float(geom.get("lng", 0.0))
-        radius_m = float(geom.get("radius_m", 500.0))
+        try:
+            center_lat = float(geom["lat"])
+            center_lon = float(geom["lng"])
+            radius_m = float(geom.get("radius_m", 500.0))
+        except (KeyError, TypeError, ValueError):
+            _logger.warning("geofence %s circle has no readable centre", getattr(fence, "id", "?"))
+            return False
         return FixFieldOrder._haversine_distance(lat, lon, center_lat, center_lon) <= radius_m
     # Polygon ray-casting algorithm
     points = geom.get("points", [])
-    if len(points) < 3:
-        return True
+    if not isinstance(points, list) or len(points) < 3:
+        _logger.warning("geofence %s polygon has fewer than 3 points", getattr(fence, "id", "?"))
+        return False
     inside = False
     j = len(points) - 1
     for i in range(len(points)):
@@ -626,8 +641,11 @@ class FixFieldOrder(models.Model):
             if van:
                 vals["van_location_id"] = van.id
             rec._guarded().write(vals)
-            rec._emit_field_event(
+            publish(
+                rec.env,
                 "field.order.dispatched",
+                "fix.field.order",
+                rec.id,
                 {
                     "field_order_id": rec.id,
                     "order_ref": rec.name,
@@ -684,8 +702,11 @@ class FixFieldOrder(models.Model):
                 body="Reassigned from %s to %s by %s. Reason: %s"
                 % (previous.name or "nobody", technician.name, self.env.user.name, reason)
             )
-            rec._emit_field_event(
+            publish(
+                rec.env,
                 "field.order.reassigned",
+                "fix.field.order",
+                rec.id,
                 {
                     "field_order_id": rec.id,
                     "order_ref": rec.name,
@@ -702,8 +723,11 @@ class FixFieldOrder(models.Model):
             # A02 audit M02-4: technician B accepted A's job.
             rec._fix_require_assigned_technician("accept")
             rec._guarded().write({"state": "accepted", "accepted_at": fields.Datetime.now()})
-            rec._emit_field_event(
+            publish(
+                rec.env,
                 "field.order.accepted",
+                "fix.field.order",
+                rec.id,
                 {
                     "field_order_id": rec.id,
                     "order_ref": rec.name,
@@ -752,8 +776,11 @@ class FixFieldOrder(models.Model):
                     "notes": notes,
                 }
             )
-            rec._emit_field_event(
+            publish(
+                rec.env,
                 "field.order.declined",
+                "fix.field.order",
+                rec.id,
                 {
                     "field_order_id": rec.id,
                     "order_ref": rec.name,
@@ -841,8 +868,11 @@ class FixFieldOrder(models.Model):
                     )
 
             if is_mock:
-                rec._emit_field_event(
+                publish(
+                    rec.env,
                     "gps.spoofing.blocked",
+                    "fix.field.order",
+                    rec.id,
                     {
                         "field_order_id": rec.id,
                         "order_ref": rec.name,
@@ -1065,6 +1095,21 @@ class FixFieldOrder(models.Model):
                     "Field order %s cannot be completed without %s."
                     % (rec.name, "; ".join(missing))
                 )
+            # A02 audit M02 step 7 (P2): every part picked for the job is
+            # either fitted or returned before the job closes.
+            unresolved = rec._fix_parts_unresolved()
+            if unresolved:
+                raise UserError(
+                    "Field order %s cannot be completed: %d picked part(s) are neither "
+                    "fitted nor returned (%s)."
+                    % (
+                        rec.name,
+                        len(unresolved),
+                        ", ".join(
+                            p.part_number or p.product_id.display_name or "?" for p in unresolved
+                        ),
+                    )
+                )
             rec._guarded().write({"state": "completed", "completed_at": fields.Datetime.now()})
             # A02 audit M02-3: completion no longer marks the service order
             # settled. Cash waits for its hand-over to a branch shift; a digital
@@ -1076,6 +1121,29 @@ class FixFieldOrder(models.Model):
                 elif method in MFS_METHODS:
                     pay_state = rec._fix_record_order_settlement(amt, rec.onsite_payment_trx_id)
             rec._guarded().write({"onsite_payment_state": pay_state})
+            # A02 audit B2 / M02-11: the hand-back to M01. The order never
+            # moved when its field job completed and nothing was published.
+            # Contract with the M01 consumer (stream S1): service_order_id
+            # (int, or False) and the source record id.
+            consumed = rec.sudo().part_line_ids.filtered(lambda ln: ln.state == "consumed")
+            publish(
+                rec.env,
+                "field.order.completed",
+                "fix.field.order",
+                rec.id,
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "service_order_id": rec.order_id.id or False,
+                    "service_order_ref": rec.order_id.name or "",
+                    "technician_id": rec.technician_id.id or False,
+                    "completed_at": rec.completed_at.isoformat() if rec.completed_at else None,
+                    "onsite_payment_state": pay_state,
+                    "onsite_collection_amount": amt if isinstance(amt, int | float) else 0.0,
+                    "parts_fitted": len(consumed),
+                    "parts_total": sum(consumed.mapped("subtotal")),
+                },
+            )
 
     def action_handover_field_cash(self, shift_id=None):
         """HS-08: Deposit on-site cash collected by the field engineer into an M04
@@ -1191,6 +1259,74 @@ class FixFieldOrder(models.Model):
             )
         orders.write({"sla_escalated_at": fields.Datetime.now()})
         return len(orders)
+
+    @api.model
+    def _fix_acceptance_timeout_minutes(self) -> float:
+        raw = self.env["ir.config_parameter"].sudo().get_param(ACCEPT_TIMEOUT_PARAM)
+        try:
+            minutes = float(raw or 0.0)
+        except (TypeError, ValueError):
+            _logger.warning(
+                "%s=%r is not a number; the acceptance timeout is off", ACCEPT_TIMEOUT_PARAM, raw
+            )
+            return 0.0
+        return minutes if math.isfinite(minutes) and minutes > 0 else 0.0
+
+    @api.model
+    def _cron_return_unaccepted(self, limit=200):
+        """A02 audit M02-4 (P2): a job dispatched to a technician who never
+        accepts it sat in 'dispatched' for good; only the SLA cron looked at
+        it, once it had already breached. After the acceptance timeout the
+        order goes back to pending dispatch, unassigned, with a to-do for a
+        dispatcher. Off unless the timeout switch is set."""
+        minutes = self._fix_acceptance_timeout_minutes()
+        if not minutes:
+            return 0
+        cutoff = fields.Datetime.subtract(fields.Datetime.now(), minutes=minutes)
+        orders = self.sudo().search(
+            [("state", "=", "dispatched"), ("dispatched_at", "<", cutoff)],
+            order="dispatched_at asc, id asc",
+            limit=limit,
+        )
+        group = self.env.ref(DISPATCHER_GROUP, raise_if_not_found=False)
+        dispatchers = (
+            group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share).sorted("id")
+            if group
+            else self.env["res.users"]
+        )
+        activity_type = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        today = fields.Date.context_today(self)
+        returned = 0
+        for i, order in enumerate(orders):
+            try:
+                with self.env.cr.savepoint():
+                    previous = order.technician_id
+                    order._guarded().write(
+                        {
+                            "state": "pending_dispatch",
+                            "technician_id": False,
+                            "dispatched_at": False,
+                            "geofence_waived_by": False,
+                            "geofence_waive_reason": False,
+                        }
+                    )
+                    note = (
+                        "Not accepted by %s within %.0f minutes of dispatch: returned to "
+                        "the dispatcher." % (previous.name or "the technician", minutes)
+                    )
+                    order.message_post(body=note)
+                    if dispatchers:
+                        order.activity_schedule(
+                            activity_type_id=activity_type.id if activity_type else False,
+                            summary="Re-dispatch: %s" % order.name,
+                            note=note,
+                            user_id=dispatchers[i % len(dispatchers)].id,
+                            date_deadline=today,
+                        )
+                    returned += 1
+            except Exception:
+                _logger.exception("acceptance timeout: could not return field order %s", order.id)
+        return returned
 
     def action_suggest_technicians(self, limit=5):
         """The dispatch suggestion engine (M02): a deterministic, explainable
@@ -1330,8 +1466,9 @@ class FixFieldOrder(models.Model):
         return suggestions[:limit]
 
     def _check_geofence_arrival(self, lat: float, lon: float) -> bool:
-        """Validate if current coordinates fall within the assigned geofence."""
-        if not self.geofence_id or not self.geofence_id.geometry_json:
+        """Validate if current coordinates fall within the assigned geofence.
+        A fence with blank geometry fails closed (A02 audit M02-8, P2)."""
+        if not self.geofence_id:
             return True
         return _point_in_fence(self.geofence_id, lat, lon)
 
@@ -1346,11 +1483,3 @@ class FixFieldOrder(models.Model):
             math.sin(dlam / 2.0) ** 2
         )
         return 2.0 * r * math.atan2(math.sqrt(a), math.sqrt(1.0 - a))
-
-    def _emit_field_event(self, event_type: str, payload: dict):
-        """Emit domain event through the transactional outbox per AS-08 (FF-28).
-
-        The previous body tested ``self.env.get("fix.event.outbox")`` - an EMPTY
-        recordset, which is falsy - and would then have called a non-existent
-        ``create_event``: no field-order event was ever emitted."""
-        publish(self.env, event_type, "fix.field.order", self.id, payload)

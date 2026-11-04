@@ -39,6 +39,14 @@ SURFACES = {
             "action_cancel",
         },
     },
+    # A02 audit M02-P2: parts fitted on site. Lines are written by the
+    # technician app (consume_part) and frozen once fitted, so the workspace
+    # reads them and calls nothing.
+    "fix.field.order.part": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
+    },
     "fix.field.route": {
         "order": "date desc, id desc",
         "limit": 100,
