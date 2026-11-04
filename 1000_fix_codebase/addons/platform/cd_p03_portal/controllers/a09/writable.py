@@ -12,6 +12,7 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a03 --a02 --a09
 
 WRITABLE = {
+    "fix.attendance.adjustment": frozenset(),
     "fix.attendance.lock": frozenset(
         {
             "company_id",
@@ -49,6 +50,21 @@ WRITABLE = {
             "bank_confirmation_ref",
         }
     ),
+    "fix.beftn.return": frozenset(
+        {
+            "batch_id",
+            "return_file",
+        }
+    ),
+    "fix.beftn.return.line": frozenset(),
+    "fix.biometric.consent": frozenset(
+        {
+            "consent_file",
+            "consent_file_name",
+            "employee_id",
+            "notice_version",
+        }
+    ),
     "fix.biometric.device": frozenset(
         {
             "active",
@@ -62,6 +78,7 @@ WRITABLE = {
             "status",
         }
     ),
+    "fix.biometric.punch.event": frozenset(),
     "fix.candidate": frozenset(
         {
             "consent_given",
@@ -102,10 +119,12 @@ WRITABLE = {
             "range_min",
         }
     ),
+    "fix.compensation.proposal": frozenset(),
     "fix.competency": frozenset(
         {
             "attempt_limit",
             "brand_id",
+            "certification_class",
             "code",
             "device_category_id",
             "device_type",
@@ -173,6 +192,23 @@ WRITABLE = {
             "un_number",
         }
     ),
+    "fix.headcount.budget": frozenset(
+        {
+            "approved_headcount",
+            "basis",
+            "department_id",
+            "position_id",
+            "year",
+        }
+    ),
+    "fix.hr.abandonment": frozenset(
+        {
+            "absence_start_date",
+            "employee_id",
+            "explanation",
+            "notes",
+        }
+    ),
     "fix.hr.dependant": frozenset(
         {
             "date_of_birth",
@@ -237,6 +273,8 @@ WRITABLE = {
             "asset_return_receipt_no",
             "chief_inspector_notified_on",
             "currency_id",
+            "death_at_work",
+            "death_certificate_file",
             "disciplinary_case_id",
             "employee_id",
             "exit_type",
@@ -368,6 +406,15 @@ WRITABLE = {
             "travel_allowance",
         }
     ),
+    "fix.hse.capa": frozenset(
+        {
+            "action_type",
+            "due_date",
+            "incident_id",
+            "name",
+            "owner_id",
+        }
+    ),
     "fix.hse.drill": frozenset(
         {
             "drill_type",
@@ -379,6 +426,7 @@ WRITABLE = {
             "scheduled_on",
         }
     ),
+    "fix.hse.fitness.status": frozenset(),
     "fix.hse.hazard": frozenset(
         {
             "branch_id",
@@ -401,22 +449,27 @@ WRITABLE = {
             "record_type",
             "restrictions",
             "valid_until",
+            "work_restriction",
         }
     ),
     "fix.hse.incident": frozenset(
         {
             "accident_datetime",
+            "anonymous",
             "branch_id",
-            "capa_due_date",
-            "capa_owner_id",
-            "corrective_action",
             "description",
             "employee_id",
             "incident_type",
             "injured_employee_id",
             "investigation_findings",
-            "root_cause",
             "severity",
+        }
+    ),
+    "fix.hse.investigation.member": frozenset(
+        {
+            "employee_id",
+            "incident_id",
+            "role",
         }
     ),
     "fix.hse.jsa": frozenset(
@@ -435,6 +488,7 @@ WRITABLE = {
             "checkin_time",
             "employee_id",
             "expected_end",
+            "field_order_id",
             "operating_unit_id",
         }
     ),
@@ -444,30 +498,67 @@ WRITABLE = {
             "checked_on",
             "documents_ok",
             "employee_id",
-            "licence_expiry",
-            "licence_number",
             "lights_ok",
             "tyres_ok",
             "vehicle_ref",
         }
     ),
+    "fix.hse.root.cause": frozenset(
+        {
+            "category",
+            "description",
+            "incident_id",
+        }
+    ),
+    "fix.hse.safety.followup": frozenset(),
+    "fix.incentive.clawback": frozenset(),
+    "fix.incentive.dispute": frozenset(),
     "fix.incentive.line": frozenset(),
     "fix.incentive.run": frozenset(
         {
-            "band_base",
             "company_id",
             "operating_unit_id",
             "period",
+            "scheme_id",
+        }
+    ),
+    "fix.incentive.scheme": frozenset(
+        {
+            "code",
+            "company_id",
+            "description",
+            "name",
+        }
+    ),
+    "fix.incentive.scheme.version": frozenset(
+        {
+            "band_base",
+            "basis",
+            "cut_low",
+            "cut_mid",
+            "cut_top",
+            "date_from",
+            "date_to",
+            "long_leave_days",
+            "min_service_days",
+            "rate_low",
+            "rate_mid",
+            "rate_top",
+            "scheme_id",
         }
     ),
     "fix.job.requisition": frozenset(
         {
             "assessment_pass_mark",
+            "budget_year",
             "department_id",
+            "hiring_manager_id",
             "is_field_role",
             "name",
+            "onboarding_template_id",
             "openings",
             "operating_unit_id",
+            "over_budget_reason",
             "position_id",
         }
     ),
@@ -505,6 +596,19 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.mfs.disbursement": frozenset(
+        {
+            "confirmation_file",
+            "confirmation_ref",
+        }
+    ),
+    "fix.mfs.return": frozenset(
+        {
+            "disbursement_id",
+            "return_file",
+        }
+    ),
+    "fix.mfs.return.line": frozenset(),
     "fix.night.work.consent": frozenset(
         {
             "consent_file",
@@ -535,6 +639,16 @@ WRITABLE = {
             "signed_contract_file",
         }
     ),
+    "fix.onboarding.task": frozenset(
+        {
+            "due_date",
+            "evidence_file",
+            "evidence_note",
+            "function",
+            "name",
+            "owner_id",
+        }
+    ),
     "fix.org.position": frozenset(
         {
             "company_id",
@@ -555,6 +669,7 @@ WRITABLE = {
             "rest_day_work",
         }
     ),
+    "fix.payroll.bank.check": frozenset(),
     "fix.payroll.bonus.line": frozenset(),
     "fix.payroll.bonus.run": frozenset(
         {
@@ -574,9 +689,22 @@ WRITABLE = {
             "name",
         }
     ),
+    "fix.payroll.gratuity.accrual": frozenset(),
+    "fix.payroll.nominee.account": frozenset(
+        {
+            "bank_account_no",
+            "bank_name",
+            "dependant_id",
+            "employee_id",
+            "evidence_file",
+            "nominee_name",
+            "routing_no",
+        }
+    ),
     "fix.payroll.offcycle": frozenset(
         {
             "amount",
+            "correction_slip_id",
             "employee_id",
             "payment_date",
             "payment_type",
@@ -593,6 +721,14 @@ WRITABLE = {
             "period_start",
         }
     ),
+    "fix.payroll.recovery": frozenset(
+        {
+            "amount",
+            "correction_slip_id",
+            "reason",
+        }
+    ),
+    "fix.payroll.recovery.line": frozenset(),
     "fix.payroll.return": frozenset(
         {
             "acknowledgement",
@@ -618,6 +754,7 @@ WRITABLE = {
             "transport_fixed",
         }
     ),
+    "fix.payroll.variance": frozenset(),
     "fix.payslip": frozenset(),
     "fix.performance.goal": frozenset(
         {
@@ -665,7 +802,16 @@ WRITABLE = {
             "salvage_target",
         }
     ),
-    "fix.ppe.issue": frozenset(),
+    "fix.ppe.issue": frozenset(
+        {
+            "employee_id",
+            "issued_on",
+            "ppe_id",
+            "quantity",
+            "replace_by",
+            "replaces_id",
+        }
+    ),
     "fix.ppe.register": frozenset(
         {
             "company_id",
@@ -674,6 +820,26 @@ WRITABLE = {
             "name",
             "regulatory_standard",
             "stock_quantity",
+        }
+    ),
+    "fix.roster.change.request": frozenset(
+        {
+            "kind",
+            "new_branch_id",
+            "new_date",
+            "new_employee_id",
+            "new_shift_id",
+            "reason",
+            "slot_id",
+        }
+    ),
+    "fix.roster.publication": frozenset(
+        {
+            "branch_id",
+            "company_id",
+            "date_from",
+            "date_to",
+            "operating_unit_id",
         }
     ),
     "fix.roster.slot": frozenset(
@@ -732,7 +898,18 @@ WRITABLE = {
             "lost_work_days",
             "nature_of_injury",
             "notice_form_type",
-            "return_to_work_date",
+        }
+    ),
+    "fix.statutory.pack": frozenset(
+        {
+            "basis",
+            "effective_from",
+            "exemption_ceiling",
+            "ot_divisor_hours",
+            "separation_rule",
+            "source_file",
+            "source_note",
+            "tax_table_rule",
         }
     ),
     "fix.succession.plan": frozenset(
@@ -751,7 +928,8 @@ WRITABLE = {
             "assessed_on",
             "assessor_id",
             "candidate_id",
-            "competency_code",
+            "competency_id",
+            "level",
             "notes",
             "score",
         }
@@ -764,6 +942,13 @@ WRITABLE = {
             "evidence_file",
             "notes",
             "requested_on",
+        }
+    ),
+    "fix.talent.evaluation": frozenset(
+        {
+            "notes",
+            "recommendation",
+            "score",
         }
     ),
     "fix.talent.first90": frozenset(
@@ -783,10 +968,8 @@ WRITABLE = {
             "competency_code",
             "interviewer_id",
             "notes",
-            "recommendation",
             "round_no",
             "scheduled_on",
-            "score",
         }
     ),
     "fix.talent.offer": frozenset(
@@ -802,11 +985,29 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.training.budget": frozenset(
+        {
+            "amount",
+            "company_id",
+            "operating_unit_id",
+            "year",
+        }
+    ),
+    "fix.training.budget.exception": frozenset(
+        {
+            "company_id",
+            "course_id",
+            "reason",
+            "seats",
+            "year",
+        }
+    ),
     "fix.training.course": frozenset(
         {
             "code",
             "competency_id",
             "content_ref",
+            "cost_per_seat",
             "name",
             "name_bn",
             "operating_unit_id",
@@ -819,16 +1020,47 @@ WRITABLE = {
             "employee_id",
         }
     ),
+    "fix.working.time.rule": frozenset(
+        {
+            "annual_average_mode",
+            "annual_avg_weekly_hours",
+            "basis",
+            "company_id",
+            "daily_max_hours",
+            "daily_ot_cap_hours",
+            "date_from",
+            "min_rest_hours",
+            "rest_interval_after_hours",
+            "rest_interval_after_hours_2",
+            "rest_interval_minutes",
+            "rest_interval_minutes_2",
+            "rest_interval_mode",
+            "short_rest_mode",
+            "spread_over_max_hours",
+            "spread_over_mode",
+            "weekly_limit_hours",
+        }
+    ),
     "fix.wppf.allocation": frozenset(
         {
+            "audit_report_ref",
+            "audited_statement_file",
+            "bwwf_challan_date",
+            "bwwf_challan_file",
             "bwwf_challan_ref",
-            "eligible_workers_count",
             "fiscal_year",
             "fiscal_year_end_date",
+            "ledger_report_id",
             "name",
             "net_profit",
             "trustee_board_resolution_ref",
             "trustee_resolution_file",
+        }
+    ),
+    "fix.wppf.beneficiary": frozenset(
+        {
+            "exclusion_reason",
+            "worker_status",
         }
     ),
     "hr.employee": frozenset(
