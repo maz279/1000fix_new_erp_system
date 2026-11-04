@@ -135,9 +135,11 @@ def test_accident_claim_then_close(ctx):
         accident.action_claim()
     accident.action_claim(claim_ref="INS-1")
     with pytest.raises(UserError, match="settled amount"), env.cr.savepoint():
-        accident.action_close()
-    accident.action_close(settlement=0)
-    assert accident.state == "closed"
+        accident.action_close(settlement="")
+    # A07 P1: superuser code (data loading) is trusted to close on the
+    # recorded settlement; a user must state it (test_a07_p0_recipe_fleet).
+    accident.action_close()
+    assert accident.state == "closed" and accident.settlement_amount == 0
 
 
 def test_dispatch_gate_requires_compliance(ctx):

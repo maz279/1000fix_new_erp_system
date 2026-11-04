@@ -1,10 +1,16 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_vehicle_assignment,fix.vehicle.assignment,model_fix_vehicle_assignment,base.group_user,1,1,1,0
-access_fix_driver,fix.driver,model_fix_driver,base.group_user,1,1,1,0
-access_fix_vehicle_document,fix.vehicle.document,model_fix_vehicle_document,base.group_user,1,1,1,0
+access_fix_vehicle_assignment_lm,fix.vehicle.assignment logistics manager,model_fix_vehicle_assignment,group_logistics_manager,1,1,1,1
+access_fix_driver,fix.driver,model_fix_driver,base.group_user,1,0,0,0
+access_fix_driver_officer,fix.driver fleet officer,model_fix_driver,fleet.fleet_group_user,1,1,1,0
+access_fix_driver_lm,fix.driver logistics manager,model_fix_driver,group_logistics_manager,1,1,1,1
+access_fix_vehicle_document,fix.vehicle.document,model_fix_vehicle_document,base.group_user,1,0,0,0
+access_fix_vehicle_document_officer,fix.vehicle.document fleet officer,model_fix_vehicle_document,fleet.fleet_group_user,1,1,1,0
 access_fix_vehicle_offroad,fix.vehicle.offroad,model_fix_vehicle_offroad,base.group_user,1,1,1,0
 access_fix_vehicle_check,fix.vehicle.check,model_fix_vehicle_check,base.group_user,1,1,1,0
 access_fix_vehicle_pm,fix.vehicle.pm,model_fix_vehicle_pm,base.group_user,1,1,1,0
+access_fix_vehicle_pm_lm,fix.vehicle.pm logistics manager,model_fix_vehicle_pm,group_logistics_manager,1,1,1,1
 access_fix_vehicle_fuel,fix.vehicle.fuel,model_fix_vehicle_fuel,base.group_user,1,1,1,0
-access_fix_vehicle_telemetry,fix.vehicle.telemetry,model_fix_vehicle_telemetry,base.group_user,1,1,1,0
+access_fix_vehicle_telemetry,fix.vehicle.telemetry,model_fix_vehicle_telemetry,base.group_user,1,0,0,0
+access_fix_vehicle_telemetry_officer,fix.vehicle.telemetry fleet officer,model_fix_vehicle_telemetry,fleet.fleet_group_user,1,1,1,0
 access_fix_vehicle_accident,fix.vehicle.accident,model_fix_vehicle_accident,base.group_user,1,1,1,0

@@ -61,3 +61,285 @@ msgstr "যানবাহন নির্ধারণ"
 #: model:ir.ui.menu,name:cd_vehicle_ext.menu_fix_vehicle_assignment
 msgid "Vehicle Assignments"
 msgstr "যানবাহন নির্ধারণসমূহ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__accident_id
+msgid "Accident"
+msgstr "দুর্ঘটনা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__amount
+msgid "Amount"
+msgstr "টাকার পরিমাণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__brakes_ok
+msgid "Brakes OK"
+msgstr "ব্রেক ঠিক আছে"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__closed_by_id
+msgid "Closed By"
+msgstr "বন্ধকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__closed_on
+msgid "Closed On"
+msgstr "বন্ধের তারিখ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__done_by_id
+msgid "Completed By"
+msgstr "সম্পন্নকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__is_current
+msgid "Current"
+msgstr "বর্তমান"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__number
+msgid "Document Number"
+msgstr "দলিল নম্বর"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__driver_id
+msgid "Driver"
+msgstr "চালক"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_no
+msgid "Driving Licence No"
+msgstr "ড্রাইভিং লাইসেন্স নম্বর"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__due_date
+msgid "Due Date"
+msgstr "নির্ধারিত তারিখ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__due_odometer
+msgid "Due Odometer (km)"
+msgstr "নির্ধারিত ওডোমিটার (কিমি)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__employee_id
+msgid "Employee"
+msgstr "কর্মচারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_status
+msgid "Evidence"
+msgstr "প্রমাণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__evidence_file
+msgid "Evidence (photos / assessor report)"
+msgstr "প্রমাণ (ছবি / সার্ভেয়ার প্রতিবেদন)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_file
+msgid "Evidence (scan)"
+msgstr "প্রমাণ (স্ক্যান)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__has_evidence
+msgid "Evidence Attached"
+msgstr "প্রমাণ সংযুক্ত"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__evidence_filename
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_filename
+msgid "Evidence File Name"
+msgstr "প্রমাণ ফাইলের নাম"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_flags
+msgid "Exception Codes"
+msgstr "ব্যতিক্রম কোড"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_summary
+msgid "Exceptions"
+msgstr "ব্যতিক্রমসমূহ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__check_id
+msgid "Failed Check"
+msgstr "অনুত্তীর্ণ চেক"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__fluids_ok
+msgid "Fluids OK"
+msgstr "ফ্লুইড ঠিক আছে"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__fuel_level_pct
+msgid "Fuel Level %"
+msgstr "জ্বালানির মাত্রা %"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__injury
+msgid "Injury Involved"
+msgstr "আঘাত সংশ্লিষ্ট"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__claim_ref
+msgid "Insurance Claim Ref"
+msgstr "বিমা দাবির রেফারেন্স"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__insurer_id
+msgid "Insurer"
+msgstr "বিমাকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__last_ping
+msgid "Last Ping"
+msgstr "সর্বশেষ পিং"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_class
+msgid "Licence Class"
+msgstr "লাইসেন্সের শ্রেণি"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_class_codes
+msgid "Licence Classes (BRTA)"
+msgstr "লাইসেন্সের শ্রেণিসমূহ (BRTA)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_expiry
+msgid "Licence Expiry"
+msgstr "লাইসেন্সের মেয়াদ শেষ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__lights_ok
+msgid "Lights OK"
+msgstr "লাইট ঠিক আছে"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__litres
+msgid "Litres"
+msgstr "লিটার"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__odometer
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__odometer
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__odometer
+msgid "Odometer (km)"
+msgstr "ওডোমিটার (কিমি)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__odometer
+msgid "Odometer at Service (km)"
+msgstr "সার্ভিসিংকালীন ওডোমিটার (কিমি)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__is_overdue
+msgid "Overdue"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__pm_id
+msgid "Overdue Service"
+msgstr "মেয়াদোত্তীর্ণ সার্ভিসিং"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__passed
+msgid "Passed"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__police_ref
+msgid "Police Reference (GD/case no.)"
+msgstr "পুলিশ রেফারেন্স (জিডি/মামলা নং)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__raised_by_id
+msgid "Raised By"
+msgstr "উত্থাপনকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__return_check_id
+msgid "Re-Check"
+msgstr "পুনঃপরীক্ষা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_file
+msgid "Receipt (scan)"
+msgstr "রসিদ (স্ক্যান)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_filename
+msgid "Receipt File Name"
+msgstr "রসিদ ফাইলের নাম"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_no
+msgid "Receipt No"
+msgstr "রসিদ নম্বর"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_legacy
+msgid "Recorded Without Evidence (legacy)"
+msgstr "প্রমাণ ছাড়া লিপিবদ্ধ (লিগ্যাসি)"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__returned_by_id
+msgid "Returned By"
+msgstr "সেবায় ফেরতকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__review_state
+msgid "Review"
+msgstr "পর্যালোচনা"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__review_note
+msgid "Review Note"
+msgstr "পর্যালোচনা নোট"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__reviewed_by_id
+msgid "Reviewed By"
+msgstr "পর্যালোচনাকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__reviewed_on
+msgid "Reviewed On"
+msgstr "পর্যালোচনার তারিখ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__settlement_amount
+msgid "Settlement Amount"
+msgstr "দাবি নিষ্পত্তির পরিমাণ"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__suspended_by_id
+msgid "Suspended By"
+msgstr "স্থগিতকারী"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__device_ref
+msgid "Telematics Device"
+msgstr "টেলিমেটিক্স ডিভাইস"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__tyres_ok
+msgid "Tyres OK"
+msgstr "টায়ার ঠিক আছে"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__vehicle_id
+msgid "Vehicle"
+msgstr "যানবাহন"

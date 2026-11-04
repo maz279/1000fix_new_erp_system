@@ -13,6 +13,7 @@ bypass is refused, and the legitimate path still works. ``odoo_env``
 (addons/conftest.py) rolls back after every test.
 """
 
+import base64
 import types
 from datetime import timedelta
 
@@ -23,6 +24,9 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2 import Error as PgError
 
 REFUSED = (UserError, ValidationError, AccessError, PgError)
+# A07 P1 (FR-FLT-009 / AC-21): a document counts only with its evidence scan,
+# so the fixture's documents carry one (fixture updated for P1).
+SCAN = base64.b64encode(b"%PDF-1.4 scanned certificate").decode()
 
 
 def refused(env, fn):
@@ -63,6 +67,8 @@ def w(odoo_env):
     x.today = dhaka_today(env["fix.vehicle.check"])
     x.clerk = user("a07p0m46_clerk")
     x.fleet = user("a07p0m46_fleet", ["fleet.fleet_group_user"])
+    # A07 P1: closing a claim is the Logistics Manager's
+    x.lm = user("a07p0m46_lm", ["cd_vehicle_ext.group_logistics_manager"])
     brand = env["fleet.vehicle.model.brand"].create({"name": "A07P0 Brand"})
     x.model = env["fleet.vehicle.model"].create({"name": "A07P0 Van", "brand_id": brand.id})
 
@@ -86,9 +92,11 @@ def w(odoo_env):
             doc(v, doc_type, x.today + timedelta(days=days))
         return v
 
-    def doc(v, doc_type, valid_to, **kw):
+    def doc(v, doc_type, valid_to, scan=True, **kw):
         vals = {"vehicle_id": v.id, "doc_type": doc_type, "number": "N-" + doc_type}
         vals.update({"valid_to": valid_to, **kw})
+        if scan:
+            vals.setdefault("evidence_file", SCAN)
         return env["fix.vehicle.document"].with_user(x.fleet).create(vals)
 
     def assign(v, user=None, day=None, **kw):
@@ -123,20 +131,24 @@ def test_missing_or_expired_mandatory_document_refuses(w, doc_type):
 
 
 def test_header_dates_are_information_only(w):
-    """M46-3 / BRU-FLT-03: typing a future insurance date is no override."""
+    """M46-3 / BRU-FLT-03: typing a future insurance date is no override.
+    A07 P1: the header dates are read from the register and cannot be typed."""
     v = w.vehicle("A07P0-HDR", docs=("fitness", "tax"))
-    v.with_user(w.fleet).write({"insurance_expiry": w.today + timedelta(days=365)})
+    assert "register" in refused(
+        w.env,
+        lambda: v.with_user(w.fleet).write({"insurance_expiry": w.today + timedelta(days=365)}),
+    )
     assert "Insurance" in refused(w.env, lambda: w.assign(v))
-    assert not v.compliance_ok
-    # and a past header date no longer blocks a van whose register is valid
-    w.good.with_user(w.fleet).write({"insurance_expiry": w.today - timedelta(days=30)})
-    assert w.assign(w.good)
+    assert not v.compliance_ok and not v.insurance_expiry
+    # the register decides, and the header follows it
+    ins = w.doc(v, "insurance", w.today + timedelta(days=120))
+    assert v.insurance_expiry == ins.valid_to and w.assign(v)
 
 
 def test_documents_must_cover_the_assignment_day(w):
     v = w.vehicle("A07P0-SHORT", days=3)
     assert w.assign(v, day=w.today + timedelta(days=2))
-    assert "no valid" in refused(w.env, lambda: w.assign(v, day=w.today + timedelta(days=10)))
+    assert "ended on" in refused(w.env, lambda: w.assign(v, day=w.today + timedelta(days=10)))
 
 
 def test_document_not_yet_in_force_is_not_valid(w):
@@ -191,17 +203,51 @@ def test_open_accident_refuses(w, state):
         acc.action_claim()
     assert "open accident" in refused(w.env, lambda: w.assign(w.good))
     if state == "claimed":
-        # A07 P0 recipe M46-10: closed by someone other than the reporter
-        acc.with_user(w.fleet).action_close(settlement=0)
+        # A07 P0 recipe M46-10: closed by someone other than the reporter;
+        # A07 P1: a Logistics Manager, with the insurer and the evidence. The
+        # accident also took the van off-road: a re-check and a return follow.
+        insurer = w.env["res.partner"].create({"name": "A07P0 Insurer"})
+        acc.with_user(w.clerk).write({"insurer_id": insurer.id, "evidence_file": SCAN})
+        acc.with_user(w.lm).action_close(settlement=0)
+        assert "off-road" in refused(w.env, lambda: w.assign(w.good))
+        w.env["fix.vehicle.check"].with_user(w.clerk).create(
+            {
+                "vehicle_id": w.good.id,
+                "tyres_ok": True,
+                "lights_ok": True,
+                "fluids_ok": True,
+                "brakes_ok": True,
+            }
+        )
+        w.env["fix.vehicle.offroad"].search(
+            [("vehicle_id", "=", w.good.id), ("state", "=", "offroad")]
+        ).with_user(w.fleet).action_return()
         assert w.assign(w.good)
 
 
 def test_failed_check_today_refuses_but_yesterdays_does_not(w):
+    """A07 P1 (BRU-FLT-04, AUT-FLT-08): yesterday's failed check no longer
+    lapses at midnight: it took the vehicle off-road, until a passed re-check
+    and a return to service by someone else. Today's failure refuses too."""
     Check = w.env["fix.vehicle.check"].with_user(w.clerk)
     Check.create(
         {"vehicle_id": w.good.id, "brakes_ok": False, "checked_on": w.today - timedelta(days=1)}
     )
-    assert w.assign(w.good, day=w.today + timedelta(days=1))
+    tomorrow = w.today + timedelta(days=1)
+    assert "off-road" in refused(w.env, lambda: w.assign(w.good, day=tomorrow))
+    Check.create(
+        {
+            "vehicle_id": w.good.id,
+            "tyres_ok": True,
+            "lights_ok": True,
+            "fluids_ok": True,
+            "brakes_ok": True,
+        }
+    )
+    w.env["fix.vehicle.offroad"].search(
+        [("vehicle_id", "=", w.good.id), ("state", "=", "offroad")]
+    ).with_user(w.fleet).action_return()
+    assert w.assign(w.good, day=tomorrow)
     Check.create({"vehicle_id": w.good.id, "brakes_ok": False, "defects": "No brakes"})
     assert "pre-use check" in refused(w.env, lambda: w.assign(w.good))
 
@@ -248,7 +294,11 @@ def test_vehicle_driver_is_the_default_driver(w):
     assert "licence expired" in refused(
         w.env, lambda: w.good.with_user(w.clerk).action_assert_dispatchable()
     )
+    # A07 P1 (AUT-FLT-05): registered with a lapsed licence, the driver was
+    # born suspended; the renewal is recorded, then an officer reinstates.
+    assert d.state == "suspended"
     d.license_expiry = w.today + timedelta(days=100)
+    d.with_user(w.fleet).action_reinstate(reason="Licence renewed")
     assert w.assign(w.good).driver_id == d
 
 
@@ -306,7 +356,7 @@ def test_is_valid_follows_the_clock_and_is_searchable(w):
 
 
 def test_plain_user_cannot_revive_an_expired_document(w):
-    d = w.doc(w.good, "fitness", w.today - timedelta(days=20), state="expired")
+    d = w.doc(w.good, "fitness", w.today - timedelta(days=20), state="expired", scan=False)
     msg = refused(
         w.env,
         lambda: d.with_user(w.clerk).write(
@@ -327,9 +377,13 @@ def test_plain_user_cannot_revive_an_expired_document(w):
         lambda: stale.with_user(w.fleet).write({"valid_to": w.today + timedelta(days=300)}),
     )
     # marking it expired, editing its number, and recording the renewal all work
-    stale.with_user(w.clerk).action_expire()  # A07 P0 recipe: state is guarded
-    d.with_user(w.clerk).write({"number": "FIT-OLD-1"})
+    # (A07 P1: the Fleet Officer keeps the register; a plain employee reads it)
+    assert refused(w.env, lambda: stale.with_user(w.clerk).action_expire())
+    stale.with_user(w.fleet).action_expire()  # A07 P0 recipe: state is guarded
+    d.with_user(w.fleet).write({"number": "FIT-OLD-1"})
     assert w.doc(w.good, "fitness", w.today + timedelta(days=365)).is_valid
     # superuser data loading stays trusted
-    d.sudo().write({"state": "valid", "valid_to": w.today + timedelta(days=1)})
+    d.sudo().write(
+        {"state": "valid", "valid_to": w.today + timedelta(days=1), "evidence_file": SCAN}
+    )
     assert d.is_valid

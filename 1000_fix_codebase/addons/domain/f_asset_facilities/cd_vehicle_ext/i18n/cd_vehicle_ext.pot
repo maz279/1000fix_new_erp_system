@@ -64,3 +64,285 @@ msgstr ""
 #: model:ir.ui.menu,name:cd_vehicle_ext.menu_fix_vehicle_assignment
 msgid "Vehicle Assignments"
 msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__accident_id
+msgid "Accident"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__amount
+msgid "Amount"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__brakes_ok
+msgid "Brakes OK"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__closed_by_id
+msgid "Closed By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__closed_on
+msgid "Closed On"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__done_by_id
+msgid "Completed By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__is_current
+msgid "Current"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__number
+msgid "Document Number"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_assignment__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__driver_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__driver_id
+msgid "Driver"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_no
+msgid "Driving Licence No"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__due_date
+msgid "Due Date"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__due_odometer
+msgid "Due Odometer (km)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__employee_id
+msgid "Employee"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_status
+msgid "Evidence"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__evidence_file
+msgid "Evidence (photos / assessor report)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_file
+msgid "Evidence (scan)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__has_evidence
+msgid "Evidence Attached"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__evidence_filename
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_filename
+msgid "Evidence File Name"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_flags
+msgid "Exception Codes"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__exception_summary
+msgid "Exceptions"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__check_id
+msgid "Failed Check"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__fluids_ok
+msgid "Fluids OK"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__fuel_level_pct
+msgid "Fuel Level %"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__injury
+msgid "Injury Involved"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__claim_ref
+msgid "Insurance Claim Ref"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__insurer_id
+msgid "Insurer"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__last_ping
+msgid "Last Ping"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_class
+msgid "Licence Class"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_class_codes
+msgid "Licence Classes (BRTA)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__license_expiry
+msgid "Licence Expiry"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__lights_ok
+msgid "Lights OK"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__litres
+msgid "Litres"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__odometer
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__odometer
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__odometer
+msgid "Odometer (km)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__odometer
+msgid "Odometer at Service (km)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__is_overdue
+msgid "Overdue"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__pm_id
+msgid "Overdue Service"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__passed
+msgid "Passed"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__police_ref
+msgid "Police Reference (GD/case no.)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__raised_by_id
+msgid "Raised By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__return_check_id
+msgid "Re-Check"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_file
+msgid "Receipt (scan)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_filename
+msgid "Receipt File Name"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__receipt_no
+msgid "Receipt No"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__evidence_legacy
+msgid "Recorded Without Evidence (legacy)"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__returned_by_id
+msgid "Returned By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__review_state
+msgid "Review"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__review_note
+msgid "Review Note"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__reviewed_by_id
+msgid "Reviewed By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__reviewed_on
+msgid "Reviewed On"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__settlement_amount
+msgid "Settlement Amount"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_driver__suspended_by_id
+msgid "Suspended By"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__device_ref
+msgid "Telematics Device"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__tyres_ok
+msgid "Tyres OK"
+msgstr ""
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_accident__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_check__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_fuel__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_offroad__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_pm__vehicle_id
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__vehicle_id
+msgid "Vehicle"
+msgstr ""

@@ -23,6 +23,14 @@ CD-M46-01 (P08-M08):
   are computed and held for review by someone other than the recorder;
   accident claims need a reference, the close a second person and a
   settlement, DOFA-routed above Tier 0 through the M63 engine
+- A07 P1 (2026-11-04): roles (Logistics Manager; the Fleet Officer is Odoo
+  fleet's officer), company/OU record rules on the ops models, four crons
+  (document and licence expiry with the midnight off-road, PM due,
+  telematics silence), one current document per type with its evidence
+  scan, header dates read from the register, licence class matched to the
+  vehicle, failed checks and accidents take the vehicle off-road, fuel hard
+  rules refused at entry, insurer and evidence before a claim closes, and
+  the domain events the bridge consumes
 """,
     "version": "19.0.0.1.0",
     "license": "LGPL-3",
@@ -40,10 +48,14 @@ CD-M46-01 (P08-M08):
         "cd_event_outbox",
     ],
     "data": [
+        "security/cd_vehicle_ext_groups.xml",
         "security/fix_isolation_rules.xml",
+        "security/fix_vehicle_ops_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/ir_config_parameter.xml",
+        "data/ir_cron.xml",
+        "data/fix_vehicle_upgrade.xml",
         "views/fix_vehicle_views.xml",
     ],
     "installable": True,
