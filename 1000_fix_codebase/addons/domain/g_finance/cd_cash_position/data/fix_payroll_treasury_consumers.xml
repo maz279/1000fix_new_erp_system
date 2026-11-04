@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M50 consumers of the payroll disbursement events (A09 M56-17). Payroll
+  releases its own BEFTN / MFS files (SOD-29); treasury records each released
+  file as a sent payment execution and posts the cash leg on the bank's
+  confirmation. See models/fix_payroll_treasury.py.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_payroll_beftn_submitted_treasury" model="fix.event.consumer">
+            <field name="name">M50: a released payroll run's BEFTN batch and MFS files become sent payment executions</field>
+            <field name="event_type">payroll.beftn_submitted</field>
+            <field name="model">fix.payment.execution</field>
+            <field name="method">consume_payroll_beftn_submitted</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+        <record id="consumer_payroll_offcycle_paid_treasury" model="fix.event.consumer">
+            <field name="name">M50: a released off-cycle payment's BEFTN batch becomes a sent payment execution</field>
+            <field name="event_type">payroll.offcycle_paid</field>
+            <field name="model">fix.payment.execution</field>
+            <field name="method">consume_payroll_offcycle_paid</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+        <record id="consumer_payroll_bonus_paid_treasury" model="fix.event.consumer">
+            <field name="name">M50: a released festival bonus run's BEFTN batch becomes a sent payment execution</field>
+            <field name="event_type">payroll.bonus_paid</field>
+            <field name="model">fix.payment.execution</field>
+            <field name="method">consume_payroll_bonus_paid</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+        <record id="consumer_payroll_beftn_settled_treasury" model="fix.event.consumer">
+            <field name="name">M50: the bank's confirmation of a payroll file executes its payment (Dr net payable / Cr bank)</field>
+            <field name="event_type">payroll.beftn_settled</field>
+            <field name="model">fix.payment.execution</field>
+            <field name="method">consume_payroll_beftn_settled</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+        <record id="consumer_payroll_beftn_returned_treasury" model="fix.event.consumer">
+            <field name="name">M50: a payroll bank return nets the file awaiting the bank, or books the returned money back</field>
+            <field name="event_type">payroll.beftn_returned</field>
+            <field name="model">fix.payment.execution</field>
+            <field name="method">consume_payroll_beftn_returned</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+    </data>
+</odoo>

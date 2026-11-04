@@ -37,6 +37,7 @@ computed reports (branch cash, 13-week forecast, FX holdings, bank charges).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        "data/fix_payroll_treasury_consumers.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,
