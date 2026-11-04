@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "employee.joined",
-  "description": "Published by cd_employee_core through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_employee_core through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,33 +32,15 @@
     "payload": {
       "type": "object",
       "required": [
-        "joined_date"
+        "employee_id",
+        "employee_code",
+        "branch_id",
+        "primary_role",
+        "joined_date",
+        "name",
+        "work_email"
       ],
       "properties": {
-        "onboarding_id": {
-          "type": "integer"
-        },
-        "candidate_name": {
-          "type": "string"
-        },
-        "position": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "department": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "joined_date": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "employee_id": {
           "type": "integer"
         },
@@ -82,6 +64,12 @@
             "null"
           ]
         },
+        "joined_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "name": {
           "type": [
             "string",
@@ -97,7 +85,6 @@
   },
   "x-owner-module": "cd_employee_core",
   "x-publishers": [
-    "addons/domain/h_people/cd_talent/models/fix_talent.py",
     "addons/platform/cd_employee_core/models/hr_employee_ext.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"

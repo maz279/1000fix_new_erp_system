@@ -160,6 +160,8 @@ def test_people_governance_kpi_090(live):
             "employee_id": emp.id,
             "joining_date": fields.Date.today(),
             "basic_monthly": 30000.0,
+            # A09 M21: an active probation contract needs its end date (s.4(8))
+            "contract_type": "permanent",
             "state": "active",
         }
     )

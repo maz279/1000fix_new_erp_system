@@ -40,6 +40,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 ADDONS = ROOT / "addons"
+# The event registry's publisher scanner (FF-19) resolves wrapper helpers
+# (`_emit`, `_emit_event`, `_emit_field_event`, ...) and literal variables.
+sys.path.insert(0, str(ROOT / "tooling" / "generators"))
 BASELINE = Path(__file__).resolve().parent / "evidence" / "deployment_wiring_baseline.json"
 VENDOR_MODEL_ROOTS = [
     ROOT / "vendor" / "odoo" / "addons",
@@ -241,7 +244,18 @@ def cron_gaps() -> set[str]:
 
 
 def published_events() -> dict[str, str]:
+    """Every event type the code publishes, and the first file that does.
+
+    A02 audit C2: only calls named exactly `publish`/`emit` with a literal
+    were seen, so events published through a module's private `_emit`
+    wrapper had no consumer check at all. The registry's scanner resolves
+    those wrappers; its sites are merged with the direct-call scan."""
+    from event_publishers import scan_publishers
+
     out: dict[str, str] = {}
+    for etype, sites in scan_publishers(ADDONS).sites.items():
+        if "." in etype and sites:
+            out.setdefault(etype, sites[0].path)
     for path in _py_files(ADDONS):
         tree = _parse(path)
         if tree is None:

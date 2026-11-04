@@ -55,7 +55,7 @@
   },
   "x-owner-module": "cd_hr_core",
   "x-publishers": [
-    "addons/domain/h_people/cd_hr_core/models/fix_hr_core.py"
+    "addons/domain/h_people/cd_hr_core/models/fix_hr_contract_controls.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }
