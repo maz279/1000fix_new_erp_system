@@ -996,7 +996,7 @@
       "producer": "cd_device_registry",
       "filename": "device_warranty_expired.json",
       "kafka_topic": "fix.events.device",
-      "schema_version": "2.0.0",
+      "schema_version": "3.0.0",
       "schema_source": "derived"
     },
     {
@@ -1004,7 +1004,7 @@
       "producer": "cd_device_registry",
       "filename": "device_warranty_expiring.json",
       "kafka_topic": "fix.events.device",
-      "schema_version": "3.0.0",
+      "schema_version": "4.0.0",
       "schema_source": "derived"
     },
     {

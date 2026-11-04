@@ -56,7 +56,7 @@
           "type": "string"
         },
         "days_left": {
-          "description": "Type not statically derivable from `(w.end_date - today).days` (addons/domain/a_service_delivery/cd_device_registry/models/fix_warranty.py:234 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
+          "description": "Type not statically derivable from `(w.end_date - today).days` (addons/domain/a_service_delivery/cd_device_registry/models/fix_warranty.py:235 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
         },
         "owner_id": {
           "type": [
