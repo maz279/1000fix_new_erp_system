@@ -24,6 +24,8 @@ CD-M03-01/02: the logistics core.
         "cd_event_outbox",
         "cd_service_order",
         "cd_requisition",
+        # A02 audit B1: the damage-claim payout is a routed M63 approval
+        "cd_workflow_engine",
     ],
     "data": [
         "security/fix_isolation_rules.xml",
@@ -32,6 +34,7 @@ CD-M03-01/02: the logistics core.
         "data/damage_claim_sequences.xml",
         "data/courier_sequences.xml",
         "data/ir_sequence.xml",
+        "data/fix_consignment_consumers.xml",
         "views/fix_consignment_views.xml",
     ],
     "installable": True,

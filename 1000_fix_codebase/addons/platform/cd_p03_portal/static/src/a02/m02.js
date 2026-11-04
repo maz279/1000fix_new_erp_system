@@ -49,7 +49,8 @@ export const MODULE = {
       { id: 'M02-day', en: 'Day / Job Queue Preview', bn: 'দিনের কাজ', t: 'd' },
       { id: 'M02-offline', en: 'Offline Sync Monitor', bn: 'অফলাইন সিঙ্ক', t: 'g' },
       { id: 'M02-evidence', en: 'Field Evidence Hub', bn: 'ফিল্ড প্রমাণ', t: 'g' },
-      { id: 'M02-vanstock', en: 'Van Stock Consumption', bn: 'ভ্যান স্টক', t: 'g' }
+      { id: 'M02-vanstock', en: 'Van Stock Consumption', bn: 'ভ্যান স্টক', t: 'g' },
+      { id: 'M02-fieldparts', en: 'Field Order Parts', bn: 'ফিল্ড অর্ডারের যন্ত্রাংশ', t: 'g' }
     ]},
     { en: 'Safety & Payments', screens: [
       { id: 'M02-loneworker', en: 'Lone-Worker Check-In', bn: 'একাকী কর্মী নিরাপত্তা', t: 'g' },
@@ -140,6 +141,10 @@ export const SCREENS = {
   'M02-evidence': { kind: 'model_list', model: 'fix.workshop.evidence', create: false,
     cols: ['name', 'job_id', 'evidence_type', 'captured_by_id', 'captured_at', 'description'],
     stateField: 'evidence_type' },
+  'M02-fieldparts': { kind: 'model_list', model: 'fix.field.order.part', create: false,
+    cols: ['field_order_id', 'product_id', 'quantity', 'lot_serial_number', 'state', 'consumed_by_id', 'consumed_at'],
+    stateField: 'state',
+    note: 'Parts are fitted from the technician app on site; a fitted line is frozen (A02 audit M02-P2).' },
   'M02-vanstock': { kind: 'table_report', module: 'M02', report: 'van_stock', title: 'Van Stock Consumption', period: false },
   'M02-loneworker': { kind: 'table_report', module: 'M02', report: 'lone_worker', title: 'Lone-Worker Check-In', period: false },
   'M02-panic': { kind: 'table_report', module: 'M02', report: 'panic_alerts', title: 'Panic Alert Log', period: false },

@@ -10,6 +10,8 @@ import logging
 
 from odoo import api, fields, models
 
+from libs.py.fix_events import publish  # FF-28
+
 logger = logging.getLogger(__name__)
 
 # G1-02 wait-time target in seconds; a policy number (today's value: 180).
@@ -170,7 +172,8 @@ class FixTokenQueue(models.Model):
                 next_number[branch_id] += 1
         records = super().create(vals_list)
         for rec in records:
-            self._emit("token.issued", rec)
+            # A02 audit B2: a literal publish() so FF-48 sees the event
+            publish(self.env, "token.issued", "fix.token.queue", rec.id, rec._token_payload())
         return records
 
     def action_call(self):
@@ -217,7 +220,13 @@ class FixTokenQueue(models.Model):
                         summary="Queue wait SLA breached: %s" % rec.token_display,
                         user_id=manager.id,
                     )
-                self._emit("token.sla_breached", rec)
+                publish(
+                    self.env,
+                    "token.sla_breached",
+                    "fix.token.queue",
+                    rec.id,
+                    rec._token_payload(),
+                )
 
     def action_evaluate_wait_sla(self):
         """FLAW-04.1: Evaluate the selected tokens against the G1-02 wait SLA."""
@@ -234,17 +243,10 @@ class FixTokenQueue(models.Model):
         tokens._evaluate_wait_sla()
         return len(tokens)
 
-    def _emit(self, event: str, rec):
-        from libs.py.fix_events import publish
-
-        publish(
-            self.env,
-            event,
-            "fix.token.queue",
-            rec.id,
-            {
-                "token": rec.token_display,
-                "branch": rec.branch_id.name,
-                "service_type": rec.service_type,
-            },
-        )
+    def _token_payload(self) -> dict:
+        self.ensure_one()
+        return {
+            "token": self.token_display,
+            "branch": self.branch_id.name,
+            "service_type": self.service_type,
+        }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 audit M01-P2: the abandoned-device path. Flags a Ready order left
+     uncollected for cd_service_order.abandon_after_days days (0, the
+     default, switches it off). -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_flag_abandoned_orders" model="ir.cron">
+            <field name="name">M01: flag devices uncollected after Ready (abandoned)</field>
+            <field name="model_id" ref="model_fix_service_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_flag_abandoned()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

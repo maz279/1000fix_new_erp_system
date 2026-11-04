@@ -47,6 +47,13 @@ class FixServiceOrderWorkshopBridge(models.Model):
                     "Order %s is %s — it can no longer enter the workshop."
                     % (order.name, order.state)
                 )
+            # A02 audit M31 step 1: a draft order has not been booked in at
+            # the counter (no device receipt), so it does not reach the bench.
+            if order.state == "draft":
+                raise UserError(
+                    "Order %s is still a draft: book the device in at M01 intake before "
+                    "it is received into the workshop." % order.name
+                )
             if workshop_id:
                 workshop = self.env["fix.workshop"].sudo().browse(workshop_id).exists()
             else:
@@ -71,7 +78,7 @@ class FixServiceOrderWorkshopBridge(models.Model):
                 ),
                 "workshop job",
             )
-            created |= Job.create(
+            job = Job.create(
                 {
                     "order_id": order.id,
                     "workshop_id": workshop.id,
@@ -83,6 +90,29 @@ class FixServiceOrderWorkshopBridge(models.Model):
                     # reported fault carries over (never fabricated)
                     "fault_description": order.fault_description
                     or "Handed over from service order %s" % order.name,
+                    **order._m31_bookin_from_order(),
                 }
             )
+            job._m31_link_comeback()
+            created |= job
         return created
+
+    def _m31_bookin_from_order(self) -> dict:
+        """A02 audit M31 step 2: the job's book-in starts from what the M01
+        counter recorded at intake (condition, accessory bag, LCI, photo); the
+        bench completes it and the job's intake checks it."""
+        self.ensure_one()
+        order = self.sudo()
+        vals = {}
+        if "cosmetic_condition_notes" in order._fields and order.cosmetic_condition_notes:
+            vals["bookin_condition"] = order.cosmetic_condition_notes
+        if "accessory_bag_barcode" in order._fields and order.accessory_bag_barcode:
+            vals["bookin_accessory_bag"] = order.accessory_bag_barcode
+            vals["bookin_accessories"] = "Sealed accessory bag %s (M01 intake)" % (
+                order.accessory_bag_barcode
+            )
+        if "lci_tripped" in order._fields:
+            vals["bookin_lci_tripped"] = bool(order.lci_tripped)
+        if "intake_photo_attachment_id" in order._fields and order.intake_photo_attachment_id:
+            vals["bookin_photo_attachment_id"] = order.intake_photo_attachment_id.id
+        return vals

@@ -35,6 +35,11 @@ unit-testable without a database (AR-007 section 3.1).
         "data/ir_sequence.xml",
         "data/fix_fault_codes.xml",
         "data/fix_party_merge_consumers.xml",
+        # A02 audit B2/B3/M01-P2: hand-back and breach consumers, the default
+        # SLA policy and the abandoned-device cron.
+        "data/fix_m01_handback_consumers.xml",
+        "data/fix_sla_default_policy.xml",
+        "data/fix_m01_lifecycle_cron.xml",
         "views/fix_service_order_views.xml",
         "views/fix_estimate_views.xml",
         "views/fix_fault_code_views.xml",

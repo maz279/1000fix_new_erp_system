@@ -146,7 +146,10 @@ export const SCREENS = {
     actions: [
       { m: 'action_confirm', l: 'Confirm for Dispatch' },
       { m: 'action_start_transit', l: 'Start Transit' },
-      { m: 'action_verify_hub_intake', l: 'Hub Intake (seal check)', ask: 'Inbound seal number (blank if unsealed)', kwarg: 'inbound_seal' },
+      /* A02 audit M03-P2: one value per press; the intake completes once the
+       * seal (if one was fitted) and the weight (if one was dispatched) are in */
+      { m: 'action_verify_hub_intake', l: 'Hub Intake: Inbound Seal', ask: 'Inbound seal number', kwarg: 'inbound_seal' },
+      { m: 'action_record_receive_weight', l: 'Hub Intake: Receive Weight', ask: 'Receive scale weight in grams', kwarg: 'receive_weight_g' },
       { m: 'action_confirm_receipt', l: 'Confirm Receipt at Hub' },
       { m: 'action_out_for_delivery', l: 'Out for Delivery' },
       { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
@@ -180,7 +183,10 @@ export const SCREENS = {
   'M03-routes': { kind: 'table_report', module: 'M03', report: 'reverse_volume', period: false },
   'M03-app': { kind: 'table_report', module: 'M03', report: 'cycle_time', period: false },
   'M03-couriers': { kind: 'model_list', model: 'fix.courier.partner', cols: ['name', 'code', 'service_area', 'base_rate', 'cod_supported', 'cod_cycle_days', 'active'] },
-  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [{ m: 'action_deliver', l: 'Mark Delivered (needs POD)' }] },
+  'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'state'], actions: [
+      { m: 'action_pick_up', l: 'Handed to Courier' },
+      { m: 'action_deliver', l: 'Mark Delivered (needs POD)' }
+    ] },
   'M03-recon': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Performance & COD', period: false },
   'M03-exc': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'chain_broken', 'chain_problem', 'seal_status', 'hold_reason', 'custody_summary', 'rider_id'],
@@ -287,13 +293,15 @@ export const SCREENS = {
   },
 
   /* ===== triage coverage screens ===== */
-  /* A02 audit M03-5/11: approve, reject and settle. The server checks the
-   * claim-approver role and the DOFA tier, refuses the claim's creator, caps
-   * the payout at the claim and the insured value, and pins the amount. */
+  /* A02 audit M03-5/11, B1: the payout is approved from the M63 inbox.
+   * Request Approval routes it to a claim approver holding the DOFA tier;
+   * the server refuses the claim's creator, caps the payout at the claim and
+   * the insured value, and pins the amount. Reject and settle stay here. */
   'M03-damage-claim': { kind: 'model_list', model: 'fix.damage.claim', stateField: 'state',
     cols: ['name', 'state', 'operating_unit_id', 'consignment_id', 'claimed_on', 'claimant', 'claimed_amount', 'approved_amount', 'dofa_tier', 'settled_amount'],
     actions: [
-      { m: 'action_approve', l: 'Approve Payout', ask: 'Approved amount in BDT (blank = amount claimed)', kwarg: 'approved_amount' },
+      { m: 'action_request_approval', l: 'Request Payout Approval', ask: 'Justification for the payout', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_reject', l: 'Reject Claim', ask: 'Reason for rejecting', kwarg: 'reason' },
       { m: 'action_settle', l: 'Settle Payout', ask: 'Amount paid in BDT (blank = approved amount)', kwarg: 'settled_amount' }
     ] },
@@ -324,6 +332,8 @@ export const SCREENS = {
       { tab: 'dofa', title: "DOFA Tier & Settlement Approval",
         fields: [
           { name: 'claimed_amount', label: "Claimed Amount (BDT)" },
+          { name: 'requested_payout', label: "Payout Requested (BDT, blank = claimed)" },
+          { name: 'approval_state', label: "Approval (M63)", readonly: true },
           { name: 'dofa_tier', label: "Required DOFA Approval Tier", readonly: true },
           { name: 'dofa_justification', label: "Approval Justification (required)", type: "text" },
           { name: 'approved_amount', label: "Approved Payout (BDT)", readonly: true },

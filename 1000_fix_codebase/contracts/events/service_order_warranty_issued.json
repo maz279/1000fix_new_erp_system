@@ -31,34 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "order_id",
-        "name",
-        "device_id",
-        "customer_id",
-        "state"
-      ],
-      "properties": {
-        "order_id": {
-          "type": "integer"
-        },
-        "name": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "device_id": {
-          "type": "integer"
-        },
-        "customer_id": {
-          "type": "integer"
-        },
-        "state": {
-          "type": "string"
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`order._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_service_order.py:2057); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_service_order",

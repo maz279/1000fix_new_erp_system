@@ -3364,6 +3364,13 @@
                                                         <button t-if="soNextState(row.state) &amp;&amp; state.gl.soScope !== 'rwty' &amp;&amp; state.gl.soScope !== 'holds'" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAdvance(row)"><t t-esc='t("Advance")'/></button>
                                                         <button t-if="state.gl.soScope === 'holds'" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAction(row, 'action_resume_order', 'Resume order')"><t t-esc='t("Resume")'/></button>
                                                         <button t-if="state.gl.soScope === 'rwty' &amp;&amp; !row.service_warranty_until &amp;&amp; (row.state === 'delivered' || row.state === 'closed')" class="btn btn-sm btn-primary" t-att-disabled="state.gl.soBusy === row.id" t-on-click="() => this.soAction(row, 'action_issue_repair_warranty', 'Issue repair warranty')"><t t-esc='t("Issue Warranty")'/></button>
+                                                        <!-- A02 audit M01-P2: the whitelisted order actions (cancel, OTP, settlement, goodwill, ...) -->
+                                                        <select t-if="soActionsFor(row).length" class="btn btn-sm" style="margin-left: 4px;" aria-label="Order actions" t-att-disabled="state.gl.soBusy === row.id" t-on-change="(ev) => this.soPickAction(row, ev)">
+                                                            <option value=""><t t-esc='t("Actions…")'/></option>
+                                                            <t t-foreach="soActionsFor(row)" t-as="act" t-key="act.id">
+                                                                <option t-att-value="act.id"><t t-esc="t(act.l)"/></option>
+                                                            </t>
+                                                        </select>
                                                     </td>
                                                 </tr>
                                                 <tr t-if="!soRows.length">

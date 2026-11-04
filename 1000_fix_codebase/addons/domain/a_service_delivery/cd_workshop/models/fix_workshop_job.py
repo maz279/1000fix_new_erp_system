@@ -161,6 +161,12 @@ class FixWorkshopJob(models.Model):
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "priority desc, create_date desc"
 
+    # A02 audit B1: the BER write-off is decided from the approver's M63
+    # inbox (the apply method is action_dofa_approve, which closes the job).
+    # Confirm BER requests it; a direct press of Approve is refused.
+    _approval_domain = "workshop_ber"
+    _approval_routed = True
+
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | GUARDED_JOB_FIELDS
 
@@ -934,41 +940,14 @@ class FixWorkshopJob(models.Model):
     def action_cancel(self):
         return self._transition("cancelled")
 
-    # --- M22 certification waiver (A02 audit M31-5) ---
+    # --- M22 certification waiver (A02 audit M31-5, B1) ---
     def action_grant_certification_waiver(self, reason=""):
-        """A supervisor waives the M22 certification gate for this job's
-        current technician. Stamps who and when; the technician cannot waive
-        his own job."""
-        for rec in self:
-            rec._m31_require_group((GROUP_SUPERVISOR,), "A certification waiver")
-            if not (reason or "").strip():
-                raise UserError("A certification waiver needs a written justification.")
-            if not rec.technician_id:
-                raise UserError(f"Job {rec.name} has no technician to waive certification for.")
-            if rec.state not in ("draft", "intake", "diagnostic", "waiting_parts", "qc_failed"):
-                raise UserError(
-                    f"A certification waiver is granted before the repair starts (job {rec.name} "
-                    f"is {rec.state})."
-                )
-            if rec._m31_actor_is_technician():
-                raise UserError(
-                    "Segregation of duties: the repairing technician cannot waive the "
-                    "certification gate on his own job."
-                )
-            rec._guarded().write(
-                {
-                    "certification_waiver": True,
-                    "certification_waiver_reason": reason.strip(),
-                    "certification_waiver_by_id": self.env.user.id,
-                    "certification_waiver_at": fields.Datetime.now(),
-                    "certification_waiver_technician_id": rec.technician_id.id,
-                }
-            )
-            rec.message_post(
-                body="M22 certification waiver granted by %s for %s: %s"
-                % (self.env.user.name, rec.technician_id.name, reason.strip())
-            )
-        return True
+        """A02 audit B1: a waiver is no longer granted by pressing a button on
+        the job. This (the old button's name) now raises the routed request,
+        which a Workshop Supervisor other than the requester and the
+        repairing technician grants from his M63 inbox
+        (fix.workshop.waiver.request.action_grant)."""
+        return self.action_request_certification_waiver(reason)
 
     def _m31_waiver_covers(self, technician) -> bool:
         self.ensure_one()
@@ -989,6 +968,12 @@ class FixWorkshopJob(models.Model):
                 raise UserError(f"Job {rec.name} cannot be declared BER from state {rec.state}.")
             if not (reason or "").strip():
                 raise UserError("A BER / scrap proposal needs the reason and the evidence seen.")
+            if rec.approval_state == "pending":
+                raise UserError(
+                    f"The BER write-off on job {rec.name} is already awaiting approval."
+                )
+            # A02 audit M31 steps 11-12: the evidence seen is on the job
+            rec._m31_check_ber_evidence()
             amount = max(float(writeoff_amount or 0.0), rec.total_repair_cost or 0.0)
             rec._guarded().write(
                 {
@@ -996,6 +981,9 @@ class FixWorkshopJob(models.Model):
                     "ber_writeoff_amount": amount,
                     "ber_proposed_by_id": self.env.user.id,
                     "ber_proposed_at": fields.Datetime.now(),
+                    # a new proposal needs a new confirmation
+                    "ber_confirmed_by_id": False,
+                    "ber_confirmed_at": False,
                 }
             )
             rec.message_post(
@@ -1005,22 +993,44 @@ class FixWorkshopJob(models.Model):
         return True
 
     def action_dofa_approve(self):
-        """The BER write-off approval: on top of the DOFA tier, the job's
-        creator check and the justification (fix.dofa.mixin), the approver is
-        neither the proposer nor the repairing technician."""
+        """The BER write-off approval, and the engine's apply method (A02
+        audit B1): it runs only from the approver's M63 inbox, and it does the
+        real state change, closing the job as unrepairable (and its order with
+        it). On top of the DOFA tier, the job's creator check and the
+        justification (fix.dofa.mixin), the approver is neither the proposer,
+        the confirming technician nor the repairing technician."""
+        self._approval_assert_routed()
         for rec in self:
             if not rec.ber_proposed_at:
                 raise UserError(f"Job {rec.name} has no BER write-off proposal to approve.")
-            if rec.ber_proposed_by_id == self.env.user or rec._m31_actor_is_technician():
+            if not rec.ber_confirmed_at:
+                raise UserError(
+                    f"The BER on job {rec.name} is confirmed by a second technician before "
+                    "its write-off is approved."
+                )
+            if (
+                self.env.user in (rec.ber_proposed_by_id | rec.ber_confirmed_by_id)
+                or rec._m31_actor_is_technician()
+            ):
                 raise UserError(
                     "Segregation of duties: the BER write-off on %s must be approved by "
-                    "someone other than its proposer and the repairing technician." % rec.name
+                    "someone other than its proposer, its confirming technician and the "
+                    "repairing technician." % rec.name
                 )
-        return super().action_dofa_approve()
+        # The checks above ran in the approver's environment, and the DOFA
+        # rules below test the approver's (or the absent approver's) tier
+        # group and the creator on users, not on env.su. The approver holds a
+        # DOFA tier and usually no workshop role, so the stamp, the job's
+        # transition and M01's cancellation then run as the system.
+        super(FixWorkshopJob, self.sudo()).action_dofa_approve()
+        self.sudo()._m31_close_ber()
+        return True
 
     def action_confirm_ber(self):
-        """A second technician confirms the BER once the write-off is DOFA
-        approved (FR-WSR-030). The job closes as unrepairable."""
+        """A second technician confirms the BER (FR-WSR-030). A02 audit B1:
+        confirming routes the write-off to the DOFA tier holders' M63 inboxes;
+        the approval closes the job. A write-off below every DOFA threshold
+        needs no approval and closes the job now."""
         for rec in self:
             rec._m31_require_group((GROUP_TECHNICIAN,), "Confirming a BER write-off")
             if not rec.ber_proposed_at:
@@ -1030,11 +1040,18 @@ class FixWorkshopJob(models.Model):
                     "Segregation of duties: a BER is confirmed by a second technician, "
                     "not by the repairing technician or the proposer."
                 )
-            rec._dofa_assert_approved("The BER write-off")
+            if rec.approval_state == "pending":
+                raise UserError(f"The BER on job {rec.name} is already awaiting approval.")
+            if "unrepairable" not in VALID_JOB_TRANSITIONS.get(rec.state, set()):
+                raise UserError(f"Job {rec.name} cannot close as BER from state {rec.state}.")
+            rec._m31_check_ber_order_can_follow()
             rec._guarded().write(
                 {"ber_confirmed_by_id": self.env.user.id, "ber_confirmed_at": fields.Datetime.now()}
             )
-            rec._transition("unrepairable")
+            if rec._approval_needed():
+                rec.action_request_approval(justification=rec.dofa_justification or rec.ber_reason)
+            else:
+                rec._m31_close_ber()
         return True
 
     def action_auto_assign_bench(self):
@@ -1261,6 +1278,10 @@ class FixWorkshopJob(models.Model):
         refusal now stops the job transition: a job is not delivered when its
         order cannot legally be."""
         if not self.order_id:
+            return
+        if new_state == "unrepairable":
+            # A02 audit B2: a BER reaches M01 (the order stayed in_repair)
+            self._m31_order_unrepairable()
             return
         target = self._ORDER_SYNC_METHODS.get(new_state)
         if not target:

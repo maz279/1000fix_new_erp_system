@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "handover.completed",
-  "description": "Published by cd_front_desk through libs.py.fix_events.publish() (3 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_front_desk through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,35 +32,16 @@
     "payload": {
       "type": "object",
       "required": [
-        "branch"
+        "intake_id",
+        "branch",
+        "duration_seconds"
       ],
       "properties": {
-        "shift_id": {
+        "intake_id": {
           "type": "integer"
         },
         "branch": {
           "type": "string"
-        },
-        "variance": {
-          "description": "Type not statically derivable from `rec.variance` (addons/domain/a_service_delivery/cd_front_desk/models/fix_walkin_intake.py:323 via _emit() at addons/domain/a_service_delivery/cd_front_desk/models/fix_cash_shift.py:515)."
-        },
-        "currency": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "token": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "service_type": {
-          "type": "string"
-        },
-        "intake_id": {
-          "type": "integer"
         },
         "duration_seconds": {
           "type": "integer"

@@ -14,6 +14,7 @@ from unittest import mock
 import pytest
 from odoo import Command, fields
 from odoo.addons.cd_service_order.models import fix_otp_util
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -186,6 +187,14 @@ def handover_evidence(w, o):
     otp_verify(w, o)
 
 
+def so_request(w, kind, target):
+    """The live fix.so.approval request (A02 audit B1) for a target."""
+    field = "estimate_id" if kind == "manager_key" else "order_id"
+    return w.env["fix.so.approval"].search(
+        [("kind", "=", kind), (field, "=", target.id)], order="id desc", limit=1
+    )
+
+
 def attempt(w, fn):
     try:
         with w.env.cr.savepoint():
@@ -245,11 +254,12 @@ def test_category_and_priority_change_only_through_their_actions(w):
 # =========================================================================== A4: order <-> estimate
 def test_order_approval_needs_an_approved_estimate(w):
     o = to_estimating(order(w))
-    o.action_send_estimate()
-    o.action_await_approval()
-    assert "no approved estimate" in attempt(w, lambda: o.with_user(w.clerk).action_approve())
+    # A02 audit M01-P2: no estimate, nothing to send or to await
+    assert "no estimate to send" in attempt(w, lambda: o.with_user(w.clerk).action_send_estimate())
     est = estimate(w, o, 3000)
-    est.action_send()
+    o.with_user(w.clerk).action_send_estimate()
+    assert est.state == "sent"
+    o.with_user(w.clerk).action_await_approval()
     est.action_reject()
     assert "no approved estimate" in attempt(w, lambda: o.with_user(w.clerk).action_approve())
     assert o.state == "awaiting_approval"
@@ -364,7 +374,8 @@ def test_manager_key_is_voided_when_the_total_rises(w):
     est = estimate(w, order(w), 30000)
     est.action_send()
     w.env["fix.estimate"].browse(est.id).write({"customer_approval_ref": "portal-OTP"})  # su
-    est.with_user(w.bm).action_manager_approve()
+    est.with_user(w.clerk).action_request_manager_key("34.5k board repair")
+    approve_via_inbox(so_request(w, "manager_key", est), w.bm, requester=w.clerk)
     assert est.manager_approval_uid == w.bm
     est.with_user(w.clerk).write(
         {
@@ -590,15 +601,18 @@ def test_goodwill_needs_an_independent_approver(w):
         w,
         lambda: o.with_user(w.clerk).write({"is_goodwill": True, "goodwill_approved_by": w.bm.id}),
     )
-    assert "Commercial Approver" in attempt(
-        w, lambda: o.with_user(w.clerk).action_approve_goodwill("loyal customer")
+    # A02 audit B1: pressed directly, even by an approver, it is refused
+    assert "approver's inbox" in attempt(
+        w, lambda: o.with_user(w.approver).action_approve_goodwill("loyal customer")
     )
-    assert attempt(w, lambda: o.with_user(w.approver).action_approve_goodwill(""))
+    assert attempt(w, lambda: o.with_user(w.clerk).action_request_goodwill(""))
     own = order(w, user=w.approver)
-    assert "Segregation" in attempt(
-        w, lambda: own.with_user(w.approver).action_approve_goodwill("my own")
+    # the only approver raised the order: nobody can be routed to
+    assert "No one can approve" in attempt(
+        w, lambda: own.with_user(w.approver).action_request_goodwill("my own")
     )
-    o.with_user(w.approver).action_approve_goodwill("Service failure last visit")
+    o.with_user(w.clerk).action_request_goodwill("Service failure last visit")
+    approve_via_inbox(so_request(w, "goodwill", o), w.approver, requester=w.clerk)
     assert (o.goodwill_approved_by, o.goodwill_cost_attribution_bdt) == (w.approver, 11500.0)
     o.with_user(w.clerk).action_deliver()
     assert (o.state, o.payment_settlement_state) == ("delivered", "covered_zero_charge")
@@ -616,8 +630,12 @@ def test_rework_needs_the_same_fault_and_an_approval(w):
     handover_evidence(w, o)
     # flagged, but still charged until an approver confirms it
     assert "Settlement Gate" in attempt(w, lambda: o.with_user(w.clerk).action_deliver())
-    assert attempt(w, lambda: unrelated.with_user(w.approver).action_approve_rework("free"))
-    o.with_user(w.approver).action_approve_rework("Same display fault in 30 days")
+    assert attempt(w, lambda: unrelated.with_user(w.clerk).action_request_rework_approval("free"))
+    assert "approver's inbox" in attempt(
+        w, lambda: o.with_user(w.approver).action_approve_rework("free")
+    )
+    o.with_user(w.clerk).action_request_rework_approval("Same display fault in 30 days")
+    approve_via_inbox(so_request(w, "rework", o), w.approver, requester=w.clerk)
     o.with_user(w.clerk).action_deliver()
     assert o.payment_settlement_state == "covered_zero_charge"
 
@@ -670,6 +688,7 @@ def test_workshop_hand_off_carries_priority_and_is_not_duplicated(w):
             {"name": "A02 P0 WS", "code": "A2PW", "branch_id": w.branch.id}
         )
     o = order(w, user=w.env.user, priority="urgent")
+    o.action_intake()  # M31 receives only a booked-in device (S3, A02 M31 step 1)
     job = o.action_create_workshop_job()
     assert job.priority == "urgent"
     assert "already has a live workshop job" in attempt(w, lambda: o.action_create_workshop_job())
@@ -725,10 +744,11 @@ def test_warranty_officer_verifies_someone_elses_registration(w):
             }
         )
     )
-    assert "Only a Warranty Officer" in attempt(w, lambda: wty.with_user(w.clerk).action_verify())
-    assert "Segregation" in attempt(w, lambda: wty.with_user(w.officer).action_verify())
+    # A02 audit B1: verified from a Warranty Officer's M63 inbox, never pressed
     officer2 = _user(w.env, "officer2", ["cd_device_registry.group_warranty_officer"])
-    wty.with_user(officer2).action_verify()
+    assert "approver's inbox" in attempt(w, lambda: wty.with_user(officer2).action_verify())
+    approve_via_inbox(wty, officer2, requester=w.officer)
+    assert w.officer not in wty.approval_request_id.task_ids.mapped("assigned_user_id")
     assert (wty.status, wty.verified_by) == ("active", officer2)
     assert "frozen" in attempt(
         w, lambda: wty.with_user(officer2).write({"end_date": today + timedelta(days=3000)})
@@ -832,7 +852,7 @@ def test_p03_whitelists_the_new_actions(w):
         if model in w.env:
             for method in conf["actions"]:
                 assert hasattr(w.env[model], method), "%s.%s" % (model, method)
-    assert {"action_verify_delivery_otp", "action_approve_goodwill"} <= m01.SURFACES[
+    assert {"action_verify_delivery_otp", "action_request_goodwill"} <= m01.SURFACES[
         "fix.service.order"
     ]["actions"]
 
@@ -841,7 +861,7 @@ def test_mark_unrepairable_needs_a_reason_and_cancels(w):
     o = order(w)
     o.action_intake()
     assert "repaired" in attempt(w, lambda: o.with_user(w.clerk).action_mark_unrepairable(""))
-    assert "from diagnosis or repair" in attempt(
+    assert "from diagnosis, repair or QC" in attempt(
         w, lambda: o.with_user(w.clerk).action_mark_unrepairable("board dead")
     )
     o.action_start_diagnostic()

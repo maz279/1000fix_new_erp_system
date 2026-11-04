@@ -32,6 +32,8 @@ order against a device, permanently.
         "data/ir_sequence.xml",
         # A03 audit W1: party.merged consumer (re-points are logged).
         "data/fix_party_merge_consumers.xml",
+        # A02 audit B4: warranty expiry.
+        "data/fix_warranty_expiry_cron.xml",
         "views/fix_device_views.xml",
     ],
     "installable": True,

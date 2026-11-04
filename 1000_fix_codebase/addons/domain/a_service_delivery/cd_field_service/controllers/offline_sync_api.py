@@ -38,7 +38,10 @@ from odoo.http import request
 
 _logger = logging.getLogger(__name__)
 
-FIELD_ORDER_OPERATIONS = ("start_order", "complete_order", "decline_order")
+# A02 audit M02-8 (P2): "arrive" checks the technician in with the position
+# the app reads, against the order's geofence. Without it the app could not
+# reach "arrived" at all, and the workspace button was the only check-in.
+FIELD_ORDER_OPERATIONS = ("arrive", "start_order", "complete_order", "decline_order")
 
 # A02 audit M02-2: a signature is an image the customer drew, stored and
 # hashed: PNG, JPEG or WEBP, and more than a token's worth of bytes.
@@ -271,6 +274,65 @@ class OfflineSyncApiController(http.Controller):
             [("id", "=", rec_id), ("technician_id", "=", tech.id)], limit=1
         )
 
+    @staticmethod
+    def _find_part(env, payload):
+        product_id, barcode = payload.get("product_id"), payload.get("barcode")
+        if product_id:
+            return env["product.product"].browse(_to_int(product_id) or 0).exists()
+        if barcode:
+            return env["product.product"].search(
+                ["|", ("barcode", "=", barcode), ("default_code", "=", barcode)], limit=1
+            )
+        return env["product.product"]
+
+    def _consume_field_part(self, env, tech, record_id, payload):
+        """Record a part the technician fitted on his field order, on site."""
+        order_id = payload.get("field_order_id") or record_id
+        order = self._own_record(env, "fix.field.order", order_id, tech)
+        if not order:
+            return "rejected", {}, f"Field order {order_id} not found or not assigned to you"
+        if order.state not in ("arrived", "in_progress"):
+            return (
+                "rejected",
+                {},
+                f"Parts are recorded on site; field order {order.name} is {order.state}",
+            )
+        try:
+            qty = float(payload.get("quantity", 1.0))
+        except (TypeError, ValueError):
+            qty = float("nan")
+        if not (math.isfinite(qty) and qty > 0):
+            return "rejected", {}, "quantity must be a positive number"
+        prod = self._find_part(env, payload)
+        if not prod:
+            return (
+                "rejected",
+                {},
+                "Part product %s not found in inventory"
+                % (payload.get("product_id") or payload.get("barcode") or "(none given)"),
+            )
+        line = env["fix.field.order.part"].create(
+            {
+                "field_order_id": order.id,
+                "product_id": prod.id,
+                "quantity": qty,
+                "lot_serial_number": payload.get("lot_serial_number") or False,
+            }
+        )
+        line._guarded().write({"source_ref": "offline sync (%s)" % tech.name})
+        line.action_consume()
+        return (
+            "applied",
+            {
+                "field_order_id": order.id,
+                "part_line_id": line.id,
+                "product_code": prod.default_code,
+                "quantity": qty,
+                "state": line.state,
+            },
+            None,
+        )
+
     def _dispatch_command(self, env, tech, model_name, record_id, operation, payload):
         """Dispatch individual command and apply conflict authority rules.
 
@@ -368,6 +430,42 @@ class OfflineSyncApiController(http.Controller):
                     "rejected",
                     {},
                     f"Order {order.name} is {order.state} on server; technician action disallowed",
+                )
+
+            if operation == "arrive":
+                if order.state == "arrived":
+                    return (
+                        "conflict_applied",
+                        {"order_id": order.id, "state": order.state},
+                        "Order was already marked arrived on server",
+                    )
+                position = payload.get("position")
+                if position in (None, "", False):
+                    position = (payload.get("lat"), payload.get("lng"))
+                    if None in position:
+                        return (
+                            "rejected",
+                            {},
+                            "An arrival needs the device position (lat, lng)",
+                        )
+                try:
+                    lat, lng = order._fix_parse_position(position)
+                except Exception as exc:  # UserError: an unreadable position
+                    return "rejected", {}, str(exc.args[0] if exc.args else exc)
+                order.action_arrive(
+                    current_lat=lat,
+                    current_lon=lng,
+                    is_mock_location=payload.get("is_mock_location") is True,
+                )
+                return (
+                    "applied",
+                    {
+                        "order_id": order.id,
+                        "state": order.state,
+                        "arrival_latitude": order.arrival_latitude,
+                        "arrival_longitude": order.arrival_longitude,
+                    },
+                    None,
                 )
 
             if operation == "start_order":
@@ -472,6 +570,15 @@ class OfflineSyncApiController(http.Controller):
             )
 
         # 5. Parts Consumption
+        # A02 audit M02 step 7 (P2): a part fitted on a field job is a line
+        # on that field order (fix.field.order.part), which completion checks.
+        # The work-order path below stays for the bench app's M01 work orders.
+        if operation == "consume_part" and (
+            payload.get("field_order_id")
+            or (record_id and model_name == "fix.field.order" and not payload.get("work_order_id"))
+        ):
+            return self._consume_field_part(env, tech, record_id, payload)
+
         if operation == "consume_part":
             wo_id = payload.get("work_order_id")
             product_id = payload.get("product_id")

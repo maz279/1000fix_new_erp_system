@@ -128,7 +128,8 @@ export const SCREENS = {
     cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert', 'run_count', 'last_run_at'],
     stateField: 'trigger',
     actions: [
-      { m: 'action_execute', l: 'Log Execution', ask: 'Asset agent ID (blank = first in scope)', kwarg: 'asset' }
+      { m: 'action_execute', l: 'Log Execution', ask: 'Asset agent ID (blank = first in scope)', kwarg: 'asset' },
+      { m: 'action_execute_with_evidence', l: 'Log Execution with Evidence', ask: 'Evidence: what the steps showed (required to resolve the alert)', kwarg: 'evidence' }
     ] },
 
   /* --- Compliance --- */
@@ -137,6 +138,10 @@ export const SCREENS = {
     stateField: 'state',
     actions: [
       { m: 'action_approve', l: 'Approve' },
+      { m: 'action_record_test', l: 'Record Pre-Deployment Test', ask: 'Test evidence (pilot ring, result)', kwarg: 'note' },
+      { m: 'action_request_window_exception', l: 'Request Exception: Outside Window', ask: 'Why it cannot wait for an approved window', kwarg: 'reason' },
+      { m: 'action_request_test_exception', l: 'Request Exception: Skip Test', ask: 'Why it cannot wait for a test', kwarg: 'reason' },
+      { m: 'action_recall_approval', l: 'Recall Exception Request' },
       { m: 'action_install', l: 'Mark Installed' },
       { m: 'action_defer', l: 'Defer 7 Days' },
       { m: 'action_fail', l: 'Mark Failed', ask: 'Failure note', kwarg: 'note' }
@@ -154,7 +159,9 @@ export const SCREENS = {
     cols: ['name', 'kind', 'change_type', 'risk', 'msp_contract_id', 'requested_by', 'cab_approver_id', 'maintenance_window_id', 'state'],
     stateField: 'state',
     actions: [
-      { m: 'action_approve', l: 'Approve (CAB / emergency: change manager)' },
+      /* A02 audit B1: the CAB (emergency: the change manager) decides in the M63 inbox */
+      { m: 'action_request_approval', l: 'Request CAB Approval', ask: 'Note for the CAB (optional)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_reject', l: 'Reject', ask: 'Rejection reason', kwarg: 'note' },
       { m: 'action_implement', l: 'Mark Implemented', ask: 'Implementation note', kwarg: 'note' },
       { m: 'action_record_review', l: 'Record Post-Implementation Review', ask: 'Review: what was done, outcome, follow-ups', kwarg: 'note' },
@@ -164,11 +171,11 @@ export const SCREENS = {
   /* --- Client Reporting --- */
   'M05-sla': { kind: 'table_report', module: 'M05', report: 'sla_by_client', title: 'MSP SLA Attainment by Client', period: false },
   'M05-reviews': { kind: 'model_list', model: 'fix.msp.service.report', create: false,
-    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en'],
+    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'pending_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en'],
     actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' }] },
   /* the monthly report and the SLA credit run, per MSP contract */
   'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract', create: false,
-    cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct', 'monthly_value'],
+    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'monitoring_scope', 'sla_target_pct', 'monthly_value'],
     actions: [
       { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
       { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' }
@@ -179,7 +186,9 @@ export const SCREENS = {
     cols: ['msp_contract_id', 'period_label', 'attainment_pct', 'target_pct', 'computed_amount', 'manual_amount', 'credit_amount', 'approved_by_id', 'state'],
     stateField: 'state',
     actions: [
-      { m: 'action_approve', l: 'Approve Credit' },
+      /* A02 audit B1: credit approvers (manual credit: DOFA Tier 4) decide in the M63 inbox */
+      { m: 'action_request_approval', l: 'Request Credit Approval', ask: 'Justification (required for a manual credit)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_apply', l: 'Apply to Billing' }
     ] },
 
@@ -252,7 +261,7 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'change', label: '1. Change Request', bn: '১. পরিবর্তনের বিবরণ', icon: '🔄', badge: '9' },
-      { id: 'approval', label: '2. Risk & CAB Sign-Off', bn: '২. ঝুঁকি ও সিএবি অনুমোদন', icon: '✍️', badge: '10' }
+      { id: 'approval', label: '2. Risk & CAB Sign-Off', bn: '২. ঝুঁকি ও সিএবি অনুমোদন', icon: '✍️', badge: '12' }
     ],
     sections: [
       { tab: 'change', title: 'ITIL Change Classification & Asset Target', fields: [
@@ -278,7 +287,9 @@ export const SCREENS = {
         { name: 'implemented_at', label: 'Implementation Completed At', readonly: true },
         { name: 'resolution_note', label: 'Implementation / Closing Note', type: 'text', readonly: true },
         { name: 'pir_note', label: 'Post-Implementation Review', type: 'text', readonly: true },
-        { name: 'pir_by_id', label: 'Reviewed By', readonly: true }
+        { name: 'pir_by_id', label: 'Reviewed By', readonly: true },
+        { name: 'approval_state', label: 'Approval (M63 inbox)', readonly: true },
+        { name: 'approval_request_id', label: 'Approval Request', readonly: true }
       ]},
     ] },
 
@@ -394,7 +405,7 @@ export const SCREENS = {
     back: 'M05-patching',
     tabs: [
       { id: 'patch', label: '1. Security Advisory', bn: '১. প্যাচ ও নিরাপত্তা', icon: '🛡️', badge: '5' },
-      { id: 'deployment', label: '2. Deployment & Compliance', bn: '২. ইনস্টলেশন ও স্থিতি', icon: '📦', badge: '7' }
+      { id: 'deployment', label: '2. Deployment & Compliance', bn: '২. ইনস্টলেশন ও স্থিতি', icon: '📦', badge: '13' }
     ],
     sections: [
       { tab: 'patch', title: "CVE / Vendor Security Patch Advisory", note: "A patch obligation per monitored asset: target version, window, and compliance proof.",
@@ -413,7 +424,13 @@ export const SCREENS = {
           { name: 'approved_by_id', label: "Approved By", readonly: true },
           { name: 'auto_approved_policy_id', label: "Auto-Approved By Policy", readonly: true },
           { name: 'installed_at', label: "Installation Verified At", readonly: true },
-          { name: 'fail_note', label: "Failure Note", readonly: true }
+          { name: 'fail_note', label: "Failure Note", readonly: true },
+          { name: 'tested_at', label: "Pre-Deployment Test Passed At", readonly: true },
+          { name: 'test_note', label: "Test Evidence", readonly: true },
+          { name: 'exception_kind', label: "Install Exception", readonly: true },
+          { name: 'exception_reason', label: "Exception Justification", type: 'text', readonly: true },
+          { name: 'approval_state', label: "Exception Approval (M63 inbox)", readonly: true },
+          { name: 'exception_approved_by_id', label: "Exception Approved By", readonly: true }
         ] }
     ]
   },
@@ -432,7 +449,7 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'credit', label: '1. Credit', bn: '১. ক্রেডিট', icon: '💳', badge: '6' },
-      { id: 'approval', label: '2. Computation & Approval', bn: '২. হিসাব ও অনুমোদন', icon: '✍️', badge: '9' }
+      { id: 'approval', label: '2. Computation & Approval', bn: '২. হিসাব ও অনুমোদন', icon: '✍️', badge: '11' }
     ],
     sections: [
       { tab: 'credit', title: "SLA Credit", note: "Credits are computed from the monthly service report. A manual credit or override is typed here and needs the DOFA tier of its amount (BRU-RMS-06: CFO) with a written justification; it cannot exceed the monthly value.",
@@ -454,6 +471,8 @@ export const SCREENS = {
           { name: 'dofa_tier_required', label: "DOFA Tier Required", readonly: true },
           { name: 'approved_by_id', label: "Approved By", readonly: true },
           { name: 'approved_amount', label: "Amount Approved (BDT)", readonly: true },
+          { name: 'approval_state', label: "Approval (M63 inbox)", readonly: true },
+          { name: 'approval_request_id', label: "Approval Request", readonly: true },
           { name: 'applied_at', label: "Applied to Billing At", readonly: true }
         ] }
     ]

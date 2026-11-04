@@ -6,6 +6,7 @@ the controller surface map.
 """
 
 from datetime import timedelta
+from unittest.mock import patch
 
 import pytest
 from odoo import fields
@@ -188,6 +189,10 @@ def test_evaluation_requires_verdict(ds):
 
 def test_quote_lifecycle_and_expiry_guard(ds):
     env = ds.env
+    # A02 audit M06-P2: a quotation prices a completed evaluation
+    env["fix.data.evaluation"].create(
+        {"case_id": ds.case.id, "verdict": "recoverable"}
+    ).action_complete()
     quote = env["fix.data.quote"].create(
         {
             "case_id": ds.case.id,
@@ -271,9 +276,27 @@ def test_case_journey_with_new_engines(ds):
     env["fix.data.recovery.attempt"].create(
         {"case_id": ds.case.id, "method": "software_scan"}
     ).action_finish(outcome="success")
+    image = "cd" * 32
+    ds.case.action_record_image(hashes="%s %s" % (image, image))
+    ds.case.action_verify_image(recomputed_hash=image)
     ds.case.action_recovered()
-    ds.case.action_handover("Data Lead")
+    ds.customer.phone = "01711000555"
+    ds.case.write({"handover_recipient_id": ds.customer.id, "encrypted_target_serial": "T-1"})
+    ds.case.action_confirm_target_serial(" t-1 ")
+    env["ir.attachment"].create(
+        {"name": "Receipt.pdf", "raw": b"%PDF", "res_model": ds.case._name, "res_id": ds.case.id}
+    )
+    sent = {}
+
+    def _send(self, recipient, phone, code):
+        sent["code"] = code
+        return {"destination": "017*****555"}
+
+    with patch.object(type(ds.case), "_handover_send_code", _send):
+        ds.case.action_request_handover_otp()
+    ds.case.action_handover("Data Lead", verification=sent["code"])
     assert ds.case.state == "handover"
+    assert ds.case.retention_until and ds.case.handover_verification_method == "otp"
     with pytest.raises(UserError):
         ds.case.action_purge()  # no verified certificate yet
 

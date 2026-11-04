@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers (A02 audit B2): the customer is told when an estimate is
+     sent and when the device is ready, through fix.notif.delivery.queue(). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_estimate_sent_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M01 estimate is sent</field>
+            <field name="event_type">estimate.sent</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_estimate_sent</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_service_order_ready_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when an M01 order is ready for collection</field>
+            <field name="event_type">service_order.ready</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_service_order_ready</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

@@ -11,6 +11,12 @@
 # the claim-approver role, and must not be the claim's creator), the payout
 # is capped at the claim and at the insured value, the approved amount is
 # pinned, and settlement publishes the amount for finance.
+#
+# A02 audit B1 (P1): the payout approval is a routed M63 request. The claim
+# handler asks for it (Request Approval); the engine routes it to the claim
+# approvers who hold the DOFA tier of the payout, and action_approve runs only
+# from the approver's inbox. Segregation of duties, the ceiling and the pin
+# are unchanged.
 from odoo import api, fields, models
 from odoo.addons.cd_entity_config.models.fix_dofa import DOFA_TIERS
 from odoo.exceptions import UserError
@@ -23,8 +29,25 @@ GROUP_MANAGER = "cd_consignment.group_fix_logistics_manager"
 # Fields fixed once the claim has been decided (approved, rejected, settled):
 # the approval covered THIS claim on THIS consignment.
 DECIDED_LOCKED = frozenset(
-    {"consignment_id", "claimed_amount", "currency_id", "claimant", "damage_kind", "liability"}
+    {
+        "consignment_id",
+        "claimed_amount",
+        "requested_payout",
+        "currency_id",
+        "claimant",
+        "damage_kind",
+        "liability",
+    }
 )
+
+
+class FixApprovalMatrixClaim(models.Model):
+    _inherit = "fix.approval.matrix"
+
+    decision_domain = fields.Selection(
+        selection_add=[("damage_claim", "Consignment Damage-Claim Payout")],
+        ondelete={"damage_claim": "cascade"},
+    )
 
 
 class FixDamageClaim(models.Model):
@@ -32,6 +55,11 @@ class FixDamageClaim(models.Model):
     _description = "Consignment Damage Claim"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "claimed_on desc, id desc"
+
+    # A02 audit B1: approved from the inbox, never by pressing Approve.
+    _approval_domain = "damage_claim"
+    _approval_apply_method = "action_approve"
+    _approval_routed = True
 
     # The payout ladder from the M03 spec: Tier 2 up to BDT 15,000, Tier 3 up
     # to BDT 50,000, Tier 4 above. Thresholds are policy numbers (today's).
@@ -73,6 +101,15 @@ class FixDamageClaim(models.Model):
     )
     description = fields.Text(required=True)
     claimed_amount = fields.Monetary(currency_field="currency_id")
+    # A02 audit B1: the inbox approves what was put to it. The handler states
+    # the payout asked for (blank = the amount claimed) before requesting.
+    requested_payout = fields.Monetary(
+        currency_field="currency_id",
+        string="Payout Requested",
+        copy=False,
+        help="The payout put to the approver. Blank: the amount claimed. Cannot "
+        "exceed the claim; a change while approval is pending withdraws the request.",
+    )
     approved_amount = fields.Monetary(
         currency_field="currency_id",
         readonly=True,
@@ -139,9 +176,9 @@ class FixDamageClaim(models.Model):
     # ------------------------------------------------------------ DOFA hooks
     def _dofa_amount(self) -> float:
         """The payout at risk: the approved amount once one is set, else the
-        amount claimed."""
+        payout requested, else the amount claimed."""
         self.ensure_one()
-        return self.approved_amount or self.claimed_amount or 0.0
+        return self.approved_amount or self.requested_payout or self.claimed_amount or 0.0
 
     def _dofa_thresholds(self):
         return self._DOFA_CLAIM_THRESHOLDS
@@ -176,6 +213,7 @@ class FixDamageClaim(models.Model):
 
     @api.depends(
         "claimed_amount",
+        "requested_payout",
         "approved_amount",
         "consignment_id.declared_value_bdt",
         "consignment_id.courier_partner_id.insurance_max_bdt",
@@ -185,6 +223,7 @@ class FixDamageClaim(models.Model):
 
     @api.depends(
         "claimed_amount",
+        "requested_payout",
         "approved_amount",
         "consignment_id.declared_value_bdt",
         "consignment_id.courier_partner_id.insurance_max_bdt",
@@ -192,6 +231,36 @@ class FixDamageClaim(models.Model):
     def _compute_dofa_tier(self):
         for rec in self:
             rec.dofa_tier = rec._dofa_current_tier()
+
+    @api.constrains("requested_payout", "claimed_amount")
+    def _check_requested_payout(self):
+        for rec in self:
+            if rec.requested_payout < 0:
+                raise UserError("The payout requested cannot be negative.")
+            if rec.requested_payout > (rec.claimed_amount or 0.0) + 0.005:
+                raise UserError(
+                    "The payout requested (BDT %.2f) cannot exceed the amount claimed "
+                    "(BDT %.2f)." % (rec.requested_payout, rec.claimed_amount or 0.0)
+                )
+
+    # ------------------------------------------------------------ routing
+    def _approval_holders(self, group):
+        """A02 audit B1: the DOFA ladder picks the tier group; only its members
+        who also hold the claim-approver role may decide a payout."""
+        users = super()._approval_holders(group)
+        approvers = self.env.ref(GROUP_CLAIM_APPROVER, raise_if_not_found=False)
+        return users & approvers.sudo().all_user_ids if approvers else users.browse()
+
+    def _approval_on_rejected(self, comment):
+        """An inbox rejection decides the claim: rejected, with the reason."""
+        for rec in self.filtered(lambda r: r.state == "open"):
+            rec._guarded().write(
+                {
+                    "state": "rejected",
+                    "rejected_by_id": self.env.user.id,
+                    "rejection_reason": comment or False,
+                }
+            )
 
     # ------------------------------------------------------------ the guard
     def _fix_guarded_fields(self) -> set:
@@ -282,18 +351,20 @@ class FixDamageClaim(models.Model):
         except (TypeError, ValueError):
             raise UserError("%s must be a number." % label) from None
 
-    def action_approve(self, approved_amount=None):
-        """Approve the payout. The approver holds the claim-approver role and
-        the DOFA tier the amount needs, is not the claim's creator, and gives
-        a written justification. The payout is capped at the amount claimed;
-        above the insured value it needs a higher tier."""
+    def action_approve(self):
+        """Approve the payout requested (blank: the amount claimed). Runs only
+        from the approver's inbox task (A02 audit B1). The approver holds the
+        claim-approver role and the DOFA tier the amount needs, is not the
+        claim's creator, and a written justification is on the claim. The
+        payout is capped at the amount claimed; above the insured value it
+        needs a higher tier."""
+        self._approval_assert_routed()
         self._claim_require_approver("Approving a damage claim")
-        amount_in = self._parse_amount(approved_amount, "The approved amount")
         for rec in self:
             if rec.state != "open":
                 raise UserError("Only an open claim can be approved")
             rec._claim_assert_not_creator("approving it")
-            amount = amount_in if amount_in is not None else rec.claimed_amount
+            amount = rec.requested_payout or rec.claimed_amount
             if not amount or amount <= 0:
                 raise UserError("Enter the approved amount before approving the claim")
             if amount > (rec.claimed_amount or 0.0) + 0.005:
@@ -320,6 +391,9 @@ class FixDamageClaim(models.Model):
             if rec.state != "open":
                 raise UserError("Only an open claim can be rejected")
             rec._claim_assert_not_creator("rejecting it")
+            if rec.approval_state == "pending":
+                # the payout request is moot once the claim itself is rejected
+                rec._approval_void("the claim was rejected by %s" % self.env.user.name)
             rec._guarded().write(
                 {
                     "state": "rejected",

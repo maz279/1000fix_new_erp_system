@@ -37,6 +37,34 @@ def require_role(env, groups, what):
     )
 
 
+def require_user_role(env, user, groups, what):
+    """Refuse unless ``user`` holds one of ``groups``. For a routed approval
+    the authority is the absent approver a delegate acts for (A02 audit B1),
+    not necessarily the acting user."""
+    if is_system(env) or any(user.has_group(g) for g in groups):
+        return
+    names = []
+    for xmlid in groups:
+        group = env.ref(xmlid, raise_if_not_found=False)
+        names.append(group.sudo().name if group else xmlid)
+    raise UserError(
+        "%s needs the %s role, which %s does not hold. (Role membership is a "
+        "business appointment.)" % (what, " or ".join(names), user.name)
+    )
+
+
+def require_no_overlap(env, acting, others, what):
+    """Segregation of duties over a set of acting users (the approver and the
+    approver they stand in for)."""
+    if is_system(env):
+        return
+    if acting & others:
+        raise UserError(
+            "Segregation of duties: %s must be done by a different person from the "
+            "one who raised, requested or carried out the work." % what
+        )
+
+
 def require_other_person(env, others, what):
     """Segregation of duties: the acting user must not be one of ``others``."""
     if is_system(env):

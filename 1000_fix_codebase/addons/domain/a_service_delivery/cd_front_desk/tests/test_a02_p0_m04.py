@@ -20,10 +20,14 @@ from odoo import fields
 from odoo.addons.cd_p03_portal.controllers import a02
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a02.writable import WRITABLE
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 _SEQ = itertools.count(1)
 GUARD = "changes only through its workflow"
+# A02 audit B1 (P1): the variance, price and refund approvals are routed M63
+# requests; these P0 controls decide them from the approver's inbox.
+ROUTED = "approver's inbox"
 
 
 @pytest.fixture
@@ -289,7 +293,7 @@ def test_p04_03_cashier_cannot_sign_off_her_own_variance(m04, call):
     m.count(s, d1000=4)  # -1,000
     with _refused(m.env, UserError, GUARD):
         s.write({"supervisor_variance_approved_by": m.cashier.id})
-    with _refused(m.env, UserError, "Only a Branch Manager"):
+    with _refused(m.env, UserError, ROUTED):
         s.action_approve_variance()
     res = call(
         m.env(user=m.cashier.id),
@@ -306,7 +310,7 @@ def test_p04_03_cashier_cannot_sign_off_her_own_variance(m04, call):
         ids=[s.id],
         method="action_approve_variance",
     )
-    assert res["success"] is False and "Branch Manager" in res["error"], res
+    assert res["success"] is False, res
     s.action_confirm_closed()
     with _refused(m.env, UserError, "Only a Branch Manager"):
         s.action_reconcile()
@@ -321,14 +325,17 @@ def test_p04_03_manager_cannot_approve_or_reconcile_her_own_drawer(m04):
     mc = m.as_(m.manager_cashier, s)
     mc.write({"denom_1000_count": 3})
     mc.action_submit_blind_count()  # -2,000
-    with _refused(m.env, UserError, "BRU-FRD-11"):
+    with _refused(m.env, UserError, ROUTED):
         mc.action_approve_variance()
+    # routing never hands the drawer to the manager who handled it
+    mc.action_request_approval(justification="short by 2,000")
+    assert m.manager_cashier not in assigned(s) and m.manager in assigned(s)
     mc.action_confirm_closed()
     with _refused(m.env, UserError, "BRU-FRD-11"):
         mc.action_reconcile()
     # legitimate: an independent manager approves the exact variance, then reconciles
     other = m.as_(m.manager, s)
-    other.action_approve_variance()
+    approve_via_inbox(s, m.manager, requester=m.manager_cashier)
     assert (s.sudo().supervisor_variance_approved_by, s.sudo().variance_approved_amount) == (
         m.manager,
         -2000.0,
@@ -342,19 +349,20 @@ def test_p04_04_approval_is_pinned_and_a_recount_voids_it(m04):
     m = m04
     s = m.shift()
     m.count(s, d1000=3, d500=1, d100=4)  # 3,900: -1,100
-    m.as_(m.manager, s).action_approve_variance()
+    approve_via_inbox(s, m.manager, requester=m.cashier)
     assert s.sudo().variance_approved_amount == -1100.0
     s.write({"denom_1000_count": 0, "denom_500_count": 0, "denom_100_count": 0})
     s.action_submit_blind_count()  # recount: 0, -5,000
     assert not s.sudo().supervisor_variance_approved_by  # void
+    assert s.sudo().approval_state == "none"
     s.action_confirm_closed()
     with _refused(m.env, ValidationError, "must approve this variance"):
         m.as_(m.manager, s).action_reconcile()
     # within tolerance, nothing to approve
     s2 = m.shift(branch=m.branch2)
     m.count(s2, d1000=4, d500=1, d100=4, d50=1)  # 4,950: -50
-    with _refused(m.env, UserError, "within the BDT 100.00"):
-        m.as_(m.manager, s2).action_approve_variance()
+    with _refused(m.env, UserError, "Nothing to approve"):
+        s2.action_request_approval()
     m.as_(m.manager, s2).action_reconcile()
     assert s2.sudo().state == "discrepancy"
 
@@ -515,14 +523,14 @@ def test_p04_08_negative_quantity_and_price_below_list(m04):
     with _refused(m.env, UserError, "below the list price"):
         cheap.action_confirm()
     # the seller cannot approve her own price; a cashier is not a manager
-    with _refused(m.env, UserError, "Only a Branch Manager"):
+    with _refused(m.env, UserError, ROUTED):
         cheap.action_approve_price_override()
     own = m.sale(s, price=900.0, as_user=m.manager_cashier)
-    with _refused(m.env, UserError, "cannot approve its price"):
-        m.as_(m.manager_cashier, own).action_approve_price_override()
+    m.as_(m.manager_cashier, own).action_request_approval()
+    assert m.manager_cashier not in assigned(own) and m.manager in assigned(own)
     # legitimate: a manager approves BDT 900; the approval is pinned to it
     discounted = m.sale(s, price=900.0)
-    m.as_(m.manager, discounted).action_approve_price_override()
+    approve_via_inbox(discounted, m.manager, requester=m.cashier)
     discounted.write({"unit_price": 800.0})
     with _refused(m.env, UserError, "below the list price"):
         discounted.action_confirm()
@@ -543,7 +551,7 @@ def test_p04_09_refund_needs_reason_and_an_independent_approver(m04, call):
         sale.action_request_refund()
     with _refused(m.env, UserError, "reason code"):
         sale.action_request_refund(reason="because")
-    with _refused(m.env, UserError, "has no refund request"):
+    with _refused(m.env, UserError, ROUTED):
         m.as_(m.approver, sale).action_approve_refund()
     res = call(
         m.env(user=m.cashier.id),
@@ -555,17 +563,21 @@ def test_p04_09_refund_needs_reason_and_an_independent_approver(m04, call):
     )
     assert res["success"], res
     assert (sale.refund_state, sale.refund_reason_code) == ("requested", "defective")
-    # the seller (and requester) cannot approve; a cashier is not an approver
-    with _refused(m.env, UserError, "Only a Refund Approver"):
+    # the request is routed: to an approver or manager, never the seller
+    # (who also requested it), never a cashier
+    sale.invalidate_recordset()
+    assert sale.approval_state == "pending"
+    routed = assigned(sale)
+    assert m.approver in routed and m.manager in routed
+    assert not routed & (m.cashier | m.cashier2)
+    with _refused(m.env, UserError, ROUTED):
         sale.action_approve_refund()
-    with _refused(m.env, UserError, "Only a Refund Approver"):
-        m.as_(m.cashier2, sale).action_approve_refund()
     # the drawer the sale went into is reconciled: the refund pays from the OPEN one
     _reconciled(m, s)
     with _refused(m.env, UserError, "no open cash shift"):
-        m.as_(m.approver, sale).action_approve_refund()
+        approve_via_inbox(sale, m.approver)
     now_open = m.shift(as_user=m.cashier2, operator=m.cashier2_emp)
-    m.as_(m.approver, sale).action_approve_refund()
+    approve_via_inbox(sale, m.approver)
     sale.invalidate_recordset()
     assert (sale.state, sale.refund_state, sale.refund_approved_by, sale.refund_shift_id) == (
         "refunded",
@@ -586,9 +598,8 @@ def test_seller_manager_cannot_approve_her_own_refund(m04):
     sale = m.sale(s, as_user=m.manager_cashier)
     sale.action_confirm()
     m.as_(m.cashier, sale).action_request_refund(reason="wrong_item")
-    with _refused(m.env, UserError, "cannot approve the"):
-        sale.action_approve_refund()
-    m.as_(m.manager, sale).action_approve_refund()
+    assert m.manager_cashier not in assigned(sale)
+    approve_via_inbox(sale, m.manager)
     assert sale.sudo().state == "refunded"
 
 
@@ -598,7 +609,14 @@ def test_seller_manager_cannot_approve_her_own_refund(m04):
 def test_p04_10a_intake_without_device_is_refused_in_plain_words(m04):
     """P04-10a / BRU-FRD-12: the hand-off died on a NotNullViolation."""
     m = m04
-    it = m.intake(handover_method="signature", customer_signature_attachment_id=m.signature.id)
+    # A02 audit M04-P2: the device (or its scanned serial) is required at create
+    with _refused(m.env, UserError, "BRU-FRD-12"):
+        m.intake(handover_method="signature")
+    it = m.intake(
+        handover_method="signature",
+        customer_signature_attachment_id=m.signature.id,
+        device_serial_input="SN-NOT-REGISTERED",
+    )
     with _refused(m.env, UserError, "BRU-FRD-12"):
         it.action_complete_handover()
     with _refused(m.env, UserError, "BRU-FRD-12"):
@@ -719,10 +737,11 @@ def test_wait_sla_cron_escalates_breaches(m04):
 def test_p03_surface_offers_the_new_actions_and_no_workflow_field(m04):
     shift_actions = a02.SURFACES["fix.cash.shift"]["actions"]
     sale_actions = a02.SURFACES["fix.counter.sale"]["actions"]
-    assert {"action_submit_blind_count", "action_approve_variance"} <= shift_actions
-    assert {"action_request_refund", "action_approve_refund", "action_approve_price_override"} <= (
-        sale_actions
-    )
+    assert {"action_submit_blind_count", "action_request_approval"} <= shift_actions
+    assert {"action_request_refund", "action_request_approval"} <= sale_actions
+    # A02 audit B1: the approvals themselves run only from the inbox
+    assert "action_approve_variance" not in shift_actions
+    assert not {"action_approve_refund", "action_approve_price_override"} & sale_actions
     assert "action_refund" not in sale_actions
     env = m04.env
     for model in ("fix.cash.shift", "fix.token.queue", "fix.walkin.intake"):

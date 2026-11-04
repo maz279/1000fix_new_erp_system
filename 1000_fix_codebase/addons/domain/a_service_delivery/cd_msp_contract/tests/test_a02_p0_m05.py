@@ -18,6 +18,7 @@ from unittest import mock
 import pytest
 from odoo import fields
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 _SEQ = itertools.count(1)
@@ -79,6 +80,7 @@ def m5(odoo_env):
             "name": "A02 M05 Contract %d" % n,
             "customer_id": customer.id,
             "family": "managed",
+            "state": "active",  # A02 audit M05-P2: MSP work needs a term in force
             "operating_unit_id": ou.id,
             "date_start": fields.Date.today(),
             "date_end": fields.Date.today() + timedelta(days=365),
@@ -152,6 +154,17 @@ def _as(env_or_rec, user):
     return env_or_rec.with_user(user)
 
 
+ROUTED = "approver's inbox"
+
+
+def _approve(rec, approver, requester=None, justification=None):
+    """A02 audit B1: CAB changes and SLA credits are decided from the M63
+    inbox. Request as `requester` (default: the creator), decide as `approver`."""
+    return approve_via_inbox(
+        rec.with_user(approver), approver, requester=requester, justification=justification
+    )
+
+
 def _window(m5, user, start=-1, end=4, contract=True, name="Window"):
     now = fields.Datetime.now()
     return _as(m5.env["fix.msp.maintenance.window"], user).create(
@@ -181,39 +194,42 @@ def _change(m5, user=None, **vals):
 
 def test_C1_requester_cannot_approve_own_change(m5):
     ch = _change(m5, risk="high", rollback_plan="restore config", requested_by=m5.emp.id)
-    with pytest.raises(UserError, match="CAB Member"):
-        _as(ch, m5.eng).action_approve()
-    # A CAB member is no exception when he raised the change himself.
+    # B1: nobody approves by pressing the button, not even a CAB member
+    with pytest.raises(UserError, match=ROUTED):
+        _as(ch, m5.cab).action_approve()
+    _as(ch, m5.eng).action_request_approval()
+    assert m5.eng not in assigned(ch) and m5.cab in assigned(ch)
+    # A CAB member's own change never reaches his inbox...
     own = _change(m5, user=m5.cab_eng, name="CAB member's own change")
-    with pytest.raises(UserError, match="Segregation of duties"):
-        _as(own, m5.cab_eng).action_approve()
-    # ...nor when he is named as the requester on someone else's record.
+    _as(own, m5.cab_eng).action_request_approval()
+    assert m5.cab_eng not in assigned(own)
+    # ...nor one that names him as the requester on someone else's record.
     cab_emp = m5.env["hr.employee"].create({"name": "CAB emp", "user_id": m5.cab.id})
     named = _change(m5, name="Requested by the CAB member", requested_by=cab_emp.id)
-    with pytest.raises(UserError, match="Segregation of duties"):
-        _as(named, m5.cab).action_approve()
+    _as(named, m5.eng).action_request_approval()
+    assert m5.cab not in assigned(named)
     assert ch.state == own.state == named.state == "draft"
 
 
 def test_cab_approval_is_stamped_with_the_acting_user(m5):
     ch = _change(m5, risk="high", rollback_plan="restore config", requested_by=m5.emp.id)
-    _as(ch, m5.cab).action_approve()
-    assert ch.state == "approved"
+    _approve(ch, m5.cab)
+    assert ch.state == "approved" and ch.approval_state == "approved"
     assert ch.cab_approver_id == m5.cab and ch.approved_at
 
 
 def test_high_risk_change_needs_a_rollback_plan_before_approval(m5):
     ch = _change(m5, risk="high")
     with pytest.raises(UserError, match="rollback plan"):
-        _as(ch, m5.cab).action_approve()
+        _as(ch, m5.eng).action_request_approval()
     _as(ch, m5.eng).write({"rollback_plan": "restore the switch config snapshot"})
-    _as(ch, m5.cab).action_approve()
+    _approve(ch, m5.cab)
     assert ch.state == "approved"
 
 
 def test_C2_C3_implement_only_inside_an_approved_open_window(m5):
     ch = _change(m5, rollback_plan="snapshot")
-    _as(ch, m5.cab).action_approve()
+    _approve(ch, m5.cab)
     with pytest.raises(UserError, match="no maintenance window"):
         _as(ch, m5.eng).action_implement()
     # an approved window that opens next week
@@ -254,7 +270,8 @@ def test_the_cab_approver_does_not_implement(m5):
     window = _window(m5, m5.cm)
     _as(window, m5.cab).action_approve()
     ch = _change(m5, maintenance_window_id=window.id)
-    _as(ch, m5.cab2).action_approve()
+    task = _approve(ch, m5.cab2)
+    assert task.assigned_user_id == m5.cab2 and ch.cab_approver_id == m5.cab2
     with pytest.raises(UserError, match="Segregation of duties"):
         _as(ch, m5.cab2).action_implement()
     _as(ch, m5.eng2).action_implement()
@@ -265,9 +282,12 @@ def test_C4_emergency_change_has_its_own_path(m5):
     ch = _change(m5, name="Emergency reboot", change_type="emergency", risk="high")
     assert ch.emergency
     _as(ch, m5.eng).write({"rollback_plan": "power-cycle back"})
-    with pytest.raises(UserError, match="Change Manager"):
-        _as(ch, m5.cab).action_approve()
-    _as(ch, m5.cm).action_approve()
+    with pytest.raises(UserError, match=ROUTED):
+        _as(ch, m5.cm).action_approve()
+    # B1: the emergency change is routed to the change manager, not the CAB
+    _as(ch, m5.eng).action_request_approval(justification="core switch down")
+    assert assigned(ch) == m5.cm
+    _approve(ch, m5.cm)
     assert ch.cab_approver_id == m5.cm
     # implemented at once, with no window
     _as(ch, m5.eng).action_implement(note="rebooted")
@@ -301,7 +321,7 @@ def test_C5_C6_change_state_and_cab_approver_cannot_be_written(m5, call):
 
 def test_an_approved_change_is_frozen(m5):
     ch = _change(m5, rollback_plan="snapshot")
-    _as(ch, m5.cab).action_approve()
+    _approve(ch, m5.cab)
     with pytest.raises(UserError, match="cannot change once the change record is approved"):
         _as(ch, m5.eng).write({"risk": "low"})
     assert "risk" in ch._fix_form_locked_fields()
@@ -438,13 +458,13 @@ def test_S1_a_manual_credit_needs_the_dofa_tier_and_is_capped(m5):
         {"msp_contract_id": m5.msp.id, "period_label": "A02-manual", "manual_amount": 5000.0}
     )
     assert cr.is_manual and cr.credit_amount == 5000.0 and cr.manual_set_by_id == m5.eng
-    # the finance approver alone is not the CFO tier BRU-RMS-06 asks for
-    with pytest.raises(UserError, match="DOFA authority insufficient"):
-        _as(cr, m5.fin).action_approve()
-    with pytest.raises(ValidationError, match="justification"):
+    # B1: the CFO tier decides in the inbox; neither a button press...
+    with pytest.raises(UserError, match=ROUTED):
         _as(cr, m5.cfo).action_approve()
-    _as(cr, m5.eng).write({"dofa_justification": "Outage credit agreed with the client"})
-    _as(cr, m5.cfo).action_approve()
+    # ...nor the finance approver, who is not the tier BRU-RMS-06 asks for
+    _as(cr, m5.eng).action_request_approval(justification="Outage credit agreed with the client")
+    assert m5.cfo in assigned(cr) and m5.fin not in assigned(cr)
+    _approve(cr, m5.cfo)
     assert cr.state == "approved" and cr.approved_by_id == m5.cfo and cr.approved_amount == 5000.0
     _as(cr, m5.fin).action_apply()
     assert cr.state == "applied"
@@ -455,8 +475,8 @@ def test_S1_the_raiser_cannot_approve_their_own_credit(m5):
     _as(m5.msp, m5.fin_eng).action_compute_sla_credits()
     cr = _credit(m5, "2026-07")
     assert cr.credit_amount == 4500.0
-    with pytest.raises(UserError, match="Segregation of duties"):
-        _as(cr, m5.fin_eng).action_approve()
+    _as(cr, m5.fin_eng).action_request_approval()
+    assert m5.fin_eng not in assigned(cr) and m5.fin in assigned(cr)
     manual = _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
         {
             "msp_contract_id": m5.msp.id,
@@ -466,8 +486,8 @@ def test_S1_the_raiser_cannot_approve_their_own_credit(m5):
         }
     )
     m5.env.ref(TIER4).sudo().write({"user_ids": [(4, m5.eng.id)]})
-    with pytest.raises(UserError, match="Segregation of duties"):
-        _as(manual, m5.eng).action_approve()
+    _as(manual, m5.eng).action_request_approval(justification="client outage")
+    assert m5.eng not in assigned(manual)
 
 
 def test_a_computed_credit_is_approved_by_finance_and_applied(m5):
@@ -476,11 +496,14 @@ def test_a_computed_credit_is_approved_by_finance_and_applied(m5):
     cr = _credit(m5, "2026-09")
     assert cr.state == "draft" and not cr.is_manual
     assert cr.computed_amount == cr.credit_amount == 4500.0  # 45% of 4 x 2500
-    with pytest.raises(UserError, match="SLA Credit Approver"):
-        _as(cr, m5.eng2).action_approve()
+    with pytest.raises(UserError, match=ROUTED):
+        _as(cr, m5.fin).action_approve()
     with pytest.raises(UserError, match="must be approved"):
         _as(cr, m5.fin).action_apply()
-    _as(cr, m5.fin).action_approve()
+    _as(cr, m5.eng).action_request_approval()
+    # a computed credit goes to the credit approvers, never to a DOFA tier
+    assert assigned(cr) == m5.fin | m5.fin_eng
+    _approve(cr, m5.fin)
     assert cr.approved_by_id == m5.fin and cr.approved_amount == 4500.0
     with pytest.raises(UserError, match="SLA Credit Approver"):
         _as(cr, m5.eng).action_apply()
@@ -500,11 +523,12 @@ def test_S2_a_changed_amount_voids_the_approval(m5):
             "dofa_justification": "agreed",
         }
     )
-    _as(cr, m5.cfo).action_approve()
+    _approve(cr, m5.cfo, justification="agreed")
     with pytest.raises(UserError, match=GUARD):
         _as(cr, m5.eng).write({"credit_amount": 450000.0})
     _as(cr, m5.eng).write({"manual_amount": 9000.0})
     assert cr.state == "draft" and not cr.approved_by_id and not cr.dofa_approved
+    assert cr.approval_state == "none"  # the M63 approval goes with it
     with pytest.raises(UserError, match="must be approved"):
         _as(cr, m5.fin).action_apply()
 
@@ -513,7 +537,7 @@ def test_S2_apply_rechecks_the_pinned_amount(m5):
     report = _report(m5, "2026-10", attainment=0.5)
     _as(m5.msp, m5.eng).action_compute_sla_credits()
     cr = _credit(m5, "2026-10")
-    _as(cr, m5.fin).action_approve()
+    _approve(cr, m5.fin, requester=m5.eng)
     # the system regenerates the figure after approval: the approval no longer covers it
     report.write({"sla_attainment": 0.0})
     cr.invalidate_recordset()
@@ -786,7 +810,13 @@ def test_O1_on_call_state_is_guarded_and_primaries_do_not_overlap(m5, call):
         "operating_unit_id": m5.ou.id,
     }
     a = Shift.create(dict(vals, name="A"))
-    b = Shift.create(dict(vals, name="B"))
+    # A02 audit M05-P2: the overlap is a constraint, not only an activation check
+    with (
+        pytest.raises(ValidationError, match="overlaps the planned primary shift A"),
+        m5.env.cr.savepoint(),
+    ):
+        Shift.create(dict(vals, name="B"))
+    b = Shift.create(dict(vals, name="B", level="secondary"))
     res = call(
         m5.env(user=m5.eng.id),
         "model_write",
@@ -796,9 +826,6 @@ def test_O1_on_call_state_is_guarded_and_primaries_do_not_overlap(m5, call):
     )
     assert res.get("error"), res
     a.action_activate()
-    with pytest.raises(UserError, match="overlaps the active primary shift"):
-        b.action_activate()
-    b.write({"level": "secondary"})
     b.action_activate()
     assert (a.state, b.state) == ("active", "active")
 

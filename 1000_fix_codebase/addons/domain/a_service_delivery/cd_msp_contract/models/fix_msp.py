@@ -70,8 +70,13 @@ class FixMspContract(models.Model):
                 ("create_date", "<=", period[1]),
             ]
         )
+        # A02 audit M05-P2: "within SLA" was resolved / total, with no time
+        # measure. It is now measured from each alert's resolution time against
+        # the contract's resolution target for its severity (_msp_period_sla).
+        measure = self._msp_period_sla(alerts)
         resolved = alerts.filtered(lambda a: a.state == "resolved")
-        sla_pct = round((len(resolved) / len(alerts)) if alerts else 1.0, 4)
+        within = measure["within"]
+        sla_pct = measure["attainment"]
         device_cnt = self.device_count or len(self.asset_ids)
         # The figures are guarded on the report (A02 audit M05-2): they drive
         # the SLA credit, so only this computation may write them.
@@ -83,16 +88,19 @@ class FixMspContract(models.Model):
                     "msp_contract_id": self.id,
                     "period_label": period[2],
                     "alert_count": len(alerts),
-                    "resolved_count": len(resolved),
+                    "resolved_count": within,
+                    "resolved_total_count": len(resolved),
+                    "breached_count": measure["breached"],
+                    "pending_count": measure["pending"],
                     "sla_attainment": sla_pct,
                     "summary_en": (
                         f"Monthly Managed Services Operations Report for {period[2]}: "
-                        f"{len(alerts)} alerts processed, {len(resolved)} incidents resolved within SLA. "
+                        f"{len(alerts)} alerts processed, {within} incidents resolved within SLA. "
                         f"SLA attainment achieved: {sla_pct * 100:.1f}% across {device_cnt} covered endpoints."
                     ),
                     "summary_bn": (
                         f"{period[2]} মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: "
-                        f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {len(resolved)}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
+                        f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {within}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
                         f"এসএলএ অর্জনের হার {sla_pct * 100:.1f}%, আওতাভুক্ত সচল ডিভাইস সংখ্যা {device_cnt}টি।"
                     ),
                 }
@@ -242,6 +250,10 @@ class FixMspAlert(models.Model):
         for rec in self:
             if rec.state not in ("new", "acked"):
                 raise UserError("Alert already ticketed or resolved")
+            # A02 audit M05-P2 (probe A2): an alert was ticketed on a draft
+            # contract. The ticket is entitlement work, so the M08 term must be
+            # in force, and the order carries the contract it is delivered under.
+            rec.msp_contract_id._msp_assert_entitled("Ticketing an MSP alert")
             device = rec.asset_id.device_id
             if not device or not device.branch_id:
                 raise UserError(
@@ -256,6 +268,7 @@ class FixMspAlert(models.Model):
                     "branch_id": device.branch_id.id,
                     "fault_description": "MSP alert: %s" % rec.message,
                     "order_category": "amc",
+                    "contract_id": rec.msp_contract_id.contract_id.id,
                 }
             )
             rec._guarded().write({"state": "ticketed", "order_id": order.id})

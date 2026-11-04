@@ -17,5 +17,17 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A02 audit M02-4 (P2): return a dispatched job nobody accepted to the
+             dispatcher. Runs every 5 minutes; does nothing unless
+             cd_field_service.acceptance_timeout_minutes is set above 0. -->
+        <record id="ir_cron_field_order_acceptance_timeout" model="ir.cron">
+            <field name="name">M02: return unaccepted field orders to the dispatcher</field>
+            <field name="model_id" ref="model_fix_field_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_return_unaccepted()</field>
+            <field name="interval_number">5</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

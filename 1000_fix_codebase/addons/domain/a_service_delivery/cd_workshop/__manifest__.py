@@ -33,6 +33,12 @@ Key Features:
         "cd_inventory",
         "cd_equipment_register",
         "cd_qms_process",
+        # A02 audit B1: BER, extra parts and the certification waiver are
+        # routed M63 approvals (already loaded through cd_service_order)
+        "cd_workflow_engine",
+        # A02 audit M31-4: parts are reserved and consumed as stock.move
+        # (stock is already loaded through cd_inventory)
+        "stock",
     ],
     "data": [
         "security/fix_isolation_rules.xml",

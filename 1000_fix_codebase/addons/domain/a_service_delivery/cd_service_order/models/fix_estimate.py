@@ -5,6 +5,8 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from libs.py.fix_events import publish  # FF-28
+
 from . import fix_otp_util
 
 # BRU-SRM-08's second key is a Branch Manager, i.e. DOFA Tier 2.
@@ -425,7 +427,7 @@ class FixEstimate(models.Model):
                     "new version." % est.state
                 )
             est._guarded().write({"state": "sent"})
-            est._emit_event("estimate.sent")
+            publish(self.env, "estimate.sent", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("estimate_sent")
 
     def action_approve(self):
@@ -484,31 +486,49 @@ class FixEstimate(models.Model):
                     "approved_total": est.grand_total,
                 }
             )
-            est._emit_event("estimate.approved")
+            publish(self.env, "estimate.approved", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("approved")
+
+    def action_request_manager_key(self, justification=None):
+        """Route the BRU-SRM-08 second key to a branch manager's M63 inbox
+        (A02 audit B1): the key was a plain group check on whoever pressed
+        the button, with no request, deadline, delegate or history."""
+        dual_threshold = self._threshold_dual()
+        for est in self:
+            if not self._fix_check_manager_key_due(est, dual_threshold):
+                raise UserError(
+                    "Estimate %s is BDT %.2f: at or below BDT %.0f no branch-manager key "
+                    "is needed." % (est.display_name, est.grand_total, dual_threshold)
+                )
+            if est.manager_approval_uid:
+                raise UserError("Estimate %s already carries the manager key." % est.display_name)
+            self.env["fix.so.approval"]._fix_open(
+                "manager_key",
+                est.order_id,
+                (justification or "").strip() or "BRU-SRM-08 second key",
+                estimate=est,
+            )
+        return True
 
     def action_manager_approve(self):
         """The BRU-SRM-08 second key: the branch manager records their
-        approval on an estimate already carrying customer approval."""
+        approval on an estimate already carrying customer approval. Decided
+        from the approver's M63 inbox (action_request_manager_key)."""
         dual_threshold = self._threshold_dual()
+        Approval = self.env["fix.so.approval"]
         for est in self:
-            if est.grand_total <= dual_threshold:
-                continue  # single approval suffices
-            if est.state not in ("draft", "sent"):
-                raise UserError("Estimate %s is %s." % (est.display_name, est.state))
-            if not est.customer_approval_ref:
-                raise UserError(
-                    "BRU-SRM-08: customer approval must be documented before "
-                    "the manager approves"
-                )
+            if not self._fix_check_manager_key_due(est, dual_threshold):
+                continue
+            Approval._fix_assert_routed(est, "manager_key")
             # The "second key" had no key: whoever called this became the
-            # branch manager (A03 audit).
-            if not self.env.user.has_group(_BRANCH_MANAGER_GROUP):
+            # branch manager (A03 audit). A delegate decides on the absent
+            # manager's authority.
+            if not Approval._fix_authority_user().has_group(_BRANCH_MANAGER_GROUP):
                 raise UserError(
                     "BRU-SRM-08: the second approval needs Branch Manager authority "
                     "(DOFA Tier 2)."
                 )
-            if est.create_uid == self.env.user:
+            if est.create_uid in Approval._fix_acting_users():
                 raise UserError(
                     "Segregation of duties: the person who prepared the estimate "
                     "cannot give the branch-manager approval."
@@ -519,6 +539,18 @@ class FixEstimate(models.Model):
                     "manager_approved_total": est.grand_total,
                 }
             )
+
+    def _fix_check_manager_key_due(self, est, dual_threshold) -> bool:
+        """Whether the BRU-SRM-08 second key can be given on ``est`` now."""
+        if est.grand_total <= dual_threshold:
+            return False  # single approval suffices
+        if est.state not in ("draft", "sent"):
+            raise UserError("Estimate %s is %s." % (est.display_name, est.state))
+        if not est.customer_approval_ref:
+            raise UserError(
+                "BRU-SRM-08: customer approval must be documented before the manager approves"
+            )
+        return True
 
     # --- the customer's documented approval (BRU-SRM-07, A02 audit M01-9) ---
     def action_send_customer_otp(self):
@@ -631,7 +663,7 @@ class FixEstimate(models.Model):
                     "this one is %s." % est.state
                 )
             est._guarded().write({"state": "rejected"})
-            est._emit_event("estimate.rejected")
+            publish(self.env, "estimate.rejected", "fix.estimate", est.id, est._fix_event_payload())
             order = est.order_id
             if order and order.state in ("estimate_sent", "awaiting_approval"):
                 # The order cannot be approved on a rejected price; it waits
@@ -659,25 +691,19 @@ class FixEstimate(models.Model):
         stale = self.sudo().search([("state", "=", "sent"), ("expiry_date", "<", today)])
         for est in stale:
             est._guarded().write({"state": "expired"})
-            est._emit_event("estimate.expired")
+            publish(self.env, "estimate.expired", "fix.estimate", est.id, est._fix_event_payload())
         return len(stale)
 
-    def _emit_event(self, event: str):
-        from libs.py.fix_events import publish
-
-        publish(
-            self.env,
-            event,
-            "fix.estimate",
-            self.id,
-            {
-                "estimate_id": self.id,
-                "order_id": self.order_id.id,
-                "version": self.version,
-                "state": self.state,
-                "grand_total": self.grand_total,
-            },
-        )
+    def _fix_event_payload(self) -> dict:
+        self.ensure_one()
+        return {
+            "estimate_id": self.id,
+            "order_id": self.order_id.id,
+            "service_order_id": self.order_id.id,
+            "version": self.version,
+            "state": self.state,
+            "grand_total": self.grand_total,
+        }
 
 
 class FixEstimateLine(models.Model):

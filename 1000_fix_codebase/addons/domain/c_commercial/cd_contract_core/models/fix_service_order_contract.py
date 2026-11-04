@@ -41,7 +41,16 @@ class FixServiceOrderContract(models.Model):
         default=lambda self: self.env.company.currency_id,
     )
 
-    @api.depends("contract_id")
+    # The cost comes from the latest estimate, so it must follow the estimates:
+    # depending on contract_id alone left it at whatever the first compute saw,
+    # and an estimate raised or revised later never reached the contract margin
+    # (found by the A02 second pass, when intake started computing it early).
+    @api.depends(
+        "contract_id",
+        "estimate_ids.version",
+        "estimate_ids.parts_total",
+        "estimate_ids.labour_total",
+    )
     def _compute_delivery_cost_bdt(self):
         Estimate = self.env["fix.estimate"]
         for order in self:

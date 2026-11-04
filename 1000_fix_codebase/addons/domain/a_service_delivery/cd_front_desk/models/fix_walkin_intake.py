@@ -7,12 +7,28 @@
 # of 12 live completed intakes had none). The hand-off now refuses a missing
 # device in plain words, needs the customer's signed receipt, and the state
 # moves only through the actions.
+#
+# A02 audit M04-P2: the device was required only at the hand-off, so an intake
+# with no device at all sat in the queue; the diagnostic fee never reached the
+# drawer (52 of 52 live fees "waived", with no one deciding that). An intake is
+# now created with a device or a scanned serial, a cash fee is posted to the
+# branch's open shift at the hand-off, and a waived fee needs a Branch
+# Manager's approval, routed through M63 like the other M04 approvals.
 import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from libs.py.fix_events import publish  # FF-28
+
+from .fix_cash_shift import GROUP_MANAGER
+from .fix_service_order_drawer import fd_cash_requires_shift
+
 logger = logging.getLogger(__name__)
+
+# The diagnostic fee a waiver gives away when the intake shows none: a policy
+# number. Today's value 0 means a waived intake with no fee needs no approval.
+STANDARD_FEE_PARAM = "cd_front_desk.standard_diagnostic_fee_bdt"
 
 
 class FixWalkinIntake(models.Model):
@@ -23,8 +39,15 @@ class FixWalkinIntake(models.Model):
 
     _name = "fix.walkin.intake"
     _description = "Walk-in Intake"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin brings fix.guarded.mixin with it (A02 audit M04-P2)
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+
+    # A02 audit M04-P2: a fee waiver is approved from the manager's inbox
+    _approval_domain = "diagnostic_fee_waiver"
+    _approval_apply_method = "action_approve_fee_waiver"
+    _approval_group = GROUP_MANAGER
+    _approval_routed = True
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M04-8 (P04-10b, P04-11): the hand-off result and its
@@ -36,6 +59,11 @@ class FixWalkinIntake(models.Model):
             "handover_complete",
             "service_order_id",
             "intake_start",
+            # A02 audit M04-P2: the waiver decision and the drawer posting
+            "fee_waiver_approved_by_id",
+            "fee_waiver_approved_amount",
+            "fee_waiver_approved_at",
+            "diagnostic_fee_shift_id",
         }
 
     # What the customer acknowledged: frozen once the hand-off completed.
@@ -61,7 +89,48 @@ class FixWalkinIntake(models.Model):
             return locked | self._FROZEN_WHEN_COMPLETED
         return locked
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """BRU-FRD-12 (A02 audit M04-P2): an intake starts with the device,
+        either selected or as the scanned serial / IMEI. A scanned serial that
+        matches a registered device is linked at once; one that does not is
+        kept, and the hand-off still refuses until the device is registered."""
+        if not self.env.su:
+            for vals in vals_list:
+                serial = (vals.get("device_serial_input") or "").strip()
+                if not vals.get("device_id") and not serial:
+                    raise UserError(
+                        "A walk-in intake needs the device: select it, or scan its serial "
+                        "/ IMEI (BRU-FRD-12)."
+                    )
+                if not vals.get("device_id"):
+                    device = self._fd_find_device(serial)
+                    if device:
+                        vals["device_id"] = device.id
+        return super().create(vals_list)
+
+    @api.model
+    def _fd_find_device(self, code):
+        Device = self.env["fix.device"]
+        code = (code or "").strip()
+        if not code:
+            return Device.browse()
+        domain = [("serial_number", "=", code)]
+        for name in ("imei_1", "imei_2"):
+            if name in Device._fields:
+                domain = ["|", *domain, (name, "=", code)]
+        return Device.search(domain, limit=1)
+
     def write(self, vals):
+        if not self.env.su and {"device_id", "device_serial_input"} & set(vals):
+            for rec in self:
+                device = vals.get("device_id", rec.device_id.id)
+                serial = vals.get("device_serial_input", rec.device_serial_input)
+                if not device and not (serial or "").strip():
+                    raise UserError(
+                        "Intake %s needs the device: it cannot be left with neither a "
+                        "device nor a scanned serial (BRU-FRD-12)." % (rec.display_name or rec.id)
+                    )
         if not self.env.su:
             frozen = self._FROZEN_WHEN_COMPLETED & set(vals)
             for rec in self.filtered(lambda r: r.state == "completed"):
@@ -192,6 +261,27 @@ class FixWalkinIntake(models.Model):
         default="waived",
     )
     payment_trx_ref = fields.Char(string="Payment Receipt / MFS TrxID")
+    # A02 audit M04-P2: the waiver decision, pinned to the amount waived, and
+    # the drawer the cash fee went into.
+    fee_waiver_approved_by_id = fields.Many2one(
+        "res.users", string="Fee Waiver Approved By", readonly=True, copy=False, tracking=True
+    )
+    fee_waiver_approved_amount = fields.Monetary(
+        string="Fee Waiver Approved (BDT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
+    fee_waiver_approved_at = fields.Datetime(
+        string="Fee Waiver Approved At", readonly=True, copy=False
+    )
+    diagnostic_fee_shift_id = fields.Many2one(
+        "fix.cash.shift",
+        string="Fee Posted To Shift",
+        readonly=True,
+        copy=False,
+        help="The branch cash shift the cash diagnostic fee was posted to.",
+    )
 
     # Timing (the 3-minute gate)
     intake_start = fields.Datetime(default=fields.Datetime.now, readonly=True)
@@ -266,14 +356,7 @@ class FixWalkinIntake(models.Model):
         database error, A02 audit P04-10a)."""
         Device = self.env["fix.device"]
         for rec in self.filtered(lambda r: not r.device_id):
-            code = (rec.device_serial_input or "").strip()
-            device = Device.browse()
-            if code:
-                domain = [("serial_number", "=", code)]
-                for name in ("imei_1", "imei_2"):
-                    if name in Device._fields:
-                        domain = ["|", *domain, (name, "=", code)]
-                device = Device.search(domain, limit=1)
+            device = rec._fd_find_device(rec.device_serial_input) or Device.browse()
             if not device:
                 raise UserError(
                     "Intake %s has no device. Identify the device (select it, or scan a "
@@ -303,11 +386,123 @@ class FixWalkinIntake(models.Model):
                     "completing the handover." % (rec.display_name or rec.id)
                 )
 
+    # ------------------------------------------------------------ the fee
+
+    def _fd_waived_amount(self) -> float:
+        """What a waiver gives away: the fee entered, else the standard fee."""
+        self.ensure_one()
+        if self.payment_channel != "waived":
+            return 0.0
+        if self.diagnostic_fee_bdt and self.diagnostic_fee_bdt > 0:
+            return self.diagnostic_fee_bdt
+        raw = self.env["ir.config_parameter"].sudo().get_param(STANDARD_FEE_PARAM)
+        try:
+            return max(float(raw), 0.0) if raw not in (None, False, "") else 0.0
+        except ValueError:
+            return 0.0
+
+    def _fd_waiver_covered(self) -> bool:
+        self.ensure_one()
+        waived = self._fd_waived_amount()
+        if waived <= 0:
+            return True
+        return bool(self.fee_waiver_approved_by_id) and (
+            self.fee_waiver_approved_amount + 0.005 >= waived
+        )
+
+    def _approval_amount(self) -> float:
+        return self._fd_waived_amount() if len(self) == 1 else 0.0
+
+    def _approval_needed(self) -> bool:
+        self.ensure_one()
+        return self.state != "completed" and not self._fd_waiver_covered()
+
+    def _fd_request_fee_waiver(self):
+        """Route a waiver that no approval covers to a Branch Manager."""
+        for rec in self:
+            if rec._approval_needed() and rec.approval_state != "pending":
+                rec.action_request_approval(
+                    justification="Diagnostic fee of BDT %.2f waived at intake."
+                    % rec._fd_waived_amount()
+                )
+
+    def action_approve_fee_waiver(self):
+        """A Branch Manager who did not take the intake approves the waiver of
+        its diagnostic fee, for exactly the amount waived. Runs only from the
+        manager's M63 inbox (A02 audit M04-P2)."""
+        self._approval_assert_routed()
+        if not (self.env.su or self.env.user.has_group(GROUP_MANAGER)):
+            raise UserError("Only a Branch Manager may approve a diagnostic fee waiver.")
+        for rec in self:
+            if rec.state == "completed":
+                raise UserError("Intake %s is already handed over." % (rec.display_name or rec.id))
+            waived = rec._fd_waived_amount()
+            if waived <= 0:
+                raise UserError("Intake %s waives no fee." % (rec.display_name or rec.id))
+            if not self.env.su and self.env.user == rec.create_uid:
+                raise UserError(
+                    "You took intake %s, so you cannot approve its fee waiver."
+                    % (rec.display_name or rec.id)
+                )
+            rec._guarded().write(
+                {
+                    "fee_waiver_approved_by_id": self.env.uid,
+                    "fee_waiver_approved_amount": waived,
+                    "fee_waiver_approved_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(
+                body="Diagnostic fee waiver of BDT %.2f approved by %s."
+                % (waived, self.env.user.name)
+            )
+        return True
+
+    def _fd_settle_diagnostic_fee(self):
+        """At the hand-off: a waiver needs its approval, a cash fee goes into
+        the branch's open drawer, an MFS or card fee needs its TrxID."""
+        Shift = self.env["fix.cash.shift"]
+        for rec in self:
+            label = rec.display_name or rec.id
+            if not rec._fd_waiver_covered():
+                raise UserError(
+                    "Intake %s waives a diagnostic fee of BDT %.2f: a Branch Manager must "
+                    "approve the waiver first (Submit for Handover requests it)."
+                    % (label, rec._fd_waived_amount())
+                )
+            fee = rec.diagnostic_fee_bdt or 0.0
+            if fee <= 0 or rec.payment_channel == "waived":
+                continue
+            if rec.payment_channel != "cash":
+                if not (rec.payment_trx_ref or "").strip():
+                    raise UserError(
+                        "Intake %s: enter the receipt / TrxID of the BDT %.2f diagnostic fee."
+                        % (label, fee)
+                    )
+                continue
+            if rec.diagnostic_fee_shift_id:
+                continue  # already in a drawer
+            shift = Shift._fd_open_shift_for(rec.branch_id, rec.company_id)
+            if not shift:
+                if fd_cash_requires_shift(self.env):
+                    raise UserError(
+                        "Branch %s has no open cash shift to take the diagnostic fee of "
+                        "intake %s. Open the cash shift first."
+                        % (rec.branch_id.display_name, label)
+                    )
+                rec.message_post(
+                    body="Cash diagnostic fee of BDT %.2f taken with no open cash shift: it is "
+                    "not in any drawer." % fee
+                )
+                continue
+            shift._post_cash_movement("cash_payments", fee)
+            rec._guarded().write({"diagnostic_fee_shift_id": shift.id})
+
     def action_complete_handover(self):
         """Complete the handover with customer acknowledgement (T03)."""
         self._check_accessory_bag_gate()
         self._resolve_device()
         self._check_handover_proof()
+        self._fd_settle_diagnostic_fee()
         for rec in self:
             now = fields.Datetime.now()
             vals = {
@@ -320,7 +515,18 @@ class FixWalkinIntake(models.Model):
             if not rec.service_order_id:
                 vals["service_order_id"] = rec._create_service_order().id
             rec._guarded().write(vals)
-            self._emit("handover.completed", rec)
+            # A02 audit B2: a literal publish() so FF-48 sees the event
+            publish(
+                self.env,
+                "handover.completed",
+                "fix.walkin.intake",
+                rec.id,
+                {
+                    "intake_id": rec.id,
+                    "branch": rec.branch_id.name,
+                    "duration_seconds": rec.intake_duration_seconds,
+                },
+            )
 
     def _create_service_order(self):
         """Create the service order from the intake data. The order is born in
@@ -346,18 +552,3 @@ class FixWalkinIntake(models.Model):
             }
         )
         return order
-
-    def _emit(self, event: str, rec):
-        from libs.py.fix_events import publish
-
-        publish(
-            self.env,
-            event,
-            "fix.walkin.intake",
-            rec.id,
-            {
-                "intake_id": rec.id,
-                "branch": rec.branch_id.name,
-                "duration_seconds": rec.intake_duration_seconds,
-            },
-        )

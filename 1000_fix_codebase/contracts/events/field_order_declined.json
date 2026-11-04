@@ -50,7 +50,7 @@
           "type": "integer"
         },
         "reason": {
-          "description": "Type not statically derivable from `reason` (addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py:755 via _emit_field_event() at addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py:1356)."
+          "description": "Type not statically derivable from `reason` (addons/domain/a_service_delivery/cd_field_service/models/fix_field_order.py:779)."
         },
         "notes": {
           "type": "string"

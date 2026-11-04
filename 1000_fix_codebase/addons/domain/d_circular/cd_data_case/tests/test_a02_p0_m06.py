@@ -58,7 +58,10 @@ def m6(odoo_env):
     clerk = user("Front Desk")
     custodian_user = user("Custodian", custodian)
     assert not tech.has_group("base.group_system")
-    customer = env["res.partner"].create({"name": "A02 M06 Customer %d" % n})
+    customer = env["res.partner"].create(
+        {"name": "A02 M06 Customer %d" % n, "phone": "01711000333"}
+    )
+    image_hash = "%064x" % (0xA02 * n)
 
     patchers = []
 
@@ -78,16 +81,29 @@ def m6(odoo_env):
     def p03_action(user, model, rec, method, kwargs=None):
         return call(user, "model_action", model=model, ids=rec.ids, method=method, kwargs=kwargs)
 
-    def new_case(serial="WD-CASE-%d" % n, **vals):
+    def evaluate(case, verdict="recoverable"):
+        env["fix.data.evaluation"].with_user(tech).create(
+            {"case_id": case.id, "verdict": verdict}
+        ).action_complete()
+
+    def new_case(serial="WD-CASE-%d" % n, staffed=True, evaluated=False, **vals):
         vals = {
             "customer_id": customer.id,
             "media_type": "hdd",
             "media_serial_number": serial,
             **vals,
         }
-        return env[CASE].with_user(tech).create(vals)
+        case = env[CASE].with_user(tech).create(vals)
+        if staffed:
+            # A02 audit M06-P2: Z4 work is for the case's named staff
+            case.action_assign_staff(technician=tech, custodian=custodian_user)
+        if evaluated:
+            evaluate(case)
+        return case
 
     def accept_quote(case, amount=15000):
+        if not case.evaluation_ids.filtered("evaluated_at"):
+            evaluate(case)
         quote = env["fix.data.quote"].with_user(tech).create({"case_id": case.id, "amount": amount})
         quote.action_send()
         quote.action_accept(acceptance_reference="OTP-%06d" % (n * 7))
@@ -97,20 +113,45 @@ def m6(odoo_env):
         case = case.with_user(tech)
         case.action_take_custody("tech")
         case.action_route_to_z4()
-        env["fix.data.evaluation"].with_user(tech).create(
-            {"case_id": case.id, "verdict": "recoverable"}
-        ).action_complete()
+        evaluate(case)
         accept_quote(case)
         case.action_start_recovery()
         return case
+
+    def image(case, by=None, verifier=None):
+        case.with_user(by or tech).action_record_image(
+            source_hash=image_hash, image_hash=image_hash
+        )
+        case.with_user(verifier or tech2).action_verify_image(recomputed_hash=image_hash)
+
+    def handover_code(case):
+        """Send the recipient the handover code; return what they received."""
+        sent = {}
+
+        def _send(self, recipient, phone, code):
+            sent.update(recipient=recipient, code=code)
+            return {"destination": "017*****333"}
+
+        with mock.patch.object(type(case), "_handover_send_code", _send):
+            case.action_request_handover_otp()
+        return sent["code"]
+
+    def ready_for_handover(case, target="TGT-%d" % n):
+        case.write({"handover_recipient_id": customer.id, "encrypted_target_serial": target})
+        case.action_confirm_target_serial(target)
+        env["ir.attachment"].with_user(tech).create(
+            {"name": "receipt.pdf", "raw": b"%PDF receipt", "res_model": CASE, "res_id": case.id}
+        )
 
     def to_handover(case):
         case = to_recovering(case)
         env["fix.data.recovery.attempt"].with_user(tech).create(
             {"case_id": case.id, "method": "software_scan"}
         ).action_finish(outcome="success")
+        image(case)
         case.action_recovered()
-        case.action_handover("tech")
+        ready_for_handover(case)
+        case.action_handover("tech", verification=handover_code(case))
         return case
 
     def new_cert(serial, log=b"nwipe: 1953525168 sectors overwritten, PASS", by=None):
@@ -164,6 +205,11 @@ def m6(odoo_env):
         p03_write=p03_write,
         p03_action=p03_action,
         new_case=new_case,
+        evaluate=evaluate,
+        image=image,
+        image_hash=image_hash,
+        handover_code=handover_code,
+        ready_for_handover=ready_for_handover,
         accept_quote=accept_quote,
         to_recovering=to_recovering,
         to_handover=to_handover,
@@ -194,7 +240,7 @@ def test_a_plain_user_has_no_case_access(m6):
     """Z4 / BRU-DTS-02: case PII is for the data-recovery role (M06-3)."""
     with pytest.raises(AccessError):
         m6.env[CASE].with_user(m6.clerk).create({"customer_id": m6.customer.id})
-    case = m6.new_case(image_sha256_hash="abc123", nda_reference="NDA-77")
+    case = m6.new_case(nda_reference="NDA-77")
     cols = ["name", "customer_id", "media_serial_number", "image_sha256_hash", "custody_chain"]
     out = m6.call(m6.clerk, "model_records", model=CASE, cols=cols, domain=[("id", "=", case.id)])
     assert out.get("error") and not out.get("rows")
@@ -243,6 +289,10 @@ def test_D3_recovered_only_from_recovery_with_a_successful_attempt(m6):
         .create({"case_id": case.id, "method": "software_scan"})
     )
     attempt.action_finish(outcome="partial")
+    # A02 audit M06-P2: and from a verified forensic image
+    with pytest.raises(UserError, match="verified forensic image"):
+        case.action_recovered()
+    m6.image(case)
     case.action_recovered()
     assert case.state == "recovered"
 
@@ -311,7 +361,7 @@ def test_D5_destructive_attempt_needs_consent_and_a_passing_cleanroom_slot(m6):
 
 
 def test_D6_custody_chain_is_an_append_only_ledger(m6):
-    case = m6.new_case(serial="WD-D6")
+    case = m6.new_case(serial="WD-D6", staffed=False)
     case.action_take_custody("Desk")
     case.action_log_custody_transfer("Nadia", location="Z4 Vault")
     res = m6.p03_write(m6.tech, CASE, case, {"custody_chain": "nothing happened"})
@@ -524,7 +574,7 @@ def test_Z3_access_needs_the_custodian_role_then_the_totp(m6):
 
 
 def test_Q1_quote_state_cannot_be_forged(m6):
-    case = m6.new_case()
+    case = m6.new_case(evaluated=True)
     quote = (
         m6.env["fix.data.quote"].with_user(m6.tech).create({"case_id": case.id, "amount": 15000})
     )
@@ -537,7 +587,7 @@ def test_Q1_quote_state_cannot_be_forged(m6):
 
 
 def test_Q2_acceptance_needs_the_customers_artefact(m6):
-    case = m6.new_case()
+    case = m6.new_case(evaluated=True)
     Quote = m6.env["fix.data.quote"].with_user(m6.tech)
     quote = Quote.create({"case_id": case.id, "amount": 15000})
     quote.action_send()
@@ -598,7 +648,7 @@ def test_Q3_price_and_terms_freeze_once_sent(m6):
 
 
 def test_Q4_negative_amount_is_refused(m6):
-    case = m6.new_case()
+    case = m6.new_case(evaluated=True)
     with pytest.raises(IntegrityError), m6.env.cr.savepoint():
         m6.env["fix.data.quote"].with_user(m6.tech).create({"case_id": case.id, "amount": -5000})
     res = m6.call(

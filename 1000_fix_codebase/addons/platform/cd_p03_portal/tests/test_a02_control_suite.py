@@ -121,6 +121,38 @@ def test_no_form_offers_a_guarded_field_as_editable(odoo_env, model):
     )
 
 
+# A02 audit C1/B1: the A02 approvals routed through the M63 engine. A floor,
+# so that un-routing one fails here instead of silently shrinking the sweep.
+ROUTED_FLOOR = 13
+# Routed A02 approvals with no workspace surface of their own: the request is
+# raised from the order or job screen and decided only from the inbox.
+ROUTED_WITHOUT_SURFACE = ("fix.so.approval", "fix.workshop.waiver.request")
+
+
+def _routed_models(env):
+    return [
+        name
+        for name in sorted(set(a02.SURFACES) | set(ROUTED_WITHOUT_SURFACE))
+        if name in env and getattr(env[name], "_approval_routed", False)
+    ]
+
+
+def test_every_routed_a02_approval_refuses_to_be_pressed_directly(odoo_env, clerk_env):
+    """C1: an A02 approval routed through M63 cannot be granted by its button;
+    only the approver's inbox applies it."""
+    routed = _routed_models(odoo_env)
+    assert len(routed) >= ROUTED_FLOOR, routed
+    for name in routed:
+        record = clerk_env[name].new({})
+        method = (
+            "action_dofa_approve"
+            if hasattr(record, "_dofa_route_guard")
+            else record._approval_apply_method
+        )
+        with pytest.raises(UserError, match=ROUTED_MESSAGE):
+            getattr(record, method)()
+
+
 def test_the_suite_reaches_the_area(odoo_env):
     """A guard on the guard: the A02 audit found 25 models exposing workflow
     fields; every one of them must now be guarded."""

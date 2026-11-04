@@ -43,6 +43,10 @@ AR_ACCOUNTS = {
     "vds_receivable": ("132000", "VDS Receivable (Mushak 6.6 received, claimed in 9.1)"),
     # IFRS 15 contract liability for subscription / AMC billing.
     "deferred_revenue": ("212000", "Contract Liability (Deferred Revenue)"),
+    # A02 audit B2: a transit-damage payout recovered from the liable courier
+    # (cd_settlement_ext hand-back). MD-035 4-90-10-010 "Other income" is
+    # Odoo 450000, the account rentals use for damage recovery income.
+    "claim_recovery": ("450000", "Damage Claim Recovery Income (liable courier)"),
 }
 
 # The eight capture tenders (FR-ARB-019) and the GL role each clears into.

@@ -72,6 +72,35 @@ def _events(env, event_type, aggregate, res_id):
     return [json.loads(r.payload) for r in rows]
 
 
+IMAGE_HASH = "ab" * 32
+
+
+def _verified_image(case):
+    """A02 audit M06-P2: a case is marked recovered on a verified image."""
+    case.action_record_image(source_hash=IMAGE_HASH, image_hash=IMAGE_HASH)
+    case.action_verify_image(recomputed_hash=IMAGE_HASH)
+
+
+def _verified_handover(case, handler, target="TGT-0001"):
+    """A02 audit M06-P2: a verified recipient, a receipt, the target drive."""
+    from unittest import mock
+
+    case.write({"handover_recipient_id": case.customer_id.id, "encrypted_target_serial": target})
+    case.action_confirm_target_serial(target)
+    case.env["ir.attachment"].create(
+        {"name": "receipt.pdf", "raw": b"%PDF", "res_model": case._name, "res_id": case.id}
+    )
+    sent = {}
+
+    def _send(self, recipient, phone, code):
+        sent["code"] = code
+        return {"destination": "017*****000"}
+
+    with mock.patch.object(type(case), "_handover_send_code", _send):
+        case.action_request_handover_otp()
+    case.action_handover(handler, verification=sent["code"])
+
+
 def _customer(env, name="Data Case Customer"):
     return env["res.partner"].create({"name": name})
 
@@ -199,6 +228,7 @@ def test_recovered_publishes_event(odoo_env):
     odoo_env["fix.data.recovery.attempt"].create(
         {"case_id": case.id, "method": "software_scan"}
     ).action_finish(outcome="success")
+    _verified_image(case)
     case.action_recovered()
     assert case.state == "recovered"
     assert _events(odoo_env, "data_case.recovered", CASE, case.id) == [{"case": case.name}]
@@ -428,9 +458,10 @@ def test_handover_requires_recovered(odoo_env):
 
 def test_handover_logs_custody(odoo_env):
     case = _case_in(odoo_env, "recovered")
-    case.action_handover("Customer counter")
+    case.customer_id.phone = "01711000444"
+    _verified_handover(case, "Customer counter")
     assert case.state == "handover"
-    assert case.custody_chain.strip().endswith("handed over by Customer counter")
+    assert "handed over by Customer counter to" in case.custody_chain.strip().splitlines()[-1]
 
 
 def test_purge_requires_handover(odoo_env):

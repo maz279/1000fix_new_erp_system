@@ -130,10 +130,12 @@ def test_lifecycle_emits_dispatch_accept_events(fs):
     _give_completion_evidence(order)
     order.action_complete()
     assert order.state == "completed"
-    dispatched, accepted = _events(env, "fix.field.order", order.id)
-    assert (dispatched.event_type, accepted.event_type) == (
+    # A02 audit B2: completion now also publishes the M01 hand-back
+    dispatched, accepted, completed = _events(env, "fix.field.order", order.id)
+    assert (dispatched.event_type, accepted.event_type, completed.event_type) == (
         "field.order.dispatched",
         "field.order.accepted",
+        "field.order.completed",
     )
     assert json.loads(dispatched.payload) == {
         "field_order_id": order.id,
@@ -235,7 +237,8 @@ def test_geofence_checks_circle_polygon_and_degenerate_geometry(fs):
         # rows predating the geometry constraint (written around the ORM)
         env.cr.execute("UPDATE fix_geofence SET geometry_json = %s WHERE id = %s", (raw, square.id))
         env.invalidate_all()
-        assert order._check_geofence_arrival(0.0, 0.0) is True
+        # A02 audit M02-8 (P2): unreadable geometry fails closed
+        assert order._check_geofence_arrival(0.0, 0.0) is False
 
 
 def test_cancel_records_the_reason_but_never_a_completed_order(fs):

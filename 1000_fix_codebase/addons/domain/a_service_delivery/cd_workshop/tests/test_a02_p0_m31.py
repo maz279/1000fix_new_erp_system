@@ -163,6 +163,9 @@ def m31(odoo_env):
                     "repair_level": level,
                     "order_id": so.id if so else False,
                     "technician_id": tech_emp.id,
+                    # A02 P2: the book-in the intake gate needs
+                    "bookin_condition": "A02 probe: light scratches on the housing",
+                    "bookin_no_accessories": True,
                     **vals,
                 }
             )
@@ -433,7 +436,12 @@ def _l2_in_repair(m31):
     job.action_intake()
     job.action_diagnostic()
     job.write({"bench_id": m31.l2.id})
-    _as(m31, m31.supv, job).action_grant_certification_waiver("M22 course booked")
+    # A02 P1 (B1): the technician requests it, a supervisor grants it from his inbox
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    job.action_request_certification_waiver("M22 course booked")
+    req = m31.env["fix.workshop.waiver.request"].search([("job_id", "=", job.id)])
+    approve_via_inbox(req, m31.supv)
     job.action_start_repair()
     return job
 
@@ -522,16 +530,17 @@ def test_p31_07_the_technician_cannot_waive_his_own_certification(m31):
     job.action_intake()
     with refused(m31.env, UserError, GUARD):
         job.write({"certification_waiver": True, "certification_waiver_reason": "self"})
-    with refused(m31.env, UserError, "Workshop Supervisor"):
-        job.action_grant_certification_waiver("self-granted")
-    # a supervisor who is himself the repairing technician cannot either
-    job.sudo().write({"technician_id": m31.supv.employee_ids[:1].id})
-    with refused(m31.env, UserError, "Segregation of duties"):
-        _as(m31, m31.supv, job).action_grant_certification_waiver("my own job")
-    job.sudo().write({"technician_id": m31.tech_emp.id})
     with refused(m31.env, UserError, "written justification"):
-        _as(m31, m31.supv, job).action_grant_certification_waiver("")
-    _as(m31, m31.supv, job).action_grant_certification_waiver("M22 course booked")
+        job.action_grant_certification_waiver("")
+    # A02 P1 (B1): pressing the old button only raises the routed request
+    job.action_grant_certification_waiver("M22 course booked")
+    job.invalidate_recordset()
+    assert not job.certification_waiver
+    req = m31.env["fix.workshop.waiver.request"].search([("job_id", "=", job.id)])
+    assert req.state == "pending" and req.approval_state == "pending"
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    approve_via_inbox(req, m31.supv)
     job.invalidate_recordset()
     assert job.certification_waiver
     assert (job.certification_waiver_by_id, job.certification_waiver_technician_id) == (
@@ -649,8 +658,21 @@ def test_p31_09_parts_are_consumed_only_in_repair_and_within_the_estimate(m31):
         _line(m31, job, qty=1, cost=15000.0).action_consume_part()
 
 
+def _approved_estimate(m31, so, amount=30000.0):
+    """Test setup only: an approved M01 estimate (M01's own approval rules
+    are not under test here)."""
+    est = m31.env["fix.estimate"].create(
+        {"order_id": so.id, "line_ids": [(0, 0, {"description": "Repair", "unit_price": amount})]}
+    )
+    m31.env.cr.execute("UPDATE fix_estimate SET state='approved' WHERE id=%s", (est.id,))
+    est.invalidate_recordset(["state"])
+    return est
+
+
 def test_p31_09b_a_consumed_line_is_frozen_and_undeletable(m31):
-    job = _to_repair(m31, m31.job())
+    so = m31.order()
+    _approved_estimate(m31, so)
+    job = _to_repair(m31, m31.job(so=so))
     line = _line(m31, job)
     with refused(m31.env, UserError, GUARD):
         line.write({"reservation_state": "consumed"})
@@ -671,7 +693,13 @@ def test_p31_09b_a_consumed_line_is_frozen_and_undeletable(m31):
 
 
 def test_p31_10_a_delivered_job_is_frozen(m31):
-    job = _to_repair(m31, m31.job())
+    so = m31.order()
+    est = _approved_estimate(m31, so)
+    so.sudo().write(
+        {"payment_settlement_state": "settled", "amount_settled_bdt": est.grand_total,
+         "settlement_verified": True}
+    )  # fmt: skip
+    job = _to_repair(m31, m31.job(so=so))
     line = _line(m31, job)
     job.action_submit_qc()
     _evidence(m31, job, "post_repair_photo", "test_log")
@@ -713,27 +741,38 @@ def test_p31_11_ber_needs_dofa_approval_and_a_second_technician(m31):
             env.ref("cd_workshop.group_fix_workshop_user"),
         ],
     )
-    job = m31.job()
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    so = m31.order(state="diagnostic")
+    job = m31.job(so=so)
     job.action_intake()
     job.action_diagnostic()
+    _evidence(m31, job, "diagnostic_report")
     job.action_propose_ber("Board corroded beyond repair", writeoff_amount=8000.0)
     job.invalidate_recordset()
     assert (job.dofa_writeoff_tier, job.ber_proposed_by_id) == ("tier_2", m31.tech)
-    # no approval yet
-    with refused(env, ValidationError, "requires"):
-        _as(m31, m31.tech2, job).action_confirm_ber()
-    # the proposer cannot approve his own write-off, nor can a non-holder
+    # the proposer cannot approve his own write-off, and nobody presses Approve
     with refused(env, UserError):
         job.action_dofa_approve()
-    job.sudo().write({"dofa_justification": "Corrosion on PMIC area; photos attached"})
-    _as(m31, approver, job).action_dofa_approve()
-    assert job.sudo().dofa_approved
+    with refused(env, UserError, "approver's inbox"):
+        _as(m31, approver, job).action_dofa_approve()
     # the proposer / repairing technician cannot confirm it
     with refused(env, UserError, "second technician"):
         job.action_confirm_ber()
+    job.sudo().write({"dofa_justification": "Corrosion on PMIC area; photos attached"})
+    # A02 P1 (B1): the second technician's confirmation routes the write-off
     _as(m31, m31.tech2, job).action_confirm_ber()
     job.invalidate_recordset()
-    assert (job.state, job.ber_confirmed_by_id) == ("unrepairable", m31.tech2)
+    assert (job.state, job.approval_state) == ("diagnostic", "pending")
+    approve_via_inbox(job, approver, requester=m31.tech2)
+    job.invalidate_recordset()
+    assert (job.state, job.ber_confirmed_by_id, job.dofa_approved_by) == (
+        "unrepairable",
+        m31.tech2,
+        approver,
+    )
+    # B2: the order follows through M01's own unrepairable path
+    assert (so.state, so.cancel_reason_code) == ("cancelled", "unrepairable")
 
 
 # --- bench state (M31-1) ------------------------------------------------------
@@ -781,7 +820,8 @@ def test_the_workspace_offers_named_actions_only():
 
 
 def test_the_bridge_still_hands_an_order_to_the_workshop(m31):
-    """P31-15 stays a PASS: the M01 -> M31 hand-off creates a draft job."""
-    so = m31.order(state="draft")
+    """P31-15 stays a PASS: the M01 -> M31 hand-off creates a draft job
+    (from a booked-in order: a draft order is refused, A02 P2)."""
+    so = m31.order(state="intake")
     job = so.action_create_workshop_job()
     assert (job.state, job.order_id) == ("draft", so)

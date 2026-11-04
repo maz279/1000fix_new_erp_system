@@ -52,7 +52,10 @@
           "type": "number"
         },
         "reason": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "invoice_residual": {
           "type": "number"

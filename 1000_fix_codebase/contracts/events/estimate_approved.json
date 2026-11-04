@@ -31,34 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "estimate_id",
-        "order_id",
-        "version",
-        "state",
-        "grand_total"
-      ],
-      "properties": {
-        "estimate_id": {
-          "type": "integer"
-        },
-        "order_id": {
-          "type": [
-            "integer",
-            "boolean"
-          ]
-        },
-        "version": {
-          "type": "integer"
-        },
-        "state": {
-          "type": "string"
-        },
-        "grand_total": {
-          "type": "number"
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`est._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_estimate.py:489); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_service_order",

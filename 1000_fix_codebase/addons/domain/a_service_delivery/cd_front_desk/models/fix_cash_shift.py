@@ -10,10 +10,17 @@
 #        --confirm--> closed --[variance approval]--> reconcile
 # and the movements (takings, refunds, field cash) are posted only by the
 # counter-sale, refund and field-settlement methods, onto an OPEN shift.
+#
+# A02 audit B1 (P1): the variance approval is a routed M63 request. The
+# cashier requests it once the count is in; the engine routes it to a Branch
+# Manager who did not handle the drawer, and action_approve_variance runs
+# only from that manager's inbox, pinned to the variance it saw.
 import logging
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+from libs.py.fix_events import publish  # FF-28
 
 logger = logging.getLogger(__name__)
 
@@ -42,13 +49,39 @@ DENOMINATIONS = (
 )
 
 
+class FixApprovalMatrixFrontDesk(models.Model):
+    _inherit = "fix.approval.matrix"
+
+    # A02 audit B1: the M04 approvals routed through M63
+    decision_domain = fields.Selection(
+        selection_add=[
+            ("cash_variance", "Cash Drawer Variance"),
+            ("counter_refund", "Counter-Sale Refund"),
+            ("price_override", "Counter Price Below List"),
+            ("diagnostic_fee_waiver", "Diagnostic Fee Waiver"),
+        ],
+        ondelete={
+            "cash_variance": "cascade",
+            "counter_refund": "cascade",
+            "price_override": "cascade",
+            "diagnostic_fee_waiver": "cascade",
+        },
+    )
+
+
 class FixCashShift(models.Model):
     """A cash-drawer shift with opening/closing balances and reconciliation."""
 
     _name = "fix.cash.shift"
     _description = "Cash Shift"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin brings fix.guarded.mixin with it (A02 audit B1)
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "shift_date desc, branch_id"
+
+    _approval_domain = "cash_variance"
+    _approval_apply_method = "action_approve_variance"
+    _approval_group = GROUP_MANAGER
+    _approval_routed = True
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M04-1/-2/-3: the drawer totals, the count, the sign-off
@@ -344,6 +377,27 @@ class FixCashShift(models.Model):
                     "Branch Manager must do this (BRU-FRD-11)." % (rec.id, action)
                 )
 
+    # ------------------------------------------------------------ routing
+
+    def _approval_amount(self) -> float:
+        return abs(self.variance or 0.0) if len(self) == 1 else 0.0
+
+    def _approval_needed(self) -> bool:
+        """A counted variance beyond tolerance that no approval covers yet."""
+        self.ensure_one()
+        if self.state not in ("counting", "closed") or not self.blind_count_submitted:
+            return False
+        if abs(self.variance) <= self._fd_tolerance():
+            return False
+        approved = self.supervisor_variance_approved_by and (
+            abs(self.variance_approved_amount - self.variance) <= 0.005
+        )
+        return not approved
+
+    def _approval_excluded(self):
+        """BRU-FRD-11: whoever handled the cash never receives the task."""
+        return super()._approval_excluded() | self._fd_cash_handlers().sudo()
+
     # ------------------------------------------------------------ movements
 
     def _post_cash_movement(self, field, amount):
@@ -412,6 +466,9 @@ class FixCashShift(models.Model):
                     body="Recount submitted: the variance approval by %s is void."
                     % rec.supervisor_variance_approved_by.name
                 )
+            if rec.approval_state in ("pending", "approved"):
+                # A02 audit B1: the request covered the previous count
+                rec._approval_void("a recount was submitted")
             rec._guarded().write(
                 {
                     "state": "counting",
@@ -445,7 +502,9 @@ class FixCashShift(models.Model):
     def action_approve_variance(self):
         """A02 audit M04-2: a variance beyond tolerance is approved by a Branch
         Manager who did not handle the cash. The approval is stamped from the
-        acting user and pinned to the variance it saw."""
+        acting user and pinned to the variance it saw. A02 audit B1: it runs
+        only from the manager's M63 inbox (Request Approval routes it)."""
+        self._approval_assert_routed()
         self._fd_require_group(GROUP_MANAGER, "Branch Manager", "approve a cash variance")
         self._fd_require_independent("approve the variance of")
         tolerance = self._fd_tolerance()
@@ -507,20 +566,16 @@ class FixCashShift(models.Model):
                     "reconciled_at": now,
                 }
             )
-            self._emit("shift.closed", rec)
-
-    def _emit(self, event: str, rec):
-        from libs.py.fix_events import publish
-
-        publish(
-            self.env,
-            event,
-            "fix.cash.shift",
-            rec.id,
-            {
-                "shift_id": rec.id,
-                "branch": rec.branch_id.name,
-                "variance": rec.variance,
-                "currency": rec.currency_id.name,
-            },
-        )
+            # A02 audit B2: a literal publish() so FF-48 sees the event
+            publish(
+                self.env,
+                "shift.closed",
+                "fix.cash.shift",
+                rec.id,
+                {
+                    "shift_id": rec.id,
+                    "branch": rec.branch_id.name,
+                    "variance": rec.variance,
+                    "currency": rec.currency_id.name,
+                },
+            )

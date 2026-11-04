@@ -13,6 +13,11 @@
 # window approval, patch-policy approval and the post-implementation review
 # are whitelisted here with their screen buttons; window "open" is gone (a
 # window's state follows its approval and time range).
+#
+# A02 audit B1 (2026-11-04): the CAB change approval, the SLA credit approval
+# and the patch install exception are routed through the M63 engine. Their
+# surfaces offer Request / Recall Approval; the decision is taken in the
+# approver's inbox, so the record's own approve method is no longer listed.
 import logging
 from datetime import date, datetime
 
@@ -62,7 +67,7 @@ SURFACES = {
     "fix.msp.runbook": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_execute"},
+        "actions": {"action_execute", "action_execute_with_evidence"},
     },
     "fix.msp.runbook.run": {
         "order": "id desc",
@@ -77,12 +82,21 @@ SURFACES = {
     "fix.msp.patch.update": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_approve", "action_install", "action_defer", "action_fail"},
+        "actions": {
+            "action_approve",
+            "action_install",
+            "action_defer",
+            "action_fail",
+            "action_record_test",
+            "action_request_window_exception",
+            "action_request_test_exception",
+            "action_recall_approval",
+        },
     },
     "fix.msp.sla.credit": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_approve", "action_apply"},
+        "actions": {"action_request_approval", "action_recall_approval", "action_apply"},
     },
     "fix.msp.oncall.shift": {
         "order": "start_at desc",
@@ -98,7 +112,8 @@ SURFACES = {
         "order": "id desc",
         "limit": 200,
         "actions": {
-            "action_approve",
+            "action_request_approval",
+            "action_recall_approval",
             "action_reject",
             "action_implement",
             "action_record_review",
@@ -194,7 +209,10 @@ def _sla_by_client_report(env, **params):
             "assets": "Assets",
         },
         "rows": rows,
-        "notes": ["Attainment = resolved/alerts per monthly report; target from the contract."],
+        "notes": [
+            "Attainment = alerts resolved within the contract's resolution target / alerts "
+            "judged, per monthly report; target from the contract."
+        ],
     }
 
 

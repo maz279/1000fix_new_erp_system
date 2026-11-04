@@ -31,23 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "contract",
-        "period",
-        "amount"
-      ],
-      "properties": {
-        "contract": {
-          "type": "string"
-        },
-        "period": {
-          "type": "string"
-        },
-        "amount": {
-          "type": "number"
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`credit._msp_credit_note_payload()`, addons/domain/a_service_delivery/cd_msp_contract/models/fix_msp_engines.py:958); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_msp_contract",

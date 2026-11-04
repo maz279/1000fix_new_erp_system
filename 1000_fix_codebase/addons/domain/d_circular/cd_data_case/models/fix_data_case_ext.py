@@ -5,12 +5,17 @@
 #
 # FILE NAME IS LOAD-BEARING: sorts after fix_data_case.py, so the base
 # models exist before these extensions load.
+import logging
 from datetime import date, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
+
+from .fix_data_case import GROUP_LAB_MANAGER
+
+_logger = logging.getLogger(__name__)
 
 SPECIALISMS = [
     ("logical_recovery", "Logical Recovery"),
@@ -195,6 +200,8 @@ class FixDataRecoveryAttempt(models.Model):
                     "Recovery attempts are logged while case %s is in recovery (it is '%s')."
                     % (case.name, case.state)
                 )
+            # A02 audit M06-P2: Z4 work is for the case's named staff only
+            case._z4_assert_assigned("Logging a recovery attempt")
         return super().create(vals_list)
 
     def write(self, vals):
@@ -262,6 +269,7 @@ class FixDataRecoveryAttempt(models.Model):
                     "Attempt %s needs an outcome (success/partial/failed/media_damaged)"
                     % attempt.id
                 )
+            attempt.case_id._z4_assert_assigned("Finishing a recovery attempt")
             # the slot's interlock and the consent are re-checked at the end
             attempt._check_cleanroom_interlock()
             attempt._guarded().write(
@@ -726,8 +734,17 @@ class FixDataQuote(models.Model):
 
     _name = "fix.data.quote"
     _description = "Data Recovery Quotation"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+
+    # A02 audit B1: a re-quote that raises the price the customer was quoted
+    # (or drops no-data-no-fee) is a routed M63 decision for the lab manager,
+    # never the person who raised the price. It cannot be sent before that.
+    _approval_domain = "data_quote_requote"
+    _approval_apply_method = "action_approve_requote"
+    _approval_group = GROUP_LAB_MANAGER
+    _approval_routed = True
 
     company_id = fields.Many2one(
         "res.company", related="case_id.company_id", store=True, readonly=True, index=True
@@ -794,6 +811,24 @@ class FixDataQuote(models.Model):
     superseded_by_id = fields.Many2one(
         "fix.data.quote", string="Superseded By", readonly=True, copy=False
     )
+    supersedes_id = fields.Many2one(
+        "fix.data.quote", string="Re-quote Of", readonly=True, copy=False
+    )
+    requote_approved_by_id = fields.Many2one(
+        "res.users", string="Price Change Approved By", readonly=True, copy=False
+    )
+    requote_approved_at = fields.Datetime(
+        string="Price Change Approved At", readonly=True, copy=False
+    )
+    requote_approved_total = fields.Monetary(
+        string="Total the Approval Covers",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
+    requote_approved_ndnf = fields.Boolean(
+        string="No-Data-No-Fee at Approval", readonly=True, copy=False
+    )
 
     # A02 audit M06-10 (Q4): a quotation of BDT -5,000 was sent and accepted.
     _amount_not_negative = models.Constraint(
@@ -824,7 +859,96 @@ class FixDataQuote(models.Model):
             "accepted_at",
             "accepted_by_id",
             "superseded_by_id",
+            "supersedes_id",
+            "requote_approved_by_id",
+            "requote_approved_at",
+            "requote_approved_total",
+            "requote_approved_ndnf",
         }
+
+    # ---- evaluation gate (A02 audit M06-P2) ---------------------------------
+    @api.model
+    def _assert_case_evaluated(self, case):
+        """A quotation prices a completed evaluation that found data to recover."""
+        evaluations = case.evaluation_ids.filtered("evaluated_at").sorted("evaluated_at")
+        if not evaluations:
+            raise UserError(
+                "Case %s: complete the free evaluation before quoting a price." % case.name
+            )
+        if evaluations[-1].verdict == "unrecoverable":
+            raise UserError(
+                "Case %s was evaluated unrecoverable: there is nothing to quote (no data, no "
+                "fee). Mark the case unrecoverable and return the media." % case.name
+            )
+
+    # ---- the routed price change (A02 audit B1) ----------------------------
+    def _quote_total(self) -> float:
+        self.ensure_one()
+        return (self.amount or 0.0) + (self.donor_fee_bdt or 0.0)
+
+    def _requote_worsens(self) -> list:
+        """What this re-quote changes against the customer, else []."""
+        self.ensure_one()
+        prior = self.supersedes_id
+        if not prior:
+            return []
+        reasons = []
+        if self._quote_total() > prior._quote_total() + 0.005:
+            reasons.append(
+                "the price rises from BDT %.2f to BDT %.2f"
+                % (prior._quote_total(), self._quote_total())
+            )
+        if prior.no_data_no_fee_applies and not self.no_data_no_fee_applies:
+            reasons.append("the no-data-no-fee guarantee is dropped")
+        return reasons
+
+    def _approval_needed(self) -> bool:
+        return self.state == "draft" and bool(self._requote_worsens())
+
+    def _approval_amount(self) -> float:
+        prior = self.supersedes_id
+        return max(self._quote_total() - prior._quote_total(), 0.0) if prior else 0.0
+
+    def _requote_approval_covers(self) -> bool:
+        self.ensure_one()
+        return bool(
+            self.approval_state == "approved"
+            and self.requote_approved_at
+            and abs((self.requote_approved_total or 0.0) - self._quote_total()) <= 0.005
+            and bool(self.requote_approved_ndnf) == bool(self.no_data_no_fee_applies)
+        )
+
+    def action_approve_requote(self):
+        """The M63 apply method: only the lab manager's inbox task runs it."""
+        self._approval_assert_routed()
+        for quote in self:
+            if quote.state != "draft" or not quote._requote_worsens():
+                raise UserError("Quotation %s has no price change to approve." % quote.name)
+            authority = quote._approval_authority_user()
+            if not self.env.su and not authority.has_group(GROUP_LAB_MANAGER):
+                raise UserError(
+                    "Approving a raised re-quote needs the Data Recovery Lab Manager role, "
+                    "which %s does not hold." % authority.name
+                )
+            raisers = (
+                quote.create_uid
+                | quote.approval_request_id.requested_by_id
+                | quote.approval_amount_changed_by_id
+            )
+            if not self.env.su and quote._approval_acting_users() & raisers:
+                raise UserError(
+                    "Segregation of duties: the price change on %s must be approved by "
+                    "someone who did not raise it." % quote.name
+                )
+            quote._guarded().write(
+                {
+                    "requote_approved_by_id": self.env.uid,
+                    "requote_approved_at": fields.Datetime.now(),
+                    "requote_approved_total": quote._quote_total(),
+                    "requote_approved_ndnf": quote.no_data_no_fee_applies,
+                }
+            )
+        return True
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -834,7 +958,10 @@ class FixDataQuote(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        Case = self.env["fix.data.recovery.case"]
         for vals in vals_list:
+            if vals.get("case_id"):
+                self._assert_case_evaluated(Case.browse(vals["case_id"]))
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.data.quote") or "DRQ/New"
         return super().create(vals_list)
 
@@ -849,12 +976,28 @@ class FixDataQuote(models.Model):
                         "Quotation %s was sent to the customer: its price and terms are "
                         "frozen. Issue a new quotation (Re-quote) to change them." % quote.name
                     )
-        return super().write(vals)
+        result = super().write(vals)
+        if terms:
+            # an approved price change covers the price that was approved
+            moved = self.filtered(
+                lambda q: q.approval_state == "approved" and not q._requote_approval_covers()
+            )
+            if moved:
+                moved._approval_void("the re-quoted price or terms changed after approval")
+        return result
 
     def action_send(self):
         for quote in self:
             if quote.state != "draft":
                 raise UserError("Quote %s is not draft" % quote.name)
+            self._assert_case_evaluated(quote.case_id)
+            worse = quote._requote_worsens()
+            if worse and not quote._requote_approval_covers():
+                raise UserError(
+                    "Re-quote %s cannot be sent: %s. That needs the lab manager's approval "
+                    "(Request Approval), and the approval covers the price it was given for."
+                    % (quote.name, " and ".join(worse))
+                )
             quote._guarded().write({"state": "sent", "sent_at": fields.Datetime.now()})
             publish(
                 self.env,
@@ -968,6 +1111,7 @@ class FixDataQuote(models.Model):
                     "valid_until": quote.valid_until,
                 }
             )
+            new._guarded().write({"supersedes_id": quote.id})
             quote._guarded().write({"state": "superseded", "superseded_by_id": new.id})
             new_quotes |= new
         return {"quote_ids": new_quotes.ids}
@@ -1052,6 +1196,54 @@ class FixDataBackupPlan(models.Model):
                 and last.result == "passed"
                 and (not plan.next_test_due or plan.next_test_due >= date.today())
             )
+
+    test_overdue_notified_on = fields.Date(
+        string="Overdue Notice Sent For", readonly=True, copy=False
+    )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A02 audit B4: next_test_due was set only by a logged test, so a new
+        # plan was never due. The first test falls due one interval out.
+        for vals in vals_list:
+            if not vals.get("next_test_due"):
+                vals["next_test_due"] = date.today() + timedelta(
+                    days=vals.get("test_frequency_days") or 90
+                )
+        return super().create(vals_list)
+
+    @api.model
+    def cron_restore_test_due(self):
+        """B4: a to-do for every plan whose restore test is overdue, once per
+        due date (idempotent). Plans with no date get one from their creation."""
+        today = date.today()
+        undated = self.sudo().search([("next_test_due", "=", False)])
+        for plan in undated:
+            start = (plan.create_date or fields.Datetime.now()).date()
+            plan.next_test_due = start + timedelta(days=plan.test_frequency_days or 90)
+        overdue = self.sudo().search([("next_test_due", "<", today)])
+        notified = 0
+        for plan in overdue.filtered(lambda p: p.test_overdue_notified_on != p.next_test_due):
+            try:
+                with self.env.cr.savepoint():
+                    note = "Restore test overdue since %s (every %d days)." % (
+                        plan.next_test_due,
+                        plan.test_frequency_days or 90,
+                    )
+                    plan.message_post(body=note)
+                    user = plan.create_uid
+                    if user and user.active and not user.share:
+                        plan.activity_schedule(
+                            "mail.mail_activity_data_todo",
+                            summary="Restore test overdue: %s" % plan.name,
+                            note=note,
+                            user_id=user.id,
+                        )
+                    plan.test_overdue_notified_on = plan.next_test_due
+                    notified += 1
+            except Exception:
+                _logger.exception("M06 restore-test reminder failed for plan %s", plan.id)
+        return notified
 
     def action_log_test(self, result="passed", restored_gb=0.0, notes=""):
         """Record a restore test; the next due date rolls forward by the

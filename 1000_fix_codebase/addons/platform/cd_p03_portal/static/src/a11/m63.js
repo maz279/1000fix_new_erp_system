@@ -20,7 +20,11 @@ export const MODULE = {
     { l: 'Approvals Pending', m: 'approvals_pending' },
     { l: 'Pending > 72 h', m: 'approvals_overdue' },
     { l: 'Approver = Creator', m: 'approver_is_creator' },
-    { l: 'Median Approval', m: 'approval_median_hours', suffix: ' h' }
+    { l: 'Median Approval', m: 'approval_median_hours', suffix: ' h' },
+    { l: 'A02 Variance Self-Approved', m: 'a02_variance_self_approved' },
+    { l: 'A02 Cert Self-Verified', m: 'a02_cert_self_verified' },
+    { l: 'A02 Delivery OTP', m: 'a02_delivery_otp_pct', suffix: '%' },
+    { l: 'A02 Completion Evidence', m: 'a02_completion_evidence_pct', suffix: '%' }
   ],
   groups: [
     { en: 'Engine', screens: [
@@ -41,7 +45,8 @@ export const MODULE = {
       { id: 'M63-tasks', en: 'Unified Task Inbox', bn: 'একত্র কাজের ইনবক্স', t: 'g' },
       { id: 'M63-requests', en: 'Approval Requests', bn: 'অনুমোদনের অনুরোধ', t: 'g' },
       { id: 'M63-history', en: 'Approval History', bn: 'অনুমোদনের ইতিহাস', t: 'g' },
-      { id: 'M63-rpt-approval', en: 'Approval KPIs', bn: 'অনুমোদন সূচক', t: 'r' }
+      { id: 'M63-rpt-approval', en: 'Approval KPIs', bn: 'অনুমোদন সূচক', t: 'r' },
+      { id: 'M63-rpt-a02', en: 'A02 Control KPIs', bn: 'A02 নিয়ন্ত্রণ সূচক', t: 'r' }
     ]}
   ],
   reports: ['Automation Rate by Process', 'Approval Cycle Time', 'Escalation Analysis', 'Rule Change Log', 'Approval KPIs'],
@@ -100,6 +105,7 @@ export const SCREENS = {
     cols: ['at', 'request_id', 'event', 'user_id', 'on_behalf_of_id', 'tier', 'amount', 'comment'],
     note: 'Append-only: the server refuses every edit and deletion.' },
   'M63-rpt-approval': { kind: 'table_report', module: 'M63', report: 'approval_kpis', title: 'Approval KPIs', period: false },
+  'M63-rpt-a02': { kind: 'table_report', module: 'M63', report: 'a02_controls', title: 'A02 Control KPIs', period: false },
 
   /* Report chips -> their own computed pack */
   'M63-rpt-rate': { kind: 'table_report', module: 'M63', report: 'automation_rate', title: 'Automation Rate by Process', period: false },

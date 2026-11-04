@@ -271,8 +271,91 @@ def approval_kpis(env, date_from=None, date_to=None, **params):
     )
 
 
+def _pct(part, whole):
+    return round(part / whole * 100.0, 1) if whole else 0.0
+
+
+def a02_control_figures(env) -> dict:
+    """A02 audit C3: the service-operations controls, as numbers.
+
+    The engine's "approver = creator" counts only routed requests, so it saw
+    none of A02's own sign-offs. These read the A02 records directly: a cash
+    variance approved by the cashier who counted it, a wipe certificate
+    verified by the technician who wrote it, a delivery released without a
+    verified OTP, and a field job completed without its evidence. Each module
+    is read only when it is installed."""
+    out = {
+        "cash_variance_self_approved": 0,
+        "wipe_cert_self_verified": 0,
+        "delivery_otp_verified_pct": 0.0,
+        "field_completion_evidence_pct": 0.0,
+    }
+    Shift = env.get("fix.cash.shift")
+    if Shift is not None:
+        approved = Shift.sudo().search([("supervisor_variance_approved_by", "!=", False)])
+        out["cash_variance_self_approved"] = len(
+            approved.filtered(
+                lambda s: s.supervisor_variance_approved_by
+                in (s.counted_by | s.operator_id.user_id)
+            )
+        )
+    Cert = env.get("fix.data.wipe.certificate")
+    if Cert is not None:
+        verified = Cert.sudo().search([("verified_by_id", "!=", False)])
+        out["wipe_cert_self_verified"] = len(
+            verified.filtered(lambda c: c.verified_by_id == c.technician_id)
+        )
+    Order = env.get("fix.service.order")
+    if Order is not None:
+        delivered = Order.sudo().search([("state", "in", ("delivered", "closed"))])
+        out["delivery_otp_verified_pct"] = _pct(
+            len(delivered.filtered("delivery_otp_verified")), len(delivered)
+        )
+    Field = env.get("fix.field.order")
+    if Field is not None:
+        done = Field.sudo().search([("state", "=", "completed")])
+        evidenced = done.filtered(
+            lambda f: (f.customer_otp_verified or f.customer_signature_attachment_id)
+            and f.post_work_photo_attachment_id
+        )
+        out["field_completion_evidence_pct"] = _pct(len(evidenced), len(done))
+    return out
+
+
+def a02_controls(env, **params):
+    """A02 audit C3: segregation of duties and evidence coverage in A02."""
+    k = a02_control_figures(env)
+    rows = [
+        {
+            "measure": "Cash variance approved by its own cashier (must be 0)",
+            "value": k["cash_variance_self_approved"],
+        },
+        {
+            "measure": "Wipe certificate verified by its technician (must be 0)",
+            "value": k["wipe_cert_self_verified"],
+        },
+        {"measure": "Deliveries with a verified OTP (%)", "value": k["delivery_otp_verified_pct"]},
+        {
+            "measure": "Field completions with full evidence (%)",
+            "value": k["field_completion_evidence_pct"],
+        },
+    ]
+    return _pack(
+        "A02 Control KPIs",
+        ["measure", "value"],
+        {"measure": "Measure", "value": "Value"},
+        rows,
+        [
+            "Read from the M04 cash shifts, M06 wipe certificates, M01 delivered or closed "
+            "orders and M02 completed field orders. Evidence = a verified customer OTP or "
+            "signature, plus the post-work photo."
+        ],
+    )
+
+
 REPORTS = {
     "approval_kpis": approval_kpis,
+    "a02_controls": a02_controls,
     "automation_rate": automation_rate,
     "approval_cycle_time": approval_cycle_time,
     "escalation_analysis": escalation_analysis,
@@ -294,7 +377,12 @@ def kpis(env):
     completed = instances.filtered(lambda i: i.state == "completed")
     total_hours = sum((t.decided_at - t.created_at).total_seconds() / 3600.0 for t in decided)
     approvals = env["fix.approval.request"].approval_kpis()
+    a02 = a02_control_figures(env)
     return {
+        "a02_variance_self_approved": a02["cash_variance_self_approved"],
+        "a02_cert_self_verified": a02["wipe_cert_self_verified"],
+        "a02_delivery_otp_pct": a02["delivery_otp_verified_pct"],
+        "a02_completion_evidence_pct": a02["field_completion_evidence_pct"],
         "automation_rate": round(len(completed) / len(instances) * 100.0, 1) if instances else 0.0,
         "open_workflows": len(running),
         "avg_approval_time": round(total_hours / len(decided), 1) if decided else 0.0,

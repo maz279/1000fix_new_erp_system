@@ -1,7 +1,7 @@
 # tests/test_field_service_core.py — Unit Tests for cd_field_service (CD-M02-01)
 import json
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from odoo.addons.cd_field_service.models.fix_field_order import FixFieldOrder
@@ -71,8 +71,9 @@ class TestFieldServiceCore:
         mock_order.state = "draft"
         mock_order.technician_id = MagicMock(id=101, name="Rahim Ahmed")
         mock_order.env = MagicMock()
-        mock_order._emit_field_event = MagicMock()
         mock_order.__iter__.return_value = [mock_order]
+        # A02 audit B2: events are literal publish() calls (patched below)
+        mock_order._fix_parts_unresolved = MagicMock(return_value=[])
         # transitions write through the guard (A02 audit M02-1); completion
         # evidence is checked by _fix_completion_evidence_missing (M02-2)
         mock_order._guarded = MagicMock()
@@ -86,11 +87,10 @@ class TestFieldServiceCore:
         assert mock_order.state == "pending_dispatch"
 
         # 2. Dispatch
+        pub = patch("odoo.addons.cd_field_service.models.fix_field_order.publish").start()
         FixFieldOrder.action_dispatch(mock_order)
         assert mock_order.state == "dispatched"
-        mock_order._emit_field_event.assert_called_with(
-            "field.order.dispatched", pytest.approx(mock_order._emit_field_event.call_args[0][1])
-        )
+        assert pub.call_args[0][1:4] == ("field.order.dispatched", "fix.field.order", mock_order.id)
 
         # 3. Accept
         FixFieldOrder.action_accept(mock_order)
@@ -109,9 +109,11 @@ class TestFieldServiceCore:
         FixFieldOrder.action_start_work(mock_order)
         assert mock_order.state == "in_progress"
 
-        # 7. Complete
+        # 7. Complete: the M01 hand-back event is published (A02 audit B2)
         FixFieldOrder.action_complete(mock_order)
         assert mock_order.state == "completed"
+        assert pub.call_args[0][1] == "field.order.completed"
+        patch.stopall()
 
     def test_field_order_decline_flow(self):
         """Test technician decline action records decline log and emits domain event."""
@@ -123,7 +125,6 @@ class TestFieldServiceCore:
         mock_order.technician_id = prev_tech
         mock_order.company_id = MagicMock(id=1)
         mock_order.operating_unit_id = MagicMock(id=2)
-        mock_order._emit_field_event = MagicMock()
         mock_order.__iter__.return_value = [mock_order]
 
         mock_decline_log = MagicMock()
@@ -133,7 +134,10 @@ class TestFieldServiceCore:
         }
         mock_order._guarded = MagicMock()
 
-        FixFieldOrder.action_decline(mock_order, reason="distance", notes="Out of coverage zone")
+        with patch("odoo.addons.cd_field_service.models.fix_field_order.publish") as pub:
+            FixFieldOrder.action_decline(
+                mock_order, reason="distance", notes="Out of coverage zone"
+            )
         mock_order._guarded.return_value.write.assert_called_once_with(
             {
                 "state": "declined",
@@ -143,10 +147,10 @@ class TestFieldServiceCore:
             }
         )
         mock_decline_log.sudo.return_value.create.assert_called_once()
-        mock_order._emit_field_event.assert_called_once()
-        event_args = mock_order._emit_field_event.call_args[0]
-        assert event_args[0] == "field.order.declined"
-        assert event_args[1]["reason"] == "distance"
+        pub.assert_called_once()
+        event_args = pub.call_args[0]
+        assert event_args[1:4] == ("field.order.declined", "fix.field.order", 55)
+        assert event_args[4]["reason"] == "distance"
 
     def test_field_order_invalid_transitions(self):
         """Verify illegal state transitions raise UserError."""

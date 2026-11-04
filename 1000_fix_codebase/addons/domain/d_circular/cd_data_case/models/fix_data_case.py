@@ -25,6 +25,8 @@ WIPE_METHODS = [
 GROUP_OPERATOR = "cd_data_case.group_data_recovery_operator"
 GROUP_WIPE_VERIFIER = "cd_data_case.group_wipe_verifier"
 GROUP_Z4_CUSTODIAN = "cd_data_case.group_z4_custodian"
+# A02 audit B1: approves a re-quote that raises the price (M63 inbox).
+GROUP_LAB_MANAGER = "cd_data_case.group_data_lab_manager"
 
 CUSTODY_ACTIONS = [
     ("custody_taken", "Custody Taken"),
@@ -37,6 +39,10 @@ CUSTODY_ACTIONS = [
     ("purged", "Purged"),
     ("unrecoverable", "Marked Unrecoverable"),
     ("closed", "Closed"),
+    # A02 audit M06-P2: named Z4 staff, and imaging as a recorded step
+    ("z4_assigned", "Z4 Staff Assigned"),
+    ("imaged", "Forensic Image Recorded"),
+    ("image_verified", "Forensic Image Verified"),
 ]
 
 
@@ -381,9 +387,13 @@ class FixDataRecoveryCase(models.Model):
         string="Hardware Write-Blocker / PC-3000 Port ID",
         tracking=True,
     )
+    # A02 audit M06-P2: free text the P03 form could write. Set only by
+    # action_record_image, verified by action_verify_image, then frozen.
     image_sha256_hash = fields.Char(
         string="Bit-Stream Forensic Clone SHA-256 Digest",
         tracking=True,
+        readonly=True,
+        copy=False,
     )
     recovered_files_count = fields.Integer(
         string="Total Recovered Files Count",
@@ -616,6 +626,7 @@ class FixDataRecoveryCase(models.Model):
                     "Case %s: recovery starts only after the customer has accepted the "
                     "quotation." % rec.name
                 )
+            rec._z4_assert_assigned("Starting recovery")
             rec._guarded().write({"state": "recovering"})
 
     def action_recovered(self):
@@ -628,6 +639,8 @@ class FixDataRecoveryCase(models.Model):
                 )
             if not rec.attempt_ids.filtered(lambda a: a.outcome in ("success", "partial")):
                 raise UserError("Case %s: no finished recovery attempt recovered data." % rec.name)
+            rec._z4_assert_assigned("Marking the data recovered")
+            rec._assert_verified_image()
             rec._guarded().write({"state": "recovered"})
             publish(
                 self.env,
@@ -662,12 +675,8 @@ class FixDataRecoveryCase(models.Model):
             rec._custody_log("unrecoverable", "case marked unrecoverable%s" % note)
             rec._guarded().write({"state": "unrecoverable"})
 
-    def action_handover(self, handler):
-        for rec in self:
-            if rec.state != "recovered":
-                raise UserError("Handover from recovered")
-            rec._custody_log("handover", f"handed over by {handler}")
-            rec._guarded().write({"state": "handover"})
+    # action_handover lives in fix_data_case_secure (A02 audit M06-P2): a
+    # verified recipient, a signed receipt and the confirmed target drive.
 
     def action_close(self):
         """CLOSED (spec 8.1 step 9): after the purge, after an unrecoverable
@@ -708,6 +717,8 @@ class FixDataRecoveryCase(models.Model):
         self.ensure_one()
         # A02 audit M06-3: Z4 access is for named custodians, not every user.
         _require_role(self.env, GROUP_Z4_CUSTODIAN, "Z4 Custodian", "Access to Z4 recovered data")
+        # ...and the custodian or technician named on THIS case (A02 audit M06-P2)
+        self._z4_assert_assigned("Access to Z4 recovered data")
         if self.residency_zone != "z4":
             raise UserError("SC-007: Recovered data exists strictly within Z4 sovereign residency.")
         if self.state not in ("recovering", "recovered", "handover"):

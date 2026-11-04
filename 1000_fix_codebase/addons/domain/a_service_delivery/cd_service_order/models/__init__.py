@@ -9,6 +9,7 @@ from . import (
     fix_service_order,
     fix_service_order_fault,
     fix_sla_policy,
+    fix_so_approval,
     fix_work_order,
 )
 
@@ -19,3 +20,7 @@ from . import fix_sla_instance
 # A03 audit M33-5: party.merged consumers; extends fix.service.order and
 # fix.device, so it imports after them.
 from . import fix_party_merge_consumer
+
+# A02 audit B2 / M01-P2: hand-back consumers and the abandoned-device cron;
+# extends fix.service.order, so it imports after it.
+from . import fix_service_order_handback

@@ -8,3 +8,7 @@ from . import (
     fix_party_merge_consumer,
     fix_warranty,
 )
+
+# isort: split
+# A02 audit B1/B4: extend fix.warranty, so they import after it.
+from . import fix_warranty_approval, fix_warranty_expiry
