@@ -22,3 +22,14 @@ access_fix_hr_dependant_role,fix.hr.dependant.role,model_fix_hr_dependant,cd_hr_
 access_fix_hr_education_role,fix.hr.education.role,model_fix_hr_education,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_hr_experience_role,fix.hr.experience.role,model_fix_hr_experience,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_employment_contract_officer,fix.employment.contract.officer,model_fix_employment_contract,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_employment_contract_legal,fix.employment.contract.legal,model_fix_employment_contract,cd_hr_core.group_hr_legal_counsel,1,1,0,0
+access_fix_hr_transfer_executive,fix.hr.transfer.executive,model_fix_hr_transfer,cd_hr_core.group_hr_executive,1,1,0,0
+access_fix_hr_transfer_finance,fix.hr.transfer.finance,model_fix_hr_transfer,cd_hr_core.group_hr_finance,1,1,0,0
+access_fix_hr_transfer_assets,fix.hr.transfer.assets,model_fix_hr_transfer,cd_hr_core.group_clearance_assets,1,1,0,0
+access_fix_hr_exit_finance,fix.hr.exit.finance,model_fix_hr_exit,cd_hr_core.group_hr_finance,1,1,0,0
+access_fix_hr_exit_it,fix.hr.exit.it,model_fix_hr_exit,cd_hr_core.group_clearance_it,1,1,0,0
+access_fix_hr_exit_assets,fix.hr.exit.assets,model_fix_hr_exit,cd_hr_core.group_clearance_assets,1,1,0,0
+access_fix_hr_master_change_user,fix.hr.master.change.user,model_fix_hr_master_change,base.group_user,1,1,1,0
+access_fix_hr_master_change_officer,fix.hr.master.change.officer,model_fix_hr_master_change,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_disciplinary_case_officer,fix.hr.disciplinary.case.officer,model_fix_hr_disciplinary_case,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_disciplinary_case_executive,fix.hr.disciplinary.case.executive,model_fix_hr_disciplinary_case,cd_hr_core.group_hr_executive,1,1,0,0

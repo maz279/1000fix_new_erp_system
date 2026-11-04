@@ -7,10 +7,19 @@ SURFACES = {
     "hr.employee": {
         "order": "name",
         "limit": 500,
+        # A09 P0-b: the leaver and the KPI-090 confirmation are on screen
+        # (HR / HR manager only, checked by the methods). Form 6(a) is a
+        # report pack (REPORTS["form6a_register"]): the action's list result
+        # was dropped by the endpoint.
         "actions": {
             "action_generate_form7_service_book",
             "action_generate_form6_appointment",
-            "action_export_form6a_register",
+            "action_generate_id_card",
+            "action_record_psr_submission",
+            "action_verify_psr",
+            "action_mark_psr_exempt",
+            "action_mark_left",
+            "action_confirm_keycloak_deprovisioned",
         },
     },
     "fix.org.position": {
@@ -21,24 +30,35 @@ SURFACES = {
     "fix.employment.contract": {
         "order": "employee_id, joining_date desc",
         "limit": 400,
+        # The legal sign-off is decided from Legal Counsel's approval inbox
+        # (routed); a contract ends through its exit, never "Terminate".
         "actions": {
-            "action_activate",
-            "action_terminate",
             "action_request_legal_signoff",
-            "action_approve_legal_signoff",
+            "action_recall_approval",
+            "action_activate",
+            "action_new_version",
+            "action_confirm_probation",
+            "action_extend_probation",
             "action_generate_contract_document",
         },
     },
     "fix.hr.transfer": {
         "order": "effective_date desc, id desc",
         "limit": 300,
+        # The executive approval (action_approve) runs from the inbox only.
         "actions": {
             "action_recommend",
             "action_concur",
             "action_tech_eval",
             "action_hr_audit",
             "action_finance_approve",
-            "action_approve",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_tick_open_jobs",
+            "action_tick_toolkit",
+            "action_tick_spare_parts",
+            "action_tick_storekeeper",
+            "action_tick_imprest",
             "action_clear_handover",
             "action_apply",
             "action_cancel",
@@ -48,12 +68,26 @@ SURFACES = {
     "fix.hr.exit": {
         "order": "last_working_day desc, id desc",
         "limit": 300,
-        "actions": {"action_clear", "action_settle", "action_cancel"},
+        # Finance settles from the approval inbox (action_settle is routed).
+        "actions": {
+            "action_confirm_notice",
+            "action_clear_it",
+            "action_clear_finance",
+            "action_clear_hr",
+            "action_clear_assets",
+            "action_clear",
+            "action_compute_settlement",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+            # defined by cd_payroll_bd (M56): pays the pinned settlement
+            "action_create_settlement_payment",
+        },
     },
     "fix.hr.document": {
         "order": "doc_type, employee_id",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_verify", "action_unverify", "action_acknowledge"},
     },
     "fix.hr.dependant": {
         "order": "employee_id, name",
@@ -63,12 +97,38 @@ SURFACES = {
     "fix.hr.education": {
         "order": "passing_year desc, employee_id",
         "limit": 500,
-        "actions": set(),
+        "actions": {"action_verify_online", "action_verify_physical", "action_flag_discrepancy"},
     },
     "fix.hr.experience": {
         "order": "end_date desc, employee_id",
         "limit": 500,
-        "actions": set(),
+        "actions": {
+            "action_reference_positive",
+            "action_reference_neutral",
+            "action_reference_negative",
+            "action_reference_unreachable",
+        },
+    },
+    # A09 P0-b: the routed master change and the disciplinary case.
+    "fix.hr.master.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_cancel"},
+    },
+    "fix.hr.disciplinary.case": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_charge",
+            "action_record_explanation",
+            "action_hold_hearing",
+            "action_start_enquiry",
+            "action_conclude_enquiry",
+            "action_request_approval",
+            "action_suspend",
+            "action_end_suspension",
+            "action_withdraw",
+        },
     },
 }
 
@@ -252,8 +312,8 @@ def probation_conversion(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Labour Rules 2021 r.25: probation may not exceed 6 months; anything inside "
-            "the 90-day window needs a conversion decision."
+            "BLA s.4(8): probation is 6 months (clerical) or 3 (others, +3 for a skilled "
+            "worker); a worker not decided by the end is deemed permanent by the daily cron."
         ],
         empty="No active probation contracts.",
     )
@@ -266,14 +326,15 @@ def establishment_register(env, date_from=None, date_to=None, **params):
     rows = []
     for position in positions:
         heads = len(employees.filtered(lambda e, p=position.id: e.position_id.id == p))
+        sanctioned = position.headcount or 0
         rows.append(
             {
                 "position": position.name,
                 "grade": position.grade or "—",
                 "parent": position.parent_id.name if position.parent_id else "—",
-                "sanctioned": 1,
+                "sanctioned": sanctioned,
                 "filled": heads,
-                "vacant": 1 - heads if heads < 1 else 0,
+                "vacant": max(sanctioned - heads, 0),
             }
         )
     rows.sort(key=lambda r: r["position"])
@@ -290,12 +351,12 @@ def establishment_register(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "One sanctioned head per position record (the model carries no headcount field); "
+            "Sanctioned is the position's headcount (BRU-HCM-10: no holder beyond it); "
             "filled counts the employees currently holding it."
         ],
         totals={
             "position": "Total",
-            "sanctioned": len(rows),
+            "sanctioned": sum(r["sanctioned"] for r in rows),
             "filled": sum(r["filled"] for r in rows),
             "vacant": sum(r["vacant"] for r in rows),
         },
@@ -324,7 +385,47 @@ def org_distribution(env, date_from=None, date_to=None, **params):
     )
 
 
+def form6a_register(env, date_from=None, date_to=None, **params):
+    """Form 6(a) worker register (BLR 2015 r.20 / BLA s.9), read as the caller:
+    the NID column is HR-only, so a non-HR caller is refused, not served."""
+    rows = env["hr.employee"].action_export_form6a_register()
+    cols = [
+        "serial",
+        "employee_code",
+        "name",
+        "father_name",
+        "mother_name",
+        "nid_number",
+        "department",
+        "designation",
+        "employment_type",
+        "joining_date",
+        "service_book_number",
+    ]
+    return _pack(
+        "Form 6(a) Worker Register — %d workers" % len(rows),
+        cols,
+        {
+            "serial": "Sl.",
+            "employee_code": "Code",
+            "name": "Name",
+            "father_name": "Father's Name",
+            "mother_name": "Mother's Name",
+            "nid_number": "NID",
+            "department": "Department",
+            "designation": "Designation",
+            "employment_type": "Employment Nature",
+            "joining_date": "Joining Date",
+            "service_book_number": "Service Book No",
+        },
+        rows,
+        ["Labour Rules 2015 r.20: the register of workers (Form 6(a))."],
+        empty="No employees registered.",
+    )
+
+
 REPORTS = {
+    "form6a_register": form6a_register,
     "headcount_movement": headcount_movement,
     "attrition_analysis": attrition_analysis,
     "probation_conversion": probation_conversion,
@@ -340,7 +441,11 @@ def kpis(env):
     contracts = env["fix.employment.contract"].search(
         [("contract_type", "=", "probation"), ("state", "=", "active")]
     )
-    documents = env["fix.hr.document"].search([("doc_type", "=", "service_book")])
+    # A09 M21-13: this counted documents (+4 for one employee). It is the
+    # number of employees with a verified service book.
+    documents = env["fix.hr.document"].search(
+        [("doc_type", "=", "service_book"), ("verified", "=", True)]
+    )
     exits = env["fix.hr.exit"].search(
         [
             ("state", "in", ("cleared", "settled")),
@@ -361,7 +466,7 @@ def kpis(env):
                 lambda e: e.position_id and "tech" in (e.position_id.name or "").lower()
             )
         ),
-        "open_positions": max(len(positions) - filled, 0),
+        "open_positions": max(sum(positions.mapped("headcount")) - filled, 0),
         "probation_ending_30d": probation_due,
-        "service_books_complete": len(documents),
+        "service_books_complete": len(documents.mapped("employee_id") & employees),
     }

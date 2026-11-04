@@ -19,6 +19,9 @@ SELF_SERVICE = [
     "fix.hse.roadcheck",
     "fix.leave.request",
     "fix.attendance.record",
+    # A09 P0-b (FR-HCM-042): an employee raises a change of their own bank or
+    # identity details; HR decides it (record rule: own requests only).
+    "fix.hr.master.change",
 ]
 
 # Models a plain internal user must NOT be able to write, grouped by why.
@@ -38,6 +41,7 @@ MASTER_DATA = [
     "fix.hr.transfer",
     "fix.hr.exit",
     "fix.hr.document",
+    "fix.hr.disciplinary.case",
     "fix.leave.type",
     "fix.competency",
     "fix.device.category",

@@ -184,10 +184,14 @@ class HrEmployeeExt(models.Model):
     @api.depends("active", "joined_date", "left_date")
     def _compute_employment_status(self):
         """Derive the employment status from Odoo's hr state."""
+        today = fields.Date.today()
         for rec in self:
             if not rec.active:
                 rec.employment_status = "left" if rec.left_date else "leaving"
-            elif rec.joined_date and rec.joined_date <= fields.Date.today():
+            elif rec.left_date and rec.left_date <= today:
+                # A09 audit M21-7: a leaver recorded by the exit stayed "active".
+                rec.employment_status = "left"
+            elif rec.joined_date and rec.joined_date <= today:
                 rec.employment_status = "active"
             else:
                 rec.employment_status = "joining"

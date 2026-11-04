@@ -22,5 +22,19 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_hr_master_change" model="ir.sequence">
+            <field name="name">Employee Master Change</field>
+            <field name="code">fix.hr.master.change</field>
+            <field name="prefix">HMC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_hr_disciplinary_case" model="ir.sequence">
+            <field name="name">Disciplinary Case</field>
+            <field name="code">fix.hr.disciplinary.case</field>
+            <field name="prefix">HDC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>
