@@ -518,6 +518,9 @@
                             <field name="payroll_bank_cooloff_days"/>
                             <field name="payroll_wppf_min_service_months"/>
                             <field name="payroll_wppf_bank_account_id"/>
+                            <field name="payroll_recovery_source"/>
+                            <field name="payroll_recovery_monthly_cap"/>
+                            <field name="payroll_recovery_account_id"/>
                             <field name="payroll_gratuity_expense_account_id"/>
                             <field name="payroll_gratuity_provision_account_id"/>
                         </group>

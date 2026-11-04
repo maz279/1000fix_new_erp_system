@@ -395,6 +395,17 @@ class ResCompanyPayrollStatutory(models.Model):
         "whole remaining balance in the next run (capped only by that run's net). No statutory "
         "cap is assumed; BRU-PAY-12's aggregate deduction cap is a business / counsel ruling.",
     )
+    payroll_recovery_source = fields.Selection(
+        [
+            ("payroll", "The monthly payroll run only (today)"),
+            ("any_payment", "Any payroll payment (run, off-cycle, festival bonus)"),
+        ],
+        string="Overpayment Recovery: Taken From",
+        default="payroll",
+        required=True,
+        help="Where an approved overpayment recovery may be deducted. Injury compensation, "
+        "final settlements and death-in-service nominee payments are never reduced.",
+    )
     payroll_recovery_account_id = fields.Many2one(
         "account.account",
         string="Overpayment Recovery Account",

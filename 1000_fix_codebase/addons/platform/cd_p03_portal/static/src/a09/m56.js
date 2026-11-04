@@ -349,6 +349,7 @@ export const SCREENS = {
           { name: 'total_amount', readonly: true, label: 'Total Bonus (BDT)' },
           { name: 'total_tax', readonly: true, label: 'Tax Withheld (marginal rate, when ruled)' },
           { name: 'total_net', readonly: true, label: 'Net Paid (BDT)' },
+          { name: 'total_recovery', readonly: true, label: 'Overpayments Recovered (BDT)' },
           { name: 'computed_by_id', readonly: true, label: 'Computed By' },
           { name: 'approved_by_id', readonly: true, label: 'Approved By' },
           { name: 'released_by_id', readonly: true, label: 'Released By' },
@@ -402,7 +403,9 @@ export const SCREENS = {
           { name: 'exit_id', readonly: true, label: 'Exit Settlement (I1)' },
           { name: 'hse_incident_ref', readonly: true, label: 'HSE Incident (I5)' },
           { name: 'nominee_name', readonly: true, label: 'Nominee Payee (BLA s.19)' },
-          { name: 'nominee_share_pct', readonly: true, label: 'Nominee Share %' }
+          { name: 'nominee_share_pct', readonly: true, label: 'Nominee Share %' },
+          { name: 'recovery_deduction', readonly: true, label: 'Overpayment Recovered (at request)' },
+          { name: 'net_amount', readonly: true, label: 'Net Paid (BDT)' }
         ]
       }
     ]

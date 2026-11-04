@@ -2094,7 +2094,7 @@
       "producer": "cd_payroll_bd",
       "filename": "payroll_bonus_posted.json",
       "kafka_topic": "fix.events.payroll",
-      "schema_version": "1.0.0",
+      "schema_version": "1.1.0",
       "schema_source": "derived"
     },
     {
@@ -2118,7 +2118,7 @@
       "producer": "cd_payroll_bd",
       "filename": "payroll_posted.json",
       "kafka_topic": "fix.events.payroll",
-      "schema_version": "5.0.0",
+      "schema_version": "6.0.0",
       "schema_source": "derived"
     },
     {

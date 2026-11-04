@@ -1384,7 +1384,7 @@ def test_cost_centres_of_one_unit_post_separate_balanced_groups(w):
     ) == ("CC-FS", "CC-WS", "CC-FS")
     # the pinned cost centre is the slip's, never typed (guarded, and the paid
     # slip is frozen besides)
-    with pytest.raises(UserError, match="cannot be set directly|frozen"), w.env.cr.savepoint():
+    with pytest.raises(UserError, match=r"cannot be set directly|frozen"), w.env.cr.savepoint():
         w.as_(w.officer)["fix.payslip"].browse(slip_of(p, rahim).id).write({"cost_centre": "CC-FS"})
     w.as_(w.manager2)["fix.payroll.period"].browse(p.id).action_post()
     p.invalidate_recordset()
@@ -1608,6 +1608,144 @@ def test_an_mfs_return_marks_failed_wallets_and_finance_reissues_them(w):
     assert "01712345672" in new.file_content and "01712345671" not in new.file_content
     with pytest.raises(UserError, match="no failed item left"), w.env.cr.savepoint():
         ret.action_reissue()
+
+
+# ================================================================ recovery from any payment
+
+
+def _approved_recovery(w, amount, cap=0.0, source="any_payment"):
+    jan = paid(w)
+    w.co.sudo().write(
+        {
+            "payroll_recovery_source": source,
+            "payroll_recovery_monthly_cap": cap,
+            "payroll_recovery_account_id": _account(
+                w.env, w.co, "1201", "Employee Receivable", "asset_receivable"
+            ).id,
+        }
+    )
+    rec = w.as_(w.officer)["fix.payroll.recovery"].create(
+        {
+            "correction_slip_id": slip_of(jan, w.karim).id,
+            "amount": amount,
+            "reason": "January allowance paid twice",
+        }
+    )
+    rec.action_request_approval()
+    decide(w, rec, w.manager)
+    return rec
+
+
+def test_an_offcycle_payment_recovers_within_the_monthly_cap(w):
+    rec = _approved_recovery(w, 5000.0, cap=1500.0)
+    oc = w.as_(w.officer)["fix.payroll.offcycle"].create(
+        {"employee_id": w.karim.id, "payment_type": "arrear", "amount": 4000.0}
+    )
+    res = p03(
+        w.as_(w.officer),
+        "model_action",
+        model="fix.payroll.offcycle",
+        ids=[oc.id],
+        method="action_request_approval",
+    )
+    assert res["success"], res
+    oc.invalidate_recordset()
+    assert (oc.recovery_deduction, oc.net_amount) == (1500.0, 2500.0)
+    rec.invalidate_recordset()
+    assert rec.remaining_amount == 3500.0
+    with pytest.raises(UserError, match="cannot be set directly"), w.env.cr.savepoint():
+        oc.write({"recovery_deduction": 0.0})
+    # recalling the request gives the recovery back; requesting again takes it once
+    oc.action_recall_approval()
+    rec.invalidate_recordset()
+    assert rec.remaining_amount == 5000.0 and oc.recovery_deduction == 0.0
+    oc.action_request_approval()
+    rec.invalidate_recordset()
+    assert rec.remaining_amount == 3500.0
+    decide(w, oc, w.manager)
+    rel = w.as_(w.releaser)["fix.payroll.offcycle"].browse(oc.id)
+    rel.action_pay()
+    assert (
+        rel.beftn_batch_id.total_amount == 2500.0
+        and "0000250000" in rel.beftn_batch_id.file_content
+    )
+    rel.action_post()
+    lines = sorted((ln.account_id.code, ln.debit, ln.credit) for ln in rel.gl_move_id.line_ids)
+    assert lines == [("1201", 0.0, 1500.0), ("2101", 0.0, 2500.0), ("6101", 4000.0, 0.0)]
+
+
+def test_a_festival_bonus_line_recovers_an_overpayment(w):
+    rec = _approved_recovery(w, 5000.0)
+    run = w.as_(w.officer)["fix.payroll.bonus.run"].create(
+        {"festival": "eid_ul_fitr", "bonus_date": date(2026, 3, 20)}
+    )
+    run.action_compute()
+    karim = run.line_ids.filtered(lambda ln: ln.employee_id == w.karim)
+    nasrin = run.line_ids.filtered(lambda ln: ln.employee_id == w.nasrin)
+    assert (karim.amount, karim.recovery_deduction, karim.net_amount) == (30000.0, 5000.0, 25000.0)
+    assert nasrin.recovery_deduction == 0.0
+    assert run.total_recovery == 5000.0 and run.total_net == run.total_amount - 5000.0
+    rec.invalidate_recordset()
+    assert rec.fully_recovered
+    # a recompute releases and takes it once again
+    run.action_compute()
+    rec.invalidate_recordset()
+    assert rec.recovered_amount == 5000.0
+    run.action_request_approval()
+    decide(w, run, w.manager)
+    rel = w.as_(w.releaser)["fix.payroll.bonus.run"].browse(run.id)
+    rel.action_pay()
+    assert rel.beftn_batch_id.total_amount == rel.total_net
+    rel.action_post()
+    lines = sorted((ln.account_id.code, ln.debit, ln.credit) for ln in rel.gl_move_id.line_ids)
+    assert lines == [("1201", 0.0, 5000.0), ("2101", 0.0, rel.total_net), ("6101", 90000.0, 0.0)]
+
+
+def test_an_injury_compensation_is_never_reduced_and_today_s_setting_reduces_nothing(w):
+    _approved_recovery(w, 5000.0)
+    comp = (
+        w.env["fix.payroll.offcycle"]
+        .sudo()
+        .consume_compensation_awarded(
+            {
+                "event_id": "evt-r2-comp-%d" % w.karim.id,
+                "payload": {"employee_id": w.karim.id, "amount": 80000.0, "incident_id": 5151},
+            }
+        )
+    )
+    mine = w.as_(w.officer)["fix.payroll.offcycle"].browse(comp.id)
+    mine.action_request_approval()
+    assert (mine.recovery_deduction, mine.net_amount) == (0.0, 80000.0)
+    # with today's setting (the monthly run only) an arrear is not reduced either
+    w.co.sudo().payroll_recovery_source = "payroll"
+    arrear = w.as_(w.officer)["fix.payroll.offcycle"].create(
+        {"employee_id": w.karim.id, "payment_type": "arrear", "amount": 4000.0}
+    )
+    arrear.action_request_approval()
+    assert arrear.recovery_deduction == 0.0
+
+
+def test_the_monthly_cap_holds_across_the_run_and_an_offcycle_payment(w):
+    rec = _approved_recovery(w, 5000.0, cap=2000.0)
+    oc = w.as_(w.officer)["fix.payroll.offcycle"].create(
+        {
+            "employee_id": w.karim.id,
+            "payment_type": "advance",
+            "amount": 1500.0,
+            "payment_date": date(2026, 2, 10),
+        }
+    )
+    oc.action_request_approval()
+    # the whole advance cannot be taken (something is always paid): 1,499.99
+    assert oc.recovery_deduction == 1499.99
+    _lock_month(w, date(2026, 2, 1), date(2026, 2, 28), "Feb 2026")
+    feb = calculated(w, "2026-02", date(2026, 2, 1), date(2026, 2, 28))
+    # February's cap is 2,000 across both payments: the run takes the rest
+    assert slip_of(feb, w.karim).recovery_deduction == 500.01
+    rec.invalidate_recordset()
+    feb_lines = rec.line_ids.filtered(lambda ln: ln.month == "2026-02")
+    assert round(sum(feb_lines.mapped("amount")), 2) == 2000.0
+    assert rec.remaining_amount == 3000.0
 
 
 # ================================================================ finance events

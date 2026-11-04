@@ -57,6 +57,10 @@ from .fix_payroll_statutory import (
 
 PAYROLL_MANAGER = "cd_payroll_bd.group_payroll_manager"
 PAYROLL_OFFICER = "cd_payroll_bd.group_payroll_officer"
+# Off-cycle types an overpayment recovery never reduces: a final settlement
+# (incl. a death-in-service nominee's share) and an injury compensation are
+# fixed by law or by an award.
+RECOVERY_EXEMPT_TYPES = ("settlement", "compensation")
 # An 11-digit Bangladesh mobile wallet (cd_hr_core's MFS format).
 MFS_WALLET_RE = re.compile(r"^01[3-9]\d{8}$")
 # A paid run: what a certificate or a return reports (a calculated or approved
@@ -161,6 +165,11 @@ class FixFestivalBonusLine(models.Model):
     marginal_rate = fields.Float(string="Marginal Tax Rate", readonly=True, digits=(4, 2))
     tax_withheld = fields.Monetary(currency_field="currency_id", readonly=True)
     net_amount = fields.Monetary(currency_field="currency_id", string="Net Paid", readonly=True)
+    # an approved overpayment recovery taken from the bonus (company setting
+    # payroll_recovery_source = any_payment); net_amount is after it
+    recovery_deduction = fields.Monetary(
+        currency_field="currency_id", string="Overpayment Recovery", readonly=True
+    )
     # A09 round 2: how it is paid - the bank, or (an employee with no bank
     # account) the MFS wallet on the master, exactly as the monthly run
     payment_channel = fields.Selection(
@@ -190,6 +199,7 @@ class FixFestivalBonusLine(models.Model):
             "marginal_rate",
             "tax_withheld",
             "net_amount",
+            "recovery_deduction",
             "payment_channel",
             "mfs_provider",
             "mfs_wallet",
@@ -241,6 +251,9 @@ class FixFestivalBonusRun(models.Model):
     total_amount = fields.Monetary(currency_field="currency_id", readonly=True)
     total_tax = fields.Monetary(currency_field="currency_id", readonly=True, string="Tax Withheld")
     total_net = fields.Monetary(currency_field="currency_id", readonly=True, string="Net Paid")
+    total_recovery = fields.Monetary(
+        currency_field="currency_id", readonly=True, string="Overpayments Recovered"
+    )
     computation_note = fields.Text(readonly=True)
     state = fields.Selection(
         [
@@ -282,6 +295,7 @@ class FixFestivalBonusRun(models.Model):
             "total_amount",
             "total_tax",
             "total_net",
+            "total_recovery",
             "computation_note",
             "line_ids",
         }
@@ -416,6 +430,11 @@ class FixFestivalBonusRun(models.Model):
             )
             for line in others:
                 already[line.employee_id.id] = already.get(line.employee_id.id, 0) + 1
+            # release the recoveries the replaced lines took (through the ORM,
+            # so each recovery's balance is recomputed)
+            self.env["fix.payroll.recovery.line"].sudo().search(
+                [("bonus_line_id", "in", rec.line_ids.ids)]
+            )._guarded().unlink()
             rec.line_ids._guarded().unlink()
             vals_list, skipped, unrated = [], [], []
             multiplier = q2(rec.multiplier)
@@ -501,6 +520,23 @@ class FixFestivalBonusRun(models.Model):
                     "committed payslip to take the rate from." % ", ".join(sorted(unrated))
                 )
             lines = self.env["fix.payroll.bonus.line"]._guarded().create(vals_list)
+            if rec.company_id.payroll_recovery_source == "any_payment":
+                Recovery = self.env["fix.payroll.recovery"]
+                month = rec.bonus_date.strftime("%Y-%m")
+                for line in lines:
+                    due = Recovery._due(line.employee_id, rec.company_id, month, line.net_amount)
+                    taken = Recovery._record(due, month, bonus_line_id=line.id)
+                    if taken:
+                        line._guarded().write(
+                            {
+                                "recovery_deduction": taken,
+                                "net_amount": round(line.net_amount - taken, 2),
+                            }
+                        )
+                        skipped.append(
+                            "%s: overpayment recovery %.2f deducted"
+                            % (line.employee_id.name, taken)
+                        )
             note = "Eligible: %d. %s" % (
                 len(lines),
                 " ".join("Skipped %s." % s for s in skipped),
@@ -513,6 +549,7 @@ class FixFestivalBonusRun(models.Model):
                     "total_amount": sum(lines.mapped("amount")),
                     "total_tax": sum(lines.mapped("tax_withheld")),
                     "total_net": sum(lines.mapped("net_amount")),
+                    "total_recovery": sum(lines.mapped("recovery_deduction")),
                     "computation_note": note.strip(),
                 }
             )
@@ -644,7 +681,8 @@ class FixFestivalBonusRun(models.Model):
         for rec in self:
             if rec.state != "paid" or rec.gl_move_id:
                 raise UserError("Post a paid bonus run once.")
-            if rec.company_id.currency_id.is_zero(rec.total_tax or 0.0):
+            cur = rec.company_id.currency_id
+            if cur.is_zero(rec.total_tax or 0.0) and cur.is_zero(rec.total_recovery or 0.0):
                 payroll_gl_journal(rec.company_id, PAYMENT_GL_ACCOUNTS, rec.name)
                 move = post_two_line_entry(
                     self.env,
@@ -703,20 +741,29 @@ class FixFestivalBonusRun(models.Model):
         }
 
     def _post_with_tds(self):
-        """Dr salary expense (the bonus) / Cr net payable (paid) / Cr TDS payable."""
+        """Dr salary expense (the bonus) / Cr net payable (paid) / Cr TDS
+        payable / Cr overpayment recovery (each only when carried)."""
         self.ensure_one()
         company = self.company_id
-        accounts = [
-            *PAYMENT_GL_ACCOUNTS,
-            ("payroll_tax_payable_account_id", "Income Tax (TDS) Payable"),
-        ]
-        journal = payroll_gl_journal(company, accounts, self.name)
         cur = company.currency_id
+        accounts = list(PAYMENT_GL_ACCOUNTS)
+        if not cur.is_zero(self.total_tax or 0.0):
+            accounts.append(("payroll_tax_payable_account_id", "Income Tax (TDS) Payable"))
+        if not cur.is_zero(self.total_recovery or 0.0):
+            accounts.append(("payroll_recovery_account_id", "Overpayment Recovery Account"))
+        journal = payroll_gl_journal(company, accounts, self.name)
         rows = [
             ("payroll_salary_expense_account_id", "Festival bonus", self.total_amount, 0.0),
             ("payroll_net_payable_account_id", "Festival bonus paid", 0.0, self.total_net),
             ("payroll_tax_payable_account_id", "Festival bonus TDS", 0.0, self.total_tax),
+            (
+                "payroll_recovery_account_id",
+                "Overpayment recovered from festival bonus",
+                0.0,
+                self.total_recovery,
+            ),
         ]
+        rows = [r for r in rows if not (cur.is_zero(r[2] or 0.0) and cur.is_zero(r[3] or 0.0))]
         lines = [
             {
                 "account_id": company[fname].id,
@@ -729,7 +776,9 @@ class FixFestivalBonusRun(models.Model):
         debits = sum(line["debit"] for line in lines)
         credits = sum(line["credit"] for line in lines)
         if cur.compare_amounts(debits, credits):
-            raise UserError("Festival bonus %s does not balance: amount != net + TDS." % self.name)
+            raise UserError(
+                "Festival bonus %s does not balance: amount != net + TDS + recovery." % self.name
+            )
         move, _dims = post_with_dimensions(
             self.env,
             {
@@ -751,6 +800,9 @@ class FixFestivalBonusRun(models.Model):
             if rec.state not in ("draft", "computed"):
                 raise UserError("Only a bonus run not yet approved can be cancelled.")
             rec._refuse_while_pending("cancel it")
+            self.env["fix.payroll.recovery.line"].sudo().search(
+                [("bonus_line_id", "in", rec.line_ids.ids)]
+            )._guarded().unlink()
             rec._guarded().write({"state": "cancelled"})
 
 
@@ -1143,6 +1195,17 @@ class FixOffcyclePayment(models.Model):
     nominee_account_id = fields.Many2one(
         "fix.payroll.nominee.account", string="Nominee Account", readonly=True
     )
+    # an approved overpayment recovery taken at the approval request (company
+    # setting payroll_recovery_source = any_payment), pinned in the digest
+    recovery_deduction = fields.Monetary(
+        currency_field="currency_id", string="Overpayment Recovery", readonly=True, default=0.0
+    )
+    net_amount = fields.Monetary(
+        currency_field="currency_id",
+        string="Net Paid",
+        compute="_compute_net_amount",
+        store=True,
+    )
     # A09 round 2: how it is paid - the bank, or (an employee with no bank
     # account) the MFS wallet on the master, exactly as the monthly run
     payment_channel = fields.Selection(
@@ -1178,6 +1241,7 @@ class FixOffcyclePayment(models.Model):
             "nominee_name",
             "nominee_share_pct",
             "nominee_account_id",
+            "recovery_deduction",
             "payment_channel",
             "mfs_provider",
             "mfs_wallet",
@@ -1227,6 +1291,43 @@ class FixOffcyclePayment(models.Model):
             if rec.amount <= 0:
                 raise ValidationError("An off-cycle payment is a positive amount.")
 
+    @api.depends("amount", "recovery_deduction")
+    def _compute_net_amount(self):
+        for rec in self:
+            rec.net_amount = round((rec.amount or 0.0) - (rec.recovery_deduction or 0.0), 2)
+
+    # payments a recovery never reduces: what the law or an award fixes
+    def _recovery_exempt(self):
+        self.ensure_one()
+        return (
+            self.payment_type in RECOVERY_EXEMPT_TYPES
+            or bool(self.exit_id)
+            or bool(self.nominee_name)
+        )
+
+    def _release_recovery(self):
+        lines = (
+            self.env["fix.payroll.recovery.line"].sudo().search([("offcycle_id", "in", self.ids)])
+        )
+        lines._guarded().unlink()
+        self.filtered("recovery_deduction")._guarded().write({"recovery_deduction": 0.0})
+
+    def _take_recovery(self):
+        """At the approval request: what an approved recovery takes from this
+        payment, within the monthly cap across every payment of the month."""
+        self.ensure_one()
+        self._release_recovery()
+        if self.company_id.payroll_recovery_source != "any_payment" or self._recovery_exempt():
+            return 0.0
+        Recovery = self.env["fix.payroll.recovery"]
+        month = self.payment_date.strftime("%Y-%m")
+        # never the whole payment: something is paid on every approved payment
+        due = Recovery._due(self.employee_id, self.company_id, month, self.amount - 0.01)
+        taken = Recovery._record(due, month, offcycle_id=self.id)
+        if taken:
+            self._guarded().write({"recovery_deduction": taken})
+        return taken
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -1260,6 +1361,11 @@ class FixOffcyclePayment(models.Model):
                     (self.routing_no or "").strip(),
                 )
             ]
+            + (
+                [(self.id, self.employee_id.id, "recovery", "%.2f" % self.recovery_deduction, "")]
+                if self.recovery_deduction
+                else []
+            )
             + (
                 [
                     (
@@ -1372,6 +1478,7 @@ class FixOffcyclePayment(models.Model):
                     "mfs_wallet": wallet,
                 }
             )
+            rec._take_recovery()
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
@@ -1403,8 +1510,14 @@ class FixOffcyclePayment(models.Model):
             )
 
     def _approval_on_rejected(self, comment):
+        self._release_recovery()
         for rec in self:
             rec.message_post(body="Off-cycle payment rejected: %s" % (comment or ""))
+
+    def action_recall_approval(self):
+        result = super().action_recall_approval()
+        self._release_recovery()
+        return result
 
     def _beftn_entries(self):
         from .fix_payroll import beftn_entry
@@ -1415,7 +1528,9 @@ class FixOffcyclePayment(models.Model):
                 "Off-cycle payment %s does not match its approval - nothing is paid from a "
                 "changed payment." % self.name
             )
-        entry = beftn_entry(self.employee_id, self.bank_account_no, self.routing_no, self.amount)
+        entry = beftn_entry(
+            self.employee_id, self.bank_account_no, self.routing_no, self.net_amount
+        )
         if self.nominee_name:
             entry.employee_name = self.nominee_name.strip()  # the nominee is the beneficiary
         return [entry]
@@ -1444,7 +1559,7 @@ class FixOffcyclePayment(models.Model):
                     )
                 disb = self.env["fix.mfs.disbursement"]._create_rows(
                     {"offcycle_id": rec.id},
-                    [(rec.employee_id, rec.mfs_provider, rec.mfs_wallet, rec.amount)],
+                    [(rec.employee_id, rec.mfs_provider, rec.mfs_wallet, rec.net_amount)],
                     submitted,
                     rec.company_id,
                     "OFFCYCLE %s" % rec.name,
@@ -1481,7 +1596,7 @@ class FixOffcyclePayment(models.Model):
                         "submitted_at": submitted,
                         "settlement_date": beftn_settlement_date(submitted),
                         "employee_count": 1,
-                        "total_amount": rec.amount,
+                        "total_amount": rec.net_amount,
                         "company_account_no": account,
                         "company_routing_no": routing,
                         "released_by_id": self.env.user.id,
@@ -1514,19 +1629,74 @@ class FixOffcyclePayment(models.Model):
         for rec in self:
             if rec.state != "paid" or rec.gl_move_id:
                 raise UserError("Post a paid off-cycle payment once.")
-            payroll_gl_journal(rec.company_id, PAYMENT_GL_ACCOUNTS, rec.name)
-            move = post_two_line_entry(
-                self.env,
-                rec.company_id,
-                "Off-Cycle Payment - %s" % rec.name,
-                rec.payment_date,
-                rec.amount,
-                "%s %s"
-                % (dict(self._fields["payment_type"].selection)[rec.payment_type], rec.name),
-                "payroll_salary_expense_account_id",
-                "payroll_net_payable_account_id",
+            label = "%s %s" % (
+                dict(self._fields["payment_type"].selection)[rec.payment_type],
+                rec.name,
             )
+            cur = rec.company_id.currency_id
+            if cur.is_zero(rec.recovery_deduction or 0.0):
+                payroll_gl_journal(rec.company_id, PAYMENT_GL_ACCOUNTS, rec.name)
+                move = post_two_line_entry(
+                    self.env,
+                    rec.company_id,
+                    "Off-Cycle Payment - %s" % rec.name,
+                    rec.payment_date,
+                    rec.amount,
+                    label,
+                    "payroll_salary_expense_account_id",
+                    "payroll_net_payable_account_id",
+                )
+            else:
+                move = rec._post_with_recovery(label)
             rec._guarded().write({"state": "posted", "gl_move_id": move.id})
+
+    def _post_with_recovery(self, label):
+        """Dr salary expense (the payment) / Cr net payable (what was paid) /
+        Cr overpayment recovery (what it recovered)."""
+        self.ensure_one()
+        company = self.company_id
+        cur = company.currency_id
+        journal = payroll_gl_journal(
+            company,
+            [
+                *PAYMENT_GL_ACCOUNTS,
+                ("payroll_recovery_account_id", "Overpayment Recovery Account"),
+            ],
+            self.name,
+        )
+        rows = [
+            ("payroll_salary_expense_account_id", label, self.amount, 0.0),
+            ("payroll_net_payable_account_id", "%s paid" % label, 0.0, self.net_amount),
+            (
+                "payroll_recovery_account_id",
+                "Overpayment recovered from %s" % self.name,
+                0.0,
+                self.recovery_deduction,
+            ),
+        ]
+        lines = [
+            {
+                "account_id": company[f].id,
+                "name": n,
+                "debit": cur.round(d),
+                "credit": cur.round(c),
+            }
+            for f, n, d, c in rows
+        ]
+        if cur.compare_amounts(sum(ln["debit"] for ln in lines), sum(ln["credit"] for ln in lines)):
+            raise UserError("Off-cycle payment %s does not balance." % self.name)
+        move, _dims = post_with_dimensions(
+            self.env,
+            {
+                "move_type": "entry",
+                "ref": "Off-Cycle Payment - %s" % self.name,
+                "journal_id": journal.id,
+                "date": self.payment_date,
+                "line_ids": [Command.create(line) for line in lines],
+            },
+            {idx: {"operating_unit_id": False} for idx in range(len(lines))},
+        )
+        return move
 
     def action_cancel(self):
         for rec in self:
@@ -1538,6 +1708,7 @@ class FixOffcyclePayment(models.Model):
                 self.env.su or self.env.user.has_group(PAYROLL_MANAGER)
             ):
                 raise AccessError("Only a Payroll Manager cancels an approved payment.")
+            rec._release_recovery()
             rec._guarded().write({"state": "cancelled"})
 
     # ---- I5: injury compensation from M59 ------------------------------------

@@ -568,6 +568,7 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
                 {
                     "operating_unit_id": False,
                     "branch_id": False,
+                    "cost_centre": False,
                     "gross": 90576.92,
                     "tax": 475.0,
                     "net": 81101.92,

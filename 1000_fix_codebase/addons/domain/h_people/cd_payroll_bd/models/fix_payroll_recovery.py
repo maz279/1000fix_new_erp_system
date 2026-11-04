@@ -188,35 +188,64 @@ class FixPayrollRecovery(models.Model):
 
     # ---- what a calculation deducts ------------------------------------------
     @api.model
-    def _due_for(self, slip):
-        """[(recovery, amount)] the slip's run deducts: approved, unchanged
-        recoveries of the employee still owing, oldest first, each capped by
-        the company's monthly cap, together never more than the slip's net."""
+    def _due(self, employee, company, month, available, extra_domain=()):
+        """[(recovery, amount)] a payment of `available` net to `employee` in
+        `month` (YYYY-MM) deducts: approved, unchanged recoveries still owing,
+        oldest first. The company's monthly cap holds per recovery across
+        EVERY payment of the month (run, off-cycle, bonus); together never
+        more than the payment's net."""
         recs = self.sudo().search(
             [
-                ("employee_id", "=", slip.employee_id.id),
-                ("company_id", "=", slip.company_id.id),
+                ("employee_id", "=", employee.id),
+                ("company_id", "=", company.id),
                 ("state", "=", "approved"),
                 ("fully_recovered", "=", False),
-                ("correction_slip_id.period_id", "!=", slip.period_id.id),
+                *extra_domain,
             ],
             order="id",
         )
-        cap = slip.company_id.payroll_recovery_monthly_cap or 0.0
-        available = max(slip.net or 0.0, 0.0)
+        cap = company.payroll_recovery_monthly_cap or 0.0
+        available = max(available or 0.0, 0.0)
         out = []
         for rec in recs:
             if rec.approved_digest != rec._digest():
                 continue  # changed after approval (tampered row): never deducted
             take = rec.remaining_amount
             if cap > 0:
-                take = min(take, cap)
+                this_month = sum(
+                    rec.line_ids.filtered(lambda ln: ln.month == month).mapped("amount")
+                )
+                take = min(take, max(cap - this_month, 0.0))
             take = round(min(take, available), 2)
             if take <= 0:
-                break
+                continue
             out.append((rec, take))
             available -= take
         return out
+
+    @api.model
+    def _due_for(self, slip):
+        """What a monthly payslip deducts (never a recovery of its own run)."""
+        return self._due(
+            slip.employee_id,
+            slip.company_id,
+            slip.period_id.period_start.strftime("%Y-%m"),
+            slip.net,
+            [("correction_slip_id.period_id", "!=", slip.period_id.id)],
+        )
+
+    @api.model
+    def _record(self, due, month, **target):
+        """The recovery lines of one payment; returns their total."""
+        if not due:
+            return 0.0
+        self.env["fix.payroll.recovery.line"].sudo()._guarded().create(
+            [
+                {"recovery_id": rec.id, "amount": amount, "month": month, **target}
+                for rec, amount in due
+            ]
+        )
+        return round(sum(amount for _rec, amount in due), 2)
 
     @api.model
     def _apply(self, slip):
@@ -226,9 +255,7 @@ class FixPayrollRecovery(models.Model):
             return 0.0
         total = round(sum(amount for _rec, amount in due), 2)
         slip._guarded().write({"recovery_deduction": total})
-        self.env["fix.payroll.recovery.line"].sudo()._guarded().create(
-            [{"recovery_id": rec.id, "slip_id": slip.id, "amount": amount} for rec, amount in due]
-        )
+        self._record(due, slip.period_id.period_start.strftime("%Y-%m"), slip_id=slip.id)
         return total
 
 
@@ -244,16 +271,31 @@ class FixPayrollRecoveryLine(models.Model):
     company_id = fields.Many2one(related="recovery_id.company_id", store=True)
     operating_unit_id = fields.Many2one("operating.unit", readonly=True)
     currency_id = fields.Many2one(related="recovery_id.currency_id")
-    # deleted with the slip it rode: a recalculated run takes it again
-    slip_id = fields.Many2one(
-        "fix.payslip", required=True, ondelete="cascade", index=True, readonly=True
+    # the payment it rode - a payslip, an off-cycle payment or a festival
+    # bonus line - and is released with: a recalculation, a recompute or a
+    # recalled request takes it again
+    slip_id = fields.Many2one("fix.payslip", ondelete="cascade", index=True, readonly=True)
+    offcycle_id = fields.Many2one(
+        "fix.payroll.offcycle", ondelete="cascade", index=True, readonly=True
     )
+    bonus_line_id = fields.Many2one(
+        "fix.payroll.bonus.line", ondelete="cascade", index=True, readonly=True
+    )
+    month = fields.Char(index=True, readonly=True, help="YYYY-MM the deduction falls in")
     amount = fields.Monetary(currency_field="currency_id", readonly=True)
+
+    _one_payment = models.Constraint(
+        "CHECK (num_nonnulls(slip_id, offcycle_id, bonus_line_id) = 1)",
+        "A recovery deduction rides exactly one payment.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "recovery_id",
             "operating_unit_id",
             "slip_id",
+            "offcycle_id",
+            "bonus_line_id",
+            "month",
             "amount",
         }
