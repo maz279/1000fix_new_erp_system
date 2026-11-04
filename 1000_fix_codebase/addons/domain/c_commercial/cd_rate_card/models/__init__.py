@@ -1,2 +1,3 @@
 # cd_rate_card models.
-from . import fix_pricing_ops, fix_rate_card
+# ruff: noqa: I001
+from . import pricing_roles, fix_pricing_ops, fix_rate_card, fix_price_change, catalogue_approval

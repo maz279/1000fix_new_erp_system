@@ -24,15 +24,23 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
+    # A04 build (2026-11-04) C3: the plan-change and mandate lifecycles run
+    # by their actions (each checks its own role, state and consent).
     "fix.subscription.proration": {
         "order": "effective_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_request_approval", "action_recall_approval", "action_void"},
     },
     "fix.subscription.autopay": {
         "order": "id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_send_consent_otp",
+            "action_verify_consent_otp",
+            "action_verify_signed_form",
+            "action_activate",
+            "action_revoke",
+        },
     },
 }
 

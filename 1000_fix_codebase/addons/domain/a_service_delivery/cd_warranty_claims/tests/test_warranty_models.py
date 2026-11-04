@@ -1,4 +1,7 @@
-"""Behavioural tests for M09 warranty claims on the live ORM (fixtures: conftest.py)."""
+"""Behavioural tests for M09 warranty claims on the live ORM (fixtures: conftest.py).
+
+These run as the trusted superuser (the AUT-018 intake, the brand API); the
+role and segregation-of-duties controls are in test_a04_m09_controls.py."""
 
 import json
 from datetime import timedelta
@@ -86,13 +89,21 @@ def test_submission_window_and_latencies(wc):
     assert claim.auto_creation_latency_hours == 0.0
 
 
-def test_overdue_only_while_unsubmitted(wc):
+def test_overdue_only_while_unsubmitted_and_searchable(wc):
+    """A04 M09-12: the flag is computed at read time (the stored one froze)
+    and its search twin finds exactly the late, unsubmitted claims."""
+    Claim = wc.env["fix.warranty.claim"]
     claim = wc.claim()
+    on_time = wc.claim()
     assert claim.is_submission_overdue is False
     claim.submission_deadline = fields.Datetime.now() - timedelta(hours=1)
     assert claim.is_submission_overdue is True
+    mine = [("id", "in", (claim | on_time).ids)]
+    assert Claim.search([*mine, ("is_submission_overdue", "=", True)]) == claim
+    assert Claim.search([*mine, ("is_submission_overdue", "=", False)]) == on_time
     claim.state = "submitted"
     assert claim.is_submission_overdue is False
+    assert not Claim.search([*mine, ("is_submission_overdue", "=", True)])
     claim.write({"state": "draft", "submission_deadline": False})
     assert claim.is_submission_overdue is False
 
@@ -108,6 +119,7 @@ def test_missing_evidence_lists_the_labels(wc):
     assert claim.missing_evidence.startswith("Before Photograph, ")
     _complete_pack(wc, claim)
     assert (claim.evidence_complete, claim.missing_evidence) == (True, False)
+    assert all(claim.evidence_ids.filtered("document_id").mapped("evidence_hash"))
 
 
 def test_pack_assembly_from_service_order_documents(wc):
@@ -122,37 +134,27 @@ def test_pack_assembly_from_service_order_documents(wc):
     assert sorted(partial.evidence_ids.mapped("requirement_key")) == sorted(
         ALL_KEYS
     )  # no duplicates
+    assert len(partial.evidence_ids.mapped("document_id")) == len(ALL_KEYS)  # one each
     assert (partial.evidence_complete, partial.state) == (True, "ready")
     submitted = wc.claim(state="submitted")
-    submitted.action_assemble_workshop_evidence_pack()
-    assert submitted.state == "submitted"  # complete but not a draft: state untouched
+    with wc.refused(UserError, "locked once submitted"):
+        submitted.action_assemble_workshop_evidence_pack()
 
 
 # --- AUT-018 auto-creation --------------------------------------------------------------------
 
 
-def test_completed_warranty_job_creates_one_claim(wc):
+def test_closed_warranty_job_creates_one_claim(wc):
     """Regression: the auto-created claim carried no operating unit (NOT NULL on
     the claim), so AUT-018 never created a single claim."""
     env = wc.env
-    wc.document("photo_before")
-    estimate = env["fix.estimate"].create(
-        {
-            "order_id": wc.order.id,
-            "line_ids": [
-                Command.create(
-                    {"line_type": "part", "description": "Speaker", "unit_price": 2000.0}
-                )
-            ],
-        }
-    )
-    # A02 M01-W2: the claim is for the APPROVED estimate
-    estimate.action_send()
-    estimate.action_approve()
+    order = wc.closed_order(2000.0)
+    wc.document("photo_before", so=order)
     model = env["fix.warranty.claim"]
-    event = {"aggregate_id": wc.order.id, "payload": {"completed_at": "2026-10-21 08:00:00"}}
+    event = {"aggregate_id": order.id, "payload": {"completed_at": "2026-10-21 08:00:00"}}
     claim = model.consume_order_completed(event)
-    # brand from the device; amount = the estimate's grand total 2000 x 1.15
+    estimate = order._fix_governing_estimate()
+    # brand from the device; amount = the APPROVED estimate's total 2000 x 1.15
     assert (claim.brand_id, claim.claim_amount) == (wc.brand, estimate.grand_total)
     assert claim.claim_amount == 2300.0
     assert claim.job_completed_at == fields.Datetime.to_datetime("2026-10-21 08:00:00")
@@ -161,32 +163,33 @@ def test_completed_warranty_job_creates_one_claim(wc):
     payload = json.loads(_events(env, claim, "warranty_claim.created").payload)
     assert payload == {
         "claim_no": claim.claim_no,
-        "order_id": wc.order.id,
+        "order_id": order.id,
         "brand_id": wc.brand.id,
         "deadline": str(claim.submission_deadline),
     }
     assert model.consume_order_completed(event) == claim  # idempotent on the order
 
 
-def test_auto_creation_ignores_unknown_and_paid_orders(wc):
+def test_auto_creation_ignores_unknown_paid_and_unclosed_orders(wc):
+    """A04 M09-5: a DRAFT warranty job raised a 0.0 claim."""
     env = wc.env
     model = env["fix.warranty.claim"]
     assert model.consume_order_completed({"aggregate_id": 999999999}) is None
-    paid = env["fix.service.order"].create(
-        {
-            "device_id": wc.device.id,
-            "customer_id": wc.customer.id,
-            "branch_id": wc.branch.id,
-            "fault_description": "Paid repair",
-        }
-    )
+    paid = wc.closed_order(category="standard")
     assert model.consume_order_completed({"aggregate_id": paid.id, "payload": {}}) is None
+    assert wc.order.state == "draft"
+    assert model.consume_order_completed({"aggregate_id": wc.order.id, "payload": {}}) is None
+    assert not model.search([("service_order_id", "in", (paid | wc.order).ids)])
 
 
-def test_auto_created_claim_without_estimate_claims_zero(wc):
-    claim = wc.env["fix.warranty.claim"].consume_order_completed({"aggregate_id": wc.order.id})
+def test_auto_created_claim_without_estimate_claims_zero_and_cannot_submit(wc):
+    order = wc.closed_order(total=0.0)
+    claim = wc.env["fix.warranty.claim"].consume_order_completed({"aggregate_id": order.id})
     assert claim.claim_amount == 0.0
     assert claim.job_completed_at  # completion time defaults to now
+    wc.full_pack(claim)
+    with wc.refused(UserError, "claims nothing"):
+        claim.action_submit()
 
 
 # --- submission, decision, remittance -----------------------------------------------------------
@@ -212,14 +215,17 @@ def test_submission_within_and_after_the_window(wc):
     with wc.refused(UserError, "Only a draft/ready claim submits"):
         on_time.action_submit()
     late = wc.claim()
-    _complete_pack(wc, late)
+    late.evidence_ids = [
+        Command.create({"requirement_key": key, "document_id": wc.document(key + "_late").id})
+        for key in ALL_KEYS
+    ]
     late.submission_deadline = fields.Datetime.now() - timedelta(hours=2)
     late.action_submit()
     assert late.state == "submitted"
     assert "submitted past 72h deadline" in late.message_ids[0].body
 
 
-def test_decision_requires_a_received_claim(wc):
+def test_brand_decision_requires_a_received_claim(wc):
     """Regression: a draft (never sent) or remitted claim could be decided, so a
     late brand webhook reopened a remitted claim."""
     env = wc.env
@@ -237,26 +243,38 @@ def test_decision_requires_a_received_claim(wc):
         "Liquid damage",
         True,
     )
+    assert claim.decision_source == "brand_api"
     assert json.loads(_events(env, claim, "warranty_claim.decided").payload) == {
         "claim_no": claim.claim_no,
         "approved": False,
+        "decision": "reject",
+        "requested_amount": 12500.0,
+        "approved_amount": 0.0,
+        "brand_id": wc.brand.id,
+        "company_id": claim.company_id.id,
+        "currency": "BDT",
+        "source": "brand_api",
     }
     with wc.refused(UserError, "is rejected"):
         claim.action_decide(approved=True)
 
 
 def test_remittance_is_flagged_never_adjusted(wc):
+    """T08 + A04 M09-4: a short payment is flagged and leaves the claim
+    open (chased), it is not 'remitted'; the balance settles it."""
     env = wc.env
-    claim = wc.claim(state="submitted", rejection_reason="old")
+    claim = wc.claim(state="submitted")
     with wc.refused(UserError, "Only an approved claim takes a remittance"):
         claim.action_record_remittance(12500.0, "BANK-1")
     claim.action_decide(approved=True)
-    assert claim.rejection_reason is False
+    assert (claim.state, claim.approved_amount) == ("approved", 12500.0)
+    with wc.refused(UserError, "bank reference"):
+        claim.action_record_remittance(11000.0, "")
     claim.action_record_remittance(11000.0, "BANK-2")
-    assert (claim.state, claim.remittance_amount, claim.claim_amount) == (
-        "remitted",
+    assert (claim.state, claim.remittance_amount, claim.remittance_mismatch) == (
+        "approved",
         11000.0,
-        12500.0,
+        True,
     )
     payload = json.loads(_events(env, claim, "warranty_claim.remitted").payload)
     assert payload == {
@@ -264,7 +282,16 @@ def test_remittance_is_flagged_never_adjusted(wc):
         "bank_ref": "BANK-2",
         "expected": 12500.0,
         "received": 11000.0,
+        "received_total": 11000.0,
         "mismatch": True,
+        "settled": False,
     }
+    claim.action_record_remittance(1500.0, "BANK-3")
+    assert (claim.state, claim.remittance_amount, claim.remittance_mismatch) == (
+        "remitted",
+        12500.0,
+        False,
+    )
+    assert claim.remittance_ref == "BANK-2, BANK-3"
     with wc.refused(UserError, "is remitted"):
         claim.action_decide(approved=False)  # a late webhook cannot reopen it

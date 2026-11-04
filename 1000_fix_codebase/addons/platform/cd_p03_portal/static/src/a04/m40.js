@@ -1,5 +1,7 @@
 /** @odoo-module **/
 /* A04 · Commercial & Revenue — M40 Partner & Channel (v2 rebuild).
+ * A04 audit (2026-11-04): workflow fields are read-only; the lifecycles run
+ * from the list actions.
  * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 80.
  * Partners (8) and referrals (7) are real; authorisations, deals, rebates,
  * franchises and conflicts are new. Partner revenue = recorded referral
@@ -21,7 +23,8 @@ export const MODULE = {
     { en: 'Partner Master', screens: [
       { id: 'M40-partners', en: 'Partner Directory', bn: 'পার্টনার ডিরেক্টরি', t: 'g' },
       { id: 'M40-brand', en: 'Brand Partner Relations', bn: 'ব্র্যান্ড পার্টনার', t: 'g' },
-      { id: 'M40-authorisation', en: 'Authorisation & Certification', bn: 'অনুমোদন', t: 'g' }
+      { id: 'M40-authorisation', en: 'Authorisation & Certification', bn: 'অনুমোদন', t: 'g' },
+      { id: 'M40-audits', en: 'Technical Audits', bn: 'টেকনিক্যাল অডিট', t: 'g' }
     ]},
     { en: 'Programmes', screens: [
       { id: 'M40-alliance', en: 'Alliance Benefits', bn: 'অ্যালায়েন্স সুবিধা', t: 'g' },
@@ -58,24 +61,79 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  /* A04 audit (2026-11-04) C3: the partner lifecycle runs from these
+   * buttons; the status, KYC stamps, audit score and commission rate are
+   * read-only on the form. The server checks the role and the segregation of
+   * duties (creator, submitter, uploader, suspender) for each. */
   'M40-partners': { kind: 'model_list', model: 'fix.partner', stateField: 'state',
-    cols: ['name', 'partner_id', 'partner_type', 'territory', 'commission_rate', 'state'] },
+    cols: ['name', 'partner_id', 'partner_type', 'territory', 'commission_rate', 'kyc_verified', 'technical_audit_score', 'state'],
+    actions: [
+      { m: 'action_submit_onboarding', l: 'Submit for Onboarding', states: ['prospective'] },
+      { m: 'action_verify_kyc', l: 'Verify KYC Documents', states: ['prospective', 'qualifying'] },
+      { m: 'action_onboard', l: 'Approve Onboarding', states: ['prospective', 'qualifying'] },
+      { m: 'action_return_to_prospect', l: 'Return Application', ask: 'What is missing', kwarg: 'reason', states: ['qualifying'] },
+      { m: 'action_suspend', l: 'Suspend Partner', ask: 'Reason for suspension', kwarg: 'reason', states: ['onboarded'] },
+      { m: 'action_reinstate', l: 'Reinstate Partner', ask: 'Reason for reinstatement', kwarg: 'reason', states: ['suspended'] },
+      { m: 'action_set_commission_rate', l: 'Set Commission Rate', ask: 'New rate as a fraction (0.05 = 5%)', kwarg: 'rate' },
+      { m: 'action_request_erasure', l: 'Register PDPA Erasure Request' },
+      { m: 'action_execute_erasure', l: 'Execute PDPA Erasure (Tier 3)' }
+    ] },
+  'M40-audits': { kind: 'model_list', model: 'fix.partner.audit', stateField: 'state',
+    cols: ['name', 'partner_id', 'audit_date', 'score', 'auditor_id', 'approved_by_id', 'valid_until', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit Audit', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve Audit', states: ['submitted'] },
+      { m: 'action_reject', l: 'Reject Audit', ask: 'Reason for rejecting', kwarg: 'reason', states: ['submitted'] }
+    ] },
   'M40-brand': { kind: 'table_report', module: 'M40', report: 'brand_partners', title: 'Brand Partner Relations', period: false },
   'M40-authorisation': { kind: 'model_list', model: 'fix.partner.authorisation', stateField: 'state',
-    cols: ['name', 'partner_id', 'brand_id', 'valid_from', 'valid_to', 'state'] },
+    cols: ['name', 'partner_id', 'brand_id', 'valid_from', 'valid_to', 'certificate_ref', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Authorisation', states: ['draft'] },
+      { m: 'action_revoke', l: 'Revoke Authorisation', ask: 'Reason for revoking', kwarg: 'reason', states: ['active'] }
+    ] },
   'M40-alliance': { kind: 'table_report', module: 'M40', report: 'alliance_report', title: 'Alliance Benefits', period: false },
   'M40-referral': { kind: 'model_list', model: 'fix.referral', stateField: 'state',
     cols: ['name', 'partner_id', 'referred_partner_id', 'base_amount', 'commission_amount', 'state'] },
   'M40-dealreg': { kind: 'model_list', model: 'fix.partner.deal', stateField: 'state',
-    cols: ['name', 'partner_id', 'customer_id', 'value', 'registered_on', 'state'] },
+    cols: ['name', 'partner_id', 'customer_id', 'value', 'registered_on', 'protected_until', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve & Protect (conflict check)', states: ['registered', 'conflict'] },
+      { m: 'action_decline', l: 'Decline Registration', ask: 'Reason for declining', kwarg: 'reason', states: ['registered', 'conflict'] },
+      { m: 'action_mark_won', l: 'Mark Won', states: ['approved'] },
+      { m: 'action_mark_lost', l: 'Mark Lost', states: ['registered', 'approved'] }
+    ] },
   'M40-reseller': { kind: 'table_report', module: 'M40', report: 'reseller_report', title: 'Resellers', period: false },
   'M40-franchise': { kind: 'model_list', model: 'fix.partner.franchise', stateField: 'state',
-    cols: ['name', 'partner_id', 'territory', 'fee', 'start_date', 'end_date', 'state'] },
+    cols: ['name', 'partner_id', 'territory', 'fee', 'start_date', 'end_date', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Agreement', states: ['draft'] },
+      { m: 'action_terminate', l: 'Terminate Agreement', ask: 'Reason for termination', kwarg: 'reason', states: ['active'] }
+    ] },
+  /* A04 audit M40-1/2/3: the payout is approved from the M63 inbox; the
+   * approver holds the DOFA tier of the amount, did not raise the rebate,
+   * and the partner's approved technical audit is at least 85%. */
   'M40-rebates': { kind: 'model_list', model: 'fix.partner.rebate', stateField: 'state',
-    cols: ['name', 'partner_id', 'period', 'kind', 'basis', 'rate', 'amount', 'state'] },
+    cols: ['name', 'partner_id', 'period', 'kind', 'basis', 'rate', 'amount', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_accrue', l: 'Accrue Rebate', states: ['draft'] },
+      { m: 'action_request_approval', l: 'Request Payout Approval', ask: 'Justification for the payout', kwarg: 'justification', states: ['accrued'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['accrued'] },
+      { m: 'action_record_payout', l: 'Record Payout (Finance)', ask: 'Payable / transfer reference', kwarg: 'payment_ref', states: ['approved'] },
+      { m: 'action_cancel', l: 'Cancel Rebate', states: ['draft', 'accrued'] }
+    ] },
   'M40-comarketing': { kind: 'table_report', module: 'M40', report: 'comarketing_gap', title: 'Co-Marketing', period: false },
+  /* DISC-40.2 / A04 audit M40-6: a ruling is given once, by a Tier 3
+   * arbitrator who did not raise the conflict, with a rationale. */
   'M40-conflict': { kind: 'model_list', model: 'fix.partner.conflict', stateField: 'state',
-    cols: ['name', 'partner_a_id', 'partner_b_id', 'customer_id', 'state'] },
+    cols: ['name', 'partner_a_id', 'partner_b_id', 'customer_id', 'dofa_decision', 'dofa_arbitrator_id', 'state'],
+    actions: [
+      { m: 'action_rule_partner_a', l: 'Rule: Award Partner A', ask: 'Arbitration rationale', kwarg: 'notes', states: ['open'] },
+      { m: 'action_rule_partner_b', l: 'Rule: Award Partner B', ask: 'Arbitration rationale', kwarg: 'notes', states: ['open'] },
+      { m: 'action_rule_split', l: 'Rule: Split', ask: 'Arbitration rationale', kwarg: 'notes', states: ['open'] },
+      { m: 'action_rule_direct', l: 'Rule: Retain as Direct Account', ask: 'Arbitration rationale', kwarg: 'notes', states: ['open'] },
+      { m: 'action_close', l: 'Close Conflict', states: ['mediated'] }
+    ] },
   'M40-health': { kind: 'table_report', module: 'M40', report: 'health', title: 'Health & Risk', period: false },
   'M40-ranking': { kind: 'table_report', module: 'M40', report: 'ranking', title: 'Ranking & Scorecards', period: false },
 
@@ -90,6 +148,17 @@ export const SCREENS = {
   'M40-form-partner': {
     kind: 'model_form',
     model: 'fix.partner',
+    lines: {
+      field: 'audit_ids',
+      title: 'Technical Audits',
+      note: 'The audit score that gates rebates is the latest audit approved by a channel manager other than the auditor (A04 audit M40-2); audits are recorded on the Technical Audits screen.',
+      fields: [
+        { name: 'name', label: 'Audit', readonly: true },
+        { name: 'audit_date', label: 'Date', readonly: true },
+        { name: 'score', label: 'Score (%)', readonly: true },
+        { name: 'state', label: 'Status', readonly: true }
+      ]
+    },
     title: 'Channel Partner & Franchise Master',
     back: 'M40-partners',
     status: { field: 'state' },
@@ -110,14 +179,16 @@ export const SCREENS = {
           { name: 'partner_type', required: true, label: 'Partnership Classification' },
           { name: 'territory', label: 'Assigned Geographic Territory' },
           { name: 'contract_id', label: 'Master Franchise Agreement (M08)' },
-          { name: 'state', required: true, label: 'Partnership Status' }
+          { name: 'state', readonly: true, label: 'Partnership Status' },
+          { name: 'onboarded_by_id', readonly: true, label: 'Onboarded By' },
+          { name: 'pdpa_erasure_state', readonly: true, label: 'PDPA Erasure Status' }
         ] },
       { tab: 'brand_auth', title: 'Brand Certifications & Scopes',
         note: 'Brand certifications authorizing partner workshop technicians to perform warranty repairs.',
         fields: [] },
       { tab: 'financials', title: 'Commercial Commission & Volume Rebates',
         fields: [
-          { name: 'commission_rate', label: 'Standard Referral Commission Rate' }
+          { name: 'commission_rate', readonly: true, label: 'Standard Referral Commission Rate (set by a channel manager)' }
         ] },
       { tab: 'statutory', title: 'Bangladesh Statutory Compliance & Tax Registrations',
         note: 'Mandatory trade license, e-TIN, and National ID verification under Bangladesh law.',
@@ -126,12 +197,17 @@ export const SCREENS = {
           { name: 'tin_number', label: '12-Digit e-TIN' },
           { name: 'trade_license_no', label: 'Trade License Number' },
           { name: 'trade_license_expiry', label: 'Trade License Expiry Date' },
-          { name: 'bank_solvency_ref', label: 'Bank Solvency Reference' }
+          { name: 'bank_solvency_ref', label: 'Bank Solvency Reference' },
+          { name: 'trade_license_attachment_id', label: 'Trade Licence Document' },
+          { name: 'bank_solvency_attachment_id', label: 'Bank Solvency Certificate' },
+          { name: 'kyc_verified', readonly: true, label: 'KYC Verified' },
+          { name: 'kyc_verified_by_id', readonly: true, label: 'KYC Verified By' }
         ] },
       { tab: 'technical', title: 'Technical Compliance, Workshop Tooling & ESD Audit',
         note: 'Annual technical audit score (minimum 85.0% required for volume rebate payouts / FLAW-40.1).',
         fields: [
-          { name: 'technical_audit_score', label: 'Technical Audit Score (%)' }
+          { name: 'technical_audit_score', readonly: true, label: 'Technical Audit Score (%) — from the approved audit' },
+          { name: 'technical_audit_id', readonly: true, label: 'Current Technical Audit' }
         ] },
       { tab: 'vault', title: 'Partner Agreement & Certificate Vault',
         note: 'Verified trade licenses, bank solvency certificates, ESD audit reports, and franchise agreements.',
@@ -153,7 +229,10 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Deal Name', required: true },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'protected_until', label: 'Protected Until', readonly: true },
+        { name: 'approved_by_id', label: 'Approved By', readonly: true },
+        { name: 'conflict_id', label: 'Channel Conflict', readonly: true },
         { name: 'note', label: 'Note' }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
@@ -201,7 +280,13 @@ export const SCREENS = {
           { name: 'amount', readonly: true, label: 'Gross Rebate Amount (computed BDT)' }
         ] },
       { tab: 'audit_payout', title: 'Technical Audit Gate & Settlement', fields: [
-          { name: 'state', required: true, label: 'Settlement State' }
+          { name: 'state', readonly: true, label: 'Settlement State' },
+          { name: 'technical_audit_score', readonly: true, label: 'Partner Audit Score (%)' },
+          { name: 'audit_id', readonly: true, label: 'Audit Relied On' },
+          { name: 'dofa_tier_required', readonly: true, label: 'DOFA Tier Required' },
+          { name: 'dofa_justification', label: 'Payout Justification', type: 'text' },
+          { name: 'approval_state', readonly: true, label: 'Payout Approval' },
+          { name: 'paid_ref', readonly: true, label: 'Payout Reference' }
         ] }
     ]
   },
@@ -228,10 +313,12 @@ export const SCREENS = {
           { name: 'description', required: true, label: 'Incident Statement & Overlap Details', type: 'text' }
         ] },
       { tab: 'dofa_arbitration', title: 'DOFA Arbitration Governance', fields: [
-          { name: 'dofa_arbitrator_id', label: 'Appointed DOFA Arbitrator' },
-          { name: 'dofa_decision', label: 'Arbitration Ruling Code' },
-          { name: 'resolution', label: 'Final Resolution Narrative / Settlement Terms', type: 'text' },
-          { name: 'state', required: true, label: 'Docket Status' }
+          { name: 'dofa_arbitrator_id', readonly: true, label: 'DOFA Arbitrator (who ruled)' },
+          { name: 'dofa_decision', readonly: true, label: 'Arbitration Ruling Code' },
+          { name: 'arbitration_notes', readonly: true, label: 'Arbitration Rationale', type: 'text' },
+          { name: 'arbitrated_at', readonly: true, label: 'Ruling Issued' },
+          { name: 'resolution', readonly: true, label: 'Final Resolution', type: 'text' },
+          { name: 'state', readonly: true, label: 'Docket Status' }
         ] }
     ]
   },
@@ -250,7 +337,7 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Agreement Name', required: true },
         { name: 'territory', label: 'Territory', required: true },
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'fee', label: 'Franchise Fee' }
@@ -287,8 +374,10 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Name', required: true },
         { name: 'scope', label: 'Scope' },
-        { name: 'state', label: 'State', required: true },
-        { name: 'certificate_ref', label: 'Certificate Ref' }
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'certificate_ref', label: 'Certificate Ref' },
+        { name: 'certificate_attachment_id', label: 'Certificate Document' },
+        { name: 'activated_by_id', label: 'Activated By', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'valid_from', label: 'Valid From', required: true },
@@ -320,7 +409,9 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Name', required: true },
-        { name: 'state', label: 'State', required: true },
+        // A04 audit 2026-11-04: the referral state moves only through its
+        // lifecycle (fix.referral is A08's model); the form never writes it.
+        { name: 'state', label: 'State', readonly: true },
         { name: 'payout_state', label: 'Payout State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
@@ -349,6 +440,32 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
 
+
+  /* A04 audit M40-2: the technical audit behind the 85% rebate gate. */
+  'M40-form-audit': { kind: 'model_form', model: 'fix.partner.audit',
+    title: 'Partner Technical Audit', back: 'M40-audits',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Audit', bn: '১. অডিট' },
+      { id: 'decision', label: '2. Approval', bn: '২. অনুমোদন' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. Audit', note: 'The score counts for the rebate gate once a channel manager other than the auditor approves it, for 365 days.', fields: [
+        { name: 'name', label: 'Audit Number', readonly: true },
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'audit_date', label: 'Audit Date', required: true },
+        { name: 'score', label: 'Audit Score (%)', required: true },
+        { name: 'findings', label: 'Findings', type: 'text' },
+        { name: 'evidence_attachment_id', label: 'Audit Report' }
+      ] },
+      { tab: 'decision', title: '2. Approval', fields: [
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'auditor_id', label: 'Auditor', readonly: true },
+        { name: 'approved_by_id', label: 'Approved By', readonly: true },
+        { name: 'valid_until', label: 'Valid Until', readonly: true },
+        { name: 'rejection_reason', label: 'Rejection Reason', readonly: true }
+      ] }
+    ] },
 
   /* computed pack that had no screen (closure 2026-10-28) */
   'M40-rpt-deals': { kind: 'table_report', module: 'M40', report: 'deal_register', title: "Deal Register", period: false },
@@ -384,7 +501,8 @@ export const FORM_CHIPS = {
     'fix.partner.deal': 'M40-form-deal',
     'fix.partner.rebate': 'M40-form-rebate',
     'fix.partner.franchise': 'M40-form-franchise',
-    'fix.partner.conflict': 'M40-form-conflict'
+    'fix.partner.conflict': 'M40-form-conflict',
+    'fix.partner.audit': 'M40-form-audit'
   },
   'M40:__by_screen__': {
     'M40-authorisation': 'M40-form-auth',
@@ -393,7 +511,8 @@ export const FORM_CHIPS = {
     'M40-dealreg': 'M40-form-deal',
     'M40-rebates': 'M40-form-rebate',
     'M40-franchise': 'M40-form-franchise',
-    'M40-conflict': 'M40-form-conflict'
+    'M40-conflict': 'M40-form-conflict',
+    'M40-audits': 'M40-form-audit'
   }
 };
 

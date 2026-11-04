@@ -5,7 +5,7 @@
     "description": """
 CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Marketplace & Seller Ecosystem",
@@ -20,12 +20,18 @@ CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
         "cd_catalogue",
         "cd_tradein",
         "cd_event_outbox",
+        # A04 C4/C9: routed seller CFO, listing and dispute decisions
+        # (fix.approvable.mixin, M63). Already loaded before this module
+        # (cd_service_order depends on it).
+        "cd_workflow_engine",
     ],
     "data": [
+        "security/cd_marketplace_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/fix_marketplace_security.xml",
         "security/ir.model.access.csv",
         "data/ir_config_parameter_data.xml",
+        "data/ir_cron.xml",
         "views/cd_marketplace_views.xml",
     ],
     "installable": True,

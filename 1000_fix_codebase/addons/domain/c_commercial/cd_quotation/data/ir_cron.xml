@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M36 scheduled jobs (A04 audit 2026-11-03 C10 / M36-9; C2-C13 build 2026-11-04).
+
+  M36 had no ir.cron: an issued quotation never expired (state 'expired' was
+  typed by hand) and the bond "expiring soon" flag was a stored value that
+  froze. Each job is daily, idempotent and superuser-safe, and writes
+  through the model's guarded transition path.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_quotation_expiry" model="ir.cron">
+            <field name="name">M36: expire issued quotations past their validity</field>
+            <field name="model_id" ref="model_fix_quotation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_quotations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_tender_bond_expiry" model="ir.cron">
+            <field name="name">M36: bank guarantee expiry alerts and lapse</field>
+            <field name="model_id" ref="model_fix_tender_bond"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_bond_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

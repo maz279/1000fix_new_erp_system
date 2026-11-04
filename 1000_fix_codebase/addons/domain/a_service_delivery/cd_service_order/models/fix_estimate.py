@@ -765,12 +765,24 @@ class FixEstimateLine(models.Model):
                     % (line.product_id.display_name, floor, line.unit_price or 0.0)
                 )
 
+    def _fix_check_sellable(self) -> None:
+        """A04 audit (2026-11-04) M37-2 / M11-4: the catalogue lifecycle
+        (a discontinued, archived or out-of-scope item is not quoted) and the
+        M11 price floor were read by no estimate. product.product's
+        _fix_check_sale (cd_catalogue, extended by cd_rate_card) is the one
+        check every selling document runs."""
+        if self.env.su:
+            return
+        for line in self.filtered("product_id"):
+            line.product_id._fix_check_sale(unit_price=line.unit_price or 0.0, channel="estimate")
+
     @api.model_create_multi
     def create(self, vals_list):
         ids = {v.get("estimate_id") for v in vals_list if v.get("estimate_id")}
         self._fix_assert_estimate_open(self.env["fix.estimate"].browse(list(ids)))
         lines = super().create(vals_list)
         lines._fix_check_price_floor()
+        lines._fix_check_sellable()
         lines.estimate_id._fix_void_on_raise()
         return lines
 
@@ -781,6 +793,7 @@ class FixEstimateLine(models.Model):
         result = super().write(vals)
         if {"unit_price", "product_id"} & set(vals):
             self._fix_check_price_floor()
+            self._fix_check_sellable()
         self.estimate_id._fix_void_on_raise()
         return result
 

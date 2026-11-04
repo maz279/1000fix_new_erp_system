@@ -34,7 +34,9 @@ export const MODULE = {
     { en: 'Pricing Governance', screens: [
       { id: 'M11-discounts', en: 'Discount Governance', bn: 'ডিসকাউন্ট গভর্নেন্স', t: 'c' },
       { id: 'M11-floors', en: 'Cost-Plus & Margin Floors', bn: 'মার্জিন ফ্লোর', t: 'g' },
-      { id: 'M11-promos', en: 'Promotions', bn: 'প্রমোশন', t: 'g' }
+      { id: 'M11-promos', en: 'Promotions', bn: 'প্রমোশন', t: 'g' },
+      { id: 'M11-changes', en: 'Rate & Floor Changes', bn: 'রেট ও ফ্লোর পরিবর্তন', t: 'g' },
+      { id: 'M11-policies', en: 'Discount Ladder', bn: 'ডিসকাউন্ট ধাপ', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M11-simulate', en: 'Price Simulation', bn: 'মূল্য সিমুলেশন', t: 'c' },
@@ -61,19 +63,48 @@ export const MODULE = {
 
 export const SCREENS = {
   'M11-books': { kind: 'model_list', model: 'fix.price.book', stateField: 'state',
-    cols: ['code', 'name', 'currency_id', 'state', 'active'] },
+    cols: ['code', 'name', 'currency_id', 'state', 'active_version_id', 'active'],
+    // A04 audit 2026-11-04: a book goes Active when its first released
+    // version activates; a Price-Book Releaser retires it.
+    actions: [
+      { m: 'action_retire', l: 'Retire Price Book (Releaser)', ask: 'Why is the book retired?', kwarg: 'reason' }
+    ] },
   'M11-engine': { kind: 'table_report', module: 'M11', report: 'pricing_engine', title: 'Price Resolution Engine', period: false },
   'M11-versions': { kind: 'model_list', model: 'fix.price.version', stateField: 'state',
-    cols: ['name', 'book_id', 'version', 'effective_from', 'state', 'approved_by'] },
-  'M11-labour': { kind: 'model_list', model: 'fix.rate.card', stateField: 'active',
+    cols: ['name', 'book_id', 'version', 'effective_from', 'state', 'approval_state', 'approved_by'],
+    // Released from the Price-Book Releaser's M63 inbox (approver != author);
+    // activates on its effective date.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release' },
+      { m: 'action_recall_approval', l: 'Recall Submission' }
+    ] },
+  'M11-labour': { kind: 'model_list', model: 'fix.rate.card', stateField: 'state',
     domain: [['line_type', '=', 'labour']],
-    cols: ['product_code', 'name', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'active'] },
-  'M11-parts': { kind: 'model_list', model: 'fix.rate.card', stateField: 'active',
+    cols: ['product_code', 'name', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'state', 'active'],
+    // A rate prices nothing until released; a released rate changes only
+    // through a price change a releaser approves (A04 audit M11-5).
+    actions: [
+      { m: 'action_request_release', l: 'Request Release (Releaser approves)' },
+      { m: 'action_request_change', l: 'Request Change to the Proposed Rate' },
+      { m: 'action_request_retire', l: 'Request Retirement', ask: 'Why is the rate retired?', kwarg: 'reason' }
+    ] },
+  'M11-parts': { kind: 'model_list', model: 'fix.rate.card', stateField: 'state',
     domain: [['line_type', '=', 'part']],
-    cols: ['product_code', 'name', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'active'] },
+    cols: ['product_code', 'name', 'unit_price', 'min_tier', 'valid_from', 'valid_to', 'state', 'active'],
+    // A rate prices nothing until released; a released rate changes only
+    // through a price change a releaser approves (A04 audit M11-5).
+    actions: [
+      { m: 'action_request_release', l: 'Request Release (Releaser approves)' },
+      { m: 'action_request_change', l: 'Request Change to the Proposed Rate' },
+      { m: 'action_request_retire', l: 'Request Retirement', ask: 'Why is the rate retired?', kwarg: 'reason' }
+    ] },
   'M11-brand': { kind: 'table_report', module: 'M11', report: 'brand_reimbursement', title: 'Brand Reimbursement Rates', period: false },
   'M11-adjust': { kind: 'model_list', model: 'fix.dynamic.price.rule', stateField: 'active',
-    cols: ['name', 'channel', 'rule_type', 'adjustment_pct', 'surge_multiplier', 'active'] },
+    cols: ['name', 'channel', 'rule_type', 'adjustment_pct', 'surge_multiplier', 'active'],
+    actions: [
+      { m: 'action_disable', l: 'Disable Rule (guardrail)', ask: 'Why is the rule disabled?', kwarg: 'reason' },
+      { m: 'action_enable', l: 'Re-enable Rule (Releaser, not the author)' }
+    ] },
   'M11-discounts': { kind: 'model_list', model: 'fix.discount.approval', stateField: 'state',
     cols: ['quotation_id', 'discount_pct', 'state', 'approval_state', 'approved_by', 'justification'],
     // Approved or rejected from the approver's M63 inbox (A03 audit R7).
@@ -82,11 +113,41 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M11-floors': { kind: 'model_list', model: 'fix.price.floor', stateField: 'active',
-    cols: ['product_code', 'name', 'floor_price', 'book_id', 'active'] },
+    cols: ['product_code', 'name', 'floor_price', 'proposed_override_price', 'dofa_tier_required', 'approval_state', 'dofa_approved', 'active'],
+    // A below-floor override is a DOFA decision from the approver's M63 inbox;
+    // the floor itself changes only through an approved price change.
+    actions: [
+      { m: 'action_request_approval', l: 'Request Below-Floor Override (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Override Request' },
+      { m: 'action_request_floor_change', l: 'Request Floor Change (staged on the form)' },
+      { m: 'action_request_retire', l: 'Request Floor Retirement', ask: 'Why is the floor retired?', kwarg: 'reason' }
+    ] },
   'M11-promos': { kind: 'model_list', model: 'fix.promotion', stateField: 'state',
-    cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'] },
+    cols: ['code', 'name', 'discount_type', 'value', 'channel', 'valid_from', 'valid_until', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_end', l: 'End Promotion Early', ask: 'Why does it end early?', kwarg: 'reason' }
+    ] },
   'M11-simulate': { kind: 'model_list', model: 'fix.price.simulation', stateField: 'state',
-    cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'requested_by', 'computed_at'] },
+    cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'requested_by', 'computed_at'],
+    actions: [{ m: 'action_compute', l: 'Run Simulation (engine)' }] },
+  'M11-changes': { kind: 'model_list', model: 'fix.price.change', stateField: 'state',
+    cols: ['name', 'target_type', 'change_type', 'product_code', 'current_value', 'proposed_value', 'state', 'approval_state', 'applied_by'],
+    // A04 audit M11-5: the only way a live rate or floor moves.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_cancel', l: 'Cancel Draft' }
+    ] },
+  'M11-policies': { kind: 'model_list', model: 'fix.discount.policy', stateField: 'state',
+    cols: ['name', 'role', 'min_pct', 'max_pct', 'requires_approval', 'approval_tier', 'state', 'approval_state'],
+    // The one discount ladder (BRU-PRC-06 until a band is released).
+    actions: [
+      { m: 'action_submit', l: 'Submit Band for Release' },
+      { m: 'action_recall_approval', l: 'Recall Submission' },
+      { m: 'action_retire', l: 'Retire Band (Releaser)' }
+    ] },
   'M11-realised': { kind: 'table_report', module: 'M11', report: 'realised_vs_card', title: 'Realised-Price Analytics', period: false },
 
   /* Report chips -> their own computed pack */
@@ -119,7 +180,8 @@ export const SCREENS = {
         ] },
       { tab: 'governance', title: 'Lifecycle & Status',
         fields: [
-          { name: 'state', label: "Lifecycle State" },
+          { name: 'state', label: "Lifecycle State", readonly: true },
+          { name: 'active_version_id', label: "Version in Force", readonly: true },
           { name: 'active', label: "Active" }
         ] },
       { tab: 'audit', title: 'System Audit Trail',
@@ -152,7 +214,8 @@ export const SCREENS = {
           { name: 'product_code', required: true, label: 'Product SKU / Service Code' },
           { name: 'line_type', required: true, label: 'Service Line Classification' },
           { name: 'catalogue_item_id', label: 'Associated Catalogue Item (M37)' },
-          { name: 'active', label: 'Active Rate Status' }
+          { name: 'state', label: 'Release State', readonly: true },
+          { name: 'active', label: 'Active Rate Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Base Tariff & Tier Qualification',
         fields: [
@@ -168,8 +231,13 @@ export const SCREENS = {
         note: 'All rate card items must comply with NBR standard VAT rates and Mushak 6.3 invoice rules.',
         fields: [] },
       { tab: 'governance', title: 'Price Floor Governance & Delegation of Authority',
-        note: 'Rates below statutory floor require DOFA Commercial Director override approval (FLAW-11.2).',
-        fields: [] },
+        note: 'A released rate changes only through a price change that a Price-Book Releaser other than its author approves (BRU-PRC-07). Stage the new rate and reason here, then use Request Change.',
+        fields: [
+          { name: 'proposed_unit_price', label: 'Proposed Rate (staged)' },
+          { name: 'change_reason', label: 'Change Reason', type: 'text' },
+          { name: 'released_by', label: 'Released By', readonly: true },
+          { name: 'released_at', label: 'Released On', readonly: true }
+        ] },
       { tab: 'vault', title: 'Rate Card Circulars & Approval Documents',
         note: 'Executive committee pricing approvals, OEM recommended pricing circulars, and market parity surveys.',
         fields: [] }
@@ -200,8 +268,13 @@ export const SCREENS = {
           { name: 'active', label: "Active" }
         ] },
       { tab: 'governance', title: 'Approval Requirement',
+        note: 'A band is part of the discount ladder only once a Price-Book Releaser other than its author releases it (M63 inbox).',
         fields: [
-          { name: 'requires_approval', label: "Requires a Second Signature" }
+          { name: 'requires_approval', label: "Requires a Second Signature" },
+          { name: 'approval_tier', label: "Approving DOFA Tier" },
+          { name: 'state', label: "Band State", readonly: true },
+          { name: 'approval_state', label: "Approval", readonly: true },
+          { name: 'approved_by', label: "Released By", readonly: true }
         ] },
       { tab: 'audit', title: 'System Audit Trail',
         fields: [
@@ -264,7 +337,15 @@ export const SCREENS = {
         fields: [
           { name: 'discount_type', label: "Discount Type" },
           { name: 'value', label: "Discount Value" },
-          { name: 'state', label: "Promotion State" }
+          { name: 'stackable', label: "Stackable with Other Promotions" },
+          { name: 'priority', label: "Priority" },
+          { name: 'budget_amount', label: "Budget (BDT)" },
+          { name: 'budget_used', label: "Budget Used", readonly: true },
+          { name: 'max_uses', label: "Usage Cap" },
+          { name: 'use_count', label: "Times Used", readonly: true },
+          { name: 'state', label: "Promotion State", readonly: true },
+          { name: 'approval_state', label: "Approval", readonly: true },
+          { name: 'approved_by', label: "Released By", readonly: true }
         ] },
       { tab: 'schedule', title: 'Validity Window',
         note: 'A promotion outside its window must not price: the dates are the control, not a label.',
@@ -302,8 +383,8 @@ export const SCREENS = {
         ] },
       { tab: 'commercial', title: 'Inputs',
         fields: [
-          { name: 'input_json', label: "Input Parameters", type: 'text' },
-          { name: 'state', label: "State" }
+          { name: 'input_json', label: "Input Parameters (JSON: quantity, customer_tier, contract_no, channel, price)", type: 'text' },
+          { name: 'state', label: "State", readonly: true }
         ] },
       { tab: 'result', title: 'Computed Result',
         fields: [
@@ -344,8 +425,11 @@ export const SCREENS = {
         ] },
       { tab: 'governance', title: 'Approval',
         fields: [
-          { name: 'state', label: "Lifecycle State" },
-          { name: 'approved_by', label: "Approved By", readonly: true }
+          { name: 'state', label: "Lifecycle State", readonly: true },
+          { name: 'approval_state', label: "Approval", readonly: true },
+          { name: 'submitted_by', label: "Submitted By", readonly: true },
+          { name: 'approved_by', label: "Approved By", readonly: true },
+          { name: 'rejection_reason', label: "Returned Because", type: 'text', readonly: true }
         ] },
       { tab: 'audit', title: 'System Audit Trail',
         fields: [
@@ -375,15 +459,22 @@ export const SCREENS = {
           { name: 'catalogue_item_id', label: 'Catalogue Item' },
           { name: 'book_id', label: 'Price Book Link' }
         ] },
-      { tab: 'pricing_limit', title: 'Statutory Pricing Limit', fields: [
-          { name: 'floor_price', required: true, label: 'Floor Price (BDT)' },
-          { name: 'cost_basis', label: 'Underlying Standard Cost (BDT)' }
-        ] },
-      { tab: 'dofa_override', title: 'Delegation of Financial Authority (DOFA)', note: 'Tiered governance required to quote below floor price.',
+      { tab: 'pricing_limit', title: 'Statutory Pricing Limit',
+        note: 'The floor is set when the rule is created and then changes only through a price change a Price-Book Releaser approves. Stage the new floor and reason, then use Request Floor Change.',
         fields: [
-          { name: 'dofa_tier', label: 'Required DOFA Tier' },
-          { name: 'dofa_override_approved', label: 'DOFA Override Approved' },
-          { name: 'active', label: 'Active Floor Enforcement' }
+          { name: 'floor_price', required: true, label: 'Floor Price (BDT)' },
+          { name: 'proposed_floor_price', label: 'Proposed New Floor (staged)' },
+          { name: 'floor_change_reason', label: 'Floor Change Reason', type: 'text' }
+        ] },
+      { tab: 'dofa_override', title: 'Delegation of Financial Authority (DOFA)', note: 'A price below the floor needs a DOFA approval from the approver inbox; the tier follows how far below the floor the proposed price sits, and the approval covers only that price.',
+        fields: [
+          { name: 'proposed_override_price', label: 'Proposed Below-Floor Price' },
+          { name: 'dofa_justification', label: 'Business Justification', type: 'text' },
+          { name: 'dofa_tier', label: 'Required DOFA Tier', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'dofa_override_approved', label: 'DOFA Override Approved', readonly: true },
+          { name: 'dofa_override_user_id', label: 'DOFA Approver', readonly: true },
+          { name: 'active', label: 'Active Floor Enforcement', readonly: true }
         ] }
     ]
   },
@@ -405,7 +496,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Rule Name" },
           { name: 'rule_type', required: true, label: "Rule Type" },
           { name: 'channel', required: true, label: "Sales Channel" },
-          { name: 'active', label: "Active" },
+          { name: 'active', label: "Active", readonly: true },
+          { name: 'disabled_reason', label: "Disabled Because", readonly: true },
           { name: 'company_id', required: true, label: "Legal Entity" }
         ] },
       { tab: 'commercial', title: 'Adjustment and its Guard Rails',
@@ -429,9 +521,41 @@ export const SCREENS = {
   },
   'M11-rpt-floors': { kind: 'table_report', module: 'M11', report: 'floors_vs_rate', title: "Floor vs Realised Rate", period: false },
 
+  'M11-form-change': {
+    kind: 'model_form',
+    model: 'fix.price.change',
+    title: 'Price Change Request',
+    back: 'M11-changes',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'request', label: '1. Change Requested', bn: '১. অনুরোধকৃত পরিবর্তন', icon: '💱', badge: '6' },
+      { id: 'decision', label: '2. Release Decision', bn: '২. অনুমোদন সিদ্ধান্ত', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      { tab: 'request', title: 'What Changes and Why',
+        note: 'A released rate or a floor moves only through this request; a Price-Book Releaser who did not raise it decides it from the M63 inbox (BRU-PRC-07).',
+        fields: [
+          { name: 'target_type', label: "Target", required: true },
+          { name: 'change_type', label: "Change", required: true },
+          { name: 'rate_card_id', label: "Rate Card" },
+          { name: 'floor_id', label: "Price Floor" },
+          { name: 'proposed_value', label: "New Price (BDT)" },
+          { name: 'reason', label: "Reason", type: 'text', required: true }
+        ] },
+      { tab: 'decision', title: 'Release Decision', fields: [
+        { name: 'current_value', label: "Price When Raised", readonly: true },
+        { name: 'approval_state', label: "Approval", readonly: true },
+        { name: 'applied_by', label: "Released By", readonly: true },
+        { name: 'applied_at', label: "Applied On", readonly: true }
+      ] }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
-  'M11-price-explanation': { kind: 'model_list', model: 'fix.price.explanation',
-    cols: ['name', 'company_id', 'operating_unit_id', 'rule_id', 'currency_id', 'base_price', 'final_price'] },
+  'M11-price-explanation': { kind: 'model_list', model: 'fix.price.explanation', create: false,
+    cols: ['name', 'company_id', 'operating_unit_id', 'rule_id', 'currency_id', 'base_price', 'final_price'],
+    // append-only trail (BRU-PRC-02): reconstruct, never edit
+    actions: [{ m: 'action_reconstruct', l: 'Reconstruct from the Rule' }] },
 
   'M11-form-price-explanation': {
     kind: 'model_form',
@@ -445,20 +569,20 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: 'Explanation Header',
-        note: 'Every dynamic price writes an explanation record. This is the trail a customer dispute or a commercial audit reads back.',
+        note: 'Every dynamic price writes an explanation record. This is the trail a customer dispute or a commercial audit reads back; it is append-only (BRU-PRC-02).',
         fields: [
-          { name: 'name', required: true, label: "Reference" },
-          { name: 'company_id', required: true, label: "Legal Entity" },
-          { name: 'currency_id', required: true, label: "Currency" }
+          { name: 'name', required: true, label: "Reference", readonly: true },
+          { name: 'company_id', required: true, label: "Legal Entity", readonly: true },
+          { name: 'currency_id', required: true, label: "Currency", readonly: true }
         ] },
       { tab: 'commercial', title: 'How the Price Was Derived', fields: [
-        { name: 'rule_id', label: "Applied Rule" },
+        { name: 'rule_id', label: "Applied Rule", readonly: true },
         { name: 'base_price', label: "Base Price", readonly: true },
         { name: 'final_price', label: "Final Price", readonly: true },
         { name: 'rules_applied', label: "Rules Applied", type: 'text', readonly: true }
       ] },
       { tab: 'audit', title: 'System Audit Trail', fields: [
-        { name: 'operating_unit_id', label: "Operating Unit" },
+        { name: 'operating_unit_id', label: "Operating Unit", readonly: true },
         { name: 'model_driven', label: "Model Driven", readonly: true },
         { name: 'create_date', label: "Computed At", readonly: true }
       ] }
@@ -498,7 +622,8 @@ export const FORM_CHIPS = {
     'fix.promotion': 'M11-form-promo',
     'fix.price.simulation': 'M11-form-simulation',
     'fix.price.version': 'M11-form-version',
-    'fix.price.floor': 'M11-form-floor'
+    'fix.price.floor': 'M11-form-floor',
+    'fix.price.change': 'M11-form-change'
   },
   'M11:__by_screen__': {
     'M11-price-explanation': 'M11-form-price-explanation',
@@ -510,7 +635,9 @@ export const FORM_CHIPS = {
     'M11-floors': 'M11-form-floor',
     'M11-promos': 'M11-form-promo',
     'M11-simulate': 'M11-form-simulation',
-    'M11-discounts': 'M11-form-discount-approval'
+    'M11-discounts': 'M11-form-discount-approval',
+    'M11-changes': 'M11-form-change',
+    'M11-policies': 'M11-form-policy'
   }
 };
 

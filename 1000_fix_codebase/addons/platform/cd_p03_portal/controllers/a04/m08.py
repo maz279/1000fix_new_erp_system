@@ -18,10 +18,24 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_confirm", "action_reset_to_draft"},
     },
+    # A04 build (2026-11-04) C3 / D2: every M08 surface declared
+    # `actions: set()`, so the workspace could run no lifecycle and editing
+    # `state` was the only path. The lifecycle actions are now whitelisted;
+    # each runs its own role, state and segregation-of-duties checks, and the
+    # approvals themselves are decided from the M63 inbox.
     "fix.contract": {
         "order": "date_end, id",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_legal_review",
+            "action_approve_stamp_exemption",
+            "action_reset_to_draft",
+            "action_activate",
+            "action_renew",
+            "action_resume",
+        },
     },
     "fix.contract.entitlement": {
         "order": "contract_id, id",
@@ -31,22 +45,27 @@ SURFACES = {
     "fix.contract.pm.visit": {
         "order": "scheduled_date, id",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_create_service_order", "action_complete", "action_skip"},
     },
     "fix.contract.amendment": {
         "order": "effective_from desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
     },
     "fix.contract.renewal": {
         "order": "proposed_start, id",
         "limit": 200,
-        "actions": set(),
+        "actions": {"action_quote", "action_mark_won", "action_mark_lost"},
     },
     "fix.contract.termination": {
         "order": "effective_date desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+            "action_execute_termination",
+        },
     },
     # fix.msp.sla.credit is owned by M05 (a02 surface) — read through the
     # merged registry; not declared twice.
@@ -76,7 +95,16 @@ def contract_base_movement(env, date_from=None, date_to=None, **params):
     today = datetime.date.today()
     month_start = today.replace(day=1)
     rows = []
-    for state in ("draft", "active", "expired", "terminated", "suspended"):
+    for state in (
+        "draft",
+        "pending_approval",
+        "pending_signature",
+        "active",
+        "expiring",
+        "expired",
+        "suspended",
+        "terminated",
+    ):
         mine = contracts.filtered(lambda c, s=state: c.state == s)
         new = mine.filtered(lambda c: c.date_start and c.date_start >= month_start)
         rows.append(

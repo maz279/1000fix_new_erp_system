@@ -16,7 +16,9 @@
                 <field name="unit_price"/>
                 <field name="valid_from" optional="hide"/>
                 <field name="valid_to" optional="hide"/>
-                <field name="active"/>
+                <!-- A04 audit (2026-11-04): released through fix.price.change -->
+                <field name="state" readonly="1"/>
+                <field name="active" readonly="1"/>
             </list>
         </field>
     </record>

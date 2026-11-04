@@ -671,6 +671,38 @@ def test_sell_straight_from_stock(ctx, graded):
     assert stock.state == "sold"
 
 
+def _stock_user(env, login, *groups):
+    ids = [env.ref("base.group_user").id] + [env.ref(g).id for g in groups]
+    return env["res.users"].create(
+        {"name": login, "login": "%s-%s" % (login, TAG), "group_ids": [(6, 0, ids)]}
+    )
+
+
+def test_a_clerk_cannot_type_a_graded_unit_sold(ctx, graded):
+    """A04 integration (M38 gst_01 / p03_06): the state, and once the unit is
+    committed the money, change only through the transitions."""
+    clerk = _stock_user(ctx.env, "gst-clerk")
+    stock = graded.make()
+    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
+        stock.with_user(clerk).write({"state": "sold", "resale_price": 1.0})
+    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
+        ctx.env["fix.graded.stock"].with_user(clerk).create(
+            {"device_id": graded.device.id, "grade_id": graded.grade.id, "state": "sold"}
+        )
+    with pytest.raises(UserError, match="Inventory Controller"), ctx.env.cr.savepoint():
+        stock.with_user(clerk).action_sell()
+    stock.with_user(clerk).write({"resale_price": 8500.0})  # in stock: still priced freely
+    controller = _stock_user(ctx.env, "gst-ctl", "cd_wms_structure.group_inventory_controller")
+    stock.with_user(controller).action_reserve()
+    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
+        stock.with_user(controller).write({"resale_price": 1.0})
+    stock.with_user(controller).action_release()
+    assert (stock.state, stock.resale_price) == ("in_stock", 8500.0)
+    stock.with_user(controller).action_sell()
+    assert stock.state == "sold"
+    assert _events(ctx.env, "graded_stock.sold", "fix.graded.stock", stock.id)
+
+
 # --- MIG-03 legacy reference (migrations/load_inventory.py) ----------------------------
 
 LEGACY_TABLES = {

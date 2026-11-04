@@ -539,14 +539,23 @@ def _relay(env):
 
 def test_p2_a_renewal_repoints_the_msp_layer(m5):
     renewal = m5.term.action_renew()
-    assert m5.msp.contract_id == m5.term
+    # A04 build (2026-11-04, M08-10): a renewal is drafted, approved and signed
+    # like any contract and contract.renewed is published when it ACTIVATES;
+    # until then the MSP layer stays on the term that is still in force.
     _relay(m5.env)
-    assert m5.msp.contract_id == renewal
-    # the renewed term is a draft until it is activated: no entitlement yet
-    assert not m5.msp.entitled
-    renewal.state = "active"
-    renewal.date_start = fields.Date.today() - timedelta(days=1)
+    assert m5.msp.contract_id == m5.term
+    assert m5.msp.entitled
+    renewal.write(
+        {
+            "date_start": fields.Date.today() - timedelta(days=1),
+            "stamp_duty_cert_no": "SD-MSP-RENEWAL",
+            "has_signed_contract_doc": True,
+        }
+    )
+    renewal.sudo().action_activate()  # superuser stands in for the approval path
+    _relay(m5.env)
     m5.msp.invalidate_recordset()
+    assert m5.msp.contract_id == renewal
     assert m5.msp.entitled
 
 

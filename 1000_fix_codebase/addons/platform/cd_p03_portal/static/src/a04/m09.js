@@ -29,7 +29,8 @@ export const MODULE = {
       { id: 'M09-form-claim', en: 'Claim Record', bn: 'দাবি রেকর্ড', t: 'f' },
       { id: 'M09-evidence', en: 'Evidence Assembly', bn: 'প্রমাণ', t: 'c' },
       { id: 'M09-brandrules', en: 'Brand Rules & Formats', bn: 'ব্র্যান্ড নিয়ম', t: 'g' },
-      { id: 'M09-recon', en: 'Brand Reconciliation', bn: 'ব্র্যান্ড মিলকরণ', t: 'c' }
+      { id: 'M09-recon', en: 'Brand Reconciliation', bn: 'ব্র্যান্ড মিলকরণ', t: 'c' },
+      { id: 'M09-appeals', en: 'Claim Appeals', bn: 'দাবি আপিল', t: 'g' }
     ]},
     { en: 'Protection Plans', screens: [
       { id: 'M09-protection', en: 'Extended Protection Cover', bn: 'প্রোটেকশন পরিবার', t: 'g' },
@@ -88,7 +89,22 @@ export const SCREENS = {
     cols: ['name', 'period', 'revenue_in_warranty', 'rework_rate', 'cost_ratio', 'required_balance', 'movement', 'state'],
     stateField: 'state' },
   'M09-recalls': { kind: 'model_list', model: 'fix.warranty.recall', create: false,
-    cols: ["name", "state", "create_date", "brand_id", "product_ref", "affected_units", "covered_units"] },
+    cols: ["name", "state", "create_date", "brand_id", "product_ref", "affected_units", "covered_units"],
+    stateField: 'state',
+    // A04 audit M09-10: the recall lifecycle runs through its actions.
+    actions: [
+      { m: 'action_launch', l: 'Launch Recall', states: ['planned'] },
+      { m: 'action_complete', l: 'Complete Recall', states: ['active'] },
+      { m: 'action_cancel', l: 'Cancel Recall', states: ['planned', 'active'] }
+    ] },
+  'M09-appeals': { kind: 'model_list', model: 'fix.claim.appeal', create: false, stateField: 'decision',
+    cols: ['name', 'claim_id', 'decision', 'decided_by_id', 'decided_at', 'create_date'],
+    // A04 audit M09-8: an appeal is decided by a Claim Decision Officer who
+    // neither raised it nor recorded the decision appealed against.
+    actions: [
+      { m: 'action_uphold', l: 'Uphold (re-submit claim)', ask: 'Why the appeal stands', kwarg: 'note' },
+      { m: 'action_reject_appeal', l: 'Reject Appeal', ask: 'Why the appeal is rejected', kwarg: 'note' }
+    ] },
   'M09-fraud': { kind: 'table_report', module: 'M09', report: 'warranty_fraud', title: 'Warranty Fraud Analysis', period: true },
 
 
@@ -112,9 +128,31 @@ export const SCREENS = {
   'M09-validate': { kind: 'table_report', module: 'M09', report: 'warranty_validation', title: 'Manufacturer Validation', period: false },
   'M09-repair-wty': { kind: 'table_report', module: 'M09', report: 'warranty_repairs', title: 'Repair Warranty & Rework', period: false },
   'M09-transfer': { kind: 'model_list', model: 'fix.warranty.transfer', stateField: 'state',
-    cols: ['name', 'warranty_id', 'from_partner_id', 'to_partner_id', 'effective_date', 'state'] },
+    cols: ['name', 'warranty_id', 'from_partner_id', 'to_partner_id', 'effective_date', 'state', 'approved_by_id'],
+    // A04 audit M09-9: approved by an officer who did not record it, then
+    // effected (the device changes owner through M17).
+    actions: [
+      { m: 'action_approve', l: 'Approve Transfer', states: ['draft'] },
+      { m: 'action_effect', l: 'Effect Transfer', states: ['approved'] },
+      { m: 'action_void', l: 'Void Transfer', states: ['draft', 'approved'] }
+    ] },
   'M09-claims': { kind: 'model_list', model: 'fix.warranty.claim', stateField: 'state',
-    cols: ['claim_no', 'brand_id', 'service_order_id', 'claim_amount', 'evidence_complete', 'state'] },
+    cols: ['claim_no', 'brand_id', 'service_order_id', 'claim_amount', 'approved_amount', 'evidence_complete', 'approval_state', 'state'],
+    // A04 audit M09-1/-2/-11: the claim moves only through these actions.
+    // The OEM decision is KEYED here and recorded by a Claim Decision
+    // Officer from the M63 inbox (never the submitter or the keyer).
+    actions: [
+      { m: 'action_assemble_workshop_evidence_pack', l: 'Assemble Evidence', states: ['draft', 'ready'] },
+      { m: 'action_refresh_amount', l: 'Refresh Amount from Estimate', states: ['draft', 'ready'] },
+      { m: 'action_confirm_device_recheck', l: 'Confirm Device Re-check', ask: 'What was re-checked (owner, purchase proof, cover)', kwarg: 'note', states: ['draft', 'ready'] },
+      { m: 'action_submit', l: 'Submit to Brand', states: ['draft', 'ready'] },
+      { m: 'action_mark_in_review', l: 'Brand Acknowledged', states: ['submitted'] },
+      { m: 'action_propose_approve', l: 'Key OEM Approval', ask: 'OEM decision reference', kwarg: 'oem_reference', states: ['submitted', 'in_review'] },
+      { m: 'action_propose_partial', l: 'Key Partial Approval', ask: 'Amount the OEM approved (BDT)', kwarg: 'approved_amount', states: ['submitted', 'in_review'] },
+      { m: 'action_propose_reject', l: 'Key OEM Rejection', ask: 'Reason the OEM gave', kwarg: 'reason', states: ['submitted', 'in_review'] },
+      { m: 'action_recall_approval', l: 'Recall Keyed Decision', states: ['submitted', 'in_review'] },
+      { m: 'action_close', l: 'Close Claim', states: ['remitted', 'rejected'] }
+    ] },
   'M09-form-claim': {
 
     lines: {
@@ -161,17 +199,18 @@ export const SCREENS = {
           { name: 'operating_unit_id', required: true, label: 'Service Center / Hub' },
           { name: 'warranty_product_id', label: 'Warranty Plan / SKU' },
           { name: 'currency_id', label: 'Currency' },
-          { name: 'state', label: 'Claim Lifecycle Status' }
+          { name: 'state', readonly: true, label: 'Claim Lifecycle Status (set by its actions)' }
         ] },
       { tab: 'defect', title: 'Device Serial/IMEI Provenance & Defect Diagnosis',
         fields: [
-          { name: 'device_id', label: 'Covered Device Record' },
+          { name: 'device_id', readonly: true, label: 'Covered Device Record' },
           { name: 'job_completed_at', readonly: true, label: 'Workshop Job Completed At' }
         ] },
       { tab: 'financial', title: 'Commercial Reimbursement & Remittance Matching',
         fields: [
-          { name: 'claim_amount', required: true, label: 'Claim Amount (BDT)' },
-          { name: 'remittance_amount', label: 'Brand Remitted Amount (BDT)' }
+          { name: 'claim_amount', readonly: true, label: 'Requested Amount (BDT, the approved estimate)' },
+          { name: 'approved_amount', readonly: true, label: 'Approved by the OEM (BDT)' },
+          { name: 'remittance_amount', readonly: true, label: 'Remitted, bank-confirmed (BDT)' }
         ] },
       { tab: 'evidence', title: 'Cryptographic Evidence Integrity (SHA-256)',
         note: 'All photographic and diagnostic proof is hashed (SHA-256) upon submission to ensure tamper-proof auditability.',
@@ -183,7 +222,9 @@ export const SCREENS = {
         fields: [
           { name: 'submitted_at', readonly: true, label: 'Submission Timestamp' },
           { name: 'decided_at', readonly: true, label: 'Adjudication Timestamp' },
-          { name: 'rejection_reason', label: 'Brand Rejection Reason' },
+          { name: 'rejection_reason', readonly: true, label: 'Brand Rejection Reason' },
+          { name: 'proposed_decision', readonly: true, label: 'Keyed OEM Decision (awaiting officer)' },
+          { name: 'decided_by_id', readonly: true, label: 'Decision Recorded By' },
           { name: 'submission_deadline', readonly: true, label: 'Submission SLA Deadline' }
         ] },
       { tab: 'vault', title: 'Brand Claim Document Vault',
@@ -251,10 +292,11 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Appeal Name', required: true },
-        { name: 'decision', label: 'Decision', required: true }
+        { name: 'decision', label: 'Decision (Uphold / Reject Appeal)', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
-        { name: 'decided_at', label: 'Decided At', readonly: true }
+        { name: 'decided_at', label: 'Decided At', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'claim_id', label: 'Claim', required: true }
@@ -287,11 +329,11 @@ export const SCREENS = {
         { name: 'product_ref', label: 'Product / Model Reference' },
         { name: 'affected_units', label: 'Affected Units', required: true },
         { name: 'covered_units', label: 'Covered Units' },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State (Launch / Complete / Cancel)', readonly: true },
         { name: 'note', label: 'Note' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
-        { name: 'launched_on', label: 'Launched On' }
+        { name: 'launched_on', label: 'Launched On', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'brand_id', label: 'Brand' }
@@ -318,7 +360,7 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Transfer Name', required: true },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State (Approve / Effect / Void)', readonly: true },
         { name: 'note', label: 'Note' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
@@ -326,8 +368,10 @@ export const SCREENS = {
       ] },
       { tab: 'relations', title: '4. Links', fields: [
         { name: 'warranty_id', label: 'Warranty', required: true },
-        { name: 'from_partner_id', label: 'From Customer' },
-        { name: 'to_partner_id', label: 'To Customer' }
+        { name: 'from_partner_id', label: 'From Customer (the current owner)', required: true },
+        { name: 'to_partner_id', label: 'To Customer', required: true },
+        { name: 'evidence_document_id', label: 'Transfer Evidence (sale receipt / hand-over)' },
+        { name: 'approved_by_id', label: 'Approved By', readonly: true }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },
@@ -463,7 +507,9 @@ export const SCREENS = {
         { name: 'lookback_orders', label: 'Invoiced Repairs (history)', readonly: true },
         { name: 'lookback_reworks', label: 'Reworks (history)', readonly: true },
         { name: 'movement', label: 'Movement', readonly: true },
-        { name: 'state', label: 'State', required: true }
+        // A04 integration (2026-11-04): A08 guards the provision state; it moves
+        // only through the model's transitions, never from this form.
+        { name: 'state', label: 'State', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'revenue_in_warranty', label: 'Repair Revenue in Warranty', readonly: true },
@@ -543,7 +589,8 @@ export const FORM_CHIPS = {
     'M09-claims': 'M09-form-claim',
     'M09-policies': 'M09-form-policy',
     'M09-recalls': 'M09-form-recall',
-    'M09-transfer': 'M09-form-transfer'
+    'M09-transfer': 'M09-form-transfer',
+    'M09-appeals': 'M09-form-appeal'
   }
 };
 

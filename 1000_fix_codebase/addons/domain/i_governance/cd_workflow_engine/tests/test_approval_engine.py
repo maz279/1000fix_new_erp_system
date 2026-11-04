@@ -437,7 +437,7 @@ class TestDiscountRouting:
 
     def test_a_discount_is_approved_from_the_inbox(self, env, make_user, discount):
         seller, manager = make_user(), make_user(T2)
-        req = discount(seller, 8.0)
+        req = discount(seller, 15.0)  # A04 build: Tier 2 band of the single ladder
         with pytest.raises(UserError, match="approver's inbox"):
             req.with_user(manager).action_approve()
         req.with_user(seller).action_request_approval()
@@ -446,7 +446,7 @@ class TestDiscountRouting:
 
     def test_a_rejected_discount_records_the_reason(self, env, make_user, discount):
         seller, director = make_user(), make_user(T3)
-        req = discount(seller, 20.0)
+        req = discount(seller, 25.0)  # A04 build: Tier 3 band of the single ladder
         req.with_user(seller).action_request_approval()
         assert all(t.assigned_user_id.has_group(T3) for t in req.approval_request_id.task_ids)
         _task_of(req, director).with_user(director).action_reject(comment="margin too thin")

@@ -4,6 +4,7 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
+from odoo import fields
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 from odoo.exceptions import UserError
 
@@ -109,7 +110,7 @@ def test_only_an_approved_estimate_is_quoted(ctx):
 
 def test_pending_discount_blocks_quoting(ctx):
     estimate = _estimate(ctx, state="approved")
-    _approval(ctx, estimate, 8.0)  # above the 5% agent authority: pending
+    _approval(ctx, estimate, 15.0)  # above the 10% agent band of the ladder: pending
     with (
         pytest.raises(UserError, match="pending discount approval blocks quoting"),
         ctx.env.cr.savepoint(),
@@ -131,7 +132,11 @@ def test_quote_sends_and_publishes(ctx):
 
 @pytest.mark.parametrize("from_state", ["quoted", "negotiating"])
 def test_accept_from_quoted_or_negotiating(ctx, from_state):
-    estimate = _estimate(ctx, quotation_state=from_state)
+    # A04 C2-C13: only the approved estimate the customer was quoted, inside
+    # its validity window, is accepted.
+    estimate = _estimate(
+        ctx, state="approved", quotation_state=from_state, sent_at=fields.Datetime.now()
+    )
     estimate.action_accept()
     assert estimate.quotation_state == "accepted"
     assert estimate.accepted_at
@@ -151,8 +156,11 @@ def test_accept_requires_a_live_quote(ctx, from_state):
 
 def test_decline(ctx):
     estimate = _estimate(ctx, quotation_state="quoted")
-    estimate.action_decline()
+    with pytest.raises(UserError, match="why"), ctx.env.cr.savepoint():
+        estimate.action_decline()  # BRU-QTE-16: a decline records its reason
+    estimate.action_decline(reason="Repair cost above the device value")
     assert estimate.quotation_state == "declined"
+    assert estimate.quotation_decline_reason == "Repair cost above the device value"
 
 
 @pytest.mark.parametrize("days", [0, -3])
@@ -164,31 +172,33 @@ def test_validity_window_must_be_positive(ctx, days):
 # --- discount governance (05-04 section 7) -------------------------------------
 
 
-@pytest.mark.parametrize(("pct", "state"), [(4.0, "approved"), (5.0, "approved"), (5.5, "pending")])
-def test_agent_authority_auto_approves_up_to_five_percent(ctx, pct, state):
+@pytest.mark.parametrize(
+    ("pct", "state"), [(4.0, "approved"), (10.0, "approved"), (10.5, "pending")]
+)
+def test_agent_authority_auto_approves_up_to_ten_percent(ctx, pct, state):
     assert _approval(ctx, _estimate(ctx), pct).state == state
 
 
 def test_manager_band_discount_is_approved_and_published(ctx):
-    approval = _approval(ctx, _estimate(ctx), 8.0)
+    approval = _approval(ctx, _estimate(ctx), 15.0)
     with pytest.raises(UserError, match="approver's inbox"), ctx.env.cr.savepoint():
         approval.with_user(ctx.clerk).action_approve()  # R7: never pressed directly
-    approve_via_inbox(approval, ctx.manager)  # 8% <= the 10% manager cap
+    approve_via_inbox(approval, ctx.manager)  # 15% <= the 20% branch-manager band
     assert ctx.clerk not in assigned(approval)  # a front-desk agent is not routed to
     assert approval.state == "approved"
     assert approval.approved_by == ctx.manager
     assert _events(ctx.env, "discount.approved", "fix.discount.approval", approval.id) == [
-        {"pct": 8.0}
+        {"pct": 15.0}
     ]
 
 
 def test_director_band_discount_needs_a_system_approver(ctx):
-    approval = _approval(ctx, _estimate(ctx), 12.0)
+    approval = _approval(ctx, _estimate(ctx), 25.0)
     with pytest.raises(UserError, match="approver's inbox"), ctx.env.cr.savepoint():
         approval.with_user(ctx.clerk).action_approve()
     assert approval.state == "pending"
     approve_via_inbox(approval, ctx.director)
-    # 12% is the commercial director's: the branch manager is not routed to.
+    # 25% is the Tier 3 band: the branch manager is not routed to.
     assert ctx.manager not in assigned(approval)
     assert approval.state == "approved"
     assert approval.approved_by == ctx.director

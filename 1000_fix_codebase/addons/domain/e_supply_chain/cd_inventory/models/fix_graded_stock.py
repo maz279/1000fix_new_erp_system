@@ -6,6 +6,26 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+# A04 integration (2026-11-04, M38 gst_01 / p03_06): any internal user could
+# write a unit `sold` (at a resale price of 1.0) through the ORM or the P03
+# form, with no order and no graded_stock.sold event. The state now moves only
+# through the transitions below (fix.guarded.mixin); the storefront and
+# marketplace reach them as sudo() service code. Once a unit is committed to
+# an order (reserved) or has left stock, what it costs and sells for is frozen.
+STOCK_GUARDED = {"state"}
+STOCK_FROZEN = {
+    "device_id",
+    "grade_id",
+    "acquisition_cost",
+    "refurbishment_cost",
+    "resale_price",
+    "currency_id",
+}
+FROZEN_STATES = ("reserved", "sold", "scrapped")
+# A sale or reservation outside an order (walk-in, write-off of a hold) is an
+# Inventory Controller's call; the storefront reaches these as sudo() service.
+STOCK_CONTROLLER = "cd_wms_structure.group_inventory_controller"
+
 
 class FixGradedStock(models.Model):
     """Refurbished and graded device stock in M15 inventory with grade-aware valuation.
@@ -14,7 +34,7 @@ class FixGradedStock(models.Model):
 
     _name = "fix.graded.stock"
     _description = "Graded & Refurbished Inventory"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc, id desc"
 
     company_id = fields.Many2one(
@@ -118,6 +138,12 @@ class FixGradedStock(models.Model):
         tracking=True,
     )
 
+    def _fix_guarded_fields(self) -> set:
+        guarded = super()._fix_guarded_fields() | STOCK_GUARDED
+        if any(rec.state in FROZEN_STATES for rec in self):
+            guarded |= STOCK_FROZEN
+        return guarded
+
     @api.depends("acquisition_cost", "refurbishment_cost")
     def _compute_valuation(self):
         for rec in self:
@@ -149,17 +175,31 @@ class FixGradedStock(models.Model):
                 )
         return super().create(vals_list)
 
+    def _fix_require_controller(self, what):
+        if not (self.env.su or self.env.user.has_group(STOCK_CONTROLLER)):
+            raise UserError("%s is done from its order, or by an Inventory Controller." % what)
+
     def action_reserve(self):
+        self._fix_require_controller("Reserving a graded unit")
         for rec in self:
             if rec.state != "in_stock":
                 raise UserError("Only in-stock items can be reserved")
-            rec.state = "reserved"
+            rec._guarded().write({"state": "reserved"})
+
+    def action_release(self):
+        """A reservation that did not become a sale goes back on the shelf."""
+        self._fix_require_controller("Releasing a graded unit")
+        for rec in self:
+            if rec.state != "reserved":
+                raise UserError("Only a reserved item can be released back to stock")
+            rec._guarded().write({"state": "in_stock"})
 
     def action_sell(self):
+        self._fix_require_controller("Selling a graded unit")
         for rec in self:
             if rec.state not in ("in_stock", "reserved"):
                 raise UserError("Only in-stock or reserved items can be sold")
-            rec.state = "sold"
+            rec._guarded().write({"state": "sold"})
             publish(
                 self.env,
                 "graded_stock.sold",

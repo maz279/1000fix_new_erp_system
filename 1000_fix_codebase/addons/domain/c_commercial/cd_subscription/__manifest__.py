@@ -36,9 +36,11 @@ CD-M39-01 + M53's W4 slice (P07-M03):
         "cd_gl_ext",
     ],
     "data": [
+        "security/cd_subscription_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "security/fix_revenue_rules.xml",
+        "data/ir_cron.xml",
         "views/fix_subscription_views.xml",
     ],
     "installable": True,

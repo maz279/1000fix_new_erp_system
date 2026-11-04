@@ -117,6 +117,7 @@ def test_claim_list_is_scoped_formatted_and_filterable(bw):
         "claim_no": draft.claim_no,
         "state": "draft",
         "amount_bdt": "12,34,567.50",
+        "approved_bdt": "0.00",
         "submitted_at": None,
         "decided_at": None,
         "rejection_reason": "",
@@ -227,6 +228,9 @@ def test_webhook_cannot_reopen_a_decided_claim(bw):
 
 
 def test_reconciliation_flags_mismatches_with_signed_variance(bw):
+    """A04 M09-4: the brand posts a remittance ADVICE; it never settles the
+    claim. The claim is settled when a Claim Decision Officer records the
+    money received against a bank reference."""
     user = bw.brand_user
     bw.own.action_decide(approved=True)
     matched = bw.wc.claim(state="submitted", amount=500.0)
@@ -236,19 +240,31 @@ def test_reconciliation_flags_mismatches_with_signed_variance(bw):
     short = _call(
         bw, user, "reconciliation", claim_id=bw.own.id, bank_ref="BRAC-77", amount="11000"
     )
-    # received 11,000.00 against 12,500.00 expected: a -1,500.00 variance, flagged
+    # advised 11,000.00 against 12,500.00 approved: a -1,500.00 variance, flagged
     assert short == {
         "remittance": {
             "claim_no": bw.own.claim_no,
-            "state": "remitted",
+            "state": "approved",
             "expected_bdt": "12,500.00",
-            "received_bdt": "11,000.00",
+            "advised_bdt": "11,000.00",
+            "received_bdt": "0.00",
             "mismatch": True,
             "variance_bdt": "-1,500.00",
+            "status": "advice_noted",
         }
     }
+    assert bw.own.state == "approved" and not bw.own.remittance_amount
     exact = _call(bw, user, "reconciliation", claim_id=matched.id, bank_ref="BRAC-78", amount=500)
     assert (exact["remittance"]["mismatch"], exact["remittance"]["variance_bdt"]) == (False, "0.00")
+    # the money: a Claim Decision Officer records what the bank received
+    officer = bw.wc.officer
+    matched.with_user(officer).action_record_remittance(500.0, "BRAC-78")
+    bw.own.with_user(officer).action_record_remittance(11000.0, "BRAC-77")
+    assert (matched.state, bw.own.state, bw.own.remittance_mismatch) == (
+        "remitted",
+        "approved",
+        True,
+    )
     view = {r["claim_no"]: r for r in _call(bw, user, "reconciliation")["reconciliation"]}
     assert set(view) == {bw.own.claim_no, matched.claim_no, pending.claim_no}  # never brand B's
     assert (view[bw.own.claim_no]["mismatch"], view[bw.own.claim_no]["variance_bdt"]) == (
@@ -259,11 +275,45 @@ def test_reconciliation_flags_mismatches_with_signed_variance(bw):
         False,
         "0.00",
     )
-    # an approved, not yet remitted claim is never "mismatched"
+    # an approved claim with no advice and no receipt is never "mismatched"
     assert (view[pending.claim_no]["mismatch"], view[pending.claim_no]["received_bdt"]) == (
         False,
         "0.00",
     )
+
+
+def test_a_brand_decides_in_part_as_itself(bw):
+    res = _call(
+        bw,
+        bw.brand_user,
+        "claims",
+        claim_id=bw.own.id,
+        decision="approve",
+        approved_amount="9000",
+        reason="Labour over the rate card",
+    )
+    assert res["claim"]["state"] == "partially_approved"
+    assert (bw.own.approved_amount, bw.own.decided_by_id, bw.own.decision_source) == (
+        9000.0,
+        bw.brand_user,
+        "brand_api",
+    )
+    assert bw.own.decision_ids.approved_amount == 9000.0
+
+
+def test_the_openapi_contract_lists_the_brand_operations():
+    import json
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[5]
+    spec = json.loads((repo / "contracts" / "openapi" / "w4-portals.json").read_text("utf-8"))
+    for path in (
+        "/brand/claims",
+        "/brand/claims/{claim_no}/status",
+        "/brand/claims/webhook",
+        "/brand/reconciliation",
+    ):
+        assert path in spec["paths"]
 
 
 def test_remittance_input_and_state_validation(bw):

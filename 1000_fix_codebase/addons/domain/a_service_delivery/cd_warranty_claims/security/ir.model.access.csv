@@ -1,7 +1,14 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_warranty_product,fix.warranty.product,model_fix_warranty_product,base.group_user,1,1,1,0
-access_fix_warranty_claim,fix.warranty.claim,model_fix_warranty_claim,base.group_user,1,1,1,0
-access_fix_warranty_evidence,fix.warranty.evidence,model_fix_warranty_evidence,base.group_user,1,1,1,1
-access_fix_warranty_transfer,fix.warranty.transfer,model_fix_warranty_transfer,base.group_user,1,1,1,1
-access_fix_warranty_recall,fix.warranty.recall,model_fix_warranty_recall,base.group_user,1,1,1,1
-access_fix_claim_appeal,fix.claim.appeal,model_fix_claim_appeal,base.group_user,1,1,1,1
+access_fix_warranty_product,fix.warranty.product,model_fix_warranty_product,base.group_user,1,0,0,0
+access_fix_warranty_product_officer,fix.warranty.product officer,model_fix_warranty_product,group_warranty_claims_officer,1,1,1,0
+access_fix_warranty_claim,fix.warranty.claim,model_fix_warranty_claim,base.group_user,1,0,0,0
+access_fix_warranty_claim_clerk,fix.warranty.claim clerk,model_fix_warranty_claim,group_warranty_claims_clerk,1,1,1,0
+access_fix_warranty_claim_decision,fix.warranty.claim.decision,model_fix_warranty_claim_decision,base.group_user,1,0,0,0
+access_fix_warranty_evidence,fix.warranty.evidence,model_fix_warranty_evidence,base.group_user,1,0,0,0
+access_fix_warranty_evidence_clerk,fix.warranty.evidence clerk,model_fix_warranty_evidence,group_warranty_claims_clerk,1,1,1,1
+access_fix_warranty_transfer,fix.warranty.transfer,model_fix_warranty_transfer,base.group_user,1,0,0,0
+access_fix_warranty_transfer_clerk,fix.warranty.transfer clerk,model_fix_warranty_transfer,group_warranty_claims_clerk,1,1,1,0
+access_fix_warranty_recall,fix.warranty.recall,model_fix_warranty_recall,base.group_user,1,0,0,0
+access_fix_warranty_recall_clerk,fix.warranty.recall clerk,model_fix_warranty_recall,group_warranty_claims_clerk,1,1,1,0
+access_fix_claim_appeal,fix.claim.appeal,model_fix_claim_appeal,base.group_user,1,0,0,0
+access_fix_claim_appeal_clerk,fix.claim.appeal clerk,model_fix_claim_appeal,group_warranty_claims_clerk,1,1,1,0

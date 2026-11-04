@@ -4,39 +4,84 @@
 # seller NPS (no survey key on sellers) is a declared gap.
 import datetime
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 
 SURFACES = {
+    # A04 workflow audit (2026-11-03) M12-12: every surface declared
+    # `actions: set()` while the forms offered state, cfo_approved,
+    # kyc_status, tier and commission_rate as edit fields. The lifecycles are
+    # whitelisted; each method checks its own role, state and segregation of
+    # duties (cd_marketplace), and the approvals run from the M63 inbox.
     "fix.marketplace.seller": {
         "order": "tier, name",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_submit_kyc",
+            "action_verify_kyc",
+            "action_reject_kyc",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.marketplace.listing": {
         "order": "name",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_submit",
+            "action_recall_approval",
+            "action_pause",
+            "action_resume",
+            "action_withdraw",
+            "action_remove",
+        },
     },
     "fix.marketplace.dispute": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {
+            "action_investigate",
+            "action_arbitrate",
+            "action_recall_approval",
+            "action_escalate",
+        },
     },
     "fix.seller.quote": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_select"},
     },
     "fix.seller.score": {
         "order": "period desc, id desc",
         "limit": 300,
-        "actions": set(),
+        "actions": {"action_publish"},
     },
     # fix.seller.statement and fix.payout.run are owned by M53 (a08 surface).
-    "fix.marketplace.order": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.marketplace.order": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_start_job",
+            "action_complete",
+            "action_review",
+            "action_earn_commission",
+            "action_paid",
+            "action_cancel",
+        },
+    },
+    # A04 P2 (M12): customer chargebacks against marketplace sales.
+    "fix.marketplace.chargeback": {
+        "order": "received_on desc, id desc",
+        "limit": 300,
+        "actions": {
+            "action_submit_evidence",
+            "action_mark_won",
+            "action_mark_lost",
+            "action_accept",
+        },
+    },
 }
 
 
@@ -53,12 +98,12 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _sellers(env):
-    return env["fix.marketplace.seller"].sudo().search([])
+    return env["fix.marketplace.seller"].search([])
 
 
 def seller_liquidity(env, date_from=None, date_to=None, **params):
     sellers = _sellers(env)
-    listings = env["fix.marketplace.listing"].sudo().search([])
+    listings = env["fix.marketplace.listing"].search([])
     by_tier = {}
     for seller in sellers:
         row = by_tier.setdefault(
@@ -103,7 +148,7 @@ def seller_liquidity(env, date_from=None, date_to=None, **params):
 
 
 def scorecard_distribution(env, date_from=None, date_to=None, **params):
-    scores = env["fix.seller.score"].sudo().search([])
+    scores = env["fix.seller.score"].search([])
     bands = {"0-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
     rows_by_seller = {}
     for score in scores:
@@ -145,8 +190,8 @@ def scorecard_distribution(env, date_from=None, date_to=None, **params):
 
 
 def fill_rate(env, date_from=None, date_to=None, **params):
-    scores = env["fix.seller.score"].sudo().search([])
-    quotes = env["fix.seller.quote"].sudo().search([])
+    scores = env["fix.seller.score"].search([])
+    quotes = env["fix.seller.quote"].search([])
     by_state = {}
     for quote in quotes:
         by_state[quote.state] = by_state.get(quote.state, 0) + 1
@@ -215,8 +260,8 @@ def commission_revenue(env, date_from=None, date_to=None, **params):
 
 
 def dispute_rate(env, date_from=None, date_to=None, **params):
-    disputes = env["fix.marketplace.dispute"].sudo().search([])
-    orders = env["fix.marketplace.order"].sudo().search_count([])
+    disputes = env["fix.marketplace.dispute"].search([])
+    orders = env["fix.marketplace.order"].search_count([])
     by_state = {}
     for dispute in disputes:
         by_state[dispute.state] = by_state.get(dispute.state, 0) + 1
@@ -304,7 +349,7 @@ def agreements(env, date_from=None, date_to=None, **params):
 
 
 def listing_coverage(env, date_from=None, date_to=None, **params):
-    listings = env["fix.marketplace.listing"].sudo().search([])
+    listings = env["fix.marketplace.listing"].search([])
     by_state = {}
     for listing in listings:
         row = by_state.setdefault(
@@ -461,7 +506,7 @@ def fees_register(env, date_from=None, date_to=None, **params):
 
 
 def reviews_summary(env, date_from=None, date_to=None, **params):
-    scores = env["fix.seller.score"].sudo().search([])
+    scores = env["fix.seller.score"].search([])
     bands = {"0-2": 0, "2-3": 0, "3-4": 0, "4-5": 0, "unrated": 0}
     for score in scores:
         rating = score.review_rating or 0.0
@@ -522,9 +567,7 @@ def trust_bands(env, date_from=None, date_to=None, **params):
 
 
 def broadcast_backlog(env, date_from=None, date_to=None, **params):
-    quotes = (
-        env["fix.seller.quote"].sudo().search([("state", "in", ("pending", "new", "submitted"))])
-    )
+    quotes = env["fix.seller.quote"].search([("state", "in", ("pending", "new", "submitted"))])
     rows = []
     for quote in quotes[:200]:
         rows.append(
@@ -605,9 +648,9 @@ REPORTS = {
 
 def kpis(env):
     sellers = _sellers(env)
-    scores = env["fix.seller.score"].sudo().search([])
-    disputes = env["fix.marketplace.dispute"].sudo().search([])
-    today = datetime.date.today()
+    scores = env["fix.seller.score"].search([])
+    disputes = env["fix.marketplace.dispute"].search([])
+    today = fields.Date.context_today(env["fix.marketplace.order"])
     month_start = today.replace(day=1)
     payouts_mtd = len(
         env["fix.payout.run"]

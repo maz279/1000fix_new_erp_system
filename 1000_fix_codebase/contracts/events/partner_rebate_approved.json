@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "partner.rebate_approved",
+  "description": "Published by cd_partner through libs.py.fix_events.publish() (1 call site(s)). A partner rebate / MDF payout approved from the M63 inbox: the instruction for the M52/M53 payable; finance then records the payout (action_record_payout).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "partner.rebate_approved"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_partner"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "rebate_id",
+        "rebate",
+        "partner_id",
+        "party_id",
+        "kind",
+        "period",
+        "amount",
+        "currency",
+        "approved_by"
+      ],
+      "properties": {
+        "rebate_id": {
+          "type": "integer"
+        },
+        "rebate": {
+          "type": "string"
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "party_id": {
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "approved_by": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_partner",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_partner/models/fix_partner_ops.py"
+  ],
+  "x-derived-from": "A04 build (2026-11-04), written by hand from the publish() call"
+}

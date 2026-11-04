@@ -18,11 +18,18 @@ CD-M40-01 (P10) — Partner, Channel & Franchise.
         "cd_party_master",
         "cd_contract_core",
         "cd_event_outbox",
+        # A04 audit (2026-11-04): the rebate payout is a routed M63 approval.
+        # cd_workflow_engine already loads before this module on fix_dev
+        # (through cd_party_master).
+        "cd_workflow_engine",
     ],
     "data": [
+        "security/cd_partner_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/fix_partner_security.xml",
         "security/ir.model.access.csv",
+        "data/ir_sequence_data.xml",
+        "data/ir_cron.xml",
         # A03 audit W1: party.merged consumer (re-points are logged).
         "data/fix_party_merge_consumers.xml",
         "views/cd_partner_views.xml",

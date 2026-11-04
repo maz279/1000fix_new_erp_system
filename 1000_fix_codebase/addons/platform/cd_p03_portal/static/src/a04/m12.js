@@ -45,7 +45,8 @@ export const MODULE = {
     { en: 'Trust', screens: [
       { id: 'M12-reviews', en: 'Ratings & Reviews', bn: 'রেটিং', t: 'g' },
       { id: 'M12-disputes', en: 'Disputes & Mediation', bn: 'বিরোধ', t: 'c' },
-      { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'g' }
+      { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'g' },
+      { id: 'M12-chargebacks', en: 'Chargebacks', bn: 'চার্জব্যাক', t: 'g' }
     ]}
   ],
   reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept', 'Commission Revenue', 'Dispute Rate & Outcomes', 'Seller Scorecard Distribution', 'Listing Coverage'],
@@ -68,23 +69,92 @@ export const MODULE = {
 
 export const SCREENS = {
   'M12-sellers': { kind: 'model_list', model: 'fix.marketplace.seller', stateField: 'kyc_status',
-    cols: ['name', 'partner_id', 'tier', 'kyc_status', 'rating', 'total_jobs', 'payout_hold'] },
+    cols: ['name', 'partner_id', 'tier', 'kyc_status', 'cfo_approved', 'approval_state', 'rating', 'total_jobs', 'payout_hold'],
+    // A04 audit M12-1: KYC is a compliance decision; CFO approval is
+    // requested here and granted by a DOFA Tier 4 holder from the M63 inbox
+    // (never the KYC reviewer).
+    actions: [
+      { m: 'action_submit_kyc', l: 'Submit KYC for Review' },
+      { m: 'action_verify_kyc', l: 'Verify KYC' },
+      { m: 'action_reject_kyc', l: 'Reject KYC', ask: 'Why the KYC is rejected', kwarg: 'reason' },
+      { m: 'action_request_approval', l: 'Request CFO Approval', ask: 'Business case for the seller', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall CFO Request' }
+    ] },
   'M12-kyc': { kind: 'table_report', module: 'M12', report: 'kyc_queue', title: 'KYC & Approval', period: false },
   'M12-agreements': { kind: 'table_report', module: 'M12', report: 'agreements', title: 'Agreements & Tiers', period: false },
   'M12-listings': { kind: 'model_list', model: 'fix.marketplace.listing', stateField: 'state',
-    cols: ['name', 'seller_id', 'category_id', 'list_price', 'state'] },
+    cols: ['name', 'seller_id', 'category_id', 'list_price', 'state', 'approved_by_id'],
+    // A04 audit M12-10: a listing goes live only on a compliance reviewer's
+    // approval (M63 inbox), for a verified, CFO-approved seller.
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval', states: ['draft', 'rejected'] },
+      { m: 'action_recall_approval', l: 'Recall Request', states: ['submitted'] },
+      { m: 'action_pause', l: 'Pause', states: ['active'] },
+      { m: 'action_resume', l: 'Resume', states: ['paused'] },
+      { m: 'action_withdraw', l: 'Withdraw to Draft', states: ['active', 'paused', 'rejected'] },
+      { m: 'action_remove', l: 'Remove Listing', states: ['draft', 'submitted', 'active', 'paused', 'rejected'] }
+    ] },
   'M12-stock': { kind: 'table_report', module: 'M12', report: 'stock_gap', title: 'Seller Stock', period: false },
   'M12-training': { kind: 'table_report', module: 'M12', report: 'training_gap', title: 'Standards & Training', period: false },
   'M12-broadcast': { kind: 'table_report', module: 'M12', report: 'broadcast_backlog', title: 'Job Broadcast', period: false },
   'M12-bids': { kind: 'model_list', model: 'fix.seller.quote', stateField: 'state',
-    cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'] },
+    cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'],
+    // A04 audit M12-7: the operator awards; price and rate are pinned then.
+    actions: [
+      { m: 'action_select', l: 'Award to this Quote', states: ['submitted'] }
+    ] },
   'M12-oversight': { kind: 'table_report', module: 'M12', report: 'oversight', title: 'Execution Oversight', period: false },
   'M12-commission': { kind: 'table_report', module: 'M12', report: 'commission_revenue', title: 'Commission Schemes', period: false },
   'M12-wallet': { kind: 'table_report', module: 'M12', report: 'seller_wallet', title: 'Seller Wallets & Payouts', period: false },
   'M12-fees': { kind: 'table_report', module: 'M12', report: 'fees_register', title: 'Fees & Promotion', period: false },
   'M12-reviews': { kind: 'table_report', module: 'M12', report: 'reviews_summary', title: 'Ratings & Reviews', period: false },
   'M12-disputes': { kind: 'model_list', model: 'fix.marketplace.dispute', stateField: 'state',
-    cols: ['name', 'order_id', 'seller_id', 'customer_id', 'dispute_reason', 'disputed_amount', 'state'] },
+    cols: ['name', 'order_id', 'seller_id', 'customer_id', 'dispute_reason', 'disputed_amount', 'proposed_resolution', 'approval_state', 'state'],
+    // A04 audit M12-3: raised -> investigating -> arbitration -> resolved.
+    // The ruling proposed on the form is decided by a Marketplace Dispute
+    // Arbitrator from the M63 inbox; the 48h SLA escalates by cron.
+    actions: [
+      { m: 'action_investigate', l: 'Start Investigation', states: ['raised'] },
+      { m: 'action_arbitrate', l: 'Send Ruling to Arbitrator', states: ['investigating', 'escalated'] },
+      { m: 'action_recall_approval', l: 'Recall Ruling', states: ['arbitration', 'escalated'] },
+      { m: 'action_escalate', l: 'Escalate to Executive', states: ['raised', 'investigating', 'arbitration'] }
+    ] },
+  'M12-chargebacks': { kind: 'model_list', model: 'fix.marketplace.chargeback', stateField: 'state',
+    cols: ['name', 'order_id', 'seller_id', 'amount', 'reason', 'gateway_ref', 'received_on', 'respond_by', 'state'],
+    // A04 P2 (M12): a chargeback holds the seller's payout while open; a
+    // lost one is recovered from the seller (M53, via the event).
+    actions: [
+      { m: 'action_submit_evidence', l: 'Contest (evidence sent)', ask: 'What evidence went to the gateway', kwarg: 'note', states: ['received'] },
+      { m: 'action_mark_won', l: 'Gateway Ruled: Won', ask: 'Gateway outcome reference', kwarg: 'note', states: ['contested'] },
+      { m: 'action_mark_lost', l: 'Gateway Ruled: Lost', ask: 'Gateway outcome reference', kwarg: 'note', states: ['contested'] },
+      { m: 'action_accept', l: 'Accept Liability', ask: 'Why the chargeback is accepted', kwarg: 'note', states: ['received', 'contested'] }
+    ] },
+  'M12-form-chargeback': { kind: 'model_form', model: 'fix.marketplace.chargeback',
+    title: 'Chargeback', back: 'M12-chargebacks',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Case', bn: '১. কেস' },
+      { id: 'outcome', label: '2. Outcome', bn: '২. ফলাফল' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Gateway Case', fields: [
+        { name: 'name', label: 'Reference (auto)', readonly: true },
+        { name: 'order_id', label: 'Marketplace Order', required: true },
+        { name: 'seller_id', label: 'Seller (the awarded seller)', readonly: true },
+        { name: 'amount', label: 'Amount Charged Back (BDT)', required: true },
+        { name: 'currency_id', label: 'Currency' },
+        { name: 'reason', label: 'Reason', required: true },
+        { name: 'gateway_ref', label: 'Gateway Case Reference', required: true },
+        { name: 'received_on', label: 'Received On', required: true },
+        { name: 'respond_by', label: 'Respond By', readonly: true }
+      ] },
+      { tab: 'outcome', title: 'Contest & Outcome', fields: [
+        { name: 'state', label: 'State (set by its actions)', readonly: true },
+        { name: 'evidence_note', label: 'Evidence Sent', readonly: true, type: 'text' },
+        { name: 'outcome_note', label: 'Gateway Outcome', readonly: true, type: 'text' },
+        { name: 'decided_by_id', label: 'Outcome Recorded By', readonly: true }
+      ] }
+    ] },
   'M12-trust': { kind: 'table_report', module: 'M12', report: 'trust_bands', title: 'Fraud & Trust Ops', period: false },
 
   /* Report chips -> their own computed pack */
@@ -121,7 +191,7 @@ export const SCREENS = {
         ] },
       { tab: 'commercial', title: 'Platform Commission & Settlement Terms',
         fields: [
-          { name: 'tier', label: 'Seller Rating Tier' },
+          { name: 'tier', readonly: true, label: 'Seller Rating Tier (measured)' },
           ] },
       { tab: 'kyc', title: 'Bangladesh Statutory Compliance & Tax Registrations',
         note: 'Statutory compliance under Digital Commerce Operational Guidelines 2021 and Income Tax Act 2023 s.140.',
@@ -129,7 +199,8 @@ export const SCREENS = {
           { name: 'nid_number', label: 'National ID (Smart NID)' },
           { name: 'tin_number', label: '12-Digit e-TIN Number' },
           { name: 'trade_license_no', label: 'City Corporation / Union Trade License No' },
-          { name: 'kyc_status', required: true, label: 'Statutory KYC Status' }
+          { name: 'kyc_status', readonly: true, label: 'Statutory KYC Status (Submit / Verify / Reject)' },
+          { name: 'compliance_reviewer_id', readonly: true, label: 'KYC Reviewed By' }
         ] },
       { tab: 'quality', title: 'Performance Telemetry & Quality Standards',
         fields: [
@@ -138,7 +209,9 @@ export const SCREENS = {
       { tab: 'workflow', title: 'CFO Governance & Payout Authorization',
         note: 'CFO approval required before first payout disbursement or high-value refurbished device listing.',
         fields: [
-          { name: 'cfo_approved', label: 'CFO Payout Approval Granted' }
+          { name: 'cfo_approved', readonly: true, label: 'CFO Approval Granted (DOFA Tier 4, inbox)' },
+          { name: 'cfo_approved_by', readonly: true, label: 'CFO Approved By' },
+          { name: 'payout_hold', readonly: true, label: 'Payout Hold (open dispute / chargeback)' }
         ] },
       { tab: 'vault', title: 'Merchant Statutory Document Vault',
         note: 'Verified trade licenses, e-TIN certificates, bank solvency letters, and signed platform agreements.',
@@ -160,7 +233,8 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Listing Title', required: true },
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State (set by its actions)', readonly: true },
+        { name: 'approved_by_id', label: 'Approved By', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'list_price', label: 'List Price' }
@@ -224,7 +298,9 @@ export const SCREENS = {
         { name: 'name', label: 'Run Name', required: true },
         { name: 'period', label: 'Period', required: true },
         { name: 'seller_count', label: 'Seller Count', readonly: true },
-        { name: 'state', label: 'State', required: true },
+        // A04 integration (2026-11-04): A08 guards the payout-run state; it moves
+        // only through the run's transitions, never from this form.
+        { name: 'state', label: 'State', readonly: true },
         { name: 'rail_type', label: 'Rail Type', required: true },
         { name: 'rail_status', label: 'Rail Status', readonly: true },
         { name: 'rail_batch_id', label: 'Rail Batch Reference', readonly: true },
@@ -291,7 +367,13 @@ export const SCREENS = {
           { name: 'description', required: true, label: 'Factual Statement / Claim Narrative', type: 'text' }
         ] },
       { tab: 'resolution', title: 'Adjudication Outcome', fields: [
-          { name: 'state', required: true, label: 'Dispute Status' }
+          { name: 'state', readonly: true, label: 'Dispute Status (set by its actions)' },
+          { name: 'proposed_resolution', label: 'Proposed Ruling (for the arbitrator)' },
+          { name: 'proposed_refund_amount', label: 'Proposed Refund to Customer (BDT)' },
+          { name: 'resolution_notes', label: 'Ruling Rationale', type: 'text' },
+          { name: 'resolution_type', readonly: true, label: 'Ruling (arbitrator)' },
+          { name: 'refund_amount', readonly: true, label: 'Refund Ruled (BDT)' },
+          { name: 'resolved_by', readonly: true, label: 'Arbitrated By' }
         ] }
     ]
   },
@@ -310,7 +392,7 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'eta_days', label: 'ETA (days)', required: true },
-        { name: 'state', label: 'State', required: true }
+        { name: 'state', label: 'State (Award selects it)', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'quoted_price', label: 'Quoted Price', required: true }
@@ -345,9 +427,24 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M12-marketplace-order': { kind: 'model_list', model: 'fix.marketplace.order', stateField: 'state',
-    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'order_type', 'customer_id', 'service_order_id'] },
+    cols: ['name', 'state', 'company_id', 'operating_unit_id', 'order_type', 'customer_id', 'awarded_price', 'payout_available_date'],
+    // A04 audit M12-5/-6: the order moves only through these actions; the
+    // payout waits for the 7-day escrow from the customer's sign-off, no
+    // open dispute and no seller payout hold.
+    actions: [
+      { m: 'action_start_job', l: 'Start Job', states: ['selected'] },
+      { m: 'action_complete', l: 'Job Completed', states: ['in_progress'] },
+      { m: 'action_review', l: 'Customer Sign-off', ask: 'Customer rating 1-5 (blank for none)', kwarg: 'rating', states: ['completed'] },
+      { m: 'action_earn_commission', l: 'Earn Commission', states: ['reviewed'] },
+      { m: 'action_paid', l: 'Release Payout', states: ['commissioned'] },
+      { m: 'action_cancel', l: 'Cancel Order', states: ['open', 'quoted', 'selected'] }
+    ] },
   'M12-seller-score': { kind: 'model_list', model: 'fix.seller.score', create: false,
-    cols: ['company_id', 'operating_unit_id', 'seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating'] },
+    cols: ['company_id', 'operating_unit_id', 'seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'metrics_measured'],
+    // A04 C5: the KPIs are measured from the seller's records, never typed.
+    actions: [
+      { m: 'action_publish', l: 'Measure & Rank' }
+    ] },
 
   'M12-form-marketplace-order': {
 
@@ -391,18 +488,20 @@ export const SCREENS = {
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Name', required: true, readonly: true },
         { name: 'order_type', label: 'Order Type', required: true },
-        { name: 'state', label: 'State', required: true },
+        { name: 'state', label: 'State (set by its actions)', readonly: true },
         { name: 'battery_health_percent', label: 'Battery Health (%)' }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'budget', label: 'Customer Budget / Listing Price' },
         { name: 'commission_amount', label: 'Commission Earned', readonly: true },
-        { name: 'commission_rate', label: 'Platform Commission Rate' }
+        { name: 'awarded_price', label: 'Awarded Price (pinned at award)', readonly: true },
+        { name: 'commission_rate', label: 'Commission Rate (seller tier, pinned at award)', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true },
         { name: 'started_at', label: 'Job Started', readonly: true },
         { name: 'completed_at', label: 'Job Completed', readonly: true },
+        { name: 'delivery_confirmed_at', label: 'Customer Confirmed Delivery', readonly: true },
         { name: 'payout_available_date', label: 'Escrow Release Date (7-Day Hold)', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
@@ -418,7 +517,7 @@ export const SCREENS = {
       ] },
       { tab: 'statutory', title: '5. Statutory', fields: [
         { name: 'operating_unit_id', label: 'Operating Unit' },
-        { name: 'review_rating', label: 'Customer Rating (1-5)' }
+        { name: 'review_rating', label: 'Customer Rating (1-5, at sign-off)', readonly: true }
       ] },
       { tab: 'flags', title: '6. Status Flags', fields: [
         { name: 'customer_contact_revealed', label: 'Contact Info Revealed to Selected Seller', readonly: true },
@@ -452,7 +551,8 @@ export const FORM_MODELS = {
   'M12:Seller Application': 'fix.marketplace.seller',
   'M12:Listing': 'fix.marketplace.listing',
   'M12:Payout Run': 'fix.payout.run',
-  'M12:Dispute Case': 'fix.marketplace.dispute'
+  'M12:Dispute Case': 'fix.marketplace.dispute',
+  'M12:Chargeback': 'fix.marketplace.chargeback'
 };
 
 export const FORM_CHIPS = {
@@ -467,7 +567,8 @@ export const FORM_CHIPS = {
     'fix.marketplace.seller': 'M12-form-seller',
     'fix.marketplace.listing': 'M12-form-listing',
     'fix.payout.run': 'M12-form-payout',
-    'fix.marketplace.dispute': 'M12-form-dispute'
+    'fix.marketplace.dispute': 'M12-form-dispute',
+    'fix.marketplace.chargeback': 'M12-form-chargeback'
   },
   'M12:__by_screen__': {
     'M12-marketplace-order': 'M12-form-marketplace-order',
@@ -475,7 +576,8 @@ export const FORM_CHIPS = {
     'M12-sellers': 'M12-form-seller',
     'M12-listings': 'M12-form-listing',
     'M12-wallet': 'M12-form-payout',
-    'M12-disputes': 'M12-form-dispute'
+    'M12-disputes': 'M12-form-dispute',
+    'M12-chargebacks': 'M12-form-chargeback'
   }
 };
 

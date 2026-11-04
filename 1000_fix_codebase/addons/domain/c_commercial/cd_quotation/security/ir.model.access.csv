@@ -1,6 +1,21 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_discount_approval,fix.discount.approval,model_fix_discount_approval,base.group_user,1,1,1,0
-access_fix_quotation,fix.quotation,model_fix_quotation,base.group_user,1,1,1,1
-access_fix_quote_review,fix.quote.review,model_fix_quote_review,base.group_user,1,1,1,1
-access_fix_tender,fix.tender,model_fix_tender,base.group_user,1,1,1,1
-access_fix_tender_bond,fix.tender.bond,model_fix_tender_bond,base.group_user,1,1,1,1
+access_fix_quotation,fix.quotation,model_fix_quotation,base.group_user,1,0,0,0
+access_fix_quotation_author,fix.quotation author,model_fix_quotation,group_quotation_user,1,1,1,0
+access_fix_quotation_approver,fix.quotation value-band approver,model_fix_quotation,cd_entity_config.group_dofa_tier_1,1,1,0,0
+access_fix_quotation_manager,fix.quotation manager,model_fix_quotation,group_quotation_manager,1,1,1,1
+access_fix_quote_review,fix.quote.review,model_fix_quote_review,base.group_user,1,0,0,0
+access_fix_tender,fix.tender,model_fix_tender,base.group_user,1,0,0,0
+access_fix_tender_coordinator,fix.tender bid coordinator,model_fix_tender,group_bid_coordinator,1,1,1,0
+access_fix_tender_committee,fix.tender committee,model_fix_tender,group_tender_committee,1,1,0,0
+access_fix_tender_manager,fix.tender manager,model_fix_tender,group_quotation_manager,1,1,1,1
+access_fix_tender_requirement,fix.tender.requirement,model_fix_tender_requirement,base.group_user,1,0,0,0
+access_fix_tender_requirement_coordinator,fix.tender.requirement bid coordinator,model_fix_tender_requirement,group_bid_coordinator,1,1,1,1
+access_fix_tender_bond,fix.tender.bond,model_fix_tender_bond,base.group_user,1,0,0,0
+access_fix_tender_bond_coordinator,fix.tender.bond bid coordinator,model_fix_tender_bond,group_bid_coordinator,1,1,1,0
+access_fix_tender_bond_approver,fix.tender.bond release approver,model_fix_tender_bond,cd_entity_config.group_dofa_tier_2,1,1,0,0
+access_fix_tender_bond_manager,fix.tender.bond manager,model_fix_tender_bond,group_quotation_manager,1,1,1,1
+access_fix_tender_variation,fix.tender.variation,model_fix_tender_variation,base.group_user,1,0,0,0
+access_fix_tender_variation_coordinator,fix.tender.variation bid coordinator,model_fix_tender_variation,group_bid_coordinator,1,1,1,0
+access_fix_tender_variation_committee,fix.tender.variation committee,model_fix_tender_variation,group_tender_committee,1,1,0,0
+access_fix_tender_variation_manager,fix.tender.variation manager,model_fix_tender_variation,group_quotation_manager,1,1,1,1

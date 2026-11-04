@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M40 references (A04 audit 2026-11-04): the technical audit behind the
+     rebate gate carries its own number. -->
+<odoo noupdate="1">
+    <record id="seq_fix_partner_audit" model="ir.sequence">
+        <field name="name">Partner Technical Audit</field>
+        <field name="code">fix.partner.audit</field>
+        <field name="prefix">PTA/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

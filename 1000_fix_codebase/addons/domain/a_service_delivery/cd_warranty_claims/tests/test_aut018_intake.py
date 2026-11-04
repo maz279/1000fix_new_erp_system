@@ -11,8 +11,8 @@ events; idempotent per order.
 
 def test_cron_intake_creates_claim_from_closed_event(wc):
     env = wc.env
-    order = wc.order
-    assert order.order_category == "warranty"  # the fixture builds a warranty job
+    order = wc.closed_order()
+    assert order.order_category == "warranty"
     env["fix.event.outbox"].create(
         {
             "event_id": "evt-aut018-test-1",
@@ -31,7 +31,7 @@ def test_cron_intake_creates_claim_from_closed_event(wc):
 
 def test_cron_intake_is_idempotent_across_runs(wc):
     env = wc.env
-    order = wc.order
+    order = wc.closed_order()
     for i in (1, 2):
         env["fix.event.outbox"].create(
             {
@@ -50,15 +50,7 @@ def test_cron_intake_is_idempotent_across_runs(wc):
 
 def test_cron_intake_skips_non_warranty_orders(wc):
     env = wc.env
-    standard = env["fix.service.order"].create(
-        {
-            "device_id": wc.order.device_id.id,
-            "customer_id": wc.order.customer_id.id,
-            "branch_id": wc.order.branch_id.id,
-            "fault_description": "Paid repair",
-            "order_category": "standard",
-        }
-    )
+    standard = wc.closed_order(category="standard")
     env["fix.event.outbox"].create(
         {
             "event_id": "evt-aut018-std-1",
@@ -70,3 +62,21 @@ def test_cron_intake_skips_non_warranty_orders(wc):
     )
     assert env["fix.warranty.claim"]._cron_aut018_intake() == 0
     assert not env["fix.warranty.claim"].search([("service_order_id", "=", standard.id)])
+
+
+def test_cron_intake_skips_a_warranty_order_that_is_not_closed(wc):
+    """A04 M09-5: a closed event for a job that is not closed (replayed,
+    forged or re-opened) raises no claim."""
+    env = wc.env
+    assert wc.order.state == "draft"
+    env["fix.event.outbox"].create(
+        {
+            "event_id": "evt-aut018-draft-1",
+            "event_type": "service_order.closed",
+            "aggregate": "fix.service.order",
+            "aggregate_id": wc.order.id,
+            "payload": "{}",
+        }
+    )
+    assert env["fix.warranty.claim"]._cron_aut018_intake() == 0
+    assert not env["fix.warranty.claim"].search([("service_order_id", "=", wc.order.id)])

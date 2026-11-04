@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M39 scheduled jobs (A04 workflow audit 2026-11-03 M39-9 / C10; build 2026-11-04).
+
+  M39 had no ir.cron: billing and collection were manual button presses.
+  Both jobs are daily and idempotent. The billing job is switched off until
+  Finance sets cd_subscription.auto_billing = 1 (it raises draft invoices).
+  Dunning stays with fix.subscription (A08), whose ladder must first key off
+  the unpaid invoice (fix.subscription.charge._fix_overdue_unpaid).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_subscription_billing" model="ir.cron">
+            <field name="name">M39: generate due subscription cycle charges (switch: cd_subscription.auto_billing)</field>
+            <field name="model_id" ref="model_fix_subscription_charge"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_generate_due_charges()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_subscription_autopay" model="ir.cron">
+            <field name="name">M39: autopay collection requests and retries</field>
+            <field name="model_id" ref="model_fix_subscription_autopay"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_autopay_collect()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

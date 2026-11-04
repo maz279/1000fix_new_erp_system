@@ -24,6 +24,7 @@ from pathlib import Path
 
 import pytest
 from odoo import fields as odoo_fields
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import UserError, ValidationError
 
 TAG = "A04CERT"
@@ -222,12 +223,46 @@ class TestM08Contract:
         )
         assert c.stamp_act_article == "art_5"
 
-    def test_flaw_08_3_termination_carries_dofa_fields(self, env, contract):
-        """FLAW-08.3: FixContractTermination was a passive stub."""
-        model = env["fix.contract.termination"]
-        for f in ("dofa_tier", "dofa_approved"):
-            assert f in model._fields, "termination still lacks %s" % f
-        assert hasattr(model, "action_dofa_approve")
+    def test_flaw_08_3_termination_dofa_is_derived_and_enforced(self, env, contract):
+        """FLAW-08.3: FixContractTermination was a passive stub, and this test
+        only checked that its DOFA fields EXISTED (A04 audit C13). It now
+        checks the behaviour, as a non-admin user: the tier follows the amount
+        (a chosen tier is ignored), the raiser cannot approve it, and nothing
+        executes without a DOFA approval."""
+        today = odoo_fields.Date.context_today(env["fix.contract"])
+        k = contract(date_start=today - timedelta(days=5), date_end=today + timedelta(days=300))
+        k.action_activate()
+        officer = env["res.users"].create(
+            {
+                "name": "A04 cert officer",
+                "login": "a04cert_officer_0803",
+                "group_ids": [
+                    (4, env.ref("base.group_user").id),
+                    (4, env.ref("cd_contract_core.group_contract_officer").id),
+                    (4, env.ref("cd_entity_config.group_dofa_tier_5").id),
+                ],
+            }
+        )
+        t = (
+            env["fix.contract.termination"]
+            .with_user(officer)
+            .create(
+                {
+                    "name": "cert exit",
+                    "contract_id": k.id,
+                    "reason": "cert",
+                    "effective_date": odoo_fields.Date.context_today(k),
+                    "penalty_amount": 5_000_000.0,
+                    "dofa_tier": "tier_1",
+                }
+            )
+        )
+        assert t.dofa_tier_required == "tier_5", "the tier is derived from the amount"
+        with pytest.raises(UserError):
+            t.action_dofa_approve()  # routed through M63; never the raiser's button
+        with pytest.raises(UserError):
+            t.sudo().action_execute_termination()  # not approved
+        assert not t.dofa_approved and k.state == "active"
 
 
 def _any_device(env):
@@ -342,6 +377,8 @@ class TestM11Pricing:
         """The user who raised the override cannot clear it, even holding
         the tier."""
         director = _approver(env, 3, "a04.floor.t3.self@example.com")
+        # A04 B3 (M11): only a Pricing Officer creates a floor.
+        director.write({"group_ids": [(4, env.ref("cd_rate_card.group_pricing_officer").id)]})
         f = (
             env["fix.price.floor"]
             .with_user(director)
@@ -375,7 +412,11 @@ class TestM11Pricing:
             dofa_justification="Matched a competitor quote.",
         )
         mgr = _approver(env, 2, "a04.floor.t2.ok@example.com")
-        f.with_user(mgr).action_approve_dofa_override()
+        requester = _approver(env, 1, "a04.floor.requester@example.com")
+        requester.write({"group_ids": [(4, env.ref("cd_rate_card.group_pricing_officer").id)]})
+        # A04 B3 (M11): the override is a routed DOFA approval (M63 inbox).
+        approve_via_inbox(f, mgr, requester=requester)
+        f.invalidate_recordset()
         assert f.dofa_override_approved and f.dofa_override_user_id == mgr
         # the approved price is allowed...
         assert f.validate_price_against_floor(900.0) is True

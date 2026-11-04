@@ -167,7 +167,12 @@ def test_price_estimate_quotes_only_a_real_rate_card_line(env):
     if "fix.rate.card" not in env:
         return
     env["product.product"].create({"name": "Zqx Screen", "default_code": "CC-ZQX-SCR"})
-    env["fix.rate.card"].create({"product_code": "CC-ZQX-SCR", "unit_price": 2450.0})
+    card = env["fix.rate.card"].create({"product_code": "CC-ZQX-SCR", "unit_price": 2450.0})
+    # A04 audit (2026-11-04) M11-5: a draft card is not a price yet.
+    draft = _conv(env, state="with_ai")
+    draft.intake_message("How much does it cost to replace a zqx screen?", lang="en")
+    assert (draft.state, draft.handoff_reason) == ("with_agent", "price_requires_agent")
+    card._guarded().write({"state": "released"})  # superuser stands in for the release
     priced = _conv(env, state="with_ai")
     priced.intake_message("How much does it cost to replace a zqx screen?", lang="en")
     reply = priced.turn_ids.sorted("sequence")[-1].text

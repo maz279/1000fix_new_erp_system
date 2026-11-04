@@ -53,6 +53,27 @@
         },
         "payout_unlocked": {
           "type": "boolean"
+        },
+        "order_id": {
+          "type": "integer"
+        },
+        "seller_id": {
+          "type": "integer"
+        },
+        "seller_partner_id": {
+          "type": "integer"
+        },
+        "customer_id": {
+          "type": "integer"
+        },
+        "disputed_amount": {
+          "type": "number"
+        },
+        "refund_amount": {
+          "type": "number"
+        },
+        "currency": {
+          "type": "string"
         }
       },
       "additionalProperties": false

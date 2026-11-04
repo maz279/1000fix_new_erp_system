@@ -153,7 +153,12 @@ def test_submit_kyc_vault_outage_falls_back_to_token(odoo_env, caplog):
 
 
 def test_cfo_approval_records_approver(odoo_env):
+    """The trusted path (superuser); a user approves from the M63 inbox
+    (test_a04_m12_controls.py). KYC comes first either way."""
     seller = _seller(odoo_env, verified=False, approved=False)
+    with pytest.raises(UserError, match="CFO approval comes after KYC"):
+        seller.action_cfo_approve()
+    seller.write({"kyc_status": "verified"})
     seller.action_cfo_approve()
     assert seller.cfo_approved is True
     assert seller.cfo_approval_date == fields.Date.today()
@@ -161,22 +166,23 @@ def test_cfo_approval_records_approver(odoo_env):
     assert _events(odoo_env, "seller.cfo_approved", SELLER, seller.id) == [
         {"seller": seller.name, "approver": odoo_env.user.name}
     ]
-
-
-def test_verify_kyc_auto_approves_unapproved_seller(odoo_env):
-    seller = _seller(odoo_env, verified=False, approved=False)
-    seller.action_verify_kyc()
-    assert seller.kyc_status == "verified"
-    assert seller.kyc_verified_date == fields.Date.today()
-    assert seller.compliance_reviewer_id == odoo_env.user
-    assert seller.cfo_approved is True
-    assert seller.cfo_approved_by == odoo_env.user
-    assert _events(odoo_env, "seller.kyc_verified", SELLER, seller.id) == [
-        {"seller": seller.name, "reviewer": odoo_env.user.name}
-    ]
     assert _events(odoo_env, "seller.approved", SELLER, seller.id) == [
         {"seller": seller.name, "tier": "unrated"}  # no measured performance yet
     ]
+
+
+def test_verify_kyc_never_grants_cfo_approval(odoo_env):
+    """A04 M12-1: verifying KYC used to tick CFO approval for the same user."""
+    seller = _seller(odoo_env, verified=False, approved=False)
+    seller.action_verify_kyc()
+    assert seller.kyc_status == "verified"
+    assert seller.kyc_verified_date == fields.Date.context_today(seller)
+    assert seller.compliance_reviewer_id == odoo_env.user
+    assert seller.cfo_approved is False and not seller.cfo_approved_by
+    assert _events(odoo_env, "seller.kyc_verified", SELLER, seller.id) == [
+        {"seller": seller.name, "reviewer": odoo_env.user.name}
+    ]
+    assert _events(odoo_env, "seller.approved", SELLER, seller.id) == []
 
 
 def test_verify_kyc_keeps_prior_cfo_approval(odoo_env):
@@ -252,11 +258,12 @@ def test_first_quote_moves_order_to_quoted_and_publishes(odoo_env):
     ]
 
 
-def test_quote_on_an_in_flight_order_leaves_its_state(odoo_env):
+def test_no_quote_on_an_in_flight_order(odoo_env):
     order = _order(odoo_env)
     order.write({"state": "in_progress"})
-    _quote(odoo_env, order, _seller(odoo_env))
-    assert order.state == "in_progress"
+    with pytest.raises(UserError, match="only accepted on open jobs"), odoo_env.cr.savepoint():
+        _quote(odoo_env, order, _seller(odoo_env))
+    assert order.state == "in_progress" and not order.quote_ids
 
 
 # --------------------------------------------------------------------------
@@ -330,10 +337,15 @@ def test_select_quote_accepts_qualified_or_unrestricted_sellers(odoo_env):
     qualified_order.action_select_quote(_quote(odoo_env, qualified_order, qualified))
     assert qualified_order.state == "selected"
 
+    # A04 M12-11: a seller with NO approved categories is not qualified for
+    # a category-restricted job (the gate used to skip him)
     unrestricted_order = _order(odoo_env, category_id=phones.id)
     generalist = _seller(odoo_env, name="Generalist")
-    unrestricted_order.action_select_quote(_quote(odoo_env, unrestricted_order, generalist))
-    assert unrestricted_order.state == "selected"
+    with pytest.raises(UserError, match="BRU-ECM-07"), odoo_env.cr.savepoint():
+        unrestricted_order.action_select_quote(_quote(odoo_env, unrestricted_order, generalist))
+    uncategorised = _order(odoo_env)
+    uncategorised.action_select_quote(_quote(odoo_env, uncategorised, generalist))
+    assert uncategorised.state == "selected"
 
 
 # --------------------------------------------------------------------------
@@ -415,25 +427,28 @@ def test_commission_uses_the_configured_rate_on_the_selected_quote(odoo_env):
     assert order.commission_amount == pytest.approx(432.15)
     assert _events(odoo_env, "commission.earned", ORDER, order.id) == [
         {
+            "order_id": order.id,
             "seller_id": seller.id,
             "seller_partner_id": seller.partner_id.id,
+            "seller_tier": "unrated",
             "order": order.name,
             "gross": 4321.5,
+            "rate": 0.1,
             "commission": 432.15,
             "currency": "BDT",
+            "payout_available_date": "",
         }
     ]
 
 
-def test_commission_without_quote_uses_budget(odoo_env):
+def test_commission_needs_an_awarded_seller(odoo_env):
+    """A04 M12-5: a forged 'reviewed' order with no seller earned commission
+    on its budget and was paid."""
     order = _order(odoo_env, budget=5000)
     order.write({"state": "reviewed"})
-    order.action_earn_commission()
-    assert order.commission_amount == 500.0
-    (payload,) = _events(odoo_env, "commission.earned", ORDER, order.id)
-    assert payload["seller_id"] is False
-    assert payload["seller_partner_id"] is False
-    assert payload["gross"] == 5000.0
+    with pytest.raises(UserError, match="no awarded seller"):
+        order.action_earn_commission()
+    assert not _events(odoo_env, "commission.earned", ORDER, order.id)
 
 
 def test_commission_rate_is_configurable_and_fails_closed(odoo_env):
@@ -463,8 +478,16 @@ def test_commission_blocked_by_open_dispute(odoo_env):
     assert order.state == "reviewed"
 
 
-def test_paid_after_commission(odoo_env):
+def test_paid_after_commission_once_the_escrow_has_run(odoo_env):
     order = _order_in(odoo_env, "commissioned")
+    with pytest.raises(UserError, match="no completed, customer-confirmed job"):
+        order.action_paid()
+    order.write(
+        {
+            "completed_at": fields.Datetime.now() - timedelta(days=9),
+            "delivery_confirmed_at": fields.Datetime.now() - timedelta(days=8),
+        }
+    )
     order.action_paid()
     assert order.state == "paid"
 
@@ -481,6 +504,7 @@ def test_paid_only_after_commission(odoo_env, state):
 
 def test_paid_blocked_by_open_dispute(odoo_env):
     order = _order_in(odoo_env, "commissioned")
+    order.write({"completed_at": fields.Datetime.now() - timedelta(days=9)})
     _dispute(odoo_env, order, order.selected_quote_id.seller_id)
     with pytest.raises(UserError, match="open disputes"):
         order.action_paid()
@@ -862,8 +886,11 @@ def test_investigate_and_arbitrate(odoo_env):
     dispute = _dispute(odoo_env, order, order.selected_quote_id.seller_id)
     dispute.action_investigate()
     assert dispute.state == "investigating"
+    with pytest.raises(UserError, match="Propose the ruling"):
+        dispute.action_arbitrate()
+    dispute.write({"proposed_resolution": "payout_seller", "resolution_notes": "No fault"})
     dispute.action_arbitrate()
-    assert dispute.state == "arbitration"
+    assert (dispute.state, dispute.approval_state) == ("arbitration", "pending")
     assert order.has_open_dispute is True
 
 
@@ -883,8 +910,15 @@ def test_resolving_last_dispute_releases_payout(odoo_env):
         {
             "dispute": dispute.name,
             "order": order.name,
+            "order_id": order.id,
             "seller": seller.name,
+            "seller_id": seller.id,
+            "seller_partner_id": seller.partner_id.id,
+            "customer_id": order.customer_id.id,
             "resolution": "split_settlement",
+            "disputed_amount": 0.0,
+            "refund_amount": 0.0,
+            "currency": "BDT",
             "payout_unlocked": True,
         }
     ]

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M11 pricing roles (A04 audit 2026-11-04, C2-C4 / report §7.1).
+
+     M11 had no role group: every internal user created and activated price
+     books and versions, lowered a floor or a live rate, created a 150%
+     promotion and a -100% dynamic rule, and rewrote the price explanation.
+     The spec (§13) names the Pricing Officer (a new position under R04), who
+     authors every rule and book but "cannot approve own change" (SOD-14), and
+     the CCO or a delegate, who releases them (§8.1 "approver != author").
+
+     - Pricing Officer: authors price books, versions, rate cards, floors,
+       promotions, discount bands and dynamic rules, and raises price changes.
+     - Price-Book Releaser (CCO delegate): implies the officer. Releases a
+       version, a price change, a promotion or a discount band that someone
+       else raised (from the M63 approval inbox), retires books and re-enables
+       a dynamic rule.
+
+     A below-floor override stays a DOFA decision (the tier follows the depth
+     below the floor). Plain internal users keep read access, may request a
+     simulation and may ask for a below-floor override on a floor. The dev
+     admin is a releaser so daily work keeps running; the segregation-of-
+     duties checks still apply to it. Appointing the real holders is a
+     business decision (report §7.1). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_pricing" model="res.groups.privilege">
+            <field name="name">Pricing &amp; Rate Cards</field>
+            <field name="description">Price books and versions, rate cards, floors, promotions, discount bands and dynamic pricing (M11).</field>
+            <field name="sequence">11</field>
+        </record>
+
+        <record id="group_pricing_officer" model="res.groups">
+            <field name="name">Pricing Officer</field>
+            <field name="privilege_id" ref="privilege_pricing"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Authors price books, versions, rate cards, floors, promotions, discount bands and dynamic rules, and raises price changes. Cannot release a change they raised (SOD-14).</field>
+        </record>
+
+        <record id="group_price_releaser" model="res.groups">
+            <field name="name">Price-Book Releaser (CCO delegate)</field>
+            <field name="privilege_id" ref="privilege_pricing"/>
+            <field name="implied_ids" eval="[(4, ref('group_pricing_officer'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Releases price-book versions, price changes, promotions and discount bands raised by someone else, retires price books and re-enables dynamic rules (spec §8.1, BRU-PRC-07).</field>
+        </record>
+
+    </data>
+</odoo>

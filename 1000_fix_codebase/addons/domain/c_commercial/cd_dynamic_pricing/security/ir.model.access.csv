@@ -1,3 +1,4 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_dynamic_price_rule,fix.dynamic.price.rule,model_fix_dynamic_price_rule,base.group_user,1,1,1,0
-access_fix_price_explanation,fix.price.explanation,model_fix_price_explanation,base.group_user,1,1,1,0
+access_fix_dynamic_price_rule,fix.dynamic.price.rule,model_fix_dynamic_price_rule,base.group_user,1,0,0,0
+access_fix_dynamic_price_rule_officer,fix.dynamic.price.rule officer,model_fix_dynamic_price_rule,cd_rate_card.group_pricing_officer,1,1,1,0
+access_fix_price_explanation,fix.price.explanation,model_fix_price_explanation,base.group_user,1,0,0,0

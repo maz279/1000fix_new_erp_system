@@ -1,2 +1,2 @@
 # cd_quotation models.
-from . import fix_quotation, fix_quote_ops
+from . import fix_quotation, fix_quote_ops, fix_tender

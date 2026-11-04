@@ -166,22 +166,49 @@ class TestM33PartyMaster:
         with pytest.raises(ValidationError, match="Bank Solvency|Trade License"):
             p.action_onboard()
 
-    def test_gap_req_33_2_document_flags_are_unbacked_booleans(self, env, fix_partner):
-        """GAP: REQ-33.2/33.5 demand verified documents with SHA-256 digests.
-        The gate is satisfied by two self-asserted Booleans with no attachment,
-        no MIME whitelist and no checksum."""
+    def test_req_33_2_franchise_needs_attached_verified_documents(self, env, fix_partner):
+        """REQ-33.2/33.5 (closed by A04 audit M40-8, 2026-11-04). This test used to
+        assert the gap: a franchise was onboarded on two self-ticked Booleans
+        with no attachment. The flags are now computed from the attached
+        documents, and onboarding refuses a franchise whose documents are
+        missing or not verified by a KYC officer."""
         p = fix_partner(
             partner_type="franchise",
             tin_number="123456789012",
             trade_license_no="TL-9001",
-            has_trade_license_doc=True,
-            has_bank_solvency_doc=True,
         )
-        p.action_onboard()
-        assert p.state == "onboarded"
-        assert not env["ir.attachment"].search_count(
-            [("res_model", "=", "fix.partner"), ("res_id", "=", p.id)]
-        ), "REQ-33.2/33.5 gap: franchise onboarded with zero attached documents"
+        assert not p.has_trade_license_doc and not p.has_bank_solvency_doc
+        with pytest.raises(ValidationError):
+            p.action_onboard()
+        assert p.state == "prospective"
+        # The documents are real attachments OF this partner (a document of
+        # another record cannot be borrowed).
+        att = env["ir.attachment"].create(
+            [
+                {
+                    "name": "trade-licence.pdf",
+                    "raw": b"%PDF-1.4 licence",
+                    "res_model": "fix.partner",
+                    "res_id": p.id,
+                },
+                {
+                    "name": "solvency.pdf",
+                    "raw": b"%PDF-1.4 solvency",
+                    "res_model": "fix.partner",
+                    "res_id": p.id,
+                },
+            ]
+        )
+        p.write(
+            {
+                "trade_license_attachment_id": att[0].id,
+                "bank_solvency_attachment_id": att[1].id,
+            }
+        )
+        assert p.has_trade_license_doc and p.has_bank_solvency_doc
+        with pytest.raises(ValidationError):
+            p.action_onboard()  # attached but not verified by a KYC officer
+        assert p.state == "prospective"
         fields = env["fix.partner"]._fields
         assert "bin_number" not in fields, "REQ-33.2 requires a BIN/VAT certificate field"
 

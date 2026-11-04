@@ -1202,8 +1202,11 @@ class FixConversation(models.Model):
         if "fix.rate.card" not in self.env or "product.product" not in self.env:
             return agent_confirms
         today = fields.Date.context_today(self)
+        # A04 audit (2026-11-04): only a released (maker-checked) rate-card line
+        # is a price; a draft or retired line is never quoted to a customer.
         cards = self.env["fix.rate.card"].search(
             [
+                ("state", "=", "released"),
                 ("min_tier", "=", 0),
                 ("contract_no", "=", False),
                 "|",
