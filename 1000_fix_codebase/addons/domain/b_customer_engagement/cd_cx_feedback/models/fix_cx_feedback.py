@@ -1002,7 +1002,7 @@ class FixSupplierScorecard(models.Model):
 
     _name = "fix.supplier.scorecard"
     _description = "Supplier Scorecard"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)
     _vendor_period_unique = models.Constraint(
@@ -1029,6 +1029,17 @@ class FixSupplierScorecard(models.Model):
         store=True,
         help="0-100: 60% on-time, 40% quality (100 - rejections)",
     )
+
+    def _fix_guarded_fields(self) -> set:
+        # A06 audit M42-6/P06: the counters were "readonly" in the view only,
+        # so a plain user typed 100 lines on time and 0 late and the card
+        # scored 100. They move only through the consumed M16 events.
+        return super()._fix_guarded_fields() | {
+            "po_count",
+            "lines_on_time",
+            "lines_late",
+            "rejection_count",
+        }
 
     @api.depends("lines_on_time", "lines_late", "rejection_count", "po_count")
     def _compute_scores(self):
@@ -1061,6 +1072,7 @@ class FixSupplierScorecard(models.Model):
                 {"vendor_id": vendor, "period": period, "po_count": 0, "operating_unit_id": ou_id}
             )
         late = bool(payload.get("late", False))
+        card = card._guarded()
         if late:
             card.lines_late += 1
         else:

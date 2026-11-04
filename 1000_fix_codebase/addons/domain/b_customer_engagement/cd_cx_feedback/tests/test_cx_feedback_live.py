@@ -313,3 +313,32 @@ def test_scorecards_publish_for_the_vendor_portal(env, ou):
     )
     assert '"period": "2026-08"' in event.payload
     assert '"score": 100.0' in event.payload
+
+
+def test_scorecard_counters_cannot_be_typed_by_a_user(env, ou):
+    """A06 audit M42-6/P06: the counters were readonly in the view only; a
+    plain user typed 100 lines on time and the card scored 100. They change
+    only through the consumed goods.received events (the relay runs them as
+    a service)."""
+    vendor = env["res.partner"].create({"name": "CX Vendor D"})
+    user = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "CX Scorecard Clerk",
+                "login": "cx.scorecard.clerk@a06.test",
+                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+            }
+        )
+    )
+    card = env["fix.supplier.scorecard"].create(
+        {"vendor_id": vendor.id, "period": "2026-07", "operating_unit_id": ou.id}
+    )
+    for vals in ({"lines_on_time": 100}, {"lines_late": 0, "rejection_count": 3}, {"po_count": 9}):
+        with pytest.raises(UserError, match="changes only through its workflow"):
+            card.with_user(user).write(vals)
+    env["fix.supplier.scorecard"].consume_goods_received(
+        {"payload": {"vendor_id": vendor.id, "po_date": "2026-07-09"}}
+    )
+    assert (card.lines_on_time, card.lines_late) == (1, 0)
