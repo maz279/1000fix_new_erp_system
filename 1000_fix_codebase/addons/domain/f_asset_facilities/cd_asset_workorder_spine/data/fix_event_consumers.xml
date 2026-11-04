@@ -113,5 +113,38 @@
             <field name="module">cd_asset_workorder_spine</field>
         </record>
 
+        <!-- A07 P1 wiring round 2 (2026-11-04): M46 vehicle and M17 flag events. -->
+        <record id="consumer_vehicle_defect_raised" model="fix.event.consumer">
+            <field name="name">Spine: a failed pre-use check raises the repair of the vehicle's defect</field>
+            <field name="event_type">vehicle.defect_raised</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_defect_raised</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_vehicle_telematics_silent" model="fix.event.consumer">
+            <field name="name">Spine: a silent vehicle telematics device raises its inspection</field>
+            <field name="event_type">vehicle.telematics_silent</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_telematics_silent</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_device_flagged" model="fix.event.consumer">
+            <field name="name">M01: a device reported lost/stolen puts a hold on its open service orders</field>
+            <field name="event_type">device.flagged</field>
+            <field name="model">fix.service.order.device.hold</field>
+            <field name="method">consume_device_flagged</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_device_flag_cleared" model="fix.event.consumer">
+            <field name="name">M01: a cleared lost/stolen flag is recorded on its service order holds</field>
+            <field name="event_type">device.flag_cleared</field>
+            <field name="model">fix.service.order.device.hold</field>
+            <field name="method">consume_device_flag_cleared</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
     </data>
 </odoo>

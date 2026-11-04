@@ -31,6 +31,10 @@ ORIGINS = [
     ("m45_repair", "M45 Out of Service (Repair / Check)"),
     ("m48_silent", "M48 Telemetry Stream Silent"),
     ("m46_service", "M46 Vehicle Service Due"),
+    # A07 P1 wiring round 2 (2026-11-04): a failed pre-use check and a silent
+    # telematics device of an M46 vehicle
+    ("m46_defect", "M46 Vehicle Defect (Failed Check)"),
+    ("m46_telematics", "M46 Telematics Device Silent"),
     ("m48_prediction", "M48 Predicted Failure"),
     ("m48_action", "M48 Dispatched Intervention"),
     ("m17_device_pm", "M17 Device Maintenance Plan"),

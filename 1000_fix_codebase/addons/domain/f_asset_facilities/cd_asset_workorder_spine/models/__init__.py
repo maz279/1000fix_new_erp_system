@@ -8,3 +8,8 @@ from . import fix_identity_gate
 from . import fix_spine_wiring
 from . import fix_quality_recheck
 from . import fix_ml_outcome
+
+# A07 P1 wiring round 2 (2026-11-04): M46 defect / telematics demands, and
+# the M17 lost/stolen hold on M01 orders
+from . import fix_spine_vehicle_wiring
+from . import fix_device_flag_hold

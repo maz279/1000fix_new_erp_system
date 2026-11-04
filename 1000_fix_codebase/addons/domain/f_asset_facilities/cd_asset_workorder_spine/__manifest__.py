@@ -33,6 +33,11 @@ A07 P1 bridge (2026-11-04).
   impact assessment flags the M01 orders behind the suspect uses for a
   quality re-check (fix.service.order.recheck) and records the disposition;
   an M48 intervention outcome becomes an M26 ground-truth row.
+- Wiring round 2: a failed M46 pre-use check raises the vehicle's repair
+  demand and a silent telematics device its inspection; an M17 lost/stolen
+  flag puts a hold (fix.service.order.device.hold, with an activity for the
+  branch) on every open M01 order of the device, and its clearance is
+  recorded on the hold. No order state is changed.
 """,
     "version": "19.0.0.1.0",
     "license": "LGPL-3",

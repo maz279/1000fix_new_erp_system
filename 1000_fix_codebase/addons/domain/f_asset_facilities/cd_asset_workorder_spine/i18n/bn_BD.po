@@ -139,3 +139,28 @@ msgstr "যা প্রয়োজন"
 #: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__work_order_id
 msgid "Work Order"
 msgstr "ওয়ার্ক অর্ডার"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__device_id
+msgid "Device (M17)"
+msgstr "ডিভাইস (M17)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__flag_event_id
+msgid "Flag Event"
+msgstr "ফ্ল্যাগ ইভেন্ট"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__reason
+msgid "Reported"
+msgstr "প্রতিবেদন"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__flagged_by_id
+msgid "Flagged By"
+msgstr "ফ্ল্যাগকারী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__cleared_by_id
+msgid "Cleared By"
+msgstr "ফ্ল্যাগ প্রত্যাহারকারী"
