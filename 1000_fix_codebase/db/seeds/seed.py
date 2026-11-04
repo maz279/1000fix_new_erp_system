@@ -1313,6 +1313,10 @@ def main() -> int:
                     "create",
                     {"device_id": dev, "metric": "temperature", "unit": "C"},
                 )
+            if not (d["equipment_id"] or d["site_id"]):
+                # A07 P1 (M48 FR-IOT-004): a stream bound to no company asset is
+                # not activated; it waits in draft until someone binds the device.
+                continue
             if c.call("fix.iot.stream", "read", [stream], ["state"])[0]["state"] != "active":
                 c.call("fix.iot.stream", "action_activate", [stream])
             have = c.call(
@@ -1625,8 +1629,9 @@ def main() -> int:
                     "device_id": dev_ids[i],
                     "warranty_type": "manufacturer",
                     "start_date": "2025-10-01",
-                    "end_date": "2026-10-01",
-                    "status": ["active", "expired"][i % 2],
+                    # A07 P1 (M17): status is not typed; the daily warranty expiry
+                    # job moves cover past its end date to expired.
+                    "end_date": ["2027-10-01", "2026-10-01"][i % 2],
                 },
             )
         for i in range(3):
@@ -1812,7 +1817,38 @@ def main() -> int:
                 d["owner_id"] and d["owner_id"][0] == cust[i]
             ):
                 continue
-            c.call("fix.device", "action_transfer_ownership", [dev_ids[i]], cust[i], "sale")
+            # A07 P1 (M17-1): a transfer needs a reason and the hand-over evidence the
+            # new owner accepted, filed against this device (synthetic seed paper).
+            att = c.call(
+                "ir.attachment",
+                "create",
+                {
+                    "name": f"seed-transfer-{dev_ids[i]}.pdf",
+                    "datas": "U0VFRCBUUkFOU0ZFUiBFVklERU5DRQ==",  # "SEED TRANSFER EVIDENCE"
+                    "mimetype": "application/pdf",
+                },
+            )
+            evidence = c.call(
+                "fix.document",
+                "create",
+                {
+                    "name": f"Seed hand-over {dev_ids[i]} (synthetic test data)",
+                    "document_type": "asset_document",
+                    "attachment_id": att,
+                    "res_model": "fix.device",
+                    "res_id": dev_ids[i],
+                },
+            )
+            c.call(
+                "fix.device",
+                "action_transfer_ownership",
+                [dev_ids[i]],
+                cust[i],
+                "sale",
+                None,
+                "Synthetic seed sale (test data only)",
+                evidence,
+            )
         print("seed: supply-chain + circular anchors (idempotent)")
 
         # Assets + facilities
@@ -1854,18 +1890,13 @@ def main() -> int:
                 },
             )
         # BRTA compliance first: a vehicle is only dispatchable with valid
-        # fitness + insurance (cd_vehicle_ext enforces this on assignment)
+        # fitness + insurance (cd_vehicle_ext enforces this on assignment).
+        # A07 P1 (M46-10): the header expiry dates are derived from the document
+        # register and cannot be typed, so the seed records only the documents.
         for vid in veh:
-            v = c.call("fleet.vehicle", "read", [vid], ["fitness_expiry", "insurance_expiry"])[0]
-            vals = {}
-            if not v.get("fitness_expiry") or v["fitness_expiry"] < "2026-10-01":
-                vals["fitness_expiry"] = "2027-06-30"
-            if not v.get("insurance_expiry") or v["insurance_expiry"] < "2026-10-01":
-                vals["insurance_expiry"] = "2027-03-31"
-            if vals:
-                c.call("fleet.vehicle", "write", [vid], vals)
             # A07 P0 (M46-2): the gate decides from the document register, not the
-            # header dates, so each seed van carries its mandatory documents.
+            # header dates, so each seed van carries its mandatory documents. A07
+            # P1 (M46-23): a document counts only with its scan (synthetic here).
             for doc_type, valid_to in (
                 ("fitness", "2027-06-30"),
                 ("insurance", "2027-03-31"),
@@ -1884,6 +1915,7 @@ def main() -> int:
                         "number": f"SEED-{doc_type.upper()}-{vid}",
                         "valid_from": "2026-01-01",
                         "valid_to": valid_to,
+                        "evidence_file": "U0VFRCBWRUhJQ0xFIERPQ1VNRU5UIFNDQU4=",  # synthetic
                     },
                 )
         for i in range(2):
