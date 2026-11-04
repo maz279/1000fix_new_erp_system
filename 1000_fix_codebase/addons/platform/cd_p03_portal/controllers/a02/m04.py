@@ -20,13 +20,15 @@ SURFACES = {
     "fix.cash.shift": {
         "order": "id desc",
         "limit": 100,
-        # A02 audit M04-2/-11: the blind count and the manager's variance
-        # approval are workspace buttons; the methods check role and SoD.
+        # A02 audit M04-2/-11: the blind count is a workspace button; the
+        # methods check role and SoD. A02 audit B1: the variance is approved
+        # from the M63 inbox, so the workspace requests (or recalls) it.
         "actions": {
             "action_close_shift",
             "action_submit_blind_count",
             "action_confirm_closed",
-            "action_approve_variance",
+            "action_request_approval",
+            "action_recall_approval",
             "action_reconcile",
         },
     },
@@ -35,11 +37,13 @@ SURFACES = {
         "limit": 200,
         # A02 audit M04-5: a refund is requested with a reason and approved by
         # someone who did not sell; a price below list is approved first.
+        # A02 audit B1: both approvals are decided in the M63 inbox; the
+        # refund request routes itself, the price approval is requested.
         "actions": {
             "action_confirm",
-            "action_approve_price_override",
+            "action_request_approval",
+            "action_recall_approval",
             "action_request_refund",
-            "action_approve_refund",
         },
     },
 }

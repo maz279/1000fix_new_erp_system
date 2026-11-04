@@ -72,13 +72,16 @@ export const MODULE = {
 /* In-workspace data screens over the whitelisted front-desk models. */
 export const SCREENS = {
   'M04-queue': { kind: 'model_list', model: 'fix.token.queue', create: false,
-    cols: ['token_display', 'counter_number', 'service_type', 'customer_id', 'state', 'issued_at', 'called_at', 'served_at'],
+    cols: ['token_display', 'counter_number', 'service_type', 'customer_id', 'state', 'issued_at', 'called_at', 'recall_count', 'served_at'],
     stateField: 'state',
     actions: [
-      { m: 'action_call', l: 'Call Token' },
+      /* A02 audit M04-P2: calling a called or no-show token again is a
+       * counted re-call; the queue actions need a front-desk role */
+      { m: 'action_call', l: 'Call / Re-call Token' },
       { m: 'action_serving', l: 'Start Serving' },
       { m: 'action_complete', l: 'Complete' },
       { m: 'action_no_show', l: 'Mark No-Show' },
+      { m: 'action_cancel', l: 'Cancel Token' },
       /* A02 audit M04-9: the wait SLA also runs on a 5-minute cron */
       { m: 'action_evaluate_wait_sla', l: 'Check Wait SLA' }
     ] },
@@ -101,12 +104,14 @@ export const SCREENS = {
     stateField: 'state',
     /* A02 audit M04-2/-11: the cashier submits a BLIND count (it no longer
      * echoes the variance); a Branch Manager who did not handle the cash
-     * approves a variance beyond tolerance and reconciles (BRU-FRD-11). */
+     * approves a variance beyond tolerance and reconciles (BRU-FRD-11).
+     * A02 audit B1: the approval is decided in the manager's M63 inbox. */
     actions: [
       { m: 'action_close_shift', l: 'Close for Counting' },
       { m: 'action_submit_blind_count', l: 'Submit Blind Count' },
       { m: 'action_confirm_closed', l: 'Confirm Count' },
-      { m: 'action_approve_variance', l: 'Approve Variance' },
+      { m: 'action_request_approval', l: 'Request Variance Approval', ask: 'Explanation of the variance', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
       { m: 'action_reconcile', l: 'Reconcile' }
     ] },
   'M04-payments': { kind: 'model_list', model: 'fix.counter.sale', create: false,
@@ -118,12 +123,14 @@ export const SCREENS = {
     cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'refund_state', 'sold_by'],
     stateField: 'state',
     /* A02 audit M04-5: a price below list and a refund need a manager who
-     * did not sell; the refund leaves the drawer that is open now. */
+     * did not sell; the refund leaves the drawer that is open now.
+     * A02 audit B1: both are decided in the approver's M63 inbox; a refund
+     * request routes itself. */
     actions: [
       { m: 'action_confirm', l: 'Confirm Sale' },
-      { m: 'action_approve_price_override', l: 'Approve Price' },
+      { m: 'action_request_approval', l: 'Request Price Approval', ask: 'Why the price is below list', kwarg: 'justification' },
       { m: 'action_request_refund', l: 'Request Refund', ask: 'Reason (defective / wrong_item / customer_cancelled / duplicate / other): note', kwarg: 'reason' },
-      { m: 'action_approve_refund', l: 'Approve Refund' }
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
   'M04-checklists': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
@@ -159,6 +166,7 @@ export const SCREENS = {
           { name: 'priority_level', label: "Queue Priority Tier" },
           { name: 'wait_seconds', label: "Elapsed Waiting Time (Seconds)", readonly: true },
           { name: 'wait_sla_breached', label: "15-Min Wait SLA Breached Alert", readonly: true },
+          { name: 'recall_count', label: "Times Re-called", readonly: true },
           { name: 'supervisor_escalated', label: "Escalated to Branch Supervisor", readonly: true },
           { name: 'state', label: "Token Status", readonly: true }
         ] }
@@ -204,7 +212,12 @@ export const SCREENS = {
           { name: 'lci_status', label: "Liquid Contact Indicator (LCI) Status" },
           { name: 'intake_photo_attachment_id', label: "Counter Intake Photo Proof" },
           { name: 'diagnostic_fee_bdt', label: "Initial Diagnostic Fee (BDT)" },
-          { name: 'payment_channel', label: "Fee Payment Channel" }
+          { name: 'payment_channel', label: "Fee Payment Channel" },
+          /* A02 audit M04-P2: a cash fee goes to the open drawer at hand-off;
+           * a waiver is approved in a Branch Manager's M63 inbox */
+          { name: 'payment_trx_ref', label: "Fee Receipt / MFS TrxID" },
+          { name: 'fee_waiver_approved_by_id', label: "Fee Waiver Approved By", readonly: true },
+          { name: 'diagnostic_fee_shift_id', label: "Fee Posted To Shift", readonly: true }
         ] },
       { tab: 'handover', title: "Customer Handover Proof & Temporary Loaner Device",
         fields: [
@@ -259,6 +272,7 @@ export const SCREENS = {
           /* A02 audit M04-2: stamped by Approve Variance, never typed */
           { name: 'supervisor_variance_approved_by', label: "Supervisor Variance Approved By", readonly: true },
           { name: 'variance_approved_amount', label: "Approved Variance (BDT)", readonly: true },
+          { name: 'approval_state', label: "Variance Approval (M63)", readonly: true },
           { name: 'reconciled_by', label: "Reconciled By", readonly: true },
           { name: 'bank_deposit_slip_no', label: "Bank Deposit Challan / Slip No" },
           { name: 'bank_deposit_attachment_id', label: "Bank Deposit Slip Scanned PDF" },
@@ -295,7 +309,15 @@ export const SCREENS = {
           /* A02 audit M04-12: payment_trx_ref / vat_amount / invoice_attachment_id
            * never existed on the model; transaction_ref is the real field */
           { name: 'transaction_ref', label: "Gateway Transaction Reference" },
-          { name: 'mushak_63_ref', label: "NBR Mushak-6.3 Tax Challan Ref" },
+          /* A02 audit M04-P2: tender, VAT split (prices include VAT) and the
+           * Mushak-6.3 number issued at confirm */
+          { name: 'tendered_amount', label: "Cash Tendered (BDT)" },
+          { name: 'change_due', label: "Change Due (BDT)", readonly: true },
+          { name: 'mushak_63_ref', label: "NBR Mushak-6.3 Number", readonly: true },
+          { name: 'vat_rate', label: "VAT Rate (%)", readonly: true },
+          { name: 'amount_untaxed', label: "Net of VAT (BDT)", readonly: true },
+          { name: 'vat_amount', label: "VAT (BDT)", readonly: true },
+          { name: 'approval_state', label: "Approval (M63)", readonly: true },
           { name: 'total', label: "Grand Total (BDT)", readonly: true },
           { name: 'state', label: "Transaction State", readonly: true },
           { name: 'refund_state', label: "Refund Status", readonly: true },

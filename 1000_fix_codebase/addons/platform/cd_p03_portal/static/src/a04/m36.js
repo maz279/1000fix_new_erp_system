@@ -297,7 +297,7 @@ export const SCREENS = {
       ] },
       { tab: 'statutory', title: '5. Statutory', fields: [
         { name: 'operating_unit_id', label: 'Operating Unit', required: true },
-        { name: 'mushak_63_ref', label: 'NBR Mushak-6.3 Tax Challan Ref' }
+        { name: 'mushak_63_ref', readonly: true, label: 'NBR Mushak-6.3 Tax Challan Ref' }
       ] },
       { tab: 'audit', title: '8. System Audit', fields: [
         { name: 'create_uid', label: 'Created by', readonly: true },

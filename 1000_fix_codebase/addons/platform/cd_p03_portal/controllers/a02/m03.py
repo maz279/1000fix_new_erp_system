@@ -23,6 +23,8 @@ SURFACES = {
             "action_confirm",
             "action_start_transit",
             "action_verify_hub_intake",
+            # A02 audit M03-P2: the weight half of the hub intake (one prompt each)
+            "action_record_receive_weight",
             "action_out_for_delivery",
             "action_generate_otp",
             "action_verify_pod",
@@ -36,12 +38,21 @@ SURFACES = {
     "fix.courier.booking": {
         "order": "booked_on desc, id desc",
         "limit": 400,
-        "actions": {"action_deliver"},
+        # A02 audit M03-P2: pick-up starts the consignment's custody, and
+        # delivery closes it on the courier's POD.
+        "actions": {"action_pick_up", "action_deliver"},
     },
     "fix.damage.claim": {
         "order": "claimed_on desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_reject", "action_settle"},
+        # A02 audit B1: the payout is approved from the M63 inbox; the claim
+        # handler requests (or recalls) the approval, never presses Approve.
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_reject",
+            "action_settle",
+        },
     },
     "fix.custody.scan": {
         "order": "scanned_at desc, id desc",
@@ -106,6 +117,16 @@ def kpis(env):
 # ---------------------------------------------------------------- reports
 
 
+def _closed_at(consignment):
+    """When a consignment closed, from its own stamps (A02 audit M03-P2: the
+    report read write_date, which any later edit moved): the delivery
+    stamp, or the server-stamped 'returned' custody scan."""
+    if consignment.state == "delivered":
+        return consignment.delivered_at
+    returned = consignment.custody_ids.filtered(lambda s: s.step == "returned")
+    return max(returned.mapped("scanned_at")) if returned else None
+
+
 def _cycle_time_report(env, **params):
     Cons = _cons(env)
     rows = []
@@ -115,9 +136,9 @@ def _cycle_time_report(env, **params):
             limit=300,
         )
         spans = [
-            (c.write_date - c.create_date).total_seconds() / 86400.0
+            (_closed_at(c) - c.create_date).total_seconds() / 86400.0
             for c in done
-            if c.create_date and c.write_date
+            if c.create_date and _closed_at(c)
         ]
         rows.append(
             {
@@ -137,7 +158,11 @@ def _cycle_time_report(env, **params):
             "max_days": "Max Days",
         },
         "rows": rows,
-        "notes": ["Creation → close, delivered/returned consignments only."],
+        "notes": [
+            "Creation → close, delivered/returned consignments only. Close is the "
+            "delivery stamp or the returned custody scan; legs closed before those "
+            "stamps existed are left out."
+        ],
     }
 
 

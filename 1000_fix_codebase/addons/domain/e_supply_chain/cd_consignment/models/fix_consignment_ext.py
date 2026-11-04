@@ -319,13 +319,28 @@ class FixConsignmentExt(models.Model):
 
         A mismatch puts the consignment on exception hold and returns a
         warning; it does not raise (A02 audit M03-8). The inbound seal and
-        receive weight are recorded only here, never typed on the form."""
+        receive weight are recorded only here, never typed on the form.
+
+        A02 audit M03-P2: the workspace prompts one value per press, so the
+        weight gate never ran (P03 could not send a weight). Each press now
+        records what it is given (the seal, or the weight in grams) and the
+        intake completes - hub scan stamped - once every check the leg needs
+        has its value: the seal when an outbound seal was fitted, the weight
+        when a dispatch weight was recorded. A recorded seal or weight is
+        evidence and is not overwritten with a different value."""
         self._logistics_require(GROUP_HUB, what="Hub intake")
         inbound_seal = (
             str(inbound_seal).strip() if inbound_seal not in (None, False) else ""
         ) or None
         if receive_weight_g in ("", False):
             receive_weight_g = None
+        if receive_weight_g is not None:
+            try:
+                receive_weight_g = float(str(receive_weight_g).strip().rstrip("gG").strip())
+            except (TypeError, ValueError):
+                raise UserError("The receive weight must be a number of grams.") from None
+            if receive_weight_g <= 0:
+                raise UserError("The receive weight must be more than 0 grams.")
         warnings = []
         for consignment in self:
             if consignment.state != "in_transit":
@@ -335,23 +350,37 @@ class FixConsignmentExt(models.Model):
                 )
             vals = {}
             if inbound_seal is not None:
+                recorded = (consignment.inbound_seal_number or "").strip()
+                if recorded and recorded != inbound_seal:
+                    raise UserError(
+                        "%s already has inbound seal '%s' recorded; a recorded seal is "
+                        "evidence and is not replaced." % (consignment.name, recorded)
+                    )
                 vals["inbound_seal_number"] = inbound_seal
             if receive_weight_g is not None:
-                try:
-                    vals["receive_weight_g"] = float(receive_weight_g)
-                except (TypeError, ValueError):
-                    raise UserError("The receive weight must be a number of grams.") from None
+                recorded_g = consignment.receive_weight_g or 0.0
+                if recorded_g and abs(recorded_g - receive_weight_g) > 0.005:
+                    raise UserError(
+                        "%s already has a receive weight of %.1f g recorded; a recorded "
+                        "weight is evidence and is not replaced." % (consignment.name, recorded_g)
+                    )
+                vals["receive_weight_g"] = receive_weight_g
             if vals:
                 consignment._guarded().write(vals)
 
-            if consignment.outbound_seal_number:
+            # A hold a logistics manager released (with a written reason)
+            # stands: re-running the intake must not hold the leg again for
+            # the verdict that was already reviewed.
+            released = (
+                consignment.seal_status == "tampered_mismatch" and consignment.hold_released_by_id
+            )
+            missing = []
+            if not released and consignment.outbound_seal_number:
                 if not consignment.inbound_seal_number:
-                    raise UserError(
-                        f"FLAW-03.3 Security Seal Gate: Consignment {consignment.name} requires "
-                        "an Inbound Security Seal scan to verify against Outbound Seal "
-                        f"'{consignment.outbound_seal_number}'."
+                    missing.append(
+                        "the inbound seal (outbound seal '%s')" % consignment.outbound_seal_number
                     )
-                if (
+                elif (
                     consignment.inbound_seal_number.strip()
                     != consignment.outbound_seal_number.strip()
                 ):
@@ -363,28 +392,51 @@ class FixConsignmentExt(models.Model):
                     consignment._hold_for_tamper(reason)
                     warnings.append(reason)
                     continue
-                consignment._guarded().write({"seal_status": "verified"})
+                elif consignment.seal_status != "verified":
+                    consignment._guarded().write({"seal_status": "verified"})
 
-            if consignment.dispatch_weight_g > 0 and consignment.receive_weight_g > 0:
-                variance = abs(consignment.receive_weight_g - consignment.dispatch_weight_g)
-                if variance > WEIGHT_TOLERANCE_G:
-                    reason = (
-                        f"FLAW-03.3 Weight Variance Gate: Consignment {consignment.name} scale "
-                        f"weight variance is {variance:.1f}g (exceeds ±{WEIGHT_TOLERANCE_G:.1f}g "
-                        "security tolerance)."
+            if not released and consignment.dispatch_weight_g > 0:
+                if not consignment.receive_weight_g:
+                    missing.append(
+                        "the receive weight in grams (dispatched at %.1f g)"
+                        % consignment.dispatch_weight_g
                     )
-                    consignment._hold_for_tamper(reason)
-                    warnings.append(reason)
-                    continue
+                else:
+                    variance = abs(consignment.receive_weight_g - consignment.dispatch_weight_g)
+                    if variance > WEIGHT_TOLERANCE_G:
+                        reason = (
+                            f"FLAW-03.3 Weight Variance Gate: Consignment {consignment.name} "
+                            f"scale weight variance is {variance:.1f}g (exceeds "
+                            f"±{WEIGHT_TOLERANCE_G:.1f}g security tolerance)."
+                        )
+                        consignment._hold_for_tamper(reason)
+                        warnings.append(reason)
+                        continue
+
+            if missing:
+                # recorded so far, not raised: the next press supplies the rest
+                warnings.append(
+                    "%s: hub intake recorded; still needed: %s."
+                    % (consignment.name, " and ".join(missing))
+                )
+                continue
 
             if not consignment.custody_ids.filtered(lambda s: s.step == "hub_scan"):
                 consignment._scan("hub_scan", location_branch_id=consignment.dest_branch_id.id)
             consignment.message_post(
-                body=f"Hub intake security seal ({consignment.inbound_seal_number or 'N/A'}) and scale weight verified."
+                body=f"Hub intake security seal ({consignment.inbound_seal_number or 'N/A'}) "
+                f"and scale weight ({consignment.receive_weight_g or 0.0:.1f} g) verified."
             )
         if warnings:
             return {"warning": " ".join(warnings)}
         return True
+
+    def action_record_receive_weight(self, receive_weight_g=None):
+        """The weight half of the hub intake, for the workspace button (it
+        prompts one value per press). A02 audit M03-P2."""
+        if receive_weight_g in (None, False, ""):
+            raise UserError("Enter the receive scale weight in grams.")
+        return self.action_verify_hub_intake(receive_weight_g=receive_weight_g)
 
     def action_release_hold(self, reason=None):
         """A logistics manager releases a consignment from exception hold,
@@ -405,6 +457,10 @@ class FixConsignmentExt(models.Model):
                 }
             )
             consignment.message_post(body="Exception hold released: %s" % reason)
+            # A02 audit B2: the to-dos the tamper consumer raised are done
+            consignment.activity_ids.filtered(
+                lambda a, c=consignment: a.summary == "Tamper hold: %s" % c.name
+            ).sudo().action_feedback(feedback="Hold released: %s" % reason)
         return True
 
 

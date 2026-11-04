@@ -23,6 +23,8 @@ and shift control with AS-10 Monetary reconciliation.
         "cd_document_core",
         "cd_event_outbox",
         "cd_employee_core",
+        # A02 audit B1: the variance, refund and price approvals are routed M63
+        "cd_workflow_engine",
         # counter sales price default from product.product
         "product",
     ],

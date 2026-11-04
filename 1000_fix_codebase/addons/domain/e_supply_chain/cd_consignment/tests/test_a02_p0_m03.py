@@ -570,12 +570,22 @@ def test_the_inbound_seal_cannot_be_typed_on_the_form(w, monkeypatch):
 
 
 # ============================================================ damage claims
+# A02 audit B1 (P1): the payout is a routed M63 approval. These P0 controls
+# now run through the inbox (approve_via_inbox); the direct press itself is
+# refused (test_a02_p1p2_cd_consignment.py).
+def _inbox(cl, approver, requester=None):
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    return approve_via_inbox(cl, approver, requester=requester or cl.create_uid)
+
+
 def test_claim_creator_cannot_approve_own_claim(w):
     """M03-5 (probe, SoD)."""
     cl = w.claim(4500.0, user=w.approver, declared=10000.0)
-    err = refused(w.env, lambda: cl.with_user(w.approver).action_approve())
-    assert err and "Segregation of duties" in err
-    cl.with_user(w.approver_t2).action_approve()
+    cl.with_user(w.approver).action_request_approval()
+    tasks = cl.approval_request_id.task_ids
+    assert w.approver not in tasks.mapped("assigned_user_id")
+    _inbox(cl, w.approver_t2)
     assert cl.state == "approved" and cl.approved_by_id == w.approver_t2
     assert cl.approved_amount == 4500.0 and cl.dofa_approved_amount == 4500.0
 
@@ -584,39 +594,41 @@ def test_plain_user_cannot_approve_and_tier_is_enforced(w):
     """M03-5 (probe): a BDT 200,000 Tier-4 claim approved by a plain user."""
     cl = w.claim(200000.0, declared=250000.0)
     assert cl.dofa_tier == "tier_4" and cl.dofa_tier_required == "tier_4"
-    err = refused(w.env, lambda: cl.with_user(w.clerk).action_approve())
-    assert err and "Damage Claim Approver" in err
-    err = refused(w.env, lambda: cl.with_user(w.approver_t2).action_approve())
-    assert err and "DOFA authority insufficient" in err
-    cl.with_user(w.approver).action_approve()
+    assert refused(w.env, lambda: cl.with_user(w.clerk).action_approve())
+    cl.with_user(w.clerk).action_request_approval()
+    assigned = cl.approval_request_id.task_ids.mapped("assigned_user_id")
+    assert w.approver in assigned and w.approver_t2 not in assigned  # tier enforced
+    _inbox(cl, w.approver)
     assert cl.state == "approved" and cl.dofa_approved_tier == "tier_4"
 
 
 def test_payout_is_capped_at_the_claim_and_the_insured_value(w):
     """M03-5 (probe): BDT 900,000 approved on a 10,000 claim declared at 5,000."""
     cl = w.claim(10000.0, declared=5000.0)
-    err = refused(w.env, lambda: cl.with_user(w.approver).action_approve(approved_amount=900000.0))
+    err = refused(w.env, lambda: cl.with_user(w.clerk).write({"requested_payout": 900000.0}))
     assert err and "cannot exceed the amount claimed" in err
     # above the declared value: Tier 4 at least, not the Tier 2 of the amount
     assert cl.dofa_tier == "tier_4"
-    err = refused(w.env, lambda: cl.with_user(w.approver_t2).action_approve())
-    assert err and "DOFA authority insufficient" in err
+    cl.with_user(w.clerk).action_request_approval()
+    assert w.approver_t2 not in cl.approval_request_id.task_ids.mapped("assigned_user_id")
     # within the declared value the amount's own tier applies
-    cl2 = w.claim(10000.0, declared=5000.0)
-    cl2.with_user(w.approver_t2).action_approve(approved_amount="5000")
+    cl2 = w.claim(10000.0, declared=5000.0, requested_payout=5000.0)
+    _inbox(cl2, w.approver_t2)
     assert cl2.state == "approved" and cl2.approved_amount == 5000.0
 
 
 def test_a_justification_is_required(w):
     cl = w.claim(3000.0, declared=5000.0, justification=False)
-    err = refused(w.env, lambda: cl.with_user(w.approver).action_approve())
+    cl.with_user(w.clerk).action_request_approval()
+    task = cl.approval_request_id.task_ids.filtered(lambda t: t.assigned_user_id == w.approver_t2)
+    err = refused(w.env, lambda: task.with_user(w.approver_t2).action_approve())
     assert err and "justification" in err
 
 
 def test_approved_amount_is_pinned(w):
     """M03-5 (probe S4): approved at 4,000, raised to 400,000, settled."""
     cl = w.claim(4000.0, declared=5000.0)
-    cl.with_user(w.approver).action_approve()
+    _inbox(cl, w.approver_t2)
     err = refused(w.env, lambda: cl.with_user(w.clerk).write({"approved_amount": 400000.0}))
     assert err and GUARD in err
     err = refused(w.env, lambda: cl.with_user(w.clerk).write({"claimed_amount": 400000.0}))
@@ -645,17 +657,18 @@ def test_claim_state_cannot_be_forged_through_the_workspace(w, monkeypatch):
 
 def test_claim_buttons_run_from_the_workspace(w, monkeypatch):
     cl = w.claim(1000.0, declared=5000.0)
-    _mw, ma = p03(w, w.approver, monkeypatch)
+    _mw, ma = p03(w, w.clerk, monkeypatch)
     res = ma(
         model="fix.damage.claim",
         ids=[cl.id],
-        method="action_approve",
-        kwargs={"approved_amount": "900"},
+        method="action_request_approval",
+        kwargs={"justification": "photos agree"},
     )
     w.env.invalidate_all()
     assert res.get("success"), res
-    assert cl.state == "approved" and cl.approved_amount == 900.0
+    assert cl.approval_state == "pending" and cl.state == "open"
     other = w.claim(800.0, declared=5000.0)
+    _mw, ma = p03(w, w.approver, monkeypatch)
     res = ma(
         model="fix.damage.claim",
         ids=[other.id],
@@ -670,7 +683,7 @@ def test_settlement_is_capped_and_published(w):
     """M03-6 (probe): settling created nothing finance could act on."""
     cl = w.claim(4000.0, declared=5000.0)
     assert refused(w.env, lambda: cl.with_user(w.manager).action_settle())  # not approved
-    cl.with_user(w.approver).action_approve()
+    _inbox(cl, w.approver_t2)
     assert refused(w.env, lambda: cl.with_user(w.clerk).action_settle())  # role
     err = refused(w.env, lambda: cl.with_user(w.manager).action_settle(settled_amount=4001))
     assert err and "exceeds the approved payout" in err

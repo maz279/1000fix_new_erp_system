@@ -5,4 +5,10 @@
 # correct load order — do not rename it to anything sorting before
 # fix_walkin_intake (the pre-rename name fix_front_desk_ext did exactly
 # that and 500-crash-looped the whole server, 2026-10-26).
-from . import fix_cash_shift, fix_token_queue, fix_walkin_intake, fix_workstation_ext
+from . import (
+    fix_cash_shift,
+    fix_service_order_drawer,
+    fix_token_queue,
+    fix_walkin_intake,
+    fix_workstation_ext,
+)

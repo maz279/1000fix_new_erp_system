@@ -556,6 +556,8 @@ class FixConsignment(models.Model):
                 )
             now = fields.Datetime.now()
             consignment._guarded().write({"state": "delivered", "delivered_at": now})
+            # A02 audit B2: the M01 consumer (cd_service_order) moves the order
+            # from this; service_order_id is the contract agreed with it.
             publish(
                 self.env,
                 "consignment.delivered",
@@ -563,6 +565,8 @@ class FixConsignment(models.Model):
                 consignment.id,
                 {
                     "consignment": consignment.name,
+                    "consignment_type": consignment.consignment_type,
+                    "service_order_id": consignment.service_order_id.id or None,
                     "delivered_at": fields.Datetime.to_string(now),
                 },
             )

@@ -7,5 +7,12 @@
             <field name="prefix">CS/%(year)s/</field>
             <field name="padding">5</field>
         </record>
+        <!-- A02 audit M04-P2: the NBR Mushak-6.3 number, issued at confirm -->
+        <record id="seq_fix_counter_sale_mushak" model="ir.sequence">
+            <field name="name">Counter Sale Mushak-6.3</field>
+            <field name="code">fix.counter.sale.mushak</field>
+            <field name="prefix">M63/%(year)s/</field>
+            <field name="padding">6</field>
+        </record>
     </data>
 </odoo>
