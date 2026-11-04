@@ -62,7 +62,7 @@
           ]
         },
         "reason": {
-          "description": "Type not statically derivable from `reason` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:329)."
+          "description": "Type not statically derivable from `reason` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:332)."
         }
       },
       "additionalProperties": false

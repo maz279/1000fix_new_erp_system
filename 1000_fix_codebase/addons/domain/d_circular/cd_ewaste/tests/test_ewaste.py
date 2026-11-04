@@ -25,15 +25,11 @@ class TestJourneyTen(unittest.TestCase):
         src = inspect.getsource(FixEwasteCollection.action_secure_destruction)
         self.assertIn("wipe.certificate", src)
 
-    def test_certificate_issued_at_end(self):
-        src = inspect.getsource(FixEwasteCollection.action_issue_certificate)
-        self.assertIn("certificate", src)
-        self.assertIn("certified", src)
-
-    def test_events(self):
-        src = inspect.getsource(FixEwasteCollection)
-        for ev in ("ewaste.collected", "ewaste.certificate_issued"):
-            self.assertIn(ev, src)
+    # A05 audit M18-18: the getsource() checks of the certificate step and its
+    # events were fake certification (they passed while a clerk forged
+    # 'certified'). The step now issues from the recycler certificate; the
+    # behaviour is proved by test_a05_m18_controls.py
+    # (test_certificate_lifecycle_issue_freeze_revoke, test_full_journey...).
 
     def test_co2_tracked(self):
         self.assertTrue(hasattr(FixEwasteCollection, "esg_co2_saved_kg"))

@@ -56,7 +56,7 @@
           "type": "string"
         },
         "days_remaining": {
-          "description": "Type not statically derivable from `days` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:799)."
+          "description": "Type not statically derivable from `days` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:815)."
         }
       },
       "additionalProperties": false

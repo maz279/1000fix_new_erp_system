@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M14 policy switches, the hold-period job and the resale-warranty consumer
+     (A05 workflow audit E5/E7/E10/E12, report §7.3-7.4). Every switch ships
+     at its fail-closed value; changing one is a recorded business decision. -->
+<odoo>
+    <data noupdate="1">
+
+        <!-- §7.4 provenance policy: until the BTRC NEIR relaunch (1 Jan 2027)
+             no NEIR check can run, so every device reads 'unchecked'.
+             0 = such devices are not traded. -->
+        <record id="param_allow_neir_unchecked" model="ir.config_parameter">
+            <field name="key">cd_tradein.allow_neir_unchecked</field>
+            <field name="value">0</field>
+        </record>
+        <record id="param_provenance_validity_days" model="ir.config_parameter">
+            <field name="key">cd_tradein.provenance_validity_days</field>
+            <field name="value">30</field>
+        </record>
+        <!-- §7.3 KYC policy: the payout needs the seller NID verified by a
+             provenance officer, and payouts to one NID are capped per 30 days
+             (0 disables the cap). -->
+        <record id="param_kyc_require_verified_nid" model="ir.config_parameter">
+            <field name="key">cd_tradein.kyc_require_verified_nid</field>
+            <field name="value">1</field>
+        </record>
+        <record id="param_kyc_payout_cap" model="ir.config_parameter">
+            <field name="key">cd_tradein.kyc_payout_cap_per_nid_30d</field>
+            <field name="value">100000</field>
+        </record>
+        <record id="param_hold_days" model="ir.config_parameter">
+            <field name="key">cd_tradein.hold_days</field>
+            <field name="value">7</field>
+        </record>
+        <record id="param_offer_requires_valuation" model="ir.config_parameter">
+            <field name="key">cd_tradein.offer_requires_valuation</field>
+            <field name="value">1</field>
+        </record>
+        <record id="param_qa_min_pass_pct" model="ir.config_parameter">
+            <field name="key">cd_tradein.qa_min_pass_pct</field>
+            <field name="value">100</field>
+        </record>
+        <record id="param_resale_warranty_months" model="ir.config_parameter">
+            <field name="key">cd_tradein.resale_warranty_months</field>
+            <field name="value">6</field>
+        </record>
+
+        <record id="ir_cron_tradein_hold_period" model="ir.cron">
+            <field name="name">M14: release trade-in holds whose hold period has ended</field>
+            <field name="model_id" ref="model_fix_tradein_request"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_tradein_hold_period()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="consumer_graded_stock_sold_warranty" model="fix.event.consumer">
+            <field name="name">M14: refurbished-unit warranty on the resale of a trade-in unit</field>
+            <field name="event_type">graded_stock.sold</field>
+            <field name="model">fix.tradein.request</field>
+            <field name="method">consume_graded_stock_sold</field>
+            <field name="module">cd_tradein</field>
+        </record>
+
+        <!-- A05 P2 (M18): an e-waste item triaged reuse/refurbish opens a draft
+             trade-in intake; the M06 wipe gate still applies downstream. -->
+        <record id="consumer_ewaste_reuse_routed_intake" model="fix.event.consumer">
+            <field name="name">M14: trade-in intake for an e-waste item routed to reuse</field>
+            <field name="event_type">ewaste.reuse_routed</field>
+            <field name="model">fix.tradein.request</field>
+            <field name="method">consume_ewaste_reuse_routed</field>
+            <field name="module">cd_tradein</field>
+        </record>
+
+    </data>
+</odoo>

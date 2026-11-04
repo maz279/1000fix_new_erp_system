@@ -35,9 +35,11 @@
                     <button name="action_refurbish" string="Start Workshop Refurbishment" type="object" invisible="state != 'wiped'" class="oe_highlight"/>
                     <button name="action_grade" string="Assign Refurb Grade" type="object" invisible="state != 'refurbished'"/>
                     <button name="action_resale_ready" string="Publish to Graded Stock &amp; Resale" type="object" invisible="state != 'graded'" class="oe_highlight"/>
-                    <button name="action_request_payout_approval" string="Request Payout Approval" type="object" invisible="state not in ('resale_ready', 'graded') or payout_approval_state in ('pending', 'approved')"/>
-                    <button name="action_approve_payout" string="Approve Payout" type="object" invisible="payout_approval_state != 'pending'" class="oe_highlight"/>
-                    <button name="action_reject_payout" string="Reject Payout" type="object" invisible="payout_approval_state != 'pending'"/>
+                    <button name="action_accept_revision" string="Customer Accepts Revised Value" type="object" invisible="revision_state != 'pending'"/>
+                    <button name="action_verify_psr" string="Verify PSR" type="object" invisible="psr_verified or state in ('closed', 'rejected')"/>
+                    <!-- A05 audit M14-3/E11: the payout is decided from the approver's M63 inbox -->
+                    <button name="action_request_approval" string="Request Payout Approval" type="object" invisible="state not in ('resale_ready', 'graded') or payout_approval_state in ('pending', 'approved')"/>
+                    <button name="action_recall_approval" string="Recall Approval Request" type="object" invisible="payout_approval_state != 'pending'"/>
                     <button name="action_pay" string="Execute Treasury Payout" type="object" invisible="state not in ('resale_ready', 'graded') or payout_approval_state != 'approved'" class="oe_highlight"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,offered,accepted,collected,wiped,refurbished,graded,resale_ready,closed"/>
                 </header>
@@ -55,8 +57,19 @@
                             <field name="consignment_id" readonly="1"/>
                         </group>
                         <group string="Financials &amp; Payout (M50)">
-                            <field name="offered_value"/>
+                            <field name="offered_value" readonly="state != 'draft'"/>
+                            <field name="accepted_offer_value"/>
                             <field name="graded_value" readonly="state not in ('graded', 'resale_ready')"/>
+                            <field name="revision_state"/>
+                            <field name="customer_nid"/>
+                            <field name="taxpayer_tin"/>
+                            <field name="psr_attachment_id"/>
+                            <field name="psr_verified"/>
+                            <field name="tds_applicable"/>
+                            <field name="tds_amount"/>
+                            <field name="net_payout"/>
+                            <field name="withholding_line_id"/>
+                            <field name="withholding_certificate_no"/>
                             <field name="payout_approval_state" widget="badge"/>
                             <field name="payout_requested_by_id"/>
                             <field name="payout_approved_by_id"/>
@@ -78,8 +91,9 @@
                             <field name="grade"/>
                         </group>
                         <group>
-                            <field name="parts_cost"/>
-                            <field name="labour_cost"/>
+                            <field name="parts_cost" readonly="1"/>
+                            <field name="labour_cost" readonly="1"/>
+                            <field name="steps_cost"/>
                             <field name="refurbishment_cost"/>
                         </group>
                     </group>
@@ -91,6 +105,7 @@
                         <group>
                             <field name="graded_stock_id" readonly="1"/>
                             <field name="marketplace_seller_id"/>
+                            <field name="hold_until"/>
                         </group>
                     </group>
                 </sheet>

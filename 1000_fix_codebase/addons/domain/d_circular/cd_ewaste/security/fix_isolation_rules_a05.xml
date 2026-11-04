@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AS-03 company isolation for the models added by the A05 audit (M18).
+     Hand-written: fix_isolation_rules.xml is generated and predates them. -->
+<odoo>
+    <record id="rule_fix_ewaste_manifest_company" model="ir.rule">
+        <field name="name">fix.ewaste.manifest: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_manifest"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_manifest_line_company" model="ir.rule">
+        <field name="name">fix.ewaste.manifest.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_manifest_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_basel_pic_company" model="ir.rule">
+        <field name="name">fix.ewaste.basel.pic: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_basel_pic"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_registration_company" model="ir.rule">
+        <field name="name">fix.ewaste.registration: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_registration"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_settlement_company" model="ir.rule">
+        <field name="name">fix.ewaste.settlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_settlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

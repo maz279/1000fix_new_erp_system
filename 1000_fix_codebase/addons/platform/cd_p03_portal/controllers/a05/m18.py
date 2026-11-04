@@ -1,7 +1,14 @@
 # A05 · M18 E-Waste & Circular Economy — surfaces, packs and KPIs over the
-# existing collection/ESG models and the new event, triage, batch, battery,
-# partner, certificate and statutory-return models. CO2 uses the documented
-# 1.5 kg CO2e per kg e-waste factor (the recycle action's own basis).
+# collection/ESG models and the event, triage, batch, battery, partner,
+# certificate, statutory-return, manifest, Basel PIC, DoE registration and
+# settlement models.
+#
+# A05 workflow audit (2026-11-03) M18-11 / E2: every report and KPI read with
+# sudo().search([]), so a clerk's figures counted every company. Each read is
+# now the user's own (record rules apply) AND filtered on env.companies. The
+# figures are what the records say: CO2 avoided is an estimate reported apart
+# from the inventory, counted only once a recycler certificate covers the
+# item; the ESG report lists computed metrics only.
 import datetime
 
 SURFACES = {
@@ -16,20 +23,73 @@ SURFACES = {
             "action_secure_destruction",
             "action_recycle_estimated",
             "action_issue_certificate",
+            "action_remove_from_batch",
+            "action_apply_storage_extension",
         },
     },
-    "fix.ewaste.event": {"order": "event_date desc, id desc", "limit": 200, "actions": set()},
+    "fix.ewaste.event": {
+        "order": "event_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_open", "action_close"},
+    },
     "fix.ewaste.triage": {"order": "decided_on desc, id desc", "limit": 300, "actions": set()},
     "fix.ewaste.batch": {
         "order": "dispatched_on desc, id desc",
         "limit": 300,
-        "actions": {"action_dispatch"},
+        "actions": {
+            "action_load_ready_items",
+            "action_dispatch",
+            "action_receive",
+            "action_process",
+            "action_record_certificate",
+        },
     },
-    "fix.ewaste.battery": {"order": "received_on desc, id desc", "limit": 300, "actions": set()},
-    "fix.ewaste.partner": {"order": "name", "limit": 200, "actions": set()},
-    "fix.ewaste.certificate": {"order": "issued_on desc, id desc", "limit": 300, "actions": set()},
-    "fix.ewaste.return": {"order": "period desc, authority", "limit": 200, "actions": set()},
-    "fix.esg.metric": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.ewaste.battery": {
+        "order": "received_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_inspect_and_quarantine", "action_dispatch", "action_process"},
+    },
+    "fix.ewaste.partner": {
+        "order": "name",
+        "limit": 200,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_suspend",
+            "action_renew",
+        },
+    },
+    "fix.ewaste.certificate": {
+        "order": "issued_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_issue", "action_revoke"},
+    },
+    "fix.ewaste.return": {
+        "order": "period desc, authority",
+        "limit": 200,
+        "actions": {
+            "action_calculate_mass_balance",
+            "action_submit_return",
+            "action_accept_return",
+        },
+    },
+    "fix.esg.metric": {"order": "id desc", "limit": 400, "actions": {"action_recompute"}},
+    "fix.ewaste.manifest": {"order": "issued_on desc, id desc", "limit": 300, "actions": set()},
+    "fix.ewaste.basel.pic": {
+        "order": "valid_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_record_consent", "action_withdraw"},
+    },
+    "fix.ewaste.registration": {
+        "order": "valid_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_activate"},
+    },
+    "fix.ewaste.settlement": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+    },
 }
 
 _MATERIAL_LABELS = {
@@ -47,6 +107,11 @@ _TRIAGE_LABELS = {
     "hazardous": "Hazardous",
 }
 _DIVERTED = ("reuse", "refurbish")
+_CO2_NOTE = (
+    "CO2e avoided is an ESTIMATE (weight x the configured factor, version stamped), "
+    "counted only for items a recycler certificate covers, and reported apart from "
+    "the inventory: it is not a reduction of the company's own emissions."
+)
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -61,18 +126,29 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _mine(env, model, domain=None, order=None):
+    """The user's own read (record rules apply), inside the user's companies."""
+    return env[model].search(
+        [("company_id", "in", env.companies.ids), *(domain or [])], order=order
+    )
+
+
 def _collections(env):
-    return env["fix.ewaste.collection"].sudo().search([])
+    return _mine(env, "fix.ewaste.collection")
 
 
 def _month_key(value):
     return value.strftime("%Y-%m") if value else "—"
 
 
+def _certified_co2(recs):
+    return sum(r.esg_co2_saved_kg or 0.0 for r in recs if r.state == "certified")
+
+
 def collection_volume(env, date_from=None, date_to=None, **params):
     by_key = {}
     for rec in _collections(env):
-        key = (_month_key(rec.create_date), rec.material_type or "other")
+        key = (_month_key(rec.collected_on or rec.create_date), rec.material_type or "other")
         row = by_key.setdefault(
             key,
             {
@@ -80,36 +156,33 @@ def collection_volume(env, date_from=None, date_to=None, **params):
                 "material": _MATERIAL_LABELS.get(key[1], key[1]),
                 "collections": 0,
                 "weight_kg": 0.0,
-                "co2_saved_kg": 0.0,
+                "co2_avoided_kg": 0.0,
             },
         )
         row["collections"] += 1
         row["weight_kg"] += rec.weight_kg or 0.0
-        row["co2_saved_kg"] += rec.esg_co2_saved_kg or 0.0
+        row["co2_avoided_kg"] += _certified_co2(rec)
     rows = sorted(by_key.values(), key=lambda r: (r["period"], r["material"]))
     for row in rows:
         row["weight_kg"] = round(row["weight_kg"], 2)
-        row["co2_saved_kg"] = round(row["co2_saved_kg"], 2)
+        row["co2_avoided_kg"] = round(row["co2_avoided_kg"], 2)
     return _pack(
         "Collection Volume Trend — collections by month and material",
-        ["period", "material", "collections", "weight_kg", "co2_saved_kg"],
+        ["period", "material", "collections", "weight_kg", "co2_avoided_kg"],
         {
             "period": "Period",
             "material": "Material",
             "collections": "Collections",
             "weight_kg": "Weight (kg)",
-            "co2_saved_kg": "CO2 Saved (kg)",
+            "co2_avoided_kg": "CO2e Avoided (kg, estimate)",
         },
         rows,
-        [
-            "Every collection counts at its intake month; CO2 is what the recycle "
-            "action recorded (1.5 kg CO2e per kg)."
-        ],
+        ["Every collection counts at its intake month (inventory).", _CO2_NOTE],
         totals={
             "period": "Total",
             "collections": sum(r["collections"] for r in rows),
             "weight_kg": round(sum(r["weight_kg"] for r in rows), 2),
-            "co2_saved_kg": round(sum(r["co2_saved_kg"] for r in rows), 2),
+            "co2_avoided_kg": round(sum(r["co2_avoided_kg"] for r in rows), 2),
         },
         empty="No collections recorded yet.",
     )
@@ -150,8 +223,8 @@ def disposition_mix(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Disposition is the recorded triage grade; untriaged collections stay "
-            "visible until a decision is made."
+            "Disposition is the assessor's recorded triage decision (write-once); "
+            "untriaged collections stay visible until a decision is made."
         ],
         totals={
             "disposition": "Total",
@@ -164,7 +237,7 @@ def disposition_mix(env, date_from=None, date_to=None, **params):
 
 def material_recovery(env, date_from=None, date_to=None, **params):
     collections = _collections(env)
-    batches = env["fix.ewaste.batch"].sudo().search([])
+    batches = _mine(env, "fix.ewaste.batch")
     rows = []
     for key, label in _MATERIAL_LABELS.items():
         col = collections.filtered(lambda r, k=key: r.material_type == k)
@@ -172,7 +245,7 @@ def material_recovery(env, date_from=None, date_to=None, **params):
         processed = bat.filtered(lambda r: r.state == "processed")
         collected_kg = sum(col.mapped("weight_kg"))
         batch_kg = sum(bat.mapped("weight_kg"))
-        processed_kg = sum(processed.mapped("weight_kg"))
+        processed_kg = sum(processed.mapped("processed_weight_kg"))
         rows.append(
             {
                 "material": label,
@@ -199,8 +272,9 @@ def material_recovery(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Recovery = processed batch weight ÷ collected weight for the same "
-            "material. Unbatched weight stays visible as the gap."
+            "Batched weight is the sum of the batch's items; processed weight is the "
+            "recycler's weighbridge at receipt, within tolerance of what left. Recovery = "
+            "processed ÷ collected for the same material; unbatched weight is the gap."
         ],
         totals={
             "material": "Total",
@@ -214,9 +288,9 @@ def material_recovery(env, date_from=None, date_to=None, **params):
 
 
 def compliance_pack(env, date_from=None, date_to=None, **params):
-    returns = env["fix.ewaste.return"].sudo().search([])
-    partners = env["fix.ewaste.partner"].sudo().search([])
-    certificates = env["fix.ewaste.certificate"].sudo().search([])
+    returns = _mine(env, "fix.ewaste.return")
+    partners = _mine(env, "fix.ewaste.partner")
+    certificates = _mine(env, "fix.ewaste.certificate", [("state", "=", "issued")])
     rows = []
     for rec in returns:
         rows.append(
@@ -226,6 +300,7 @@ def compliance_pack(env, date_from=None, date_to=None, **params):
                 "period": rec.period,
                 "due": str(rec.due_date),
                 "submitted": str(rec.submitted_on) if rec.submitted_on else "—",
+                "tonnage": round(rec.total_tonnage_collected or 0.0, 3),
                 "state": dict(rec._fields["state"].selection).get(rec.state),
                 "overdue": rec.is_overdue,
             }
@@ -233,24 +308,30 @@ def compliance_pack(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: (not r["overdue"], r["period"]), reverse=True)
     today = datetime.date.today()
     valid_partners = len(
-        partners.filtered(lambda p: p.state == "active" and (not p.valid_to or p.valid_to >= today))
+        partners.filtered(
+            lambda p: p.state == "active"
+            and p.approved_by_id
+            and p.valid_to
+            and p.valid_to >= today
+        )
     )
     return _pack(
         "Compliance Evidence Pack — DoE / BTRC returns",
-        ["return", "authority", "period", "due", "submitted", "state", "overdue"],
+        ["return", "authority", "period", "due", "submitted", "tonnage", "state", "overdue"],
         {
             "return": "Return",
             "authority": "Authority",
             "period": "Period",
             "due": "Due",
             "submitted": "Submitted",
+            "tonnage": "Collected (t)",
             "state": "State",
             "overdue": "Overdue",
         },
         rows,
         [
-            "Evidence in one place: %d statutory returns, %d certificates issued, "
-            "%d certified partner(s) valid today."
+            "Evidence in one place: %d statutory returns, %d recycler certificates issued, "
+            "%d approved recycler(s) with an in-date licence today."
             % (len(returns), len(certificates), valid_partners)
         ],
         empty="No statutory returns recorded yet.",
@@ -269,7 +350,7 @@ def impact_diversion(env, date_from=None, date_to=None, **params):
         else:
             recs = collections.filtered(lambda r, k=key: r.triage_grade == k)
         weight = sum(recs.mapped("weight_kg"))
-        co2 = sum(recs.mapped("esg_co2_saved_kg"))
+        co2 = _certified_co2(recs)
         total_weight += weight
         total_co2 += co2
         if key in _DIVERTED:
@@ -279,7 +360,7 @@ def impact_diversion(env, date_from=None, date_to=None, **params):
                 "disposition": label,
                 "collections": len(recs),
                 "weight_kg": round(weight, 2),
-                "co2_saved_kg": round(co2, 2),
+                "co2_avoided_kg": round(co2, 2),
                 "share_pct": 0.0,
             }
         )
@@ -289,59 +370,75 @@ def impact_diversion(env, date_from=None, date_to=None, **params):
         )
     return _pack(
         "Impact & Diversion — diverted vs recycled vs hazardous",
-        ["disposition", "collections", "weight_kg", "co2_saved_kg", "share_pct"],
+        ["disposition", "collections", "weight_kg", "co2_avoided_kg", "share_pct"],
         {
             "disposition": "Disposition",
             "collections": "Collections",
             "weight_kg": "Weight (kg)",
-            "co2_saved_kg": "CO2 Saved (kg)",
+            "co2_avoided_kg": "CO2e Avoided (kg, estimate)",
             "share_pct": "Share %",
         },
         rows,
         [
-            "Diversion rate = (reuse + refurbish) weight ÷ total weight = %.1f%%. "
-            "CO2 is the recorded saving, not an estimate of this report."
-            % ((diverted / total_weight) * 100.0 if total_weight else 0.0)
+            "Diversion rate = (reuse + refurbish) weight ÷ total weight = %.1f%%."
+            % ((diverted / total_weight) * 100.0 if total_weight else 0.0),
+            _CO2_NOTE,
         ],
         totals={
             "disposition": "Total",
             "collections": sum(r["collections"] for r in rows),
             "weight_kg": round(total_weight, 2),
-            "co2_saved_kg": round(total_co2, 2),
+            "co2_avoided_kg": round(total_co2, 2),
         },
         empty="No collections recorded yet.",
     )
 
 
 def esg_report(env, date_from=None, date_to=None, **params):
-    metrics = env["fix.esg.metric"].sudo().search([], order="period desc, metric_type")
+    metrics = _mine(
+        env, "fix.esg.metric", [("computed", "=", True)], order="period desc, metric_type"
+    )
+    typed = len(_mine(env, "fix.esg.metric", [("computed", "=", False)]))
     rows = []
     for rec in metrics:
         rows.append(
             {
                 "metric": rec.name,
                 "type": dict(rec._fields["metric_type"].selection).get(rec.metric_type),
+                "scope": dict(rec._fields["scope"].selection).get(rec.scope),
                 "period": rec.period,
                 "value": round(rec.value, 3),
                 "unit": rec.unit or "",
+                "factor": rec.factor_version or "",
+                "sources": rec.source_count,
             }
         )
-    collections = _collections(env)
-    co2_recorded = round(sum(collections.mapped("esg_co2_saved_kg")), 2)
-    metric_co2 = round(
-        sum(metrics.filtered(lambda m: m.metric_type == "co2_saved").mapped("value")), 2
-    )
+    notes = [
+        "Every metric is computed from the e-waste collections of its company and "
+        "period (BRU-ESG-11); none can be typed. Inventory and avoided figures are "
+        "separate rows and are never added together.",
+        _CO2_NOTE,
+    ]
+    if typed:
+        notes.append(
+            "%d metric row(s) typed before the A05 audit are excluded from this report." % typed
+        )
     return _pack(
-        "Sustainability Reporting — recorded ESG metrics",
-        ["metric", "type", "period", "value", "unit"],
-        {"metric": "Metric", "type": "Type", "period": "Period", "value": "Value", "unit": "Unit"},
+        "Sustainability Reporting — computed ESG metrics",
+        ["metric", "type", "scope", "period", "value", "unit", "factor", "sources"],
+        {
+            "metric": "Metric",
+            "type": "Type",
+            "scope": "Scope",
+            "period": "Period",
+            "value": "Value",
+            "unit": "Unit",
+            "factor": "Factor Version",
+            "sources": "Source Records",
+        },
         rows,
-        [
-            "Recorded ESG metrics: %d. Collections record %.2f kg CO2 saved; the "
-            '"co2_saved" metric rows carry %.2f kg — both are shown, never reconciled '
-            "silently." % (len(metrics), co2_recorded, metric_co2)
-        ],
-        empty="No ESG metrics recorded yet.",
+        notes,
+        empty="No computed ESG metrics yet (Recompute, or wait for the daily job).",
     )
 
 
@@ -359,26 +456,32 @@ def kpis(env):
     collections = _collections(env)
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    open_states = ("collected", "triaged", "destruction")
+    open_states = ("collected", "triaged", "destruction", "recycled", "hazmat")
     weight_mtd = sum(
         r.weight_kg or 0.0
         for r in collections
-        if r.create_date and r.create_date.date() >= month_start
+        if (r.collected_on or (r.create_date and r.create_date.date()) or today) >= month_start
     )
+    total = sum(r.weight_kg or 0.0 for r in collections)
     diverted = sum(r.weight_kg or 0.0 for r in collections if r.triage_grade in _DIVERTED)
-    returns = env["fix.ewaste.return"].sudo().search([])
+    recycled = sum(r.weight_kg or 0.0 for r in collections if r.state in ("recycled", "certified"))
+    returns = _mine(env, "fix.ewaste.return", [("state", "=", "draft")])
     due = returns.filtered(
-        lambda r: r.state == "draft"
-        and r.due_date
-        and r.due_date <= today + datetime.timedelta(days=30)
+        lambda r: r.due_date and r.due_date <= today + datetime.timedelta(days=30)
     )
+    certs = len(_mine(env, "fix.ewaste.certificate", [("state", "=", "issued")]))
+    co2 = round(_certified_co2(collections), 2)
     return {
         "open_collections": len(collections.filtered(lambda r: r.state in open_states)),
         "weight_mtd": round(weight_mtd, 2),
         "diverted_kg": round(diverted, 2),
-        "co2_saved_kg": round(sum(collections.mapped("esg_co2_saved_kg")), 2),
-        "certificates_issued": env["fix.ewaste.certificate"]
-        .sudo()
-        .search_count([("state", "=", "issued")]),
+        "co2_saved_kg": co2,
+        "certificates_issued": certs,
         "returns_due_30d": len(due),
+        # the module home's tiles (static/src/a05/m18.js)
+        "total_intake_kg": round(total, 2),
+        "recycled_kg": round(recycled, 2),
+        "certs_issued": certs,
+        "diversion_rate": round((diverted / total) * 100.0, 1) if total else 0.0,
+        "storage_overdue": len(collections.filtered(lambda r: r.storage_overdue)),
     }

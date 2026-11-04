@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AS-03 company isolation of the M14 price grid (added by the A05 build;
+     the generated fix_isolation_rules.xml predates the model). -->
+<odoo>
+    <record id="rule_fix_tradein_price_grid_company" model="ir.rule">
+        <field name="name">fix.tradein.price.grid: allowed companies</field>
+        <field name="model_id" ref="model_fix_tradein_price_grid"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

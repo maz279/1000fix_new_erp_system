@@ -2,7 +2,9 @@
 /* A05 — Circular Economy — M18 E-Waste & Circular Economy (v2.1 D365 multi-tab standard).
  * 100% Dynamics 365 6-tab forms with Document Vault on all 9 forms.
  * All 6 report packs exposed as chips (including ESG Materiality Report).
- * Zero phantom fields: all fields verified against PostgreSQL fix_dev. */
+ * Zero phantom fields: all fields verified against PostgreSQL fix_dev.
+ * A05 audit E3: every workflow, evidence and figure field is read-only here and
+ * changes only through its action (the server guards it as well). */
 
 export const MODULE = {
   area: 'A05', code: 'M18', en: 'E-Waste & Recycling', title: 'M18 — E-Waste & Recycling',
@@ -27,11 +29,14 @@ export const MODULE = {
       { id: 'M18-batches', en: 'Recycler Batches', bn: 'রিসাইক্লার চালান', t: 'g' },
       { id: 'M18-partners', en: 'Authorized Recyclers', bn: 'অনুমোদিত পুনর্ব্যবহারকারী', t: 'g' },
       { id: 'M18-certs', en: 'Green Certificates', bn: 'সবুজ সনদপত্র', t: 'g' },
-      { id: 'M18-manifest', en: 'Chain of Custody', bn: 'হস্তান্তর শৃঙ্খলা', t: 'g' }
+      { id: 'M18-manifest', en: 'Transfer Manifests (Form-1)', bn: 'হস্তান্তর শৃঙ্খলা', t: 'g' },
+      { id: 'M18-pic', en: 'Basel Prior Consent', bn: 'বাসেল পূর্বসম্মতি', t: 'g' },
+      { id: 'M18-settlements', en: 'Incentives & Recycler Money', bn: 'প্রণোদনা ও রিসাইক্লার অর্থ', t: 'g' }
     ]},
     { en: 'Statutory & ESG', screens: [
       { id: 'M18-returns', en: 'Statutory Returns (DoE)', bn: 'পরিবেশ অধিদপ্তর বিবরণী', t: 'g' },
-      { id: 'M18-esg', en: 'ESG Metrics', bn: 'ইএসজি সূচক', t: 'g' },
+      { id: 'M18-registration', en: 'DoE Registration & EPR', bn: 'পরিবেশ অধিদপ্তর নিবন্ধন', t: 'g' },
+      { id: 'M18-esg', en: 'ESG Metrics (computed)', bn: 'ইএসজি সূচক', t: 'g' },
       { id: 'M18-epr', en: 'EPR Compliance Pack', bn: 'ইপিআর কমপ্লায়েন্স', t: 'r' }
     ]}
   ],
@@ -52,7 +57,10 @@ export const MODULE = {
     'Battery & Hazardous Dossier',
     'Authorized Recycler Partner',
     'Statutory Environmental Return',
-    'ESG Materiality Metric'
+    'ESG Materiality Metric',
+    'Basel Prior Informed Consent',
+    'DoE E-Waste Registration',
+    'E-Waste Incentive / Recycler Money'
   ],
   cross: ['M17 retired assets', 'M14 non-repairable trade-ins', 'M06 customer drop-offs', 'M03 hazardous transit'],
   freg: { src: 82, sub: [
@@ -87,37 +95,77 @@ export const SCREENS = {
       { m: 'action_triage_recycle', l: 'Recycle' },
       { m: 'action_triage_hazardous', l: 'Hazardous' },
       { m: 'action_secure_destruction', l: 'Destruction' },
-      { m: 'action_recycle_estimated', l: 'Recycle Est.' },
-      { m: 'action_issue_certificate', l: 'Issue Cert' }
+      { m: 'action_recycle_estimated', l: 'Release to Recycler' },
+      { m: 'action_issue_certificate', l: 'Certify from Recycler Cert' },
+      { m: 'action_remove_from_batch', l: 'Remove from Batch' },
+      { m: 'action_apply_storage_extension', l: 'Record DoE Extension' }
     ] },
   'M18-triage': { kind: 'model_list', model: 'fix.ewaste.triage',
     cols: ['name', 'collection_id', 'decision', 'inspector_id', 'decided_on', 'wipe_required', 'data_bearing'] },
   'M18-drives': { kind: 'model_list', model: 'fix.ewaste.event', stateField: 'state',
-    cols: ['name', 'venue', 'event_date', 'operating_unit_id', 'target_kg', 'collected_kg', 'state'] },
-  'M18-battery': { kind: 'model_list', model: 'fix.ewaste.battery', stateField: 'state',
-    cols: ['name', 'chemistry', 'hazard_class', 'storage_location', 'weight_kg', 'swollen_cell', 'terminal_taped', 'state'],
+    cols: ['name', 'venue', 'event_date', 'operating_unit_id', 'target_kg', 'collected_kg', 'state'],
     actions: [
-      { m: 'action_inspect_and_quarantine', l: 'Inspect & Quarantine' },
+      { m: 'action_open', l: 'Open Drive' },
+      { m: 'action_close', l: 'Close Drive' }
+    ] },
+  'M18-battery': { kind: 'model_list', model: 'fix.ewaste.battery', stateField: 'state',
+    cols: ['name', 'chemistry', 'hazard_class', 'storage_location', 'weight_kg', 'swollen_cell', 'terminal_taped', 'inspected_by_id', 'batch_id', 'state'],
+    actions: [
+      { m: 'action_inspect_and_quarantine', l: 'Record HSE Inspection' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_process', l: 'Process' }
     ] },
   'M18-batches': { kind: 'model_list', model: 'fix.ewaste.batch', stateField: 'state',
-    cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'transfer_note_ref', 'dispatched_on', 'state'],
-    actions: [{ m: 'action_dispatch', l: 'Dispatch Batch' }] },
+    cols: ['name', 'partner_id', 'material_type', 'item_count', 'weight_kg', 'transfer_note_ref', 'dispatched_on', 'received_weight_kg', 'state'],
+    actions: [
+      { m: 'action_load_ready_items', l: 'Load Ready Items' },
+      { m: 'action_dispatch', l: 'Dispatch Batch' },
+      { m: 'action_receive', l: 'Recycler Received' },
+      { m: 'action_process', l: 'Recycler Processed' },
+      { m: 'action_record_certificate', l: 'Record Recycler Certificate' }
+    ] },
   'M18-partners': { kind: 'model_list', model: 'fix.ewaste.partner', stateField: 'state',
-    cols: ['name', 'partner_id', 'capability', 'certification', 'certificate_no', 'valid_to', 'state'] },
+    cols: ['name', 'partner_id', 'capability', 'certification', 'certificate_no', 'valid_to', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
+      { m: 'action_suspend', l: 'Suspend' },
+      { m: 'action_renew', l: 'Renew Licence' }
+    ] },
   'M18-certs': { kind: 'model_list', model: 'fix.ewaste.certificate', stateField: 'state',
-    cols: ['name', 'certificate_no', 'partner_id', 'material_type', 'weight_kg', 'issued_on', 'file_ref', 'state'] },
-  'M18-manifest': { kind: 'table_report', module: 'M18', report: 'compliance_pack', title: 'Chain of Custody Manifest', period: true },
+    cols: ['name', 'certificate_no', 'partner_id', 'batch_id', 'material_type', 'weight_kg', 'issued_on', 'state'],
+    actions: [
+      { m: 'action_issue', l: 'Issue & Certify Items' },
+      { m: 'action_revoke', l: 'Revoke' }
+    ] },
+  'M18-manifest': { kind: 'model_list', model: 'fix.ewaste.manifest', create: false,
+    cols: ['name', 'batch_id', 'partner_id', 'licence_no', 'destination_country_id', 'total_weight_kg', 'hazardous', 'issued_on'] },
+  'M18-pic': { kind: 'model_list', model: 'fix.ewaste.basel.pic', stateField: 'state',
+    cols: ['name', 'partner_id', 'destination_country_id', 'consent_ref', 'max_weight_kg', 'valid_to', 'state'],
+    actions: [
+      { m: 'action_record_consent', l: 'Confirm Consent' },
+      { m: 'action_withdraw', l: 'Withdraw' }
+    ] },
+  'M18-registration': { kind: 'model_list', model: 'fix.ewaste.registration', stateField: 'state',
+    cols: ['name', 'authority', 'role', 'registration_no', 'epr_target_pct', 'valid_to', 'state'],
+    actions: [{ m: 'action_activate', l: 'Confirm Registration' }] },
+  'M18-settlements': { kind: 'model_list', model: 'fix.ewaste.settlement', stateField: 'state',
+    cols: ['name', 'kind', 'partner_id', 'collection_id', 'batch_id', 'amount', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
   'M18-returns': { kind: 'model_list', model: 'fix.ewaste.return', stateField: 'state',
-    cols: ['name', 'authority', 'period', 'form_type', 'due_date', 'recovery_rate_pct', 'submitted_on', 'state'],
+    cols: ['name', 'authority', 'period', 'form_type', 'due_date', 'total_tonnage_collected', 'recovery_rate_pct', 'submitted_on', 'state'],
     actions: [
       { m: 'action_calculate_mass_balance', l: 'Calc Balance' },
       { m: 'action_submit_return', l: 'Submit DoE' },
       { m: 'action_accept_return', l: 'Accept DoE' }
     ] },
-  'M18-esg': { kind: 'model_list', model: 'fix.esg.metric',
-    cols: ['name', 'metric_type', 'period', 'value', 'unit', 'operating_unit_id'] },
+  'M18-esg': { kind: 'model_list', model: 'fix.esg.metric', create: false,
+    cols: ['name', 'metric_type', 'scope', 'period', 'value', 'unit', 'factor_version', 'computed'],
+    actions: [{ m: 'action_recompute', l: 'Recompute from Collections' }] },
   'M18-epr': { kind: 'table_report', module: 'M18', report: 'compliance_pack', title: 'EPR Compliance Pack', period: true },
 
   /* Report chips -> their own computed packs (All 6 active) */
@@ -134,7 +182,7 @@ export const SCREENS = {
     model: 'fix.ewaste.collection',
     title: 'E-Waste Collection Dossier',
     back: 'M18-intake',
-    status: { field: 'state', labels: { draft: 'Draft', collected: 'Collected', triaged: 'Triaged', dispatched: 'Dispatched', certified: 'Certified' } },
+    status: { field: 'state', labels: { collected: 'Collected', triaged: 'Triaged', destruction: 'Secure Destruction', recycled: 'Ready for Recycler', routed: 'Routed to M14', hazmat: 'Hazardous Stream', disposed: 'Disposed', certified: 'Certified' } },
     tabs: [
       { id: 'general', label: '1. General & Origin', bn: '১. সাধারণ ও উৎস', icon: '📦', badge: '4' },
       { id: 'pricing', label: '2. Mass & Material', bn: '২. ভর ও উপাদান', icon: '⚖️', badge: '3' },
@@ -153,20 +201,30 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Physical Mass Balance Classification',
         fields: [
+          { name: 'item_count', label: 'Item Count' },
           { name: 'weight_kg', required: true, label: 'Intake Mass (kg)' },
           { name: 'material_type', required: true, label: 'Schedule-1 Category (Phone/Laptop/Battery/Other)' },
-          { name: 'triage_grade', label: 'Triage Grade' }
+          { name: 'triage_grade', label: 'Triage Grade', readonly: true }
         ] },
       { tab: 'technical', title: 'Data Sanitization & Destruction',
         fields: [
+          { name: 'data_bearing', label: 'Data Bearing (from triage)', readonly: true },
+          { name: 'wipe_required', label: 'M06 Certificate Required', readonly: true },
+          { name: 'disposal_certificate_id', label: 'Recycler Disposal Certificate', readonly: true },
           { name: 'wipe_certificate_id', label: 'NIST 800-88 Data Sanitization Certificate' },
-          { name: 'disposal_certificate_ref', label: 'Final Destruction Proof Reference' }
+          { name: 'disposal_certificate_ref', label: 'Final Destruction Proof Reference', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Environmental Traceability & Impact',
         fields: [
-          { name: 'esg_co2_saved_kg', label: 'Calculated CO2e Avoidance (kg)', readonly: true },
+          { name: 'co2_factor_version', label: 'CO2 Factor Version', readonly: true },
+          { name: 'collected_on', label: 'Received On', readonly: true },
+          { name: 'storage_deadline', label: 'Storage Deadline (180 / +90 days)', readonly: true },
+          { name: 'storage_extension_ref', label: 'DoE Storage Extension Ref' },
+          { name: 'storage_overdue', label: 'Storage Overdue', readonly: true },
+          { name: 'source_ref', label: 'Handed Over From (M14 trade-in)', readonly: true },
+          { name: 'esg_co2_saved_kg', label: 'CO2e Avoided (kg, estimate - not inventory)', readonly: true },
           { name: 'event_id', label: 'Origin Public Collection Campaign' },
-          { name: 'batch_id', label: 'Downstream Recycler Batch' },
+          { name: 'batch_id', label: 'Downstream Recycler Batch', readonly: true },
           { name: 'device_id', label: 'Asset Master Reference' }
         ] },
       { tab: 'governance', title: 'Corporate Identity',
@@ -210,8 +268,9 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Inspector Evaluation',
         fields: [
-          { name: 'inspector_id', required: true, label: 'Triage Officer' },
-          { name: 'decided_on', label: 'Decision Timestamp' },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'inspector_id', label: 'Assessor (the deciding user)', readonly: true },
+          { name: 'decided_on', label: 'Decision Timestamp', readonly: true },
           { name: 'notes', label: 'Technical Condition Notes' }
         ] },
       { tab: 'governance', title: 'Company Context',
@@ -229,7 +288,7 @@ export const SCREENS = {
     model: 'fix.ewaste.batch',
     title: 'Recycler Dispatch Batch',
     back: 'M18-batches',
-    status: { field: 'state', labels: { draft: 'Draft', sealed: 'Sealed & Weighed', dispatched: 'Dispatched to Recycler', settled: 'Settled' } },
+    status: { field: 'state', labels: { draft: 'Draft', dispatched: 'Dispatched to Recycler', received: 'Received by Recycler', processed: 'Processed' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🚛', badge: '4' },
       { id: 'pricing', label: '2. Bulk Mass', bn: '২. মোট ভর', icon: '⚖️', badge: '2' },
@@ -248,13 +307,23 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Weighbridge & Fraction',
         fields: [
-          { name: 'weight_kg', required: true, label: 'Gross Verified Mass (kg)' },
+          { name: 'item_count', label: 'Items', readonly: true },
+          { name: 'received_weight_kg', label: 'Recycler Weighbridge (kg)' },
+          { name: 'processed_weight_kg', label: 'Processed (kg)', readonly: true },
+          { name: 'weight_kg', label: 'Itemised Mass (kg, sum of items)', readonly: true },
           { name: 'material_type', required: true, label: 'Material Classification' }
         ] },
       { tab: 'technical', title: 'Transfer Documentation (S.R.O. 187 Form-2)',
         fields: [
-          { name: 'transfer_note_ref', label: 'Waste Transfer Manifest Ref' },
-          { name: 'dispatched_on', label: 'Departure Timestamp' }
+          { name: 'manifest_id', label: 'Form-1 Manifest', readonly: true },
+          { name: 'destination_country_id', label: 'Destination Country' },
+          { name: 'basel_pic_id', label: 'Basel PIC (cross-border)' },
+          { name: 'recycler_receipt_ref', label: 'Recycler Receipt Ref' },
+          { name: 'processing_evidence_id', label: 'Recycler Processing Evidence' },
+          { name: 'received_on', label: 'Received On', readonly: true },
+          { name: 'processed_on', label: 'Processed On', readonly: true },
+          { name: 'transfer_note_ref', label: 'Waste Transfer Manifest Ref', readonly: true },
+          { name: 'dispatched_on', label: 'Departure Timestamp', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Driver & Logistics Notes',
         fields: [
@@ -275,7 +344,7 @@ export const SCREENS = {
     model: 'fix.ewaste.certificate',
     title: 'Green & Destruction Certificate',
     back: 'M18-certs',
-    status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued', verified: 'Verified', voided: 'Voided' } },
+    status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued', revoked: 'Revoked' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📜', badge: '4' },
       { id: 'pricing', label: '2. Mass Certified', bn: '২. প্রত্যয়িত ভর', icon: '⚖️', badge: '2' },
@@ -288,28 +357,33 @@ export const SCREENS = {
       { tab: 'general', title: 'Certificate Dossier',
         fields: [
           { name: 'name', label: 'Title / Subject', readonly: true },
-          { name: 'certificate_no', required: true, label: 'Official Certificate Number' },
-          { name: 'partner_id', label: 'Recipient / Client Entity' },
+          { name: 'certificate_no', label: 'Recycler Certificate Number' },
+          { name: 'partner_id', label: 'Recipient / Client Entity', readonly: true },
           { name: 'state', label: 'Certification Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Certified Mass Balance',
         fields: [
-          { name: 'weight_kg', label: 'Certified E-Waste Mass (kg)' },
+          { name: 'recycler_stated_weight_kg', label: 'Weight Stated by Recycler (kg)' },
+          { name: 'weight_kg', label: 'Certified E-Waste Mass (kg)', readonly: true },
           { name: 'material_type', label: 'Material Fraction' }
         ] },
       { tab: 'technical', title: 'Issuance & Verification Proof',
         fields: [
-          { name: 'issued_on', label: 'Official Issue Date' },
+          { name: 'evidence_attachment_id', label: 'Recycler Certificate (scan)' },
+          { name: 'issued_by_id', label: 'Issued By', readonly: true },
+          { name: 'revoke_reason', label: 'Revocation Reason' },
+          { name: 'issued_on', label: 'Official Issue Date', readonly: true },
           { name: 'file_ref', label: 'Cryptographic Hash Reference (SHA-256)' }
         ] },
       { tab: 'lifecycle', title: 'Custody Chain Lineage',
         fields: [
-          { name: 'collection_id', label: 'Source Collection Record' },
-          { name: 'batch_id', label: 'Origin Bulk Dispatch Batch' }
+          { name: 'collection_ids', label: 'Certified Items', readonly: true },
+          { name: 'collection_id', label: 'Source Collection Record', readonly: true },
+          { name: 'batch_id', label: 'Origin Bulk Dispatch Batch', readonly: true }
         ] },
       { tab: 'governance', title: 'Issuing Authority',
         fields: [
-          { name: 'company_id', label: 'Company' }
+          { name: 'company_id', label: 'Company', readonly: true }
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
@@ -322,7 +396,7 @@ export const SCREENS = {
     model: 'fix.ewaste.event',
     title: 'Collection Drive Event',
     back: 'M18-drives',
-    status: { field: 'state', labels: { planned: 'Planned', active: 'Live / Open', closed: 'Closed & Reconciled' } },
+    status: { field: 'state', labels: { planned: 'Planned', open: 'Live / Open', closed: 'Closed & Reconciled' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📢', badge: '4' },
       { id: 'pricing', label: '2. Tonnage Targets', bn: '২. লক্ষিত টন', icon: '🎯', badge: '2' },
@@ -367,7 +441,7 @@ export const SCREENS = {
     model: 'fix.ewaste.battery',
     title: 'Battery & Hazardous Dossier',
     back: 'M18-battery',
-    status: { field: 'state', labels: { received: 'Received', quarantined: 'Quarantined', dispatched: 'Dispatched to Smelter', processed: 'Safe Disposal' } },
+    status: { field: 'state', labels: { stored: 'In Storage', dispatched: 'Dispatched to Recycler', processed: 'Safe Disposal' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🔋', badge: '4' },
       { id: 'pricing', label: '2. Mass Weight', bn: '২. মোট ওজন', icon: '⚖️', badge: '1' },
@@ -390,17 +464,20 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'UN 3480 / UN 3481 Class 9 Safety Gates',
         fields: [
-          { name: 'terminal_taped', required: true, label: 'Terminals Insulated & Taped (Short-Circuit Prevention)' },
-          { name: 'swollen_cell', required: true, label: 'Thermal Runaway Risk / Swollen Cell Detected' },
+          { name: 'inspection_evidence_id', label: 'Inspection Photo / Evidence' },
+          { name: 'inspected_by_id', label: 'HSE Inspector', readonly: true },
+          { name: 'inspected_on', label: 'Inspected On', readonly: true },
+          { name: 'terminal_taped', label: 'Terminals Insulated & Taped (Short-Circuit Prevention)', readonly: true },
+          { name: 'swollen_cell', label: 'Thermal Runaway Risk / Swollen Cell Detected' },
           { name: 'quarantine_barrel_ref', label: 'Fire-Safe Vermiculite Quarantine Barrel' }
         ] },
       { tab: 'lifecycle', title: 'Storage & Downstream Traceability',
         fields: [
           { name: 'storage_location', label: 'Flame-Proof Storage Bunker' },
-          { name: 'received_on', label: 'Intake Date' },
+          { name: 'received_on', label: 'Intake Date', readonly: true },
           { name: 'operating_unit_id', label: 'Intake Unit' },
           { name: 'collection_id', label: 'Origin Collection Dossier' },
-          { name: 'batch_id', label: 'Consolidated Outbound Batch' },
+          { name: 'batch_id', label: 'Consolidated Outbound Batch', readonly: true },
           { name: 'notes', label: 'Safety Officer Notes' }
         ] },
       { tab: 'governance', title: 'Company Context',
@@ -418,7 +495,7 @@ export const SCREENS = {
     model: 'fix.ewaste.partner',
     title: 'Authorized Recycler Partner',
     back: 'M18-partners',
-    status: { field: 'state', labels: { active: 'Active & Certified', audit_pending: 'Audit Pending', suspended: 'Suspended' } },
+    status: { field: 'state', labels: { draft: 'Pending Approval', active: 'Active & Approved', suspended: 'Suspended', expired: 'Licence Expired' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🏭', badge: '3' },
       { id: 'pricing', label: '2. Processing Scope', bn: '২. প্রক্রিয়াকরণ সক্ষমতা', icon: '⚙️', badge: '2' },
@@ -430,7 +507,7 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: 'Partner Legal Entity',
         fields: [
-          { name: 'name', label: 'Profile Title', readonly: true },
+          { name: 'name', required: true, label: 'Recycler Name' },
           { name: 'partner_id', required: true, label: 'Vendor / Partner Business Record' },
           { name: 'state', label: 'Accreditation Status', readonly: true }
         ] },
@@ -441,13 +518,16 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'Department of Environment (DoE) Permit',
         fields: [
+          { name: 'licence_attachment_id', label: 'Licence Evidence (scan)' },
           { name: 'certificate_no', required: true, label: 'DoE License Number' },
           { name: 'valid_from', label: 'License Effective Date' },
           { name: 'valid_to', label: 'License Expiry Date' }
         ] },
       { tab: 'lifecycle', title: 'Audit Verification',
         fields: [
-          { name: 'state', label: 'Current Audit Standing' }
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true }
         ] },
       { tab: 'governance', title: 'Company Context',
         fields: [
@@ -464,7 +544,7 @@ export const SCREENS = {
     model: 'fix.ewaste.return',
     title: 'Statutory Environmental Return',
     back: 'M18-returns',
-    status: { field: 'state', labels: { draft: 'Draft', prepared: 'Prepared', submitted: 'Submitted to DoE', accepted: 'Accepted by DoE' } },
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted by Authority' } },
     tabs: [
       { id: 'general', label: '1. General & Authority', bn: '১. সাধারণ ও কর্তৃপক্ষ', icon: '🏛️', badge: '6' },
       { id: 'pricing', label: '2. Mass Balance Return', bn: '২. ভর ব্যালেন্স বিবরণী', icon: '⚖️', badge: '3' },
@@ -485,16 +565,20 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Mass Balance & Recovery Ratio',
         fields: [
-          { name: 'total_tonnage_collected', label: 'Gross Collected Tonnage (MT)' },
-          { name: 'total_tonnage_recycled', label: 'Total Recycled Tonnage (MT)' },
+          { name: 'nil_return_reason', label: 'Nil Return Reason (0 t)' },
+          { name: 'total_tonnage_collected', label: 'Gross Collected Tonnage (MT)', readonly: true },
+          { name: 'total_tonnage_recycled', label: 'Total Recycled Tonnage (MT)', readonly: true },
           { name: 'recovery_rate_pct', label: 'Recovery Rate (% Target: 30%-50%)', readonly: true }
         ] },
       { tab: 'technical', title: 'Timetable & Regulatory Receipt',
         fields: [
           { name: 'due_date', required: true, label: 'Statutory Submission Deadline' },
-          { name: 'submitted_on', label: 'Official Submission Date' },
+          { name: 'submitted_on', label: 'Official Submission Date', readonly: true },
           { name: 'is_overdue', label: 'Statutory Overdue Flag', readonly: true },
-          { name: 'reference', label: 'DoE Acknowledgment Number' }
+          { name: 'reference', label: 'Filing Reference' },
+          { name: 'authority_ack_ref', label: 'Authority Acknowledgement No' },
+          { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+          { name: 'accepted_by_id', label: 'Accepted By', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Regulatory Officer Observations',
         fields: [
@@ -526,30 +610,141 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: 'ESG Indicator Definition',
         fields: [
-          { name: 'name', required: true, label: 'Indicator Title (e.g., Avoided Scope 3 CO2e)' },
-          { name: 'metric_type', required: true, label: 'GRI/SASB Materiality Type' },
-          { name: 'period', required: true, label: 'Reporting Period' }
+          { name: 'name', required: true, label: 'Indicator Title (e.g., Avoided Scope 3 CO2e)', readonly: true },
+          { name: 'metric_type', required: true, label: 'GRI/SASB Materiality Type', readonly: true },
+          { name: 'period', required: true, label: 'Reporting Period', readonly: true }
         ] },
       { tab: 'pricing', title: 'Quantification',
         fields: [
-          { name: 'value', required: true, label: 'Reported Metric Value' },
-          { name: 'unit', required: true, label: 'Unit of Measure (kg / MT / %)' }
+          { name: 'scope', label: 'Scope (inventory / avoided)', readonly: true },
+          { name: 'factor_version', label: 'Factor Version', readonly: true },
+          { name: 'source_count', label: 'Source Records', readonly: true },
+          { name: 'computed_at', label: 'Computed At', readonly: true },
+          { name: 'value', required: true, label: 'Reported Metric Value', readonly: true },
+          { name: 'unit', required: true, label: 'Unit of Measure (kg / MT / %)', readonly: true }
         ] },
       { tab: 'technical', title: 'Operational Hub',
         fields: [
-          { name: 'operating_unit_id', label: 'Operating Unit' }
+          { name: 'operating_unit_id', label: 'Operating Unit', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Sustainability Timeline',
         fields: [
-          { name: 'period', label: 'Audit Cycle Period' }
+          { name: 'period', label: 'Audit Cycle Period', readonly: true }
         ] },
       { tab: 'governance', title: 'Company Context',
         fields: [
-          { name: 'company_id', label: 'Company' }
+          { name: 'company_id', label: 'Company', readonly: true }
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
           ] }
+    ]
+  },
+  'M18-form-pic': {
+    kind: 'model_form',
+    model: 'fix.ewaste.basel.pic',
+    title: 'Basel Prior Informed Consent',
+    back: 'M18-pic',
+    status: { field: 'state', labels: { draft: 'Draft', consented: 'Consented', expired: 'Expired', withdrawn: 'Withdrawn' } },
+    tabs: [
+      { id: 'general', label: '1. Consent', bn: '১. সম্মতি', icon: '🌍', badge: '5' },
+      { id: 'technical', label: '2. Validity & Evidence', bn: '২. মেয়াদ ও প্রমাণ', icon: '📜', badge: '4' },
+      { id: 'governance', label: '3. Governance', bn: '৩. নিয়ন্ত্রণ', icon: '🏛️', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Transboundary Movement',
+        fields: [
+          { name: 'name', label: 'PIC Reference', readonly: true },
+          { name: 'partner_id', required: true, label: 'Importing Recycler' },
+          { name: 'destination_country_id', required: true, label: 'Destination Country' },
+          { name: 'importing_authority', label: 'Competent Authority of Import' },
+          { name: 'consent_ref', label: 'Consent Reference' }
+        ] },
+      { tab: 'technical', title: 'Consent Scope',
+        fields: [
+          { name: 'max_weight_kg', label: 'Consented Quantity (kg)' },
+          { name: 'valid_from', label: 'Valid From' },
+          { name: 'valid_to', label: 'Valid To' },
+          { name: 'evidence_attachment_id', label: 'Consent Document (scan)' }
+        ] },
+      { tab: 'governance', title: 'Four Eyes',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-registration': {
+    kind: 'model_form',
+    model: 'fix.ewaste.registration',
+    title: 'DoE E-Waste Registration',
+    back: 'M18-registration',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', expired: 'Expired' } },
+    tabs: [
+      { id: 'general', label: '1. Registration', bn: '১. নিবন্ধন', icon: '🏛️', badge: '5' },
+      { id: 'technical', label: '2. Validity & EPR', bn: '২. মেয়াদ ও ইপিআর', icon: '📅', badge: '5' },
+      { id: 'governance', label: '3. Governance', bn: '৩. নিয়ন্ত্রণ', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Hazardous Waste (E-waste) Management Rules 2021',
+        fields: [
+          { name: 'name', label: 'Record', readonly: true },
+          { name: 'authority', required: true, label: 'Authority' },
+          { name: 'role', required: true, label: 'Registered Role' },
+          { name: 'registration_no', label: 'Registration Number' },
+          { name: 'issuing_office', label: 'Issuing Office' }
+        ] },
+      { tab: 'technical', title: 'Validity, Plan and EPR Target',
+        fields: [
+          { name: 'valid_from', label: 'Valid From' },
+          { name: 'valid_to', label: 'Valid To' },
+          { name: 'management_plan_ref', label: 'E-Waste Management Plan Ref' },
+          { name: 'epr_target_pct', label: 'EPR Collection Target %' },
+          { name: 'evidence_attachment_id', label: 'Registration Certificate (scan)' }
+        ] },
+      { tab: 'governance', title: 'Four Eyes',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-settlement': {
+    kind: 'model_form',
+    model: 'fix.ewaste.settlement',
+    title: 'E-Waste Incentive / Recycler Money',
+    back: 'M18-settlements',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved - Handed to Finance', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'general', label: '1. Basis', bn: '১. ভিত্তি', icon: '💳', badge: '4' },
+      { id: 'pricing', label: '2. Amount', bn: '২. পরিমাণ', icon: '৳', badge: '3' },
+      { id: 'governance', label: '3. Approval', bn: '৩. অনুমোদন', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      { tab: 'general', title: 'What the money is for',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'collection_id', label: 'Collection (incentive)' },
+          { name: 'batch_id', label: 'Batch (recycler fee / income)' }
+        ] },
+      { tab: 'pricing', title: 'Payee / Payer and Amount',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Payee / Payer' },
+          { name: 'amount', required: true, label: 'Amount (BDT)' },
+          { name: 'rate_per_kg', label: 'Rate per kg' }
+        ] },
+      { tab: 'governance', title: 'Routed Approval (M63)',
+        fields: [
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
     ]
   }
 };
@@ -572,7 +767,10 @@ export const FORM_MODELS = {
   'M18:Battery & Hazardous Dossier': 'fix.ewaste.battery',
   'M18:Authorized Recycler Partner': 'fix.ewaste.partner',
   'M18:Statutory Environmental Return': 'fix.ewaste.return',
-  'M18:ESG Materiality Metric': 'fix.esg.metric'
+  'M18:ESG Materiality Metric': 'fix.esg.metric',
+  'M18:Basel Prior Informed Consent': 'fix.ewaste.basel.pic',
+  'M18:DoE E-Waste Registration': 'fix.ewaste.registration',
+  'M18:E-Waste Incentive / Recycler Money': 'fix.ewaste.settlement'
 };
 
 export const FORM_CHIPS = {
@@ -585,6 +783,9 @@ export const FORM_CHIPS = {
   'M18:Authorized Recycler Partner': 'M18-form-partner',
   'M18:Statutory Environmental Return': 'M18-form-return',
   'M18:ESG Materiality Metric': 'M18-form-esg',
+  'M18:Basel Prior Informed Consent': 'M18-form-pic',
+  'M18:DoE E-Waste Registration': 'M18-form-registration',
+  'M18:E-Waste Incentive / Recycler Money': 'M18-form-settlement',
   'M18:__by_model__': {
     'fix.ewaste.collection': 'M18-form-collection',
     'fix.ewaste.triage': 'M18-form-triage',
@@ -594,7 +795,10 @@ export const FORM_CHIPS = {
     'fix.ewaste.battery': 'M18-form-battery',
     'fix.ewaste.partner': 'M18-form-partner',
     'fix.ewaste.return': 'M18-form-return',
-    'fix.esg.metric': 'M18-form-esg'
+    'fix.esg.metric': 'M18-form-esg',
+    'fix.ewaste.basel.pic': 'M18-form-pic',
+    'fix.ewaste.registration': 'M18-form-registration',
+    'fix.ewaste.settlement': 'M18-form-settlement'
   },
   'M18:__by_screen__': {
     'M18-intake': 'M18-form-collection',
@@ -605,7 +809,10 @@ export const FORM_CHIPS = {
     'M18-partners': 'M18-form-partner',
     'M18-certs': 'M18-form-cert',
     'M18-returns': 'M18-form-return',
-    'M18-esg': 'M18-form-esg'
+    'M18-esg': 'M18-form-esg',
+    'M18-pic': 'M18-form-pic',
+    'M18-registration': 'M18-form-registration',
+    'M18-settlements': 'M18-form-settlement'
   }
 };
 

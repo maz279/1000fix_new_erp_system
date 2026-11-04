@@ -8,39 +8,71 @@ import datetime
 from ..p03_service_order_api import _require_internal  # noqa: F401
 
 SURFACES = {
+    # A05 audit M14-3 / E11: the payout is requested here and decided from the
+    # approver's M63 inbox; action_approve_payout, action_reject_payout and
+    # action_dofa_approve are never pressed on the record (they refuse).
     "fix.tradein.request": {
         "order": "create_date desc, id desc",
         "limit": 300,
         "actions": {
             "action_send_offer",
             "action_accept",
+            "action_reject",
+            "action_accept_revision",
             "action_collect",
             "action_wipe",
             "action_refurbish",
             "action_grade",
             "action_resale_ready",
+            "action_verify_psr",
             "action_request_payout_approval",
-            "action_approve_payout",
-            "action_reject_payout",
+            "action_request_approval",
+            "action_recall_approval",
             "action_pay",
-            "action_dofa_approve",
         },
     },
-    "fix.refurbishment": {"order": "tradein_id, id", "limit": 300, "actions": set()},
+    # M14-20: the step buttons the screen showed were not whitelisted.
+    "fix.refurbishment": {
+        "order": "tradein_id, id",
+        "limit": 300,
+        "actions": {"action_start", "action_request_parts", "action_complete_repair"},
+    },
     "fix.tradein.valuation": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_apply_to_tradein"},
+        "actions": {
+            "action_apply_to_tradein",
+            "action_request_override_approval",
+            "action_approve_override",
+            "action_reject_override",
+        },
+    },
+    "fix.tradein.price.grid": {
+        "order": "device_model_id, valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_retire"},
     },
     "fix.tradein.provenance": {
         "order": "checked_on desc, id desc",
         "limit": 300,
-        "actions": {"action_clear", "action_flag"},
+        "actions": {"action_clear", "action_flag", "action_run_neir_check"},
     },
     "fix.tradein.grade": {"order": "graded_on desc, id desc", "limit": 300, "actions": set()},
-    "fix.refurb.qa": {"order": "checked_on desc, id desc", "limit": 300, "actions": set()},
-    "fix.tradein.harvest": {"order": "harvested_on desc, id desc", "limit": 300, "actions": set()},
-    "fix.tradein.warranty": {"order": "start_date desc, id desc", "limit": 300, "actions": set()},
+    "fix.refurb.qa": {
+        "order": "checked_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit_result"},
+    },
+    "fix.tradein.harvest": {
+        "order": "harvested_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_harvest", "action_scrap"},
+    },
+    "fix.tradein.warranty": {
+        "order": "start_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_void"},
+    },
 }
 
 _RESALE_STATES = ("graded", "resale_ready", "closed")
@@ -62,8 +94,14 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _scoped(env, model):
+    """The user's companies only (A05 audit E2 / M18-11: KPIs and packs read
+    every company's rows through an unscoped superuser search)."""
+    return env[model].sudo().search([("company_id", "in", env.companies.ids)])
+
+
 def _requests(env):
-    return env["fix.tradein.request"].sudo().search([])
+    return _scoped(env, "fix.tradein.request")
 
 
 def _grade_label(code):
@@ -122,7 +160,8 @@ def tradein_margin(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Margin = resale value − inventory cost (offered + refurbishment). "
+            "Margin = resale value − inventory cost (acquisition at the graded payout "
+            "value, else the offer, + refurbishment). "
             "Only units that reached grading count."
         ],
         totals={
@@ -194,7 +233,7 @@ def refurb_cost_grade(env, date_from=None, date_to=None, **params):
 
 def ageing_markdown(env, date_from=None, date_to=None, **params):
     today = _today()
-    stock = env["fix.graded.stock"].sudo().search([])
+    stock = _scoped(env, "fix.graded.stock")
     rows = []
     for rec in stock:
         age = (today - rec.create_date.date()).days if rec.create_date else 0
@@ -306,7 +345,7 @@ def resale_channel(env, date_from=None, date_to=None, **params):
 
 
 def harvest_yield(env, date_from=None, date_to=None, **params):
-    harvests = env["fix.tradein.harvest"].sudo().search([])
+    harvests = _scoped(env, "fix.tradein.harvest")
     by_component = {}
     for rec in harvests:
         row = by_component.setdefault(
@@ -473,7 +512,7 @@ def unit_economics(env, date_from=None, date_to=None, **params):
 
 
 def valuation_queue(env, date_from=None, date_to=None, **params):
-    valuations = env["fix.tradein.valuation"].sudo().search([])
+    valuations = _scoped(env, "fix.tradein.valuation")
     rows = []
     for rec in valuations:
         rows.append(
@@ -540,12 +579,14 @@ def kpis(env):
     pending_payout = requests.filtered(lambda r: r.payout_approval_state == "pending")
     resale_ready = requests.filtered(lambda r: r.state == "resale_ready")
     graded = requests.filtered(lambda r: r.state in _RESALE_STATES)
-    stock = env["fix.graded.stock"].sudo().search([])
+    stock = _scoped(env, "fix.graded.stock")
     open_states = ("draft", "offered", "accepted", "collected", "wiped", "refurbished", "graded")
     return {
         "open_tradeins": len(requests.filtered(lambda r: r.state in open_states)),
         "pending_payouts": len(pending_payout),
-        "refurb_open": env["fix.refurbishment"].sudo().search_count([("state", "=", "pending")]),
+        "refurb_open": env["fix.refurbishment"]
+        .sudo()
+        .search_count([("state", "=", "pending"), ("company_id", "in", env.companies.ids)]),
         "resale_ready": len(resale_ready),
         "graded_stock_value": round(sum(stock.mapped("inventory_valuation")), 2),
         "margin_pipeline": round(

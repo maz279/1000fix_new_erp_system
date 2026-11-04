@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- A05 audit E12: rental overdue detection and late-fee accrual. The fee
+         is recomputed from the dates (never added), so a re-run changes
+         nothing; the overdue note and to-do are raised once per rental. -->
+    <data noupdate="1">
+        <record id="cron_rental_overdue" model="ir.cron">
+            <field name="name">M13 Rental: overdue rentals and late fees</field>
+            <field name="model_id" ref="model_fix_rental_reservation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rental_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

@@ -47,13 +47,13 @@
           "type": "string"
         },
         "event_type": {
-          "description": "Type not statically derivable from `kind` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:609)."
+          "description": "Type not statically derivable from `kind` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:625)."
         },
         "due_on": {
           "type": "string"
         },
         "days_left": {
-          "description": "Type not statically derivable from `(due_on - today).days` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:609)."
+          "description": "Type not statically derivable from `(due_on - today).days` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:625)."
         },
         "responsible_role": {
           "type": "string"

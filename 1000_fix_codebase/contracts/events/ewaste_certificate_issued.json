@@ -37,7 +37,10 @@
       ],
       "properties": {
         "certificate": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "co2_saved": {
           "type": "number"
@@ -48,7 +51,7 @@
   },
   "x-owner-module": "cd_ewaste",
   "x-publishers": [
-    "addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py"
+    "addons/domain/d_circular/cd_ewaste/models/fix_ewaste_ops.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

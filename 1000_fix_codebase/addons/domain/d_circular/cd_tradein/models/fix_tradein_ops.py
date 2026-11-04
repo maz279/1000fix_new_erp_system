@@ -1,16 +1,182 @@
 # fix_tradein_ops — M14: the valuation, provenance, grading, QA, harvest and
 # refurb-warranty records behind the registry screens. The trade-in request and
 # its lifecycle live in fix_tradein.py; these models compose with it.
+#
+# A05 workflow audit (2026-11-03), M14-5/6/12/16/17/18 + P2: every verdict
+# on these records (provenance clearance and its flags, the QA result, the
+# harvest and warranty state, the valuation override) was a free field. Each
+# is now guarded (fix.guarded.mixin) and set by its action, by the role the
+# report names, never by the person whose work it checks.
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from libs.py.fix_events import publish
+
+from .fix_tradein import (
+    _NID_RE,
+    GROUP_PROVENANCE_OFFICER,
+    GROUP_QA_INSPECTOR,
+    GROUP_VALUATION_MANAGER,
+    GROUP_WARRANTY_OFFICER,
+    PARAM_HARVEST_LOCATION,
+    PARAM_QA_MIN_PASS_PCT,
+    _param,
+    _param_float,
+    nid_placeholder,
+)
+
+_EPS = 0.005
+
+
+def _assert_role(env, group, what):
+    """Superuser service code is trusted; a person needs the role."""
+    if env.su:
+        return
+    if not env.user.has_group(group):
+        role = env.ref(group, raise_if_not_found=False)
+        raise AccessError("%s needs the %s role." % (what, role.name if role else group))
+
+
+class FixTradeinPriceGrid(models.Model):
+    """The governed market reference price of one device model (P2: a
+    governed valuation grid). A row prices valuations only once a valuation
+    manager other than its author approves it; an approved row is frozen and
+    is replaced, not edited."""
+
+    _name = "fix.tradein.price.grid"
+    _description = "Trade-In Price Grid"
+    _inherit = ["fix.guarded.mixin"]
+    _order = "device_model_id, valid_from desc, id desc"
+
+    _TERMS = frozenset({"device_model_id", "market_ref_price", "valid_from", "company_id"})
+
+    name = fields.Char(compute="_compute_name", store=True)
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    device_model_id = fields.Many2one(
+        "fix.device.model", string="Device Model", required=True, index=True, ondelete="restrict"
+    )
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    market_ref_price = fields.Monetary(
+        string="Market Reference Price", currency_field="currency_id", required=True
+    )
+    valid_from = fields.Date(required=True, default=fields.Date.context_today)
+    state = fields.Selection(
+        [("draft", "Draft"), ("approved", "Approved"), ("retired", "Retired")],
+        required=True,
+        default="draft",
+        readonly=True,
+    )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_at = fields.Datetime(readonly=True, copy=False)
+    notes = fields.Char(string="Source of the Price")
+
+    _price_positive = models.Constraint(
+        "CHECK (market_ref_price > 0)", "A grid price must be positive"
+    )
+
+    @api.depends("device_model_id", "valid_from")
+    def _compute_name(self):
+        for rec in self:
+            rec.name = "%s from %s" % (rec.device_model_id.name or "?", rec.valid_from or "")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "approved_by_id", "approved_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(r.state != "draft" for r in self):
+            locked |= self._TERMS
+        return locked
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(lambda r: r.state != "draft"):
+                if any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in self._TERMS & set(vals)):
+                    raise UserError(
+                        "Grid price %s is %s: it is replaced by a new row, not edited."
+                        % (rec.name, rec.state)
+                    )
+        return super().write(vals)
+
+    def action_approve(self):
+        _assert_role(self.env, GROUP_VALUATION_MANAGER, "Approving a grid price")
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft grid price is approved.")
+            if not self.env.su and rec.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: a grid price you entered is approved by another valuation manager."
+                )
+            older = self.sudo().search(
+                [
+                    ("device_model_id", "=", rec.device_model_id.id),
+                    ("company_id", "=", rec.company_id.id),
+                    ("state", "=", "approved"),
+                    ("valid_from", "<=", rec.valid_from),
+                ]
+            )
+            older._guarded().write({"state": "retired"})
+            rec._guarded().write(
+                {
+                    "state": "approved",
+                    "approved_by_id": self.env.uid,
+                    "approved_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_retire(self):
+        _assert_role(self.env, GROUP_VALUATION_MANAGER, "Retiring a grid price")
+        self._guarded().write({"state": "retired"})
+        return True
+
+    @api.model
+    def _price_for(self, device_model, company, on_date):
+        if not device_model:
+            return self.browse()
+        return self.sudo().search(
+            [
+                ("device_model_id", "=", device_model.id),
+                ("company_id", "=", company.id),
+                ("state", "=", "approved"),
+                ("valid_from", "<=", on_date),
+            ],
+            order="valid_from desc, id desc",
+            limit=1,
+        )
 
 
 class FixTradeinValuation(models.Model):
-    """An automated valuation of one trade-in, with a manual final offer."""
+    """An automated valuation of one trade-in, with a manual final offer.
+
+    P2 (governed valuation grid, approval on any override): the market price
+    comes from the approved grid row of the device model. A typed price, a
+    final offer other than the computed one, or a model with no grid row is
+    an OVERRIDE: it states its reason and is approved by a valuation manager
+    other than the valuer before it can be applied."""
 
     _name = "fix.tradein.valuation"
     _description = "Trade-In Valuation"
+    _inherit = ["fix.guarded.mixin"]
     _order = "create_date desc, id desc"
+
+    _INPUTS = frozenset(
+        {
+            "tradein_id",
+            "market_ref_price",
+            "age_months",
+            "age_factor_pct",
+            "condition_factor_pct",
+            "final_offer",
+            "method",
+            "override_reason",
+            "currency_id",
+        }
+    )
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -25,6 +191,12 @@ class FixTradeinValuation(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
+    grid_id = fields.Many2one(
+        "fix.tradein.price.grid",
+        string="Grid Price",
+        compute="_compute_grid",
+        help="The approved grid row of the device model on the valuation date",
+    )
     market_ref_price = fields.Monetary(
         string="Market Reference Price", currency_field="currency_id", required=True
     )
@@ -38,18 +210,46 @@ class FixTradeinValuation(models.Model):
         store=True,
     )
     final_offer = fields.Monetary(string="Final Offer", currency_field="currency_id")
+    applied_offer = fields.Monetary(
+        string="Applied Offer", currency_field="currency_id", readonly=True, copy=False
+    )
     method = fields.Selection(
         [("rules", "Rules Engine"), ("manual", "Manual Override")],
         required=True,
         default="rules",
     )
+    is_override = fields.Boolean(
+        string="Override",
+        compute="_compute_override",
+        help="No grid row, a price other than the grid's, a final offer other than the "
+        "computed one, or a manual method: needs a valuation manager's approval.",
+    )
     override_reason = fields.Char()
+    override_state = fields.Selection(
+        [
+            ("none", "Not Needed"),
+            ("pending", "Approval Pending"),
+            ("approved", "Approved"),
+            ("rejected", "Rejected"),
+        ],
+        default="none",
+        required=True,
+        readonly=True,
+        copy=False,
+    )
+    override_approved_by_id = fields.Many2one(
+        "res.users", string="Override Approved By", readonly=True, copy=False
+    )
+    override_approved_at = fields.Datetime(readonly=True, copy=False)
     valuated_on = fields.Date(required=True, default=fields.Date.context_today)
-    valuated_by_id = fields.Many2one("res.users", string="Valuated By")
+    valuated_by_id = fields.Many2one(
+        "res.users", string="Valuated By", default=lambda self: self.env.user
+    )
     state = fields.Selection(
         [("draft", "Draft"), ("applied", "Applied"), ("superseded", "Superseded")],
         required=True,
         default="draft",
+        readonly=True,
     )
 
     _factors_range = models.Constraint(
@@ -57,6 +257,30 @@ class FixTradeinValuation(models.Model):
         "AND condition_factor_pct >= 0 AND condition_factor_pct <= 100)",
         "Age and condition factors are percentages between 0 and 100",
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "applied_offer",
+            "override_state",
+            "override_approved_by_id",
+            "override_approved_at",
+            "valuated_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(
+            r.state != "draft" or r.override_state in ("pending", "approved") for r in self
+        ):
+            locked |= self._INPUTS
+        return locked
+
+    @api.depends("device_model_id", "valuated_on", "company_id")
+    def _compute_grid(self):
+        Grid = self.env["fix.tradein.price.grid"]
+        for rec in self:
+            rec.grid_id = Grid._price_for(rec.device_model_id, rec.company_id, rec.valuated_on)
 
     @api.depends("market_ref_price", "age_factor_pct", "condition_factor_pct")
     def _compute_offer(self):
@@ -70,6 +294,16 @@ class FixTradeinValuation(models.Model):
                 2,
             )
 
+    @api.depends("grid_id", "market_ref_price", "final_offer", "computed_offer", "method")
+    def _compute_override(self):
+        for rec in self:
+            rec.is_override = bool(
+                rec.method == "manual"
+                or not rec.grid_id
+                or abs((rec.market_ref_price or 0.0) - rec.grid_id.market_ref_price) > _EPS
+                or (rec.final_offer and abs(rec.final_offer - rec.computed_offer) > _EPS)
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -77,33 +311,150 @@ class FixTradeinValuation(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.tradein.valuation") or "TVAL/New"
                 )
+            if not vals.get("market_ref_price") and vals.get("tradein_id"):
+                tradein = self.env["fix.tradein.request"].browse(vals["tradein_id"])
+                grid = self.env["fix.tradein.price.grid"]._price_for(
+                    tradein.device_model_id,
+                    tradein.company_id,
+                    vals.get("valuated_on") or fields.Date.context_today(self),
+                )
+                if grid:
+                    vals["market_ref_price"] = grid.market_ref_price
         return super().create(vals_list)
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(
+                lambda r: r.state != "draft" or r.override_state in ("pending", "approved")
+            ):
+                names = [
+                    n
+                    for n in self._INPUTS & set(vals)
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if names:
+                    raise UserError(
+                        "Valuation %s is %s: its inputs are frozen. Start a new valuation."
+                        % (rec.name, rec.state if rec.state != "draft" else "awaiting approval")
+                    )
+        return super().write(vals)
+
+    def action_request_override_approval(self):
+        for rec in self:
+            if rec.state != "draft" or not rec.is_override:
+                raise UserError("Only a draft override valuation is sent for approval.")
+            if not (rec.override_reason or "").strip():
+                raise UserError("A manual override must state its reason")
+            if rec.override_state == "pending":
+                raise UserError("Valuation %s is already awaiting approval." % rec.name)
+            rec._guarded().write({"override_state": "pending"})
+        return True
+
+    def action_approve_override(self):
+        _assert_role(self.env, GROUP_VALUATION_MANAGER, "Approving a valuation override")
+        for rec in self:
+            if rec.override_state != "pending":
+                raise UserError("Only a pending override is approved.")
+            if not self.env.su and self.env.user in (
+                rec.create_uid | rec.valuated_by_id | rec.tradein_id.create_uid
+            ):
+                raise UserError(
+                    "Segregation of duties: the valuer or the trade-in's creator does not "
+                    "approve their own override."
+                )
+            rec._guarded().write(
+                {
+                    "override_state": "approved",
+                    "override_approved_by_id": self.env.uid,
+                    "override_approved_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_reject_override(self):
+        _assert_role(self.env, GROUP_VALUATION_MANAGER, "Rejecting a valuation override")
+        for rec in self:
+            if rec.override_state != "pending":
+                raise UserError("Only a pending override is rejected.")
+            rec._guarded().write({"override_state": "rejected"})
+        return True
 
     def action_apply_to_tradein(self):
         """Apply the final (or computed) offer to the trade-in request."""
         for rec in self:
             if rec.state == "applied":
                 raise UserError("Valuation %s has already been applied" % rec.name)
-            if rec.tradein_id.state not in ("draft", "offered"):
+            if rec.state != "draft":
+                raise UserError("Valuation %s is %s." % (rec.name, rec.state))
+            tradein = rec.tradein_id
+            if tradein.state not in ("draft", "offered"):
                 raise UserError(
                     "Trade-in %s is '%s' — a valuation applies before the offer is accepted"
-                    % (rec.tradein_id.name, rec.tradein_id.state)
+                    % (tradein.name, tradein.state)
                 )
             offer = rec.final_offer or rec.computed_offer
             if offer <= 0:
                 raise UserError("The valuation has no positive offer to apply")
-            if rec.method == "manual" and not rec.override_reason:
-                raise UserError("A manual override must state its reason")
-            rec.tradein_id.offered_value = offer
-            rec.state = "applied"
+            if rec.is_override:
+                if not (rec.override_reason or "").strip():
+                    raise UserError("A manual override must state its reason")
+                if rec.override_state != "approved":
+                    raise UserError(
+                        "Valuation %s overrides the price grid (%s): a valuation manager "
+                        "approves it before it is applied."
+                        % (
+                            rec.name,
+                            "no approved grid price for the model"
+                            if not rec.grid_id
+                            else "the price or offer differs from the grid",
+                        )
+                    )
+            vals = {"offered_value": offer}
+            # Revised offer: an offer already sent is withdrawn and sent again,
+            # so the customer accepts the value they are actually offered.
+            if tradein.state == "offered" and abs(tradein.offered_value - offer) > _EPS:
+                vals["state"] = "draft"
+            tradein._guarded().write(vals)
+            others = self.sudo().search(
+                [("tradein_id", "=", tradein.id), ("state", "=", "applied"), ("id", "!=", rec.id)]
+            )
+            others._guarded().write({"state": "superseded"})
+            rec._guarded().write({"state": "applied", "applied_offer": offer})
+        return True
 
 
 class FixTradeinProvenance(models.Model):
-    """The IMEI / blacklist / stolen / warranty screen for one trade-in."""
+    """The IMEI / blacklist / stolen / activation-lock screen for one trade-in.
+
+    A05 audit M14-5/6, E7: rows were born NID-verified, NEIR-checked and
+    'Valid & Whitelisted' with a hard-coded NID; the NEIR check was a stub
+    that cleared any IMEI; state and hit flags were free writes. Now:
+      - nothing is verified by default, and the NEIR status reads
+        'unchecked' until a real NEIR check runs (none exists before the BTRC
+        NEIR relaunch of 1 January 2027);
+      - a provenance officer (not the trade-in's creator) clears a screen,
+        with its evidence, an IMEI and the activation lock (Find My / FRP)
+        recorded OFF; that also verifies the seller's NID against the card;
+      - anyone may RAISE a hit (it flags the screen); nobody lowers one. A
+        flagged screen is a hard stop for the trade-in, with no override."""
 
     _name = "fix.tradein.provenance"
     _description = "Trade-In Provenance Screen"
+    _inherit = ["fix.guarded.mixin"]
     _order = "checked_on desc, id desc"
+
+    _HITS = ("blacklist_hit", "stolen_hit")
+    _EVIDENCE = frozenset(
+        {
+            "tradein_id",
+            "imei",
+            "customer_nid_no",
+            "evidence_attachment_id",
+            "evidence_ref",
+            "lock_status",
+            "company_id",
+        }
+    )
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -113,32 +464,91 @@ class FixTradeinProvenance(models.Model):
         "fix.tradein.request", string="Trade-In", required=True, ondelete="cascade", index=True
     )
     imei = fields.Char(string="IMEI / Serial")
-    blacklist_checked = fields.Boolean(default=False)
+    blacklist_checked = fields.Boolean(default=False, readonly=True)
     blacklist_hit = fields.Boolean(string="Blacklisted", default=False)
-    stolen_checked = fields.Boolean(default=False)
+    stolen_checked = fields.Boolean(default=False, readonly=True)
     stolen_hit = fields.Boolean(string="Reported Stolen", default=False)
-    warranty_checked = fields.Boolean(default=False)
-    warranty_active = fields.Boolean(string="Under Warranty", default=False)
-    btrc_neir_checked = fields.Boolean(string="BTRC NEIR Online Check", default=True)
+    warranty_checked = fields.Boolean(
+        default=False,
+        readonly=True,
+        help="No OEM warranty lookup is integrated: never set by a person.",
+    )
+    warranty_active = fields.Boolean(string="Under Warranty", default=False, readonly=True)
+    # P2 anti-theft lock check (Find My / Google FRP)
+    lock_status = fields.Selection(
+        [
+            ("unknown", "Not checked"),
+            ("off", "Off — no activation lock / FRP"),
+            ("on", "On — activation lock / FRP present"),
+        ],
+        string="Activation Lock (Find My / FRP)",
+        default="unknown",
+        required=True,
+    )
+    btrc_neir_checked = fields.Boolean(
+        string="BTRC NEIR Online Check", default=False, readonly=True
+    )
     btrc_neir_status = fields.Selection(
         [
+            ("unchecked", "Unchecked — NEIR not queried"),
             ("valid", "Valid & Whitelisted"),
             ("unregistered", "Unregistered Device"),
             ("stolen", "Reported Stolen / Blacklisted"),
             ("pending", "Pending Query"),
         ],
         string="BTRC NEIR Status",
-        default="valid",
+        default="unchecked",
+        required=True,
+        readonly=True,
     )
-    customer_nid_no = fields.Char(string="Customer Smart NID", default="19901234567890")
-    customer_nid_verified = fields.Boolean(string="Customer NID Verified", default=True)
+    customer_nid_no = fields.Char(string="Customer Smart NID")
+    customer_nid_verified = fields.Boolean(
+        string="Customer NID Verified", default=False, readonly=True
+    )
+    evidence_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="Screening Evidence",
+        ondelete="restrict",
+        help="The lookup screenshots / NID card scan the officer cleared on",
+    )
+    evidence_ref = fields.Char(string="Lookup Reference")
     notes = fields.Text()
-    checked_on = fields.Date(required=True, default=fields.Date.context_today)
+    checked_on = fields.Date(required=True, default=fields.Date.context_today, readonly=True)
+    cleared_by_id = fields.Many2one("res.users", string="Cleared By", readonly=True, copy=False)
+    cleared_at = fields.Datetime(readonly=True, copy=False)
+    flagged_by_id = fields.Many2one("res.users", string="Flagged By", readonly=True, copy=False)
+    flag_reason = fields.Char(readonly=True, copy=False)
     state = fields.Selection(
         [("pending", "Pending"), ("cleared", "Cleared"), ("flagged", "Flagged")],
         required=True,
         default="pending",
+        readonly=True,
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "blacklist_checked",
+            "stolen_checked",
+            "warranty_checked",
+            "warranty_active",
+            "btrc_neir_checked",
+            "btrc_neir_status",
+            "customer_nid_verified",
+            "checked_on",
+            "cleared_by_id",
+            "cleared_at",
+            "flagged_by_id",
+            "flag_reason",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(p.state != "pending" for p in self):
+            locked |= self._EVIDENCE
+        if self and any(p.stolen_hit or p.blacklist_hit for p in self):
+            locked |= set(self._HITS)
+        return locked
 
     @api.constrains("imei")
     def _check_imei(self):
@@ -153,38 +563,137 @@ class FixTradeinProvenance(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.tradein.provenance") or "PROV/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records.filtered(lambda p: p.stolen_hit or p.blacklist_hit)._flag("hit recorded at intake")
+        return records
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self:
+                lowered = [h for h in self._HITS if h in vals and rec[h] and not vals[h]]
+                if lowered:
+                    raise UserError(
+                        "A stolen or blacklist hit on %s cannot be removed: a hit is a hard "
+                        "stop. Record a new screen only if the register itself is corrected."
+                        % rec.name
+                    )
+                if rec.state != "pending":
+                    names = [
+                        n
+                        for n in self._EVIDENCE & set(vals)
+                        if rec._fix_guard_differs(n, vals[n], rec[n])
+                    ]
+                    if names:
+                        raise UserError(
+                            "Provenance screen %s is %s: its evidence is frozen. A new check "
+                            "is a new screen." % (rec.name, rec.state)
+                        )
+        raised = self.filtered(lambda p: not (p.stolen_hit or p.blacklist_hit))
+        result = super().write(vals)
+        raised.filtered(lambda p: p.stolen_hit or p.blacklist_hit)._flag("hit recorded")
+        return result
+
+    def unlink(self):
+        if not self.env.su:
+            raise UserError("A provenance screen is evidence and is not deleted.")
+        return super().unlink()
+
+    def _flag(self, reason):
+        for rec in self.filtered(lambda p: p.state != "flagged"):
+            rec._guarded().write(
+                {
+                    "state": "flagged",
+                    "flagged_by_id": self.env.uid,
+                    "flag_reason": reason,
+                    "btrc_neir_status": "stolen"
+                    if rec.btrc_neir_status == "valid"
+                    else rec.btrc_neir_status,
+                }
+            )
 
     def action_clear(self):
+        """The provenance officer clears the screen on recorded evidence."""
+        _assert_role(self.env, GROUP_PROVENANCE_OFFICER, "Clearing a provenance screen")
         for rec in self:
             if rec.blacklist_hit or rec.stolen_hit:
                 raise UserError(
                     "A provenance check with a blacklist or stolen hit cannot be cleared"
                 )
-            if not (rec.blacklist_checked and rec.stolen_checked):
-                raise UserError("Run the blacklist and stolen checks before clearing")
-            rec.state = "cleared"
+            if rec.state != "pending":
+                raise UserError("Provenance screen %s is %s." % (rec.name, rec.state))
+            if not (rec.imei and rec.imei.isdigit() and len(rec.imei) == 15):
+                raise UserError("Record the device's 15-digit IMEI before clearing")
+            if not (rec.evidence_attachment_id or (rec.evidence_ref or "").strip()):
+                raise UserError(
+                    "Attach the blacklist / stolen lookup evidence (or its reference) before "
+                    "clearing"
+                )
+            if rec.lock_status != "off":
+                raise UserError(
+                    "The activation lock (Find My / FRP) is %s: the seller removes it before "
+                    "the device is traded."
+                    % dict(rec._fields["lock_status"].selection)[rec.lock_status]
+                )
+            if not self.env.su and rec.tradein_id.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: the provenance of a trade-in you raised is cleared "
+                    "by another provenance officer."
+                )
+            nid = (rec.customer_nid_no or "").strip()
+            request_nid = (rec.tradein_id.customer_nid or "").strip()
+            nid_ok = bool(
+                nid and nid == request_nid and _NID_RE.match(nid) and not nid_placeholder(nid)
+            )
+            if nid and not nid_ok:
+                raise UserError(
+                    "The NID sighted (%s) is not the seller's NID on the trade-in (%s), or is "
+                    "not a valid identity number." % (nid, request_nid or "none")
+                )
+            rec._guarded().write(
+                {
+                    "state": "cleared",
+                    "blacklist_checked": True,
+                    "stolen_checked": True,
+                    "customer_nid_verified": nid_ok,
+                    "checked_on": fields.Date.context_today(rec),
+                    "cleared_by_id": self.env.uid,
+                    "cleared_at": fields.Datetime.now(),
+                }
+            )
+        return True
 
-    def action_flag(self):
+    def action_flag(self, reason=None):
+        """Anyone may flag a device: flagging fails safe."""
         for rec in self:
-            rec.state = "flagged"
+            if rec.state == "flagged":
+                continue
+            if not (rec.stolen_hit or rec.blacklist_hit or (reason or "").strip()):
+                raise UserError("Say why the device is flagged (or record the hit).")
+            rec._flag((reason or "").strip() or "hit recorded")
+        return True
 
     def action_run_neir_check(self):
-        """Query BTRC NEIR database for device IMEI status."""
+        """BTRC NEIR lookup. No NEIR integration exists (the register
+        relaunches on 1 January 2027), so this records nothing and clears
+        nothing: the status stays 'unchecked' rather than claiming a check."""
         for rec in self:
-            rec.btrc_neir_checked = True
-            rec.blacklist_checked = True
-            rec.stolen_checked = True
-            if rec.stolen_hit or rec.blacklist_hit:
-                rec.btrc_neir_status = "stolen"
-                rec.state = "flagged"
-            else:
-                rec.btrc_neir_status = "valid"
-                rec.state = "cleared"
+            if rec.btrc_neir_status not in ("unchecked", "pending"):
+                continue
+            rec._guarded().write({"btrc_neir_status": "unchecked", "btrc_neir_checked": False})
+        return {
+            "neir_status": "unchecked",
+            "message": "BTRC NEIR is not integrated (relaunch 1 January 2027): the status "
+            "stays 'unchecked'. Trading unchecked devices is governed by "
+            "cd_tradein.allow_neir_unchecked.",
+        }
 
 
 class FixTradeinGrade(models.Model):
-    """The recorded A–E grading result (battery, screen, cosmetic, functional)."""
+    """The recorded A–E grading result (battery, screen, cosmetic, functional).
+
+    M14-18: a grade row created after resale-ready rewrote the request's
+    grade while the stock kept the old one. A grade is recorded while the
+    unit is in refurbishment, and frozen once the unit is graded."""
 
     _name = "fix.tradein.grade"
     _description = "Trade-In Grading Result"
@@ -227,8 +736,20 @@ class FixTradeinGrade(models.Model):
         "Battery health must be a percentage between 0 and 100",
     )
 
+    def _refuse_unless_refurbishing(self, tradeins):
+        if self.env.su:
+            return
+        late = tradeins.filtered(lambda t: t.state != "refurbished")
+        if late:
+            raise UserError(
+                "Trade-in %s is %s: a grade is recorded while the unit is in refurbishment, "
+                "never after it is graded." % (late[0].name, late[0].state)
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
+        ids = [v.get("tradein_id") for v in vals_list if v.get("tradein_id")]
+        self._refuse_unless_refurbishing(self.env["fix.tradein.request"].browse(ids))
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
@@ -237,19 +758,51 @@ class FixTradeinGrade(models.Model):
         records = super().create(vals_list)
         # the grading result is the trade-in's grade: keep the request aligned
         for rec in records:
-            if rec.tradein_id.state in ("refurbished", "graded", "resale_ready"):
+            if rec.tradein_id.state == "refurbished":
                 rec.tradein_id.write(
                     {"grade": rec.grade, "battery_health_pct": rec.battery_health_pct}
                 )
         return records
 
+    def write(self, vals):
+        self._refuse_unless_refurbishing(self.mapped("tradein_id"))
+        result = super().write(vals)
+        if {"grade", "battery_health_pct"} & set(vals):
+            for rec in self.filtered(lambda r: r.tradein_id.state == "refurbished"):
+                rec.tradein_id.write(
+                    {"grade": rec.grade, "battery_health_pct": rec.battery_health_pct}
+                )
+        return result
+
+    def unlink(self):
+        self._refuse_unless_refurbishing(self.mapped("tradein_id"))
+        return super().unlink()
+
 
 class FixRefurbQa(models.Model):
-    """Final QA of a refurbished unit — the test battery and battery health."""
+    """Final QA of a refurbished unit — the test battery and battery health.
+
+    M14-12 (measurable QA): the verdict was a free selection ('pass' with 0
+    of 12 tests). It is now derived from the results when a QA inspector
+    submits them (pass only at or above cd_tradein.qa_min_pass_pct, 100% by
+    default), and the results are frozen once submitted."""
 
     _name = "fix.refurb.qa"
     _description = "Refurbishment QA"
+    _inherit = ["fix.guarded.mixin"]
     _order = "checked_on desc, id desc"
+
+    _RESULTS = frozenset(
+        {
+            "tradein_id",
+            "refurbishment_id",
+            "battery_health_pct",
+            "tests_total",
+            "tests_passed",
+            "inspector_id",
+            "company_id",
+        }
+    )
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -263,14 +816,16 @@ class FixRefurbQa(models.Model):
     )
     battery_health_pct = fields.Integer(string="Battery Health %", default=100)
     tests_total = fields.Integer(string="Tests", default=12)
-    tests_passed = fields.Integer(string="Passed", default=12)
+    tests_passed = fields.Integer(string="Passed", default=0)
     pass_pct = fields.Float(string="Pass %", compute="_compute_pass", store=True)
     qa_state = fields.Selection(
         [("pass", "Pass"), ("fail", "Fail"), ("pending", "Pending")],
         required=True,
         default="pending",
+        readonly=True,
     )
     inspector_id = fields.Many2one("hr.employee", string="Inspector")
+    inspected_by_id = fields.Many2one("res.users", string="Submitted By", readonly=True, copy=False)
     checked_on = fields.Date(required=True, default=fields.Date.context_today)
     notes = fields.Text()
 
@@ -283,6 +838,15 @@ class FixRefurbQa(models.Model):
         "Battery health must be a percentage between 0 and 100",
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"qa_state", "inspected_by_id", "checked_on"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(q.qa_state != "pending" for q in self):
+            locked |= self._RESULTS
+        return locked
+
     @api.depends("tests_passed", "tests_total")
     def _compute_pass(self):
         for rec in self:
@@ -294,18 +858,89 @@ class FixRefurbQa(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if not self._fix_guard_open():
+            ids = [v.get("tradein_id") for v in vals_list if v.get("tradein_id")]
+            for rec in self.env["fix.tradein.request"].browse(ids):
+                if rec.state != "refurbished":
+                    raise UserError(
+                        "Trade-in %s is %s: QA is recorded while the unit is in refurbishment."
+                        % (rec.name, rec.state)
+                    )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.refurb.qa") or "RQA/New"
         return super().create(vals_list)
 
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(lambda q: q.qa_state != "pending"):
+                names = [
+                    n
+                    for n in self._RESULTS & set(vals)
+                    if rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if names:
+                    raise UserError(
+                        "QA %s is submitted (%s): its results are frozen. A re-test is a new "
+                        "QA record." % (rec.name, rec.qa_state)
+                    )
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su and any(q.qa_state != "pending" for q in self):
+            raise UserError("A submitted QA result is evidence and is not deleted.")
+        return super().unlink()
+
+    def action_submit_result(self):
+        """The QA inspector submits the measured results; the verdict follows."""
+        _assert_role(self.env, GROUP_QA_INSPECTOR, "Submitting a QA result")
+        threshold = _param_float(self.env, PARAM_QA_MIN_PASS_PCT, 100.0)
+        for rec in self:
+            if rec.qa_state != "pending":
+                raise UserError("QA %s is already submitted (%s)." % (rec.name, rec.qa_state))
+            if rec.tradein_id.state != "refurbished":
+                raise UserError("QA is submitted while the unit is in refurbishment.")
+            if not rec.tests_total or rec.tests_total <= 0:
+                raise UserError("A QA result needs the number of tests run.")
+            technicians = (
+                rec.tradein_id.sudo()
+                .refurbishment_ids.filtered(lambda s: s.step != "intake")
+                .mapped("completed_by_id")
+            )
+            if not self.env.su and self.env.user in technicians:
+                raise UserError(
+                    "QA independence: a technician who completed this unit's repair steps "
+                    "does not pass its QA."
+                )
+            verdict = "pass" if rec.pass_pct >= threshold - 1e-6 else "fail"
+            rec._guarded().write(
+                {
+                    "qa_state": verdict,
+                    "inspected_by_id": self.env.uid,
+                    "checked_on": fields.Date.context_today(rec),
+                }
+            )
+        return True
+
 
 class FixTradeinHarvest(models.Model):
-    """Harvesting a component from a trade-in into parts or recycling."""
+    """Harvesting a component from a trade-in into parts or recycling.
+
+    M14-16 (harvest workflow): there was no action and `state` was a free
+    write, so harvested parts reached no inventory. Harvest now runs from a
+    graded parts-only (grade E) unit after its data wipe and hold period:
+    to spare stock it raises a draft M15 goods receipt (fix.stock.receipt,
+    sourced to the harvest line) for the storekeeper to inspect and post; to
+    recycling it is announced to M18 (event tradein.harvested)."""
 
     _name = "fix.tradein.harvest"
     _description = "Trade-In Harvest"
+    _inherit = ["fix.guarded.mixin"]
     _order = "harvested_on desc, id desc"
+
+    _TERMS = frozenset(
+        {"tradein_id", "component", "part_name", "part_id", "quantity", "unit_value", "target"}
+    )
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -327,6 +962,12 @@ class FixTradeinHarvest(models.Model):
         default="other",
     )
     part_name = fields.Char(string="Part Name")
+    part_id = fields.Many2one(
+        "fix.spare.part",
+        string="Spare Part (M15)",
+        ondelete="restrict",
+        help="The M15 part the component is received into (spare stock / refurb)",
+    )
     quantity = fields.Integer(default=1)
     unit_value = fields.Monetary(string="Unit Value", currency_field="currency_id")
     total_value = fields.Monetary(
@@ -351,13 +992,27 @@ class FixTradeinHarvest(models.Model):
         [("pending", "Pending"), ("harvested", "Harvested"), ("scrapped", "Scrapped")],
         required=True,
         default="pending",
+        readonly=True,
     )
+    receipt_id = fields.Many2one(
+        "fix.stock.receipt", string="M15 Goods Receipt", readonly=True, copy=False
+    )
+    harvested_by_id = fields.Many2one("res.users", string="Harvested By", readonly=True, copy=False)
     harvested_on = fields.Date(default=fields.Date.context_today)
     notes = fields.Char()
 
     _quantity_positive = models.Constraint(
         "CHECK (quantity > 0)", "Harvest quantity must be positive"
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "receipt_id", "harvested_by_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self and any(h.state != "pending" for h in self):
+            locked |= self._TERMS | {"harvested_on", "company_id", "currency_id"}
+        return locked
 
     @api.depends("quantity", "unit_value")
     def _compute_total(self):
@@ -373,12 +1028,143 @@ class FixTradeinHarvest(models.Model):
                 )
         return super().create(vals_list)
 
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            for rec in self.filtered(lambda h: h.state != "pending"):
+                names = [
+                    n for n in self._TERMS & set(vals) if rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if names:
+                    raise UserError("Harvest %s is %s: it is final." % (rec.name, rec.state))
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su and any(h.state != "pending" for h in self):
+            raise UserError("A harvested or scrapped line is not deleted.")
+        return super().unlink()
+
+    def _harvest_denial(self) -> str:
+        self.ensure_one()
+        tradein = self.tradein_id
+        if tradein.state not in ("graded", "closed"):
+            return "trade-in %s is %s: harvest runs on a graded unit" % (
+                tradein.name,
+                tradein.state,
+            )
+        if tradein.grade != "e":
+            return "trade-in %s is grade %s: only a parts-only (grade E) unit is harvested" % (
+                tradein.name,
+                (tradein.grade or "?").upper(),
+            )
+        stop = tradein._provenance_hard_stop()
+        if stop:
+            return stop
+        denial = tradein._wipe_gate_denial(tradein.wipe_certificate_id, tradein.device_id)
+        if denial:
+            return "Journey 9 wipe gate: %s" % denial
+        return tradein._hold_denial()
+
+    def action_harvest(self):
+        for rec in self:
+            if rec.state != "pending":
+                raise UserError("Harvest %s is %s." % (rec.name, rec.state))
+            denial = rec._harvest_denial()
+            if denial:
+                raise UserError("Harvest refused: %s." % denial)
+            vals = {"state": "harvested", "harvested_by_id": self.env.uid}
+            if rec.target in ("spare_stock", "refurb"):
+                vals["receipt_id"] = rec._harvest_receipt().id
+            rec._guarded().write(vals)
+            publish(
+                self.env,
+                "tradein.harvested",
+                "fix.tradein.harvest",
+                rec.id,
+                {
+                    "tradein": rec.tradein_id.name,
+                    "component": rec.component,
+                    "part": rec.part_id.part_number if rec.part_id else (rec.part_name or ""),
+                    "quantity": rec.quantity,
+                    "value": float(rec.total_value),
+                    "target": rec.target,
+                    "receipt": rec.receipt_id.name if rec.receipt_id else "",
+                },
+            )
+        return True
+
+    def _harvest_receipt(self):
+        """A draft M15 goods receipt for the harvested part (cd_inventory's
+        public receipt path: the storekeeper inspects and posts it)."""
+        self.ensure_one()
+        if not self.part_id:
+            raise UserError("Name the M15 spare part the %s is received into." % self.component)
+        if (self.unit_value or 0.0) <= 0:
+            raise UserError("A harvested part needs its unit value (the cost it is stocked at).")
+        try:
+            location_id = int(_param(self.env, PARAM_HARVEST_LOCATION, 0) or 0)
+        except (TypeError, ValueError):
+            location_id = 0
+        location = self.env["fix.stock.location"].sudo().browse(location_id).exists()
+        if not location:
+            raise UserError(
+                "No M15 receiving location is configured for harvested parts (system parameter "
+                "%s): configured, never guessed." % PARAM_HARVEST_LOCATION
+            )
+        Receipt = self.env["fix.stock.receipt"].sudo()
+        receipt = Receipt.search(
+            [("source_model", "=", self._name), ("source_res_id", "=", self.id)], limit=1
+        )
+        if receipt:
+            return receipt
+        tradein = self.tradein_id
+        return Receipt.create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": tradein.operating_unit_id.id or False,
+                "partner_id": self.company_id.partner_id.id,
+                "location_id": location.id,
+                "ownership_class": "owned",
+                "source_model": self._name,
+                "source_res_id": self.id,
+                "source_ref": "%s / %s" % (self.name, tradein.name),
+                "inspection_notes": "Harvested from trade-in %s" % tradein.name,
+                "line_ids": [
+                    (
+                        0,
+                        0,
+                        {
+                            "part_id": self.part_id.id,
+                            "qty_received": self.quantity,
+                            "qty_accepted": self.quantity,
+                            "unit_cost": self.unit_value,
+                            "source_line_ref": self.name,
+                        },
+                    )
+                ],
+            }
+        )
+
+    def action_scrap(self, reason=None):
+        for rec in self:
+            if rec.state != "pending":
+                raise UserError("Harvest %s is %s." % (rec.name, rec.state))
+            if not (reason or "").strip():
+                raise UserError("State why the component is scrapped.")
+            rec._guarded().write({"state": "scrapped", "notes": reason.strip()[:200]})
+        return True
+
 
 class FixTradeinWarranty(models.Model):
-    """The warranty issued on a refurbished, resold unit."""
+    """The warranty issued on a refurbished, resold unit.
+
+    M14-17: a warranty was a manual row any clerk created and voided. It is
+    now issued by the resale itself (the graded_stock.sold consumer on the
+    trade-in), with an M17 fix.warranty for the device, and voided only by a
+    warranty officer with a reason."""
 
     _name = "fix.tradein.warranty"
     _description = "Refurbished Unit Warranty"
+    _inherit = ["fix.guarded.mixin"]
     _order = "start_date desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -392,16 +1178,34 @@ class FixTradeinWarranty(models.Model):
     start_date = fields.Date(required=True, default=fields.Date.context_today)
     end_date = fields.Date(compute="_compute_end", store=True)
     terms = fields.Text()
-    claims_count = fields.Integer(string="Claims", default=0)
+    claims_count = fields.Integer(string="Claims", default=0, readonly=True)
+    graded_stock_ref = fields.Char(string="Resold Stock Unit", readonly=True, index=True)
+    device_warranty_id = fields.Many2one(
+        "fix.warranty", string="Device Warranty (M17)", readonly=True, ondelete="set null"
+    )
+    void_reason = fields.Text(readonly=True, copy=False)
     state = fields.Selection(
         [("active", "Active"), ("expired", "Expired"), ("void", "Void")],
         required=True,
         default="active",
+        readonly=True,
     )
 
     _months_positive = models.Constraint(
         "CHECK (months > 0)", "A refurbished-unit warranty is at least one month"
     )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "claims_count",
+            "graded_stock_ref",
+            "device_warranty_id",
+            "void_reason",
+            "tradein_id",
+            "months",
+            "start_date",
+        }
 
     @api.depends("start_date", "months")
     def _compute_end(self):
@@ -415,9 +1219,28 @@ class FixTradeinWarranty(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError(
+                "A refurbished-unit warranty is issued by the resale of the unit, not typed."
+            )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.tradein.warranty") or "TWAR/New"
                 )
         return super().create(vals_list)
+
+    def unlink(self):
+        if not self.env.su:
+            raise UserError("A warranty is voided with a reason, not deleted.")
+        return super().unlink()
+
+    def action_void(self, reason=None):
+        _assert_role(self.env, GROUP_WARRANTY_OFFICER, "Voiding a refurbished-unit warranty")
+        for rec in self:
+            if rec.state != "active":
+                raise UserError("Warranty %s is %s." % (rec.name, rec.state))
+            if not (reason or "").strip():
+                raise UserError("State why the warranty is voided.")
+            rec._guarded().write({"state": "void", "void_reason": reason.strip()})
+        return True

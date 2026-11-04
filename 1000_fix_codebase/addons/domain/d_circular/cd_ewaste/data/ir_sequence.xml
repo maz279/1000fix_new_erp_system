@@ -50,5 +50,33 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_ewaste_manifest" model="ir.sequence">
+            <field name="name">E-Waste Transfer Manifest</field>
+            <field name="code">fix.ewaste.manifest</field>
+            <field name="prefix">EMAN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_basel_pic" model="ir.sequence">
+            <field name="name">Basel Prior Informed Consent</field>
+            <field name="code">fix.ewaste.basel.pic</field>
+            <field name="prefix">EPIC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_registration" model="ir.sequence">
+            <field name="name">DoE E-Waste Registration</field>
+            <field name="code">fix.ewaste.registration</field>
+            <field name="prefix">EREG/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_settlement" model="ir.sequence">
+            <field name="name">E-Waste Settlement</field>
+            <field name="code">fix.ewaste.settlement</field>
+            <field name="prefix">ESET/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

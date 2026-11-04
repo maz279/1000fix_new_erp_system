@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M14 decision roles (A05 workflow audit, report §7.2).
+
+     Each is a DECISION role and ships EMPTY: who holds it is a business
+     appointment (synthetic approvers in test are appointed by the
+     coordinator). Until someone is appointed, the decision it guards
+     cannot be taken.
+     - Trade-In Payout Approver (M14-3): decides the routed payout approval
+       (with the DOFA tier the amount needs), never their own request.
+     - Provenance Officer (M14-5/6/7): clears an IMEI / blacklist / stolen /
+       activation-lock screen on its evidence and verifies the seller NID,
+       never on a trade-in they raised.
+     - Refurbishment QA Inspector (M14-12): submits the measured QA results;
+       never on a unit whose repair steps they completed.
+     - Valuation Manager (P2 governed grid): approves grid prices and
+       valuation overrides, never their own. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_tradein" model="res.groups.privilege">
+            <field name="name">Trade-In &amp; Refurbishment (M14)</field>
+            <field name="description">Decision roles on trade-in payouts, provenance, refurbishment QA and valuation (M14).</field>
+            <field name="sequence">41</field>
+        </record>
+
+        <record id="group_tradein_payout_approver" model="res.groups">
+            <field name="name">Trade-In Payout Approver</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Decides a trade-in payout from the M63 approval inbox, together with the DOFA tier its amount needs. Never a payout they requested or a trade-in they raised (four-eyes, A05 audit M14-3).</field>
+        </record>
+
+        <record id="group_tradein_provenance_officer" model="res.groups">
+            <field name="name">Trade-In Provenance Officer</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Clears a provenance screen (IMEI, blacklist, stolen, activation lock) on its recorded evidence and verifies the seller NID against the card. Never on a trade-in they raised (A05 audit M14-5/6/7).</field>
+        </record>
+
+        <record id="group_tradein_qa_inspector" model="res.groups">
+            <field name="name">Refurbishment QA Inspector</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Submits the measured QA results of a refurbished unit; the pass/fail verdict follows from them. Never on a unit whose repair steps they completed (A05 audit M14-12).</field>
+        </record>
+
+        <record id="group_tradein_valuation_manager" model="res.groups">
+            <field name="name">Trade-In Valuation Manager</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Approves governed price-grid rows and any valuation that overrides the grid. Never their own entry (A05 audit P2, governed valuation grid).</field>
+        </record>
+
+    </data>
+</odoo>

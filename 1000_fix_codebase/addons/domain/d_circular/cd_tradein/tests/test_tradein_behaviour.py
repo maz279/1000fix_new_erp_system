@@ -4,13 +4,40 @@ offer -> collection (M03) -> data wipe (M06 gate) -> refurbishment (M31)
 
 from __future__ import annotations
 
+import itertools
 import json
+from datetime import timedelta
 
 import pytest
-from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+from odoo import fields
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, inbox_task
 from odoo.exceptions import UserError, ValidationError
 
 TRD = "fix.tradein.request"
+_SEQ = itertools.count(1)
+_ORDER = [
+    "draft",
+    "offered",
+    "accepted",
+    "collected",
+    "wiped",
+    "refurbished",
+    "graded",
+    "resale_ready",
+    "closed",
+]
+
+
+@pytest.fixture(autouse=True)
+def _policy(odoo_env):
+    """The lifecycle suite runs under an explicit trade-in policy. The two
+    switches below are business decisions (report §7.4 / P2 grid) whose
+    fail-closed defaults are tested in test_a05_m14_controls.py: here an
+    NEIR-unchecked device may be traded (no NEIR exists until 2027) and an
+    offer may be typed in draft."""
+    params = odoo_env["ir.config_parameter"].sudo()
+    params.set_param("cd_tradein.allow_neir_unchecked", "1")
+    params.set_param("cd_tradein.offer_requires_valuation", "0")
 
 
 def _events(env, event_type, res_id):
@@ -35,17 +62,67 @@ def _grade(env, code):
     return env["fix.refurb.grade"].search([("code", "=", code)], limit=1)
 
 
+def _nid():
+    """A distinct, realistic 10-digit Smart NID per seller (A05 audit M14-7:
+    a placeholder such as 1990123456 is refused, and one NID is one seller)."""
+    return "58%08d" % (next(_SEQ) * 7919)
+
+
 def _request(env, **vals):
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
     # An identified seller: payout refuses without a Smart NID (AML gate).
-    vals.setdefault("customer_nid", "1990123456")
+    vals.setdefault("customer_nid", _nid())
     if vals.get("wipe_certificate_id") and "device_id" not in vals:
         vals["device_id"] = _device(env).id  # the device the certificate certifies
     return env[TRD].create(vals)
 
 
-def _in(env, state, **vals):
+def _screen(env, rec):
+    """A provenance screen cleared on its evidence (A05 audit M14-5/6: the
+    trade-in is accepted, collected and paid only on a current one)."""
+    prov = env["fix.tradein.provenance"].create(
+        {
+            "tradein_id": rec.id,
+            "imei": "35%013d" % next(_SEQ),
+            "evidence_ref": "GSMA/BTRC lookup %s" % rec.name,
+            "lock_status": "off",
+            "customer_nid_no": rec.customer_nid or False,
+        }
+    )
+    prov.action_clear()
+    return prov
+
+
+def _finish_refurbishment(env, rec):
+    """Every refurbishment step done and a measured QA pass (M14-12)."""
+    steps = rec.refurbishment_ids
+    if not steps:
+        steps = env["fix.refurbishment"].create(
+            {"name": "%s · Repair" % rec.name, "tradein_id": rec.id, "step": "repair"}
+        )
+    steps.filtered(lambda s: s.state != "done").write({"state": "done"})
+    env["fix.refurb.qa"].create(
+        {"tradein_id": rec.id, "tests_total": 12, "tests_passed": 12, "qa_state": "pass"}
+    )
+
+
+def _in(env, state, evidence=True, **vals):
+    """A request set to `state` by the superuser, with the evidence that state
+    implies (A05 audit E4: the gates of the later steps re-check it). Before
+    the remediation this helper forged the state with no evidence at all."""
     rec = _request(env, **vals)
+    rank = _ORDER.index(state) if state in _ORDER else 0
+    if evidence:
+        if rank >= _ORDER.index("accepted"):
+            _screen(env, rec)
+        if rank >= _ORDER.index("collected"):
+            rec.write({"hold_until": fields.Date.today() - timedelta(days=1)})
+        if rank >= _ORDER.index("refurbished"):
+            if not rec.wipe_certificate_id:
+                device = rec.device_id or _device(env)
+                rec.write({"device_id": device.id, "wipe_certificate_id": _cert(env).id})
+            rec.write({"state": "refurbished"})
+            _finish_refurbishment(env, rec)
     rec.write({"state": state})
     return rec
 
@@ -65,21 +142,12 @@ def _cert(env, verified=True, **vals):
 
 
 def _approver(env):
-    user = env["res.users"].create(
-        {
-            "name": "Trade-in Payout Approver",
-            "login": "tradein-payout-approver",
-            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
-        }
-    )
-    return user
-
-
-def _dofa_approver(env):
-    login = "tradein-dofa-tier1"
+    """The payout approver: the trade-in payout role AND the DOFA tier the
+    amount needs (A05 audit M14-3: the four-eyes had no authority group)."""
+    login = "tradein-payout-approver"
     return env["res.users"].search([("login", "=", login)], limit=1) or env["res.users"].create(
         {
-            "name": "Trade-in DOFA Tier 1",
+            "name": "Trade-in Payout Approver",
             "login": login,
             "group_ids": [
                 (
@@ -88,6 +156,7 @@ def _dofa_approver(env):
                     [
                         env.ref("base.group_user").id,
                         env.ref("cd_entity_config.group_dofa_tier_1").id,
+                        env.ref("cd_tradein.group_tradein_payout_approver").id,
                     ],
                 )
             ],
@@ -96,13 +165,14 @@ def _dofa_approver(env):
 
 
 def _approved(env, rec, value):
-    """Graded value entered, requested (superuser) and approved (4-eyes),
-    then the DOFA tier the amount needs signed off from the M63 inbox."""
+    """Graded value entered (and, below the offer, re-accepted by the
+    customer), then ONE routed approval decided from the approver's M63
+    inbox: four-eyes, the payout role and the DOFA tier together."""
+    approver = _approver(env)
     rec.write({"graded_value": value})
-    rec.action_request_payout_approval()
-    rec.with_user(_approver(env)).sudo().action_approve_payout()
-    if rec.dofa_tier_required not in (False, "tier_0"):
-        approve_via_inbox(rec, _dofa_approver(env), justification="Trade-in payout")
+    if rec.revision_state == "pending":
+        rec.action_accept_revision()
+    approve_via_inbox(rec, approver, justification="Trade-in payout")
     return rec
 
 
@@ -182,6 +252,7 @@ def test_accept_only_from_offered(odoo_env):
     with pytest.raises(UserError, match="Accept from offered"):
         rec.action_accept()
     rec.action_send_offer()
+    _screen(odoo_env, rec)
     rec.action_accept()
     assert rec.state == "accepted"
 
@@ -457,13 +528,15 @@ def test_resale_ready_books_graded_stock(odoo_env):
     ]
 
 
-def test_resale_ready_without_device_books_no_stock(odoo_env):
+def test_resale_ready_refuses_a_unit_without_device(odoo_env):
+    """A05 audit M14-15: a unit with no registered device was put on resale
+    with no stock row. It is now refused (the wipe gate binds to a device)."""
     rec = _in(odoo_env, "graded", grade="b", refurb_grade_id=_grade(odoo_env, "B").id)
-    rec.action_resale_ready()
-    assert rec.state == "resale_ready"
+    rec.write({"device_id": False})
+    with pytest.raises(UserError, match="cannot move to resale_ready"):
+        rec.action_resale_ready()
+    assert rec.state == "graded"
     assert not rec.graded_stock_id
-    (payload,) = _events(odoo_env, "tradein.resale_ready", rec.id)
-    assert payload["graded_stock"] == ""
 
 
 def test_pay_only_from_graded_or_resale_ready(odoo_env):
@@ -505,12 +578,14 @@ def test_pay_executes_treasury_payout(odoo_env, state):
 
 
 def test_pay_requires_graded_value_and_approval(odoo_env):
+    _approver(odoo_env)  # someone the routed request can go to
     rec = _in(odoo_env, "graded", offered_value=15000)
     with pytest.raises(UserError, match="graded payout value"):
         rec.action_pay()
     with pytest.raises(UserError, match="graded payout value"):
         rec.action_request_payout_approval()
     rec.write({"graded_value": 9000})
+    rec.action_accept_revision()
     with pytest.raises(UserError, match="'none': it must be approved"):
         rec.action_pay()
     rec.action_request_payout_approval()
@@ -534,8 +609,11 @@ def test_payout_approval_lifecycle(odoo_env):
         rec.action_approve_payout()
     rec.write({"graded_value": 4500})  # a new amount voids the old approval
     assert rec.payout_approval_state == "none"
+    rec.action_accept_revision()
     rec.action_request_payout_approval()
-    rec.action_reject_payout()
+    # rejected from the approver's inbox, with a reason (M14-3)
+    approver = _approver(odoo_env)
+    inbox_task(rec, approver).with_user(approver).action_reject(comment="Grade disputed")
     assert rec.payout_approval_state == "rejected"
     with pytest.raises(UserError, match="Only a pending payout can be rejected"):
         rec.action_reject_payout()
@@ -576,19 +654,24 @@ def test_full_journey(odoo_env):
     device = _device(odoo_env)
     rec = _request(odoo_env, device_id=device.id, offered_value=25000, parts_cost=2000)
     rec.action_send_offer()
+    _screen(odoo_env, rec)
     rec.action_accept()
     rec.action_collect()
     rec.write({"wipe_certificate_id": _cert(odoo_env, device_id=device.id).id})
     rec.action_wipe()
     rec.action_refurbish()
+    _finish_refurbishment(odoo_env, rec)
     rec.write({"grade": "b"})
     rec.action_grade()
+    rec.write({"hold_until": fields.Date.today()})  # the hold period has run
     rec.action_resale_ready()
     _approved(odoo_env, rec, 22000)
     rec.action_pay()
     assert rec.state == "closed"
     assert rec.graded_stock_id.grade_id == _grade(odoo_env, "B")
     assert rec.payout_execution_id.state == "pending"  # queued with treasury
+    # M14-15: the stock is capitalised at what the seller is paid
+    assert rec.graded_stock_id.acquisition_cost == 22000
 
 
 def test_refurbishment_step_defaults(odoo_env):

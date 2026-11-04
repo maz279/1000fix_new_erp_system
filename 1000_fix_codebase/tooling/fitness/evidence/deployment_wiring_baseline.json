@@ -123,9 +123,8 @@
     "estimate.approved",
     "estimate.expired",
     "estimate.rejected",
-    "ewaste.certificate_issued",
-    "ewaste.collected",
     "ewaste.destruction_started",
+    "ewaste.settlement_approved",
     "ewaste.triaged",
     "facility.work_order_completed",
     "facility.work_order_raised",
@@ -136,7 +135,6 @@
     "forecast.snapshot_taken",
     "goods.received",
     "gps.spoofing.blocked",
-    "graded_stock.sold",
     "grc.capa_closed",
     "handover.completed",
     "hotline.emergency_dispatch",
@@ -365,16 +363,6 @@
     "fix.hse.incident:action_notify_dife (addons/platform/cd_p03_portal/controllers/a09/m59.py)"
   ],
   "button_not_allowed": [
-    "addons/platform/cd_p03_portal/static/src/a05/m14.js:M14-orders:fix.refurbishment:action_complete_repair",
-    "addons/platform/cd_p03_portal/static/src/a05/m14.js:M14-orders:fix.refurbishment:action_request_parts",
-    "addons/platform/cd_p03_portal/static/src/a05/m14.js:M14-orders:fix.refurbishment:action_start",
-    "addons/platform/cd_p03_portal/static/src/a05/m14.js:M14-provenance:fix.tradein.provenance:action_run_neir_check",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-battery:fix.ewaste.battery:action_dispatch",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-battery:fix.ewaste.battery:action_inspect_and_quarantine",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-battery:fix.ewaste.battery:action_process",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_accept_return",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_calculate_mass_balance",
-    "addons/platform/cd_p03_portal/static/src/a05/m18.js:M18-returns:fix.ewaste.return:action_submit_return",
     "addons/platform/cd_p03_portal/static/src/a10/m23.js:M23-external:fix.qms.certification:action_pass"
   ]
 }

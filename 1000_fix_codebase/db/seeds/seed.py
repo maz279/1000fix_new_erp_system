@@ -1049,23 +1049,28 @@ def main() -> int:
         # budgets, HSE, knowledge, ITSM, risk, talent (idempotent) --------
         devices = c.call("fix.device", "search", [], limit=10)
         if devices:
+            # A05 audit M13-5/6: a rental is born a draft and reserved through
+            # action_reserve, which checks availability and posts the deposit;
+            # handover needs the customer's signed agreement (OTP), so the
+            # seed stops at reserved.
             for i in range(5):
                 rname = f"SEED-RENT-{i+1:03d}"
                 if not c.first("fix.rental.reservation", [("name", "=", rname)]):
-                    c.call(
+                    rent = c.call(
                         "fix.rental.reservation",
                         "create",
                         {
                             "name": rname,
                             "customer_id": customers[0] if customers else 1,
                             "device_id": devices[i % len(devices)],
-                            "date_from": "2026-10-01",
-                            "date_to": "2026-10-15",
+                            "date_from": f"2026-1{i % 2 + 1}-0{i + 1}",
+                            "date_to": f"2026-1{i % 2 + 1}-{i + 11}",
                             "daily_rate": rng.choice([500, 800, 1200]),
                             "deposit_collected": rng.choice([2000, 5000]),
-                            "state": "active",
                         },
                     )
+                    if i < 3:
+                        c.call("fix.rental.reservation", "action_reserve", [rent])
             print("seed: rental reservations (idempotent)")
 
             for i in range(5):
@@ -1078,8 +1083,9 @@ def main() -> int:
                             "name": tname,
                             "customer_id": customers[1] if len(customers) > 1 else 1,
                             "device_id": devices[i % len(devices)],
+                            # A05 audit M14-1: a trade-in is born a draft; the
+                            # offer comes from the governed valuation grid
                             "offered_value": rng.choice([3000, 8000, 15000]),
-                            "state": rng.choice(["offered", "accepted", "wiped"]),
                         },
                     )
             print("seed: trade-in requests (idempotent)")
@@ -1565,31 +1571,21 @@ def main() -> int:
                 "create",
                 {
                     "customer_id": seed_customers[i % len(seed_customers)] if seed_customers else 1,
+                    # A05 audit M18-1: triage and recycling are an assessor's
+                    # and the batch's actions; the weight stays under the
+                    # per-item ceiling (a phone is at most 2.5 kg)
                     "material_type": rng.choice(["phone", "laptop", "battery"]),
-                    "weight_kg": round(rng.uniform(0.2, 3.0), 2),
-                    "state": rng.choice(["collected", "triaged", "recycled"]),
+                    "weight_kg": round(rng.uniform(0.2, 2.4), 2),
                 },
             )
         print("seed: e-waste collections (idempotent)")
 
-        # 3 ESG metrics
-        for name, mtype, val in [
-            ("CO2 Saved Oct", "co2_saved", 150.5),
-            ("E-Waste Oct", "ewaste_collected", 45.2),
-            ("Refurbished Oct", "devices_refurbished", 12),
-        ]:
-            if not c.first("fix.esg.metric", [("name", "=", name)]):
-                c.call(
-                    "fix.esg.metric",
-                    "create",
-                    {
-                        "name": name,
-                        "metric_type": mtype,
-                        "period": "2026-10",
-                        "value": val,
-                    },
-                )
-        print("seed: ESG metrics (idempotent)")
+        # ESG metrics are computed from the collections, never typed
+        # (BRU-ESG-11, A05 audit M18-5): the typed 150.5 kg CO2 was 6.5x the
+        # collections' own figure. compute_period is idempotent.
+        for period in ("2026-10", "2026-11"):
+            c.call("fix.esg.metric", "compute_period", period)
+        print("seed: ESG metrics computed (idempotent)")
 
         # --- Anchor backfill (P02-P11): every model with zero rows gets
         # seed data (DE-16: a state seed cannot reach is a state nobody
@@ -1633,7 +1629,10 @@ def main() -> int:
         ctr = c.call("fix.contract", "search", [], limit=1) or [1]
         mspc = c.call("fix.msp.contract", "search", [], limit=1) or [1]
         mon = c.call("fix.monitored.asset", "search", [], limit=3) or [1]
-        rres = c.call("fix.rental.reservation", "search", [], limit=3) or [1]
+        # damage is recorded only on a returned unit (A05 audit M13-17)
+        rres = c.call(
+            "fix.rental.reservation", "search", [("state", "in", ("returned", "closed"))], limit=2
+        )
         # only an approved seller is scored or quotes (BRU-ECM-01); none may exist
         slr = c.call(
             "fix.marketplace.seller",
@@ -2082,16 +2081,17 @@ def main() -> int:
                     "state": "pending",
                 },
             )
-            ensure(
-                "fix.rental.damage",
-                [("reservation_id", "=", rres[i]), ("category", "=", "cosmetic")],
-                {
-                    "reservation_id": rres[i],
-                    "category": "cosmetic",
-                    "cost": round(rng.uniform(200, 1500), 2),
-                    "description": "Seed cosmetic damage",
-                },
-            )
+            if i < len(rres):
+                ensure(
+                    "fix.rental.damage",
+                    [("reservation_id", "=", rres[i]), ("category", "=", "cosmetic")],
+                    {
+                        "reservation_id": rres[i],
+                        "category": "cosmetic",
+                        "cost": round(rng.uniform(200, 1500), 2),
+                        "description": "Seed cosmetic damage",
+                    },
+                )
         for i in range(2):
             ensure(
                 "fix.data.wipe.certificate",

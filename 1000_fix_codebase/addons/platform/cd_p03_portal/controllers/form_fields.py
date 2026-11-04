@@ -16,7 +16,7 @@ PORTAL = Path(__file__).resolve().parents[1]
 STATIC = PORTAL / "static" / "src"
 CONTROLLERS = PORTAL / "controllers"
 A03 = CONTROLLERS / "a03"
-AREAS = ("a02", "a03", "a06", "a07")
+AREAS = ("a02", "a03", "a05", "a06", "a07")
 
 SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
 MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")

@@ -13,33 +13,35 @@ passwords are local test values (password = login), like the seed users.
 
 # A damage-claim payout needs the claim-approver role on top of the DOFA tier.
 CLAIM_APPROVER = "cd_consignment.group_fix_damage_claim_approver"
+# A05: a trade-in payout goes to a DOFA tier holder who also holds the payout role.
+TRADEIN_PAYOUT = "cd_tradein.group_tradein_payout_approver"
 
 APPROVERS = [
     # DOFA tiers stack (tier 4 implies 3, 2, 1): one holder per tier.
     (
         "seed.dofa.t1@1000fix.local",
         "রাশেদ করিম (DOFA Tier 1)",
-        ["cd_entity_config.group_dofa_tier_1", CLAIM_APPROVER],
+        ["cd_entity_config.group_dofa_tier_1", CLAIM_APPROVER, TRADEIN_PAYOUT],
     ),
     (
         "seed.dofa.t2@1000fix.local",
         "নাসরিন আক্তার (DOFA Tier 2)",
-        ["cd_entity_config.group_dofa_tier_2", CLAIM_APPROVER],
+        ["cd_entity_config.group_dofa_tier_2", CLAIM_APPROVER, TRADEIN_PAYOUT],
     ),
     (
         "seed.dofa.t3@1000fix.local",
         "মাহবুব আলম (DOFA Tier 3)",
-        ["cd_entity_config.group_dofa_tier_3", CLAIM_APPROVER],
+        ["cd_entity_config.group_dofa_tier_3", CLAIM_APPROVER, TRADEIN_PAYOUT],
     ),
     (
         "seed.dofa.t4@1000fix.local",
         "ফারহানা ইসলাম (DOFA Tier 4)",
-        ["cd_entity_config.group_dofa_tier_4", CLAIM_APPROVER],
+        ["cd_entity_config.group_dofa_tier_4", CLAIM_APPROVER, TRADEIN_PAYOUT],
     ),
     (
         "seed.dofa.t5@1000fix.local",
         "আনোয়ার হোসেন (DOFA Tier 5)",
-        ["cd_entity_config.group_dofa_tier_5", CLAIM_APPROVER],
+        ["cd_entity_config.group_dofa_tier_5", CLAIM_APPROVER, TRADEIN_PAYOUT],
     ),
     # A02 role groups
     (
@@ -129,6 +131,53 @@ APPROVERS = [
         "seed.doa.admin@1000fix.local",
         "আবদুল্লাহ আল মামুন (DoA Administrator)",
         ["cd_workflow_engine.group_doa_administrator"],
+    ),
+    # A05 circular economy (DE-12): one synthetic holder per role, so segregation
+    # of duties stays visible (an assessor is never the dispatcher or the CFO).
+    (
+        "seed.provenance.officer@1000fix.local",
+        "নাজমুল হুদা (Provenance Officer)",
+        ["cd_tradein.group_tradein_provenance_officer"],
+    ),
+    (
+        "seed.refurb.qa@1000fix.local",
+        "সাবরিনা ইয়াসমিন (Refurbishment QA)",
+        ["cd_tradein.group_tradein_qa_inspector"],
+    ),
+    (
+        "seed.valuation.manager@1000fix.local",
+        "তৌহিদুল ইসলাম (Valuation Manager)",
+        ["cd_tradein.group_tradein_valuation_manager"],
+    ),
+    (
+        "seed.ewaste.assessor@1000fix.local",
+        "মাসুদ রানা (E-Waste Triage Assessor)",
+        ["cd_ewaste.group_ewaste_triage_assessor"],
+    ),
+    (
+        "seed.hse.officer@1000fix.local",
+        "রুমানা আফরোজ (HSE Officer)",
+        ["cd_ewaste.group_ewaste_hse_officer"],
+    ),
+    (
+        "seed.ewaste.dispatcher@1000fix.local",
+        "কবির হোসেন (E-Waste Dispatcher)",
+        ["cd_ewaste.group_ewaste_dispatcher"],
+    ),
+    (
+        "seed.recycler.approver@1000fix.local",
+        "শাহানা পারভীন (Recycler Approver)",
+        ["cd_ewaste.group_ewaste_recycler_approver"],
+    ),
+    (
+        "seed.ewaste.compliance@1000fix.local",
+        "ফয়সাল আহমেদ (E-Waste Compliance Officer)",
+        ["cd_ewaste.group_ewaste_compliance_officer"],
+    ),
+    (
+        "seed.ewaste.cfo@1000fix.local",
+        "জেসমিন আক্তার (E-Waste Finance Approver)",
+        ["cd_ewaste.group_ewaste_finance_approver"],
     ),
 ]
 

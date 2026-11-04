@@ -5,11 +5,23 @@
 # collected revenue, damage cost, and asset lifecycle contribution.
 import datetime
 
+# A05 audit (M13-18, E3/E5/E11): every workflow action has a button; the
+# routed approvals are requested from the workspace (action_request_approval /
+# action_recall_approval) and decided in the approver's M63 inbox, never by
+# pressing Approve here. `writable` is attached from writable.py. The sets
+# are literals: the FF-48 wiring check reads them statically.
+
 SURFACES = {
     "fix.rental.asset": {
         "order": "name",
         "limit": 300,
-        "actions": {"action_retire", "action_ready", "action_dofa_approve"},
+        "actions": {
+            "action_retire",
+            "action_ready",
+            "action_send_to_maintenance",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.rental.kit": {"order": "name", "limit": 200, "actions": set()},
     "fix.rental.reservation": {
@@ -22,17 +34,26 @@ SURFACES = {
             "action_return",
             "action_assess_damage",
             "action_close",
+            "action_cancel",
             "action_generate_delivery_consignment",
             "action_generate_return_consignment",
             "action_send_agreement",
             "action_sign_agreement",
+            "action_reset_agreement",
             "action_issue_rental_invoice",
         },
     },
     "fix.rental.damage": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_waive", "action_dofa_approve"},
+        "actions": {
+            "action_waive",
+            "action_request_charge_approval",
+            "action_recall_charge_approval",
+            "action_raise_dispute",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.rental.deposit": {
         "order": "date desc, id desc",
@@ -84,12 +105,31 @@ def _parse(value):
         return None
 
 
+def _scope(env):
+    """The caller's companies (A05 E2 / M13-19): a report or KPI never
+    reads another company's rentals. Read as superuser inside that domain so
+    a fleet figure is the company's, not only the caller's operating unit."""
+    return [("company_id", "in", env.companies.ids)]
+
+
 def _assets(env):
-    return env["fix.rental.asset"].sudo().search([])
+    return env["fix.rental.asset"].sudo().search(_scope(env))
 
 
 def _reservations(env):
-    return env["fix.rental.reservation"].sudo().search([])
+    return env["fix.rental.reservation"].sudo().search(_scope(env))
+
+
+def _ledger(env):
+    return env["fix.rental.deposit"].sudo().search(_scope(env))
+
+
+def _held(moves):
+    """Deposit still held per the GL: posted collections less deductions,
+    forfeits and refunds (a refused or pending collection holds nothing)."""
+    collected = sum(m.amount for m in moves if m.kind == "collect" and m.gl_state == "posted")
+    out = sum(m.amount for m in moves if m.kind in ("refund", "deduction", "forfeit"))
+    return collected - out
 
 
 def _overlap_days(res, start, end):
@@ -314,11 +354,12 @@ def deposit_reconciliation(env, date_from=None, date_to=None, **params):
     reservations = _reservations(env).filtered(
         lambda r: (r.deposit_collected or 0.0) > 0 or r.deposit_refunded
     )
-    ledger = env["fix.rental.deposit"].sudo().search([])
+    ledger = _ledger(env)
     rows = []
     for res in reservations:
         moves = ledger.filtered(lambda m, rid=res.id: m.reservation_id.id == rid)
-        collected = sum(m.amount for m in moves if m.kind == "collect")
+        collected = sum(m.amount for m in moves if m.kind == "collect" and m.gl_state == "posted")
+        unposted = sum(m.amount for m in moves if m.kind == "collect" and m.gl_state != "posted")
         refunded = sum(m.amount for m in moves if m.kind == "refund")
         deducted = sum(m.amount for m in moves if m.kind in ("deduction", "forfeit"))
         rows.append(
@@ -330,6 +371,7 @@ def deposit_reconciliation(env, date_from=None, date_to=None, **params):
                 "refunded": round(refunded, 2),
                 "deducted": round(deducted, 2),
                 "outstanding": round(collected - refunded - deducted, 2),
+                "unposted": round(unposted, 2),
                 "ledger_rows": len(moves),
             }
         )
@@ -344,6 +386,7 @@ def deposit_reconciliation(env, date_from=None, date_to=None, **params):
             "refunded",
             "deducted",
             "outstanding",
+            "unposted",
             "ledger_rows",
         ],
         {
@@ -354,12 +397,15 @@ def deposit_reconciliation(env, date_from=None, date_to=None, **params):
             "refunded": "Refunded",
             "deducted": "Deducted",
             "outstanding": "Outstanding",
+            "unposted": "Not in GL",
             "ledger_rows": "Ledger Rows",
         },
         rows,
         [
-            "Outstanding = collected − refunded − deducted, from the deposit "
-            "ledger — the reservation's own fields are not trusted for this."
+            "Outstanding = GL-posted collections − refunded − deducted, from the "
+            "deposit ledger — the reservation's own fields are not trusted for this. "
+            "'Not in GL' is collected money whose posting was refused or is pending: "
+            "repost it."
         ],
         totals={
             "rental": "Total",
@@ -367,6 +413,7 @@ def deposit_reconciliation(env, date_from=None, date_to=None, **params):
             "refunded": round(sum(r["refunded"] for r in rows), 2),
             "deducted": round(sum(r["deducted"] for r in rows), 2),
             "outstanding": round(sum(r["outstanding"] for r in rows), 2),
+            "unposted": round(sum(r["unposted"] for r in rows), 2),
         },
         empty="No deposits collected yet.",
     )
@@ -430,7 +477,7 @@ def fleet_health(env, date_from=None, date_to=None, **params):
     today = _today()
     assets = _assets(env)
     reservations = _reservations(env).filtered(lambda r: r.state in _RENTED_STATES)
-    damage = env["fix.rental.damage"].sudo().search([])
+    damage = env["fix.rental.damage"].sudo().search(_scope(env))
     rows = []
     for asset in assets:
         asset_res = reservations.filtered(lambda r, aid=asset.id: r.rental_asset_id.id == aid)
@@ -512,7 +559,7 @@ REPORTS = {
 def kpis(env):
     assets = _assets(env)
     reservations = _reservations(env)
-    ledger = env["fix.rental.deposit"].sudo().search([])
+    ledger = _ledger(env)
     today = _today()
     start = today - datetime.timedelta(days=29)
     rented = reservations.filtered(
@@ -520,17 +567,11 @@ def kpis(env):
     )
     rented_days = sum(_overlap_days(r, start, today) for r in rented)
     capacity = len(assets) * 30
-    outstanding = 0.0
-    for res in reservations.filtered(
-        lambda r: (r.deposit_collected or 0.0) > 0 or r.deposit_refunded
-    ):
-        moves = ledger.filtered(lambda m, rid=res.id: m.reservation_id.id == rid)
-        outstanding += (
-            sum(m.amount for m in moves if m.kind == "collect")
-            - sum(m.amount for m in moves if m.kind == "refund")
-            - sum(m.amount for m in moves if m.kind in ("deduction", "forfeit"))
-        )
-    damage_open = env["fix.rental.damage"].sudo().search_count([("settled", "=", False)])
+    # M13-14: deposits held are what the GL holds, not every typed row
+    outstanding = _held(ledger)
+    damage_open = (
+        env["fix.rental.damage"].sudo().search_count([*_scope(env), ("settled", "=", False)])
+    )
     return {
         "fleet_size": len(assets),
         "available_now": len(assets.filtered(lambda a: a.status == "available")),

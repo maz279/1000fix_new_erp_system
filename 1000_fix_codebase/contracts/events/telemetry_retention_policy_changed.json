@@ -48,7 +48,7 @@
           "type": "string"
         },
         "target_model": {
-          "description": "Type not statically derivable from `target._name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2223)."
+          "description": "Type not statically derivable from `target._name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2226)."
         },
         "target": {
           "type": [
@@ -66,7 +66,7 @@
           ]
         },
         "approved_by": {
-          "description": "Type not statically derivable from `self.env.uid` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2223)."
+          "description": "Type not statically derivable from `self.env.uid` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2226)."
         }
       },
       "additionalProperties": false

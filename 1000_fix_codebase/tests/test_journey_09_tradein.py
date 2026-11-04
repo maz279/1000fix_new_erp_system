@@ -99,12 +99,14 @@ class TestJourney09TradeinLifecycle(unittest.TestCase):
 
     def test_m06_data_wipe_gate_negative_enforcement(self):
         """Negative test: Attempting refurbishment without wipe cert MUST raise UserError."""
+        # A05 audit E4/M14-9: the gate is now serial-bound (it takes the device)
+        # and re-runs on every later state; the behaviour is proved in
+        # cd_tradein/tests/test_a05_m14_controls.py::
+        # test_wipe_gate_is_rechecked_on_every_later_move.
         src = inspect.getsource(FixTradeinRequest.action_refurbish)
-        self.assertIn("rec._wipe_gate_denial(rec.wipe_certificate_id)", src)
+        self.assertIn("rec._wipe_gate_denial(rec.wipe_certificate_id, rec.device_id)", src)
         self.assertIn("UserError", src)
         self.assertIn("verified M06 data wipe certificate", src)
-        gate = inspect.getsource(FixTradeinRequest._wipe_gate_denial)
-        self.assertIn('cert.sanitization_status != "verified"', gate)
 
     def test_m31_workshop_refurbishment_costing(self):
         """M31 workshop job creation and cost calculation: parts + labour."""

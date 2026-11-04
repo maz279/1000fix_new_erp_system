@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import json
 from datetime import date, timedelta
+from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_service_order.models import fix_otp_util
 from odoo.exceptions import UserError, ValidationError
 
 RES = "fix.rental.reservation"
@@ -45,6 +47,38 @@ def _reservation(env, **vals):
 def _in(env, state, **vals):
     rec = _reservation(env, **vals)
     rec.write({"state": state})
+    return rec
+
+
+# A05 audit: handover and close need evidence. These superuser fixtures lay
+# it down directly (trusted data load); the A05 behaviour suite proves the
+# same gates as non-admin users through the real actions.
+def _signed(env, rec):
+    rec.write({"agreement_state": "signed", "stamp_duty_cert_no": "STAMP-0001"})
+    return rec
+
+
+def _report(env, rec, report_type):
+    return env["fix.rental.condition"].create(
+        {"reservation_id": rec.id, "report_type": report_type}
+    )
+
+
+def _posted_deposit(env, rec, amount):
+    return env["fix.rental.deposit"].create(
+        {"reservation_id": rec.id, "kind": "collect", "amount": amount, "gl_state": "posted"}
+    )
+
+
+def _ready_to_close(env, rec, collected=0.0, late_mode="invoice"):
+    _signed(env, rec)
+    _report(env, rec, "post_return")
+    if collected:
+        _posted_deposit(env, rec, collected)
+    param = env["ir.config_parameter"]
+    # the arithmetic under test, not the charge approval (test_a05_m13_* prove it)
+    param.set_param("cd_rental_asset.damage_charge_requires_approval", "0")
+    param.set_param("cd_rental_asset.late_fee_settlement", late_mode)
     return rec
 
 
@@ -160,8 +194,17 @@ def test_reserve_refuses_inverted_window(odoo_env):
     assert rec.state == "draft"
 
 
-def test_reserve_without_device_publishes(odoo_env):
+def test_reserve_without_any_unit_is_refused(odoo_env):
+    """A05 M13-5: a booking that names no asset, device or SKU has nothing
+    to check availability against; it used to be reserved unchecked."""
     rec = _reservation(odoo_env, deposit_collected=5000)
+    with pytest.raises(UserError, match="names no fleet asset, device or rental SKU"):
+        rec.action_reserve()
+    assert rec.state == "draft"
+
+
+def test_reserve_with_device_publishes(odoo_env):
+    rec = _reservation(odoo_env, deposit_collected=5000, device_id=_device(odoo_env).id)
     rec.action_reserve()
     assert rec.state == "reserved"
     assert _events(odoo_env, "rental.reserved", rec.id) == [
@@ -177,6 +220,8 @@ def test_reserve_without_device_publishes(odoo_env):
 
 def test_reserve_reports_sku_name(odoo_env):
     sku = _sku(odoo_env)
+    # the SKU pool needs a unit: a SKU with no fleet asset is fully booked
+    odoo_env["fix.rental.asset"].create({"name": "SKU-UNIT-1", "rental_sku_id": sku.id})
     rec = _reservation(odoo_env, rental_sku_id=sku.id)
     rec.action_reserve()
     (payload,) = _events(odoo_env, "rental.reserved", rec.id)
@@ -200,7 +245,9 @@ def test_reserve_blocks_overlapping_booking_of_same_device(odoo_env):
     after.action_reserve()
     other = _reservation(odoo_env, device_id=_device(odoo_env, "Other").id)
     other.action_reserve()
-    first.action_reserve()
+    # a second reserve would take the deposit twice: it is refused
+    with pytest.raises(UserError, match="Reserve from draft"):
+        first.action_reserve()
     assert {first.state, after.state, other.state} == {"reserved"}
 
 
@@ -298,30 +345,38 @@ def test_deliver_requires_reserved(odoo_env):
         rec.action_deliver()
 
 
+def _handover_ready(env, rec):
+    _signed(env, rec)
+    _report(env, rec, "pre_delivery")
+    return rec
+
+
 def test_deliver_reports_consignment(odoo_env):
-    plain = _in(odoo_env, "reserved")
+    plain = _handover_ready(odoo_env, _in(odoo_env, "reserved", device_id=_device(odoo_env).id))
     plain.action_deliver()
     assert plain.state == "delivered"
     assert _events(odoo_env, "rental.delivered", plain.id) == [
         {"customer": "Rental Customer", "consignment": ""}
     ]
-    shipped = _in(odoo_env, "reserved")
+    shipped = _handover_ready(
+        odoo_env, _in(odoo_env, "reserved", device_id=_device(odoo_env, "Shipped").id)
+    )
     consignment = shipped.action_generate_delivery_consignment()
     shipped.action_deliver()
     assert _events(odoo_env, "rental.delivered", shipped.id)[0]["consignment"] == consignment.name
 
 
-def test_activate_from_delivered_or_reserved(odoo_env):
-    draft = _reservation(odoo_env)
-    with pytest.raises(UserError, match="Activate from delivered or reserved"):
-        draft.action_activate()
-    for state in ("delivered", "reserved"):
-        rec = _in(odoo_env, state)
-        rec.action_activate()
-        assert rec.state == "active"
-        assert _events(odoo_env, "rental.activated", rec.id) == [
-            {"customer": "Rental Customer", "start_date": "2026-11-01"}
-        ]
+def test_activate_only_from_delivered(odoo_env):
+    """A05 M13-17: activating straight from reserved skipped the handover."""
+    for state in ("draft", "reserved"):
+        with pytest.raises(UserError, match="Activate from delivered"):
+            _in(odoo_env, state).action_activate()
+    rec = _signed(odoo_env, _in(odoo_env, "delivered"))
+    rec.action_activate()
+    assert rec.state == "active"
+    assert _events(odoo_env, "rental.activated", rec.id) == [
+        {"customer": "Rental Customer", "start_date": "2026-11-01"}
+    ]
 
 
 def test_return_requires_active(odoo_env):
@@ -379,6 +434,7 @@ def test_assess_damage_requires_returned(odoo_env):
 
 def test_assess_damage_publishes_total(odoo_env):
     rec = _in(odoo_env, "returned")
+    _report(odoo_env, rec, "post_return")
     odoo_env["fix.rental.damage"].create(
         {"reservation_id": rec.id, "description": "Dent", "cost": 750}
     )
@@ -393,14 +449,24 @@ def test_close_requires_damage_assessment(odoo_env):
         rec.action_close()
 
 
-def test_close_refunds_deposit_balance(odoo_env):
+@pytest.mark.parametrize(
+    ("late_mode", "deduction", "refund"),
+    [
+        # A05 M13-4: the late fee is charged ONCE - on the Mushak 6.3 (default)
+        ("invoice", 700.0, 4300.0),
+        # ...or from the deposit, and then kept off the 6.3
+        ("deposit", 1000.0, 4000.0),
+    ],
+)
+def test_close_refunds_deposit_balance(odoo_env, late_mode, deduction, refund):
     rec = _in(odoo_env, "damage_assess", deposit_collected=5000, daily_rate=1000, late_fee=300)
+    _ready_to_close(odoo_env, rec, collected=5000, late_mode=late_mode)
     odoo_env["fix.rental.damage"].create(
         {"reservation_id": rec.id, "description": "Key", "cost": 700}
     )
     rec.action_close()
     assert rec.state == "closed"
-    assert rec.deposit_refunded == 4000
+    assert rec.deposit_refunded == refund
     assert rec.excess_billed == 0
     assert _events(odoo_env, "rental.closed", rec.id) == [
         {
@@ -408,42 +474,74 @@ def test_close_refunds_deposit_balance(odoo_env):
             "deposit_collected": 5000.0,
             "damage_total": 700.0,
             "late_fee": 300.0,
-            "deduction": 1000.0,
-            "refund": 4000.0,
+            "deduction": deduction,
+            "refund": refund,
             "excess_billed": 0.0,
         }
     ]
 
 
-def test_close_bills_charges_exceeding_deposit(odoo_env):
+def test_close_refund_comes_from_the_posted_ledger(odoo_env):
+    """A05 M13-3: the refund used deposit_collected, so a typed 50,000 on a
+    5,000 collection queued a 50,000 refund. The ledger decides."""
+    rec = _in(odoo_env, "damage_assess", deposit_collected=50000)
+    _ready_to_close(odoo_env, rec, collected=5000)
+    rec.action_close()
+    assert rec.deposit_refunded == 5000
+
+
+@pytest.mark.parametrize(("late_mode", "excess"), [("invoice", 4000.0), ("deposit", 4500.0)])
+def test_close_bills_charges_exceeding_deposit(odoo_env, late_mode, excess):
     rec = _in(odoo_env, "damage_assess", deposit_collected=2000, late_fee=500)
+    _ready_to_close(odoo_env, rec, collected=2000, late_mode=late_mode)
     odoo_env["fix.rental.damage"].create(
         {"reservation_id": rec.id, "description": "Lost", "cost": 6000, "category": "lost"}
     )
     rec.action_close()
     assert rec.deposit_refunded == 0
-    assert rec.excess_billed == 4500
+    assert rec.excess_billed == excess
     (payload,) = _events(odoo_env, "rental.closed", rec.id)
     assert payload["deduction"] == 2000.0
-    assert payload["excess_billed"] == 4500.0
+    assert payload["excess_billed"] == excess
+    # A05 M13-13: the excess reaches M20 as an invoice
+    invoice = rec.excess_invoice_id
+    assert invoice and invoice.state == "draft"
+    assert invoice.total_payable == pytest.approx(excess)
+    assert rec.damage_ids.invoice_id == invoice
 
 
 def test_full_journey(odoo_env):
     today = fields.Date.context_today(odoo_env[RES])
+    ou = odoo_env["operating.unit"].search([], limit=1)
+    branch = odoo_env["fix.branch"].search([("operating_unit_id", "=", ou.id)], limit=1)
+    customer = odoo_env["res.partner"].create({"name": "Rental Customer", "phone": "01711000444"})
     rec = _reservation(
         odoo_env,
+        customer_id=customer.id,
         device_id=_device(odoo_env, "Journey").id,
         date_from=today,
         date_to=today + timedelta(days=2),
         daily_rate=1000,
         deposit_collected=3000,
+        operating_unit_id=ou.id,
+        branch_id=branch.id,
+        stamp_duty_cert_no="STAMP-0001",
     )
+    codes = []
+    with mock.patch.object(
+        fix_otp_util, "dispatch_otp", lambda phone, code, ttl, language="bn": codes.append(code)
+    ):
+        rec.action_send_agreement()
+    assert rec.action_sign_agreement(code=codes[-1]) == {"verified": True}
     rec.action_reserve()
+    assert rec.deposit_ids.gl_state == "posted", rec.deposit_ids.gl_note
     rec.action_generate_delivery_consignment()
+    _report(odoo_env, rec, "pre_delivery")
     rec.action_deliver()
     rec.action_activate()
     rec.action_generate_return_consignment()
     rec.action_return()
+    _report(odoo_env, rec, "post_return")
     rec.action_assess_damage()
     rec.action_close()
     assert rec.state == "closed"

@@ -74,8 +74,11 @@ export const SCREENS = {
   'M13-fleet': { kind: 'model_list', model: 'fix.rental.asset', stateField: 'status',
     cols: ['name', 'rental_sku_id', 'category', 'condition_grade', 'battery_health_pct', 'status', 'operating_unit_id'],
     actions: [
-      { m: 'action_ready', l: 'Mark Ready' },
-      { m: 'action_retire', l: 'Retire' }
+      { m: 'action_send_to_maintenance', l: 'Send to Maintenance' },
+      { m: 'action_ready', l: 'Release via Turnaround' },
+      { m: 'action_request_approval', l: 'Request Retirement Approval', ask: 'Justification for writing off the book value', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_retire', l: 'Retire (approved)' }
     ] },
   'M13-availability': { kind: 'table_report', module: 'M13', report: 'availability', title: 'Real-Time Availability', period: false },
   'M13-kits': { kind: 'model_list', model: 'fix.rental.kit',
@@ -88,16 +91,36 @@ export const SCREENS = {
       { m: 'action_activate', l: 'Activate' },
       { m: 'action_return', l: 'Return' },
       { m: 'action_assess_damage', l: 'Assess Damage' },
-      { m: 'action_close', l: 'Settle & Close' }
+      { m: 'action_close', l: 'Settle & Close' },
+      { m: 'action_cancel', l: 'Cancel & Refund Deposit' },
+      { m: 'action_generate_delivery_consignment', l: 'Create Delivery (M03)' },
+      { m: 'action_generate_return_consignment', l: 'Create Return Pickup (M03)' },
+      { m: 'action_issue_rental_invoice', l: 'Issue Mushak 6.3' }
     ] },
   'M13-agreements': { kind: 'model_list', model: 'fix.rental.reservation', stateField: 'agreement_state',
-    cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at', 'signature_ref'] },
+    cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at', 'signature_ref'],
+    actions: [
+      { m: 'action_send_agreement', l: 'Send for Customer Signature' },
+      { m: 'action_sign_agreement', l: 'Enter Customer Signing Code', ask: 'Code the customer received by SMS', kwarg: 'code' },
+      { m: 'action_reset_agreement', l: 'Reset Unsigned Agreement' }
+    ] },
   'M13-deposits': { kind: 'model_list', model: 'fix.rental.deposit',
-    cols: ['name', 'reservation_id', 'customer_id', 'kind', 'amount', 'method', 'date'] },
+    cols: ['name', 'reservation_id', 'customer_id', 'kind', 'amount', 'method', 'date', 'gl_state'],
+    actions: [
+      { m: 'action_repost_gl', l: 'Repost GL' }
+    ] },
   'M13-condition': { kind: 'model_list', model: 'fix.rental.condition',
     cols: ['name', 'reservation_id', 'report_type', 'grade', 'battery_health_pct', 'inspector_id', 'reported_on'] },
   'M13-damage': { kind: 'model_list', model: 'fix.rental.damage',
-    cols: ['reservation_id', 'category', 'description', 'cost', 'recovered_amount', 'settled', 'disputed'] },
+    cols: ['reservation_id', 'category', 'description', 'cost', 'recovered_amount', 'charge_approval_state', 'disputed', 'settled'],
+    actions: [
+      { m: 'action_request_charge_approval', l: 'Request Charge Approval', ask: 'Basis of the charge (and the dispute resolution, if disputed)', kwarg: 'justification' },
+      { m: 'action_recall_charge_approval', l: 'Recall Charge Approval' },
+      { m: 'action_raise_dispute', l: 'Record Customer Dispute', ask: 'The customer\'s reason', kwarg: 'reason' },
+      { m: 'action_request_approval', l: 'Request Waiver Approval', ask: 'Justification for writing off the loss', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Waiver Request' },
+      { m: 'action_waive', l: 'Waive (approved)' }
+    ] },
   'M13-turnaround': { kind: 'model_list', model: 'fix.rental.turnaround', stateField: 'state',
     cols: ['name', 'rental_asset_id', 'reservation_id', 'returned_on', 'grade_before', 'regrade', 'state'],
     actions: [
@@ -153,13 +176,15 @@ export const SCREENS = {
           { name: 'date_from', required: true, label: 'Start Date' },
           { name: 'date_to', required: true, label: 'End Date' },
           { name: 'duration_days', label: 'Duration (Days)', readonly: true },
-          { name: 'actual_return_date', label: 'Actual Return Date' }
+          { name: 'actual_return_date', label: 'Actual Return Date', readonly: true },
+          { name: 'overdue_since', label: 'Overdue Since', readonly: true }
         ] },
       { tab: 'window', title: 'Fulfillment & Logistics (M03)',
         fields: [
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'delivery_consignment_id', label: 'Outbound Delivery Consignment' },
-          { name: 'return_consignment_id', label: 'Inbound Return Consignment' }
+          { name: 'branch_id', label: 'Booking Branch (GL)' },
+          { name: 'delivery_consignment_id', label: 'Outbound Delivery Consignment', readonly: true },
+          { name: 'return_consignment_id', label: 'Inbound Return Consignment', readonly: true }
         ] },
       { tab: 'pricing', title: 'Commercial Rates & Rental Charges',
         fields: [
@@ -167,24 +192,31 @@ export const SCREENS = {
           { name: 'weekly_rate', label: 'Weekly Rate (BDT)' },
           { name: 'monthly_rate', label: 'Monthly Rate (BDT)' },
           { name: 'rental_charge', label: 'Total Rental Charge', readonly: true },
-          { name: 'late_fee', label: 'Accrued Late Fees' }
+          { name: 'late_fee', label: 'Accrued Late Fees', readonly: true }
         ] },
       { tab: 'pricing', title: 'Security Deposit & Surcharge',
         fields: [
-          { name: 'deposit_collected', label: 'Deposit Collected (BDT)' },
-          { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)' }
+          { name: 'kit_id', label: 'Rental Kit' },
+          { name: 'deposit_collected', label: 'Deposit Agreed (BDT)' },
+          { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)', readonly: true },
+          { name: 'ifrs16_classification', label: 'IFRS 16 Lessor Classification' },
+          { name: 'lease_income_per_day', label: 'Lease Income per Day', readonly: true }
         ] },
       { tab: 'inspection', title: 'Condition & Recovery Dossier',
         fields: [
-          { name: 'actual_return_date', label: 'Return Intake Date' },
-          { name: 'state', label: 'Lifecycle Assessment State' },
-          { name: 'excess_billed', label: 'Excess / Damage Billed (BDT)' }
+          { name: 'actual_return_date', label: 'Return Intake Date', readonly: true },
+          { name: 'state', label: 'Lifecycle Assessment State', readonly: true },
+          { name: 'excess_billed', label: 'Excess / Damage Billed (BDT)', readonly: true },
+          { name: 'excess_invoice_id', label: 'Excess Charges Invoice (M20)', readonly: true },
+          { name: 'mushak_6_3_id', label: 'Rental Mushak 6.3', readonly: true }
         ] },
       { tab: 'statutory', title: 'Statutory Execution & E-Signature',
         fields: [
-          { name: 'agreement_state', label: 'Agreement Execution State' },
-          { name: 'signed_at', label: 'Signed Timestamp' },
-          { name: 'signature_ref', label: 'E-Signature Reference' }
+          { name: 'stamp_duty_cert_no', label: 'Stamp Duty Certificate No' },
+          { name: 'signer_mobile', label: 'Customer Signing Mobile' },
+          { name: 'agreement_state', label: 'Agreement Execution State', readonly: true },
+          { name: 'signed_at', label: 'Signed Timestamp', readonly: true },
+          { name: 'signature_ref', label: 'E-Signature Reference', readonly: true }
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & Electronic Execution',
         note: 'SHA-256 e-signed rental agreement, stamp paper scan, customer NID scan, and pre/post inspection photos.',
@@ -215,17 +247,22 @@ export const SCREENS = {
           { name: 'name', label: 'Reservation Reference', readonly: true },
           { name: 'customer_id', required: true, label: 'Customer' },
           { name: 'contract_id', label: 'Rental Contract (M08)' },
-          { name: 'agreement_state', required: true, label: 'Agreement State' }
+          { name: 'agreement_state', label: 'Agreement State', readonly: true },
+          { name: 'special_terms', type: 'text', label: 'Special Terms & Indemnity' },
+          { name: 'liability_cap_amount', label: 'Liability Cap (BDT)' }
         ] },
-      { tab: 'esign', title: 'Digital E-Signature Audit',
+      { tab: 'esign', title: 'Customer E-Signature (one-time code)',
+        note: 'Signed by the customer with the code sent to their mobile; staff never type the signature.',
         fields: [
-          { name: 'signed_at', label: 'Signed Timestamp' },
-          { name: 'signature_ref', label: 'Signature Reference Hash' }
+          { name: 'signer_mobile', label: 'Customer Signing Mobile' },
+          { name: 'signed_at', label: 'Signed Timestamp', readonly: true },
+          { name: 'signature_ref', label: 'Signature Evidence Token', readonly: true }
         ] },
       { tab: 'deposit', title: 'Security Deposit Bond',
         fields: [
-          { name: 'deposit_collected', label: 'Deposit Collected (BDT)' },
-          { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)' }
+          { name: 'stamp_duty_cert_no', label: 'Stamp Duty Certificate No' },
+          { name: 'deposit_collected', label: 'Deposit Agreed (BDT)' },
+          { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)', readonly: true }
         ] },
       { tab: 'schedule', title: 'Agreed Usage Window',
         fields: [
@@ -237,7 +274,7 @@ export const SCREENS = {
         fields: [
           { name: 'daily_rate', label: 'Daily Rate' },
           { name: 'rental_charge', label: 'Rental Charge (BDT)', readonly: true },
-          { name: 'late_fee', label: 'Agreed Late Fee Rate' }
+          { name: 'late_fee', label: 'Late Fee (computed)', readonly: true }
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & E-Sign Stamp',
         note: 'Tamper-evident legal agreement copy and customer verification proofs.',
@@ -325,15 +362,25 @@ export const SCREENS = {
         ] },
       { tab: 'recovery', title: 'Deposit Settlement & Financial Recovery',
         fields: [
-          { name: 'recovered_amount', label: 'Amount Recovered from Deposit' },
-          { name: 'settled', label: 'Settlement Completed' }
+          { name: 'recovered_amount', label: 'Recovered from Deposit (ledger)', readonly: true },
+          { name: 'unrecovered_loss_amount', label: 'Unrecovered Loss', readonly: true },
+          { name: 'waived', label: 'Waived (DOFA)', readonly: true },
+          { name: 'waived_amount', label: 'Waived Amount', readonly: true },
+          { name: 'settled', label: 'Settlement Completed', readonly: true }
         ] },
       { tab: 'dispute', title: 'Customer Arbitration & Objections',
         fields: [
-          { name: 'disputed', label: 'Disputed by Customer' }
+          { name: 'disputed', label: 'Disputed by Customer' },
+          { name: 'dispute_reason', label: 'Dispute Reason' },
+          { name: 'settlement_notes', type: 'text', label: 'Arbitration / Settlement Notes' },
+          { name: 'dispute_resolved_by_id', label: 'Dispute Resolved By', readonly: true }
         ] },
-      { tab: 'governance', title: 'Operating Unit & Authority',
+      { tab: 'governance', title: 'Approvals (M63) & Authority',
         fields: [
+          { name: 'charge_approval_state', label: 'Charge Approval', readonly: true },
+          { name: 'approval_state', label: 'Waiver Approval', readonly: true },
+          { name: 'dofa_tier_required', label: 'Waiver DOFA Tier', readonly: true },
+          { name: 'dofa_justification', type: 'text', label: 'Waiver Justification' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'company_id', label: 'Company' }
         ] },
@@ -371,8 +418,9 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Operational Status & Allocation',
         fields: [
-          { name: 'status', required: true, label: 'Operational Status' },
+          { name: 'status', label: 'Operational Status', readonly: true },
           { name: 'device_id', label: 'Hardware Registry Unit (M17)' },
+          { name: 'fixed_asset_id', label: 'Fixed Asset (M49)' },
           { name: 'operating_unit_id', label: 'Operating Unit Depot' }
         ] },
       { tab: 'depreciation', title: 'IAS 16 Straight-Line Capital Depreciation',
@@ -391,8 +439,12 @@ export const SCREENS = {
         ] },
       { tab: 'financial', title: 'Retirement & Disinvestment',
         fields: [
-          { name: 'retired_on', label: 'Retirement Date' },
+          { name: 'retired_on', label: 'Retirement Date', readonly: true },
           { name: 'retirement_reason', label: 'Reason for Retirement' },
+          { name: 'dofa_tier_required', label: 'Retirement DOFA Tier', readonly: true },
+          { name: 'approval_state', label: 'Retirement Approval', readonly: true },
+          { name: 'dofa_justification', type: 'text', label: 'Retirement Justification' },
+          { name: 'disposal_id', label: 'M49 Disposal', readonly: true },
           { name: 'notes', type: 'text', label: 'Asset Service Notes' }
         ] },
       { tab: 'vault', title: 'Asset Provenance & Invoice Vault',
@@ -464,28 +516,32 @@ export const SCREENS = {
       { tab: 'general', title: 'Deposit Ledger Movement',
         fields: [
           { name: 'name', label: 'Deposit Sequence', readonly: true },
-          { name: 'reservation_id', required: true, label: 'Reservation' },
-          { name: 'kind', required: true, label: 'Movement Kind' },
-          { name: 'amount', required: true, label: 'Transaction Amount (BDT)' }
+          { name: 'reservation_id', label: 'Reservation', readonly: true },
+          { name: 'kind', label: 'Movement Kind', readonly: true },
+          { name: 'amount', label: 'Transaction Amount (BDT)', readonly: true }
         ] },
       { tab: 'payment', title: 'Payment Channel & Date',
         fields: [
-          { name: 'method', required: true, label: 'Payment Method' },
+          { name: 'method', label: 'Payment Method', readonly: true },
           { name: 'reference', label: 'MFS / Bank Transaction Ref' },
-          { name: 'date', required: true, label: 'Transaction Date' }
+          { name: 'date', label: 'Transaction Date', readonly: true }
         ] },
       { tab: 'gl_move', title: 'Financial Dual-Entry Posting',
+        note: 'Movements are made by the rental money path and are immutable once posted.',
         fields: [
+          { name: 'gl_state', label: 'GL State', readonly: true },
           { name: 'journal_entry_id', label: 'GL Journal Entry (Debit Bank / Credit Liability)', readonly: true },
+          { name: 'gl_note', label: 'GL Note', readonly: true },
+          { name: 'payment_execution_id', label: 'Refund Instruction (M50)', readonly: true },
           { name: 'note', label: 'Accounting Notes' }
         ] },
       { tab: 'customer', title: 'Enterprise Customer Linkage',
         fields: [
-          { name: 'customer_id', label: 'Customer' }
+          { name: 'customer_id', label: 'Customer', readonly: true }
         ] },
       { tab: 'audit', title: 'Corporate Controls',
         fields: [
-          { name: 'company_id', label: 'Operating Company' }
+          { name: 'company_id', label: 'Operating Company', readonly: true }
         ] },
       { tab: 'vault', title: 'Bank Voucher & MFS Proof Vault',
         note: 'Bank deposit receipt, customer refund acknowledgment, and signed waiver form.',
@@ -515,27 +571,31 @@ export const SCREENS = {
       { tab: 'general', title: 'Asset Turnaround Dossier',
         fields: [
           { name: 'name', label: 'Turnaround Ref', readonly: true },
-          { name: 'rental_asset_id', required: true, label: 'Fleet Asset Unit' },
-          { name: 'reservation_id', label: 'Completed Reservation' },
-          { name: 'returned_on', required: true, label: 'Return Intake Date' }
+          { name: 'rental_asset_id', label: 'Fleet Asset Unit', readonly: true },
+          { name: 'reservation_id', label: 'Completed Reservation', readonly: true },
+          { name: 'returned_on', label: 'Return Intake Date', readonly: true }
         ] },
       { tab: 'intake', title: 'Initial Grade Assessment',
         fields: [
-          { name: 'grade_before', label: 'Grade Prior to Inspection' }
+          { name: 'grade_before', label: 'Grade Prior to Inspection', readonly: true }
         ] },
-      { tab: 'cleaning', title: 'Sanitization & Technical Checklist',
+      { tab: 'cleaning', title: 'Sanitization, Data Wipe & Technical Checklist',
+        note: 'A data-bearing unit is released only on a verified M06 wipe certificate bound to its serial.',
         fields: [
           { name: 'cleaning_done', label: 'Full Physical Decontamination Done' },
-          { name: 'inspection_done', label: 'Diagnostics & Functionality Checked' }
+          { name: 'inspection_done', label: 'Diagnostics & Functionality Checked' },
+          { name: 'technician_id', label: 'Turnaround Technician' },
+          { name: 'data_wipe_certificate_id', label: 'Data Wipe Certificate (M06)' },
+          { name: 'nist_wipe_hash', label: 'Verified Wipe Hash (from M06)', readonly: true }
         ] },
       { tab: 'regrade', title: 'Official Re-Grading Decision',
         fields: [
           { name: 'regrade', label: 'Final Re-Graded Condition' },
-          { name: 'available_on', label: 'Returned to Available Pool On' }
+          { name: 'available_on', label: 'Returned to Available Pool On', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Turnaround State & Observations',
         fields: [
-          { name: 'state', required: true, label: 'Turnaround State' },
+          { name: 'state', label: 'Turnaround State', readonly: true },
           { name: 'notes', label: 'Technician Notes' }
         ] },
       { tab: 'vault', title: 'Turnaround Sign-Off Vault',
@@ -559,7 +619,7 @@ export const REPORT_ROUTES = {
 
 export const FORM_MODELS = {
   'M13:Reservation Cockpit': 'fix.rental.reservation',
-  'M13:Rental Agreement (e-sign)': 'fix.rental.agreement',
+  'M13:Rental Agreement (e-sign)': 'fix.rental.reservation',
   'M13:Condition Report': 'fix.rental.condition',
   'M13:Damage Assessment & Recovery': 'fix.rental.damage',
   'M13:Fleet Serialized Asset Master': 'fix.rental.asset',
@@ -579,7 +639,6 @@ export const FORM_CHIPS = {
   'M13:Turnaround & Regrading': 'M13-form-turnaround',
   'M13:__by_model__': {
     'fix.rental.reservation': 'M13-form-reservation',
-    'fix.rental.agreement': 'M13-form-agreement',
     'fix.rental.condition': 'M13-form-condition',
     'fix.rental.damage': 'M13-form-damage',
     'fix.rental.asset': 'M13-form-asset',

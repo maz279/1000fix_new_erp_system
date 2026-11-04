@@ -1,17 +1,83 @@
-# fix_ewaste — M18: e-waste, recycling, ESG (P11-M05).
+# fix_ewaste - M18: e-waste collection and ESG metrics (P11-M05).
+#
+# A05 workflow audit (2026-11-03), M18-1/2/5/9/10/16: the collection's state,
+# certificate and CO2 fields were writable by any user, so the M06 wipe gate
+# inside action_recycle was skipped by a plain write, one verified wipe
+# certificate released two items, and the ESG figures were typed. Now:
+#  - every workflow, evidence and figure field is guarded (fix.guarded.mixin);
+#  - the gate for each target state runs in write() itself, for every caller
+#    (an action, a P03 save, JSON-RPC, a superuser service call);
+#  - the triage grade routes the item (reuse/refurbish -> M14, hazardous ->
+#    the hazmat stream, recycle -> destruction), decided by an assessor;
+#  - CO2 avoided is computed from the item's weight and a versioned factor,
+#    never typed, and the ESG metrics are computed from the collections.
+import logging
+from datetime import timedelta
+
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+from . import ewaste_common as c
+
+_logger = logging.getLogger(__name__)
 
 EWASTE_STATES = [
     ("collected", "Collected"),
     ("triaged", "Triaged"),
     ("destruction", "Secure Destruction"),
-    ("recycled", "Recycled"),
-    ("disposed", "Disposed"),
+    ("recycled", "Destroyed - Ready for Recycler"),
+    ("routed", "Routed to Refurbishment (M14)"),
+    ("hazmat", "Hazardous Stream"),
+    ("disposed", "Disposed (Hazardous Stream)"),
     ("certified", "Certificate Issued"),
 ]
+
+# Where each state may go next (every path: write() checks it).
+TRANSITIONS = {
+    "collected": {"triaged"},
+    "triaged": {"destruction", "routed", "hazmat"},
+    "destruction": {"recycled"},
+    "recycled": {"certified"},
+    # a revoked recycler certificate returns the item to 'recycled'
+    "certified": {"recycled"},
+    "hazmat": {"disposed"},
+    "routed": set(),
+    "disposed": set(),
+}
+OPEN_STATES = ("collected", "triaged", "destruction", "recycled", "hazmat")
+DIVERTED = ("reuse", "refurbish")
+
+# Changed only through a transition (A05 E3).
+_GUARDED = frozenset(
+    {
+        "state",
+        "collected_on",
+        "triage_grade",
+        "triage_id",
+        "data_bearing",
+        "wipe_required",
+        "batch_id",
+        "disposal_certificate_ref",
+        "disposal_certificate_id",
+        "esg_co2_saved_kg",
+        "co2_factor_version",
+        "routed_on",
+        "storage_extended",
+        "storage_overdue",
+        "source_model",
+        "source_res_id",
+        "source_ref",
+    }
+)
+# The item as received: frozen once it leaves triage (M18-5: CO2 derives
+# from the weight; M18-2: the device the wipe certificate is bound to).
+_FROZEN_AFTER_TRIAGE = frozenset(
+    {"weight_kg", "material_type", "item_count", "customer_id", "event_id", "company_id"}
+)
+_DEVICE_FROZEN = frozenset({"device_id"})
+_WIPE_FROZEN = frozenset({"wipe_certificate_id"})
 
 
 class FixEwasteCollection(models.Model):
@@ -20,7 +86,7 @@ class FixEwasteCollection(models.Model):
 
     _name = "fix.ewaste.collection"
     _description = "E-Waste Collection"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "create_date desc"
 
     company_id = fields.Many2one(
@@ -49,6 +115,10 @@ class FixEwasteCollection(models.Model):
         default="phone",
     )
     weight_kg = fields.Float(string="Weight (kg)")
+    item_count = fields.Integer(string="Items", default=1)
+    collected_on = fields.Date(
+        string="Received On", default=fields.Date.context_today, index=True, copy=False
+    )
     state = fields.Selection(EWASTE_STATES, default="collected", required=True, tracking=True)
     triage_grade = fields.Selection(
         [
@@ -58,29 +128,206 @@ class FixEwasteCollection(models.Model):
             ("hazardous", "Hazardous"),
         ],
         string="Triage Grade",
-        help="Composes M14's grading; hazardous materials route differently",
+        help="Set by the assessor's triage decision; it routes the item.",
+    )
+    triage_id = fields.Many2one(
+        "fix.ewaste.triage", string="Triage Decision", readonly=True, copy=False
+    )
+    data_bearing = fields.Boolean(string="Data Bearing", readonly=True, copy=False)
+    wipe_required = fields.Boolean(
+        string="M06 Certificate Required",
+        default=True,
+        readonly=True,
+        copy=False,
+        help="Fails closed: only an assessor's triage of a non-data item clears it.",
     )
     wipe_certificate_id = fields.Many2one(
         "fix.data.wipe.certificate",
         string="Data Wipe Certificate",
-        ondelete="set null",
-        help="M06's secure wipe; REQUIRED before destruction",
+        ondelete="restrict",
+        copy=False,
+        help="M06's secure wipe; verified and bound to this item before it is released",
     )
     disposal_certificate_ref = fields.Char(
         string="Disposal Certificate Ref",
         readonly=True,
-        help="M24's document reference for the disposal certificate",
+        copy=False,
+        help="The recycler disposal certificate that covers this item",
     )
+    disposal_certificate_id = fields.Many2one(
+        "fix.ewaste.certificate", string="Disposal Certificate", readonly=True, copy=False
+    )
+    battery_ids = fields.One2many("fix.ewaste.battery", "collection_id", string="Hazmat Records")
     esg_co2_saved_kg = fields.Float(
-        string="CO2 Saved (kg)", help="M18/M25: the ESG metric this collection contributes"
+        string="CO2e Avoided (kg, estimate)",
+        readonly=True,
+        copy=False,
+        help="Computed at recycling: weight x the configured avoided-emissions factor. "
+        "An avoided-emissions estimate, reported apart from the inventory.",
+    )
+    co2_factor_version = fields.Char(string="CO2 Factor Version", readonly=True, copy=False)
+    routed_on = fields.Date(readonly=True, copy=False)
+    storage_deadline = fields.Date(
+        compute="_compute_storage_deadline",
+        store=True,
+        help="Hazardous Waste (E-waste) Management Rules 2021: 180 days in storage, "
+        "plus 90 with a DoE extension.",
+    )
+    storage_extension_ref = fields.Char(string="DoE Storage Extension Ref", copy=False)
+    storage_extended = fields.Boolean(readonly=True, copy=False)
+    storage_overdue = fields.Boolean(readonly=True, copy=False, index=True)
+    # Where the item came from when another module handed it over (M14
+    # harvest -> recycle). A soft link: cd_ewaste does not depend on cd_tradein.
+    source_model = fields.Char(string="Source Model", readonly=True, copy=False, index=True)
+    source_res_id = fields.Many2oneReference(
+        string="Source Record", model_field="source_model", readonly=True, copy=False, index=True
+    )
+    source_ref = fields.Char(string="Source Reference", readonly=True, copy=False)
+
+    _source_once = models.Constraint(
+        "UNIQUE (source_model, source_res_id)",
+        "One e-waste collection per handed-over source record",
+    )
+    _wipe_certificate_once = models.Constraint(
+        "UNIQUE (wipe_certificate_id)",
+        "One M06 wipe certificate releases one collection item only",
+    )
+    _weight_positive = models.Constraint(
+        "CHECK (weight_kg IS NULL OR weight_kg >= 0)", "Collection weight cannot be negative"
     )
 
+    # ------------------------------------------------------------ guard
+    def _fix_guarded_fields(self) -> set:
+        return set(super()._fix_guarded_fields()) | _GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = set(super()._fix_form_locked_fields())
+        if self:
+            if any(r.state != "collected" for r in self):
+                locked |= _DEVICE_FROZEN
+            if any(r.state not in ("collected", "triaged") for r in self):
+                locked |= _FROZEN_AFTER_TRIAGE | _WIPE_FROZEN
+            if all(r.storage_extended for r in self):
+                locked.add("storage_extension_ref")
+        return locked
+
+    def _fix_refuse_frozen(self, vals):
+        for rec in self:
+            names = {"name"}  # the sequence number never changes
+            if rec.state != "collected":
+                names |= _DEVICE_FROZEN
+            if rec.state not in ("collected", "triaged"):
+                names |= _FROZEN_AFTER_TRIAGE | _WIPE_FROZEN
+            if rec.storage_extended:
+                names.add("storage_extension_ref")
+            changed = c.changed_fields(rec, vals, names)
+            if changed:
+                c.frozen_refuse(rec, changed, "is past triage (%s)" % rec.state)
+
+    @api.depends("collected_on", "storage_extended")
+    def _compute_storage_deadline(self):
+        days = c.param_int(self.env, c.P_STORAGE_DAYS, c.DEFAULT_STORAGE_DAYS)
+        ext = c.param_int(self.env, c.P_STORAGE_EXT_DAYS, c.DEFAULT_STORAGE_EXT_DAYS)
+        for rec in self:
+            start = rec.collected_on or (rec.create_date and rec.create_date.date())
+            rec.storage_deadline = (
+                start + timedelta(days=days + (ext if rec.storage_extended else 0))
+                if start
+                else False
+            )
+
+    # ------------------------------------------------------------ rules
+    @api.constrains("weight_kg", "material_type", "item_count")
+    def _check_weight_plausible(self):
+        """M18-5 / F6c: CO2 is derived from the weight, so a weight is bounded
+        per item of its material (cd_ewaste.max_item_weight_kg.<material>)."""
+        for rec in self:
+            if rec.item_count < 1:
+                raise ValidationError("A collection holds at least one item.")
+            ceiling = c.param_float(
+                rec.env,
+                c.P_MAX_ITEM_WEIGHT % rec.material_type,
+                c.DEFAULT_MAX_ITEM_WEIGHT.get(rec.material_type, 200.0),
+            )
+            if (rec.weight_kg or 0.0) > ceiling * rec.item_count + 1e-6:
+                raise ValidationError(
+                    "%s: %.2f kg for %d %s item(s) exceeds the %.2f kg per item ceiling. "
+                    "Record the real item count, or weigh it again."
+                    % (rec.name, rec.weight_kg, rec.item_count, rec.material_type, ceiling)
+                )
+
+    def _fix_serial(self):
+        self.ensure_one()
+        return self.env["fix.data.wipe.certificate"]._fix_media_serial(self.device_id) or self.name
+
+    def _fix_wipe_denial(self):
+        """'' when the item may leave our custody as far as M06 is concerned."""
+        self.ensure_one()
+        if not self.wipe_required:
+            return ""
+        cert = self.sudo().wipe_certificate_id
+        return cert._fix_certify_denial(self._fix_serial())
+
+    def _check_target_state(self, new_state, vals=None):
+        """The gate of each target state. Runs on EVERY path (A05 E4)."""
+        self.ensure_one()
+        vals = vals or {}
+        old = self.state
+        if new_state == old:
+            return
+        if new_state not in TRANSITIONS.get(old, set()):
+            raise UserError("%s cannot move from %s to %s." % (self.name, old, new_state))
+        grade = vals.get("triage_grade", self.triage_grade)
+        if new_state == "triaged" and not grade:
+            raise UserError("%s: triage needs the assessor's grade." % self.name)
+        if new_state == "destruction" and grade != "recycle":
+            raise UserError(
+                "%s is graded '%s': only a 'recycle' item goes to secure destruction. "
+                "Reuse and refurbish items route to M14; hazardous items go to the "
+                "hazmat stream." % (self.name, grade or "untriaged")
+            )
+        if new_state == "routed" and grade not in DIVERTED:
+            raise UserError("%s: only a reuse/refurbish item routes to M14." % self.name)
+        if new_state == "hazmat" and grade != "hazardous":
+            raise UserError("%s: only a hazardous item enters the hazmat stream." % self.name)
+        if new_state in ("recycled", "certified"):
+            # M18-1 / BRU-ESG-01: the M06 gate on every move out of destruction
+            denial = self._fix_wipe_denial()
+            if denial:
+                raise UserError(
+                    "%s cannot be %s: it needs a verified M06 destruction certificate "
+                    "bound to it (%s)." % (self.name, new_state, denial)
+                )
+        if new_state == "certified":
+            cert = self.disposal_certificate_id.sudo()
+            if not cert or cert.state != "issued" or self not in cert.collection_ids:
+                raise UserError(
+                    "%s is certified only by an issued recycler disposal certificate "
+                    "that lists it (M18-4/10)." % self.name
+                )
+        if new_state == "disposed":
+            open_hazmat = self.sudo().battery_ids.filtered(lambda b: b.state != "processed")
+            if not self.sudo().battery_ids or open_hazmat:
+                raise UserError(
+                    "%s is disposed only when its hazmat records are processed by the "
+                    "recycler." % self.name
+                )
+
+    # ------------------------------------------------------------ ORM
     @api.model_create_multi
     def create(self, vals_list):
+        targets = [vals.get("state") or "collected" for vals in vals_list]
+        if not self._fix_guard_open() and any(t != "collected" for t in targets):
+            self._fix_guard_refuse(["state"])
         for vals in vals_list:
+            vals.pop("state", None)
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.ewaste.collection") or "EW/New"
         recs = super().create(vals_list)
-        for rec in recs:
+        for rec, target in zip(recs, targets, strict=True):
+            if target != "collected":
+                # Trusted code only (a user was refused above). Every item is
+                # born 'collected' and walks the transitions, gates included.
+                rec._guarded().write({"state": target})
             publish(
                 self.env,
                 "ewaste.collected",
@@ -90,12 +337,106 @@ class FixEwasteCollection(models.Model):
             )
         return recs
 
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            self._fix_refuse_frozen(vals)
+        if "state" in vals:
+            for rec in self:
+                rec._check_target_state(vals["state"], vals)
+        if vals.get("wipe_certificate_id"):
+            self._fix_check_wipe_attach(vals["wipe_certificate_id"])
+        return super().write(vals)
+
+    def _fix_check_wipe_attach(self, cert_id):
+        """M18-2: a certificate attached to another item is refused with a
+        reason (the UNIQUE constraint is the backstop)."""
+        other = self.sudo().search(
+            [("wipe_certificate_id", "=", cert_id), ("id", "not in", self.ids)], limit=1
+        )
+        if other or len(self) > 1:
+            raise UserError(
+                "Wipe certificate %s already releases %s: one certificate covers one item."
+                % (
+                    self.env["fix.data.wipe.certificate"].sudo().browse(cert_id).name,
+                    other.name or "another item in this selection",
+                )
+            )
+
+    # ------------------------------------------------------------ actions
     def action_triage(self, grade):
+        """The assessor's decision, recorded as a triage record (write-once)."""
+        Triage = self.env["fix.ewaste.triage"]
         for rec in self:
             if rec.state != "collected":
                 raise UserError("Triage from collected state")
-            rec.write({"state": "triaged", "triage_grade": grade})
-            publish(self.env, "ewaste.triaged", "fix.ewaste.collection", rec.id, {"grade": grade})
+            Triage.create({"collection_id": rec.id, "decision": grade})
+
+    def _fix_apply_triage(self, triage):
+        """Called by the triage record: apply the grade and route the item."""
+        self.ensure_one()
+        wipe_required = bool(
+            triage.wipe_required
+            or triage.data_bearing
+            or self.device_id
+            or self.material_type in c.DATA_MATERIALS
+        )
+        self._guarded().write(
+            {
+                "state": "triaged",
+                "triage_grade": triage.decision,
+                "triage_id": triage.id,
+                "data_bearing": bool(triage.data_bearing or self.material_type in c.DATA_MATERIALS),
+                "wipe_required": wipe_required,
+            }
+        )
+        publish(
+            self.env, "ewaste.triaged", "fix.ewaste.collection", self.id, {"grade": triage.decision}
+        )
+        if triage.decision in DIVERTED:
+            self._fix_route_to_refurbishment()
+        elif triage.decision == "hazardous":
+            self._fix_open_hazmat()
+
+    def _fix_route_to_refurbishment(self):
+        """P2 / G5: a reuse or refurbish item leaves the shredder path and is
+        handed to M14 (cd_tradein consumes ewaste.reuse_routed)."""
+        for rec in self:
+            rec._guarded().write({"state": "routed", "routed_on": c.today(rec.env)})
+            publish(
+                rec.env,
+                "ewaste.reuse_routed",
+                "fix.ewaste.collection",
+                rec.id,
+                {
+                    "collection": rec.name,
+                    "grade": rec.triage_grade,
+                    "device_id": rec.device_id.id or None,
+                    "serial": rec._fix_serial(),
+                    "customer_id": rec.customer_id.id,
+                    "material_type": rec.material_type,
+                    "weight_kg": rec.weight_kg,
+                    "data_bearing": rec.data_bearing,
+                    "wipe_certificate_id": rec.wipe_certificate_id.id or None,
+                    "company_id": rec.company_id.id,
+                },
+            )
+
+    def _fix_open_hazmat(self):
+        """M18-8 / B4: a hazardous item opens its hazmat record and leaves the
+        data-destruction (shredder) path."""
+        Battery = self.env["fix.ewaste.battery"].sudo()
+        for rec in self:
+            if not rec.battery_ids:
+                Battery.create(
+                    {
+                        "collection_id": rec.id,
+                        "company_id": rec.company_id.id,
+                        "operating_unit_id": rec.operating_unit_id.id or False,
+                        "chemistry": "li_ion" if rec.material_type == "battery" else "other",
+                        "weight_kg": rec.weight_kg or 0.0,
+                    }
+                )
+            rec._guarded().write({"state": "hazmat"})
 
     def action_secure_destruction(self):
         """Secure destruction through M06 — the wipe certificate must
@@ -113,42 +454,58 @@ class FixEwasteCollection(models.Model):
                         "serial_number": Wipe._fix_media_serial(rec.device_id) or rec.name,
                     }
                 )
-                rec.write({"wipe_certificate_id": wipe.id, "state": "destruction"})
-            else:
-                rec.state = "destruction"
+                rec.write({"wipe_certificate_id": wipe.id})
+            rec._guarded().write({"state": "destruction"})
             publish(self.env, "ewaste.destruction_started", "fix.ewaste.collection", rec.id, {})
 
-    def action_recycle(self, co2_saved):
+    def _fix_co2_avoided(self):
+        self.ensure_one()
+        factor, version = c.co2_factor(self.env)
+        return round((self.weight_kg or 0.0) * factor, 3), version
+
+    def action_recycle(self, co2_saved=None):
+        """Release the destroyed item for the recycler. The M06 gate runs in
+        write() (every path). CO2 avoided is computed, never typed (M18-5)."""
         for rec in self:
             if rec.state != "destruction":
                 raise UserError("Recycle from destruction state")
-            # The destruction certificate opened above starts pending: the
-            # operator's evidence must be verified in M06 before the device
-            # leaves for recycling.
-            # A02 audit M06-1: verified through M06, its log unchanged since,
-            # and bound to this item (the device serial, else this collection)
-            cert = rec.wipe_certificate_id
-            denial = cert._fix_certify_denial(cert._fix_media_serial(rec.device_id) or rec.name)
+            co2, version = rec._fix_co2_avoided()
+            if co2_saved is not None and abs(float(co2_saved) - co2) > 0.001:
+                raise UserError(
+                    "CO2 avoided is computed from the weight (%.3f kg CO2e, factor %s); "
+                    "it cannot be typed (BRU-ESG-11)." % (co2, version)
+                )
+            denial = rec._fix_wipe_denial()
             if denial:
                 raise UserError(
                     "Recycle needs a verified M06 destruction certificate (%s)" % denial
                 )
-            rec.write({"state": "recycled", "esg_co2_saved_kg": co2_saved})
+            rec._guarded().write(
+                {"state": "recycled", "esg_co2_saved_kg": co2, "co2_factor_version": version}
+            )
 
     def action_issue_certificate(self):
-        """Journey 10's ending: the disposal certificate through M24."""
+        """Journey 10's ending: certify the item from the recycler disposal
+        certificate of its processed batch (M18-4/10). There is no string
+        certificate any more."""
         for rec in self:
             if rec.state != "recycled":
                 raise UserError("Certificate from recycled state")
-            cert_ref = "DISPOSE/%s/%s" % (fields.Date.today().strftime("%Y%m"), rec.name)
-            rec.write({"state": "certified", "disposal_certificate_ref": cert_ref})
-            publish(
-                self.env,
-                "ewaste.certificate_issued",
-                "fix.ewaste.collection",
-                rec.id,
-                {"certificate": cert_ref, "co2_saved": rec.esg_co2_saved_kg},
-            )
+            batch = rec.batch_id
+            if not batch or batch.state != "processed":
+                raise UserError(
+                    "%s has no processed recycler batch: a disposal certificate comes from "
+                    "the recycler that processed it." % rec.name
+                )
+            cert = batch.certificate_ids.filtered(lambda x: x.state in ("draft", "issued"))[:1]
+            if not cert:
+                raise UserError(
+                    "Batch %s has no recycler disposal certificate recorded yet." % batch.name
+                )
+            if cert.state == "draft":
+                cert.action_issue()
+            elif rec not in cert.collection_ids:
+                raise UserError("Certificate %s does not list %s." % (cert.name, rec.name))
 
     def action_triage_reuse(self):
         self.action_triage("reuse")
@@ -163,18 +520,145 @@ class FixEwasteCollection(models.Model):
         self.action_triage("hazardous")
 
     def action_recycle_estimated(self):
-        """Recycle with the CO2 saving estimated at 1.5 kg CO2e per kg of
-        e-waste — the documented factor, not a hidden number."""
+        """Recycle with the CO2 avoided computed from the configured factor."""
+        self.action_recycle()
+
+    def action_remove_from_batch(self):
+        """Take a ready item out of a batch that has not left yet."""
+        c.require_group(self.env, c.G_DISPATCH, "E-Waste Dispatcher", "change a batch")
         for rec in self:
-            rec.action_recycle(round((rec.weight_kg or 0.0) * 1.5, 3))
+            if not rec.batch_id or rec.batch_id.state != "draft":
+                raise UserError("%s is not in a draft batch." % rec.name)
+            rec._guarded().write({"batch_id": False})
+
+    def action_apply_storage_extension(self):
+        """Record the DoE's 90-day storage extension (Rules 2021)."""
+        c.require_group(
+            self.env, c.G_COMPLIANCE, "E-Waste Compliance Officer", "record a storage extension"
+        )
+        for rec in self:
+            if rec.storage_extended:
+                raise UserError("%s already has its one storage extension." % rec.name)
+            if not (rec.storage_extension_ref or "").strip():
+                raise UserError("Enter the DoE extension permission reference first.")
+            rec._guarded().write({"storage_extended": True, "storage_overdue": False})
+            rec.message_post(
+                body="DoE storage extension %s recorded by %s."
+                % (rec.storage_extension_ref, rec.env.user.name)
+            )
+
+    # ------------------------------------------------------------ consumers
+    _DEVICE_MATERIAL = {"smartphone": "phone", "tablet": "tablet", "laptop": "laptop"}
+
+    @api.model
+    def consume_tradein_harvested(self, event):
+        """tradein.harvested (M14) -> the harvested unit enters M18 when its
+        target is 'recycle'. Superuser-only (the event relay) and idempotent:
+        one collection per trade-in, a repeat is a no-op. Everything is
+        re-read from the harvest record; the payload is not trusted. The
+        unit then goes through M18's own triage, wipe and dispatch gates."""
+        if not self.env.su:
+            raise UserError("consume_tradein_harvested runs only from the event relay.")
+        if "fix.tradein.harvest" not in self.env or event.get("aggregate") not in (
+            None,
+            "fix.tradein.harvest",
+        ):
+            return self.browse()
+        harvest = self.env["fix.tradein.harvest"].sudo().browse(event.get("aggregate_id") or 0)
+        harvest = harvest.exists()
+        if not harvest or harvest.state != "harvested" or harvest.target != "recycle":
+            return self.browse()
+        tradein = harvest.tradein_id
+        if not tradein:
+            return self.browse()
+        existing = self.sudo().search(
+            [("source_model", "=", tradein._name), ("source_res_id", "=", tradein.id)], limit=1
+        )
+        if existing:
+            return existing
+        device = tradein.device_id
+        cert = tradein.wipe_certificate_id
+        if cert and self.sudo().search_count([("wipe_certificate_id", "=", cert.id)]):
+            cert = cert.browse()  # one certificate releases one item; M18 re-checks
+        col = (
+            self.sudo()
+            ._guarded()
+            .create(
+                {
+                    "company_id": tradein.company_id.id,
+                    "operating_unit_id": tradein.operating_unit_id.id or False,
+                    # the unit is the company's own stock once it was bought in
+                    "customer_id": tradein.company_id.partner_id.id,
+                    "device_id": device.id or False,
+                    "material_type": self._DEVICE_MATERIAL.get(device.device_type, "other")
+                    if device
+                    else "other",
+                    "wipe_certificate_id": cert.id or False,
+                    "source_model": tradein._name,
+                    "source_res_id": tradein.id,
+                    "source_ref": tradein.name,
+                }
+            )
+        )
+        col.message_post(
+            body="Received from M14 trade-in %s: harvest %s (%s) targeted recycling."
+            % (tradein.name, harvest.name, harvest.component)
+        )
+        # never hand back a record that still carries the guard token
+        return self.browse(col.id)
+
+    # ------------------------------------------------------------ cron
+    @api.model
+    def cron_storage_clock(self):
+        """E12: the 180-day (+90) storage clock. Flags items still in our
+        custody past their deadline and warns ahead of it. Safe to re-run."""
+        today = c.today(self.env)
+        warn_days = c.param_int(self.env, c.P_RETURN_REMINDER_DAYS, c.DEFAULT_REMINDER_DAYS)
+        held = self.sudo().search(
+            [
+                ("state", "in", OPEN_STATES),
+                ("storage_deadline", "!=", False),
+                "|",
+                ("batch_id", "=", False),
+                ("batch_id.state", "=", "draft"),
+            ]
+        )
+        overdue = held.filtered(lambda r: r.storage_deadline < today)
+        for rec in overdue.filtered(lambda r: not r.storage_overdue):
+            rec._guarded().write({"storage_overdue": True})
+            c.notify(
+                rec,
+                "E-waste storage limit passed",
+                "%s has been in storage past %s (Rules 2021: 180 days, +90 with a DoE "
+                "extension). Dispatch it to a licensed recycler or record the extension."
+                % (rec.name, rec.storage_deadline),
+                c.G_COMPLIANCE,
+            )
+        for rec in held - overdue:
+            if rec.storage_deadline <= today + timedelta(days=warn_days):
+                c.notify(
+                    rec,
+                    "E-waste storage limit approaching",
+                    "%s must leave storage by %s." % (rec.name, rec.storage_deadline),
+                    c.G_COMPLIANCE,
+                )
+        cleared = self.sudo().search([("storage_overdue", "=", True)]) - overdue
+        if cleared:
+            cleared._guarded().write({"storage_overdue": False})
+        return len(overdue)
 
 
 class FixEsgMetric(models.Model):
-    """M18: ESG metrics feeding M25's reporting (BM-004)."""
+    """M18: ESG metrics feeding M25's reporting (BM-004).
+
+    A05 audit M18-5 / BRU-ESG-11: a metric is COMPUTED from the collections of
+    its company and period, never typed. Users read; the compute runs as
+    trusted code. Avoided CO2 carries scope 'avoided' and the factor version,
+    and is never added to the inventory figures."""
 
     _name = "fix.esg.metric"
     _description = "ESG Metric"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "period desc"
 
     company_id = fields.Many2one(
@@ -184,9 +668,9 @@ class FixEsgMetric(models.Model):
     name = fields.Char(required=True)
     metric_type = fields.Selection(
         [
-            ("co2_saved", "CO2 Saved (kg)"),
+            ("co2_saved", "CO2e Avoided (kg, estimate)"),
             ("ewaste_collected", "E-Waste Collected (kg)"),
-            ("devices_refurbished", "Devices Refurbished"),
+            ("devices_refurbished", "Devices Diverted to Reuse/Refurbishment"),
             ("energy_saved", "Energy Saved (kWh)"),
         ],
         required=True,
@@ -197,6 +681,41 @@ class FixEsgMetric(models.Model):
     # stored compute (not an onchange-only value): metrics created by the API,
     # a seed or an import must carry their unit too, not just the web form
     unit = fields.Char(compute="_compute_unit", store=True, readonly=True)
+    scope = fields.Selection(
+        [("inventory", "Inventory (measured)"), ("avoided", "Avoided (estimate)")],
+        compute="_compute_scope",
+        store=True,
+    )
+    computed = fields.Boolean(
+        readonly=True,
+        help="Computed from the collections. Rows without it were typed before the "
+        "A05 audit and are excluded from every report.",
+    )
+    factor_version = fields.Char(readonly=True)
+    source_count = fields.Integer(string="Source Records", readonly=True)
+    computed_at = fields.Datetime(readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return set(super()._fix_guarded_fields()) | {
+            "value",
+            "metric_type",
+            "period",
+            "company_id",
+            "computed",
+            "factor_version",
+            "source_count",
+            "computed_at",
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # BRU-ESG-11: no entry path. Only the compute (token) or trusted code.
+        if not self._fix_guard_open():
+            raise UserError(
+                "ESG metrics are computed from the e-waste collections and cannot be "
+                "entered (BRU-ESG-11). Use Recompute."
+            )
+        return super().create(vals_list)
 
     @api.depends("metric_type")
     def _compute_unit(self):
@@ -208,3 +727,134 @@ class FixEsgMetric(models.Model):
         }
         for rec in self:
             rec.unit = units.get(rec.metric_type, "")
+
+    @api.depends("metric_type")
+    def _compute_scope(self):
+        for rec in self:
+            rec.scope = "avoided" if rec.metric_type == "co2_saved" else "inventory"
+
+    # ------------------------------------------------------------ compute
+    @api.model
+    def _fix_figures(self, company, period):
+        """{metric_type: (value, source count, factor version)} for one period."""
+        bounds = c.period_bounds(period)
+        if not bounds:
+            raise UserError("Period %r is not YYYY, YYYY-MM or YYYY-Qn." % period)
+        start, end = bounds
+        Col = self.env["fix.ewaste.collection"].sudo()
+        base = [("company_id", "=", company.id)]
+        received = Col.search([*base, ("collected_on", ">=", start), ("collected_on", "<=", end)])
+        certified = Col.search(
+            [
+                *base,
+                ("state", "=", "certified"),
+                ("disposal_certificate_id.issued_on", ">=", start),
+                ("disposal_certificate_id.issued_on", "<=", end),
+            ]
+        )
+        diverted = Col.search(
+            [*base, ("state", "=", "routed"), ("routed_on", ">=", start), ("routed_on", "<=", end)]
+        )
+        versions = sorted(set(certified.mapped("co2_factor_version")) - {False})
+        return {
+            "ewaste_collected": (
+                round(sum(received.mapped("weight_kg")), 3),
+                len(received),
+                False,
+            ),
+            "co2_saved": (
+                round(sum(certified.mapped("esg_co2_saved_kg")), 3),
+                len(certified),
+                ", ".join(versions) or c.co2_factor(self.env)[1],
+            ),
+            "devices_refurbished": (
+                float(sum(diverted.mapped("item_count"))),
+                len(diverted),
+                False,
+            ),
+        }
+
+    @api.model
+    def compute_period(self, period, company=None):
+        """Create or refresh the computed metrics of one company and period.
+        Idempotent; runs as trusted code."""
+        company = company or self.env.company
+        Metric = self.sudo()
+        labels = dict(self._fields["metric_type"].selection)
+        out = Metric.browse()
+        for mtype, (value, count, version) in self._fix_figures(company, period).items():
+            row = Metric.search(
+                [
+                    ("company_id", "=", company.id),
+                    ("period", "=", period),
+                    ("metric_type", "=", mtype),
+                    ("computed", "=", True),
+                ],
+                limit=1,
+            )
+            vals = {
+                "value": value,
+                "source_count": count,
+                "factor_version": version,
+                "computed_at": fields.Datetime.now(),
+            }
+            if row:
+                row._guarded().write(vals)
+            else:
+                row = Metric._guarded().create(
+                    {
+                        **vals,
+                        "name": "%s %s" % (labels[mtype], period),
+                        "company_id": company.id,
+                        "period": period,
+                        "metric_type": mtype,
+                        "computed": True,
+                    }
+                )
+            out |= row
+        # the rows were written under the guard token: return them without it
+        return self.browse(out.ids)
+
+    def action_recompute(self):
+        """Recompute the periods of these metrics from the collections."""
+        done = set()
+        for rec in self:
+            key = (rec.company_id.id, rec.period)
+            if key in done or rec.company_id not in self.env.companies:
+                continue
+            done.add(key)
+            self.compute_period(rec.period, rec.company_id)
+        return True
+
+    @api.model
+    def cron_recompute(self):
+        """Refresh this month and last month for every company."""
+        today = c.today(self.env)
+        last = today.replace(day=1) - timedelta(days=1)
+        for company in self.env["res.company"].sudo().search([]):
+            for period in {today.strftime("%Y-%m"), last.strftime("%Y-%m")}:
+                self.compute_period(period, company)
+        return True
+
+    def _fix_consume_month(self, event, field_date):
+        rec = self.env["fix.ewaste.collection"].sudo().browse(event.get("aggregate_id")).exists()
+        if not rec:
+            return
+        day = field_date(rec)
+        if day:
+            self.compute_period(day.strftime("%Y-%m"), rec.company_id)
+
+    @api.model
+    def consume_collection_recorded(self, event):
+        """ewaste.collected -> refresh the inventory of its month."""
+        self._fix_consume_month(event, lambda r: r.collected_on)
+
+    @api.model
+    def consume_certificate_issued(self, event):
+        """ewaste.certificate_issued -> refresh the avoided CO2 of its month."""
+        self._fix_consume_month(event, lambda r: r.disposal_certificate_id.issued_on)
+
+    @api.model
+    def consume_reuse_routed(self, event):
+        """ewaste.reuse_routed -> refresh the devices diverted of its month."""
+        self._fix_consume_month(event, lambda r: r.routed_on)

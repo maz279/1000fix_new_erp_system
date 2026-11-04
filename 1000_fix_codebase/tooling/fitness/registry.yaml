@@ -18,6 +18,12 @@ checks:
     stage: model-registry
     script: check_deployment_wiring.py
     rationale: a cron with no ir.cron, an event with no consumer and a button the surface refuses all pass unit tests and never run; ratchet baseline in evidence/deployment_wiring_baseline.json
+  - id: FF-49
+    name: KPI and report reads scoped to the user's companies (A05 audit E14)
+    blocking: true
+    stage: model-registry
+    script: check_kpi_company_scope.py
+    rationale: a figure read with sudo().search([]) counts every company's records (A05 M18-11 ESG and DoE); ratchet baseline in evidence/kpi_company_scope_baseline.json, A05 held to zero
   - id: FF-02
     name: module naming convention (AS-04)
     blocking: true

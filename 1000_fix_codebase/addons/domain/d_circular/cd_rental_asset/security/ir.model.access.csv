@@ -6,3 +6,4 @@ access_fix_rental_kit,fix.rental.kit,model_fix_rental_kit,base.group_user,1,1,1,
 access_fix_rental_deposit,fix.rental.deposit,model_fix_rental_deposit,base.group_user,1,1,1,0
 access_fix_rental_condition,fix.rental.condition,model_fix_rental_condition,base.group_user,1,1,1,0
 access_fix_rental_turnaround,fix.rental.turnaround,model_fix_rental_turnaround,base.group_user,1,1,1,0
+access_fix_rental_charge_approval,fix.rental.charge.approval,model_fix_rental_charge_approval,base.group_user,1,1,1,0

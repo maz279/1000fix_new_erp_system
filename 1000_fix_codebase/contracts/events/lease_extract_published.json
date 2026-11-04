@@ -42,10 +42,10 @@
           "type": "string"
         },
         "version": {
-          "description": "Type not statically derivable from `version` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:356)."
+          "description": "Type not statically derivable from `version` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:372)."
         },
         "reason": {
-          "description": "Type not statically derivable from `reason` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:356)."
+          "description": "Type not statically derivable from `reason` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:372)."
         },
         "extract": {
           "type": "object"

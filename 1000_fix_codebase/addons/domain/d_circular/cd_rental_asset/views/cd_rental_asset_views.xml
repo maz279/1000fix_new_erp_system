@@ -36,6 +36,9 @@
                     <button name="action_return" string="Receive Return" type="object" invisible="state != 'active'"/>
                     <button name="action_assess_damage" string="Damage Inspection" type="object" invisible="state != 'returned'"/>
                     <button name="action_close" string="Settle &amp; Close" type="object" invisible="state != 'damage_assess'" class="oe_highlight"/>
+                    <button name="action_send_agreement" string="Send Agreement for Signature" type="object" invisible="agreement_state not in ('draft', 'declined') or state in ('closed', 'cancelled')"/>
+                    <button name="action_cancel" string="Cancel &amp; Refund Deposit" type="object" invisible="state not in ('draft', 'reserved')"/>
+                    <field name="agreement_state" invisible="1"/>
                     <field name="state" widget="statusbar" statusbar_visible="draft,reserved,delivered,active,returned,damage_assess,closed"/>
                 </header>
                 <sheet>

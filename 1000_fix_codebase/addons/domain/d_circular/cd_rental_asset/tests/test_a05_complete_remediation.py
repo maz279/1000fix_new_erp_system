@@ -3,11 +3,16 @@ Covers:
   - M13 Rental: FixRentalAsset IAS 16 depreciation & FixRentalDeposit GL moves.
   - M14 Trade-In: FixRefurbishment active workflow methods, FixTradeinRequest ITA 2023 TDS & BTRC NEIR anti-theft gate.
   - M18 E-Waste: FixEwasteBattery UN 3480 Class 9 safety workflows & FixEwasteReturn S.R.O. 187/2021 mass balance.
+
+Declarations only. The source-text assertions this file used to make
+(inspect.getsource ... assertIn) passed whatever the code did, and two of
+them broke on correct rewrites (A05 audit E9). The behaviour is proved in
+test_a05_m13_controls.py, cd_tradein/tests/test_a05_m14_controls.py and
+cd_ewaste/tests/test_a05_m18_controls.py, as non-admin users.
 """
 
 from __future__ import annotations
 
-import inspect
 import sys
 import unittest
 from pathlib import Path
@@ -38,21 +43,13 @@ class TestA05CompleteRemediation(unittest.TestCase):
         self.assertTrue(hasattr(FixRentalAsset, "useful_life_days"))
         self.assertTrue(hasattr(FixRentalAsset, "daily_depreciation"))
         self.assertTrue(hasattr(FixRentalAsset, "net_book_value"))
-        src = inspect.getsource(FixRentalAsset._compute_depreciation)
-        self.assertIn("daily_depreciation", src)
-        self.assertIn("net_book_value", src)
 
     def test_m13_deposit_gl_integration_declared(self):
-        """FixRentalDeposit must declare GL journal entry link.
-
-        The deposit used to carry a "GL Ready" placeholder; it now posts every
-        non-refund movement to the General Ledger (_post_gl) and queues refunds
-        with treasury, so the contract checked is the real one."""
+        """FixRentalDeposit must declare its GL link. That it posts once, and
+        refunds from the posted ledger, is proved in test_a05_m13_controls.py."""
         self.assertTrue(hasattr(FixRentalDeposit, "journal_entry_id"))
-        src = inspect.getsource(FixRentalDeposit._post)
-        self.assertIn("rec._post_gl()", src)
-        self.assertIn("rec._queue_refund()", src)
         self.assertTrue(hasattr(FixRentalDeposit, "_post_gl"))
+        self.assertTrue(hasattr(FixRentalDeposit, "_queue_refund"))
 
     def test_m14_refurbishment_methods_activated(self):
         """FixRefurbishment must not be a passive stub; methods must be defined."""
@@ -61,20 +58,15 @@ class TestA05CompleteRemediation(unittest.TestCase):
         self.assertTrue(hasattr(FixRefurbishment, "action_complete_repair"))
         self.assertTrue(hasattr(FixRefurbishment, "labor_cost"))
         self.assertTrue(hasattr(FixRefurbishment, "total_cost"))
-        src_start = inspect.getsource(FixRefurbishment.action_start)
-        self.assertIn("in_progress", src_start)
-        src_complete = inspect.getsource(FixRefurbishment.action_complete_repair)
-        self.assertIn("done", src_complete)
 
     def test_m14_tradein_statutory_tds_and_neir_gate(self):
-        """FixTradeinRequest must have NID, TDS fields, and NEIR anti-theft check."""
+        """FixTradeinRequest must have NID and TDS fields; the provenance hard
+        stop is proved in test_a05_m14_controls.py."""
         self.assertTrue(hasattr(FixTradeinRequest, "customer_nid"))
         self.assertTrue(hasattr(FixTradeinRequest, "tds_applicable"))
         self.assertTrue(hasattr(FixTradeinRequest, "tds_amount"))
         self.assertTrue(hasattr(FixTradeinRequest, "net_payout"))
-        src_pay = inspect.getsource(FixTradeinRequest.action_pay)
-        self.assertIn("stolen_hit", src_pay)
-        self.assertIn("BTRC NEIR", src_pay)
+        self.assertTrue(hasattr(FixTradeinRequest, "action_pay"))
 
     def test_m14_provenance_btrc_neir_check(self):
         """FixTradeinProvenance must support BTRC NEIR check and Smart NID."""
@@ -91,8 +83,6 @@ class TestA05CompleteRemediation(unittest.TestCase):
         self.assertTrue(hasattr(FixEwasteBattery, "action_inspect_and_quarantine"))
         self.assertTrue(hasattr(FixEwasteBattery, "action_dispatch"))
         self.assertTrue(hasattr(FixEwasteBattery, "action_process"))
-        src_dispatch = inspect.getsource(FixEwasteBattery.action_dispatch)
-        self.assertIn("terminal_taped", src_dispatch)
 
     def test_m18_statutory_doe_return_sro187(self):
         """FixEwasteReturn must implement S.R.O. 187-Law/2021 mass balance and returns."""

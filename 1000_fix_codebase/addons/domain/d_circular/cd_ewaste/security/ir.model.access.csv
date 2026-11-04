@@ -1,10 +1,23 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_ewaste_collection,fix.ewaste.collection,model_fix_ewaste_collection,base.group_user,1,1,1,0
-access_fix_esg_metric,fix.esg.metric,model_fix_esg_metric,base.group_user,1,1,1,0
+access_fix_esg_metric,fix.esg.metric user (read: computed only),model_fix_esg_metric,base.group_user,1,0,0,0
 access_fix_ewaste_event,fix.ewaste.event,model_fix_ewaste_event,base.group_user,1,1,1,0
-access_fix_ewaste_triage,fix.ewaste.triage,model_fix_ewaste_triage,base.group_user,1,1,1,0
-access_fix_ewaste_batch,fix.ewaste.batch,model_fix_ewaste_batch,base.group_user,1,1,1,0
+access_fix_ewaste_triage,fix.ewaste.triage user,model_fix_ewaste_triage,base.group_user,1,0,0,0
+access_fix_ewaste_triage_assessor,fix.ewaste.triage assessor,model_fix_ewaste_triage,group_ewaste_triage_assessor,1,1,1,0
+access_fix_ewaste_batch,fix.ewaste.batch user,model_fix_ewaste_batch,base.group_user,1,0,0,0
+access_fix_ewaste_batch_dispatcher,fix.ewaste.batch dispatcher,model_fix_ewaste_batch,group_ewaste_dispatcher,1,1,1,0
 access_fix_ewaste_battery,fix.ewaste.battery,model_fix_ewaste_battery,base.group_user,1,1,1,0
 access_fix_ewaste_partner,fix.ewaste.partner,model_fix_ewaste_partner,base.group_user,1,1,1,0
-access_fix_ewaste_certificate,fix.ewaste.certificate,model_fix_ewaste_certificate,base.group_user,1,1,1,0
-access_fix_ewaste_return,fix.ewaste.return,model_fix_ewaste_return,base.group_user,1,1,1,0
+access_fix_ewaste_certificate,fix.ewaste.certificate user,model_fix_ewaste_certificate,base.group_user,1,0,0,0
+access_fix_ewaste_certificate_dispatcher,fix.ewaste.certificate dispatcher,model_fix_ewaste_certificate,group_ewaste_dispatcher,1,1,1,0
+access_fix_ewaste_certificate_compliance,fix.ewaste.certificate compliance,model_fix_ewaste_certificate,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_return,fix.ewaste.return user,model_fix_ewaste_return,base.group_user,1,0,0,0
+access_fix_ewaste_return_compliance,fix.ewaste.return compliance,model_fix_ewaste_return,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_return_finance,fix.ewaste.return finance,model_fix_ewaste_return,group_ewaste_finance_approver,1,1,0,0
+access_fix_ewaste_manifest,fix.ewaste.manifest,model_fix_ewaste_manifest,base.group_user,1,0,0,0
+access_fix_ewaste_manifest_line,fix.ewaste.manifest.line,model_fix_ewaste_manifest_line,base.group_user,1,0,0,0
+access_fix_ewaste_basel_pic,fix.ewaste.basel.pic user,model_fix_ewaste_basel_pic,base.group_user,1,0,0,0
+access_fix_ewaste_basel_pic_compliance,fix.ewaste.basel.pic compliance,model_fix_ewaste_basel_pic,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_registration,fix.ewaste.registration user,model_fix_ewaste_registration,base.group_user,1,0,0,0
+access_fix_ewaste_registration_compliance,fix.ewaste.registration compliance,model_fix_ewaste_registration,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_settlement,fix.ewaste.settlement,model_fix_ewaste_settlement,base.group_user,1,1,1,0

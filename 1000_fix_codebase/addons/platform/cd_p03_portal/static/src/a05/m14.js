@@ -1,6 +1,6 @@
 /** @odoo-module **/
 /* A05 — Circular Economy — M14 Trade-In, Refurbishment & Resale (v2.1 D365 multi-tab standard).
- * 100% Dynamics 365 6-tab forms with Document Vault on all 9 forms.
+ * 100% Dynamics 365 6-tab forms with Document Vault (10 forms incl. the price grid).
  * All 8 report packs exposed as chips (including Resale Listings & Unit Economics).
  * Zero phantom fields: all fields verified against PostgreSQL fix_dev. */
 
@@ -20,6 +20,7 @@ export const MODULE = {
     { en: 'Trade-In', screens: [
       { id: 'M14-intake', en: 'Trade-In Intake', bn: 'ট্রেড-ইন গ্রহণ', t: 'g' },
       { id: 'M14-valuation', en: 'Automated Valuation', bn: 'স্বয়ংক্রিয় মূল্যায়ন', t: 'c' },
+      { id: 'M14-grid', en: 'Governed Price Grid', bn: 'মূল্য গ্রিড', t: 'g' },
       { id: 'M14-provenance', en: 'Provenance & IMEI Screen', bn: 'আইএমইআই যাচাই', t: 'g' },
       { id: 'M14-settlement', en: 'Settlement', bn: 'পরিশোধ ও নিষ্পত্তি', t: 'g' }
     ]},
@@ -49,6 +50,7 @@ export const MODULE = {
   forms: [
     'Trade-In Intake Dossier',
     'Automated Valuation File',
+    'Governed Price Grid Row',
     'Provenance Screening & Anti-Theft',
     'Settlement & Four-Eyes Payout',
     'Refurbishment Work Order',
@@ -73,11 +75,16 @@ export const MODULE = {
 };
 
 export const SCREENS = {
+  /* A05 audit (2026-11-03) E3-E12: every workflow, approval, money and
+   * evidence field is read-only below and changes only through its action;
+   * the payout is requested here and decided from the approver's M63 inbox. */
   'M14-intake': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state',
-    cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'grade', 'state'],
+    cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'graded_value', 'revision_state', 'grade', 'state'],
     actions: [
       { m: 'action_send_offer', l: 'Send Offer' },
       { m: 'action_accept', l: 'Accept' },
+      { m: 'action_accept_revision', l: 'Accept Revised Value' },
+      { m: 'action_reject', l: 'Customer Declines', ask: 'Why the trade-in is rejected', kwarg: 'reason' },
       { m: 'action_collect', l: 'Collect' },
       { m: 'action_wipe', l: 'Data Wipe' },
       { m: 'action_refurbish', l: 'Refurbish' },
@@ -85,21 +92,32 @@ export const SCREENS = {
       { m: 'action_resale_ready', l: 'Resale Ready' }
     ] },
   'M14-valuation': { kind: 'model_list', model: 'fix.tradein.valuation', stateField: 'state',
-    cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer', 'method', 'state'],
-    actions: [{ m: 'action_apply_to_tradein', l: 'Apply to Trade-In' }] },
-  'M14-provenance': { kind: 'model_list', model: 'fix.tradein.provenance', stateField: 'state',
-    cols: ['name', 'tradein_id', 'imei', 'checked_on', 'blacklist_hit', 'stolen_hit', 'state'],
+    cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer', 'override_state', 'state'],
     actions: [
-      { m: 'action_clear', l: 'Clear' },
-      { m: 'action_flag', l: 'Flag' },
+      { m: 'action_request_override_approval', l: 'Request Override Approval' },
+      { m: 'action_approve_override', l: 'Approve Override' },
+      { m: 'action_reject_override', l: 'Reject Override' },
+      { m: 'action_apply_to_tradein', l: 'Apply to Trade-In' }
+    ] },
+  'M14-grid': { kind: 'model_list', model: 'fix.tradein.price.grid', stateField: 'state',
+    cols: ['name', 'device_model_id', 'market_ref_price', 'valid_from', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve Price' },
+      { m: 'action_retire', l: 'Retire' }
+    ] },
+  'M14-provenance': { kind: 'model_list', model: 'fix.tradein.provenance', stateField: 'state',
+    cols: ['name', 'tradein_id', 'imei', 'checked_on', 'blacklist_hit', 'stolen_hit', 'lock_status', 'btrc_neir_status', 'customer_nid_verified', 'state'],
+    actions: [
+      { m: 'action_clear', l: 'Clear (Provenance Officer)' },
+      { m: 'action_flag', l: 'Flag', ask: 'Why the device is flagged', kwarg: 'reason' },
       { m: 'action_run_neir_check', l: 'BTRC NEIR Check' }
     ] },
   'M14-settlement': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'payout_approval_state',
-    cols: ['name', 'customer_id', 'graded_value', 'payout_amount', 'payout_approval_state', 'payout_approved_at', 'payout_execution_id', 'state'],
+    cols: ['name', 'customer_id', 'graded_value', 'net_payout', 'tds_amount', 'payout_approval_state', 'approval_state', 'payout_approved_by_id', 'payout_execution_id', 'state'],
     actions: [
-      { m: 'action_request_payout_approval', l: 'Request Approval' },
-      { m: 'action_approve_payout', l: 'Approve Payout' },
-      { m: 'action_reject_payout', l: 'Reject' },
+      { m: 'action_verify_psr', l: 'Verify PSR' },
+      { m: 'action_request_payout_approval', l: 'Request Approval', ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_pay', l: 'Pay via Treasury' }
     ] },
   'M14-orders': { kind: 'model_list', model: 'fix.refurbishment', stateField: 'state',
@@ -110,16 +128,22 @@ export const SCREENS = {
       { m: 'action_complete_repair', l: 'Complete Step' }
     ] },
   'M14-qa': { kind: 'model_list', model: 'fix.refurb.qa', stateField: 'qa_state',
-    cols: ['name', 'tradein_id', 'battery_health_pct', 'tests_passed', 'tests_total', 'pass_pct', 'qa_state', 'checked_on', 'inspector_id'] },
+    cols: ['name', 'tradein_id', 'battery_health_pct', 'tests_passed', 'tests_total', 'pass_pct', 'qa_state', 'checked_on', 'inspected_by_id'],
+    actions: [{ m: 'action_submit_result', l: 'Submit Result (QA Inspector)' }] },
   'M14-grading': { kind: 'model_list', model: 'fix.tradein.grade',
     cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'screen_grade', 'cosmetic_grade', 'functional_grade', 'graded_on'] },
   'M14-harvest': { kind: 'model_list', model: 'fix.tradein.harvest', stateField: 'state',
-    cols: ['name', 'tradein_id', 'component', 'part_name', 'quantity', 'total_value', 'target', 'state'] },
+    cols: ['name', 'tradein_id', 'component', 'part_id', 'quantity', 'total_value', 'target', 'receipt_id', 'state'],
+    actions: [
+      { m: 'action_harvest', l: 'Harvest' },
+      { m: 'action_scrap', l: 'Scrap', ask: 'Why the component is scrapped', kwarg: 'reason' }
+    ] },
   'M14-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state', create: false,
     cols: ['name', 'device_id', 'grade_id', 'tradein_ref', 'inventory_valuation', 'resale_price', 'projected_margin', 'state'] },
   'M14-listings': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: false },
-  'M14-wty': { kind: 'model_list', model: 'fix.tradein.warranty', stateField: 'state',
-    cols: ['name', 'tradein_id', 'months', 'start_date', 'end_date', 'claims_count', 'state'] },
+  'M14-wty': { kind: 'model_list', model: 'fix.tradein.warranty', stateField: 'state', create: false,
+    cols: ['name', 'tradein_id', 'graded_stock_ref', 'months', 'start_date', 'end_date', 'claims_count', 'state'],
+    actions: [{ m: 'action_void', l: 'Void (Warranty Officer)', ask: 'Reason for voiding', kwarg: 'reason' }] },
   'M14-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: false },
 
   /* Report chips -> their own computed packs (All 8 active) */
@@ -139,15 +163,15 @@ export const SCREENS = {
     title: 'Trade-In Intake Dossier',
     back: 'M14-intake',
     status: { field: 'state', labels: {
-      draft: 'Draft', submitted: 'Submitted', evaluated: 'Evaluated', accepted: 'Accepted',
-      collected: 'Collected', wiped: 'Wiped', refurbishing: 'Refurbishing', graded: 'Graded',
-      resale_ready: 'Resale Ready', cancelled: 'Cancelled' } },
+      draft: 'Draft', offered: 'Offer Sent', accepted: 'Accepted', collected: 'Collected',
+      wiped: 'Data Wiped', refurbished: 'Refurbished', graded: 'Graded',
+      resale_ready: 'Resale Ready', closed: 'Closed', rejected: 'Rejected' } },
     tabs: [
-      { id: 'general', label: '1. General & Customer', bn: '১. সাধারণ ও গ্রাহক', icon: '👤', badge: '6' },
-      { id: 'pricing', label: '2. Valuation & Tax', bn: '২. মূল্যায়ন ও কর', icon: '৳', badge: '8' },
+      { id: 'general', label: '1. General & Customer', bn: '১. সাধারণ ও গ্রাহক', icon: '👤', badge: '8' },
+      { id: 'pricing', label: '2. Valuation & Tax', bn: '২. মূল্যায়ন ও কর', icon: '৳', badge: '15' },
       { id: 'technical', label: '3. Device & Grading', bn: '৩. ডিভাইস ও গ্রেডিং', icon: '📱', badge: '4' },
-      { id: 'lifecycle', label: '4. Workshop & Costs', bn: '৪. ওয়ার্কশপ ও খরচ', icon: '🔧', badge: '4' },
-      { id: 'governance', label: '5. Payout & Channel', bn: '৫. পরিশোধ ও চ্যানেল', icon: '⚖️', badge: '11' },
+      { id: 'lifecycle', label: '4. Workshop & Costs', bn: '৪. ওয়ার্কশপ ও খরচ', icon: '🔧', badge: '7' },
+      { id: 'governance', label: '5. Payout & Channel', bn: '৫. পরিশোধ ও চ্যানেল', icon: '⚖️', badge: '17' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ডকুমেন্ট ভল্ট', icon: '📁', badge: '1' }
     ],
     sections: [
@@ -155,26 +179,35 @@ export const SCREENS = {
         fields: [
           { name: 'name', label: 'Trade-In Reference', readonly: true },
           { name: 'customer_id', required: true, label: 'Customer' },
-          { name: 'customer_nid', label: 'National ID (NID/Smart Card)' },
+          { name: 'customer_nid', label: 'National ID (10-digit Smart / 17-digit NID)' },
+          { name: 'acceptance_channel', label: 'Acceptance Channel' },
           { name: 'state', label: 'Intake State', readonly: true }
         ] },
       { tab: 'general', title: 'Intake Device Reference',
         fields: [
-          { name: 'device_model_id', required: true, label: 'Device Model' },
-          { name: 'device_id', label: 'Device Serial Master' }
+          { name: 'device_id', label: 'Device Serial Master' },
+          { name: 'device_model_id', label: 'Device Model', readonly: true },
+          { name: 'hold_until', label: 'Hold Period Ends', readonly: true }
         ] },
       { tab: 'pricing', title: 'Commercial Valuation & Payout Offer',
         fields: [
-          { name: 'offered_value', label: 'Initial Offer Value' },
+          { name: 'offered_value', label: 'Offer Value (draft only, from the applied valuation)' },
+          { name: 'accepted_offer_value', label: 'Offer Accepted by Customer', readonly: true },
           { name: 'graded_value', label: 'Post-Inspection Value' },
-          { name: 'payout_amount', label: 'Gross Payout Amount' },
+          { name: 'revision_state', label: 'Revised Offer', readonly: true },
+          { name: 'revision_accepted_value', label: 'Revised Value Accepted', readonly: true },
+          { name: 'payout_amount', label: 'Payout Queued', readonly: true },
           { name: 'net_payout', label: 'Net Payout After Tax', readonly: true },
           { name: 'currency_id', label: 'Currency' }
         ] },
       { tab: 'pricing', title: 'Statutory Withholding Tax (ITA 2023 s.89/90)',
         fields: [
           { name: 'tds_applicable', label: 'TDS Withholding Applicable' },
+          { name: 'tds_section', label: 'TDS Section' },
           { name: 'tds_rate_pct', label: 'TDS Rate (%)' },
+          { name: 'taxpayer_tin', label: 'Seller e-TIN (12 digits)' },
+          { name: 'psr_attachment_id', label: 'PSR Document' },
+          { name: 'psr_verified', label: 'PSR Verified', readonly: true },
           { name: 'tds_amount', label: 'TDS Withheld Amount', readonly: true }
         ] },
       { tab: 'technical', title: 'Technical Grading & Diagnostic',
@@ -186,18 +219,26 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Refurbishment Workshop Integration',
         fields: [
-          { name: 'workshop_job_id', label: 'Origin Workshop Job' },
-          { name: 'labour_cost', label: 'Direct Labour Cost' },
-          { name: 'parts_cost', label: 'Replacement Parts Cost' },
-          { name: 'refurbishment_cost', label: 'Total Refurbishment Cost', readonly: true }
+          { name: 'workshop_job_id', label: 'Origin Workshop Job', readonly: true },
+          { name: 'consignment_id', label: 'Collection Consignment', readonly: true },
+          { name: 'labour_cost', label: 'Direct Labour Cost', readonly: true },
+          { name: 'parts_cost', label: 'Direct Parts Cost', readonly: true },
+          { name: 'steps_cost', label: 'Costed Refurbishment Steps', readonly: true },
+          { name: 'refurbishment_cost', label: 'Total Refurbishment Cost', readonly: true },
+          { name: 'inventory_valuation', label: 'Inventory Valuation', readonly: true }
         ] },
-      { tab: 'governance', title: 'Four-Eyes Settlement Approval',
+      { tab: 'governance', title: 'Four-Eyes Settlement Approval (M63)',
         fields: [
           { name: 'payout_approval_state', label: 'Payout Approval State', readonly: true },
-          { name: 'payout_requested_by_id', label: 'Requested By' },
-          { name: 'payout_approved_by_id', label: 'Approver (Director/Manager)' },
-          { name: 'payout_approved_at', label: 'Approval Timestamp' },
-          { name: 'payout_execution_id', label: 'Treasury Execution Reference' }
+          { name: 'approval_state', label: 'Routed Approval', readonly: true },
+          { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+          { name: 'payout_requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'payout_approved_by_id', label: 'Approver', readonly: true },
+          { name: 'payout_approved_at', label: 'Approval Timestamp', readonly: true },
+          { name: 'payout_approved_partner_id', label: 'Approved Payee', readonly: true },
+          { name: 'payout_approved_net', label: 'Approved Net', readonly: true },
+          { name: 'payout_execution_id', label: 'Treasury Execution Reference', readonly: true },
+          { name: 'withholding_line_id', label: 'TDS Register Line (M51)', readonly: true }
         ] },
       { tab: 'governance', title: 'Resale Marketplace Channel Allocation',
         fields: [
@@ -205,7 +246,7 @@ export const SCREENS = {
           { name: 'resale_listed_on', label: 'Marketplace Listing Date' },
           { name: 'resale_value', label: 'Target Resale Value' },
           { name: 'marketplace_seller_id', label: 'Merchant / Seller Account' },
-          { name: 'consignment_id', label: 'B2B Consignment Batch' },
+          { name: 'graded_stock_id', label: 'Graded Stock Unit', readonly: true },
           { name: 'company_id', label: 'Operating Entity' },
           { name: 'operating_unit_id', label: 'Operating Unit Hub' }
         ] },
@@ -220,12 +261,12 @@ export const SCREENS = {
     model: 'fix.tradein.valuation',
     title: 'Automated Valuation File',
     back: 'M14-valuation',
-    status: { field: 'state', labels: { draft: 'Draft', computed: 'Computed', applied: 'Applied' } },
+    status: { field: 'state', labels: { draft: 'Draft', applied: 'Applied', superseded: 'Superseded' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📄', badge: '4' },
-      { id: 'pricing', label: '2. Reference Pricing', bn: '২. বেঞ্চমার্ক মূল্য', icon: '৳', badge: '5' },
+      { id: 'pricing', label: '2. Reference Pricing', bn: '২. বেঞ্চমার্ক মূল্য', icon: '৳', badge: '7' },
       { id: 'technical', label: '3. Condition Factor', bn: '৩. শর্ত গুণাঙ্ক', icon: '⚙️', badge: '3' },
-      { id: 'lifecycle', label: '4. Valuer & Override', bn: '৪. মূল্যায়নকারী ও ব্যত্যয়', icon: '✍️', badge: '3' },
+      { id: 'lifecycle', label: '4. Valuer & Override', bn: '৪. মূল্যায়নকারী ও ব্যত্যয়', icon: '✍️', badge: '6' },
       { id: 'governance', label: '5. Governance', bn: '৫. নিয়ন্ত্রণ', icon: '🏛️', badge: '1' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
@@ -239,10 +280,12 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Market Benchmark & Calculations',
         fields: [
-          { name: 'device_model_id', label: 'Device Model' },
+          { name: 'device_model_id', label: 'Device Model', readonly: true },
+          { name: 'grid_id', label: 'Governed Grid Price', readonly: true },
           { name: 'market_ref_price', label: 'Market Benchmark Price' },
           { name: 'computed_offer', label: 'Algorithm Computed Offer', readonly: true },
           { name: 'final_offer', label: 'Final Commercial Offer' },
+          { name: 'applied_offer', label: 'Offer Applied', readonly: true },
           { name: 'currency_id', label: 'Currency' }
         ] },
       { tab: 'technical', title: 'Depreciation & Age Factors',
@@ -253,9 +296,12 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Manual Review & Override Audit',
         fields: [
-          { name: 'valuated_by_id', label: 'Valuation Specialist' },
-          { name: 'valuated_on', label: 'Valuation Timestamp' },
-          { name: 'override_reason', label: 'Manager Override Justification' }
+          { name: 'valuated_by_id', label: 'Valuation Specialist', readonly: true },
+          { name: 'valuated_on', label: 'Valuation Date' },
+          { name: 'is_override', label: 'Overrides the Grid', readonly: true },
+          { name: 'override_reason', label: 'Override Justification' },
+          { name: 'override_state', label: 'Override Approval', readonly: true },
+          { name: 'override_approved_by_id', label: 'Override Approved By', readonly: true }
         ] },
       { tab: 'governance', title: 'Corporate Entity Scope',
         fields: [
@@ -267,6 +313,35 @@ export const SCREENS = {
     ]
   },
 
+  'M14-form-grid': {
+    kind: 'model_form',
+    model: 'fix.tradein.price.grid',
+    title: 'Governed Price Grid Row',
+    back: 'M14-grid',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', retired: 'Retired' } },
+    tabs: [
+      { id: 'general', label: '1. Price', bn: '১. মূল্য', icon: '৳', badge: '5' },
+      { id: 'governance', label: '2. Approval', bn: '২. অনুমোদন', icon: '🏛️', badge: '4' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Market Reference Price',
+        fields: [
+          { name: 'device_model_id', required: true, label: 'Device Model' },
+          { name: 'market_ref_price', required: true, label: 'Market Reference Price' },
+          { name: 'valid_from', required: true, label: 'Valid From' },
+          { name: 'notes', label: 'Source of the Price' },
+          { name: 'currency_id', label: 'Currency' }
+        ] },
+      { tab: 'governance', title: 'Valuation Manager Approval',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_at', label: 'Approved On', readonly: true },
+          { name: 'company_id', label: 'Company' }
+        ] }
+    ]
+  },
+
   'M14-form-provenance': {
     kind: 'model_form',
     model: 'fix.tradein.provenance',
@@ -275,10 +350,10 @@ export const SCREENS = {
     status: { field: 'state', labels: { pending: 'Pending', cleared: 'Cleared', flagged: 'Flagged' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🔍', badge: '4' },
-      { id: 'pricing', label: '2. Audit Timestamp', bn: '২. সময়কাল', icon: '⏱️', badge: '1' },
-      { id: 'technical', label: '3. Blacklist & Stolen', bn: '৩. ব্ল্যাকলিস্ট ও চুরি', icon: '🛡️', badge: '6' },
-      { id: 'lifecycle', label: '4. BTRC NEIR Screening', bn: '৪. বিটিআরসি এনইআইআর', icon: '🇧🇩', badge: '4' },
-      { id: 'governance', label: '5. Governance & Notes', bn: '৫. নিয়ন্ত্রণ ও নোট', icon: '📝', badge: '2' },
+      { id: 'pricing', label: '2. Evidence', bn: '২. প্রমাণ', icon: '⏱️', badge: '5' },
+      { id: 'technical', label: '3. Blacklist & Stolen', bn: '৩. ব্ল্যাকলিস্ট ও চুরি', icon: '🛡️', badge: '7' },
+      { id: 'lifecycle', label: '4. BTRC NEIR & NID', bn: '৪. বিটিআরসি এনইআইআর', icon: '🇧🇩', badge: '4' },
+      { id: 'governance', label: '5. Governance & Notes', bn: '৫. নিয়ন্ত্রণ ও নোট', icon: '📝', badge: '4' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
     sections: [
@@ -289,29 +364,36 @@ export const SCREENS = {
           { name: 'imei', required: true, label: 'Primary IMEI' },
           { name: 'state', label: 'Clearance Status', readonly: true }
         ] },
-      { tab: 'pricing', title: 'Inspection Timing',
+      { tab: 'pricing', title: 'Screening Evidence',
         fields: [
-          { name: 'checked_on', label: 'Inspection Timestamp' }
+          { name: 'evidence_attachment_id', label: 'Lookup Evidence / NID Card Scan' },
+          { name: 'evidence_ref', label: 'Lookup Reference' },
+          { name: 'checked_on', label: 'Cleared On', readonly: true },
+          { name: 'cleared_by_id', label: 'Cleared By (Provenance Officer)', readonly: true },
+          { name: 'cleared_at', label: 'Cleared At', readonly: true }
         ] },
       { tab: 'technical', title: 'Anti-Theft & Stolen Database Checks',
         fields: [
-          { name: 'stolen_checked', label: 'Police Stolen DB Verified' },
-          { name: 'stolen_hit', label: 'Stolen Record Hit' },
-          { name: 'blacklist_checked', label: 'GSMA Blacklist Verified' },
-          { name: 'blacklist_hit', label: 'Blacklist Hit Flag' },
-          { name: 'warranty_checked', label: 'OEM Warranty Verified' },
-          { name: 'warranty_active', label: 'Active OEM Coverage' }
+          { name: 'stolen_checked', label: 'Police Stolen DB Verified', readonly: true },
+          { name: 'stolen_hit', label: 'Stolen Record Hit (raise only)' },
+          { name: 'blacklist_checked', label: 'GSMA Blacklist Verified', readonly: true },
+          { name: 'blacklist_hit', label: 'Blacklist Hit Flag (raise only)' },
+          { name: 'lock_status', label: 'Activation Lock (Find My / FRP)' },
+          { name: 'warranty_checked', label: 'OEM Warranty Verified', readonly: true },
+          { name: 'warranty_active', label: 'Active OEM Coverage', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Bangladesh Telecommunication Regulatory Commission (BTRC) NEIR',
         fields: [
-          { name: 'btrc_neir_checked', label: 'BTRC NEIR Portal Verified' },
-          { name: 'btrc_neir_status', label: 'NEIR Legal Status (White/Grey/Black)' },
-          { name: 'customer_nid_no', label: 'Customer Verified NID' },
-          { name: 'customer_nid_verified', label: 'EC NID Portal Cleared' }
+          { name: 'btrc_neir_checked', label: 'BTRC NEIR Queried', readonly: true },
+          { name: 'btrc_neir_status', label: 'NEIR Status (unchecked until the NEIR relaunch)', readonly: true },
+          { name: 'customer_nid_no', label: 'Seller NID Sighted' },
+          { name: 'customer_nid_verified', label: 'NID Verified by the Officer', readonly: true }
         ] },
       { tab: 'governance', title: 'Security Notes & Company',
         fields: [
           { name: 'notes', label: 'Investigator Notes' },
+          { name: 'flag_reason', label: 'Flag Reason', readonly: true },
+          { name: 'flagged_by_id', label: 'Flagged By', readonly: true },
           { name: 'company_id', label: 'Company' }
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
@@ -326,14 +408,13 @@ export const SCREENS = {
     title: 'Settlement & Four-Eyes Payout',
     back: 'M14-settlement',
     status: { field: 'payout_approval_state', labels: {
-      draft: 'Draft', requested: 'Approval Requested', approved: 'Approved',
-      rejected: 'Rejected', paid: 'Settled & Paid' } },
+      none: 'Not Requested', pending: 'Approval Pending', approved: 'Approved', rejected: 'Rejected' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '👤', badge: '4' },
-      { id: 'pricing', label: '2. Payout & Tax', bn: '২. মূল্য ও উৎসে কর', icon: '৳', badge: '7' },
+      { id: 'pricing', label: '2. Payout & Tax', bn: '২. মূল্য ও উৎসে কর', icon: '৳', badge: '10' },
       { id: 'technical', label: '3. Valuation Target', bn: '৩. মূল্যায়ন রেফারেন্স', icon: '📱', badge: '3' },
-      { id: 'lifecycle', label: '4. Four-Eyes Authorization', bn: '৪. চার-চক্ষু অনুমোদন', icon: '👔', badge: '4' },
-      { id: 'governance', label: '5. Treasury & Ops', bn: '৫. ট্রেজারি ও পরিচালনা', icon: '🏦', badge: '3' },
+      { id: 'lifecycle', label: '4. Four-Eyes Authorization', bn: '৪. চার-চক্ষু অনুমোদন', icon: '👔', badge: '9' },
+      { id: 'governance', label: '5. Treasury & Ops', bn: '৫. ট্রেজারি ও পরিচালনা', icon: '🏦', badge: '5' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
     sections: [
@@ -346,30 +427,40 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Settlement & Statutory Withholding (ITA 2023)',
         fields: [
-          { name: 'graded_value', label: 'Approved Graded Value' },
-          { name: 'payout_amount', label: 'Gross Payout' },
+          { name: 'graded_value', label: 'Graded Payout Value' },
+          { name: 'revision_state', label: 'Revised Offer', readonly: true },
           { name: 'tds_applicable', label: 'TDS Applicable' },
+          { name: 'tds_section', label: 'TDS Section' },
           { name: 'tds_rate_pct', label: 'TDS Rate (%)' },
-          { name: 'tds_amount', label: 'Withheld TDS (BDT)' },
-          { name: 'net_payout', label: 'Net Payable via MFS/Bank', readonly: true },
-          { name: 'currency_id', label: 'Currency' }
+          { name: 'taxpayer_tin', label: 'Seller e-TIN' },
+          { name: 'psr_attachment_id', label: 'PSR Document' },
+          { name: 'psr_verified', label: 'PSR Verified', readonly: true },
+          { name: 'tds_amount', label: 'Withheld TDS (BDT)', readonly: true },
+          { name: 'net_payout', label: 'Net Payable via MFS/Bank', readonly: true }
         ] },
       { tab: 'technical', title: 'Device & Graded Unit Reference',
         fields: [
-          { name: 'device_model_id', label: 'Device Model' },
+          { name: 'device_model_id', label: 'Device Model', readonly: true },
           { name: 'grade', label: 'Inspection Grade' },
-          { name: 'graded_stock_id', label: 'Graded Stock Inventory Master' }
+          { name: 'graded_stock_id', label: 'Graded Stock Inventory Master', readonly: true }
         ] },
-      { tab: 'lifecycle', title: 'DOFA Four-Eyes Verification',
+      { tab: 'lifecycle', title: 'DOFA Four-Eyes Verification (M63 inbox)',
         fields: [
           { name: 'payout_approval_state', label: 'Payout Stage', readonly: true },
-          { name: 'payout_requested_by_id', label: 'Submitted By (Agent)' },
-          { name: 'payout_approved_by_id', label: 'Authorized Approver' },
-          { name: 'payout_approved_at', label: 'Authorization Timestamp' }
+          { name: 'approval_state', label: 'Routed Approval', readonly: true },
+          { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+          { name: 'dofa_justification', label: 'Business Justification' },
+          { name: 'payout_requested_by_id', label: 'Submitted By (Agent)', readonly: true },
+          { name: 'payout_approved_by_id', label: 'Authorized Approver', readonly: true },
+          { name: 'payout_approved_at', label: 'Authorization Timestamp', readonly: true },
+          { name: 'payout_approved_partner_id', label: 'Approved Payee', readonly: true },
+          { name: 'payout_approved_net', label: 'Approved Net', readonly: true }
         ] },
       { tab: 'governance', title: 'Treasury Execution & Operating Hub',
         fields: [
-          { name: 'payout_execution_id', label: 'Payment Gateway / Journal Reference' },
+          { name: 'payout_execution_id', label: 'Payment Gateway / Journal Reference', readonly: true },
+          { name: 'withholding_line_id', label: 'TDS Register Line (M51)', readonly: true },
+          { name: 'withholding_certificate_no', label: 'TDS Certificate No', readonly: true },
           { name: 'company_id', label: 'Company' },
           { name: 'operating_unit_id', label: 'Operating Unit' }
         ] },
@@ -384,11 +475,11 @@ export const SCREENS = {
     model: 'fix.refurbishment',
     title: 'Refurbishment Work Order',
     back: 'M14-orders',
-    status: { field: 'state', labels: { draft: 'Draft', in_progress: 'In Progress', completed: 'Completed', cancelled: 'Cancelled' } },
+    status: { field: 'state', labels: { pending: 'Pending', in_progress: 'In Progress', done: 'Done' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🔧', badge: '4' },
       { id: 'pricing', label: '2. Job Costing', bn: '২. কার্য ব্যয়', icon: '৳', badge: '4' },
-      { id: 'technical', label: '3. Technical Routing', bn: '৩. কারিগরি বরাদ্দ', icon: '👨‍🔧', badge: '2' },
+      { id: 'technical', label: '3. Technical Routing', bn: '৩. কারিগরি বরাদ্দ', icon: '👨‍🔧', badge: '5' },
       { id: 'lifecycle', label: '4. Observations', bn: '৪. পর্যবেক্ষণ', icon: '📋', badge: '1' },
       { id: 'governance', label: '5. Governance', bn: '৫. নিয়ন্ত্রণ', icon: '🏛️', badge: '1' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
@@ -398,20 +489,23 @@ export const SCREENS = {
         fields: [
           { name: 'name', label: 'Work Order ID', readonly: true },
           { name: 'tradein_id', required: true, label: 'Trade-In Request' },
-          { name: 'step', label: 'Refurbishment Stage (Screen/Battery/Motherboard)' },
+          { name: 'step', label: 'Refurbishment Stage' },
           { name: 'state', label: 'Progress Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Job Costing & Absorption',
         fields: [
           { name: 'labor_cost', label: 'Allocated Labor Cost' },
           { name: 'parts_cost', label: 'BOM Replacement Parts Cost' },
-          { name: 'total_cost', label: 'Total Refurb Cost', readonly: true },
+          { name: 'total_cost', label: 'Total Step Cost', readonly: true },
           { name: 'currency_id', label: 'Currency' }
         ] },
       { tab: 'technical', title: 'Technician Assignment',
         fields: [
-          { name: 'technician_id', required: true, label: 'Assigned Master Technician' },
-          { name: 'operating_unit_id', label: 'Refurbishment Center' }
+          { name: 'technician_id', label: 'Assigned Technician' },
+          { name: 'operating_unit_id', label: 'Refurbishment Center' },
+          { name: 'started_at', label: 'Started', readonly: true },
+          { name: 'completed_at', label: 'Completed', readonly: true },
+          { name: 'completed_by_id', label: 'Completed By', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Technician Log & Repair Observations',
         fields: [
@@ -432,12 +526,12 @@ export const SCREENS = {
     model: 'fix.refurb.qa',
     title: 'QA & Battery Health Dossier',
     back: 'M14-qa',
-    status: { field: 'qa_state', labels: { pending: 'Pending', passed: 'Passed', failed: 'Failed' } },
+    status: { field: 'qa_state', labels: { pending: 'Pending', pass: 'Passed', fail: 'Failed' } },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🔍', badge: '4' },
       { id: 'pricing', label: '2. Pass Metrics', bn: '২. পাসের অনুপাত', icon: '📊', badge: '1' },
       { id: 'technical', label: '3. Diagnostics & Battery', bn: '৩. ব্যাটারি ও ডায়াগনস্টিকস', icon: '🔋', badge: '3' },
-      { id: 'lifecycle', label: '4. Inspector Log', bn: '৪. পরিদর্শক লগ', icon: '✍️', badge: '3' },
+      { id: 'lifecycle', label: '4. Inspector Log', bn: '৪. পরিদর্শক লগ', icon: '✍️', badge: '4' },
       { id: 'governance', label: '5. Governance', bn: '৫. নিয়ন্ত্রণ', icon: '🏛️', badge: '1' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
@@ -447,7 +541,7 @@ export const SCREENS = {
           { name: 'name', label: 'QA Reference', readonly: true },
           { name: 'tradein_id', required: true, label: 'Trade-In Request' },
           { name: 'refurbishment_id', label: 'Refurbishment Step' },
-          { name: 'qa_state', label: 'Quality Assessment', readonly: true }
+          { name: 'qa_state', label: 'Quality Assessment (from the results)', readonly: true }
         ] },
       { tab: 'pricing', title: 'Test Metrics',
         fields: [
@@ -462,7 +556,8 @@ export const SCREENS = {
       { tab: 'lifecycle', title: 'Inspector Evaluation & Sign-off',
         fields: [
           { name: 'inspector_id', label: 'Lead QA Inspector' },
-          { name: 'checked_on', label: 'Audit Timestamp' },
+          { name: 'inspected_by_id', label: 'Submitted By', readonly: true },
+          { name: 'checked_on', label: 'Submitted On', readonly: true },
           { name: 'notes', label: 'Defect Analysis' }
         ] },
       { tab: 'governance', title: 'Company Context',
@@ -527,12 +622,12 @@ export const SCREENS = {
     model: 'fix.tradein.harvest',
     title: 'Harvest to Parts Dossier',
     back: 'M14-harvest',
-    status: { field: 'state', labels: { pending: 'Pending', harvested: 'Harvested', tested: 'Tested', stocked: 'Stocked' } },
+    status: { field: 'state', labels: { pending: 'Pending', harvested: 'Harvested', scrapped: 'Scrapped' } },
     tabs: [
-      { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📦', badge: '3' },
+      { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '📦', badge: '4' },
       { id: 'pricing', label: '2. Recovered Value', bn: '২. উদ্ধারকৃত মূল্য', icon: '৳', badge: '3' },
-      { id: 'technical', label: '3. Part Specifications', bn: '৩. যন্ত্রাংশের বিবরণ', icon: '🔩', badge: '4' },
-      { id: 'lifecycle', label: '4. Harvest Timeline', bn: '৪. সংগ্রহের সময়কাল', icon: '📅', badge: '2' },
+      { id: 'technical', label: '3. Part Specifications', bn: '৩. যন্ত্রাংশের বিবরণ', icon: '🔩', badge: '5' },
+      { id: 'lifecycle', label: '4. Harvest Timeline', bn: '৪. সংগ্রহের সময়কাল', icon: '📅', badge: '3' },
       { id: 'governance', label: '5. Governance', bn: '৫. নিয়ন্ত্রণ', icon: '🏛️', badge: '1' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
@@ -541,7 +636,8 @@ export const SCREENS = {
         fields: [
           { name: 'name', label: 'Harvest Record ID', readonly: true },
           { name: 'tradein_id', required: true, label: 'Trade-In Request' },
-          { name: 'state', label: 'Harvesting State', readonly: true }
+          { name: 'state', label: 'Harvesting State', readonly: true },
+          { name: 'receipt_id', label: 'M15 Goods Receipt', readonly: true }
         ] },
       { tab: 'pricing', title: 'Inventory Valuation of Harvested Spares',
         fields: [
@@ -552,6 +648,7 @@ export const SCREENS = {
       { tab: 'technical', title: 'Harvested Component Definition',
         fields: [
           { name: 'component', label: 'Component Category' },
+          { name: 'part_id', label: 'M15 Spare Part' },
           { name: 'part_name', required: true, label: 'Spare Part SKU / Name' },
           { name: 'quantity', required: true, label: 'Quantity Salvaged' },
           { name: 'target', label: 'Destination Stock / Refurb Buffer' }
@@ -559,6 +656,7 @@ export const SCREENS = {
       { tab: 'lifecycle', title: 'Dismantling Execution',
         fields: [
           { name: 'harvested_on', label: 'Harvest Date' },
+          { name: 'harvested_by_id', label: 'Harvested By', readonly: true },
           { name: 'notes', label: 'Extraction Conditions' }
         ] },
       { tab: 'governance', title: 'Corporate Entity',
@@ -576,20 +674,21 @@ export const SCREENS = {
     model: 'fix.tradein.warranty',
     title: 'Refurbished Warranty Master',
     back: 'M14-wty',
-    status: { field: 'state', labels: { active: 'Active', expired: 'Expired', voided: 'Voided' } },
+    status: { field: 'state', labels: { active: 'Active', expired: 'Expired', void: 'Void' } },
     tabs: [
-      { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🛡️', badge: '3' },
+      { id: 'general', label: '1. General', bn: '১. সাধারণ', icon: '🛡️', badge: '4' },
       { id: 'pricing', label: '2. Claims Liability', bn: '২. দাবির দায়', icon: '⚠️', badge: '1' },
       { id: 'technical', label: '3. Coverage Term', bn: '৩. কভারেজের মেয়াদ', icon: '📅', badge: '3' },
-      { id: 'lifecycle', label: '4. Terms & Exclusions', bn: '৪. শর্ত ও ব্যতিক্রম', icon: '📜', badge: '1' },
+      { id: 'lifecycle', label: '4. Terms & Exclusions', bn: '৪. শর্ত ও ব্যতিক্রম', icon: '📜', badge: '2' },
       { id: 'governance', label: '5. Governance', bn: '৫. নিয়ন্ত্রণ', icon: '🏛️', badge: '1' },
       { id: 'vault', label: '6. Document Vault', bn: '৬. ভল্ট', icon: '📁', badge: '1' }
     ],
     sections: [
-      { tab: 'general', title: 'Policy Header',
+      { tab: 'general', title: 'Policy Header (issued by the resale)',
         fields: [
           { name: 'name', label: 'Warranty Policy ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Origin Trade-In' },
+          { name: 'tradein_id', label: 'Origin Trade-In', readonly: true },
+          { name: 'graded_stock_ref', label: 'Resold Stock Unit', readonly: true },
           { name: 'state', label: 'Coverage Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Claims Experience',
@@ -598,17 +697,18 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'Validity Window',
         fields: [
-          { name: 'months', label: 'Warranty Duration (Months)' },
-          { name: 'start_date', required: true, label: 'Coverage Start Date' },
-          { name: 'end_date', label: 'Coverage Expiration Date' }
+          { name: 'months', label: 'Warranty Duration (Months)', readonly: true },
+          { name: 'start_date', label: 'Coverage Start Date', readonly: true },
+          { name: 'end_date', label: 'Coverage Expiration Date', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Policy Terms',
         fields: [
-          { name: 'terms', label: 'Refurbished Warranty Terms & Conditions' }
+          { name: 'terms', label: 'Refurbished Warranty Terms & Conditions', readonly: true },
+          { name: 'void_reason', label: 'Void Reason', readonly: true }
         ] },
       { tab: 'governance', title: 'Issuing Legal Entity',
         fields: [
-          { name: 'company_id', label: 'Company' }
+          { name: 'company_id', label: 'Company', readonly: true }
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
@@ -631,6 +731,7 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M14:Trade-In Intake Dossier': 'fix.tradein.request',
   'M14:Automated Valuation File': 'fix.tradein.valuation',
+  'M14:Governed Price Grid Row': 'fix.tradein.price.grid',
   'M14:Provenance Screening & Anti-Theft': 'fix.tradein.provenance',
   'M14:Settlement & Four-Eyes Payout': 'fix.tradein.request',
   'M14:Refurbishment Work Order': 'fix.refurbishment',
@@ -643,6 +744,7 @@ export const FORM_MODELS = {
 export const FORM_CHIPS = {
   'M14:Trade-In Intake Dossier': 'M14-form-request',
   'M14:Automated Valuation File': 'M14-form-valuation',
+  'M14:Governed Price Grid Row': 'M14-form-grid',
   'M14:Provenance Screening & Anti-Theft': 'M14-form-provenance',
   'M14:Settlement & Four-Eyes Payout': 'M14-form-settlement',
   'M14:Refurbishment Work Order': 'M14-form-refurb',
@@ -653,6 +755,7 @@ export const FORM_CHIPS = {
   'M14:__by_model__': {
     'fix.tradein.request': 'M14-form-request',
     'fix.tradein.valuation': 'M14-form-valuation',
+    'fix.tradein.price.grid': 'M14-form-grid',
     'fix.tradein.provenance': 'M14-form-provenance',
     'fix.refurbishment': 'M14-form-refurb',
     'fix.refurb.qa': 'M14-form-qa',
@@ -663,6 +766,7 @@ export const FORM_CHIPS = {
   'M14:__by_screen__': {
     'M14-intake': 'M14-form-request',
     'M14-valuation': 'M14-form-valuation',
+    'M14-grid': 'M14-form-grid',
     'M14-provenance': 'M14-form-provenance',
     'M14-settlement': 'M14-form-settlement',
     'M14-orders': 'M14-form-refurb',

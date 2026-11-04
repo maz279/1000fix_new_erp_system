@@ -5,6 +5,7 @@ from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
 from . import m13, m14, m18
+from .writable import WRITABLE
 
 MODULES = {
     "M13": m13,
@@ -18,6 +19,13 @@ for _mod in MODULES.values():
         if _model in SURFACES:
             raise ValueError("A05 surface %s is declared by two modules" % _model)
         SURFACES[_model] = _conf
+
+# A05 workflow audit (2026-11-03) D1/E3: no A05 surface declared what
+# /p03/model/write may set (24 of 24 models writable, 0 whitelists), so the
+# form endpoint wrote a reservation's state, a payout's approval state or an
+# ESG value. Generated from the workspace forms (form_fields.py --a05).
+for _model, _conf in SURFACES.items():
+    _conf["writable"] = WRITABLE[_model]
 
 
 def kpis(env, module=None):

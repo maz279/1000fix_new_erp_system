@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M18 e-waste roles (A05 workflow audit, M18-12; spec §13).
+
+     cd_ewaste had no role at all: every internal user could triage, dispatch,
+     issue a disposal certificate, register a recycler and "accept" a DoE
+     return. The workflow actions now check the ACTING user against these
+     groups. Every role ships EMPTY: who holds it is a business appointment
+     (report §7.2). A decision with no holder is refused with a clear message. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_ewaste" model="res.groups.privilege">
+            <field name="name">E-Waste &amp; ESG (M18)</field>
+            <field name="description">Triage, hazmat, recycler transfer, disposal certificates, DoE returns and e-waste money (M18).</field>
+            <field name="sequence">60</field>
+        </record>
+
+        <record id="group_ewaste_triage_assessor" model="res.groups">
+            <field name="name">E-Waste Triage Assessor</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">Records the write-once triage decision (reuse / refurbish / recycle / hazardous) as a named assessor (BRU-ESG-09, T-04). Needs an employee record.</field>
+        </record>
+
+        <record id="group_ewaste_hse_officer" model="res.groups">
+            <field name="name">E-Waste HSE Officer</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">Records the UN 3480 battery inspection with photo evidence: terminals taped, swollen cells quarantined (BRU-ESG-07/08).</field>
+        </record>
+
+        <record id="group_ewaste_dispatcher" model="res.groups">
+            <field name="name">E-Waste Dispatcher</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">Builds, dispatches, receives and processes recycler batches and records the recycler's certificate. Never dispatches to a recycler they approved (spec §13).</field>
+        </record>
+
+        <record id="group_ewaste_recycler_approver" model="res.groups">
+            <field name="name">E-Waste Recycler Approver</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">Procurement / Quality Manager: approves a recycler's registration from the M63 inbox (never their own), suspends it, and is warned of licence expiry.</field>
+        </record>
+
+        <record id="group_ewaste_compliance_officer" model="res.groups">
+            <field name="name">E-Waste Compliance Officer</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">Quality Manager / ESG owner: prepares and submits DoE/BTRC returns, issues and revokes disposal certificates, records Basel consents, DoE registrations and storage extensions.</field>
+        </record>
+
+        <record id="group_ewaste_finance_approver" model="res.groups">
+            <field name="name">E-Waste Finance Approver (CFO)</field>
+            <field name="privilege_id" ref="privilege_ewaste"/>
+            <field name="comment">CFO: records the authority's acceptance of a return it did not prepare, and approves incentives, recycler fees and recovery income from the M63 inbox.</field>
+        </record>
+
+    </data>
+</odoo>

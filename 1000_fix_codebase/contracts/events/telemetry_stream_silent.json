@@ -46,7 +46,7 @@
           "type": "string"
         },
         "device": {
-          "description": "Type not statically derivable from `stream.device_id.device_id` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:466)."
+          "description": "Type not statically derivable from `stream.device_id.device_id` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:469)."
         },
         "metric": {
           "type": "string"

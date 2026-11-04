@@ -20,9 +20,26 @@ def _request(env, **vals):
     return env["fix.tradein.request"].create(vals)
 
 
+def _model(env):
+    brand = env["fix.brand"].create({"name": "M14 Ops Brand", "code": "M14OPS"})
+    return env["fix.device.model"].create({"name": "M14 Ops Phone", "brand_id": brand.id})
+
+
+def _valued_request(env, price):
+    """A request on a device model with an approved grid price (P2: the
+    valuation prices from the governed grid, not a typed market price)."""
+    model = _model(env)
+    device = env["fix.device"].create({"device_model_id": model.id, "serial_number": "M14-OPS-1"})
+    grid = env["fix.tradein.price.grid"].create(
+        {"device_model_id": model.id, "market_ref_price": price}
+    )
+    grid.action_approve()
+    return _request(env, device_id=device.id)
+
+
 def test_valuation_computes_and_applies(odoo_env):
     env = odoo_env
-    request = _request(env)
+    request = _valued_request(env, 60000)
     val = env["fix.tradein.valuation"].create(
         {
             "tradein_id": request.id,
@@ -34,6 +51,7 @@ def test_valuation_computes_and_applies(odoo_env):
     )
     assert val.computed_offer == pytest.approx(31500.0)
     assert val.name.startswith("TVAL/")
+    assert not val.is_override
     val.action_apply_to_tradein()
     assert request.offered_value == pytest.approx(31500.0)
     assert val.state == "applied"
@@ -41,7 +59,7 @@ def test_valuation_computes_and_applies(odoo_env):
         val.action_apply_to_tradein()
 
 
-def test_valuation_manual_override_needs_reason(odoo_env):
+def test_valuation_manual_override_needs_reason_and_approval(odoo_env):
     env = odoo_env
     request = _request(env)
     val = env["fix.tradein.valuation"].create(
@@ -57,6 +75,11 @@ def test_valuation_manual_override_needs_reason(odoo_env):
     with pytest.raises(UserError, match="state its reason"), env.cr.savepoint():
         val.action_apply_to_tradein()
     val.override_reason = "Cracked frame disclosed at intake"
+    # P2: an override is approved by a valuation manager before it applies
+    with pytest.raises(UserError, match="approves it before it is applied"), env.cr.savepoint():
+        val.action_apply_to_tradein()
+    val.action_request_override_approval()
+    val.action_approve_override()
     val.action_apply_to_tradein()
     assert request.offered_value == pytest.approx(28000.0)
 
@@ -84,12 +107,28 @@ def test_provenance_clear_rules(odoo_env):
     )
     with pytest.raises(UserError, match="before clearing"), env.cr.savepoint():
         prov.action_clear()
-    prov.write({"blacklist_checked": True, "stolen_checked": True, "stolen_hit": True})
+    prov.write({"evidence_ref": "GSMA lookup 1", "lock_status": "off"})
+    # A05 audit M14-5/6: a stolen hit flags the screen, and a flagged screen
+    # is a hard stop that is never cleared (lowering the hit does not undo it)
+    prov.write({"stolen_hit": True})
+    assert prov.state == "flagged"
     with pytest.raises(UserError, match="cannot be cleared"), env.cr.savepoint():
         prov.action_clear()
     prov.stolen_hit = False
-    prov.action_clear()
-    assert prov.state == "cleared"
+    with pytest.raises(UserError, match="flagged"), env.cr.savepoint():
+        prov.action_clear()
+    clean = env["fix.tradein.provenance"].create(
+        {
+            "tradein_id": _request(env).id,
+            "imei": "356789012345672",
+            "evidence_ref": "GSMA lookup 2",
+            "lock_status": "off",
+        }
+    )
+    clean.action_clear()
+    assert clean.state == "cleared"
+    assert (clean.blacklist_checked, clean.stolen_checked) == (True, True)
+    assert clean.btrc_neir_status == "unchecked"  # no NEIR lookup exists
 
 
 def test_provenance_imei_is_15_digits(odoo_env):

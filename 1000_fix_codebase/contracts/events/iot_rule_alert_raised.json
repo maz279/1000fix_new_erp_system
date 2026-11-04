@@ -58,10 +58,10 @@
           ]
         },
         "device": {
-          "description": "Type not statically derivable from `stream.device_id.device_id` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:824)."
+          "description": "Type not statically derivable from `stream.device_id.device_id` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
         },
         "metric": {
-          "description": "Type not statically derivable from `stream.metric` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:824)."
+          "description": "Type not statically derivable from `stream.metric` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
         },
         "equipment_id": {
           "type": [
@@ -85,7 +85,7 @@
           "type": "number"
         },
         "trigger_value": {
-          "description": "Type not statically derivable from `value` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:824)."
+          "description": "Type not statically derivable from `value` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:827)."
         }
       },
       "additionalProperties": false
