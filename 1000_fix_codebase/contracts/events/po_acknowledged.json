@@ -33,7 +33,9 @@
       "type": "object",
       "required": [
         "po_ref",
-        "vendor_id"
+        "vendor_id",
+        "channel",
+        "confirmed_date"
       ],
       "properties": {
         "po_ref": {
@@ -44,6 +46,15 @@
         },
         "vendor_id": {
           "type": "integer"
+        },
+        "channel": {
+          "description": "Type not statically derivable from `channel` (addons/domain/e_supply_chain/cd_requisition/models/fix_requisition.py:1085)."
+        },
+        "confirmed_date": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "wh.putaway_completed",
+  "description": "Published by cd_inventory through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "wh.putaway_completed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "putaway",
+        "part_id",
+        "bin_id",
+        "qty",
+        "receipt",
+        "location_id"
+      ],
+      "properties": {
+        "putaway": {
+          "type": "string"
+        },
+        "part_id": {
+          "type": "integer"
+        },
+        "bin_id": {
+          "type": "integer"
+        },
+        "qty": {
+          "type": "number"
+        },
+        "receipt": {
+          "type": "string"
+        },
+        "location_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_inventory",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

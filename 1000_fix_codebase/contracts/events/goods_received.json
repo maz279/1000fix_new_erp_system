@@ -31,12 +31,36 @@
     },
     "payload": {
       "type": "object",
-      "required": [],
+      "required": [
+        "vendor_id"
+      ],
       "properties": {
         "order": {
           "type": "string"
         },
+        "receipt": {
+          "type": "string"
+        },
+        "receipt_id": {
+          "type": "integer"
+        },
+        "vendor_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "purchase_order_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
         "value": {
+          "type": "number"
+        },
+        "provisional_value_bdt": {
           "type": "number"
         },
         "po_ref": {
@@ -45,11 +69,32 @@
             "boolean"
           ]
         },
-        "product_id": {
+        "po_id": {
           "type": "integer"
         },
+        "product_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
         "qty_received": {
-          "description": "Type not statically derivable from `add` (addons/domain/e_supply_chain/cd_requisition/models/fix_requisition.py:112)."
+          "type": "number"
+        },
+        "receipt_ref": {
+          "type": "string"
+        },
+        "received_on": {
+          "type": "string"
+        },
+        "promised_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "inspection_required": {
+          "description": "Type not statically derivable from `required` (addons/domain/e_supply_chain/cd_requisition/models/fix_purchase_receipt.py:149)."
         }
       },
       "additionalProperties": false
@@ -58,7 +103,7 @@
   "x-owner-module": "cd_import_order",
   "x-publishers": [
     "addons/domain/e_supply_chain/cd_import_order/models/fix_import_order.py",
-    "addons/domain/e_supply_chain/cd_requisition/models/fix_requisition.py"
+    "addons/domain/e_supply_chain/cd_requisition/models/fix_purchase_receipt.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)",
   "x-curated-description": "Event emitted when goods receipt note (GRN) is verified in warehouse (Journey 12 & M42)"

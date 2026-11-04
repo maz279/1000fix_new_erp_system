@@ -43,7 +43,7 @@
           ]
         },
         "quantity": {
-          "type": "number"
+          "description": "Type not statically derivable from `pos['recommended_order']` (addons/domain/e_supply_chain/cd_demand_plan/models/fix_demand_plan.py:320)."
         }
       },
       "additionalProperties": false
