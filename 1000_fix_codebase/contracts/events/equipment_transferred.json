@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "equipment.transferred",
+  "description": "Published by cd_equipment_register through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "equipment.transferred"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_equipment_register"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "equipment",
+        "transfer",
+        "from_branch",
+        "to_branch",
+        "from_custodian_id",
+        "to_custodian_id"
+      ],
+      "properties": {
+        "equipment": {
+          "description": "Type not statically derivable from `equipment.sudo().code` (addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment_ops.py:667)."
+        },
+        "transfer": {
+          "type": "string"
+        },
+        "from_branch": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "to_branch": {
+          "type": "string"
+        },
+        "from_custodian_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "to_custodian_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_equipment_register",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "vehicle.check_completed",
+  "description": "Published by cd_vehicle_ext through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "vehicle.check_completed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_vehicle_ext"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "vehicle",
+        "vehicle_id",
+        "check",
+        "driver_id",
+        "checked_on",
+        "passed",
+        "defects"
+      ],
+      "properties": {
+        "vehicle": {
+          "description": "Type not statically derivable from `_vehicle_label(rec.vehicle_id)` (addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:1076 via emit() at addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py:116)."
+        },
+        "vehicle_id": {
+          "type": "integer"
+        },
+        "check": {
+          "type": "string"
+        },
+        "driver_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "checked_on": {
+          "type": "string"
+        },
+        "passed": {
+          "type": "boolean"
+        },
+        "defects": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_vehicle_ext",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_vehicle_ext/models/fix_vehicle_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

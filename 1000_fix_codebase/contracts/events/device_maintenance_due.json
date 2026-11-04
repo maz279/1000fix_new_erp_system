@@ -1,0 +1,81 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "device.maintenance_due",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "device.maintenance_due"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_device_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "plan",
+        "plan_id",
+        "device_id",
+        "owner_id",
+        "due_date",
+        "overdue_days",
+        "plan_type"
+      ],
+      "properties": {
+        "plan": {
+          "type": "string"
+        },
+        "plan_id": {
+          "type": "integer"
+        },
+        "device_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "owner_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "due_date": {
+          "type": "string"
+        },
+        "overdue_days": {
+          "description": "Type not statically derivable from `(today - plan.next_due).days` (addons/domain/a_service_delivery/cd_device_registry/models/fix_device_ops.py:180 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
+        },
+        "plan_type": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_device_registry",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

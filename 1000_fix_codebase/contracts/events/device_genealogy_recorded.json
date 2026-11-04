@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "device.genealogy_recorded",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "device.genealogy_recorded"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_device_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "device_id",
+        "component_id",
+        "part_number",
+        "part_name",
+        "serial_no",
+        "warranty_until",
+        "service_order_id"
+      ],
+      "properties": {
+        "device_id": {
+          "type": "integer"
+        },
+        "component_id": {
+          "type": "integer"
+        },
+        "part_number": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "part_name": {
+          "type": "string"
+        },
+        "serial_no": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "warranty_until": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "service_order_id": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_device_registry",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}
