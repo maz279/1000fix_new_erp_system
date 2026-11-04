@@ -5,7 +5,13 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_device import DEVICE_DECISION_GROUP
+from .fix_device import DEVICE_DECISION_GROUP, NOT_SCRAPPABLE, bind_evidence
+
+# A07 P1 (2026-11-04) M17-12: a plan type names its interval. "custom" keeps
+# a plan whose interval is none of the three.
+PLAN_MONTHS = {"quarterly": 3, "biannual": 6, "annual": 12}
+# Custody events that hand the device to someone (BRU-AST-08/09).
+RELEASE_EVENTS = ("issued", "transferred")
 
 # Housekeeping fields mail/ORM write on any record; never a business change.
 _BOOKKEEPING = frozenset({"message_follower_ids", "message_main_attachment_id"})
@@ -89,14 +95,19 @@ class FixDevicePm(models.Model):
     def _fix_guarded_fields(self) -> set:
         # A07 audit M17-12: Mark Done is what stamps last_done and rolls the
         # plan on; typing them (or the state) made a plan look serviced.
-        return super()._fix_guarded_fields() | {"state", "last_done"}
+        return super()._fix_guarded_fields() | {"state", "last_done", "due_notified_for"}
 
     name = fields.Char(required=True, default="New")
     device_id = fields.Many2one(
         "fix.device", string="Device", required=True, ondelete="cascade", index=True
     )
     plan_type = fields.Selection(
-        [("quarterly", "Quarterly"), ("biannual", "Bi-annual"), ("annual", "Annual")],
+        [
+            ("quarterly", "Quarterly"),
+            ("biannual", "Bi-annual"),
+            ("annual", "Annual"),
+            ("custom", "Custom interval"),
+        ],
         required=True,
         default="annual",
     )
@@ -107,13 +118,79 @@ class FixDevicePm(models.Model):
         [("active", "Active"), ("paused", "Paused")], required=True, default="active"
     )
     notes = fields.Char()
+    # AUT-AST-13: the due date the cron last announced, so a plan is announced
+    # once per due date however often the job runs.
+    due_notified_for = fields.Date(string="Due Announced For", readonly=True, copy=False)
+
+    @api.model
+    def _derive_plan(self, vals):
+        """A07 audit M17-12 (D5): plan type and interval were two independent
+        typed fields ("quarterly" every 12 months). The one given decides the
+        other; both given must agree (checked below)."""
+        if "plan_type" in vals and "interval_months" not in vals:
+            months = PLAN_MONTHS.get(vals["plan_type"])
+            if months:
+                vals["interval_months"] = months
+        elif "interval_months" in vals and "plan_type" not in vals:
+            inverse = {v: k for k, v in PLAN_MONTHS.items()}
+            vals["plan_type"] = inverse.get(vals["interval_months"], "custom")
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.device.pm") or "DPM/New"
+            self._derive_plan(vals)
         return super().create(vals_list)
+
+    def write(self, vals):
+        self._derive_plan(vals)
+        return super().write(vals)
+
+    @api.constrains("plan_type", "interval_months")
+    def _check_plan_interval(self):
+        for rec in self:
+            months = PLAN_MONTHS.get(rec.plan_type)
+            if months and rec.interval_months != months:
+                raise ValidationError(
+                    "A %s plan runs every %d months, not %d. Choose 'Custom interval' for "
+                    "another interval."
+                    % (
+                        dict(rec._fields["plan_type"].selection)[rec.plan_type],
+                        months,
+                        rec.interval_months,
+                    )
+                )
+            if rec.interval_months <= 0:
+                raise ValidationError("The interval of a maintenance plan is at least one month.")
+
+    @api.model
+    def cron_pm_due(self):
+        """AUT-AST-13 (ir_cron_device_pm_due, daily): announce each active plan
+        that is due today or overdue, once per due date, as
+        device.maintenance_due for M01 to raise the work (bridge). Idempotent
+        and superuser-safe; the stamp is written through the guard."""
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        plans = self.sudo().search([("state", "=", "active"), ("next_due", "<=", today)])
+        announced = self.browse()
+        for plan in plans:
+            if plan.due_notified_for == plan.next_due or not plan.device_id.active:
+                continue
+            plan._guarded().write({"due_notified_for": plan.next_due})
+            plan.device_id._publish(
+                "device.maintenance_due",
+                {
+                    "plan": plan.name,
+                    "plan_id": plan.id,
+                    "device_id": plan.device_id.id,
+                    "owner_id": plan.device_id.owner_id.id or None,
+                    "due_date": str(plan.next_due),
+                    "overdue_days": (today - plan.next_due).days,
+                    "plan_type": plan.plan_type,
+                },
+            )
+            announced |= plan
+        return len(announced)
 
     def action_complete(self):
         """Mark the PM done and roll `next_due` on by the plan's interval.
@@ -243,8 +320,10 @@ class FixDeviceIdentity(models.Model):
     # candidate, rows were born "merged", a merged row was re-decided as
     # rejected and a merge was undone by two writes. A merge archives another
     # customer's device, so it is now a routed M63 decision taken by a Tier 2
-    # holder who neither raised nor requested it. Lineage re-pointing
-    # (history, warranty, orders to the survivor) is P2 and not built here.
+    # holder who neither raised nor requested it. A07 P2 (2026-11-04): the
+    # merge re-points every row of the duplicate to the survivor and keeps the
+    # lineage (fix.device.merge), reversible inside its window. The decider is
+    # the Device Quality Manager (BRU-AST-04), P0's Tier 2 stand-in replaced.
     _approval_domain = "device_merge"
     _approval_apply_method = "action_merge"
     _approval_group = DEVICE_DECISION_GROUP
@@ -255,7 +334,12 @@ class FixDeviceIdentity(models.Model):
     _PAIR_FIELDS = ("primary_device_id", "duplicate_device_id", "match_reason", "match_score")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "resolved_on", "resolved_by_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "resolved_on",
+            "resolved_by_id",
+            "merge_id",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -289,9 +373,17 @@ class FixDeviceIdentity(models.Model):
     match_reason = fields.Char(required=True)
     match_score = fields.Float(string="Match Score %", default=100.0)
     state = fields.Selection(
-        [("candidate", "Candidate"), ("merged", "Merged"), ("rejected", "Rejected")],
+        [
+            ("candidate", "Candidate"),
+            ("merged", "Merged"),
+            ("rejected", "Rejected"),
+            ("reversed", "Merge Reversed"),
+        ],
         required=True,
         default="candidate",
+    )
+    merge_id = fields.Many2one(
+        "fix.device.merge", string="Merge Lineage", readonly=True, copy=False
     )
     resolved_on = fields.Date(readonly=True)
     resolved_by_id = fields.Many2one("res.users", string="Resolved By", readonly=True, copy=False)
@@ -361,20 +453,22 @@ class FixDeviceIdentity(models.Model):
             if not trusted:
                 if not authority.has_group(DEVICE_DECISION_GROUP):
                     raise UserError(
-                        "Merging devices requires DOFA Tier 2 (Branch / Operations Manager) "
-                        "authority, which %s does not hold." % authority.name
+                        "Merging devices requires the Device Quality Manager role, which %s "
+                        "does not hold." % authority.name
                     )
                 if acting & (rec.create_uid | req.requested_by_id):
                     raise UserError(
                         "Segregation of duties: you raised or requested this merge, so "
                         "another approver must decide it."
                     )
+            lineage = self.env["fix.device.merge"]._record(rec)
             rec.duplicate_device_id._guarded().write({"active": False})
             rec._guarded().write(
                 {
                     "state": "merged",
                     "resolved_on": fields.Date.context_today(self),
                     "resolved_by_id": self.env.uid,
+                    "merge_id": lineage.id,
                 }
             )
             rec.duplicate_device_id.message_post(
@@ -406,7 +500,13 @@ class FixDeviceCustody(models.Model):
     A07 audit (2026-11-03) M17-4: events were rewritten after the fact (lost
     became found, another party, another date), also through P03, and could
     be dated in the future. A wrong event is corrected by recording the next
-    one; superuser service code stays trusted."""
+    one; superuser service code stays trusted.
+
+    A07 P1 (2026-11-04) M17-4, BRU-AST-08/09: a release ("Issued to
+    Customer") needs a confirmed condition grade of this device, photographic
+    evidence and an accessory reconciliation, and goes only to the owner; no
+    device flagged lost, scrapped or NEIR-blocked is released to anyone; a
+    "Reported Lost" event puts the device in the lost register."""
 
     _name = "fix.device.custody"
     _description = "Device Custody Event"
@@ -463,15 +563,93 @@ class FixDeviceCustody(models.Model):
     event_date = fields.Date(required=True, default=fields.Date.context_today)
     reference = fields.Char()
     notes = fields.Char()
+    # BRU-AST-08 / FR-AST-020: the release evidence.
+    condition_id = fields.Many2one(
+        "fix.device.condition",
+        string="Condition Grade at Release",
+        domain="[('device_id', '=', device_id), ('state', '=', 'confirmed')]",
+    )
+    evidence_document_id = fields.Many2one(
+        "fix.document", string="Photographic Evidence", help="Hand-over photographs (M24)."
+    )
+    accessories_reconciled = fields.Boolean(
+        string="Accessories Reconciled",
+        help="The accessories received at intake were checked back (FR-AST-015).",
+    )
+    accessory_notes = fields.Char(string="Accessory Discrepancies")
+    signature_ref = fields.Char(string="Signature Reference")
+
+    @api.model
+    def _check_release(self, vals):
+        """BRU-AST-08/09 for a user's release event."""
+        device = self.env["fix.device"].browse(vals.get("device_id")).exists()
+        if not device:
+            return
+        label = dict(self._fields["event"].selection)[vals["event"]]
+        if device.state in NOT_SCRAPPABLE:
+            raise UserError(
+                "%s is %s: it is not released to anyone until the flag is cleared "
+                "(BRU-AST-09)." % (device.display_name, device._state_label())
+            )
+        device._neir_assert_not_blocked("be released")
+        party = self.env["res.partner"].browse(vals.get("to_party_id") or 0).exists()
+        if not party:
+            raise UserError("Name who receives %s (%s)." % (device.display_name, label))
+        if vals["event"] != "issued":
+            return
+        if not device._owner_is(party):
+            raise UserError(
+                "%s belongs to %s; it is issued to its owner, not to %s."
+                % (device.display_name, device.owner_id.name or "nobody", party.name)
+            )
+        missing = []
+        cond = self.env["fix.device.condition"].browse(vals.get("condition_id") or 0).exists()
+        if not cond or cond.device_id != device or cond.state != "confirmed":
+            missing.append("a confirmed condition grade of this device")
+        if not vals.get("evidence_document_id"):
+            missing.append("photographic evidence")
+        if not vals.get("accessories_reconciled"):
+            missing.append("the accessory reconciliation")
+        if missing:
+            raise UserError(
+                "%s cannot be released without %s (BRU-AST-08)."
+                % (device.display_name, ", ".join(missing))
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
+        trusted = self._fix_guard_open()
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.device.custody") or "DCUS/New"
                 )
-        return super().create(vals_list)
+            if not trusted and vals.get("event", "issued") in RELEASE_EVENTS:
+                self._check_release(dict(vals, event=vals.get("event", "issued")))
+        records = super().create(vals_list)
+        for rec in records:
+            device = rec.device_id
+            if rec.evidence_document_id and not trusted:
+                bind_evidence(rec.evidence_document_id, [rec, device], "custody evidence")
+            if rec.event == "lost" and device.state not in NOT_SCRAPPABLE:
+                device._flag_lost(
+                    "Custody event %s: %s" % (rec.name, rec.notes or "reported lost"), "custody"
+                )
+            device._publish(
+                "device.custody_recorded",
+                {
+                    "device_id": device.id,
+                    "custody": rec.name,
+                    "event": rec.event,
+                    "from_party_id": rec.from_party_id.id or None,
+                    "to_party_id": rec.to_party_id.id or None,
+                    "event_date": str(rec.event_date),
+                    "condition_grade": rec.condition_id.grade or None,
+                    "evidence_document_id": rec.evidence_document_id.id or None,
+                    "signature_ref": rec.signature_ref or None,
+                },
+            )
+        return records
 
 
 class FixDeviceComponent(models.Model):
@@ -482,8 +660,9 @@ class FixDeviceComponent(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         # A07 audit M17-11: a removed part was re-installed by write, and a part
-        # "removed" with no date. Removal is the action below.
-        return super()._fix_guarded_fields() | {"state", "removed_on"}
+        # "removed" with no date. Removal is the action below; so is the
+        # removed part's disposition (FR-AST-028).
+        return super()._fix_guarded_fields() | {"state", "removed_on", "disposition"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -520,6 +699,64 @@ class FixDeviceComponent(models.Model):
                     % (rec.serial_no, self.env["fix.device"].sudo().browse(row[0]).display_name)
                 )
 
+    @api.constrains("part_number", "part_name", "source_ref", "device_id", "state")
+    def _check_part_compatible(self):
+        """A07 audit M17-11: a part the compatibility matrix grades "Tested
+        Incompatible" for the device's model was installed, because the
+        component had no link to the matrix. The part is matched by its number,
+        or by the part reference typed in its name or source (case- and
+        space-insensitive); the matrix is read whatever the user's scope."""
+        Matrix = self.env["fix.device.part.compatibility"].sudo()
+        for rec in self.filtered(lambda r: r.state == "installed"):
+            refs = {
+                (v or "").strip().upper()
+                for v in (rec.part_number, rec.part_name, rec.source_ref)
+                if (v or "").strip()
+            }
+            if not refs:
+                continue
+            bad = Matrix.search(
+                [
+                    ("model_id", "=", rec.device_id.device_model_id.id),
+                    ("compatibility_type", "=", "incompatible"),
+                ]
+            ).filtered(lambda m, refs=refs: m.part_number.strip().upper() in refs)
+            if bad:
+                raise ValidationError(
+                    "%s is graded '%s' for %s in the compatibility matrix and cannot be "
+                    "installed."
+                    % (
+                        bad[0].part_number,
+                        dict(bad._fields["compatibility_type"].selection)["incompatible"],
+                        rec.device_id.device_model_id.name,
+                    )
+                )
+
+    @api.constrains("warranty_until", "installed_on", "removed_on")
+    def _check_genealogy_dates(self):
+        for rec in self:
+            if rec.warranty_until and rec.installed_on and rec.warranty_until < rec.installed_on:
+                raise ValidationError("A part's warranty cannot end before it was fitted.")
+            if rec.removed_on and rec.installed_on and rec.removed_on < rec.installed_on:
+                raise ValidationError("A part cannot be removed before it was fitted.")
+
+    @api.constrains("service_order_model", "service_order_id", "lot_model", "lot_id")
+    def _check_references(self):
+        """The causing job and the stock lot are referenced by model and id
+        (M01 and M15 load after the registry); a reference must exist."""
+        for rec in self:
+            for model_field, id_field in (
+                ("service_order_model", "service_order_id"),
+                ("lot_model", "lot_id"),
+            ):
+                model, res_id = rec[model_field], rec[id_field]
+                if not res_id:
+                    continue
+                if model not in self.env.registry:
+                    raise ValidationError("%s is not installed on this database." % model)
+                if not self.env[model].sudo().browse(res_id).exists():
+                    raise ValidationError("%s #%s does not exist." % (model, res_id))
+
     device_id = fields.Many2one(
         "fix.device", string="Device", required=True, ondelete="cascade", index=True
     )
@@ -532,12 +769,87 @@ class FixDeviceComponent(models.Model):
         [("installed", "Installed"), ("removed", "Removed")], required=True, default="installed"
     )
     notes = fields.Char()
+    # A07 P2 (2026-11-04) FR-AST-027/028 genealogy: the part, its lot, the job
+    # and technician that fitted it, its own warranty, the stock it was drawn
+    # from, and what became of it when removed.
+    part_number = fields.Char(string="Part Number", index=True)
+    product_id = fields.Many2one("product.product", string="Part (Catalogue)", index=True)
+    lot_model = fields.Char(default="stock.lot", readonly=True)
+    lot_id = fields.Many2oneReference(string="Stock Lot", model_field="lot_model")
+    service_order_model = fields.Char(default="fix.service.order", readonly=True)
+    service_order_id = fields.Many2oneReference(
+        string="Causing Job", model_field="service_order_model", index=True
+    )
+    technician_id = fields.Many2one("hr.employee", string="Fitted By")
+    warranty_until = fields.Date(string="Part Warranty Until")
+    ownership_class = fields.Selection(
+        [
+            ("company_stock", "1000FiX stock"),
+            ("customer_supplied", "Customer supplied"),
+            ("brand_supplied", "Brand supplied (warranty)"),
+            ("consignment", "Consignment"),
+        ],
+        string="Ownership Class",
+    )
+    disposition = fields.Selection(
+        [
+            ("returned_to_customer", "Returned to customer"),
+            ("harvested", "Harvested"),
+            ("scrapped", "Scrapped"),
+            ("returned_to_brand", "Returned to brand"),
+        ],
+        string="Removed-Part Disposition",
+        readonly=True,
+        copy=False,
+    )
 
-    def action_remove(self):
+    @api.model_create_multi
+    def create(self, vals_list):
+        records = super().create(vals_list)
+        for rec in records:
+            rec.device_id._publish(
+                "device.genealogy_recorded",
+                {
+                    "device_id": rec.device_id.id,
+                    "component_id": rec.id,
+                    "part_number": rec.part_number or None,
+                    "part_name": rec.part_name,
+                    "serial_no": rec.serial_no or None,
+                    "warranty_until": str(rec.warranty_until) if rec.warranty_until else None,
+                    "service_order_id": rec.service_order_id or None,
+                },
+            )
+        return records
+
+    def _check_disposition(self, disposition):
+        if disposition and disposition not in dict(self._fields["disposition"].selection):
+            raise UserError("Unknown disposition %r." % (disposition,))
+
+    def action_remove(self, disposition=None):
+        self._check_disposition(disposition)
         for rec in self:
             if rec.state != "installed":
                 raise UserError("Remove an installed component")
-            rec._guarded().write(
-                {"state": "removed", "removed_on": fields.Date.context_today(self)}
-            )
+            vals = {"state": "removed", "removed_on": fields.Date.context_today(self)}
+            if disposition:
+                vals["disposition"] = disposition
+            rec._guarded().write(vals)
         return True
+
+    def action_record_disposition(self, disposition=None):
+        """Record what became of a removed part, once (FR-AST-028)."""
+        if not disposition:
+            raise UserError("Choose the removed part's disposition.")
+        self._check_disposition(disposition)
+        for rec in self:
+            if rec.state != "removed" or rec.disposition:
+                raise UserError("Only a removed part with no disposition is recorded.")
+            rec._guarded().write({"disposition": disposition})
+        return True
+
+    # P03 buttons
+    def action_dispose_returned(self):
+        return self.action_record_disposition("returned_to_customer")
+
+    def action_dispose_scrapped(self):
+        return self.action_record_disposition("scrapped")

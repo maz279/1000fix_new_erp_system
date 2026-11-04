@@ -2,6 +2,7 @@
 from . import (
     fix_device,
     fix_device_history,
+    fix_device_lineage,  # A07 P2 (2026-11-04): identifier history, merge lineage
     fix_device_ops,
     fix_device_ownership,
     fix_device_part_compatibility,

@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from types import SimpleNamespace
 
 import pytest
-from odoo import Command
+from odoo import Command, fields
 from odoo.exceptions import ValidationError
 from psycopg2 import IntegrityError
 
@@ -116,7 +116,8 @@ def test_ownership_transfer_is_recorded_and_published(reg):
     assert (record.from_partner_id, record.to_partner_id, record.transfer_date) == (
         reg.owner,
         reg.buyer,
-        date.today(),
+        # the business (Dhaka) date the transfer stamps, not the machine's
+        fields.Date.context_today(device),
     )
     assert record.transfer_type == "sale"
     assert (

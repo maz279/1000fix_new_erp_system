@@ -470,3 +470,381 @@ msgstr ""
 #: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__warranty
 msgid "Warranty Update"
 msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__accessories_reconciled
+msgid "Accessories Reconciled"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__accessory_notes
+msgid "Accessory Discrepancies"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__approved_by_id
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_condition__battery_health_pct
+msgid "Battery Health %"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__captured_at
+msgid "Captured At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__captured_by_id
+msgid "Captured By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__channel
+msgid "Channel"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_estate__client_id
+msgid "Client"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__serial_no
+msgid "Component Serial"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__condition_id
+msgid "Condition Grade at Release"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_condition__confirmed_at
+msgid "Confirmed At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_condition__confirmed_by_id
+msgid "Confirmed By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__supersede_reason
+msgid "Correction Reason"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__is_current
+msgid "Current"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__custodian_id
+msgid "Custodian"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__eol_customer_instruction
+msgid "Customer End-of-Life Instruction"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_pm__due_notified_for
+msgid "Due Announced For"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identity__duplicate_device_id
+msgid "Duplicate Device"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_estate__manager_id
+msgid "Estate Manager"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__expiry_notified_on
+msgid "Expiry Notice Sent On"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__technician_id
+msgid "Fitted By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_flagged_at
+msgid "Flagged Lost At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_flagged_by_id
+msgid "Flagged Lost By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__identifier_warning
+msgid "Identifier Warning"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__identity_confirmed_at
+msgid "Identity Confirmed At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__identity_confirmed_by_id
+msgid "Identity Confirmed By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_2
+msgid "IMEI 2 (Dual SIM)"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_condition__inspector_id
+msgid "Inspector"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_pm__interval_months
+msgid "Interval (months)"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__reason
+msgid "Justification"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_pm__last_done
+msgid "Last Done"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lifecycle_decided_at
+msgid "Lifecycle Decided At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lifecycle_decided_by_id
+msgid "Lifecycle Decided By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lifecycle_reason
+msgid "Lifecycle Decision Basis"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_reason
+msgid "Lost / Stolen Report"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_cleared_at
+msgid "Lost Flag Cleared At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_cleared_by_id
+msgid "Lost Flag Cleared By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identity__match_score
+msgid "Match Score %"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identity__merge_id
+msgid "Merge Lineage"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__merged_id
+msgid "Merged Device"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__neir_checked_at
+msgid "NEIR Recorded At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__neir_checked_by_id
+msgid "NEIR Recorded By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__neir_reference
+msgid "NEIR Reference"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__neir_status
+msgid "NEIR Status"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__ownership_class
+msgid "Ownership Class"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__product_id
+msgid "Part (Catalogue)"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__part_name
+msgid "Part / Component"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__part_number
+msgid "Part Number"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__warranty_until
+msgid "Part Warranty Until"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__evidence_document_id
+msgid "Photographic Evidence"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__recorded_by_id
+msgid "Recorded By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__reference_map
+msgid "Reference Map"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__disposition
+msgid "Removed-Part Disposition"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__requested_by_id
+msgid "Requested By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__identity_id
+msgid "Resolution"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identity__resolved_by_id
+msgid "Resolved By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__reversed_by_id
+msgid "Reversed By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__reversible_until
+msgid "Reversible Until"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__rows_repointed
+msgid "Rows Re-pointed"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__scrapped_at
+msgid "Scrapped At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__scrapped_by_id
+msgid "Scrapped By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_custody__signature_ref
+msgid "Signature Reference"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_estate__site
+msgid "Site"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_component__source_ref
+msgid "Source Order / PO"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lost_prior_state
+msgid "State Before Lost Flag"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__superseded_at
+msgid "Superseded At"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identifier__superseded_by_id
+msgid "Superseded By"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_identity__primary_device_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_merge__survivor_id
+msgid "Surviving Device"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__verification_blocker
+msgid "To Verify, Needed"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_evidence_document_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__evidence_document_id
+msgid "Transfer Evidence"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_reason
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__reason
+msgid "Transfer Reason"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_to_partner_id
+msgid "Transfer To"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__transfer_type_pending
+msgid "Transfer Type"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__verification_state
+msgid "Verification"
+msgstr ""
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__void_reason
+msgid "Void Reason"
+msgstr ""

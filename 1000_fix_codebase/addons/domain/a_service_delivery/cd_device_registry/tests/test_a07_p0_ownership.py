@@ -15,6 +15,17 @@ from odoo import fields
 from odoo.exceptions import AccessError, UserError
 
 TAG = "A7P0"
+AGENT = "cd_device_registry.group_device_registry_user"
+QM = "cd_device_registry.group_device_quality_manager"
+
+
+def _doc(c):
+    att = c.env["ir.attachment"].create({"name": "deed.pdf", "raw": b"%PDF-1.4 a7p0"})
+    return (
+        c.env["fix.document"]
+        .create({"name": "Sale deed", "attachment_id": att.id, "document_type": "contract"})
+        .id
+    )
 
 
 def _user(env, login, groups=()):
@@ -42,8 +53,11 @@ def c(odoo_env):
     brand = env["fix.brand"].create({"name": f"{TAG} Brand", "code": TAG})
     model = env["fix.device.model"].create({"name": f"{TAG} Phone", "brand_id": brand.id})
     x = types.SimpleNamespace(env=env, model=model)
-    x.clerk = _user(env, f"{TAG.lower()}_clerk")
-    x.admin = _user(env, f"{TAG.lower()}_admin", ["base.group_system"])
+    # A07 P1 (2026-11-04): a transfer is recorded by a Device Registry Agent
+    # with a reason and evidence; an identifier is corrected by the Device
+    # Quality Manager (it was base.group_system until the role existed).
+    x.clerk = _user(env, f"{TAG.lower()}_clerk", [AGENT])
+    x.admin = _user(env, f"{TAG.lower()}_admin", [QM])
     x.owner = env["res.partner"].create({"name": f"{TAG} Owner"})
     x.buyer = env["res.partner"].create({"name": f"{TAG} Buyer"})
     x.device = env["fix.device"].create(
@@ -79,7 +93,9 @@ def test_identifiers_cannot_be_overwritten_or_moved(c):
 
 
 def test_transfer_records_history_and_refuses_lost_devices(c):
-    c.as_clerk.action_transfer_ownership(c.buyer.id, transfer_type="gift", notes="family")
+    c.as_clerk.action_transfer_ownership(
+        c.buyer.id, transfer_type="gift", notes="family", evidence_document_id=_doc(c)
+    )
     assert c.device.owner_id == c.buyer and c.device.state == "transferred"
     row = c.env["fix.device.ownership"].search([("device_id", "=", c.device.id)])
     assert (row.from_partner_id, row.to_partner_id, row.transfer_type) == (c.owner, c.buyer, "gift")
@@ -98,7 +114,7 @@ def test_transfer_records_history_and_refuses_lost_devices(c):
 
 
 def test_ownership_history_is_insert_only_for_users(c):
-    c.as_clerk.action_transfer_ownership(c.buyer.id)
+    c.as_clerk.action_transfer_ownership(c.buyer.id, reason="sale", evidence_document_id=_doc(c))
     row = c.env["fix.device.ownership"].search([("device_id", "=", c.device.id)]).with_user(c.clerk)
     for attack in (
         lambda: row.write({"to_partner_id": c.owner.id}),

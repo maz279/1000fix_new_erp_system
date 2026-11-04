@@ -1,14 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- M17 warranty role (A02 workflow audit M01-W1).
+<!-- M17 roles.
 
-     Any internal user created ACTIVE warranty cover with no proof, or flipped
-     pending cover to active, and so opened a zero-charge warranty job. A new
-     warranty is now born pending, and only a Warranty Officer verifies or
-     voids it, never on a warranty the officer registered.
+     Warranty Officer (A02 workflow audit M01-W1): any internal user created
+     ACTIVE warranty cover with no proof, or flipped pending cover to active,
+     and so opened a zero-charge warranty job. A new warranty is now born
+     pending, and only a Warranty Officer verifies or voids it, never on a
+     warranty the officer registered. A DECISION role: it ships EMPTY. Who
+     holds it is a business appointment; until someone is appointed, pending
+     cover cannot be verified and gives no warranty entitlement.
 
-     A DECISION role: it ships EMPTY. Who holds it is a business appointment;
-     until someone is appointed, pending cover cannot be verified and gives no
-     warranty entitlement. -->
+     A07 audit (2026-11-04), P1 roles (M17-17, D7): the spec's approvers did
+     not exist, so a DOFA tier stood in for the merge and scrap decisions and
+     anyone cleared a lost flag. Spec §13:
+     - Device Registry Agent (R08 Service Centre Agent): records ownership
+       transfers with their evidence, confirms a provisional identity.
+     - Device Registry Branch Manager (R06): clears lost/stolen flags
+       (BRU-AST-09), records NEIR results, sets the hardware lifecycle stage and
+       end of life (BRU-AST-19), maintains the part compatibility matrix.
+     - Device Quality Manager (R32, owner of BRU-AST-04/05): approves duplicate
+       merges and scrap, reverses a merge inside its window, corrects a device
+       identifier.
+     Both managers imply the agent. The dev admin is a member of each so the
+     back office keeps working; the segregation-of-duties checks still apply to
+     it. Appointing real holders is business decision B1. -->
 <odoo>
     <data noupdate="1">
 
@@ -22,6 +36,30 @@
             <field name="name">Warranty Officer</field>
             <field name="privilege_id" ref="privilege_device_registry"/>
             <field name="comment">Verifies a warranty's purchase proof (pending to active) and voids cover with a reason. Never on a warranty the officer registered (BRU-SRM-02).</field>
+        </record>
+
+        <record id="group_device_registry_user" model="res.groups">
+            <field name="name">Device Registry Agent</field>
+            <field name="privilege_id" ref="privilege_device_registry"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">R08 Service Centre Agent: records an ownership transfer with its reason and evidence, confirms a provisional identity, and acts for a customer on the customer device endpoint.</field>
+        </record>
+
+        <record id="group_device_branch_manager" model="res.groups">
+            <field name="name">Device Registry Branch Manager</field>
+            <field name="privilege_id" ref="privilege_device_registry"/>
+            <field name="implied_ids" eval="[(4, ref('group_device_registry_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">R06 Branch Manager: clears a lost/stolen flag someone else raised (BRU-AST-09), records NEIR results, sets the hardware lifecycle stage and end of life with the customer's instruction (BRU-AST-19), maintains the part compatibility matrix.</field>
+        </record>
+
+        <record id="group_device_quality_manager" model="res.groups">
+            <field name="name">Device Quality Manager (Merge Approver)</field>
+            <field name="privilege_id" ref="privilege_device_registry"/>
+            <field name="implied_ids" eval="[(4, ref('group_device_registry_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">R32 Quality Manager: approves a duplicate merge and a scrap from the approval inbox (never one they raised or requested, BRU-AST-04), reverses a merge inside its window, and corrects a device identifier.</field>
         </record>
 
     </data>

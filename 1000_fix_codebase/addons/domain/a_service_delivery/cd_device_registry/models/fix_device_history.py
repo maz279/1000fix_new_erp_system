@@ -1,6 +1,7 @@
 # fix.device.history — permanent device service history (P04-M01-T07).
 # Every service order against a device, permanently.
-from odoo import fields, models
+from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 
 class FixDeviceHistory(models.Model):
@@ -8,9 +9,23 @@ class FixDeviceHistory(models.Model):
 
     _name = "fix.device.history"
     _description = "Device History"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "date desc"
     _log_access = True
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A07 audit (2026-11-04) M17-7 / AUT-AST-05: history is projected from
+        # the transactions that touch the device (fix.device.add_history, used
+        # by M01 and the registry), never typed. A plain user fabricated
+        # back-dated "repair" rows with no order, which put the device on the
+        # Repeat-Fault Pareto. Edit and delete were already refused (ACL).
+        if not self._fix_guard_open():
+            raise UserError(
+                "Device history is projected from service orders and registry events "
+                "and cannot be entered by hand."
+            )
+        return super().create(vals_list)
 
     device_id = fields.Many2one(
         "fix.device", string="Device", required=True, ondelete="restrict", index=True
