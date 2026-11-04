@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 audit M22-22 / BRU-LMS-12: assessment results and OJT sign-offs are
+     S2 people data, but base.group_user read every colleague's. An employee
+     now reads their own and their direct reports'; the people-data readers
+     (res.users fix_reads_all_people) and the Training & Certification Manager
+     read all. GLOBAL rules, as in cd_performance/security/fix_a09_privacy_rules.xml.
+     Certifications stay readable: dispatch eligibility is judged from them in
+     the dispatcher's own environment. -->
+<odoo>
+    <record id="rule_competency_assessment_own" model="ir.rule">
+        <field name="name">fix.competency.assessment: own and direct reports unless HR or training</field>
+        <field name="model_id" ref="model_fix_competency_assessment"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_ojt_record_own" model="ir.rule">
+        <field name="name">fix.ojt.record: own, mentored and direct reports unless HR or training</field>
+        <field name="model_id" ref="model_fix_ojt_record"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('mentor_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+</odoo>

@@ -55,28 +55,48 @@ def test_expiry_status(ctx):
     assert _cert(ctx, ctx.phone, expires_on=t + timedelta(days=31)).status == "active"
 
 
-def test_grant_publishes(ctx):
-    cert = _cert(ctx, ctx.phone)
+def test_grant_button_routes_and_publishes_nothing_by_itself(ctx):
+    """A09 M22-F4: "Grant" granted nothing and checked nothing; it is now a
+    routed request (the decided grant is proved, as non-admin users, in
+    test_a09_m22_controls.py)."""
+    assessor = ctx.env["hr.employee"].create({"name": "Assessor Rina"})
+    ctx.phone.pass_mark = 70
+    asmt = ctx.env["fix.competency.assessment"].create(
+        {
+            "employee_id": ctx.tech.id,
+            "competency_id": ctx.phone.id,
+            "assessor_id": assessor.id,
+            "score": 90,
+        }
+    )
+    cert = _cert(
+        ctx,
+        ctx.phone,
+        state="draft",
+        expires_on=ctx.today + timedelta(days=365),
+        evidence_ref="DOC/1",
+        assessment_id=asmt.id,
+    )
     cert.action_grant()
-    assert _events(ctx.env, "certification.granted", cert.id) == [
-        {"employee": "Tech Mamun", "competency": "SP-L2"}
-    ]
+    assert cert.state == "draft" and cert.approval_state == "pending"
+    assert _events(ctx.env, "certification.granted", cert.id) == []
 
 
-def _make_stale_active(ctx, cert):
-    """A status computed while still valid: expiry has since passed."""
-    ctx.env.flush_all()
-    ctx.env.cr.execute("UPDATE fix_certification SET status = 'active' WHERE id = %s", [cert.id])
-    ctx.env.invalidate_all()
-    assert cert.status == "active"
-
-
-def test_expiry_sweep_refreshes_stale_status(ctx):
+def test_status_is_judged_today_and_never_stale(ctx):
+    """The stored status went stale as time passed (A09 M22-09); it is now
+    computed on every read, so there is nothing to refresh."""
     lapsed = _cert(ctx, ctx.phone, expires_on=ctx.today - timedelta(days=3))
-    _make_stale_active(ctx, lapsed)
+    ctx.env.flush_all()
+    ctx.env.invalidate_all()
+    assert lapsed.status == "expired"
+
+
+def test_expiry_sweep_lapses_expired_certificates(ctx):
+    lapsed = _cert(ctx, ctx.phone, expires_on=ctx.today - timedelta(days=3))
     valid = _cert(ctx, ctx.laptop, expires_on=ctx.today + timedelta(days=90))
     (lapsed | valid).action_mark_expired()
     assert (lapsed.status, valid.status) == ("expired", "active")
+    assert (lapsed.state, valid.state) == ("lapsed", "valid")
     assert _events(ctx.env, "certification.expired", lapsed.id) == [
         {"employee": "Tech Mamun", "competency": "SP-L2"}
     ]
@@ -137,15 +157,15 @@ def test_two_certifications_do_not_crash(ctx):
 
 
 def test_validity_is_judged_on_todays_date(ctx):
-    """Regression: an "expiring" certificate is still valid; a stale
-    "active" status on a lapsed certificate is not."""
+    """Regression: an "expiring" certificate is still valid; a certificate
+    past its date is not, even before the daily cron lapses it."""
     Cert = ctx.env["fix.certification"]
     expiring = _cert(ctx, ctx.phone, expires_on=ctx.today + timedelta(days=10))
     assert expiring.status == "expiring"
     assert Cert.dispatch_eligibility(ctx.tech, device_type="smartphone")[0] is True
     expiring.unlink()
     lapsed = _cert(ctx, ctx.phone, expires_on=ctx.today - timedelta(days=1))
-    _make_stale_active(ctx, lapsed)
+    assert lapsed.state == "valid"  # not yet swept by the cron: the date still rules
     assert Cert.dispatch_eligibility(ctx.tech, device_type="smartphone")[0] is False
     lapsed.unlink()
     _cert(ctx, ctx.phone, issued_on=ctx.today + timedelta(days=5))  # not yet issued
@@ -165,13 +185,26 @@ def test_training_enrolment_and_pass_certifies(ctx):
     assert course.enrollment_ids.mapped("employee_id") == ctx.tech | other
     assert set(course.enrollment_ids.mapped("state")) == {"enrolled"}
     enrolment = course.enrollment_ids.filtered(lambda e: e.employee_id == ctx.tech)
+    # A09 M22-13: a pass needs a passed assessment by an independent assessor
+    with pytest.raises(UserError, match="No passed assessment"), env.cr.savepoint():
+        enrolment.action_pass()
+    ctx.phone.write({"pass_mark": 70, "validity_months": 24})
+    env["fix.competency.assessment"].create(
+        {
+            "employee_id": ctx.tech.id,
+            "competency_id": ctx.phone.id,
+            "assessor_id": other.id,
+            "score": 80,
+        }
+    )
     enrolment.action_pass()
     assert (enrolment.state, enrolment.completed_on) == ("passed", ctx.today)
     cert = env["fix.certification"].search([("employee_id", "=", ctx.tech.id)])
-    assert (cert.competency_id, cert.issued_on, cert.status) == (ctx.phone, ctx.today, "active")
-    assert _events(env, "certification.granted", cert.id) == [
-        {"employee": "Tech Mamun", "competency": "SP-L2"}
-    ]
+    # the pass DRAFTS a certificate with the competency's validity; it is valid
+    # only once a verifier grants it, so nothing is granted yet
+    assert (cert.competency_id, cert.issued_on, cert.state) == (ctx.phone, ctx.today, "draft")
+    assert cert.expires_on and cert.expires_on > ctx.today + timedelta(days=700)
+    assert _events(env, "certification.granted", cert.id) == []
     assert _events(env, "training.passed", enrolment.id) == [
         {"employee": "Tech Mamun", "course": "TR-SP"}
     ]
@@ -241,6 +274,8 @@ def test_uncertified_assignment_blocked_on_create_and_write(ctx, wo):
 
 
 def test_certified_or_waived_assignment_passes(ctx, wo):
+    # trusted (superuser) code may set the waiver; users get it only from an
+    # approved fix.certification.waiver (test_a09_m22_controls.py)
     waived = wo(technician_id=ctx.tech.id, certification_waiver=True)
     assert waived.technician_id == ctx.tech
     _cert(ctx, ctx.phone)
@@ -255,9 +290,8 @@ def test_certified_or_waived_assignment_passes(ctx, wo):
 def test_every_work_order_of_a_batch_is_checked(ctx, wo):
     """Regression: the loop returned after the first (waived) record."""
     waived = wo(technician_id=ctx.tech.id, certification_waiver=True)
-    blocked = wo(certification_waiver=True)
-    blocked.write({"technician_id": ctx.tech.id})
-    blocked.certification_waiver = False
+    blocked = wo(technician_id=ctx.tech.id, certification_waiver=True)
+    blocked._guarded().write({"certification_waiver": False})
     with pytest.raises(UserError, match="assignment blocked"), ctx.env.cr.savepoint():
         (waived | blocked).action_check_certification()
 

@@ -24,7 +24,8 @@ export const MODULE = {
     { en: 'Certifications', screens: [
       { id: 'M22-register', en: 'Certification Register', bn: 'সার্টিফিকেশন রেজিস্টার', t: 'g' },
       { id: 'M22-expiry', en: 'Validity & Renewal', bn: 'মেয়াদ ও নবায়ন', t: 'r' },
-      { id: 'M22-eligibility', en: 'Dispatch Eligibility (hard block)', bn: 'ডিসপ্যাচ যোগ্যতা', t: 'g' }
+      { id: 'M22-eligibility', en: 'Dispatch Eligibility (hard block)', bn: 'ডিসপ্যাচ যোগ্যতা', t: 'g' },
+      { id: 'M22-waivers', en: 'Certification Waivers', bn: 'সার্টিফিকেশন ছাড়', t: 'g' }
     ]},
     { en: 'Training', screens: [
       { id: 'M22-catalogue', en: 'Course Catalogue', bn: 'কোর্স তালিকা', t: 'g' },
@@ -57,28 +58,41 @@ export const SCREENS = {
   'M22-matrix': { kind: 'table_report', module: 'M22', report: 'skill_gap_heatmap', title: 'Skill Matrix', period: true },
   'M22-assessments': { kind: 'model_list', model: 'fix.competency.assessment',
     cols: ['name', 'employee_id', 'competency_id', 'assessed_on', 'level', 'score', 'passed'] },
-  'M22-register': { kind: 'model_list', model: 'fix.certification', stateField: 'status',
-    cols: ['employee_id', 'competency_id', 'brand_id', 'device_category_id', 'repair_tier', 'issued_on', 'expires_on', 'evidence_ref', 'status'],
-    actions: [{ m: 'action_grant', l: 'Grant Certification' }, { m: 'action_mark_expired', l: 'Mark Expired / Block' }] },
+  'M22-register': { kind: 'model_list', model: 'fix.certification', stateField: 'state',
+    cols: ['employee_id', 'competency_id', 'brand_id', 'device_category_id', 'repair_tier', 'issued_on', 'expires_on', 'evidence_ref', 'approval_state', 'state', 'status'],
+    actions: [{ m: 'action_grant', l: 'Request Grant (to Verifier)' }, { m: 'action_recall_approval', l: 'Recall Grant Request' },
+              { m: 'action_renew', l: 'Renew' },
+              { m: 'action_suspend', l: 'Suspend / Block Dispatch', ask: 'Reason for suspending the certification', kwarg: 'reason' },
+              { m: 'action_reinstate', l: 'Reinstate (verifier)', ask: 'Reason for lifting the suspension', kwarg: 'reason' },
+              { m: 'action_revoke', l: 'Revoke', ask: 'Reason for revoking the certification', kwarg: 'reason' },
+              { m: 'action_mark_expired', l: 'Lapse Expired Now' }] },
   'M22-expiry': { kind: 'table_report', module: 'M22', report: 'expiry_forecast', title: 'Validity & Renewal', period: true },
-  'M22-eligibility': { kind: 'model_list', model: 'fix.certification', stateField: 'status',
-    cols: ['employee_id', 'competency_id', 'brand_id', 'device_category_id', 'repair_tier', 'issued_on', 'expires_on', 'evidence_ref', 'status'],
-    actions: [{ m: 'action_grant', l: 'Grant Certification' }, { m: 'action_mark_expired', l: 'Hard Block Dispatch (M02)' }] },
+  /* A09 M22-F3: a waiver is one technician on one job, raised from the work
+   * or field order and decided in the approver's inbox, never here. */
+  'M22-waivers': { kind: 'model_list', model: 'fix.certification.waiver', stateField: 'state',
+    cols: ['name', 'employee_id', 'res_model', 'res_id', 'reason', 'valid_until', 'requester_id', 'approved_by_id', 'approved_at', 'state'],
+    actions: [{ m: 'action_cancel', l: 'Cancel' }] },
+  'M22-eligibility': { kind: 'model_list', model: 'fix.certification', stateField: 'state',
+    cols: ['employee_id', 'competency_id', 'brand_id', 'device_category_id', 'repair_tier', 'issued_on', 'expires_on', 'evidence_ref', 'state', 'status'],
+    actions: [{ m: 'action_suspend', l: 'Hard Block Dispatch (M02)', ask: 'Reason for blocking dispatch', kwarg: 'reason' },
+              { m: 'action_reinstate', l: 'Lift Block (verifier)', ask: 'Reason for lifting the block', kwarg: 'reason' }] },
   'M22-catalogue': { kind: 'model_list', model: 'fix.training.course',
     cols: ['code', 'name', 'competency_id', 'content_ref'],
-    actions: [{ m: 'action_enroll', l: 'Enroll Techs' }] },
+    actions: [{ m: 'action_enroll', l: 'Enroll Techs', ask: 'Employee ids to enroll, comma-separated', kwarg: 'employees' }] },
   'M22-paths': { kind: 'model_list', model: 'fix.learning.path',
     cols: ['name', 'target_role', 'min_level', 'active'] },
   'M22-schedule': { kind: 'model_list', model: 'fix.training.enrollment', stateField: 'state',
     cols: ['course_id', 'employee_id', 'completed_on', 'state'],
-    actions: [{ m: 'action_pass', l: 'Mark Passed / Certified' }] },
+    actions: [{ m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' }] },
   'M22-ojt': { kind: 'model_list', model: 'fix.ojt.record',
-    cols: ['name', 'employee_id', 'mentor_id', 'date_from', 'hours', 'outcome'] },
+    cols: ['name', 'employee_id', 'mentor_id', 'date_from', 'hours', 'outcome', 'signed_off_by_id'],
+    actions: [{ m: 'action_sign_off', l: 'Mentor Sign-off', ask: 'Outcome: competent, extended or discontinued', kwarg: 'outcome' }] },
   'M22-iso': { kind: 'model_list', model: 'fix.audit.evidence', stateField: 'state',
     cols: ['name', 'evidence_type', 'standard_ref', 'collected_on', 'valid_until', 'state'],
     actions: [
       { m: 'action_submit', l: 'Submit' },
-      { m: 'action_accept', l: 'Accept' },
+      { m: 'action_accept', l: 'Accept (verifier)' },
+      { m: 'action_reject', l: 'Return (verifier)', ask: 'Why is the evidence returned?', kwarg: 'reason' },
       { m: 'action_compile_iso_dossier', l: 'Compile ISO 9001 Cl. 7.2 Dossier' }
     ] },
 
@@ -96,7 +110,7 @@ export const SCREENS = {
     title: 'Brand Certification',
     back: 'M22-register',
     status: { field: 'status', labels: {
-      active: 'Active', expiring: 'Expiring Soon', expired: 'Expired' } },
+      draft: 'Draft', valid: 'Valid', suspended: 'Suspended', lapsed: 'Lapsed', revoked: 'Revoked', superseded: 'Renewed' } },
     tabs: [
       { id: 'scope', label: 'Certificate Scope', bn: 'সনদের বিবরণ', icon: '📜', badge: '3' },
       { id: 'validity', label: 'Validity & Dispatch Gating', bn: 'মেয়াদ ও ডিসপ্যাচ শর্ত', icon: '🛡️', badge: '4' }
@@ -118,12 +132,18 @@ export const SCREENS = {
       {
         tab: 'validity',
         title: 'Validity Timeline & ISO Audit Reference',
-        note: 'Expired certification immediately gates the technician from receiving warranty dispatch jobs.',
+        note: 'A certificate counts for dispatch only once a verifier grants it (passed assessment, expiry and evidence required). A granted certificate is renewed, never re-dated; an expired one lapses automatically.',
         fields: [
           { name: 'issued_on', required: true, label: 'Certificate Issue Date' },
-          { name: 'expires_on', label: 'Expiry Date (Empty = Lifetime)' },
+          { name: 'expires_on', required: true, label: 'Expiry Date' },
           { name: 'evidence_ref', label: 'Audit Evidence / Certificate No' },
-          { name: 'status', label: 'Dispatch Gating Status' }
+          { name: 'certificate_file', label: 'Certificate Scan' },
+          { name: 'assessment_id', required: true, label: 'Qualifying Assessment' },
+          { name: 'status', readonly: true, label: 'Validity (today)' },
+          { name: 'state', readonly: true, label: 'Certification State' },
+          { name: 'approval_state', readonly: true, label: 'Grant Approval' },
+          { name: 'verified_by_id', readonly: true, label: 'Granted By' },
+          { name: 'suspension_reason', readonly: true, label: 'Suspension / Revocation Reason' }
         ]
       }
     ]
@@ -224,7 +244,10 @@ export const SCREENS = {
           { name: 'device_category_id', label: 'Device Category' },
           { name: 'device_type', required: true, label: 'Device Family' },
           { name: 'repair_tier', required: true, label: 'Required Repair Tier (L1-L4)' },
-          { name: 'required_for_dispatch', label: 'Mandatory for M02 Work Order Dispatch' }
+          { name: 'required_for_dispatch', label: 'Mandatory for M02 Work Order Dispatch' },
+          { name: 'pass_mark', label: 'Assessment Pass Mark (%)' },
+          { name: 'attempt_limit', label: 'Assessment Attempt Limit (0 = none)' },
+          { name: 'validity_months', label: 'Certificate Validity (months)' }
         ]
       }
     ]
@@ -281,7 +304,7 @@ export const SCREENS = {
           { name: 'name', label: 'Assessment Reference' },
           { name: 'employee_id', required: true, label: 'Technician / Employee' },
           { name: 'competency_id', required: true, label: 'Evaluated Competency' },
-          { name: 'assessor_id', label: 'Technical Assessor' }
+          { name: 'assessor_id', required: true, label: 'Technical Assessor (not the technician)' }
         ]
       },
       {
@@ -292,7 +315,7 @@ export const SCREENS = {
           { name: 'assessed_on', required: true, label: 'Assessment Date' },
           { name: 'level', required: true, label: 'Assessed Repair Level (L1-L4)' },
           { name: 'score', label: 'Practical Score (0-100)' },
-          { name: 'passed', label: 'Assessment Passed' }
+          { name: 'passed', readonly: true, label: 'Assessment Passed (score vs pass mark)' }
         ]
       }
     ]
@@ -304,7 +327,7 @@ export const SCREENS = {
     title: 'Training Schedule & Enrollment',
     back: 'M22-schedule',
     status: { field: 'state', labels: {
-      enrolled: 'Enrolled', completed: 'Completed', failed: 'Failed' } },
+      enrolled: 'Enrolled', passed: 'Passed', failed: 'Failed' } },
     tabs: [
       { id: 'enrollment', label: 'Course & Trainee', bn: 'কোর্স ও প্রশিক্ষণার্থী', icon: '📚', badge: '3' },
       { id: 'completion', label: 'Completion & Certification', bn: 'সমাপ্তি ও সনদ', icon: '🎓', badge: '2' }
@@ -323,10 +346,12 @@ export const SCREENS = {
       {
         tab: 'completion',
         title: 'Completion Date & Automatic Certification',
-        note: 'Marking Passed/Certified automatically grants the linked M22 competency certificate.',
+        note: 'A pass needs a passed assessment by an independent assessor; it drafts the certificate, which a verifier then grants.',
         fields: [
-          { name: 'completed_on', label: 'Completion Date' },
-          { name: 'state', required: true, label: 'Enrollment State' }
+          { name: 'completed_on', readonly: true, label: 'Completion Date' },
+          { name: 'state', readonly: true, label: 'Enrollment State' },
+          { name: 'assessment_id', readonly: true, label: 'Qualifying Assessment' },
+          { name: 'certification_id', readonly: true, label: 'Draft Certification' }
         ]
       }
     ]
@@ -360,7 +385,9 @@ export const SCREENS = {
         fields: [
           { name: 'date_from', required: true, label: 'Session Date' },
           { name: 'hours', required: true, label: 'Supervised Hours' },
-          { name: 'outcome', label: 'Mentor Assessment Outcome' }
+          { name: 'outcome', readonly: true, label: 'Mentor Assessment Outcome' },
+          { name: 'signed_off_by_id', readonly: true, label: 'Signed Off By' },
+          { name: 'signed_off_at', readonly: true, label: 'Signed Off At' }
         ]
       }
     ]
@@ -372,7 +399,7 @@ export const SCREENS = {
     title: 'ISO 9001:2015 Clause 7.2 & Brand Audit Evidence',
     back: 'M22-iso',
     status: { field: 'state', labels: {
-      draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted', expired: 'Expired' } },
+      draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted' } },
     tabs: [
       { id: 'evidence', label: 'Clause & Evidence Type', bn: 'মানদণ্ড ও প্রমাণের ধরন', icon: '📑', badge: '4' },
       { id: 'audit', label: 'Validity & Dossier Summary', bn: 'মেয়াদ ও ডসিয়ার সারসংক্ষেপ', icon: '✅', badge: '4' }
@@ -397,7 +424,11 @@ export const SCREENS = {
           { name: 'collected_on', required: true, label: 'Collected Date' },
           { name: 'valid_until', label: 'Valid Until Date' },
           { name: 'notes', type: 'text', label: 'Compiled Dossier / Auditor Notes' },
-          { name: 'state', required: true, label: 'Verification State' }
+          { name: 'evidence_file', label: 'Audit Evidence Scan (required to submit)' },
+          { name: 'reference', label: 'Evidence Reference' },
+          { name: 'state', readonly: true, label: 'Verification State' },
+          { name: 'submitted_by_id', readonly: true, label: 'Submitted By' },
+          { name: 'accepted_by_id', readonly: true, label: 'Accepted By' }
         ]
       }
     ]
