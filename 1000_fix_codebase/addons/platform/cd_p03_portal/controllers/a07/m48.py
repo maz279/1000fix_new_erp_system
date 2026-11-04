@@ -45,6 +45,7 @@ SURFACES = {
         "actions": {
             "action_request_approval",
             "action_recall_approval",
+            "action_revise_terms",
             "action_dispatch",
             "action_done_confirmed",
             "action_done_not_confirmed",

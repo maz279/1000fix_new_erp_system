@@ -657,3 +657,8 @@ msgstr "যাচাইয়ের তারিখ"
 #: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revocation_evidence_ref
 msgid "Withdrawal Evidence"
 msgstr "প্রত্যাহারের প্রমাণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__revision_note
+msgid "Last Terms Revision"
+msgstr "শর্তাবলির সর্বশেষ সংশোধন"

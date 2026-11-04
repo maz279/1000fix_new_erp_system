@@ -1316,11 +1316,12 @@ class FixIotPrescriptiveAction(models.Model):
             "completed_on",
             "outcome",
             "outcome_note",
+            "revision_note",
         }
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
-        if self and any(a.state in ("dispatched", "done", "cancelled") for a in self):
+        if self and any(a.state in ("approved", "dispatched", "done", "cancelled") for a in self):
             locked |= _ACTION_PINNED
         if self and any(a.state in ("done", "cancelled") for a in self):
             locked |= _ACTION_CLOSED
@@ -1344,32 +1345,60 @@ class FixIotPrescriptiveAction(models.Model):
                             "Action %s is dispatched: its technician cannot be cleared." % rec.name
                         )
                     continue
-                if rec.state in ("dispatched", "done", "cancelled"):
+                # A07 P1 (2026-11-04) M48-12: an approved action's terms are
+                # refused, not silently voided; Revise Terms (with a reason)
+                # sends it back to proposed for a fresh approval.
+                if rec.state in ("approved", "dispatched", "done", "cancelled"):
                     raise UserError(
-                        "Action %s is %s: its %s can no longer change."
+                        "Action %s is %s: its %s can no longer change.%s"
                         % (
                             rec.name,
                             dict(self._fields["state"].selection)[rec.state].lower(),
                             ", ".join(self._fields[n].string for n in changed),
+                            " Use Revise Terms to withdraw the approval first."
+                            if rec.state == "approved"
+                            else "",
                         )
                     )
-                if rec.state == "approved" or rec.approval_state == "pending":
+                if rec.approval_state == "pending":
                     void[rec.id] = changed
         result = super().write(vals)
         for rec in self.filtered(lambda r: r.id in void):
             # The approval covered the old terms: withdraw it and send the
             # action back to proposed, so it is approved again as changed.
             rec._approval_void(
-                "%s changed after approval was given or requested"
+                "%s changed while approval was requested"
                 % ", ".join(self._fields[n].string for n in void[rec.id])
             )
-            if rec.state == "approved":
-                rec._guarded().write(
-                    {"state": "proposed", "approved_by": False, "approved_on": False}
-                )
         return result
 
+    def action_revise_terms(self, reason=None):
+        """Withdraw an approval so the action's terms can change; it returns to
+        proposed and is approved again as changed (M48-12). IoT operator, with
+        a reason; the withdrawal is stamped."""
+        _require_role(self.env, IOT_OPERATOR, "Revising an approved action")
+        why = (reason or "").strip()
+        if not why:
+            raise UserError("Give the reason for revising the approved action.")
+        for rec in self:
+            if rec.state != "approved":
+                raise UserError(
+                    "Only an approved action is revised (%s is %s)." % (rec.name, rec.state)
+                )
+            rec._approval_void("terms revised: %s" % why)
+            rec._guarded().write(
+                {
+                    "state": "proposed",
+                    "approved_by": False,
+                    "approved_on": False,
+                    "revision_note": "%s (%s, %s)"
+                    % (why, self.env.user.name, fields.Date.context_today(self)),
+                }
+            )
+        return True
+
     name = fields.Char(required=True, default="New")
+    revision_note = fields.Char(string="Last Terms Revision", readonly=True, copy=False)
     prediction_id = fields.Many2one(
         "fix.predictive.maintenance",
         string="Prediction",

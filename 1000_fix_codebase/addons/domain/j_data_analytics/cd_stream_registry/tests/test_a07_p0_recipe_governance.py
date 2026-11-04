@@ -246,8 +246,16 @@ def test_not_confirmed_outcome_is_a_false_alarm(c):
 def test_approved_terms_are_pinned(c):
     a = act(c, action_type="inspect", priority="low")
     approve_via_inbox(a, c.mgr, requester=c.clerk)
-    a.with_user(c.clerk).write({"priority": "high"})
+    # A07 P1 M48-12: an approved action's terms are refused outright ...
+    assert refused(c.env, lambda: a.with_user(c.clerk).write({"priority": "high"}))
+    assert (a.state, a.priority) == ("approved", "low")
+    # ... and change only after Revise Terms, which needs a reason and withdraws
+    # the approval, so the changed terms are approved again.
+    assert refused(c.env, lambda: a.with_user(c.clerk).action_revise_terms())
+    a.with_user(c.clerk).action_revise_terms(reason="vibration rose: replace, not inspect")
     assert (a.state, a.approval_state, a.approved_by.id) == ("proposed", "none", False)
+    assert "vibration rose" in a.revision_note
+    a.with_user(c.clerk).write({"priority": "high"})
     # A change while approval is pending voids the request.
     a.with_user(c.clerk).action_request_approval()
     req = a.approval_request_id

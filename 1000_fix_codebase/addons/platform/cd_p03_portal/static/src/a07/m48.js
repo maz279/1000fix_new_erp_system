@@ -105,6 +105,8 @@ export const SCREENS = {
        * Dispatch and completion are the IoT Operator's. */
       { m: 'action_request_approval', l: 'Request Approval (Operations Director)', ask: 'Why is this intervention needed?', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      /* A07 P1 M48-12: approved terms are refused; this withdraws the approval. */
+      { m: 'action_revise_terms', l: 'Revise Terms (withdraw approval)', ask: 'Why must the approved action change?', kwarg: 'reason' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_done_confirmed', l: 'Complete: Failure Confirmed', ask: 'What did the intervention find?', kwarg: 'note' },
       { m: 'action_done_not_confirmed', l: 'Complete: Failure Not Confirmed', ask: 'What did the intervention find?', kwarg: 'note' }
