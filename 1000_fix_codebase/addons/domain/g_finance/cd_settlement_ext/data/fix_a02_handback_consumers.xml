@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers of the A02 money hand-backs (A02 audit B2): a cancelled paid
+     order, a settled damage claim and an applied MSP SLA credit each raise
+     their finance document, in draft or pending, for finance to approve
+     (models/fix_a02_handback.py). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_service_order_refund_requested" model="fix.event.consumer">
+            <field name="name">M20/M50: refund of a cancelled paid order</field>
+            <field name="event_type">service_order.refund_requested</field>
+            <field name="model">fix.finance.handback</field>
+            <field name="method">consume_service_order_refund_requested</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
+        <record id="consumer_damage_claim_settled" model="fix.event.consumer">
+            <field name="name">M50/M20: damage-claim payout and courier recovery</field>
+            <field name="event_type">damage.claim.settled</field>
+            <field name="model">fix.finance.handback</field>
+            <field name="method">consume_damage_claim_settled</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
+        <record id="consumer_msp_sla_credit_applied" model="fix.event.consumer">
+            <field name="name">M20: credit note for an applied MSP SLA credit</field>
+            <field name="event_type">msp.sla_credit_applied</field>
+            <field name="model">fix.finance.handback</field>
+            <field name="method">consume_msp_sla_credit_applied</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
+    </data>
+</odoo>

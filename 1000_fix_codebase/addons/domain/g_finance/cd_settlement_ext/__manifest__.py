@@ -34,6 +34,8 @@ Technician incentives are Payroll (A09), not settlement.
         "security/ir.model.access.csv",
         "security/fix_settlement_m53_rules.xml",
         "data/fix_settlement_m53_data.xml",
+        # A02 audit B2: R8 consumers of the A02 money hand-backs.
+        "data/fix_a02_handback_consumers.xml",
         "views/cd_settlement_ext_views.xml",
         "views/fix_settlement_m53_views.xml",
     ],
