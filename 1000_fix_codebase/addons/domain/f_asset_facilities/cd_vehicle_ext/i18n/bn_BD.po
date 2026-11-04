@@ -343,3 +343,8 @@ msgstr "টায়ার ঠিক আছে"
 #: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_telemetry__vehicle_id
 msgid "Vehicle"
 msgstr "যানবাহন"
+
+#. module: cd_vehicle_ext
+#: model:ir.model.fields,field_description:cd_vehicle_ext.field_fix_vehicle_document__recorded_state
+msgid "Recorded State"
+msgstr "নথিভুক্ত অবস্থা"

@@ -257,9 +257,10 @@ def test_document_expiry_job_expires_takes_offroad_and_is_idempotent(f):
         (f.today - timedelta(days=1), ins.id),
     )
     f.env.invalidate_all()
-    assert not ins.is_valid and ins.state == "valid"  # until the job runs
+    # M46-20: it reads expired from the date at once; the job records the lapse
+    assert not ins.is_valid and ins.state == "expired" and ins.recorded_state == "valid"
     f.env["fix.vehicle.document"].cron_document_expiry()
-    assert ins.state == "expired"
+    assert ins.state == "expired" and ins.recorded_state == "expired"
     off = f.open_offroad(f.van, "document")
     assert len(off) == 1 and "Insurance" in off.reason
     assert f.events("vehicle.document_expired", ins)

@@ -474,8 +474,24 @@ class FixVehicleDocument(models.Model):
     number = fields.Char(string="Document Number")
     valid_from = fields.Date()
     valid_to = fields.Date()
+    # A07 P1 (2026-11-04) M46-20 (D9): `state` was stored and moved to expired
+    # only by the nightly job, so for up to a day a lapsed certificate still
+    # read "valid". The recorded lifecycle (action_expire, the expiry job) is
+    # kept in recorded_state; `state` is that OR the date, decided when read,
+    # and searchable, so ("state", "=", "valid") domains keep working.
+    recorded_state = fields.Selection(
+        [("valid", "Valid"), ("expired", "Expired")],
+        string="Recorded State",
+        required=True,
+        default="valid",
+        copy=False,
+        help="Expired once recorded so (withdrawn, or processed by the expiry job).",
+    )
     state = fields.Selection(
-        [("valid", "Valid"), ("expired", "Expired")], required=True, default="valid"
+        [("valid", "Valid"), ("expired", "Expired")],
+        compute="_compute_state",
+        inverse="_inverse_state",
+        search="_search_state",
     )
     # A07 P1 M46-5 (FR-FLT-009, AC-21) [probe 23]: a document was valid with
     # no evidence at all. The scan is attached here; without it (and with
@@ -520,6 +536,48 @@ class FixVehicleDocument(models.Model):
     # with a future start does not supersede until it starts.
     is_current = fields.Boolean(compute="_compute_is_current", string="Current")
 
+    @api.depends("recorded_state", "valid_to")
+    def _compute_state(self):
+        today = dhaka_today(self)
+        for rec in self:
+            lapsed = bool(rec.valid_to and rec.valid_to < today)
+            rec.state = "expired" if rec.recorded_state == "expired" or lapsed else "valid"
+
+    def _inverse_state(self):
+        for rec in self:
+            rec.recorded_state = rec.state
+
+    def _search_state(self, operator, value):
+        if operator in ("=", "in"):
+            wanted = {value} if isinstance(value, str) else set(value or ())
+        elif operator in ("!=", "not in"):
+            wanted = {"valid", "expired"} - (
+                {value} if isinstance(value, str) else set(value or ())
+            )
+        else:
+            return NotImplemented
+        today = dhaka_today(self)
+        valid = [
+            ("recorded_state", "=", "valid"),
+            "|",
+            ("valid_to", "=", False),
+            ("valid_to", ">=", today),
+        ]
+        expired = [
+            "|",
+            ("recorded_state", "=", "expired"),
+            "&",
+            ("valid_to", "!=", False),
+            ("valid_to", "<", today),
+        ]
+        if wanted >= {"valid", "expired"}:
+            return []
+        if wanted == {"valid"}:
+            return valid
+        if wanted == {"expired"}:
+            return expired
+        return [("id", "=", 0)]
+
     @api.depends("evidence_file")
     def _compute_has_evidence(self):
         for rec in self:
@@ -542,7 +600,7 @@ class FixVehicleDocument(models.Model):
             self.evidence_legacy and param_on(self.env, LEGACY_EVIDENCE_PARAM, default=True)
         )
 
-    @api.depends("state", "valid_from", "valid_to", "has_evidence", "evidence_legacy")
+    @api.depends("recorded_state", "valid_from", "valid_to", "has_evidence", "evidence_legacy")
     def _compute_is_valid(self):
         today = dhaka_today(self)
         for rec in self:
@@ -658,7 +716,12 @@ class FixVehicleDocument(models.Model):
         # A07 P0 recipe M46-5 (D1): `state` was typed by any employee. It is
         # decided at creation from the dates, and afterwards only moves to
         # expired (action_expire, the expiry job); a renewal is a new document.
-        return super()._fix_guarded_fields() | {"state", "evidence_legacy", "alert_days_sent"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "recorded_state",
+            "evidence_legacy",
+            "alert_days_sent",
+        }
 
     def _fix_frozen_fields(self) -> set:
         # A07 P1: once the scan is attached it certifies these facts; a
@@ -675,6 +738,9 @@ class FixVehicleDocument(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.vehicle.document") or "VDOC/New"
                 )
+            if "state" in vals:
+                # the recorded lifecycle is what is stored (M46-20)
+                vals.setdefault("recorded_state", vals.pop("state"))
             if self.env.su:
                 # data loading: a row with no scan is legacy (counted while the
                 # legacy switch is on, and queued for its scan)
@@ -687,7 +753,7 @@ class FixVehicleDocument(models.Model):
             # lapsed certificate, for the history) is always allowed.
             end = fields.Date.to_date(vals.get("valid_to")) or False
             derived = "valid" if end and end >= today else "expired"
-            asked = vals.get("state") or derived
+            asked = vals.get("recorded_state") or derived
             if asked == "valid" and derived != "valid":
                 raise UserError(
                     "A document is recorded as valid only with an end date (Valid To) "
@@ -695,7 +761,7 @@ class FixVehicleDocument(models.Model):
                 )
             if vals.get("evidence_legacy") or vals.get("alert_days_sent"):
                 self._fix_guard_refuse(["evidence_legacy", "alert_days_sent"])
-            vals["state"] = asked
+            vals["recorded_state"] = asked
         if self.env.su:
             return super().create(vals_list)
         # The state was derived above, so it is set through the guard; the
@@ -707,9 +773,9 @@ class FixVehicleDocument(models.Model):
         a renewal is recorded as a new document. A Fleet Officer decision."""
         require_role(self.env, FLEET_OFFICER_GROUP, "Marking a vehicle document expired")
         for rec in self:
-            if rec.state != "valid":
+            if rec.recorded_state != "valid":
                 raise UserError("%s is already expired." % rec.name)
-            rec._guarded().write({"state": "expired"})
+            rec._guarded().write({"recorded_state": "expired"})
         return True
 
     # ------------------------------------------------------------ scheduler
@@ -728,8 +794,10 @@ class FixVehicleDocument(models.Model):
         Idempotent; superuser; each effect goes through the guard."""
         Doc = self.sudo()
         today = dhaka_today(self)
-        for doc in Doc.search([("state", "=", "valid"), ("valid_to", "<", today)]):
-            doc._guarded().write({"state": "expired"})
+        # recorded_state: `state` already reads expired from the date (M46-20);
+        # the job records the lapse once and publishes it.
+        for doc in Doc.search([("recorded_state", "=", "valid"), ("valid_to", "<", today)]):
+            doc._guarded().write({"recorded_state": "expired"})
             emit(
                 doc,
                 "vehicle.document_expired",
