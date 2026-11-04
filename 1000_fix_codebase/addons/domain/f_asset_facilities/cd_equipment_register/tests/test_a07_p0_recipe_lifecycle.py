@@ -28,6 +28,9 @@ from psycopg2 import IntegrityError
 TAG = "A7M45R"
 TIER_2 = "cd_entity_config.group_dofa_tier_2"  # Quality Manager rung
 TIER_4 = "cd_entity_config.group_dofa_tier_4"  # CFO rung
+# A07 P1 roles: the fixtures below give each actor the role the work needs
+ROLE_QM = "cd_equipment_register.group_quality_manager"
+ROLE_KEEPER = "cd_equipment_register.group_equipment_custodian"
 REFUSED = (UserError, ValidationError, AccessError, IntegrityError)
 _SEQ = itertools.count(1)
 
@@ -75,7 +78,9 @@ def c(odoo_env):
     x.today = fields.Date.context_today(env["fix.equipment"])
     x.clerk, x.clerk_emp = _user(env, "clerk")
     x.clerk2, x.clerk2_emp = _user(env, "clerk2")
-    x.qm, x.qm_emp = _user(env, "qm", [TIER_2])
+    x.qm, x.qm_emp = _user(env, "qm", [TIER_2, ROLE_QM])
+    x.keeper, x.keeper_emp = _user(env, "keeper", [ROLE_KEEPER])
+    x.keeper2, x.keeper2_emp = _user(env, "keeper2", [ROLE_KEEPER])
     x.cfo, x.cfo_emp = _user(env, "cfo", [TIER_4])
     ou = env["operating.unit"].search([], limit=1)
     entity = env["fix.entity"].create(
@@ -183,9 +188,11 @@ def test_calibration_is_insert_only(c, p03):
     )
     failed.invalidate_recordset()
     assert out.get("error") and failed.result == "fail"
-    # the notes stay open, and the form echo of an unchanged value passes
-    failed.with_user(c.clerk2).write({"notes": "probe tip cracked", "result": "fail"})
-    assert failed.notes == "probe tip cracked"
+    # A07 P2: insert-only, the notes included; the form echo of an unchanged
+    # value still passes
+    assert refused(c.env, lambda: failed.with_user(c.clerk2).write({"notes": "probe tip cracked"}))
+    failed.with_user(c.clerk2).write({"result": "fail"})
+    assert not failed.notes
 
 
 def test_pass_needs_certificate_and_performer_and_no_future_date(c):
@@ -230,7 +237,7 @@ def test_operational_status_changes_only_through_actions(c, p03):
         assert refused(
             c.env, lambda s=status: e.with_user(c.clerk).write({"operational_status": s})
         ), status
-    assert refused(c.env, lambda: eq(c, user=c.clerk, operational_status="retired"))
+    assert refused(c.env, lambda: eq(c, user=c.keeper, operational_status="retired"))
     out = p03.write(model="fix.equipment", record_id=e.id, values={"operational_status": "retired"})
     e.invalidate_recordset()
     assert out.get("error") and e.operational_status == "available"
@@ -241,7 +248,9 @@ def test_operational_status_changes_only_through_actions(c, p03):
 
 
 def test_branch_and_custodian_are_set_at_registration_then_move_by_transfer(c):
-    e = eq(c, user=c.clerk, branch_id=c.br1.id, custodian_id=c.clerk_emp.id)
+    # A07 P1: registering is store-keeper work; a plain user may not
+    assert refused(c.env, lambda: eq(c, user=c.clerk), "not allowed to create")
+    e = eq(c, user=c.keeper, branch_id=c.br1.id, custodian_id=c.clerk_emp.id)
     assert (e.branch_id, e.custodian_id) == (c.br1, c.clerk_emp)
     assert refused(c.env, lambda: e.with_user(c.clerk).write({"branch_id": c.br2.id}))
     assert refused(c.env, lambda: e.with_user(c.clerk).write({"custodian_id": c.clerk2_emp.id}))
@@ -322,8 +331,9 @@ def test_writeoff_rejection_leaves_the_item_in_service(c):
 def test_oos_resolution_needs_a_new_pass_and_another_person(c, p03):
     e = fit(c)
     cal(c, e, on=c.today, result="fail")
-    hold = oos(c, e, user=c.clerk)
-    assert hold.started_on == c.today
+    # A07 P1: the fail itself opened the hold, in the recorder's name
+    hold = c.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
+    assert (hold.hold_type, hold.create_uid, hold.started_on) == ("calibration", c.clerk, c.today)
     # forged state, back-dated start: refused
     assert refused(c.env, lambda: hold.with_user(c.clerk2).write({"state": "resolved"}))
     assert refused(
@@ -333,25 +343,34 @@ def test_oos_resolution_needs_a_new_pass_and_another_person(c, p03):
     out = p03.write(model="fix.equipment.oos", record_id=hold.id, values={"state": "resolved"})
     hold.invalidate_recordset()
     assert out.get("error") and hold.state == "open"
-    # the opener cannot resolve; nobody can without a passing re-calibration
-    assert refused(c.env, lambda: hold.with_user(c.clerk).action_resolve(), "Segregation")
-    assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "passing calibration")
-    recal = cal(c, e, on=c.today, user=c.clerk)
-    hold.with_user(c.clerk2).action_resolve()
+    # only a Quality Manager returns an item to service, never the opener,
+    # and nobody without a passing re-calibration
+    assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "Quality Manager")
+    assert refused(c.env, lambda: hold.with_user(c.qm).action_resolve(), "passing calibration")
+    # the re-calibration is accepted by a second person: not its recorder
+    own = cal(c, e, on=c.today, user=c.qm)
+    assert refused(c.env, lambda: hold.with_user(c.qm).action_resolve(), "re-calibration")
+    recal = cal(c, e, on=c.today, user=c.clerk, supersedes_id=own.id)
+    hold.with_user(c.qm).action_resolve()
     assert (hold.state, hold.resolved_by_id, hold.resolution_calibration_id) == (
         "resolved",
-        c.clerk2,
+        c.qm,
         recal,
     )
+    assert (recal.decision_state, recal.decided_by_id) == ("accepted", c.qm)
     assert e.operational_status == "available"
-    assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "open")
+    assert refused(c.env, lambda: hold.with_user(c.qm).action_resolve(), "open")
+    # a Quality Manager who opened a hold does not resolve it
+    mine = oos(c, e, user=c.qm)
+    cal(c, e, on=c.today, user=c.clerk)
+    assert refused(c.env, lambda: mine.with_user(c.qm).action_resolve(), "Segregation")
 
 
 def test_an_older_pass_does_not_resolve_a_new_hold(c):
     e = eq(c)
     cal(c, e, on=c.today - timedelta(days=5))  # passed before the fault was found
     hold = oos(c, e)
-    assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "passing calibration")
+    assert refused(c.env, lambda: hold.with_user(c.qm).action_resolve(), "passing calibration")
     assert e.operational_status == "out_of_service"
 
 
@@ -361,32 +380,35 @@ def test_a_resolved_hold_on_an_issued_item_returns_it_to_its_holder(c):
     hold = oos(c, e, user=c.clerk2)
     assert e.operational_status == "out_of_service"
     cal(c, e, on=c.today)
-    hold.with_user(c.clerk).action_resolve()
+    hold.with_user(c.qm).action_resolve()
     assert e.operational_status == "issued"
 
 
 # ============================================================ M45-8 transfer
 def test_transfer_moves_the_item_only_on_receipt_by_another_user(c):
     e = fit(c, branch_id=c.br1.id, custodian_id=c.clerk_emp.id)
-    Transfer = c.env["fix.equipment.transfer"].with_user(c.clerk)
+    Transfer = c.env["fix.equipment.transfer"].with_user(c.keeper)
     t = Transfer.create(
         {"equipment_id": e.id, "to_branch_id": c.br2.id, "to_custodian_id": c.clerk2_emp.id}
     )
     assert (t.state, t.from_branch_id, t.from_custodian_id) == ("draft", c.br1, c.clerk_emp)
     assert refused(c.env, lambda: t.write({"state": "received"}))
     assert refused(c.env, lambda: t.action_receive(), "dispatched")
+    # A07 P1: dispatch and receipt are store-keeper work
+    assert refused(c.env, lambda: t.with_user(c.clerk).action_dispatch(), "Store Keeper")
     t.action_dispatch()
-    assert (t.state, t.dispatched_by_id) == ("dispatched", c.clerk)
+    assert (t.state, t.dispatched_by_id) == ("dispatched", c.keeper)
     assert (e.branch_id, e.custodian_id) == (c.br1, c.clerk_emp)  # sender still accountable
     assert refused(c.env, lambda: t.write({"to_branch_id": c.br1.id}))
     assert refused(c.env, lambda: t.action_dispatch(), "draft")
     assert refused(c.env, lambda: issue(c, e, user=c.clerk2), "in transit")
     assert refused(c.env, lambda: t.action_receive(), "Segregation")
-    t.with_user(c.clerk2).action_receive()
-    assert (t.state, t.received_by_id) == ("received", c.clerk2)
+    assert refused(c.env, lambda: t.with_user(c.clerk2).action_receive(), "Store Keeper")
+    t.with_user(c.keeper2).action_receive()
+    assert (t.state, t.received_by_id) == ("received", c.keeper2)
     assert (e.branch_id, e.custodian_id) == (c.br2, c.clerk2_emp)
-    assert refused(c.env, lambda: t.with_user(c.clerk2).action_cancel())
-    assert refused(c.env, lambda: t.with_user(c.clerk2).write({"notes": "edited"}))
+    assert refused(c.env, lambda: t.with_user(c.keeper2).action_cancel())
+    assert refused(c.env, lambda: t.with_user(c.keeper2).write({"notes": "edited"}))
 
 
 def test_issued_or_out_of_service_items_do_not_travel(c):
@@ -394,20 +416,18 @@ def test_issued_or_out_of_service_items_do_not_travel(c):
     issue(c, issued)
     held = fit(c, branch_id=c.br1.id)
     oos(c, held)
-    Transfer = c.env["fix.equipment.transfer"].with_user(c.clerk)
+    Transfer = c.env["fix.equipment.transfer"].with_user(c.keeper)
     for e in (issued, held):
         assert refused(
             c.env, lambda e=e: Transfer.create({"equipment_id": e.id, "to_branch_id": c.br2.id})
         )
-    # a typed origin that is not where the item sits is refused
+    # A07 P1: a typed origin is replaced by where the item sits (P0 refused it)
     e = fit(c, branch_id=c.br1.id)
-    assert refused(
-        c.env,
-        lambda: Transfer.create(
-            {"equipment_id": e.id, "from_branch_id": c.br2.id, "to_branch_id": c.br2.id}
-        ),
-        "typed origin",
+    typed = Transfer.create(
+        {"equipment_id": e.id, "from_branch_id": c.br2.id, "to_branch_id": c.br2.id}
     )
+    assert typed.from_branch_id == c.br1
+    typed.action_cancel()
     # an item that goes out of service after the draft is refused at dispatch
     t = Transfer.create({"equipment_id": e.id, "to_branch_id": c.br2.id})
     oos(c, e)
@@ -431,10 +451,13 @@ def test_a_missing_result_cannot_be_rewritten(c, p03):
     )
     lost.invalidate_recordset()
     assert out.get("error") and lost.state == "missing"
+    # A07 P1: the missing item is unusable until a store keeper's count finds it
+    assert e.operational_status == "missing"
     # a typed state never decides the result; found does
-    typed = Ver.create({"equipment_id": e.id, "campaign_ref": "A7R-AUD", "state": "missing"})
+    e2 = fit(c)
+    typed = Ver.create({"equipment_id": e2.id, "campaign_ref": "A7R-AUD", "state": "missing"})
     assert typed.state == "verified"
-    seen = Ver.create({"equipment_id": e.id, "campaign_ref": "A7R-AUD"})
+    seen = Ver.create({"equipment_id": e2.id, "campaign_ref": "A7R-AUD"})
     assert refused(c.env, lambda: seen.write({"state": "missing"}))
     seen.write({"found": False})  # not found after all: the result follows
     assert seen.state == "missing"
@@ -474,11 +497,23 @@ def test_issue_state_is_guarded_and_return_records_the_condition(c, p03):
     born_returned = {"equipment_id": other.id, "custodian_id": c.clerk_emp.id, "state": "returned"}
     Issue = c.env["fix.equipment.issue"].with_user(c.clerk)
     assert refused(c.env, lambda: Issue.create(born_returned))
-    assert refused(c.env, lambda: i.action_return(), "condition")
     assert refused(c.env, lambda: i.action_return(condition="mint"), "must be one of")
     i.action_return(condition="good")
     assert (i.state, i.return_condition, e.operational_status) == ("returned", "good", "available")
     assert refused(c.env, lambda: i.write({"return_condition": "damaged"}))
+    # A07 P1: a return with no condition closes custody but never makes the
+    # item available: it waits for a store keeper's condition check
+    i2 = issue(c, e)
+    i2.action_return()
+    hold = c.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
+    assert (i2.state, e.operational_status, hold.hold_type) == (
+        "returned",
+        "out_of_service",
+        "inspection",
+    )
+    assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "Store Keeper")
+    hold.with_user(c.keeper).action_resolve()
+    assert e.operational_status == "available"
 
 
 def test_a_damaged_return_goes_out_of_service_not_available(c):
@@ -489,8 +524,9 @@ def test_a_damaged_return_goes_out_of_service_not_available(c):
     assert e.operational_status == "out_of_service"
     hold = c.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
     assert len(hold) == 1 and "cracked probe" in hold.reason and hold.create_uid == c.clerk
-    # the returner cannot clear the hold they opened
+    assert hold.hold_type == "damaged"
+    # a damaged item returns only with a re-calibration accepted by a QM
     cal(c, e, on=c.today)
-    assert refused(c.env, lambda: hold.with_user(c.clerk).action_resolve(), "Segregation")
-    hold.with_user(c.clerk2).action_resolve()
+    assert refused(c.env, lambda: hold.with_user(c.clerk).action_resolve(), "Quality Manager")
+    hold.with_user(c.qm).action_resolve()
     assert e.operational_status == "available"

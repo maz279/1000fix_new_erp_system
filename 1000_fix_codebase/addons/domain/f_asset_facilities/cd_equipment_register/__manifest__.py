@@ -13,6 +13,10 @@ CD-M45-01 (P08-M08):
   OVERDUE calibration is flagged unusable — calibration blocks usage,
   not nags (ISO 9001 clause 7.1.5)
 - events: equipment.calibration.recorded, equipment.calibration.overdue
+- A07 P1/P2 (2026-11-04): Quality Manager / Calibration Technician /
+  Equipment Custodian roles; nightly calibration and custody jobs;
+  calibration profiles, as-found/as-left readings, usage decision,
+  retrospective impact assessment; custody, loss and service events
 """,
     "version": "19.0.0.1.0",
     "license": "LGPL-3",
@@ -29,9 +33,13 @@ CD-M45-01 (P08-M08):
         "cd_event_outbox",
     ],
     "data": [
+        # A07 P1 (2026-11-04): the spec's roles, before the ACLs that name them
+        "security/fix_equipment_groups.xml",
         "security/fix_isolation_rules.xml",
+        "security/fix_m45_ops_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/ir_cron.xml",
         "views/fix_equipment_views.xml",
     ],
     "installable": True,

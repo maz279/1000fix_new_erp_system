@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 P1 (2026-11-04) M45-10 / probe 50: the six ops models had no company_id
+  and no record rule, so a plain user read another company's issues. They now
+  carry their equipment's company and operating unit (stored related fields),
+  and the rules below fence them as the generated isolation rules fence the
+  register (same domains as fix_isolation_rules.xml, which is generated and
+  not edited by hand). The P2 models (readings, profiles, impact) are fenced
+  the same way.
+-->
+<odoo>
+    <record id="rule_fix_equipment_issue_company" model="ir.rule">
+        <field name="name">fix.equipment.issue: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_issue"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_issue_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.issue: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_issue"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_transfer_company" model="ir.rule">
+        <field name="name">fix.equipment.transfer: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_transfer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_transfer_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.transfer: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_transfer"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_verification_company" model="ir.rule">
+        <field name="name">fix.equipment.verification: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_verification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_verification_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.verification: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_verification"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_oos_company" model="ir.rule">
+        <field name="name">fix.equipment.oos: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_oos"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_oos_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.oos: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_oos"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_pm_company" model="ir.rule">
+        <field name="name">fix.equipment.pm: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_pm"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_pm_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.pm: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_pm"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_usage_company" model="ir.rule">
+        <field name="name">fix.equipment.usage: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_usage"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_usage_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.usage: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_usage"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_kit_line_company" model="ir.rule">
+        <field name="name">fix.equipment.kit.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_equipment_kit_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_reading_company" model="ir.rule">
+        <field name="name">fix.calibration.reading: allowed companies</field>
+        <field name="model_id" ref="model_fix_calibration_reading"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_profile_company" model="ir.rule">
+        <field name="name">fix.calibration.profile: allowed companies</field>
+        <field name="model_id" ref="model_fix_calibration_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_profile_operating_unit" model="ir.rule">
+        <field name="name">fix.calibration.profile: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_calibration_profile"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_profile_point_company" model="ir.rule">
+        <field name="name">fix.calibration.profile.point: allowed companies</field>
+        <field name="model_id" ref="model_fix_calibration_profile_point"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_impact_company" model="ir.rule">
+        <field name="name">fix.calibration.impact: allowed companies</field>
+        <field name="model_id" ref="model_fix_calibration_impact"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_calibration_impact_operating_unit" model="ir.rule">
+        <field name="name">fix.calibration.impact: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_calibration_impact"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

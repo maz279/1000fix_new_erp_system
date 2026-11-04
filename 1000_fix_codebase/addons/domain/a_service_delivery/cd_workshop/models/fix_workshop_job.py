@@ -584,6 +584,19 @@ class FixWorkshopJob(models.Model):
 
     # --- Frozen records (A02 audit M31-1 / M31-4) ---
     def write(self, vals):
+        # --- A07 P1 (2026-11-04) M45 probe 22 --------------------------------
+        # The QC instrument is measurement evidence for EVERY caller, the
+        # superuser included (sudo service code and imports too): once QC has
+        # passed it changes only inside a guarded transition.
+        if self and "equipment_id" in vals and not self._fix_guard_has_token():
+            for rec in self.filtered("qc_passed"):
+                if rec._fix_guard_differs("equipment_id", vals["equipment_id"], rec.equipment_id):
+                    raise UserError(
+                        "Test Equipment Used cannot be changed on job %s while it is %s: "
+                        "it is the measurement evidence of the QC pass."
+                        % (rec.name, dict(WORKSHOP_JOB_STATES).get(rec.state, rec.state))
+                    )
+        # --- end A07 P1 M45 ----------------------------------------------------
         if self and not self._fix_guard_open():
             for rec in self:
                 frozen = set()
@@ -1199,6 +1212,18 @@ class FixWorkshopJob(models.Model):
         if self.equipment_id:
             holder = self.env.user.sudo().employee_ids | self.sudo().technician_id
             self.equipment_id.action_assert_usable(holder=holder)
+            # --- A07 P1 (2026-11-04) M45 probe 16, FR-EAM-045 -----------------
+            # QC wrote no usage row, so the retrospective impact assessment saw
+            # only hand-typed usage. Each inspection made with an instrument is
+            # now a use of it, stamped with the calibration at use (M45 service).
+            self.env["fix.equipment.usage"].m45_record_qc_use(
+                self.equipment_id,
+                self.name,
+                "pass" if passed else "fail",
+                source=self,
+                service_order_ref=self.sudo().order_id.name or None,
+            )
+            # --- end A07 P1 M45 ------------------------------------------------
 
         self._guarded().write(
             {

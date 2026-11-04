@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M45 scheduled jobs (A07 P1, 2026-11-04; workflow audit D9: the module had
+  no ir.cron, so no date-driven rule ever ran).
+
+  - Calibration status (AUT-EAM-03, BRU-EAM-01; AUT-EAM-02): an instrument
+    whose latest calibration is past due, failed or rejected goes out of
+    service, with no override; due alerts at 60/30/15/7 days.
+  - Custody overdue (FR-EAM-015, AUT-EAM-08): open issues past their return
+    date are escalated (holder, +3 days branch manager, +7 days QM).
+  Both run daily just after midnight Dhaka time (18:05 UTC) and are
+  idempotent.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_m45_calibration_status" model="ir.cron">
+            <field name="name">M45: calibration due/overdue -> out of service</field>
+            <field name="model_id" ref="model_fix_equipment"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_calibration_status()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:05:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m45_custody_overdue" model="ir.cron">
+            <field name="name">M45: escalate overdue equipment custody</field>
+            <field name="model_id" ref="model_fix_equipment_issue"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_custody_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:10:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

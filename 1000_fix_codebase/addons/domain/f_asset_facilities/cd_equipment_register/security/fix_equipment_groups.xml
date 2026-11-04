@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M45 test-equipment roles (A07 P1, 2026-11-04; workflow audit D7).
+
+     M45 had no role group: every internal user registered equipment,
+     recorded calibrations and returned an out-of-service instrument to
+     service. The spec (§13) names the Quality Manager (R32), who owns
+     calibration, fitness and the impact assessment, and the branch Store
+     Keeper (R18), who issues, returns, transfers and condition-checks items.
+
+     - Calibration Technician: records calibrations (with the business switch
+       cd_equipment_register.calibration_requires_role on, only this role and
+       the Quality Manager may) and proposes interval changes.
+     - Equipment Custodian (Store Keeper): registers items, dispatches and
+       receives transfers, condition-checks a returned item, records a missing
+       item as found, keeps kits.
+     - Quality Manager: implies both. Takes the usage decision on a
+       calibration, returns an instrument to service, approves an interval
+       change, closes an impact assessment, owns calibration profiles.
+
+     The dev admin is a member so daily work keeps running; the
+     segregation-of-duties checks still apply to it. Appointing the real
+     holders is business decision B1. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_equipment" model="res.groups.privilege">
+            <field name="name">Test Equipment &amp; Calibration</field>
+            <field name="description">Equipment register, custody, calibration and fitness of test instruments (M45, ISO 9001 7.1.5).</field>
+            <field name="sequence">45</field>
+        </record>
+
+        <record id="group_calibration_technician" model="res.groups">
+            <field name="name">Calibration Technician</field>
+            <field name="privilege_id" ref="privilege_equipment"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Records calibrations with their readings and certificate, and proposes calibration interval changes. Does not accept a calibration they recorded.</field>
+        </record>
+
+        <record id="group_equipment_custodian" model="res.groups">
+            <field name="name">Equipment Custodian (Store Keeper)</field>
+            <field name="privilege_id" ref="privilege_equipment"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Registers equipment, dispatches and receives inter-branch transfers, condition-checks returned items, records a missing item as found and keeps kits.</field>
+        </record>
+
+        <record id="group_quality_manager" model="res.groups">
+            <field name="name">Quality Manager (Test Equipment)</field>
+            <field name="privilege_id" ref="privilege_equipment"/>
+            <field name="implied_ids" eval="[(4, ref('group_calibration_technician')), (4, ref('group_equipment_custodian'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Takes the usage decision on a calibration recorded by someone else, returns an instrument to service, approves calibration interval changes, closes impact assessments and owns calibration profiles (spec R32, SOD-07).</field>
+        </record>
+
+    </data>
+</odoo>
