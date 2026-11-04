@@ -13,6 +13,11 @@ from odoo.exceptions import AccessError
 
 PAYROLL_GROUP = "cd_payroll_bd.group_payroll_officer"  # the manager implies it
 
+# A09 M56 build (C1): approvals are routed M63 requests. The screens offer
+# "Request Approval" and "Recall"; the decision itself is taken from the
+# approver's inbox (M63), never from a payroll screen. The action sets are
+# literals so the FF-48 wiring check can read them.
+
 SURFACES = {
     "fix.payroll.period": {
         "order": "period_start desc, id desc",
@@ -20,9 +25,12 @@ SURFACES = {
         "actions": {
             "action_verify_attendance_locked",
             "action_calculate",
-            "action_approve",
+            "action_prevalidate",
+            "action_request_approval",
+            "action_recall_approval",
             "action_pay",
             "action_post",
+            "action_publish_payslips",
         },
     },
     "fix.payslip": {
@@ -33,13 +41,22 @@ SURFACES = {
     "fix.beftn.batch": {
         "order": "submitted_at desc, id desc",
         "limit": 100,
-        "actions": {"action_generate_beftn_file", "action_settle"},
+        # a submitted file is never regenerated; settlement needs the bank's confirmation
+        "actions": {"action_settle"},
     },
     "fix.payroll.structure": {"order": "grade", "limit": 100, "actions": set()},
+    "fix.payroll.bonus.line": {"order": "run_id desc, employee_id", "limit": 500, "actions": set()},
     "fix.payroll.bonus.run": {
         "order": "bonus_date desc, id desc",
         "limit": 100,
-        "actions": {"action_approve", "action_pay"},
+        "actions": {
+            "action_compute",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_pay",
+            "action_post",
+            "action_cancel",
+        },
     },
     "fix.payroll.certificate": {
         "order": "fiscal_year desc, id desc",
@@ -54,12 +71,23 @@ SURFACES = {
     "fix.payroll.offcycle": {
         "order": "payment_date desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_pay"},
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_pay",
+            "action_post",
+            "action_cancel",
+        },
     },
     "fix.wppf.allocation": {
         "order": "fiscal_year desc, id desc",
         "limit": 100,
-        "actions": {"action_calculate", "action_approve", "action_post"},
+        "actions": {
+            "action_calculate",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_post",
+        },
     },
 }
 
@@ -327,7 +355,33 @@ def payroll_variance(env, date_from=None, date_to=None, **params):
     )
 
 
+def my_payslips(env, date_from=None, date_to=None, **params):
+    """Employee self-service (FR-PAY-051): the caller's OWN published
+    payslips, and nobody else's. No payroll role needed; no other slip shown."""
+    rows = env["fix.payslip"].fix_my_payslips()
+    return _pack(
+        "My Payslips — %d published" % len(rows),
+        ["period", "basic", "gross", "pf", "tax", "net", "published_on"],
+        {
+            "period": "Period",
+            "basic": "Basic",
+            "gross": "Gross",
+            "pf": "Provident Fund",
+            "tax": "Income Tax Withheld",
+            "net": "Net Pay",
+            "published_on": "Published On",
+        },
+        rows,
+        [
+            "Your own payslips, once payroll has paid and published the run. Each carries a "
+            "content digest; the Bengali payslip prints from the same figures."
+        ],
+        empty="No published payslip yet.",
+    )
+
+
 REPORTS = {
+    "my_payslips": my_payslips,
     "salary_register": salary_register,
     "payroll_cost_allocation": payroll_cost_allocation,
     "tax_deduction_summary": tax_deduction_summary,
@@ -349,8 +403,8 @@ def kpis(env):
         for s in slips
         if s.period_id.period_start and s.period_id.period_start >= month_start
     )
-    bonus = _payroll(env, "fix.payroll.bonus.run", [("state", "!=", "paid")])
-    corrections = _payroll(env, "fix.payroll.offcycle", [("state", "!=", "paid")])
+    bonus = _payroll(env, "fix.payroll.bonus.run", [("state", "in", ("computed", "approved"))])
+    corrections = _payroll(env, "fix.payroll.offcycle", [("state", "in", ("draft", "approved"))])
     return {
         "payroll_cycle": latest.name if latest else "—",
         "gross_payroll": round(

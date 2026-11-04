@@ -39,17 +39,28 @@
                     <button name="action_calculate" type="object"
                             string="Calculate Payroll" class="btn-primary"
                             invisible="state != 'attendance_locked'"/>
-                    <button name="action_approve" type="object"
-                            string="Approve (Maker-Checker)" class="btn-success"
+                    <button name="action_prevalidate" type="object"
+                            string="Validate Run" class="btn-secondary"
                             invisible="state != 'calculated'"/>
+                    <!-- C1: approval is routed to the M63 inbox; nobody approves from here -->
+                    <button name="action_request_approval" type="object"
+                            string="Request Approval" class="btn-success"
+                            invisible="state != 'calculated' or approval_state == 'pending'"/>
+                    <button name="action_recall_approval" type="object"
+                            string="Recall Approval Request" class="btn-secondary"
+                            invisible="approval_state != 'pending'"/>
                     <button name="action_pay" type="object"
-                            string="Pay &amp; Generate BEFTN" class="btn-primary"
+                            string="Release &amp; Generate BEFTN" class="btn-primary"
                             invisible="state != 'approved'"/>
+                    <button name="action_publish_payslips" type="object"
+                            string="Publish Payslips" class="btn-secondary"
+                            invisible="state not in ('paid', 'posted')"/>
                     <button name="action_post" type="object"
                             string="Post to GL (Balanced)" class="btn-primary"
                             invisible="state != 'paid'"/>
                     <field name="state" widget="statusbar"
                            statusbar_visible="draft,attendance_locked,calculated,approved,paid,posted"/>
+                    <field name="approval_state" invisible="1"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -259,9 +270,6 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_generate_beftn_file" type="object"
-                            string="Regenerate 128-Byte File" class="btn-secondary"
-                            invisible="state == 'settled'"/>
                     <button name="action_settle" type="object"
                             string="Mark Settled" class="btn-success"
                             invisible="state == 'settled'"/>
@@ -284,6 +292,15 @@
                             <field name="total_amount"/>
                             <field name="currency_id" invisible="1"/>
                             <field name="file_name"/>
+                            <field name="file_digest"/>
+                            <field name="released_by_id"/>
+                        </group>
+                        <group string="Bank Confirmation (FR-PAY-048)">
+                            <field name="bank_confirmation_ref"/>
+                            <field name="bank_confirmation_file" filename="bank_confirmation_filename"/>
+                            <field name="bank_confirmation_filename" invisible="1"/>
+                            <field name="settled_by_id"/>
+                            <field name="settled_on"/>
                         </group>
                     </group>
                     <notebook>
@@ -479,6 +496,20 @@
                             <field name="payroll_net_payable_account_id"/>
                             <field name="payroll_tax_payable_account_id"/>
                             <field name="payroll_pf_payable_account_id"/>
+                            <field name="payroll_wppf_expense_account_id"/>
+                            <field name="payroll_wppf_payable_account_id"/>
+                        </group>
+                        <group string="Off-Cycle / Bonus Originating Account">
+                            <field name="payroll_beftn_account_no"/>
+                            <field name="payroll_beftn_routing_no"/>
+                        </group>
+                        <group string="Statutory Decisions (A09 report 7.3 / 7.4)">
+                            <field name="payroll_tax_table_rule"/>
+                            <field name="payroll_separation_rule"/>
+                            <field name="payroll_minimum_basic_monthly"/>
+                            <field name="payroll_return_due_day"/>
+                            <field name="ot_divisor_hours"/>
+                            <field name="ita_exemption_ceiling"/>
                         </group>
                     </group>
                 </page>

@@ -28,13 +28,15 @@ export const MODULE = {
         { id: 'M56-tax', en: 'Income Tax (AY 2026-27)', bn: 'আয়কর', t: 'r' },
         { id: 'M56-pf', en: 'Provident Fund', bn: 'প্রভিডেন্ট ফান্ড', t: 'r' },
         { id: 'M56-gratuity', en: 'Gratuity & Encashment', bn: 'গ্র্যাচুইটি', t: 'r' },
-        { id: 'M56-bonus', en: 'Festival Bonus', bn: 'উৎসব বোনাস', t: 'g' }
+        { id: 'M56-bonus', en: 'Festival Bonus', bn: 'উৎসব বোনাস', t: 'g' },
+        { id: 'M56-bonus-lines', en: 'Festival Bonus Lines', bn: 'উৎসব বোনাস লাইন', t: 'g' }
       ]
     },
     {
       en: 'Disbursement', screens: [
         { id: 'M56-beftn', en: 'BEFTN Bank Files', bn: 'বিইএফটিএন', t: 'g' },
-        { id: 'M56-certificates', en: 'Certificates & Tax Statements', bn: 'সনদ', t: 'g' }
+        { id: 'M56-certificates', en: 'Certificates & Tax Statements', bn: 'সনদ', t: 'g' },
+        { id: 'M56-my-payslips', en: 'My Payslips', bn: 'আমার বেতন বিবরণী', t: 'r' }
       ]
     },
     {
@@ -68,7 +70,7 @@ export const SCREENS = {
   'M56-runs': {
     kind: 'model_list', model: 'fix.payroll.period', stateField: 'state',
     cols: ['name', 'period_start', 'period_end', 'slip_count', 'gross_total', 'tax_total', 'net_total', 'state'],
-    actions: [{ m: 'action_verify_attendance_locked', l: 'Verify Attendance Lock (M55)' }, { m: 'action_calculate', l: 'Calculate Gross-to-Net' }, { m: 'action_approve', l: 'Approve' }, { m: 'action_pay', l: 'Mark Paid' }, { m: 'action_post', l: 'Post to GL (M19)' }]
+    actions: [{ m: 'action_verify_attendance_locked', l: 'Verify Attendance Lock (M55)' }, { m: 'action_calculate', l: 'Calculate Gross-to-Net' }, { m: 'action_prevalidate', l: 'Validate Run' }, { m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }, { m: 'action_publish_payslips', l: 'Publish Payslips' }]
   },
   'M56-structures': {
     kind: 'model_list', model: 'fix.payroll.structure',
@@ -81,21 +83,25 @@ export const SCREENS = {
   },
   'M56-offcycle': {
     kind: 'model_list', model: 'fix.payroll.offcycle', stateField: 'state',
-    cols: ['name', 'employee_id', 'payment_type', 'payment_date', 'amount', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve' }, { m: 'action_pay', l: 'Pay' }]
+    cols: ['name', 'employee_id', 'payment_type', 'payment_date', 'amount', 'approval_state', 'state'],
+    actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }, { m: 'action_cancel', l: 'Cancel' }]
   },
   'M56-tax': { kind: 'table_report', module: 'M56', report: 'tax_deduction_summary', title: 'Income Tax (AY 2026-27)', period: true },
   'M56-pf': { kind: 'table_report', module: 'M56', report: 'pf_gratuity', title: 'Provident Fund', period: true },
   'M56-gratuity': { kind: 'table_report', module: 'M56', report: 'pf_gratuity', title: 'Gratuity & Encashment', period: true },
+  /* A09 M56-9: computed per employee (one year's service, capped at one
+   * month's basic, r.111(5)); never typed. */
+  'M56-bonus-lines': { kind: 'model_list', model: 'fix.payroll.bonus.line',
+    cols: ['run_id', 'employee_id', 'completed_years', 'basic', 'base_amount', 'amount', 'capped'] },
   'M56-bonus': {
     kind: 'model_list', model: 'fix.payroll.bonus.run', stateField: 'state',
-    cols: ['name', 'festival', 'bonus_date', 'basis', 'multiplier', 'employee_count', 'total_amount', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve' }, { m: 'action_pay', l: 'Pay' }]
+    cols: ['name', 'festival', 'bonus_date', 'basis', 'multiplier', 'employee_count', 'total_amount', 'approval_state', 'state'],
+    actions: [{ m: 'action_compute', l: 'Compute Eligible Bonus' }, { m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }, { m: 'action_cancel', l: 'Cancel' }]
   },
   'M56-beftn': {
     kind: 'model_list', create: false, model: 'fix.beftn.batch', stateField: 'state',
-    cols: ['period_id', 'settlement_date', 'employee_count', 'total_amount', 'file_name', 'state'],
-    actions: [{ m: 'action_generate_beftn_file', l: 'Generate File' }, { m: 'action_settle', l: 'Settle' }]
+    cols: ['period_id', 'settlement_date', 'employee_count', 'total_amount', 'file_name', 'bank_confirmation_ref', 'state'],
+    actions: [{ m: 'action_settle', l: 'Settle (Bank Confirmation)' }]
   },
   'M56-certificates': {
     kind: 'model_list', model: 'fix.payroll.certificate', stateField: 'state',
@@ -109,13 +115,16 @@ export const SCREENS = {
   },
   'M56-settlement': {
     kind: 'model_list', model: 'fix.payroll.offcycle', stateField: 'state',
-    cols: ['name', 'employee_id', 'payment_date', 'amount', 'reason', 'state']
+    cols: ['name', 'employee_id', 'payment_date', 'amount', 'reason', 'approval_state', 'state'],
+    actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }]
   },
   'M56-wppf': {
     kind: 'model_list', model: 'fix.wppf.allocation', stateField: 'state',
     cols: ['name', 'fiscal_year', 'net_profit', 'total_wppf_pool', 'participatory_fund_amount', 'welfare_fund_amount', 'welfare_foundation_amount', 'eligible_workers_count', 'state'],
-    actions: [{ m: 'action_calculate', l: 'Calculate 80:10:10 Split' }, { m: 'action_approve', l: 'Trustee Approve' }, { m: 'action_post', l: 'Disburse & Post' }]
+    actions: [{ m: 'action_calculate', l: 'Calculate 80:10:10 Split' }, { m: 'action_request_approval', l: 'Request Trustee Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_post', l: 'Disburse & Post' }]
   },
+
+  'M56-my-payslips': { kind: 'table_report', module: 'M56', report: 'my_payslips', title: 'My Payslips' },
 
   /* Report chips -> their own computed pack */
   'M56-rpt-register': { kind: 'table_report', module: 'M56', report: 'salary_register', title: 'Salary Register', period: true },
@@ -181,8 +190,8 @@ export const SCREENS = {
       }
     },
     tabs: [
-      { id: 'schedule', label: 'Period Scope', bn: 'সময়সীমা ও শাখা', icon: '📅', badge: '4' },
-      { id: 'controls', label: 'Processing & Accounting', bn: 'প্রক্রিয়াকরণ ও হিসাব', icon: '⚙️', badge: '5' }
+      { id: 'schedule', label: 'Period Scope', bn: 'সময়সীমা ও শাখা', icon: '📅', badge: '6' },
+      { id: 'controls', label: 'Processing & Accounting', bn: 'প্রক্রিয়াকরণ ও হিসাব', icon: '⚙️', badge: '10' }
     ],
     sections: [
       {
@@ -193,7 +202,9 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Period Reference (e.g. OCT-2026)' },
           { name: 'period_start', required: true, label: 'Period Start Date' },
           { name: 'period_end', required: true, label: 'Period End Date' },
-          { name: 'operating_unit_id', label: 'Operating Unit' }
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'company_account_no', label: 'Company Originating Account (BEFTN)' },
+          { name: 'company_routing_no', label: 'Company Routing No (9 digits)' }
         ]
       },
       {
@@ -205,7 +216,12 @@ export const SCREENS = {
           { name: 'calculator_id', readonly: true, label: 'Calculated By' },
           { name: 'approved_by_id', readonly: true, label: 'Approved By' },
           { name: 'approved_on', readonly: true, label: 'Approved On' },
-          { name: 'approved_net_total', readonly: true, label: 'Approved Net Total (BDT)' }
+          { name: 'approved_net_total', readonly: true, label: 'Approved Net Total (BDT)' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'released_by_id', readonly: true, label: 'Released to Bank By' },
+          { name: 'released_on', readonly: true, label: 'Released On' },
+          { name: 'payslips_published_on', readonly: true, label: 'Payslips Published On' },
+          { name: 'calculation_note', readonly: true, label: 'Calculation Notes (who was paid, prorated or skipped)' }
         ]
       }
     ]
@@ -218,7 +234,7 @@ export const SCREENS = {
     back: 'M56-bonus',
     status: {
       field: 'state', labels: {
-        draft: 'Draft', approved: 'Approved', paid: 'Paid'
+        draft: 'Draft', computed: 'Computed', approved: 'Approved', paid: 'Paid', posted: 'Posted', cancelled: 'Cancelled'
       }
     },
     tabs: [
@@ -242,8 +258,15 @@ export const SCREENS = {
         note: 'Bonus calculated as a fraction or multiple of Basic or Gross wages.',
         fields: [
           { name: 'basis', required: true, label: 'Calculation Basis (Basic / Gross)' },
-          { name: 'multiplier', required: true, label: 'Multiplier (Fraction of Basic)' },
-          { name: 'state', readonly: true, label: 'State' }
+          { name: 'multiplier', required: true, label: 'Multiplier (capped at one month basic, r.111(5))' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'employee_count', readonly: true, label: 'Eligible Employees' },
+          { name: 'total_amount', readonly: true, label: 'Total Bonus (BDT)' },
+          { name: 'computed_by_id', readonly: true, label: 'Computed By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'computation_note', readonly: true, label: 'Eligibility Notes' }
         ]
       }
     ]
@@ -256,7 +279,7 @@ export const SCREENS = {
     back: 'M56-offcycle',
     status: {
       field: 'state', labels: {
-        draft: 'Draft', approved: 'Approved', paid: 'Paid', cancelled: 'Cancelled'
+        draft: 'Draft', approved: 'Approved', paid: 'Paid', posted: 'Posted', cancelled: 'Cancelled'
       }
     },
     tabs: [
@@ -284,7 +307,13 @@ export const SCREENS = {
           { name: 'state', readonly: true, label: 'State' },
           { name: 'prepared_by_id', readonly: true, label: 'Prepared By' },
           { name: 'approved_by_id', readonly: true, label: 'Approved By' },
-          { name: 'approved_on', readonly: true, label: 'Approved On' }
+          { name: 'approved_on', readonly: true, label: 'Approved On' },
+          { name: 'approval_state', readonly: true, label: 'Approval (M63 inbox)' },
+          { name: 'bank_account_no', readonly: true, label: 'Payee Account (from the employee master)' },
+          { name: 'routing_no', readonly: true, label: 'Payee Routing No' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'exit_id', readonly: true, label: 'Exit Settlement (I1)' },
+          { name: 'hse_incident_ref', readonly: true, label: 'HSE Incident (I5)' }
         ]
       }
     ]
@@ -312,7 +341,11 @@ export const SCREENS = {
           { name: 'employee_id', readonly: true, label: 'Employee' },
           { name: 'taxpayer_category', readonly: true, label: 'Taxpayer Slab Category' },
           { name: 'minimum_tax_location', readonly: true, label: 'Minimum Tax Jurisdiction' },
-          { name: 'has_disabled_child', readonly: true, label: 'Disabled Child Tax Relief (+BDT 50,000)' }
+          { name: 'has_disabled_child', readonly: true, label: 'Disabled Child Tax Relief (+BDT 50,000)' },
+          { name: 'paid_days', readonly: true, label: 'Paid Days (prorated for a leaver)' },
+          { name: 'statutory_basis', readonly: true, label: 'Statutory Basis (decision flags)' },
+          { name: 'published', readonly: true, label: 'Published to Employee' },
+          { name: 'published_on', readonly: true, label: 'Published On' }
         ]
       },
       {
@@ -369,7 +402,7 @@ export const SCREENS = {
     back: 'M56-beftn',
     status: {
       field: 'state', labels: {
-        draft: 'Draft', submitted: 'Submitted', settled: 'Settled', failed: 'Failed'
+        submitted: 'Submitted', settled: 'Settled'
       }
     },
     tabs: [
@@ -395,7 +428,13 @@ export const SCREENS = {
         note: 'Generated CSV/XML clearing file payload and settlement state.',
         fields: [
           { name: 'file_name', readonly: true, label: 'Generated BEFTN File Name' },
+          { name: 'file_digest', readonly: true, label: 'File SHA-256' },
           { name: 'submitted_at', readonly: true, label: 'Submitted Timestamp' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' },
+          { name: 'bank_confirmation_ref', label: 'Bank Confirmation Reference' },
+          { name: 'bank_confirmation_file', label: 'Bank Confirmation / Return File', type: 'file' },
+          { name: 'settled_by_id', readonly: true, label: 'Settled By' },
+          { name: 'settled_on', readonly: true, label: 'Settled On' },
           { name: 'state', readonly: true, label: 'Settlement State' }
         ]
       }
@@ -423,6 +462,7 @@ export const SCREENS = {
           { name: 'certificate_type', required: true, label: 'Certificate Type' },
           { name: 'fiscal_year', required: true, label: 'Fiscal Year (e.g. 2025-26)' },
           { name: 'issued_on', readonly: true, label: 'Issue Date' },
+          { name: 'issued_by_id', readonly: true, label: 'Issued By' },
           { name: 'state', readonly: true, label: 'Certificate State' }
         ]
       },
@@ -476,6 +516,8 @@ export const SCREENS = {
           { name: 'challan_date', label: 'Challan Deposit Date' },
           { name: 'tax_zone', label: 'NBR Tax Zone' },
           { name: 'acknowledgement', label: 'NBR Filing Acknowledgement No' },
+          { name: 'due_date', readonly: true, label: 'Due Date' },
+          { name: 'filed_by_id', readonly: true, label: 'Filed By' },
           { name: 'state', readonly: true, label: 'Filing State' }
         ]
       }
@@ -518,7 +560,10 @@ export const SCREENS = {
           { name: 'participatory_fund_amount', readonly: true, label: '80% Participatory Fund (BDT)' },
           { name: 'welfare_fund_amount', readonly: true, label: '10% Welfare Fund (BDT)' },
           { name: 'welfare_foundation_amount', readonly: true, label: '10% BWWF Govt Foundation Fund (BDT)' },
-          { name: 'state', readonly: true, label: 'Allocation State' }
+          { name: 'state', readonly: true, label: 'Allocation State' },
+          { name: 'approval_state', readonly: true, label: 'Trustee Approval (M63 inbox)' },
+          { name: 'trustee_board_resolution_ref', label: 'Board of Trustees Resolution Ref' },
+          { name: 'trustee_resolution_file', label: 'Signed Trustee Resolution', type: 'file' }
         ]
       },
       {

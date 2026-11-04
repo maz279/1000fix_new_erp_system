@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A09 M56 build: the payroll automation and hand-offs.
+     * I5: M59 publishes hse.compensation.awarded once a compensation is
+       approved; payroll turns it into a DRAFT off-cycle payment, which then
+       goes through its own routed approval and release.
+     * M57: an awarded recognition prize (recognition.awarded) is salary
+       income; payroll turns it into a DRAFT off-cycle payment the same way.
+     * AUT-PAY-11 / M56-10: a daily reminder for withholding returns falling
+       due within 14 and 7 days (a cron method without its ir.cron record
+       never runs: the deployment test asserts this record). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_hse_compensation_awarded_offcycle" model="fix.event.consumer">
+            <field name="name">M56: an awarded injury compensation becomes a draft off-cycle payment</field>
+            <field name="event_type">hse.compensation.awarded</field>
+            <field name="model">fix.payroll.offcycle</field>
+            <field name="method">consume_compensation_awarded</field>
+            <field name="module">cd_payroll_bd</field>
+        </record>
+        <record id="consumer_recognition_awarded_offcycle" model="fix.event.consumer">
+            <field name="name">M56: an awarded recognition prize becomes a draft off-cycle payment</field>
+            <field name="event_type">recognition.awarded</field>
+            <field name="model">fix.payroll.offcycle</field>
+            <field name="method">consume_recognition_awarded</field>
+            <field name="module">cd_payroll_bd</field>
+        </record>
+    </data>
+    <data>
+        <record id="ir_cron_payroll_return_due_alerts" model="ir.cron">
+            <field name="name">M56: withholding returns falling due (14/7-day reminders)</field>
+            <field name="model_id" ref="model_fix_payroll_return"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_return_due_alerts()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>
