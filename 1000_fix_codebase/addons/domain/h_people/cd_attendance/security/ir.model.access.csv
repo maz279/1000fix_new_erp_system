@@ -30,3 +30,4 @@ access_fix_roster_change_request_sup,fix.roster.change.request.supervisor,model_
 access_fix_attendance_adjustment_user,fix.attendance.adjustment.user,model_fix_attendance_adjustment,base.group_user,1,0,0,0
 access_fix_attendance_paid_baseline_sup,fix.attendance.paid.baseline.supervisor,model_fix_attendance_paid_baseline,cd_attendance.group_attendance_supervisor,1,0,0,0
 access_fix_attendance_paid_baseline_lockmgr,fix.attendance.paid.baseline.lock_manager,model_fix_attendance_paid_baseline,cd_attendance.group_attendance_lock_manager,1,0,0,0
+access_fix_roster_notice_sup,fix.roster.notice.supervisor,model_fix_roster_notice,cd_attendance.group_attendance_supervisor,1,0,0,0

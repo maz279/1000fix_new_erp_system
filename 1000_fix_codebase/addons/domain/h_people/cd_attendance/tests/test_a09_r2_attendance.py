@@ -424,6 +424,89 @@ def test_publication_notice_is_a_setting(x):
         pub.action_submit()
 
 
+# ======================================================================= roster notices (M27)
+def _notices(c, key=None):
+    dom = [("key", "=", key)] if key else []
+    return c.env["fix.roster.notice"].search(dom)
+
+
+def _deliveries(c, emp, prefix):
+    return (
+        c.env["fix.notif.delivery"]
+        .sudo()
+        .search([("dedup_key", "=like", "m55-roster:%s%%:%d" % (prefix, emp.id))])
+    )
+
+
+def test_a_published_roster_is_sent_to_each_employee_once(x):
+    d = x.today + timedelta(days=12)
+    x.e_emp.mobile_phone = "01712345678"
+    x.e_col.write({"mobile_phone": False, "work_email": False})
+    x.e_col.work_contact_id.write({"phone": False, "email": False})
+    a = slot(x, d)
+    b = slot(x, d + timedelta(days=1))
+    c = slot(x, d, emp=x.e_col)
+    pub = publish(x, d, d + timedelta(days=1))
+    key = "publication:%d" % pub.id
+    notices = _notices(x, key)
+    assert len(notices) == 2  # one per rostered employee, not per slot
+    mine = notices.filtered(lambda n: n.employee_id == x.e_emp)
+    sent = _deliveries(x, x.e_emp, key)
+    assert (mine.route, mine.channel, len(sent)) == ("m27", "sms", 1)
+    assert (sent.channel, sent.to_address, sent.state) == ("sms", "01712345678", "queued")
+    assert (
+        sent.lawful_basis == "contract"
+        and str(d) in sent.body
+        and str(d + timedelta(days=1)) in sent.body
+    )
+    assert mine.slot_ids == a | b
+    # the colleague has no phone or e-mail: chatter, follower and an activity instead
+    theirs = notices - mine
+    assert (theirs.route, theirs.slot_ids) == ("chatter", c)
+    assert "no mobile number or e-mail" in theirs.fallback_reason
+    assert x.e_col.work_contact_id in c.message_partner_ids
+    assert c.activity_ids.user_id == x.col_u
+    # a replay sends nothing twice
+    pub._fix_notify_published()
+    assert len(_notices(x, key)) == 2 and len(_deliveries(x, x.e_emp, key)) == 1
+    assert len(c.activity_ids) == 1
+    # notices are the workflow's
+    with pytest.raises(AccessError), x.env.cr.savepoint():
+        x.env["fix.roster.notice"].with_user(x.sup_u).create(
+            {
+                "key": "k",
+                "employee_id": x.e_emp.id,
+                "company_id": x.env.company.id,
+                "kind": "published",
+                "route": "m27",
+            }
+        )
+
+
+def test_an_approved_slot_change_is_sent_to_the_employee_once(x):
+    d = x.today + timedelta(days=14)
+    x.e_emp.mobile_phone = "01712345679"
+    s1 = slot(x, d)
+    publish(x, d, d)
+    req = (
+        x.env["fix.roster.change.request"]
+        .with_user(x.sup_u)
+        .create(
+            {"slot_id": s1.id, "new_shift_id": x.night_shift.id, "reason": "cover for a colleague"}
+        )
+    )
+    req.action_submit()
+    assert not _notices(x, "change:%d" % req.id)  # nothing before the decision
+    req.with_user(x.sup2_u).action_inbox_approve()
+    key = "change:%d" % req.id
+    note = _notices(x, key)
+    assert (len(note), note.kind, note.route, note.employee_id) == (1, "changed", "m27", x.e_emp)
+    sent = _deliveries(x, x.e_emp, key)
+    assert len(sent) == 1 and "R2E Night" in sent.body
+    req._fix_notify_changed()
+    assert len(_notices(x, key)) == 1 and len(_deliveries(x, x.e_emp, key)) == 1
+
+
 # ======================================================================= 10. night-consent withdrawal
 def test_withdrawing_night_consent_rechecks_the_rostered_nights(x):
     t = x.today
@@ -981,7 +1064,7 @@ def test_deployment_crons_consumer_acl_rules_and_surfaces(x):
     ):
         row = Access.search([("model_id.model", "=", model), ("group_id", "=", user.id)])
         assert (row.perm_read, row.perm_write, row.perm_create, row.perm_unlink) == perms, model
-    for model in ("fix.biometric.punch.event", "fix.attendance.paid.baseline"):
+    for model in ("fix.biometric.punch.event", "fix.attendance.paid.baseline", "fix.roster.notice"):
         assert not Access.search([("model_id.model", "=", model), ("group_id", "=", user.id)])
     for xmlid in (
         "cd_attendance.rule_roster_slot_published",
