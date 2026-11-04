@@ -203,6 +203,22 @@ class Inv(types.SimpleNamespace):
             )
         )
 
+    def cfo(self, *extra_groups):
+        """A DOFA Tier 4 holder (the CFO band of BRU-INV-11/24)."""
+        return self.user("cfo", "cd_entity_config.group_dofa_tier_4", *extra_groups)
+
+    def approve_in_inbox(self, record, approver):
+        task = record.approval_request_id.task_ids.filtered(
+            lambda t: t.state == "pending" and t.assigned_user_id == approver
+        )
+        assert task, "%s has no inbox task for %s (routed to %s)" % (
+            approver.name,
+            record.display_name,
+            record.approval_request_id.task_ids.mapped("assigned_user_id.name"),
+        )
+        task.with_user(approver).action_approve(comment="approved")
+        return task
+
     def branch(self):
         if getattr(self, "_branch", None):
             return self._branch

@@ -27,6 +27,7 @@ Features:
         "cd_catalogue",
         "cd_event_outbox",
         "cd_requisition",
+        "cd_workflow_engine",
     ],
     "data": [
         "security/ir.model.access.csv",

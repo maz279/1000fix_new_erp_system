@@ -985,7 +985,9 @@ class FixStockCount(models.Model):
     _name = "fix.stock.count"
     _description = "Stock Count"
     _order = "create_date desc, id desc"
-    _inherit = ["fix.inventory.approval.mixin"]
+    # BRU-INV-11: above the controller limit the adjustment is also a routed
+    # DOFA approval (CFO) on its value
+    _inherit = ["fix.inventory.writeoff.dofa.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -1006,6 +1008,7 @@ class FixStockCount(models.Model):
             ("draft", "Counting"),
             ("recount", "Recount Required"),
             ("to_approve", "Awaiting Approval"),
+            ("to_dofa", "Awaiting DOFA Approval"),
             ("posted", "Posted"),
             ("cancelled", "Cancelled"),
         ],
@@ -1130,9 +1133,25 @@ class FixStockCount(models.Model):
                 rec.action_submit()
             elif rec.state == "to_approve":
                 rec.action_approve()
+            elif rec.state == "to_dofa":
+                raise UserError(
+                    "Count %s awaits its DOFA approval in the approver's inbox." % rec.name
+                )
             else:
                 raise UserError("Post a draft count")
         return True
+
+    def _writeoff_value(self) -> float:
+        """The value the adjustment moves: every line's variance at its
+        snapshot cost, gains and losses alike."""
+        self.ensure_one()
+        return round(
+            sum(
+                abs(line._line_delta()) * (line._snapshot().unit_cost or 0.0)
+                for line in self.line_ids
+            ),
+            2,
+        )
 
     def action_approve(self, note=None):
         for rec in self:
@@ -1141,8 +1160,36 @@ class FixStockCount(models.Model):
         self._inv_check_approver()
         for rec in self:
             rec._inv_stamp_approval(note)
-            rec._post_count()
+            if rec._inv_needs_dofa():
+                # above the controller's limit: the CFO decides it in M63 too
+                rec._guarded().write({"state": "to_dofa"})
+                rec._inv_route_dofa(
+                    "Count %s: variance of BDT %.2f at %s (%s). %s"
+                    % (
+                        rec.name,
+                        rec._writeoff_value(),
+                        rec.location_id.code,
+                        dict(self._fields["reason_code"].selection).get(rec.reason_code, "-"),
+                        rec.reason_note or "",
+                    )
+                )
+            else:
+                rec._post_count()
         return True
+
+    @api.depends("state", "line_ids.counted_qty", "line_ids.recount_qty")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _inv_dofa_apply(self):
+        for rec in self.filtered(lambda r: r.state == "to_dofa"):
+            rec._post_count()
+
+    def _approval_on_rejected(self, comment):
+        # the rejecting approver need not hold store rights on the record
+        for rec in self.sudo().filtered(lambda r: r.state == "to_dofa"):
+            rec._guarded().write({"state": "cancelled"})
+            rec.line_ids.mapped("floor_count_id")._fix_cancel_from_m15()
 
     def action_reject(self, note=None):
         for rec in self:
@@ -1542,7 +1589,9 @@ class FixStockQuarantine(models.Model):
     _name = "fix.stock.quarantine"
     _description = "Stock Quarantine / Scrap"
     _order = "create_date desc, id desc"
-    _inherit = ["fix.inventory.approval.mixin"]
+    # BRU-INV-24: a write-off above the controller limit is also a routed
+    # DOFA approval (CFO) on its value
+    _inherit = ["fix.inventory.writeoff.dofa.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -1575,6 +1624,7 @@ class FixStockQuarantine(models.Model):
             ("quarantined", "Quarantined"),
             ("released", "Released"),
             ("scrap_pending", "Write-off Awaiting Approval"),
+            ("scrap_dofa", "Write-off Awaiting DOFA Approval"),
             ("scrapped", "Scrapped"),
             ("returned", "Returned to Vendor"),
         ],
@@ -1729,8 +1779,34 @@ class FixStockQuarantine(models.Model):
         self._inv_check_approver()
         for rec in self:
             rec._inv_stamp_approval(note)
-            rec._do_scrap()
+            if rec._inv_needs_dofa():
+                rec._guarded().write({"state": "scrap_dofa"})
+                rec._inv_route_dofa(
+                    "Write-off %s: %s x %s = BDT %.2f (%s). %s"
+                    % (
+                        rec.name,
+                        rec.qty,
+                        rec.part_id.part_number,
+                        rec._writeoff_value(),
+                        dict(self._fields["reason"].selection).get(rec.reason),
+                        rec.notes or "",
+                    )
+                )
+            else:
+                rec._do_scrap()
         return True
+
+    @api.depends("state", "qty", "unit_cost")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _inv_dofa_apply(self):
+        for rec in self.filtered(lambda r: r.state == "scrap_dofa"):
+            rec._do_scrap()
+
+    def _approval_on_rejected(self, comment):
+        for rec in self.sudo().filtered(lambda r: r.state == "scrap_dofa"):
+            rec._guarded().write({"state": "quarantined"})
 
     def action_reject_scrap(self, note=None):
         self._require(("scrap_pending",), "be rejected")

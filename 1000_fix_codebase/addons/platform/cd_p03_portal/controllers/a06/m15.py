@@ -675,7 +675,7 @@ def kpis(env):
         "stocked_skus": stocked_parts,
         "stockout_skus": stockouts,
         "pending_counts": env["fix.stock.count"].search_count(
-            [*company, ("state", "in", ("draft", "recount", "to_approve"))]
+            [*company, ("state", "in", ("draft", "recount", "to_approve", "to_dofa"))]
         ),
         "open_transfers": env["fix.stock.transfer"].search_count(
             [*company, ("state", "in", ("draft", "submitted", "approved", "dispatched"))]

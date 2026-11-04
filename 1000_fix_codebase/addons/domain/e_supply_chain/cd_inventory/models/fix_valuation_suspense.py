@@ -19,7 +19,11 @@ from datetime import datetime
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
+from libs.py.fix_events import publish
+
 from .fix_inventory_approval import VALUED_CLASSES
+
+FINANCE_ADMIN_GROUP = "account.group_account_manager"
 
 # How each entry type moves the company's stock value. Consumption and return
 # predate this file and carry the VALUE CONSUMED (an issue +, its return -);
@@ -151,6 +155,17 @@ class FixInventoryValuationSuspense(models.Model):
 
     gl_cutover_ref = fields.Char(string="GL Cutover Voucher Ref")
     reconciled_at = fields.Datetime(string="Reconciled Timestamp")
+    # S0: a duplicated baseline row archived on Finance authority (never deleted)
+    archived_by_id = fields.Many2one("res.users", string="Archived By", readonly=True, copy=False)
+    archived_at = fields.Datetime(string="Archived On", readonly=True, copy=False)
+    archive_ref = fields.Char(string="Finance Approval Ref", readonly=True, copy=False)
+    duplicate_of_id = fields.Many2one(
+        "fix.inventory.valuation.suspense",
+        string="Duplicate Of",
+        readonly=True,
+        copy=False,
+        help="The baseline row this one duplicated (the one kept).",
+    )
     legacy_reference = fields.Char(
         string="Legacy Reference",
         index=True,
@@ -178,6 +193,10 @@ class FixInventoryValuationSuspense(models.Model):
         "gl_cutover_ref",
         "reconciled_at",
         "legacy_reference",
+        "archived_by_id",
+        "archived_at",
+        "archive_ref",
+        "duplicate_of_id",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -316,16 +335,9 @@ class FixInventoryValuationSuspense(models.Model):
                 [("company_id", "=", company.id), ("status", "=", "pending_gl_cutover")]
             )
             baseline = pending.filtered(lambda e: e.entry_type == "initial_count")
-            groups = {}
-            for entry in baseline:
-                key = (
-                    entry.product_id.id,
-                    entry.legacy_reference or entry.name,
-                    round(entry.quantity, 4),
-                    round(entry.unit_cost, 4),
-                )
-                groups.setdefault(key, []).append(entry)
+            groups = self._baseline_groups(baseline)
             duplicate_groups = [rows for rows in groups.values() if len(rows) > 1]
+            blocked = self._baseline_blocked_keys(company, groups)
             extra_rows = sum(len(rows) - 1 for rows in duplicate_groups)
             excess_value = round(
                 sum(rows[0].total_valuation * (len(rows) - 1) for rows in duplicate_groups), 2
@@ -360,6 +372,114 @@ class FixInventoryValuationSuspense(models.Model):
                     "implied_stock_value": implied,
                     "gap_vs_onhand": round(implied - onhand_value, 2),
                     "baseline_duplicated": bool(duplicate_groups),
+                    # action_archive_duplicate_baseline can clear them (no group
+                    # holds a row already reconciled to the GL)
+                    "dedup_available": bool(duplicate_groups) and not blocked,
+                    "dedup_blocked_groups": len(blocked),
                 }
             )
         return {"companies": result}
+
+    # ------------------------------------------- S0: archive the duplicates
+    @api.model
+    def _baseline_key(self, entry):
+        return (
+            entry.product_id.id,
+            entry.legacy_reference or entry.name,
+            round(entry.quantity, 4),
+            round(entry.unit_cost, 4),
+        )
+
+    @api.model
+    def _baseline_groups(self, entries):
+        groups = {}
+        for entry in entries.sorted("id"):
+            groups.setdefault(self._baseline_key(entry), []).append(entry)
+        return groups
+
+    @api.model
+    def _baseline_blocked_keys(self, company, groups):
+        """Duplicate groups that also hold a row already reconciled to the GL:
+        archiving their pending copies would hide a cutover already made."""
+        reconciled = self.sudo().search(
+            [
+                ("company_id", "=", company.id),
+                ("entry_type", "=", "initial_count"),
+                ("status", "=", "reconciled"),
+            ]
+        )
+        keys = {self._baseline_key(entry) for entry in reconciled}
+        return {key for key, rows in groups.items() if len(rows) > 1 and key in keys} | {
+            key for key in keys if key in groups
+        }
+
+    @api.model
+    def action_archive_duplicate_baseline(self, company_id, finance_approval_ref):
+        """S0 (A06): archive every extra copy of a duplicated initial-count
+        baseline, keeping exactly one row per group. Accounting
+        Administrators only, on a Finance approval reference. Rows are
+        archived (status 'archived', who / when / the reference recorded),
+        never deleted; the M19 cutover clears only 'pending_gl_cutover' rows.
+        Idempotent. Refuses if any duplicated group holds a reconciled row."""
+        if not self.env.su and not self.env.user.has_group(FINANCE_ADMIN_GROUP):
+            raise AccessError(
+                "Only an Accounting Administrator can archive the duplicated baseline."
+            )
+        ref = (finance_approval_ref or "").strip()
+        if not ref:
+            raise UserError("Give the Finance approval reference for archiving the baseline.")
+        company = self.env["res.company"].browse(int(company_id)).exists()
+        if not company:
+            raise UserError("Unknown company %s." % company_id)
+        Suspense = self.sudo()
+        pending = Suspense.search(
+            [
+                ("company_id", "=", company.id),
+                ("entry_type", "=", "initial_count"),
+                ("status", "=", "pending_gl_cutover"),
+            ]
+        )
+        groups = self._baseline_groups(pending)
+        blocked = self._baseline_blocked_keys(company, groups)
+        if blocked:
+            raise UserError(
+                "%d duplicated baseline group(s) already hold a row reconciled to the GL: "
+                "archiving their copies would hide a cutover already made. Resolve those "
+                "with Finance first; nothing was archived." % len(blocked)
+            )
+        now = fields.Datetime.now()
+        archived = Suspense.browse()
+        value = 0.0
+        for rows in groups.values():
+            if len(rows) < 2:
+                continue
+            keep = rows[0]
+            for extra in rows[1:]:
+                extra._guarded().write(
+                    {
+                        "status": "archived",
+                        "archived_by_id": self.env.uid,
+                        "archived_at": now,
+                        "archive_ref": ref,
+                        "duplicate_of_id": keep.id,
+                    }
+                )
+                archived |= extra
+                value += extra.total_valuation
+        summary = {
+            "company_id": company.id,
+            "finance_approval_ref": ref,
+            "archived_rows": len(archived),
+            "archived_value": round(value, 2),
+            "groups": len([rows for rows in groups.values() if len(rows) > 1]),
+            "archived_by": self.env.uid,
+        }
+        if archived:
+            publish(
+                self.env,
+                "inventory.baseline_deduplicated",
+                "fix.inventory.valuation.suspense",
+                archived[:1].id,
+                summary,
+            )
+        return summary

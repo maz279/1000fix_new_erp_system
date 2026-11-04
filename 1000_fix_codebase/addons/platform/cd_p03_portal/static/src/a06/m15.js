@@ -255,7 +255,7 @@ export const SCREENS = {
     title: 'Cycle Count',
     back: 'M15-counts',
     status: { field: 'state', labels: {
-      draft: 'Counting', recount: 'Recount Required', to_approve: 'Awaiting Approval',
+      draft: 'Counting', recount: 'Recount Required', to_approve: 'Awaiting Approval', to_dofa: 'Awaiting DOFA (CFO)',
       posted: 'Posted', cancelled: 'Cancelled' } },
     sections: [
       { title: 'Count', note: 'Blind count: the system takes the expected quantity when each line is added and does not show it. Inside tolerance the count posts; outside it asks for a recount, then a reason and an Inventory Controller who is not the counter.',
@@ -288,7 +288,7 @@ export const SCREENS = {
     title: 'Scrap Order',
     back: 'M15-quarantine',
     status: { field: 'state', labels: {
-      quarantined: 'Quarantined', released: 'Released', scrap_pending: 'Write-off Awaiting Approval',
+      quarantined: 'Quarantined', released: 'Released', scrap_pending: 'Write-off Awaiting Approval', scrap_dofa: 'Awaiting DOFA (CFO)',
       scrapped: 'Scrapped', returned: 'Returned to Vendor' } },
     sections: [
       { title: 'Quarantine / Scrap', note: 'Saving moves the quantity out of available stock into quarantine. A write-off above the configured value needs an Inventory Controller who did not quarantine it.',

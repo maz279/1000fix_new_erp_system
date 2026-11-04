@@ -174,3 +174,120 @@ class FixInventoryApprovalMixin(models.AbstractModel):
     @api.model
     def _inv_threshold(self, key):
         return inv_param(self.env, key, 0.0)
+
+
+# ---------------------------------------------------------------------------
+# A06 M15-2 / BRU-INV-11/24: a write-off or adjustment above the controller's
+# limit is ALSO a routed M63 approval on the DOFA ladder by value. The spec
+# (M15 BRU-INV-11/24) sets the matrix: up to BDT 25,000 the Inventory
+# Manager (here: the Inventory Controller two-person rule), above it the
+# CFO (DOFA Tier 4). Both bands are configuration; the default ceiling is
+# open (everything above the controller limit is a CFO decision) unless
+# PARAM_DOFA_CFO_MAX is set, above which it goes to Tier 5.
+PARAM_DOFA_CONTROLLER_MAX = "cd_inventory.writeoff_dofa_controller_max"
+PARAM_DOFA_CFO_MAX = "cd_inventory.writeoff_dofa_cfo_max"
+DEFAULT_DOFA_CONTROLLER_MAX = 25000.0
+
+DOFA_TIER_GROUP = {
+    "tier_1": "cd_entity_config.group_dofa_tier_1",
+    "tier_2": "cd_entity_config.group_dofa_tier_2",
+    "tier_3": "cd_entity_config.group_dofa_tier_3",
+    "tier_4": "cd_entity_config.group_dofa_tier_4",
+    "tier_5": "cd_entity_config.group_dofa_tier_5",
+}
+
+
+def writeoff_ladder(env):
+    controller_max = inv_param(env, PARAM_DOFA_CONTROLLER_MAX, DEFAULT_DOFA_CONTROLLER_MAX)
+    cfo_max = inv_param(env, PARAM_DOFA_CFO_MAX, 0.0)
+    ladder = [(controller_max, "tier_0")]
+    if cfo_max > controller_max:
+        ladder.append((cfo_max, "tier_4"))
+        ladder.append((float("inf"), "tier_5"))
+    else:
+        ladder.append((float("inf"), "tier_4"))
+    return ladder
+
+
+class FixInventoryWriteoffDofaMixin(models.AbstractModel):
+    """The routed DOFA leg of an inventory write-off / adjustment. The model
+    gives `_writeoff_value()`; amounts at or below the write-off approval
+    threshold carry no DOFA amount (the two-person rule alone decides)."""
+
+    _name = "fix.inventory.writeoff.dofa.mixin"
+    _inherit = ["fix.dofa.mixin", "fix.inventory.approval.mixin"]
+    _description = "Inventory Write-off DOFA (routed)"
+
+    _approval_domain = "inventory_writeoff"
+    _approval_apply_method = "action_dofa_approve"
+    _approval_routed = True
+
+    def _writeoff_value(self) -> float:
+        return 0.0
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        value = abs(self._writeoff_value() or 0.0)
+        if value <= inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, 0.0) + 1e-6:
+            return 0.0
+        return value
+
+    def _dofa_thresholds(self):
+        return writeoff_ladder(self.env)
+
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _inv_needs_dofa(self) -> bool:
+        self.ensure_one()
+        return self._dofa_current_tier() != "tier_0"
+
+    # ---- local defences (the M63 rule book is user-writable, A11 M63-2) ----
+    def _approval_group_for(self, rule, tier):
+        xmlid = DOFA_TIER_GROUP.get(tier) if tier else None
+        return self.env.ref(xmlid, raise_if_not_found=False) if xmlid else None
+
+    def _inv_dofa_conflicts(self):
+        self.ensure_one()
+        rec = self.sudo()
+        return (
+            rec.create_uid
+            | rec.requested_by_id
+            | rec.approved_by_id
+            | rec.approval_amount_changed_by_id
+            | rec._inv_excluded_users()
+        )
+
+    def _approval_excluded(self):
+        return (super()._approval_excluded() | self._inv_dofa_conflicts()).sudo()
+
+    def _inv_dofa_apply(self):
+        """Per model: what the routed approval releases (post, scrap)."""
+        return None
+
+    def action_dofa_approve(self):
+        """Only from the approver's M63 inbox task, by the tier holder, never
+        by the counter / requester / controller / creator; then the
+        write-off the approval covers is applied (pinned to its value)."""
+        self._approval_assert_routed()
+        for rec in self:
+            if not self.env.su:
+                task = rec._approval_task()
+                deciders = self.env.user | task.on_behalf_of_id
+                clash = deciders & rec._inv_dofa_conflicts()
+                if clash:
+                    raise UserError(
+                        "Segregation of duties: %s raised, counted, approved or changed %s "
+                        "and cannot give its DOFA approval."
+                        % (", ".join(clash.mapped("name")), rec.display_name)
+                    )
+        result = super(FixInventoryWriteoffDofaMixin, self.sudo()).action_dofa_approve()
+        for rec in self.sudo():
+            rec._dofa_assert_approved("The write-off of %s" % rec.display_name)
+            rec._inv_dofa_apply()
+        return result
+
+    def _inv_route_dofa(self, justification):
+        """Hand the write-off to M63 after the controller's approval."""
+        for rec in self:
+            rec.action_request_approval(justification=justification)

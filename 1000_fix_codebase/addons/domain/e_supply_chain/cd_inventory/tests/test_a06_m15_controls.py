@@ -621,7 +621,11 @@ def test_m15_50_write_down_needs_recount_reason_and_approval(inv):
     count.with_user(inv.keeper).action_submit()
     assert count.state == "to_approve" and inv.qty(big, inv.central) == 10.0
     refused(inv, lambda: count.with_user(inv.keeper2).action_approve())  # not a controller
+    cfo = inv.cfo()
     count.with_user(inv.controller).action_approve()
+    # BDT 500,000 is above the controller's limit: the CFO decides it in M63
+    assert count.state == "to_dofa" and inv.qty(big, inv.central) == 10.0
+    inv.approve_in_inbox(count, cfo)
     assert count.state == "posted" and inv.qty(big, inv.central) == 0.0
     assert inv.suspense(count.name, "adjustment").total_valuation == -500000.0
     assert inv.events("stock.adjusted", "fix.stock.count", count.id) == 1
@@ -750,7 +754,10 @@ def test_m15_59_write_off_needs_controller_not_quarantiner(inv):
     q.with_user(inv.keeper).action_request_scrap()
     refused(inv, lambda: q.with_user(inv.keeper).action_approve_scrap())
     assert inv.qty(big, inv.central, status="quarantine") == 10.0
+    cfo = inv.cfo()
     q.with_user(inv.controller).action_approve_scrap()
+    assert q.state == "scrap_dofa"  # BDT 500,000: the CFO decides it too
+    inv.approve_in_inbox(q, cfo)
     assert q.state == "scrapped" and q.approved_by_id == inv.controller
     assert inv.qty(big, inv.central, status="quarantine") == 0.0
     assert big.qty_available == 0.0
