@@ -3,7 +3,8 @@
  * Registry-faithful: 4 groups / 12 screens / 5 reports / 4 forms / freg 78.
  * Warehouse/zone/bin existed; slotting, dock appointments, put-away, waves,
  * cartons, staging, tasks, bin floor counts, templates and packing stations
- * are new. Bin slots are the warehouse's view; stock totals stay M15's. */
+ * are new. Bin slots are a breakdown of the M15 ledger: put-away, pick, ship
+ * and approved counts move it; no form types a stock quantity (A06 R1). */
 
 export const MODULE = {
   area: 'A06', code: 'M41', en: 'Warehouse Management', title: 'M41 · Warehouse Management',
@@ -65,23 +66,29 @@ export const SCREENS = {
   'M41-zones': { kind: 'model_list', model: 'fix.warehouse.bin',
     cols: ['name', 'zone_id', 'barcode', 'capacity_qty'] },
   'M41-slotting': { kind: 'model_list', model: 'fix.wms.slot', stateField: 'state',
-    cols: ['part_id', 'bin_id', 'zone_id', 'qty', 'velocity', 'slot_type', 'last_slotted_on', 'state'] },
+    cols: ['part_id', 'bin_id', 'zone_id', 'qty', 'reserved_qty', 'velocity', 'slot_type', 'last_slotted_on', 'state'],
+    actions: [
+      { m: 'action_block', l: 'Block Bin', ask: 'Reason the bin is blocked', kwarg: 'reason' },
+      { m: 'action_unblock', l: 'Unblock (controller)', ask: 'Why the block is lifted', kwarg: 'note' }
+    ] },
   'M41-docks': { kind: 'model_list', model: 'fix.wms.dock', stateField: 'state',
     cols: ['name', 'dock_no', 'partner_id', 'carrier', 'dock_type', 'slot_start', 'slot_end', 'state'],
     actions: [
       { m: 'action_check_in', l: 'Check In' },
-      { m: 'action_complete', l: 'Complete' }
+      { m: 'action_complete', l: 'Complete' },
+      { m: 'action_cancel', l: 'Cancel' }
     ] },
   'M41-receiving': { kind: 'model_list', model: 'fix.stock.receipt', stateField: 'state', create: false,
     cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'] },
   'M41-putaway': { kind: 'model_list', model: 'fix.wms.putaway', stateField: 'state',
-    cols: ['name', 'part_id', 'qty', 'to_bin_id', 'from_ref', 'assignee_id', 'state'],
+    cols: ['name', 'part_id', 'qty', 'to_bin_id', 'receipt_line_id', 'assignee_id', 'state'],
     actions: [{ m: 'action_complete', l: 'Complete Put-Away' }] },
   'M41-waves': { kind: 'model_list', model: 'fix.wms.wave', stateField: 'state',
     cols: ['name', 'wave_date', 'strategy', 'released_at', 'shipped_at', 'state'],
     actions: [
       { m: 'action_release', l: 'Release' },
       { m: 'action_pick_all', l: 'Pick All Lines' },
+      { m: 'action_accept_short', l: 'Accept Short Pick' },
       { m: 'action_packed', l: 'Mark Packed' },
       { m: 'action_stage', l: 'Mark Staged' },
       { m: 'action_ship', l: 'Ship Wave' }
@@ -101,10 +108,11 @@ export const SCREENS = {
     cols: ['name', 'task_type', 'ref', 'part_id', 'bin_id', 'qty', 'assignee_id', 'state'],
     actions: [
       { m: 'action_assign', l: 'Assign' },
-      { m: 'action_done', l: 'Complete Task' }
+      { m: 'action_done', l: 'Complete Task', ask: 'Scan the bin, then the item (pick tasks), e.g. A-01-01 FX-1001', kwarg: 'scan' },
+      { m: 'action_cancel', l: 'Cancel Task' }
     ] },
   'M41-counting': { kind: 'model_list', model: 'fix.wms.floor.count', stateField: 'state',
-    cols: ['name', 'bin_id', 'part_id', 'expected_qty', 'counted_qty', 'variance', 'counted_on', 'state'],
+    cols: ['name', 'bin_id', 'part_id', 'counted_qty', 'counted_on', 'stock_count_id', 'state'],
     actions: [{ m: 'action_post', l: 'Post Count' }] },
 
   /* Report chips -> their own computed pack */
@@ -121,12 +129,14 @@ export const SCREENS = {
     title: 'Bin',
     back: 'M41-zones',
     sections: [
-      { title: 'Bin', note: 'Capacity 0 means unconstrained — the utilisation view reports it as 0% rather than inventing a capacity.',
+      { title: 'Bin', note: 'Capacity 0 means unconstrained; a put-away that would exceed a capacity is refused. Hazardous parts go only into hazardous-class bins.',
         fields: [
           { name: 'name', required: true, label: 'Bin' },
           { name: 'zone_id', required: true, label: 'Zone' },
           { name: 'barcode', label: 'Barcode' },
-          { name: 'capacity_qty', label: 'Capacity' }
+          { name: 'capacity_qty', label: 'Capacity' },
+          { name: 'storage_class', required: true, label: 'Storage Class' },
+          { name: 'ownership_class', required: true, label: 'Ownership Class' }
         ] }
     ]
   },
@@ -138,15 +148,16 @@ export const SCREENS = {
     back: 'M41-slotting',
     status: { field: 'state', labels: { active: 'Active', blocked: 'Blocked' } },
     sections: [
-      { title: 'Slot', note: 'One slot per part and bin; velocity drives the pick strategy view.',
+      { title: 'Slot', note: 'One slot per part and bin. The quantity is moved only by put-away, pick and approved counts; blocking and unblocking are actions (a controller unblocks).',
         fields: [
           { name: 'part_id', required: true, label: 'Spare Part' },
           { name: 'bin_id', required: true, label: 'Bin' },
-          { name: 'qty', label: 'Quantity in Bin' },
+          { name: 'qty', label: 'Quantity in Bin', readonly: true },
+          { name: 'reserved_qty', label: 'Allocated to Waves', readonly: true },
           { name: 'velocity', required: true, label: 'Velocity' },
           { name: 'slot_type', required: true, label: 'Slot Type' },
-          { name: 'last_slotted_on', label: 'Last Slotted' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'last_slotted_on', label: 'Last Slotted', readonly: true },
+          { name: 'block_reason', label: 'Block Reason', readonly: true }
         ] }
     ]
   },
@@ -160,7 +171,7 @@ export const SCREENS = {
       scheduled: 'Scheduled', checked_in: 'Checked In',
       completed: 'Completed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Appointment', note: 'The window must end after it starts; check-in then complete.',
+      { title: 'Appointment', note: 'One appointment per dock per window. An inbound appointment completes with the goods receipt it delivered.',
         fields: [
           { name: 'dock_no', required: true, label: 'Dock' },
           { name: 'partner_id', label: 'Partner / Carrier' },
@@ -168,7 +179,8 @@ export const SCREENS = {
           { name: 'dock_type', required: true, label: 'Type' },
           { name: 'slot_start', required: true, label: 'Window Start' },
           { name: 'slot_end', required: true, label: 'Window End' },
-          { name: 'state', required: true, label: 'State' },
+          { name: 'receipt_id', label: 'Goods Receipt' },
+          { name: 'wave_id', label: 'Outbound Wave' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -181,14 +193,15 @@ export const SCREENS = {
     back: 'M41-putaway',
     status: { field: 'state', labels: { pending: 'Pending', done: 'Done' } },
     sections: [
-      { title: 'Put-Away', note: 'Completing writes the quantity into the target bin slot (creating the slot when needed).',
+      { title: 'Put-Away', note: 'Puts away stock a POSTED goods-receipt line accepted, up to what is not yet put away, into a bin of the same warehouse (capacity, zone, blocked and hazard rules apply).',
         fields: [
           { name: 'part_id', required: true, label: 'Spare Part' },
+          { name: 'receipt_line_id', required: true, label: 'Received Line' },
           { name: 'qty', required: true, label: 'Quantity' },
           { name: 'to_bin_id', required: true, label: 'Target Bin' },
+          { name: 'lot_id', label: 'Serial / Lot' },
           { name: 'from_ref', label: 'Source Reference' },
-          { name: 'assignee_id', label: 'Assigned To' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'assignee_id', label: 'Assigned To' }
         ] }
     ]
   },
@@ -202,11 +215,11 @@ export const SCREENS = {
       draft: 'Draft', released: 'Released', picking: 'Picking', packed: 'Packed',
       staged: 'Staged', shipped: 'Shipped' } },
     sections: [
-      { title: 'Wave', note: 'Release needs lines; Pick All marks every line picked and decrements its bin slot.',
+      { title: 'Wave', note: 'Release allocates every line in M15 and on its bin (over-allocation is refused); Pick All moves the picked stock to staging, once. Pack needs sealed cartons, ship a loaded stage.',
         fields: [
           { name: 'wave_date', required: true, label: 'Wave Date' },
           { name: 'strategy', required: true, label: 'Strategy' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'warehouse_id', label: 'Warehouse' }
         ] }
     ],
     lines: {
@@ -229,13 +242,12 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', sealed: 'Sealed', dispatched: 'Dispatched' } },
     sections: [
-      { title: 'Carton', note: 'Sealing records the packed unit; the label printer lives on the packing station.',
+      { title: 'Carton', note: 'A carton is sealed for a wave being packed, with its contents and weight; the sealed contents must reconcile to the picked lines.',
         fields: [
-          { name: 'wave_id', label: 'Wave' },
+          { name: 'wave_id', required: true, label: 'Wave' },
           { name: 'carton_size', required: true, label: 'Carton Size' },
           { name: 'weight_kg', label: 'Weight (kg)' },
-          { name: 'contents_qty', label: 'Contents (pcs)' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'contents_qty', label: 'Contents (pcs)' }
         ] }
     ]
   },
@@ -248,12 +260,11 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       staging: 'Staging', loaded: 'Loaded', dispatched: 'Dispatched' } },
     sections: [
-      { title: 'Stage & Load', note: 'Load, then dispatch; the lane is the physical staging position.',
+      { title: 'Stage & Load', note: 'Load a staged wave with its load / vehicle reference, then dispatch: dispatching ships the wave.',
         fields: [
-          { name: 'wave_id', label: 'Wave' },
+          { name: 'wave_id', required: true, label: 'Wave' },
           { name: 'lane', required: true, label: 'Staging Lane' },
-          { name: 'load_ref', label: 'Load / Vehicle Ref' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'load_ref', label: 'Load / Vehicle Ref' }
         ] }
     ]
   },
@@ -266,15 +277,17 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', assigned: 'Assigned', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Task', note: 'Assign requires an operator; completion stamps the done time that the shift throughput reads.',
+      { title: 'Task', note: 'Only the assigned operative completes a task; a pick or put-away task completes the movement it represents, a count task its floor count.',
         fields: [
           { name: 'task_type', required: true, label: 'Task Type' },
           { name: 'ref', label: 'Reference' },
           { name: 'part_id', label: 'Spare Part' },
           { name: 'bin_id', label: 'Bin' },
           { name: 'qty', label: 'Quantity' },
-          { name: 'assignee_id', label: 'Assignee' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'wave_line_id', label: 'Wave Line' },
+          { name: 'putaway_id', label: 'Put-Away' },
+          { name: 'floor_count_id', label: 'Floor Count' },
+          { name: 'assignee_id', label: 'Assignee' }
         ] }
     ]
   },
@@ -286,14 +299,14 @@ export const SCREENS = {
     back: 'M41-counting',
     status: { field: 'state', labels: { draft: 'Draft', posted: 'Posted' } },
     sections: [
-      { title: 'Count', note: 'Bin-level audit: posting records the variance; the location ledger adjustment stays with an M15 count.',
+      { title: 'Count', note: 'Blind bin count: the system takes the expected quantity. A variance is recounted, then submitted to M15 for Inventory Controller approval; the bin moves when that count posts.',
         fields: [
           { name: 'bin_id', required: true, label: 'Bin' },
           { name: 'part_id', required: true, label: 'Spare Part' },
-          { name: 'expected_qty', label: 'Expected' },
           { name: 'counted_qty', label: 'Counted' },
+          { name: 'reason_code', label: 'Variance Reason (after recount)' },
           { name: 'counted_on', required: true, label: 'Counted On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'stock_count_id', label: 'M15 Count', readonly: true }
         ] }
     ]
   },
@@ -352,7 +365,6 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Location Name" },
           { name: 'code', required: true, label: "Location Code" },
           { name: 'company_id', required: true, label: "Company" },
-          { name: 'state', label: "Status" },
           { name: 'active', label: "Active" },
           { name: 'operating_unit_id', label: "Operating Unit" },
           { name: 'name_bn', label: "লোকেশন নাম (বাংলা)" }
@@ -365,15 +377,17 @@ export const SCREENS = {
     title: "Inventory Valuation Suspense",
     back: 'M41-inventory-valuation-suspense',
     sections: [
-      { title: "Inventory Valuation Suspense", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Inventory Valuation Suspense", note: "Read-only: the stock movements write these entries and only the M19 GL cutover reconciles them.",
         fields: [
-          { name: 'name', required: true, label: "Entry Reference" },
-          { name: 'company_id', required: true, label: "Company" },
-          { name: 'product_id', required: true, label: "Spare Part" },
-          { name: 'quantity', required: true, label: "Movement Quantity" },
-          { name: 'operating_unit_id', label: "Operating Unit" },
-          { name: 'name_bn', label: "মূল্যায়ন এন্ট্রি রেফারেন্স (বাংলা)" },
-          { name: 'consumption_id', label: "Originating Consumption" }
+          { name: 'name', label: "Entry Reference", readonly: true },
+          { name: 'company_id', label: "Company", readonly: true },
+          { name: 'product_id', label: "Spare Part", readonly: true },
+          { name: 'entry_type', label: "Entry Type", readonly: true },
+          { name: 'quantity', label: "Movement Quantity", readonly: true },
+          { name: 'total_valuation', label: "Total Valuation", readonly: true },
+          { name: 'status', label: "GL Status", readonly: true },
+          { name: 'operating_unit_id', label: "Operating Unit", readonly: true },
+          { name: 'consumption_id', label: "Originating Consumption", readonly: true }
         ] }
     ]
   },
@@ -389,7 +403,6 @@ export const SCREENS = {
           { name: 'name', required: true, label: "Part Description" },
           { name: 'company_id', required: true, label: "Company" },
           { name: 'part_number', required: true, label: "Part Number / SKU" },
-          { name: 'state', label: "Status" },
           { name: 'active', label: "Active" },
           { name: 'operating_unit_id', label: "Operating Unit" },
           { name: 'name_bn', label: "যন্ত্রাংশের নাম (বাংলা)" }
@@ -409,7 +422,8 @@ export const SCREENS = {
           { name: 'company_id', required: true, label: "Company" },
           { name: 'operating_unit_id', required: true, label: "Operating Unit" },
           { name: 'active', label: "Active" },
-          { name: 'branch_id', label: "Branch" }
+          { name: 'branch_id', label: "Branch" },
+          { name: 'stock_location_id', label: "M15 Stock Location" }
         ] }
     ]
   },

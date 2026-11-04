@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M15 inventory control parameters (A06 remediation S9). Business decisions
+  (report section 7), shipped at the conservative default 0:
+    count_variance_tolerance_pct  - % of the expected quantity a count may differ
+                                    by and post without approval (0 = every
+                                    variance is recounted, then approved)
+    van_variance_tolerance_pct    - the same for a van reconciliation
+    writeoff_approval_threshold   - BDT value above which a scrap / write-off
+                                    needs Inventory Controller approval (0 = all)
+    transfer_approval_threshold   - BDT value above which a transfer needs
+                                    approval (0 = all)
+  noupdate: once Finance sets a value, an upgrade does not reset it.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="param_count_variance_tolerance_pct" model="ir.config_parameter">
+            <field name="key">cd_inventory.count_variance_tolerance_pct</field>
+            <field name="value">0</field>
+        </record>
+        <record id="param_van_variance_tolerance_pct" model="ir.config_parameter">
+            <field name="key">cd_inventory.van_variance_tolerance_pct</field>
+            <field name="value">0</field>
+        </record>
+        <record id="param_writeoff_approval_threshold" model="ir.config_parameter">
+            <field name="key">cd_inventory.writeoff_approval_threshold</field>
+            <field name="value">0</field>
+        </record>
+        <record id="param_transfer_approval_threshold" model="ir.config_parameter">
+            <field name="key">cd_inventory.transfer_approval_threshold</field>
+            <field name="value">0</field>
+        </record>
+    </data>
+</odoo>

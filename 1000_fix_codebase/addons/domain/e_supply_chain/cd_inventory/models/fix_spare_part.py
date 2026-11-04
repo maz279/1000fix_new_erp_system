@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from odoo import api, fields, models
-from odoo.exceptions import ValidationError
+from odoo.exceptions import UserError, ValidationError
+
+from .fix_inventory_approval import CONTROLLER_GROUP, VALUED_CLASSES
 
 
 class FixSparePart(models.Model):
@@ -10,7 +12,13 @@ class FixSparePart(models.Model):
 
     _name = "fix.spare.part"
     _description = "Spare Part & Component"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    # A06 audit (2026-11-03) M15-1/M15-6: qty_available and unit_cost were
+    # free fields: a clerk typed stock to 9,999, created a part born with
+    # 1,000 on hand and re-priced a part 500 -> 1 BDT. The on-hand and
+    # reserved quantities are now the SUM of the location ledger
+    # (fix.stock.onhand) and change only by a movement; the standard cost and
+    # the part status change only by an Inventory Controller action.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
     company_id = fields.Many2one(
         "res.company",
@@ -76,8 +84,44 @@ class FixSparePart(models.Model):
     unit_cost = fields.Float(string="Standard Cost (BDT)", default=0.0)
     list_price = fields.Float(string="List Price (BDT)", default=0.0)
 
-    qty_available = fields.Float(string="Quantity On Hand", default=0.0, tracking=True)
-    qty_reserved = fields.Float(string="Quantity Reserved", default=0.0)
+    product_id = fields.Many2one(
+        "product.product",
+        string="Purchased As (Product)",
+        index=True,
+        ondelete="restrict",
+        help="The product M16 purchase orders buy this part as. A PO goods receipt of "
+        "this product posts the received quantity into the M15 ledger (A06 M15-9).",
+    )
+    onhand_ids = fields.One2many("fix.stock.onhand", "part_id", string="Location Ledger")
+    qty_available = fields.Float(
+        string="Quantity On Hand",
+        compute="_compute_ledger_totals",
+        store=True,
+        readonly=True,
+        help="Sum of the location ledger, every class and status. Never typed.",
+    )
+    qty_reserved = fields.Float(
+        string="Quantity Reserved",
+        compute="_compute_ledger_totals",
+        store=True,
+        readonly=True,
+    )
+    average_cost = fields.Float(
+        string="Average Cost (BDT)",
+        compute="_compute_ledger_totals",
+        store=True,
+        readonly=True,
+        help="Weighted average of the owned ledger buckets (consignment and customer "
+        "property excluded); the standard cost when nothing is on hand.",
+    )
+    storage_class = fields.Selection(
+        [("general", "General"), ("hazardous", "Hazardous (Li-ion / chemical)")],
+        string="Storage Class",
+        compute="_compute_storage_class",
+        store=True,
+        readonly=False,
+        help="BRU-WMS-11: hazardous parts are put away only into hazardous bins.",
+    )
     min_qty = fields.Float(string="Minimum Reorder Point", default=5.0)
     max_qty = fields.Float(string="Target Max Stock", default=25.0)
     safety_stock = fields.Float(string="Safety Buffer Stock", default=3.0)
@@ -107,6 +151,81 @@ class FixSparePart(models.Model):
         "Part number must be unique per company.",
     )
     _part_code_unique = _part_number_company_unique
+    _product_company_unique = models.Constraint(
+        "UNIQUE (product_id, company_id)",
+        "A purchased product maps to one spare part per company.",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"qty_available", "qty_reserved", "state"}
+
+    @api.depends("onhand_ids.qty", "onhand_ids.reserved", "onhand_ids.unit_cost", "unit_cost")
+    def _compute_ledger_totals(self):
+        for part in self:
+            rows = part.onhand_ids
+            part.qty_available = round(sum(rows.mapped("qty")), 4)
+            part.qty_reserved = round(sum(rows.mapped("reserved")), 4)
+            valued = rows.filtered(lambda r: r.ownership_class in VALUED_CLASSES and r.qty > 0)
+            qty = sum(valued.mapped("qty"))
+            part.average_cost = (
+                round(sum(r.qty * (r.unit_cost or 0.0) for r in valued) / qty, 4)
+                if qty
+                else part.unit_cost or 0.0
+            )
+
+    @api.depends("part_category")
+    def _compute_storage_class(self):
+        for part in self:
+            if not part.storage_class:
+                part.storage_class = "hazardous" if part.part_category == "battery" else "general"
+
+    def write(self, vals):
+        if self and "unit_cost" in vals and not self._fix_guard_open():
+            changed = self.filtered(
+                lambda p: abs((p.unit_cost or 0.0) - float(vals["unit_cost"] or 0.0)) > 1e-6
+            )
+            if changed:
+                raise UserError(
+                    "The standard cost of %s changes only through Set Standard Cost by an "
+                    "Inventory Controller (issues are valued at the ledger average cost)."
+                    % ", ".join(changed.mapped("part_number"))
+                )
+        return super().write(vals)
+
+    # ---- controlled master-data changes ------------------------------------
+    def _part_check_controller(self):
+        if not self.env.su and not self.env.user.has_group(CONTROLLER_GROUP):
+            raise UserError("Only an Inventory Controller can change a part's status or cost.")
+
+    def action_set_standard_cost(self, cost):
+        """Change the standard (reference) cost. Ledger buckets keep their
+        own average cost; revaluing stock is fix.stock.onhand._fix_revalue."""
+        self._part_check_controller()
+        cost = float(cost or 0.0)
+        if cost < 0:
+            raise UserError("A standard cost cannot be negative.")
+        for part in self:
+            before = part.unit_cost
+            part._guarded().write({"unit_cost": cost})
+            part.message_post(
+                body="Standard cost changed %.2f -> %.2f by %s."
+                % (before, cost, self.env.user.name)
+            )
+        return True
+
+    def _part_set_state(self, state):
+        self._part_check_controller()
+        self._guarded().write({"state": state})
+        return True
+
+    def action_discontinue(self):
+        return self._part_set_state("discontinued")
+
+    def action_mark_obsolete(self):
+        return self._part_set_state("obsolete")
+
+    def action_reactivate(self):
+        return self._part_set_state("active")
 
     @api.constrains("min_qty", "max_qty")
     def _check_min_max_quantities(self):

@@ -1,10 +1,41 @@
 # fix_inventory_ops — M15: the per-location stock ledger and the control
-# documents the workspace screens read: on-hand by ownership class, lots,
-# goods receipts (inspection gate), transfers, counts, van reconciliation,
-# quarantine/scrap and RTV. fix.spare.part keeps the aggregate qty_available;
-# every movement here also keeps it in step.
+# documents the workspace screens read: on-hand by ownership class and stock
+# status, lots, goods receipts (inspection gate), transfers, blind counts,
+# van reconciliation, quarantine/scrap, RTV and ownership-class changes.
+#
+# A06 audit (2026-11-03) M15-1..M15-15: every state, quantity and cost on
+# these documents was a plain field; stock could be created from nothing five
+# ways; there was no approval, no stock status and no cost layer. Now:
+#   - fix.stock.onhand is the ledger, written only by the movements below
+#     (users have read access only); it carries a STATUS (unrestricted /
+#     quarantine / in transit / staged) and only unrestricted stock can be
+#     reserved or issued (BRU-INV-08);
+#   - a receipt values the bucket at its weighted-average cost; issues,
+#     returns, transfers and scrap move stock at the bucket's average cost;
+#   - every workflow field is guarded (fix.guarded.mixin) and every
+#     approval is a two-person Inventory Controller decision
+#     (fix.inventory.approval.mixin); posted documents are final;
+#   - every valued movement books a suspense entry for M19.
+import logging
+
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
+
+from libs.py.fix_events import publish
+
+from .fix_inventory_approval import (
+    PARAM_COUNT_TOLERANCE_PCT,
+    PARAM_TRANSFER_THRESHOLD,
+    PARAM_VAN_TOLERANCE_PCT,
+    PARAM_WRITEOFF_THRESHOLD,
+    VALUED_CLASSES,
+    check_location_usable,
+    check_quantity,
+    inv_param,
+    location_class,
+)
+
+_logger = logging.getLogger(__name__)
 
 OWNERSHIP_CLASSES = [
     ("owned", "Owned Stock"),
@@ -15,13 +46,51 @@ OWNERSHIP_CLASSES = [
     ("warranty", "Warranty Reserve"),
 ]
 
+STOCK_STATUSES = [
+    ("unrestricted", "Unrestricted"),
+    ("quarantine", "Quarantine"),
+    ("in_transit", "In Transit"),
+    ("staged", "Staged for Dispatch"),
+]
+
+COUNT_REASONS = [
+    ("damage", "Damage / breakage"),
+    ("loss", "Loss / theft"),
+    ("unrecorded_issue", "Unrecorded issue"),
+    ("unrecorded_receipt", "Unrecorded receipt"),
+    ("prior_miscount", "Prior miscount"),
+    ("data_error", "Data / unit error"),
+    ("other", "Other (explained in the note)"),
+]
+
+EPS = 1e-6
+
+
+def _changes(records, vals):
+    """True when vals would change any stored value of records."""
+    for rec in records:
+        for name, value in vals.items():
+            field = rec._fields.get(name)
+            if field is None:
+                continue
+            if rec._fix_guard_differs(name, value, rec[name]):
+                return True
+    return False
+
+
+def _event(env, event_type, aggregate, aggregate_id, payload):
+    """Publish inside the transaction (a failed publish fails the movement:
+    an event the ledger promised must not be silently dropped)."""
+    publish(env, event_type, aggregate, aggregate_id, payload)
+
 
 class FixStockOnhand(models.Model):
-    """On-hand quantity of one part at one location in one ownership class."""
+    """On-hand quantity of one part at one location, ownership class and status."""
 
     _name = "fix.stock.onhand"
     _description = "Stock On Hand"
     _order = "part_id, location_id"
+    _inherit = ["fix.guarded.mixin"]
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -36,13 +105,25 @@ class FixStockOnhand(models.Model):
     ownership_class = fields.Selection(
         OWNERSHIP_CLASSES, required=True, default="owned", index=True
     )
+    stock_status = fields.Selection(
+        STOCK_STATUSES,
+        string="Stock Status",
+        required=True,
+        default="unrestricted",
+        index=True,
+        help="Only unrestricted stock can be reserved or issued (BRU-INV-08).",
+    )
     qty = fields.Float(string="Quantity")
     reserved = fields.Float(string="Reserved")
     available_qty = fields.Float(string="Available", compute="_compute_available", store=True)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
-    unit_cost = fields.Monetary(string="Unit Cost", currency_field="currency_id")
+    unit_cost = fields.Monetary(
+        string="Unit Cost",
+        currency_field="currency_id",
+        help="Weighted-average cost of the quantity in this bucket.",
+    )
     valuation_method = fields.Selection(
         [("fifo", "FIFO"), ("wac", "Weighted Average"), ("standard", "Standard Cost")],
         required=True,
@@ -51,65 +132,194 @@ class FixStockOnhand(models.Model):
     last_move_date = fields.Date(string="Last Movement")
 
     _part_loc_class_unique = models.Constraint(
-        "UNIQUE (part_id, location_id, ownership_class)",
-        "One on-hand row per part, location and ownership class",
+        "UNIQUE (part_id, location_id, ownership_class, stock_status)",
+        "One on-hand row per part, location, ownership class and stock status",
     )
     _qty_non_negative = models.Constraint(
         "CHECK (qty >= 0 AND reserved >= 0 AND reserved <= qty)",
         "Quantities cannot be negative and reserved cannot exceed on-hand",
     )
 
+    def _fix_guarded_fields(self) -> set:
+        # The ledger is written only by the movements (A06 audit M15-1).
+        return super()._fix_guarded_fields() | {
+            "part_id",
+            "location_id",
+            "ownership_class",
+            "stock_status",
+            "qty",
+            "reserved",
+            "unit_cost",
+            "valuation_method",
+            "company_id",
+            "last_move_date",
+        }
+
     @api.depends("qty", "reserved")
     def _compute_available(self):
         for rec in self:
             rec.available_qty = round((rec.qty or 0.0) - (rec.reserved or 0.0), 3)
 
+    # ------------------------------------------------------------------ core
     @api.model
-    def _apply(self, part, location, ownership, delta, unit_cost=None, must_exist=True):
-        """Move `delta` into (or out of) a part/location/class bucket.
-
-        Positive deltas create the bucket; negative deltas refuse to go below
-        zero rather than creating a negative row.
-        """
-        row = self.search(
-            [
-                ("part_id", "=", part.id),
-                ("location_id", "=", location.id),
-                ("ownership_class", "=", ownership),
-            ],
-            limit=1,
+    def _bucket(self, part, location, ownership, status="unrestricted"):
+        return (
+            self.sudo()
+            .search(
+                [
+                    ("part_id", "=", part.id),
+                    ("location_id", "=", location.id),
+                    ("ownership_class", "=", ownership),
+                    ("stock_status", "=", status),
+                ],
+                limit=1,
+            )
+            .with_env(self.env)
         )
+
+    @api.model
+    def _apply(
+        self,
+        part,
+        location,
+        ownership,
+        delta,
+        unit_cost=None,
+        must_exist=True,
+        status="unrestricted",
+        from_reserved=False,
+    ):
+        """Move `delta` into (or out of) a part/location/class/status bucket.
+
+        Positive deltas create the bucket and value it at the WEIGHTED
+        AVERAGE of what it held and what arrives (`unit_cost`; when no cost is
+        given the bucket keeps its cost). Negative deltas never go below zero
+        and never take reserved stock unless `from_reserved` (the reserving
+        document consumes its own reservation). Returns the bucket.
+        """
+        if not delta:
+            raise UserError("A stock movement needs a non-zero quantity.")
+        check_quantity(part, abs(delta), "movement")
+        if not location.active or location.state != "active":
+            raise UserError("Location %s is not active and cannot move stock." % location.code)
+        row = self._bucket(part, location, ownership, status)
+        Ledger = self.sudo()
+        today = fields.Date.context_today(self)
         if not row and delta > 0:
-            row = self.create(
+            cost = unit_cost if unit_cost is not None else (part.average_cost or part.unit_cost)
+            return Ledger.create(
                 {
+                    "company_id": location.company_id.id or part.company_id.id,
+                    "operating_unit_id": location.operating_unit_id.id or False,
                     "part_id": part.id,
                     "location_id": location.id,
                     "ownership_class": ownership,
+                    "stock_status": status,
                     "qty": delta,
-                    "unit_cost": unit_cost or part.unit_cost or 0.0,
-                    "last_move_date": fields.Date.context_today(self),
+                    "unit_cost": cost or 0.0,
+                    "last_move_date": today,
                 }
-            )
-            return row
+            ).with_env(self.env)
         if not row:
-            # legacy flows (a scan at a location that predates the ledger) can
-            # move the aggregate without a bucket; ledger-native documents
-            # (transfer, count, scrap, RTV) still demand the bucket exists
+            # A ledger-native movement always demands its bucket; the legacy
+            # flag only lets a caller ask "nothing there" without an error.
             if not must_exist:
                 return row
             raise UserError(
-                "No %s stock of %s at %s to move" % (ownership, part.part_number, location.code)
+                "No %s %s stock of %s at %s to move."
+                % (status.replace("_", " "), ownership, part.part_number, location.code)
             )
-        new_qty = (row.qty or 0.0) + delta
-        if new_qty < 0:
+        old_qty = row.qty or 0.0
+        new_qty = old_qty + delta
+        if new_qty < -EPS:
             raise UserError(
-                "Moving %.2f from %s at %s would leave %.2f — insufficient on-hand"
-                % (abs(delta), part.part_number, location.code, new_qty)
+                "Moving %s of %s out of %s would leave %s: insufficient on-hand."
+                % (abs(delta), part.part_number, location.code, round(new_qty, 4))
             )
-        vals = {"qty": new_qty, "last_move_date": fields.Date.context_today(self)}
-        if unit_cost:
-            vals["unit_cost"] = unit_cost
-        row.write(vals)
+        vals = {"qty": max(new_qty, 0.0), "last_move_date": today}
+        if delta > 0 and unit_cost is not None:
+            total = old_qty + delta
+            vals["unit_cost"] = round(
+                (old_qty * (row.unit_cost or 0.0) + delta * unit_cost) / total, 4
+            )
+        if delta < 0:
+            free = old_qty - (row.reserved or 0.0)
+            if from_reserved:
+                take = min(row.reserved or 0.0, abs(delta))
+                vals["reserved"] = round((row.reserved or 0.0) - take, 4)
+            elif abs(delta) > free + EPS:
+                raise UserError(
+                    "Only %s of %s at %s is unreserved; %s is reserved for other work."
+                    % (round(free, 4), part.part_number, location.code, row.reserved)
+                )
+            if vals["qty"] < (vals.get("reserved", row.reserved) or 0.0) - EPS:
+                vals["reserved"] = vals["qty"]
+        row.sudo().write(vals)
+        return row
+
+    @api.model
+    def _fix_move_status(self, part, location, ownership, qty, from_status, to_status):
+        """Move qty between two statuses of one location/class at its cost."""
+        source = self._bucket(part, location, ownership, from_status)
+        cost = source.unit_cost if source else None
+        self._apply(part, location, ownership, -qty, status=from_status)
+        self._apply(part, location, ownership, qty, unit_cost=cost, status=to_status)
+        return cost or 0.0
+
+    # ------------------------------------------------- cross-builder contract
+    @api.model
+    def _fix_reserve(self, part, location, ownership, qty, ref):
+        """Reserve `qty` of unrestricted stock for `ref`; refuses to reserve
+        more than is available (on hand minus what is already reserved)."""
+        check_quantity(part, qty, "reservation")
+        row = self._bucket(part, location, ownership)
+        available = (row.qty - row.reserved) if row else 0.0
+        if qty > available + EPS:
+            raise UserError(
+                "Cannot reserve %s of %s at %s for %s: only %s is available."
+                % (qty, part.part_number, location.code, ref or "-", round(available, 4))
+            )
+        row.sudo().write({"reserved": round((row.reserved or 0.0) + qty, 4)})
+        _logger.info("reserved %s %s at %s for %s", qty, part.part_number, location.code, ref)
+        return row
+
+    @api.model
+    def _fix_unreserve(self, part, location, ownership, qty, ref):
+        """Release a reservation; refuses to release more than is reserved."""
+        check_quantity(part, qty, "reservation release")
+        row = self._bucket(part, location, ownership)
+        reserved = row.reserved if row else 0.0
+        if qty > reserved + EPS:
+            raise UserError(
+                "Cannot release %s of %s at %s for %s: only %s is reserved."
+                % (qty, part.part_number, location.code, ref or "-", reserved)
+            )
+        row.sudo().write({"reserved": round(reserved - qty, 4)})
+        return row
+
+    @api.model
+    def _fix_revalue(self, part, location, ownership, amount, ref):
+        """Add `amount` (BDT, may be negative) to the bucket's value without
+        changing its quantity: unit cost += amount / qty. The part's average
+        cost follows (it is computed from the buckets). Refuses an empty
+        bucket and a revaluation below zero. Books a revaluation entry."""
+        row = self._bucket(part, location, ownership)
+        if not row or (row.qty or 0.0) <= EPS:
+            raise UserError(
+                "Cannot revalue %s at %s (%s): the bucket holds no quantity."
+                % (part.part_number, location.code, ownership)
+            )
+        new_cost = (row.unit_cost or 0.0) + (amount or 0.0) / row.qty
+        if new_cost < -EPS:
+            raise UserError(
+                "Revaluing %s at %s by %s would make its unit cost negative."
+                % (part.part_number, location.code, amount)
+            )
+        row.sudo().write({"unit_cost": round(max(new_cost, 0.0), 4)})
+        if amount and ownership in VALUED_CLASSES:
+            self.env["fix.inventory.valuation.suspense"]._fix_post(
+                "revaluation", part, 1.0, amount, ref, location=location, ownership=ownership
+            )
         return row
 
 
@@ -119,6 +329,7 @@ class FixStockLot(models.Model):
     _name = "fix.stock.lot"
     _description = "Stock Serial / Lot"
     _order = "received_on desc, id desc"
+    _inherit = ["fix.guarded.mixin"]
 
     name = fields.Char(string="Serial / Lot", required=True)
     company_id = fields.Many2one(
@@ -137,6 +348,7 @@ class FixStockLot(models.Model):
             ("issued", "Issued"),
             ("quarantined", "Quarantined"),
             ("scrapped", "Scrapped"),
+            ("returned", "Returned to Vendor"),
         ],
         required=True,
         default="in_stock",
@@ -148,13 +360,42 @@ class FixStockLot(models.Model):
 
     _qty_non_negative = models.Constraint("CHECK (qty >= 0)", "Lot quantity cannot be negative")
 
+    def _fix_guarded_fields(self) -> set:
+        # A06 audit M15-5/E85: a quarantined serial was set back in stock
+        # with qty 50 through the Lot form. Lots move only with the ledger.
+        return super()._fix_guarded_fields() | {
+            "name",
+            "part_id",
+            "location_id",
+            "qty",
+            "status",
+            "received_on",
+        }
 
+    @api.constrains("qty", "part_id")
+    def _check_serial_is_one_unit(self):
+        for lot in self:
+            if lot.part_id.is_serialized and lot.qty > 1.0 + EPS:
+                raise ValidationError(
+                    "%s is serialized: serial %s is one unit, not %s."
+                    % (lot.part_id.part_number, lot.name, lot.qty)
+                )
+
+    @api.model
+    def _fix_find(self, part, name):
+        return self.sudo().search([("part_id", "=", part.id), ("name", "=", name)], limit=1)
+
+
+# =========================================================================
+# Goods receipt
+# =========================================================================
 class FixStockReceipt(models.Model):
     """Goods receipt with the inspection gate (accepted / rejected)."""
 
     _name = "fix.stock.receipt"
     _description = "Goods Receipt"
     _order = "create_date desc, id desc"
+    _inherit = ["fix.guarded.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -167,6 +408,20 @@ class FixStockReceipt(models.Model):
     location_id = fields.Many2one(
         "fix.stock.location", string="Receiving Location", required=True, ondelete="restrict"
     )
+    ownership_class = fields.Selection(
+        OWNERSHIP_CLASSES,
+        string="Ownership Class",
+        required=True,
+        default="owned",
+        help="The class the goods are received into: brand consignment and customer "
+        "property are held stock, never valued (BRU-INV-02/05).",
+    )
+    purchase_order_id = fields.Many2one(
+        "fix.purchase.order", string="Purchase Order", index=True, ondelete="restrict"
+    )
+    source_model = fields.Char(string="Source Document Model", index=True)
+    source_res_id = fields.Integer(string="Source Document ID", index=True)
+    source_ref = fields.Char(string="Source Reference", index=True)
     received_on = fields.Date(required=True, default=fields.Date.context_today)
     inspection_notes = fields.Char()
     state = fields.Selection(
@@ -174,16 +429,70 @@ class FixStockReceipt(models.Model):
         required=True,
         default="draft",
     )
+    inspected_by_id = fields.Many2one("res.users", string="Inspected By", readonly=True)
+    inspected_at = fields.Datetime(string="Inspected On", readonly=True)
+    posted_by_id = fields.Many2one("res.users", string="Posted By", readonly=True)
+    posted_at = fields.Datetime(string="Posted On", readonly=True)
     line_ids = fields.One2many("fix.stock.receipt.line", "receipt_id", string="Lines")
+
+    _DOC_FIELDS = (
+        "partner_id",
+        "location_id",
+        "ownership_class",
+        "purchase_order_id",
+        "received_on",
+        "company_id",
+        "source_model",
+        "source_res_id",
+        "source_ref",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "inspected_by_id",
+            "inspected_at",
+            "posted_by_id",
+            "posted_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state != "draft":
+            locked |= set(self._DOC_FIELDS) | {"line_ids"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.stock.receipt") or "GRN/New"
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.receipt") or "GRN/New"
                 )
         return super().create(vals_list)
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            frozen = {k: vals[k] for k in self._DOC_FIELDS if k in vals}
+            if (frozen and _changes(self.filtered(lambda r: r.state != "draft"), frozen)) or (
+                "line_ids" in vals and self.filtered(lambda r: r.state != "draft")
+            ):
+                raise UserError(
+                    "An inspected or posted goods receipt is final: correct it with a new "
+                    "receipt, a return to vendor or a count."
+                )
+        return super().write(vals)
+
+    @api.constrains("purchase_order_id", "partner_id")
+    def _check_po_partner(self):
+        for rec in self:
+            po = rec.purchase_order_id.sudo()
+            vendor = po.vendor_id if "vendor_id" in po._fields else po.browse()
+            if vendor and vendor.commercial_partner_id != rec.partner_id.commercial_partner_id:
+                raise ValidationError(
+                    "Receipt %s is from %s but purchase order %s is with %s."
+                    % (rec.name, rec.partner_id.name, po.display_name, vendor.name)
+                )
 
     def action_inspect(self):
         for rec in self:
@@ -193,27 +502,61 @@ class FixStockReceipt(models.Model):
                 raise UserError("A receipt needs at least one line")
             if any(line.qty_accepted <= 0 for line in rec.line_ids):
                 raise UserError("The inspection gate requires an accepted quantity on every line")
-            rec.state = "inspected"
+            for line in rec.line_ids:
+                check_quantity(line.part_id, line.qty_received, "received quantity")
+                check_quantity(line.part_id, line.qty_accepted, "accepted quantity")
+            rec._guarded().write(
+                {
+                    "state": "inspected",
+                    "inspected_by_id": self.env.user.id,
+                    "inspected_at": fields.Datetime.now(),
+                }
+            )
+        return True
 
     def action_post(self):
-        onhand = self.env["fix.stock.onhand"]
-        lots = self.env["fix.stock.lot"]
+        Onhand = self.env["fix.stock.onhand"]
+        Lots = self.env["fix.stock.lot"]
+        Suspense = self.env["fix.inventory.valuation.suspense"]
         for rec in self:
             if rec.state != "inspected":
                 raise UserError("Post an inspected receipt")
+            check_location_usable(rec.location_id, self.env)
+            cls = location_class(rec.location_id, rec.ownership_class)
             for line in rec.line_ids:
-                onhand._apply(
-                    line.part_id, rec.location_id, "owned", line.qty_accepted, line.unit_cost
-                )
-                line.part_id.sudo().write(
-                    {"qty_available": (line.part_id.qty_available or 0.0) + line.qty_accepted}
+                part = line.part_id
+                rejected = round((line.qty_received or 0.0) - (line.qty_accepted or 0.0), 4)
+                lot_vals = {}
+                if part.is_serialized:
+                    if not line.line_no:
+                        raise UserError(
+                            "%s is serialized: every receipt line needs its serial number."
+                            % part.part_number
+                        )
+                    if abs((line.qty_received or 0.0) - 1.0) > EPS:
+                        raise UserError(
+                            "%s is serialized: one receipt line receives one serial (one "
+                            "unit), not %s." % (part.part_number, line.qty_received)
+                        )
+                    if Lots._fix_find(part, line.line_no):
+                        raise UserError(
+                            "Serial %s of %s has already been received: a serial is "
+                            "received once (BRU-INV-14)." % (line.line_no, part.part_number)
+                        )
+                Onhand._apply(part, rec.location_id, cls, line.qty_accepted, line.unit_cost or 0.0)
+                Suspense._fix_post(
+                    "receipt",
+                    part,
+                    line.qty_accepted,
+                    line.unit_cost,
+                    rec.name,
+                    location=rec.location_id,
+                    ownership=cls,
                 )
                 if line.line_no:
-                    lot = lots.search(
-                        [("part_id", "=", line.part_id.id), ("name", "=", line.line_no)], limit=1
-                    )
+                    lot = Lots._fix_find(part, line.line_no)
                     if lot:
-                        lot.write(
+                        lot._guarded().write(
                             {
                                 "qty": (lot.qty or 0.0) + line.qty_accepted,
                                 "location_id": rec.location_id.id,
@@ -221,23 +564,95 @@ class FixStockReceipt(models.Model):
                             }
                         )
                     else:
-                        lots.create(
+                        lot = Lots.sudo().create(
                             {
                                 "name": line.line_no,
-                                "part_id": line.part_id.id,
+                                "company_id": rec.company_id.id,
+                                "part_id": part.id,
                                 "location_id": rec.location_id.id,
                                 "qty": line.qty_accepted,
                                 "received_on": rec.received_on,
                                 "source_ref": rec.name,
                             }
                         )
-            rec.state = "posted"
+                    lot_vals["lot_id"] = lot.id
+                if rejected > EPS:
+                    # R5: rejected quantity is held in quarantine, never dropped.
+                    Onhand._apply(
+                        part,
+                        rec.location_id,
+                        cls,
+                        rejected,
+                        line.unit_cost or 0.0,
+                        status="quarantine",
+                    )
+                    Suspense._fix_post(
+                        "receipt",
+                        part,
+                        rejected,
+                        line.unit_cost,
+                        rec.name,
+                        location=rec.location_id,
+                        ownership=cls,
+                    )
+                    quarantine = (
+                        self.env["fix.stock.quarantine"]
+                        .sudo()
+                        ._guarded()
+                        .with_context(fix_quarantine_in_place=True)
+                        .create(
+                            {
+                                "part_id": part.id,
+                                "location_id": rec.location_id.id,
+                                "company_id": rec.company_id.id,
+                                "ownership_class": cls,
+                                "qty": rejected,
+                                "reason": "defective",
+                                "notes": "Rejected at inspection of %s" % rec.name,
+                                "source_ref": rec.name,
+                            }
+                        )
+                    )
+                    lot_vals["quarantine_id"] = quarantine.id
+                lot_vals["is_posted"] = True
+                line._guarded().write(lot_vals)
+            rec._guarded().write(
+                {
+                    "state": "posted",
+                    "posted_by_id": self.env.user.id,
+                    "posted_at": fields.Datetime.now(),
+                }
+            )
+            _event(
+                self.env,
+                "stock.received",
+                "fix.stock.receipt",
+                rec.id,
+                {
+                    "receipt": rec.name,
+                    "location_id": rec.location_id.id,
+                    "ownership_class": cls,
+                    "purchase_order_id": rec.purchase_order_id.id or None,
+                    "source_ref": rec.source_ref or None,
+                    "lines": [
+                        {
+                            "part_id": line.part_id.id,
+                            "accepted": line.qty_accepted,
+                            "rejected": line.qty_rejected,
+                            "unit_cost": line.unit_cost,
+                        }
+                        for line in rec.line_ids
+                    ],
+                },
+            )
+        return True
 
 
 class FixStockReceiptLine(models.Model):
     _name = "fix.stock.receipt.line"
     _description = "Goods Receipt Line"
     _order = "receipt_id, id"
+    _inherit = ["fix.guarded.mixin"]
 
     receipt_id = fields.Many2one("fix.stock.receipt", required=True, ondelete="cascade", index=True)
     part_id = fields.Many2one(
@@ -251,24 +666,61 @@ class FixStockReceiptLine(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     unit_cost = fields.Monetary(string="Unit Cost", currency_field="currency_id")
+    source_line_ref = fields.Char(string="Source Line Reference")
+    is_posted = fields.Boolean(string="Posted", readonly=True, copy=False)
+    lot_id = fields.Many2one("fix.stock.lot", string="Lot Created", readonly=True, copy=False)
+    quarantine_id = fields.Many2one(
+        "fix.stock.quarantine", string="Rejected Qty Quarantine", readonly=True, copy=False
+    )
 
     _qty_bounds = models.Constraint(
         "CHECK (qty_received >= 0 AND qty_accepted >= 0 AND qty_accepted <= qty_received)",
         "Accepted quantity must be between 0 and the received quantity",
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"is_posted", "lot_id", "quarantine_id"}
+
     @api.depends("qty_received", "qty_accepted")
     def _compute_rejected(self):
         for rec in self:
             rec.qty_rejected = round((rec.qty_received or 0.0) - (rec.qty_accepted or 0.0), 3)
 
+    def _refuse_unless_draft(self, receipts):
+        if not self._fix_guard_open() and receipts.filtered(lambda r: r.state != "draft"):
+            raise UserError(
+                "The lines of an inspected or posted goods receipt are final (A06 audit "
+                "M15-9): correct it with a new receipt, an RTV or a count."
+            )
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        ids = {v.get("receipt_id") for v in vals_list if v.get("receipt_id")}
+        self._refuse_unless_draft(self.env["fix.stock.receipt"].browse(list(ids)))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self:
+            self._refuse_unless_draft(self.mapped("receipt_id"))
+        return super().write(vals)
+
+    def unlink(self):
+        self._refuse_unless_draft(self.mapped("receipt_id"))
+        return super().unlink()
+
+
+# =========================================================================
+# Transfers
+# =========================================================================
 class FixStockTransfer(models.Model):
-    """An inter-branch stock transfer."""
+    """An inter-branch stock transfer: raise, approve, dispatch (in transit),
+    receive. Raiser, approver, dispatcher and receiver are recorded; the
+    approver is never the requester and the receiver never the dispatcher."""
 
     _name = "fix.stock.transfer"
     _description = "Stock Transfer"
     _order = "create_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -284,50 +736,200 @@ class FixStockTransfer(models.Model):
     requested_on = fields.Date(required=True, default=fields.Date.context_today)
     dispatched_on = fields.Date()
     received_on = fields.Date()
+    dispatched_by_id = fields.Many2one("res.users", string="Dispatched By", readonly=True)
+    received_by_id = fields.Many2one("res.users", string="Received By", readonly=True)
     state = fields.Selection(
-        [("draft", "Draft"), ("dispatched", "Dispatched"), ("received", "Received")],
+        [
+            ("draft", "Draft"),
+            ("submitted", "Awaiting Approval"),
+            ("approved", "Approved"),
+            ("dispatched", "Dispatched"),
+            ("received", "Received"),
+            ("cancelled", "Cancelled"),
+        ],
         required=True,
         default="draft",
     )
     line_ids = fields.One2many("fix.stock.transfer.line", "transfer_id", string="Lines")
+    transfer_value = fields.Float(
+        string="Transfer Value (BDT)", compute="_compute_transfer_value", store=False
+    )
 
     _different_locations = models.Constraint(
         "CHECK (from_location_id <> to_location_id)",
         "A transfer moves stock between two different locations",
     )
 
+    _DOC_FIELDS = ("from_location_id", "to_location_id", "company_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "dispatched_on",
+            "received_on",
+            "dispatched_by_id",
+            "received_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state != "draft":
+            locked |= set(self._DOC_FIELDS) | {"line_ids"}
+        return locked
+
+    @api.depends("line_ids.qty", "line_ids.part_id", "from_location_id")
+    def _compute_transfer_value(self):
+        Onhand = self.env["fix.stock.onhand"]
+        for rec in self:
+            total = 0.0
+            cls = location_class(rec.from_location_id)
+            for line in rec.line_ids:
+                bucket = Onhand._bucket(line.part_id, rec.from_location_id, cls)
+                cost = bucket.unit_cost if bucket else line.part_id.average_cost
+                total += (line.qty or 0.0) * (cost or 0.0)
+            rec.transfer_value = round(total, 2)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.stock.transfer") or "TRF/New"
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.transfer") or "TRF/New"
                 )
         return super().create(vals_list)
 
-    def action_dispatch(self):
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            frozen = {k: vals[k] for k in self._DOC_FIELDS if k in vals}
+            moving = self.filtered(lambda r: r.state != "draft")
+            if (frozen and _changes(moving, frozen)) or ("line_ids" in vals and moving):
+                raise UserError(
+                    "A submitted, approved or dispatched transfer is final: cancel it and "
+                    "raise a new one."
+                )
+        return super().write(vals)
+
+    def _require(self, states, what):
         for rec in self:
-            if rec.state != "draft":
-                raise UserError("Dispatch a draft transfer")
+            if rec.state not in states:
+                raise UserError(
+                    "Transfer %s cannot %s: it is %s."
+                    % (rec.name, what, dict(self._fields["state"].selection)[rec.state])
+                )
+
+    def action_submit(self):
+        self._require(("draft",), "be submitted")
+        threshold = inv_param(self.env, PARAM_TRANSFER_THRESHOLD, 0.0)
+        for rec in self:
             if not rec.line_ids:
                 raise UserError("A transfer needs at least one line")
-            rec.write({"state": "dispatched", "dispatched_on": fields.Date.context_today(self)})
+            for line in rec.line_ids:
+                check_quantity(line.part_id, line.qty, "transfer quantity")
+            rec._inv_stamp_request()
+            if threshold > 0 and rec.transfer_value <= threshold:
+                # below the configured threshold no second person is needed
+                rec._guarded().write(
+                    {
+                        "state": "approved",
+                        "approval_note": "auto-approved: value %.2f within the threshold %.2f"
+                        % (rec.transfer_value, threshold),
+                    }
+                )
+            else:
+                rec._guarded().write({"state": "submitted"})
+        return True
+
+    def action_approve(self):
+        self._require(("submitted",), "be approved")
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval()
+            rec._guarded().write({"state": "approved"})
+        return True
+
+    def action_reject(self):
+        self._require(("submitted",), "be rejected")
+        self._inv_check_approver()
+        self._guarded().write({"state": "cancelled"})
+        return True
+
+    def action_cancel(self):
+        self._require(("draft", "submitted", "approved"), "be cancelled")
+        self._guarded().write({"state": "cancelled"})
+        return True
+
+    def action_dispatch(self):
+        """Move the lines out of the source into the source's IN-TRANSIT
+        bucket, at the source's average cost (BRU-INV-16: the sender keeps the
+        value until receipt)."""
+        Onhand = self.env["fix.stock.onhand"]
+        for rec in self:
+            if rec.state != "approved":
+                if rec.state == "draft" and not rec.line_ids:
+                    raise UserError("A transfer needs at least one line")
+                raise UserError(
+                    "Dispatch an approved transfer: submit it and have an Inventory "
+                    "Controller approve it first."
+                )
+            if not rec.line_ids:
+                raise UserError("A transfer needs at least one line")
+            check_location_usable(rec.from_location_id, self.env)
+            cls = location_class(rec.from_location_id)
+            for line in rec.line_ids:
+                cost = Onhand._fix_move_status(
+                    line.part_id, rec.from_location_id, cls, line.qty, "unrestricted", "in_transit"
+                )
+                line._guarded().write({"unit_cost": cost, "is_dispatched": True})
+            rec._guarded().write(
+                {
+                    "state": "dispatched",
+                    "dispatched_on": fields.Date.context_today(self),
+                    "dispatched_by_id": self.env.user.id,
+                }
+            )
+        return True
 
     def action_receive(self):
-        onhand = self.env["fix.stock.onhand"]
+        Onhand = self.env["fix.stock.onhand"]
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Receive a dispatched transfer")
+            if not self.env.su and rec.dispatched_by_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you dispatched %s, so a different person must "
+                    "receive it." % rec.name
+                )
+            check_location_usable(rec.to_location_id, self.env)
+            src_cls = location_class(rec.from_location_id)
+            dst_cls = location_class(rec.to_location_id)
             for line in rec.line_ids:
-                onhand._apply(line.part_id, rec.from_location_id, "owned", -line.qty)
-                onhand._apply(line.part_id, rec.to_location_id, "owned", line.qty)
-            rec.write({"state": "received", "received_on": fields.Date.context_today(self)})
+                if line.is_dispatched:
+                    cost = line.unit_cost
+                    Onhand._apply(
+                        line.part_id, rec.from_location_id, src_cls, -line.qty, status="in_transit"
+                    )
+                else:
+                    # dispatched before the in-transit ledger existed: the stock
+                    # never left the source bucket, take it from there
+                    source = Onhand._bucket(line.part_id, rec.from_location_id, src_cls)
+                    cost = source.unit_cost if source else 0.0
+                    Onhand._apply(line.part_id, rec.from_location_id, src_cls, -line.qty)
+                Onhand._apply(line.part_id, rec.to_location_id, dst_cls, line.qty, cost)
+            rec._guarded().write(
+                {
+                    "state": "received",
+                    "received_on": fields.Date.context_today(self),
+                    "received_by_id": self.env.user.id,
+                }
+            )
+        return True
 
 
 class FixStockTransferLine(models.Model):
     _name = "fix.stock.transfer.line"
     _description = "Stock Transfer Line"
     _order = "transfer_id, id"
+    _inherit = ["fix.guarded.mixin"]
 
     transfer_id = fields.Many2one(
         "fix.stock.transfer", required=True, ondelete="cascade", index=True
@@ -336,16 +938,54 @@ class FixStockTransferLine(models.Model):
         "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
     )
     qty = fields.Float(string="Quantity")
+    unit_cost = fields.Float(string="Dispatch Cost (BDT)", readonly=True, copy=False)
+    is_dispatched = fields.Boolean(string="Dispatched", readonly=True, copy=False)
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "Transfer quantity must be positive")
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"unit_cost", "is_dispatched"}
 
+    def _refuse_unless_draft(self, transfers):
+        if not self._fix_guard_open() and transfers.filtered(lambda t: t.state != "draft"):
+            raise UserError(
+                "The lines of a submitted, approved or dispatched transfer are final "
+                "(A06 audit M15-11)."
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        ids = {v.get("transfer_id") for v in vals_list if v.get("transfer_id")}
+        self._refuse_unless_draft(self.env["fix.stock.transfer"].browse(list(ids)))
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self:
+            self._refuse_unless_draft(self.mapped("transfer_id"))
+        return super().write(vals)
+
+    def unlink(self):
+        self._refuse_unless_draft(self.mapped("transfer_id"))
+        return super().unlink()
+
+
+# =========================================================================
+# Blind counts
+# =========================================================================
 class FixStockCount(models.Model):
-    """A cycle or full count at one location, with its variance lines."""
+    """A blind cycle or full count at one location.
+
+    The expected quantity is snapshotted by the system when each line is
+    created and is hidden from the counter (fix.stock.count.snapshot is
+    readable by Inventory Controllers only). Submitting compares the count
+    with the snapshot: inside the tolerance it posts; outside it asks for a
+    recount; a recount still outside needs a reason code and the approval of
+    an Inventory Controller who is not the counter (BRU-INV-10/11/23)."""
 
     _name = "fix.stock.count"
     _description = "Stock Count"
     _order = "create_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -362,60 +1002,386 @@ class FixStockCount(models.Model):
     )
     counted_on = fields.Date(required=True, default=fields.Date.context_today)
     state = fields.Selection(
-        [("draft", "Draft"), ("posted", "Posted")], required=True, default="draft"
+        [
+            ("draft", "Counting"),
+            ("recount", "Recount Required"),
+            ("to_approve", "Awaiting Approval"),
+            ("posted", "Posted"),
+            ("cancelled", "Cancelled"),
+        ],
+        required=True,
+        default="draft",
+    )
+    counted_by_id = fields.Many2one("res.users", string="Counted By", readonly=True)
+    recount_requested = fields.Boolean(string="Recount Requested", readonly=True, copy=False)
+    submitted_at = fields.Datetime(string="Submitted On", readonly=True)
+    posted_at = fields.Datetime(string="Posted On", readonly=True)
+    reason_code = fields.Selection(COUNT_REASONS, string="Variance Reason")
+    reason_note = fields.Char(string="Variance Explanation")
+    variance_value = fields.Float(
+        string="Variance Value (BDT)", compute="_compute_variance_value", store=False
     )
     line_ids = fields.One2many("fix.stock.count.line", "count_id", string="Lines")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "counted_by_id",
+            "recount_requested",
+            "submitted_at",
+            "posted_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state not in ("draft", "recount"):
+            locked |= {"location_id", "count_type", "counted_on", "line_ids", "reason_code"}
+        if len(self) == 1 and self.state != "draft":
+            locked |= {"location_id"}
+        return locked
+
+    def _inv_excluded_users(self):
+        # SOD-05: the counter never approves the adjustment from his count.
+        return super()._inv_excluded_users() | self.counted_by_id
+
+    @api.depends("line_ids.counted_qty", "line_ids.recount_qty", "state")
+    def _compute_variance_value(self):
+        for rec in self:
+            rec.variance_value = round(
+                sum(line._line_delta() * line._snapshot().unit_cost for line in rec.line_ids), 2
+            )
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
-                vals["name"] = self.env["ir.sequence"].next_by_code("fix.stock.count") or "CNT/New"
+                vals["name"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.count") or "CNT/New"
+                )
         return super().create(vals_list)
 
-    def action_post(self):
-        onhand = self.env["fix.stock.onhand"]
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            closed = self.filtered(lambda r: r.state not in ("draft", "recount"))
+            frozen = {
+                k: vals[k]
+                for k in ("location_id", "count_type", "counted_on", "reason_code", "reason_note")
+                if k in vals
+            }
+            if (frozen and _changes(closed, frozen)) or ("line_ids" in vals and closed):
+                raise UserError("A submitted or posted count is final.")
+            if "location_id" in vals and _changes(
+                self.filtered(lambda r: r.line_ids), {"location_id": vals["location_id"]}
+            ):
+                raise UserError("Start a new count to count another location.")
+        return super().write(vals)
+
+    def _tolerance_ok(self, line):
+        pct = inv_param(self.env, PARAM_COUNT_TOLERANCE_PCT, 0.0)
+        expected = line._snapshot().expected_qty
+        delta = abs(line._line_delta())
+        if delta <= EPS:
+            return True
+        return delta <= abs(expected) * pct / 100.0 + EPS
+
+    def action_submit(self):
+        """The counter submits. Inside tolerance -> posted. Outside -> recount
+        (first time) or approval (after the recount, with a reason code)."""
         for rec in self:
-            if rec.state != "draft":
-                raise UserError("Post a draft count")
+            if rec.state not in ("draft", "recount"):
+                raise UserError("Count %s has already been submitted." % rec.name)
             if not rec.line_ids:
                 raise UserError("A count needs at least one line")
+            check_location_usable(rec.location_id, self.env)
             for line in rec.line_ids:
-                delta = (line.counted_qty or 0.0) - (line.expected_qty or 0.0)
-                if not delta:
-                    continue
-                onhand._apply(line.part_id, rec.location_id, "owned", delta)
-                line.part_id.sudo().write(
-                    {"qty_available": (line.part_id.qty_available or 0.0) + delta}
+                check_quantity(line.part_id, line.counted_qty, "counted quantity", allow_zero=True)
+                if rec.state == "recount":
+                    check_quantity(
+                        line.part_id, line.recount_qty, "recounted quantity", allow_zero=True
+                    )
+            now = fields.Datetime.now()
+            if rec.state == "draft":
+                rec._guarded().write({"counted_by_id": self.env.user.id, "submitted_at": now})
+            outside = rec.line_ids.filtered(lambda ln, r=rec: not r._tolerance_ok(ln))
+            if not outside:
+                rec._post_count()
+                continue
+            if rec.state == "draft":
+                for line in rec.line_ids:
+                    line._guarded().write({"recount_qty": line.counted_qty})
+                rec._guarded().write({"state": "recount", "recount_requested": True})
+                continue
+            if not rec.reason_code:
+                raise UserError(
+                    "Count %s is still outside tolerance after the recount: give the "
+                    "variance reason before submitting it for approval." % rec.name
                 )
-            rec.state = "posted"
+            if rec.reason_code == "other" and not (rec.reason_note or "").strip():
+                raise UserError("Explain an 'Other' variance reason in the note.")
+            rec._inv_stamp_request()
+            rec._guarded().write({"state": "to_approve"})
+        return True
+
+    def action_post(self):
+        """Kept for the workspace button: a draft or recount is submitted, a
+        count awaiting approval is approved (both apply their own checks)."""
+        for rec in self:
+            if rec.state in ("draft", "recount"):
+                rec.action_submit()
+            elif rec.state == "to_approve":
+                rec.action_approve()
+            else:
+                raise UserError("Post a draft count")
+        return True
+
+    def action_approve(self, note=None):
+        for rec in self:
+            if rec.state != "to_approve":
+                raise UserError("Count %s is not awaiting approval." % rec.name)
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note)
+            rec._post_count()
+        return True
+
+    def action_reject(self, note=None):
+        for rec in self:
+            if rec.state != "to_approve":
+                raise UserError("Count %s is not awaiting approval." % rec.name)
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note or "rejected")
+            rec._guarded().write({"state": "cancelled"})
+            rec.line_ids.mapped("floor_count_id")._fix_cancel_from_m15()
+        return True
+
+    def _post_count(self):
+        """Apply every line's variance to the ledger (system path)."""
+        self.ensure_one()
+        Onhand = self.env["fix.stock.onhand"]
+        Suspense = self.env["fix.inventory.valuation.suspense"]
+        moved = []
+        for line in self.line_ids:
+            delta = round(line._line_delta(), 4)
+            snap = line._snapshot()
+            if abs(delta) > EPS:
+                bucket = Onhand._apply(
+                    line.part_id,
+                    self.location_id,
+                    line.ownership_class,
+                    delta,
+                    unit_cost=None,
+                    from_reserved=True,
+                )
+                cost = bucket.unit_cost if bucket else snap.unit_cost
+                Suspense._fix_post(
+                    "adjustment",
+                    line.part_id,
+                    delta,
+                    cost,
+                    self.name,
+                    location=self.location_id,
+                    ownership=line.ownership_class,
+                )
+                moved.append({"part_id": line.part_id.id, "delta": delta, "unit_cost": cost})
+            if line.floor_count_id:
+                line.floor_count_id._fix_apply_posted_variance(delta)
+            line._guarded().write({"is_posted": True})
+        self._guarded().write({"state": "posted", "posted_at": fields.Datetime.now()})
+        if moved:
+            _event(
+                self.env,
+                "stock.adjusted",
+                "fix.stock.count",
+                self.id,
+                {
+                    "count": self.name,
+                    "location_id": self.location_id.id,
+                    "reason_code": self.reason_code or None,
+                    "approved_by": self.approved_by_id.id or None,
+                    "lines": moved,
+                },
+            )
+
+
+class FixStockCountSnapshot(models.Model):
+    """The system's expected quantity for one count line, taken when the line
+    was created. Readable by Inventory Controllers only: the count is blind."""
+
+    _name = "fix.stock.count.snapshot"
+    _description = "Stock Count Expected Snapshot"
+
+    line_id = fields.Many2one("fix.stock.count.line", required=True, ondelete="cascade", index=True)
+    expected_qty = fields.Float(string="Expected", readonly=True)
+    unit_cost = fields.Float(string="Unit Cost at Snapshot", readonly=True)
+    taken_at = fields.Datetime(readonly=True, default=fields.Datetime.now)
+
+    _line_unique = models.Constraint("UNIQUE (line_id)", "One snapshot per count line")
 
 
 class FixStockCountLine(models.Model):
     _name = "fix.stock.count.line"
     _description = "Stock Count Line"
     _order = "count_id, id"
+    _inherit = ["fix.guarded.mixin"]
 
     count_id = fields.Many2one("fix.stock.count", required=True, ondelete="cascade", index=True)
     part_id = fields.Many2one(
         "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
     )
-    expected_qty = fields.Float(string="Expected")
+    ownership_class = fields.Selection(
+        OWNERSHIP_CLASSES,
+        string="Ownership Class",
+        help="Defaults to the location's own class (owned, or van at a van).",
+    )
+    expected_qty = fields.Float(
+        string="Expected",
+        compute="_compute_expected",
+        help="The system's quantity when the line was created. Hidden from the counter "
+        "until the count is posted (blind count, FR-INV-048).",
+    )
+    expected_visible = fields.Boolean(compute="_compute_expected")
     counted_qty = fields.Float(string="Counted")
-    variance = fields.Float(compute="_compute_variance", store=True, string="Variance")
+    recount_qty = fields.Float(string="Recounted")
+    variance = fields.Float(compute="_compute_expected", string="Variance")
+    is_posted = fields.Boolean(string="Posted", readonly=True, copy=False)
+    floor_count_id = fields.Many2one(
+        "fix.wms.floor.count", string="Floor Count", readonly=True, copy=False, index=True
+    )
 
-    @api.depends("expected_qty", "counted_qty")
-    def _compute_variance(self):
-        for rec in self:
-            rec.variance = round((rec.counted_qty or 0.0) - (rec.expected_qty or 0.0), 3)
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"is_posted", "floor_count_id"}
+
+    def _snapshot(self):
+        self.ensure_one()
+        snap = (
+            self.env["fix.stock.count.snapshot"].sudo().search([("line_id", "=", self.id)], limit=1)
+        )
+        return snap
+
+    def _final_qty(self):
+        """The recount replaces the first count once a recount was asked for."""
+        self.ensure_one()
+        return self.recount_qty if self.count_id.recount_requested else self.counted_qty
+
+    def _line_delta(self):
+        self.ensure_one()
+        if not self.id:
+            return 0.0
+        return (self._final_qty() or 0.0) - (self._snapshot().expected_qty or 0.0)
+
+    @api.depends_context("uid")
+    @api.depends("counted_qty", "recount_qty", "count_id.state")
+    def _compute_expected(self):
+        from .fix_inventory_approval import CONTROLLER_GROUP
+
+        sees = self.env.su or self.env.user.has_group(CONTROLLER_GROUP)
+        for line in self:
+            visible = bool(line.id) and (sees or line.count_id.state in ("posted", "cancelled"))
+            line.expected_visible = visible
+            if visible:
+                line.expected_qty = line._snapshot().expected_qty
+                line.variance = round(line._line_delta(), 3)
+            else:
+                line.expected_qty = 0.0
+                line.variance = 0.0
+
+    def _refuse_unless_open(self, counts):
+        if self._fix_guard_open():
+            return
+        if counts.filtered(lambda c: c.state != "draft"):
+            raise UserError("The lines of a submitted or posted count are final (A06 audit M15-8).")
+
+    def _take_snapshot(self):
+        Onhand = self.env["fix.stock.onhand"]
+        Snap = self.env["fix.stock.count.snapshot"].sudo()
+        for line in self:
+            bucket = Onhand._bucket(line.part_id, line.count_id.location_id, line.ownership_class)
+            Snap.search([("line_id", "=", line.id)]).unlink()
+            Snap.create(
+                {
+                    "line_id": line.id,
+                    "expected_qty": bucket.qty if bucket else 0.0,
+                    "unit_cost": (bucket.unit_cost if bucket else 0.0) or line.part_id.average_cost,
+                }
+            )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        Count = self.env["fix.stock.count"]
+        ids = {v.get("count_id") for v in vals_list if v.get("count_id")}
+        self._refuse_unless_open(Count.browse(list(ids)))
+        for vals in vals_list:
+            # the expected quantity is the system's, never typed
+            vals.pop("expected_qty", None)
+            vals.pop("variance", None)
+            vals.pop("recount_qty", None)
+            if not vals.get("ownership_class") and vals.get("count_id"):
+                vals["ownership_class"] = location_class(Count.browse(vals["count_id"]).location_id)
+        lines = super().create(vals_list)
+        lines._take_snapshot()
+        return lines
+
+    def write(self, vals):
+        vals = dict(vals)
+        vals.pop("expected_qty", None)
+        vals.pop("variance", None)
+        if self and not self._fix_guard_open():
+            guarded = self._fix_guarded_fields()
+            for line in self:
+                state = line.count_id.state
+                # guarded fields are refused by the guard itself (super)
+                keys = {
+                    k
+                    for k in vals
+                    if k not in guarded and line._fix_guard_differs(k, vals[k], line[k])
+                }
+                if not keys:
+                    continue
+                if state == "draft" and "recount_qty" not in keys:
+                    continue
+                if state == "recount" and keys <= {"recount_qty"}:
+                    continue
+                raise UserError(
+                    "Count %s: the first count is entered while counting, the recount only "
+                    "when a recount is asked for, and a submitted or posted count is final "
+                    "(A06 audit M15-8)." % line.count_id.name
+                )
+        result = super().write(vals)
+        if {"part_id", "ownership_class"} & set(vals):
+            self._take_snapshot()
+        return result
+
+    def unlink(self):
+        self._refuse_unless_open(self.mapped("count_id"))
+        return super().unlink()
+
+    def action_set_recount(self, qty):
+        """The counter records his recount of this line (recount state)."""
+        for line in self:
+            if line.count_id.state != "recount":
+                raise UserError("Count %s does not ask for a recount." % line.count_id.name)
+            check_quantity(line.part_id, qty, "recounted quantity", allow_zero=True)
+            line.write({"recount_qty": qty})
+        return True
 
 
+# =========================================================================
+# Van reconciliation
+# =========================================================================
 class FixStockVanRecon(models.Model):
-    """The technician's daily van-stock reconciliation."""
+    """The technician's daily van-stock reconciliation.
+
+    The expected quantity is the van's ledger when the recon is raised (never
+    typed). A variance outside the tolerance is a discrepancy: it publishes
+    stock.van_variance_detected and holds the van's next issue until an
+    Inventory Controller (not the technician, not the counter) resolves it.
+    The per-part ledger correction is a count at the van."""
 
     _name = "fix.stock.van.recon"
     _description = "Van Stock Reconciliation"
     _order = "recon_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -426,41 +1392,157 @@ class FixStockVanRecon(models.Model):
     )
     technician_id = fields.Many2one("hr.employee", string="Technician")
     recon_date = fields.Date(required=True, default=fields.Date.context_today)
-    expected_qty = fields.Float(string="Expected (pcs)")
+    expected_qty = fields.Float(string="Expected (pcs)", readonly=True)
     counted_qty = fields.Float(string="Counted (pcs)")
     variance = fields.Float(compute="_compute_variance", store=True, string="Variance")
     state = fields.Selection(
-        [("draft", "Draft"), ("confirmed", "Confirmed"), ("discrepancy", "Discrepancy")],
+        [
+            ("draft", "Draft"),
+            ("confirmed", "Confirmed"),
+            ("discrepancy", "Discrepancy"),
+            ("resolved", "Discrepancy Resolved"),
+        ],
         required=True,
         default="draft",
     )
+    confirmed_by_id = fields.Many2one("res.users", string="Confirmed By", readonly=True)
     notes = fields.Char()
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "expected_qty", "confirmed_by_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id:
+            locked |= {"location_id", "technician_id"}
+            if self.state != "draft":
+                locked |= {"counted_qty", "recon_date"}
+        return locked
+
+    def _inv_excluded_users(self):
+        return super()._inv_excluded_users() | self.confirmed_by_id | self.technician_id.user_id
 
     @api.depends("expected_qty", "counted_qty")
     def _compute_variance(self):
         for rec in self:
             rec.variance = round((rec.counted_qty or 0.0) - (rec.expected_qty or 0.0), 3)
 
+    @api.model
+    def _van_ledger_qty(self, location):
+        rows = (
+            self.env["fix.stock.onhand"]
+            .sudo()
+            .search([("location_id", "=", location.id), ("stock_status", "=", "unrestricted")])
+        )
+        return round(sum(rows.mapped("qty")), 4)
+
     @api.model_create_multi
     def create(self, vals_list):
+        Location = self.env["fix.stock.location"]
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.stock.van.recon") or "VRC/New"
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.van.recon") or "VRC/New"
                 )
-        return super().create(vals_list)
+            location = Location.browse(vals.get("location_id"))
+            if not location or location.location_type != "van":
+                raise ValidationError(
+                    "A van reconciliation is for a van location (got %s)."
+                    % (location.code if location else "none")
+                )
+            if not vals.get("technician_id"):
+                vals["technician_id"] = location.technician_id.id
+            elif vals["technician_id"] != location.technician_id.id:
+                raise ValidationError(
+                    "Van %s is in the custody of %s: only its custodian is reconciled."
+                    % (location.code, location.technician_id.name or "nobody")
+                )
+            # the expected quantity is the van ledger, never typed (FR-INV-031)
+            vals.pop("expected_qty", None)
+        records = super().create(vals_list)
+        for rec in records:
+            rec._guarded().write({"expected_qty": self._van_ledger_qty(rec.location_id)})
+        return records
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            frozen = {k: vals[k] for k in ("location_id", "technician_id") if k in vals}
+            if frozen and _changes(self, frozen):
+                raise UserError("Raise a new reconciliation for another van or technician.")
+            closed = self.filtered(lambda r: r.state != "draft")
+            later = {k: vals[k] for k in ("counted_qty", "recon_date") if k in vals}
+            if later and _changes(closed, later):
+                raise UserError(
+                    "A confirmed van reconciliation is final: its count cannot be retyped."
+                )
+        return super().write(vals)
 
     def action_confirm(self):
+        pct = inv_param(self.env, PARAM_VAN_TOLERANCE_PCT, 0.0)
         for rec in self:
-            rec.state = "confirmed" if not rec.variance else "discrepancy"
+            if rec.state != "draft":
+                raise UserError("Reconciliation %s has already been confirmed." % rec.name)
+            if (rec.counted_qty or 0.0) < 0:
+                raise UserError("A counted quantity cannot be negative.")
+            # re-read the ledger at confirmation: what the van holds NOW
+            expected = self._van_ledger_qty(rec.location_id)
+            variance = round((rec.counted_qty or 0.0) - expected, 4)
+            within = abs(variance) <= EPS or abs(variance) <= abs(expected) * pct / 100.0 + EPS
+            rec._guarded().write(
+                {
+                    "expected_qty": expected,
+                    "state": "confirmed" if within else "discrepancy",
+                    "confirmed_by_id": self.env.user.id,
+                }
+            )
+            if not within:
+                _event(
+                    self.env,
+                    "stock.van_variance_detected",
+                    "fix.stock.van.recon",
+                    rec.id,
+                    {
+                        "recon": rec.name,
+                        "van_id": rec.location_id.id,
+                        "van_code": rec.location_id.code,
+                        "technician_id": rec.technician_id.id or None,
+                        "expected_qty": expected,
+                        "counted_qty": rec.counted_qty,
+                        "variance": variance,
+                    },
+                )
+        return True
+
+    def action_resolve(self, note=None):
+        """An Inventory Controller (not the technician or the counter)
+        accepts the investigation of a discrepancy; the van may issue again."""
+        for rec in self:
+            if rec.state != "discrepancy":
+                raise UserError("Reconciliation %s has no open discrepancy." % rec.name)
+        if not (note or "").strip():
+            raise UserError("Record how the van discrepancy was resolved.")
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note)
+            rec._guarded().write({"state": "resolved"})
+        return True
 
 
+# =========================================================================
+# Quarantine / scrap
+# =========================================================================
 class FixStockQuarantine(models.Model):
-    """A quarantined or scrapped quantity with its reason."""
+    """A quarantined or scrapped quantity with its reason.
+
+    Creating it MOVES the quantity from unrestricted to the quarantine status
+    of the same location, so it can no longer be reserved or issued. Release
+    moves it back; scrap writes it off. A write-off above the configured
+    value needs an Inventory Controller who is not the quarantiner."""
 
     _name = "fix.stock.quarantine"
     _description = "Stock Quarantine / Scrap"
     _order = "create_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -472,8 +1554,10 @@ class FixStockQuarantine(models.Model):
     location_id = fields.Many2one(
         "fix.stock.location", string="Location", required=True, ondelete="restrict"
     )
+    ownership_class = fields.Selection(OWNERSHIP_CLASSES, string="Ownership Class")
     lot_id = fields.Many2one("fix.stock.lot", string="Serial / Lot", ondelete="set null")
     qty = fields.Float(string="Quantity")
+    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True)
     reason = fields.Selection(
         [
             ("damaged", "Damaged in Handling"),
@@ -487,49 +1571,232 @@ class FixStockQuarantine(models.Model):
     )
     quarantined_on = fields.Date(required=True, default=fields.Date.context_today)
     state = fields.Selection(
-        [("quarantined", "Quarantined"), ("released", "Released"), ("scrapped", "Scrapped")],
+        [
+            ("quarantined", "Quarantined"),
+            ("released", "Released"),
+            ("scrap_pending", "Write-off Awaiting Approval"),
+            ("scrapped", "Scrapped"),
+            ("returned", "Returned to Vendor"),
+        ],
         required=True,
         default="quarantined",
     )
+    source_ref = fields.Char(string="Source Reference", readonly=True)
+    scrapped_at = fields.Datetime(string="Scrapped On", readonly=True)
     notes = fields.Char()
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "Quarantine quantity must be positive")
 
+    _DOC_FIELDS = ("part_id", "location_id", "lot_id", "qty", "ownership_class", "company_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "unit_cost",
+            "source_ref",
+            "scrapped_at",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.id:
+            locked |= set(self._DOC_FIELDS)
+        return locked
+
     @api.model_create_multi
     def create(self, vals_list):
+        in_place = self._fix_guard_has_token() and self.env.context.get("fix_quarantine_in_place")
+        Location = self.env["fix.stock.location"]
+        Part = self.env["fix.spare.part"]
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
-                    self.env["ir.sequence"].next_by_code("fix.stock.quarantine") or "QRN/New"
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.quarantine") or "QRN/New"
                 )
-        return super().create(vals_list)
+            if not vals.get("ownership_class"):
+                vals["ownership_class"] = location_class(Location.browse(vals.get("location_id")))
+        records = super().create(vals_list)
+        Onhand = self.env["fix.stock.onhand"]
+        for rec in records:
+            part = Part.browse(rec.part_id.id)
+            check_quantity(part, rec.qty, "quarantine quantity")
+            if in_place:
+                bucket = Onhand._bucket(part, rec.location_id, rec.ownership_class, "quarantine")
+                cost = bucket.unit_cost if bucket else 0.0
+            else:
+                check_location_usable(rec.location_id, self.env)
+                rec._check_lot_for_quarantine()
+                cost = Onhand._fix_move_status(
+                    part,
+                    rec.location_id,
+                    rec.ownership_class,
+                    rec.qty,
+                    "unrestricted",
+                    "quarantine",
+                )
+                if rec.lot_id and part.is_serialized:
+                    rec.lot_id._guarded().write({"status": "quarantined"})
+            rec._guarded().write({"unit_cost": cost})
+        return records
+
+    def _check_lot_for_quarantine(self):
+        for rec in self:
+            lot = rec.lot_id
+            if not lot:
+                continue
+            if lot.part_id != rec.part_id:
+                raise ValidationError(
+                    "Lot %s is not a lot of %s." % (lot.name, rec.part_id.part_number)
+                )
+            if lot.status != "in_stock":
+                raise UserError("Lot %s is %s, not in stock." % (lot.name, lot.status))
+            if rec.qty > (lot.qty or 0.0) + EPS:
+                raise UserError(
+                    "Lot %s holds %s; %s cannot be quarantined from it."
+                    % (lot.name, lot.qty, rec.qty)
+                )
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            frozen = {k: vals[k] for k in self._DOC_FIELDS if k in vals}
+            if frozen and _changes(self, frozen):
+                raise UserError(
+                    "A quarantine has already moved its stock: release it and raise a new "
+                    "one instead of editing the part, location, lot or quantity."
+                )
+        return super().write(vals)
+
+    def _require(self, states, what):
+        for rec in self:
+            if rec.state not in states:
+                raise UserError(
+                    "%s cannot %s: it is %s."
+                    % (rec.name, what, dict(self._fields["state"].selection)[rec.state])
+                )
+
+    def _inv_excluded_users(self):
+        # §13: the quarantiner never approves the write-off
+        return super()._inv_excluded_users()
+
+    def _writeoff_value(self):
+        self.ensure_one()
+        return round((self.qty or 0.0) * (self.unit_cost or 0.0), 2)
 
     def action_release(self):
+        Onhand = self.env["fix.stock.onhand"]
         for rec in self:
             if rec.state != "quarantined":
                 raise UserError("Release a quarantined quantity")
-            rec.state = "released"
+            check_location_usable(rec.location_id, self.env)
+            Onhand._fix_move_status(
+                rec.part_id,
+                rec.location_id,
+                rec.ownership_class,
+                rec.qty,
+                "quarantine",
+                "unrestricted",
+            )
+            if rec.lot_id and rec.lot_id.status == "quarantined":
+                rec.lot_id._guarded().write({"status": "in_stock"})
+            rec._guarded().write({"state": "released"})
+        return True
 
     def action_scrap(self):
-        onhand = self.env["fix.stock.onhand"]
+        """Scrap directly when the write-off is within the configured
+        threshold; above it the write-off needs approval first."""
+        threshold = inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, 0.0)
         for rec in self:
             if rec.state != "quarantined":
                 raise UserError("Scrap a quarantined quantity")
-            onhand._apply(rec.part_id, rec.location_id, "owned", -rec.qty)
-            rec.part_id.sudo().write(
-                {"qty_available": (rec.part_id.qty_available or 0.0) - rec.qty}
+            if rec._writeoff_value() > threshold + EPS:
+                raise UserError(
+                    "Writing off %s is BDT %.2f, above the write-off approval threshold "
+                    "BDT %.2f: request the write-off and have an Inventory Controller "
+                    "approve it." % (rec.name, rec._writeoff_value(), threshold)
+                )
+            rec._do_scrap()
+        return True
+
+    def action_request_scrap(self):
+        self._require(("quarantined",), "be submitted for write-off")
+        for rec in self:
+            rec._inv_stamp_request()
+            rec._guarded().write({"state": "scrap_pending"})
+        return True
+
+    def action_approve_scrap(self, note=None):
+        self._require(("scrap_pending",), "be approved for write-off")
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note)
+            rec._do_scrap()
+        return True
+
+    def action_reject_scrap(self, note=None):
+        self._require(("scrap_pending",), "be rejected")
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note or "write-off rejected")
+            rec._guarded().write({"state": "quarantined"})
+        return True
+
+    def _do_scrap(self):
+        self.ensure_one()
+        Onhand = self.env["fix.stock.onhand"]
+        Onhand._apply(
+            self.part_id, self.location_id, self.ownership_class, -self.qty, status="quarantine"
+        )
+        lot = self.lot_id
+        if lot and self.part_id.is_serialized:
+            lot._guarded().write({"qty": 0.0, "status": "scrapped"})
+        elif lot:
+            # scrapping part of a lot leaves the rest of it (A06 audit E61)
+            remaining = round(max((lot.qty or 0.0) - self.qty, 0.0), 4)
+            lot._guarded().write(
+                {"qty": remaining, "status": "scrapped" if remaining <= EPS else "in_stock"}
             )
-            if rec.lot_id:
-                rec.lot_id.write({"status": "scrapped", "qty": 0.0})
-            rec.state = "scrapped"
+        self.env["fix.inventory.valuation.suspense"]._fix_post(
+            "write_off",
+            self.part_id,
+            -self.qty,
+            self.unit_cost,
+            self.name,
+            location=self.location_id,
+            ownership=self.ownership_class,
+        )
+        self._guarded().write({"state": "scrapped", "scrapped_at": fields.Datetime.now()})
+        _event(
+            self.env,
+            "stock.written_off",
+            "fix.stock.quarantine",
+            self.id,
+            {
+                "quarantine": self.name,
+                "part_id": self.part_id.id,
+                "location_id": self.location_id.id,
+                "qty": self.qty,
+                "unit_cost": self.unit_cost,
+                "value": self._writeoff_value(),
+                "reason": self.reason,
+                "approved_by": self.approved_by_id.id or None,
+            },
+        )
 
 
+# =========================================================================
+# Return to vendor
+# =========================================================================
 class FixStockRtv(models.Model):
-    """A return-to-vendor request for defective or wrong stock."""
+    """A return-to-vendor request for defective or wrong stock.
+
+    Approved by an Inventory Controller who did not raise it; once approved
+    the quantity, vendor, part, location and source are pinned. It ships only
+    with the vendor's RMA reference and closes when the credit is recorded."""
 
     _name = "fix.stock.rtv"
     _description = "Return to Vendor"
     _order = "create_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
@@ -541,6 +1808,12 @@ class FixStockRtv(models.Model):
     )
     location_id = fields.Many2one(
         "fix.stock.location", string="From Location", required=True, ondelete="restrict"
+    )
+    quarantine_id = fields.Many2one(
+        "fix.stock.quarantine",
+        string="From Quarantine",
+        ondelete="restrict",
+        help="Return quarantined stock (it ships from the quarantine status).",
     )
     qty = fields.Float(string="Quantity")
     reason = fields.Selection(
@@ -555,35 +1828,352 @@ class FixStockRtv(models.Model):
     )
     requested_on = fields.Date(required=True, default=fields.Date.context_today)
     rtv_ref = fields.Char(string="RTV Reference")
+    credit_ref = fields.Char(string="Credit Note / Replacement Ref")
     state = fields.Selection(
-        [("draft", "Draft"), ("approved", "Approved"), ("shipped", "Shipped")],
+        [
+            ("draft", "Draft"),
+            ("submitted", "Awaiting Approval"),
+            ("approved", "Approved"),
+            ("shipped", "Shipped"),
+            ("credited", "Credited / Closed"),
+            ("cancelled", "Cancelled"),
+        ],
         required=True,
         default="draft",
     )
+    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True)
+    shipped_at = fields.Datetime(readonly=True)
+    credited_at = fields.Datetime(readonly=True)
+    vendor_note_res_id = fields.Integer(
+        string="AP Credit Note ID",
+        readonly=True,
+        copy=False,
+        help="The draft vendor credit note (fix.vendor.note, M20) raised for this RTV.",
+    )
+    vendor_note_status = fields.Char(string="AP Credit Note", readonly=True, copy=False)
     notes = fields.Char()
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RTV quantity must be positive")
+
+    _PINNED = ("partner_id", "part_id", "location_id", "quarantine_id", "qty", "company_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "unit_cost",
+            "shipped_at",
+            "credited_at",
+            "credit_ref",
+            "vendor_note_res_id",
+            "vendor_note_status",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state not in ("draft",):
+            locked |= set(self._PINNED) | {"reason"}
+        if len(self) == 1 and self.state in ("shipped", "credited", "cancelled"):
+            locked |= {"rtv_ref"}
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
-                vals["name"] = self.env["ir.sequence"].next_by_code("fix.stock.rtv") or "RTV/New"
+                vals["name"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.rtv") or "RTV/New"
+                )
         return super().create(vals_list)
 
-    def action_approve(self):
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            pinned = {k: vals[k] for k in (*self._PINNED, "reason") if k in vals}
+            if pinned and _changes(self.filtered(lambda r: r.state != "draft"), pinned):
+                raise UserError(
+                    "An RTV submitted for or past approval is pinned: its vendor, part, "
+                    "location and quantity cannot change (cancel it and raise a new one)."
+                )
+            if "rtv_ref" in vals and _changes(
+                self.filtered(lambda r: r.state in ("shipped", "credited", "cancelled")),
+                {"rtv_ref": vals["rtv_ref"]},
+            ):
+                raise UserError("The RMA reference of a shipped RTV is final.")
+        return super().write(vals)
+
+    def _require(self, states, what):
         for rec in self:
-            if rec.state != "draft":
-                raise UserError("Approve a draft RTV")
-            rec.state = "approved"
+            if rec.state not in states:
+                raise UserError(
+                    "RTV %s cannot %s: it is %s."
+                    % (rec.name, what, dict(self._fields["state"].selection)[rec.state])
+                )
+
+    def _source_status(self):
+        self.ensure_one()
+        return "quarantine" if self.quarantine_id else "unrestricted"
+
+    def action_submit(self):
+        self._require(("draft",), "be submitted")
+        for rec in self:
+            check_quantity(rec.part_id, rec.qty, "RTV quantity")
+            if rec.quarantine_id and (
+                rec.quarantine_id.state != "quarantined"
+                or rec.quarantine_id.part_id != rec.part_id
+                or rec.quarantine_id.location_id != rec.location_id
+                or abs(rec.qty - rec.quarantine_id.qty) > EPS
+            ):
+                raise UserError("RTV %s does not match an open quarantine." % rec.name)
+            rec._inv_stamp_request()
+            rec._guarded().write({"state": "submitted"})
+        return True
+
+    def action_approve(self, note=None):
+        # approving a draft submits it in its RAISER's name, never the approver's
+        for draft in self.filtered(lambda r: r.state == "draft"):
+            draft.action_submit()
+            draft._inv_stamp_request(draft.create_uid)
+        self._require(("submitted",), "be approved")
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note)
+            rec._guarded().write({"state": "approved"})
+        return True
+
+    def action_cancel(self):
+        self._require(("draft", "submitted", "approved"), "be cancelled")
+        self._guarded().write({"state": "cancelled"})
+        return True
 
     def action_ship(self):
-        onhand = self.env["fix.stock.onhand"]
+        Onhand = self.env["fix.stock.onhand"]
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Ship an approved RTV")
-            onhand._apply(rec.part_id, rec.location_id, "owned", -rec.qty)
-            rec.part_id.sudo().write(
-                {"qty_available": (rec.part_id.qty_available or 0.0) - rec.qty}
+            if not (rec.rtv_ref or "").strip():
+                raise UserError(
+                    "RTV %s needs the vendor's RMA / return authorisation reference before "
+                    "it ships (FR-INV-052)." % rec.name
+                )
+            check_location_usable(rec.location_id, self.env)
+            cls = (
+                rec.quarantine_id.ownership_class
+                if rec.quarantine_id
+                else location_class(rec.location_id)
             )
-            rec.state = "shipped"
+            status = rec._source_status()
+            bucket = Onhand._bucket(rec.part_id, rec.location_id, cls, status)
+            cost = bucket.unit_cost if bucket else 0.0
+            Onhand._apply(rec.part_id, rec.location_id, cls, -rec.qty, status=status)
+            if rec.quarantine_id:
+                rec.quarantine_id._guarded().write({"state": "returned"})
+                lot = rec.quarantine_id.lot_id
+                if lot and rec.part_id.is_serialized:
+                    lot._guarded().write({"status": "returned", "qty": 0.0})
+            self.env["fix.inventory.valuation.suspense"]._fix_post(
+                "rtv",
+                rec.part_id,
+                -rec.qty,
+                cost,
+                rec.name,
+                location=rec.location_id,
+                ownership=cls,
+            )
+            rec._guarded().write(
+                {"state": "shipped", "unit_cost": cost, "shipped_at": fields.Datetime.now()}
+            )
+        return True
+
+    def action_mark_credited(self, credit_ref=None):
+        self._require(("shipped",), "be closed")
+        ref = (credit_ref or "").strip()
+        if not ref:
+            raise UserError("Record the vendor credit note or replacement reference.")
+        self._guarded().write(
+            {"state": "credited", "credit_ref": ref, "credited_at": fields.Datetime.now()}
+        )
+        for rec in self:
+            rec._raise_vendor_credit_note(ref)
+        return True
+
+    def _raise_vendor_credit_note(self, ref):
+        """A06 M15-13: hand the credit to AP. When cd_ap_ext is installed, a
+        DRAFT vendor credit note (Mushak 6.7) for the RTV value is raised on
+        the vendor's latest bill that still has room for it, linked back to
+        this RTV; AP approves it under its own segregation of duties. Without
+        AP, or without a bill to credit, the RTV says so."""
+        self.ensure_one()
+        if "fix.vendor.note" not in self.env or "fix.vendor.invoice" not in self.env:
+            return False
+        value = round((self.qty or 0.0) * (self.unit_cost or 0.0), 2)
+        if value <= 0:
+            self._guarded().write({"vendor_note_status": "no value to credit"})
+            return False
+        vendor = self.partner_id.commercial_partner_id
+        Invoice = self.env["fix.vendor.invoice"].sudo()
+        domain = [("company_id", "=", self.company_id.id)]
+        if "approval_state" in Invoice._fields:
+            domain.append(("approval_state", "!=", "rejected"))
+        bills = Invoice.search(domain, order="id desc").filtered(
+            lambda b: b.vendor_id.commercial_partner_id == vendor
+        )
+        for bill in bills:
+            credited = sum(
+                bill.note_ids.filtered(
+                    lambda n: n.note_type == "decrease" and n.state != "cancelled"
+                ).mapped("amount")
+            )
+            if (bill.subtotal or 0.0) - credited + 0.005 < value:
+                continue
+            note = (
+                self.env["fix.vendor.note"]
+                .sudo()
+                .create(
+                    {
+                        "invoice_id": bill.id,
+                        "company_id": bill.company_id.id,
+                        "operating_unit_id": bill.operating_unit_id.id,
+                        "note_type": "decrease",
+                        "reason": "return",
+                        "mushak_ref": ref,
+                        "amount": value,
+                        "description": "Return to vendor %s (%s x %s)"
+                        % (self.name, self.qty, self.part_id.part_number),
+                    }
+                )
+            )
+            self._guarded().write(
+                {
+                    "vendor_note_res_id": note.id,
+                    "vendor_note_status": "draft %s" % note.display_name,
+                }
+            )
+            return note
+        self._guarded().write(
+            {"vendor_note_status": "no bill of %s with room for BDT %.2f" % (vendor.name, value)}
+        )
+        return False
+
+
+# =========================================================================
+# Ownership-class change
+# =========================================================================
+class FixStockClassChange(models.Model):
+    """BRU-INV-06: stock changes ownership class (consignment -> owned on
+    purchase, owned -> warranty reserve...) only through this document,
+    approved by an Inventory Controller who did not request it. The move is
+    at the source bucket's cost; a change into or out of a valued class books
+    the value to the M19 suspense."""
+
+    _name = "fix.stock.class.change"
+    _description = "Ownership-Class Change"
+    _order = "create_date desc, id desc"
+    _inherit = ["fix.inventory.approval.mixin"]
+
+    name = fields.Char(required=True, default="New")
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    part_id = fields.Many2one(
+        "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
+    )
+    location_id = fields.Many2one(
+        "fix.stock.location", string="Location", required=True, ondelete="restrict"
+    )
+    from_class = fields.Selection(OWNERSHIP_CLASSES, string="From Class", required=True)
+    to_class = fields.Selection(OWNERSHIP_CLASSES, string="To Class", required=True)
+    qty = fields.Float(string="Quantity", required=True)
+    reason = fields.Char(string="Reason", required=True)
+    state = fields.Selection(
+        [
+            ("draft", "Draft"),
+            ("submitted", "Awaiting Approval"),
+            ("done", "Applied"),
+            ("rejected", "Rejected"),
+        ],
+        required=True,
+        default="draft",
+    )
+    unit_cost = fields.Float(string="Unit Cost Moved (BDT)", readonly=True)
+
+    _classes_differ = models.Constraint(
+        "CHECK (from_class <> to_class)", "A class change moves stock between two classes"
+    )
+    _qty_positive = models.Constraint("CHECK (qty > 0)", "Class change quantity must be positive")
+
+    _PINNED = ("part_id", "location_id", "from_class", "to_class", "qty", "reason", "company_id")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "unit_cost"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state != "draft":
+            locked |= set(self._PINNED)
+        return locked
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            if vals.get("name", "New") == "New":
+                vals["name"] = (
+                    self.env["ir.sequence"].sudo().next_by_code("fix.stock.class.change")
+                    or "CLS/New"
+                )
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            pinned = {k: vals[k] for k in self._PINNED if k in vals}
+            if pinned and _changes(self.filtered(lambda r: r.state != "draft"), pinned):
+                raise UserError("A submitted class change is pinned; raise a new one.")
+        return super().write(vals)
+
+    def action_submit(self):
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Submit a draft class change")
+            check_quantity(rec.part_id, rec.qty, "class change quantity")
+            if not (rec.reason or "").strip():
+                raise UserError("A class change needs its reason.")
+            rec._inv_stamp_request()
+            rec._guarded().write({"state": "submitted"})
+        return True
+
+    def action_approve(self, note=None):
+        for rec in self:
+            if rec.state != "submitted":
+                raise UserError("Class change %s is not awaiting approval." % rec.name)
+        self._inv_check_approver()
+        Onhand = self.env["fix.stock.onhand"]
+        Suspense = self.env["fix.inventory.valuation.suspense"]
+        for rec in self:
+            check_location_usable(rec.location_id, self.env)
+            source = Onhand._bucket(rec.part_id, rec.location_id, rec.from_class)
+            cost = source.unit_cost if source else 0.0
+            Onhand._apply(rec.part_id, rec.location_id, rec.from_class, -rec.qty)
+            Onhand._apply(rec.part_id, rec.location_id, rec.to_class, rec.qty, cost)
+            valued_from = rec.from_class in VALUED_CLASSES
+            valued_to = rec.to_class in VALUED_CLASSES
+            if valued_from != valued_to:
+                Suspense._fix_post(
+                    "class_change",
+                    rec.part_id,
+                    rec.qty if valued_to else -rec.qty,
+                    cost,
+                    rec.name,
+                    location=rec.location_id,
+                    ownership=rec.to_class if valued_to else rec.from_class,
+                )
+            rec._inv_stamp_approval(note)
+            rec._guarded().write({"state": "done", "unit_cost": cost})
+        return True
+
+    def action_reject(self, note=None):
+        for rec in self:
+            if rec.state != "submitted":
+                raise UserError("Class change %s is not awaiting approval." % rec.name)
+        self._inv_check_approver()
+        for rec in self:
+            rec._inv_stamp_approval(note or "rejected")
+            rec._guarded().write({"state": "rejected"})
+        return True

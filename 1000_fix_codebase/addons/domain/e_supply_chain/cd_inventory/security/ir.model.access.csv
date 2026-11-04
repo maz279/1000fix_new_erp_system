@@ -1,29 +1,57 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_stock_location_user,fix.stock.location.user,model_fix_stock_location,base.group_user,1,1,1,0
-access_fix_spare_part_user,fix.spare.part.user,model_fix_spare_part,base.group_user,1,1,1,0
-access_fix_stock_consumption_user,fix.stock.consumption.user,model_fix_stock_consumption,base.group_user,1,1,1,0
-access_fix_reorder_rule_user,fix.reorder.rule.user,model_fix_reorder_rule,base.group_user,1,1,1,0
-access_fix_inventory_valuation_suspense_user,fix.inventory.valuation.suspense.user,model_fix_inventory_valuation_suspense,base.group_user,1,1,1,0
-access_fix_graded_stock_user,fix.graded.stock.user,model_fix_graded_stock,base.group_user,1,1,1,0
-access_fix_stock_onhand_user,fix.stock.onhand.user,model_fix_stock_onhand,base.group_user,1,1,1,0
-access_fix_stock_lot_user,fix.stock.lot.user,model_fix_stock_lot,base.group_user,1,1,1,0
-access_fix_stock_receipt_user,fix.stock.receipt.user,model_fix_stock_receipt,base.group_user,1,1,1,0
-access_fix_stock_receipt_line_user,fix.stock.receipt.line.user,model_fix_stock_receipt_line,base.group_user,1,1,1,1
-access_fix_stock_transfer_user,fix.stock.transfer.user,model_fix_stock_transfer,base.group_user,1,1,1,0
-access_fix_stock_transfer_line_user,fix.stock.transfer.line.user,model_fix_stock_transfer_line,base.group_user,1,1,1,1
-access_fix_stock_count_user,fix.stock.count.user,model_fix_stock_count,base.group_user,1,1,1,0
-access_fix_stock_count_line_user,fix.stock.count.line.user,model_fix_stock_count_line,base.group_user,1,1,1,1
-access_fix_stock_van_recon_user,fix.stock.van.recon.user,model_fix_stock_van_recon,base.group_user,1,1,1,0
-access_fix_stock_quarantine_user,fix.stock.quarantine.user,model_fix_stock_quarantine,base.group_user,1,1,1,0
-access_fix_stock_rtv_user,fix.stock.rtv.user,model_fix_stock_rtv,base.group_user,1,1,1,0
-access_fix_wms_slot_user,fix.wms.slot.user,model_fix_wms_slot,base.group_user,1,1,1,0
-access_fix_wms_dock_user,fix.wms.dock.user,model_fix_wms_dock,base.group_user,1,1,1,0
-access_fix_wms_putaway_user,fix.wms.putaway.user,model_fix_wms_putaway,base.group_user,1,1,1,0
-access_fix_wms_wave_user,fix.wms.wave.user,model_fix_wms_wave,base.group_user,1,1,1,0
-access_fix_wms_wave_line_user,fix.wms.wave.line.user,model_fix_wms_wave_line,base.group_user,1,1,1,1
-access_fix_wms_carton_user,fix.wms.carton.user,model_fix_wms_carton,base.group_user,1,1,1,0
-access_fix_wms_stage_user,fix.wms.stage.user,model_fix_wms_stage,base.group_user,1,1,1,0
-access_fix_wms_task_user,fix.wms.task.user,model_fix_wms_task,base.group_user,1,1,1,0
-access_fix_wms_floor_count_user,fix.wms.floor.count.user,model_fix_wms_floor_count,base.group_user,1,1,1,0
-access_fix_wms_wave_template_user,fix.wms.wave.template.user,model_fix_wms_wave_template,base.group_user,1,1,1,0
-access_fix_wms_packing_station_user,fix.wms.packing.station.user,model_fix_wms_packing_station,base.group_user,1,1,1,0
+access_fix_stock_location_user,fix.stock.location user,model_fix_stock_location,base.group_user,1,0,0,0
+access_fix_spare_part_user,fix.spare.part user,model_fix_spare_part,base.group_user,1,0,0,0
+access_fix_stock_consumption_user,fix.stock.consumption user,model_fix_stock_consumption,base.group_user,1,0,0,0
+access_fix_reorder_rule_user,fix.reorder.rule user,model_fix_reorder_rule,base.group_user,1,0,0,0
+access_fix_stock_receipt_user,fix.stock.receipt user,model_fix_stock_receipt,base.group_user,1,0,0,0
+access_fix_stock_receipt_line_user,fix.stock.receipt.line user,model_fix_stock_receipt_line,base.group_user,1,0,0,0
+access_fix_stock_transfer_user,fix.stock.transfer user,model_fix_stock_transfer,base.group_user,1,0,0,0
+access_fix_stock_transfer_line_user,fix.stock.transfer.line user,model_fix_stock_transfer_line,base.group_user,1,0,0,0
+access_fix_stock_count_user,fix.stock.count user,model_fix_stock_count,base.group_user,1,0,0,0
+access_fix_stock_count_line_user,fix.stock.count.line user,model_fix_stock_count_line,base.group_user,1,0,0,0
+access_fix_stock_van_recon_user,fix.stock.van.recon user,model_fix_stock_van_recon,base.group_user,1,0,0,0
+access_fix_stock_quarantine_user,fix.stock.quarantine user,model_fix_stock_quarantine,base.group_user,1,0,0,0
+access_fix_stock_rtv_user,fix.stock.rtv user,model_fix_stock_rtv,base.group_user,1,0,0,0
+access_fix_stock_class_change_user,fix.stock.class.change user,model_fix_stock_class_change,base.group_user,1,0,0,0
+access_fix_stock_onhand_user,fix.stock.onhand user,model_fix_stock_onhand,base.group_user,1,0,0,0
+access_fix_stock_lot_user,fix.stock.lot user,model_fix_stock_lot,base.group_user,1,0,0,0
+access_fix_inventory_valuation_suspense_user,fix.inventory.valuation.suspense user,model_fix_inventory_valuation_suspense,base.group_user,1,0,0,0
+access_fix_wms_slot_user,fix.wms.slot user,model_fix_wms_slot,base.group_user,1,0,0,0
+access_fix_wms_dock_user,fix.wms.dock user,model_fix_wms_dock,base.group_user,1,0,0,0
+access_fix_wms_putaway_user,fix.wms.putaway user,model_fix_wms_putaway,base.group_user,1,0,0,0
+access_fix_wms_wave_user,fix.wms.wave user,model_fix_wms_wave,base.group_user,1,0,0,0
+access_fix_wms_wave_line_user,fix.wms.wave.line user,model_fix_wms_wave_line,base.group_user,1,0,0,0
+access_fix_wms_carton_user,fix.wms.carton user,model_fix_wms_carton,base.group_user,1,0,0,0
+access_fix_wms_stage_user,fix.wms.stage user,model_fix_wms_stage,base.group_user,1,0,0,0
+access_fix_wms_task_user,fix.wms.task user,model_fix_wms_task,base.group_user,1,0,0,0
+access_fix_wms_floor_count_user,fix.wms.floor.count user,model_fix_wms_floor_count,base.group_user,1,0,0,0
+access_fix_wms_wave_template_user,fix.wms.wave.template user,model_fix_wms_wave_template,base.group_user,1,0,0,0
+access_fix_wms_packing_station_user,fix.wms.packing.station user,model_fix_wms_packing_station,base.group_user,1,0,0,0
+access_fix_graded_stock_user,fix.graded.stock user,model_fix_graded_stock,base.group_user,1,1,1,0
+access_fix_stock_location_storekeeper,fix.stock.location storekeeper,model_fix_stock_location,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_spare_part_storekeeper,fix.spare.part storekeeper,model_fix_spare_part,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_consumption_storekeeper,fix.stock.consumption storekeeper,model_fix_stock_consumption,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_reorder_rule_storekeeper,fix.reorder.rule storekeeper,model_fix_reorder_rule,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_receipt_storekeeper,fix.stock.receipt storekeeper,model_fix_stock_receipt,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_receipt_line_storekeeper,fix.stock.receipt.line storekeeper,model_fix_stock_receipt_line,cd_wms_structure.group_storekeeper,1,1,1,1
+access_fix_stock_transfer_storekeeper,fix.stock.transfer storekeeper,model_fix_stock_transfer,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_transfer_line_storekeeper,fix.stock.transfer.line storekeeper,model_fix_stock_transfer_line,cd_wms_structure.group_storekeeper,1,1,1,1
+access_fix_stock_count_storekeeper,fix.stock.count storekeeper,model_fix_stock_count,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_count_line_storekeeper,fix.stock.count.line storekeeper,model_fix_stock_count_line,cd_wms_structure.group_storekeeper,1,1,1,1
+access_fix_stock_van_recon_storekeeper,fix.stock.van.recon storekeeper,model_fix_stock_van_recon,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_quarantine_storekeeper,fix.stock.quarantine storekeeper,model_fix_stock_quarantine,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_rtv_storekeeper,fix.stock.rtv storekeeper,model_fix_stock_rtv,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_class_change_storekeeper,fix.stock.class.change storekeeper,model_fix_stock_class_change,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_lot_storekeeper,fix.stock.lot storekeeper,model_fix_stock_lot,cd_wms_structure.group_storekeeper,1,1,0,0
+access_fix_wms_slot_operator,fix.wms.slot operator,model_fix_wms_slot,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_dock_operator,fix.wms.dock operator,model_fix_wms_dock,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_putaway_operator,fix.wms.putaway operator,model_fix_wms_putaway,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_wave_operator,fix.wms.wave operator,model_fix_wms_wave,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_wave_line_operator,fix.wms.wave.line operator,model_fix_wms_wave_line,cd_wms_structure.group_warehouse_operator,1,1,1,1
+access_fix_wms_carton_operator,fix.wms.carton operator,model_fix_wms_carton,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_stage_operator,fix.wms.stage operator,model_fix_wms_stage,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_task_operator,fix.wms.task operator,model_fix_wms_task,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_floor_count_operator,fix.wms.floor.count operator,model_fix_wms_floor_count,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_wave_template_operator,fix.wms.wave.template operator,model_fix_wms_wave_template,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_packing_station_operator,fix.wms.packing.station operator,model_fix_wms_packing_station,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_stock_count_snapshot_controller,fix.stock.count.snapshot controller,model_fix_stock_count_snapshot,cd_wms_structure.group_inventory_controller,1,0,0,0

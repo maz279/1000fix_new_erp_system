@@ -24,6 +24,7 @@ completion; this slice gives consignments and procurement destinations.
     ],
     "data": [
         "security/fix_isolation_rules.xml",
+        "security/fix_wms_groups.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "views/fix_wms_views.xml",

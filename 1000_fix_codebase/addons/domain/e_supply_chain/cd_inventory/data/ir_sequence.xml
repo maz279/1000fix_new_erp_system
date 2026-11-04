@@ -75,5 +75,12 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_stock_class_change" model="ir.sequence">
+            <field name="name">Ownership-Class Change</field>
+            <field name="code">fix.stock.class.change</field>
+            <field name="prefix">CLS/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

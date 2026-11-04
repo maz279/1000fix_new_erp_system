@@ -1,15 +1,28 @@
 # A06 · M41 Warehouse Management — surfaces, packs and KPIs over the structure
-# models and the new slotting/dock/put-away/wave/packing/staging/task models.
-# Stock totals are M15's ledger; bin slots are the warehouse's own view.
+# models and the slotting/dock/put-away/wave/packing/staging/task models.
+# Stock totals are M15's ledger; a bin slot is a breakdown of it, moved only
+# by put-away, pick and approved counts (BRU-WMS-01).
+#
+# A06 audit (2026-11-03): the KPIs read sudo().search([]) across companies
+# and counted forged tasks and typed picks; the surface served fix.spare.part
+# and the valuation suspense with their quantity and status open to writes.
+# Every read below is the CALLER's, in env.companies; productivity and pick
+# accuracy count only work the system recorded as executed (a done task with
+# its operative, a line picked by the wave). The M15 records served here are
+# read-only through this surface (their forms offer no ledger field).
 import datetime
 
 SURFACES = {
     "fix.warehouse.bin": {"order": "zone_id, name", "limit": 400, "actions": set()},
-    "fix.wms.slot": {"order": "bin_id, part_id", "limit": 400, "actions": set()},
+    "fix.wms.slot": {
+        "order": "bin_id, part_id",
+        "limit": 400,
+        "actions": {"action_block", "action_unblock"},
+    },
     "fix.wms.dock": {
         "order": "slot_start desc, id desc",
         "limit": 200,
-        "actions": {"action_check_in", "action_complete"},
+        "actions": {"action_check_in", "action_complete", "action_cancel"},
     },
     "fix.wms.putaway": {
         "order": "create_date desc, id desc",
@@ -22,6 +35,7 @@ SURFACES = {
         "actions": {
             "action_release",
             "action_pick_all",
+            "action_accept_short",
             "action_packed",
             "action_stage",
             "action_ship",
@@ -41,7 +55,7 @@ SURFACES = {
     "fix.wms.task": {
         "order": "create_date desc, id desc",
         "limit": 400,
-        "actions": {"action_assign", "action_done"},
+        "actions": {"action_assign", "action_done", "action_cancel"},
     },
     "fix.wms.floor.count": {
         "order": "counted_on desc, id desc",
@@ -69,14 +83,34 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _mine(env, model, domain=None, **kw):
+    """The caller's records of this model in the companies they work in."""
+    records = env[model]
+    company = [("company_id", "in", env.companies.ids)] if "company_id" in records._fields else []
+    return records.search(company + list(domain or []), **kw)
+
+
 def _tasks(env):
-    return env["fix.wms.task"].sudo().search([])
+    return _mine(env, "fix.wms.task")
+
+
+def _executed(tasks):
+    """Tasks the system recorded as done by an operative (not typed)."""
+    return tasks.filtered(lambda t: t.state == "done" and t.done_at and t.done_by_id)
+
+
+def _picked_lines(env):
+    """Wave lines the wave itself picked (picked_by / picked_at set)."""
+    waves = _mine(env, "fix.wms.wave")
+    return env["fix.wms.wave.line"].search(
+        [("wave_id", "in", waves.ids), ("picked_at", "!=", False)]
+    )
 
 
 def throughput_by_shift(env, date_from=None, date_to=None, **params):
     rows = []
     buckets = {}
-    for task in _tasks(env).filtered(lambda t: t.state == "done" and t.done_at):
+    for task in _executed(_tasks(env)):
         hour = task.done_at.hour
         shift = (
             "Morning (06–14)"
@@ -115,7 +149,7 @@ def throughput_by_shift(env, date_from=None, date_to=None, **params):
 
 
 def pick_accuracy(env, date_from=None, date_to=None, **params):
-    lines = env["fix.wms.wave.line"].sudo().search([])
+    lines = _picked_lines(env)
     rows = []
     for line in lines:
         qty = line.qty or 0.0
@@ -150,7 +184,8 @@ def pick_accuracy(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Accuracy = picked ÷ wave quantity; overall %.1f%% across %d lines."
+            "Accuracy = picked ÷ wave quantity over lines the wave actually picked; "
+            "overall %.1f%% across %d lines."
             % ((total_picked / total_qty) * 100.0 if total_qty else 0.0, len(lines))
         ],
         totals={
@@ -164,7 +199,7 @@ def pick_accuracy(env, date_from=None, date_to=None, **params):
 
 
 def wave_cycle_time(env, date_from=None, date_to=None, **params):
-    waves = env["fix.wms.wave"].sudo().search([])
+    waves = _mine(env, "fix.wms.wave")
     rows = []
     for wave in waves:
         hours = "—"
@@ -205,7 +240,7 @@ def wave_cycle_time(env, date_from=None, date_to=None, **params):
 def labour_productivity(env, date_from=None, date_to=None, **params):
     rows = []
     by_emp = {}
-    for task in _tasks(env).filtered(lambda t: t.state == "done"):
+    for task in _executed(_tasks(env)):
         key = task.assignee_id.name if task.assignee_id else "Unassigned"
         row = by_emp.setdefault(key, {"assignee": key, "tasks": 0, "qty": 0.0})
         row["tasks"] += 1
@@ -230,8 +265,10 @@ def labour_productivity(env, date_from=None, date_to=None, **params):
 
 
 def bin_utilisation(env, date_from=None, date_to=None, **params):
-    bins = env["fix.warehouse.bin"].sudo().search([])
-    slots = env["fix.wms.slot"].sudo().search([])
+    bins = env["fix.warehouse.bin"].search(
+        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
+    )
+    slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
     rows = []
     for bin_record in bins:
         bin_slots = slots.filtered(lambda s, bid=bin_record.id: s.bin_id.id == bid)
@@ -275,11 +312,12 @@ def bin_utilisation(env, date_from=None, date_to=None, **params):
 
 
 def pick_strategy(env, date_from=None, date_to=None, **params):
-    slots = env["fix.wms.slot"].sudo().search([])
-    tasks = (
-        env["fix.wms.task"]
-        .sudo()
-        .search([("task_type", "=", "pick"), ("state", "in", ("open", "assigned"))])
+    bins = env["fix.warehouse.bin"].search(
+        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
+    )
+    slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
+    tasks = _mine(
+        env, "fix.wms.task", [("task_type", "=", "pick"), ("state", "in", ("open", "assigned"))]
     )
     rows = []
     for slot in slots:
@@ -365,18 +403,21 @@ REPORTS = {
 
 
 def kpis(env):
+    """Read as the caller, in the caller's companies, from executed work only."""
     tasks = _tasks(env)
-    waves = env["fix.wms.wave"].sudo().search([])
-    bins = env["fix.warehouse.bin"].sudo().search([])
-    slots = env["fix.wms.slot"].sudo().search([])
-    lines = env["fix.wms.wave.line"].sudo().search([])
+    waves = _mine(env, "fix.wms.wave")
+    bins = env["fix.warehouse.bin"].search(
+        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
+    )
+    slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
+    lines = _picked_lines(env)
     total_qty = sum(line.qty or 0.0 for line in lines)
     picked = sum(line.picked_qty or 0.0 for line in lines)
     today = datetime.date.today()
-    docks = (
-        env["fix.wms.dock"]
-        .sudo()
-        .search([("slot_start", ">=", datetime.datetime.combine(today, datetime.time.min))])
+    docks = _mine(
+        env,
+        "fix.wms.dock",
+        [("slot_start", ">=", datetime.datetime.combine(today, datetime.time.min))],
     )
     capacity = sum(bins.mapped("capacity_qty"))
     slotted = sum(slots.mapped("qty"))

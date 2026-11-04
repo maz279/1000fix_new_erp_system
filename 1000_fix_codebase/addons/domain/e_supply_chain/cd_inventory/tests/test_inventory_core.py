@@ -1,128 +1,107 @@
-# cd_inventory tests — M15 Spare Parts & Inventory Core Tests (CD-M15-01).
-from __future__ import annotations
+# cd_inventory tests — M15 Spare Parts & Inventory core behaviour (CD-M15-01).
+#
+# A06 audit M15-17: this file used to "certify" the module by grepping its
+# source for "stock.consumed", "110999" and "van.reconciled". Those were
+# not tests of behaviour; they are replaced by executed checks of the same
+# promises: the consumption books 110999 and publishes stock.consumed, the
+# return reverses it, the van audit publishes van.reconciled, and the ledger
+# (not a typed number) is what the part reports.
+import json
 
-import inspect
-
-
-class TestFixStockLocation:
-    """Tests for fix.stock.location (Multi-location, Hubs, Service Centers, Mobile Vans)."""
-
-    def test_model_exists(self):
-        from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
-
-        assert FixStockLocation is not None
-
-    def test_unique_code_constraint(self):
-        from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
-
-        assert hasattr(FixStockLocation, "_code_company_unique")
-
-    def test_van_location_fields(self):
-        from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
-
-        fields = dir(FixStockLocation)
-        assert "is_van_location" in fields
-        assert "technician_id" in fields
-        assert "van_plate" in fields
-        assert "last_audit_date" in fields
-
-    def test_audit_van_stock_publishes_event(self):
-        from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
-
-        source = inspect.getsource(FixStockLocation.action_audit_van_stock)
-        assert "van.reconciled" in source
-        assert "last_audit_date" in source
-
-    def test_bengali_field_present(self):
-        from odoo.addons.cd_inventory.models.fix_stock_location import FixStockLocation
-
-        assert "name_bn" in dir(FixStockLocation)
+import pytest
+from odoo.exceptions import ValidationError
+from psycopg2 import IntegrityError
 
 
-class TestFixSparePart:
-    """Tests for fix.spare.part (Catalog, Compatibility, Barcodes, Pricing)."""
-
-    def test_model_exists(self):
-        from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
-
-        assert FixSparePart is not None
-
-    def test_unique_part_number_constraint(self):
-        from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
-
-        assert hasattr(FixSparePart, "_part_code_unique")
-
-    def test_barcode_and_qr_fields(self):
-        from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
-
-        fields = dir(FixSparePart)
-        assert "barcode" in fields
-        assert "qr_code" in fields
-        assert "is_serialized" in fields
-        assert "compatible_models" in fields
-        assert "warranty_months" in fields
-
-    def test_find_by_code_method(self):
-        from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
-
-        assert hasattr(FixSparePart, "find_by_code")
-
-    def test_bengali_field_present(self):
-        from odoo.addons.cd_inventory.models.fix_spare_part import FixSparePart
-
-        assert "name_bn" in dir(FixSparePart)
-
-
-class TestFixStockConsumption:
-    """Tests for fix.stock.consumption (Barcode Scan-to-Consume Engine)."""
-
-    def test_model_exists(self):
-        from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
-
-        assert FixStockConsumption is not None
-
-    def test_scan_and_consume_method(self):
-        from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
-
-        source = inspect.getsource(FixStockConsumption.action_scan_and_consume)
-        assert "stock.consumed" in source
-        assert "fix.inventory.valuation.suspense" in source
-        assert "qty_available" in source
-        assert "110999" in source
-
-    def test_return_part_method(self):
-        from odoo.addons.cd_inventory.models.fix_stock_consumption import FixStockConsumption
-
-        source = inspect.getsource(FixStockConsumption.action_return_part)
-        assert "stock.returned" in source
-        assert "fix.inventory.valuation.suspense" in source
-        assert "returned" in source
-
-
-class TestFixValuationSuspense:
-    """Tests for fix.inventory.valuation.suspense (GV-005 Suspense Stub)."""
-
-    def test_model_exists(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
-            FixInventoryValuationSuspense,
+def _event(env, event_type, aggregate, aggregate_id):
+    rows = (
+        env["fix.event.outbox"]
+        .sudo()
+        .search(
+            [
+                ("event_type", "=", event_type),
+                ("aggregate", "=", aggregate),
+                ("aggregate_id", "=", aggregate_id),
+            ]
         )
+    )
+    return [json.loads(r.payload) for r in rows]
 
-        assert FixInventoryValuationSuspense is not None
 
-    def test_suspense_account_default(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
-            FixInventoryValuationSuspense,
-        )
+def test_location_code_unique_per_company(inv):
+    with pytest.raises(IntegrityError), inv.env.cr.savepoint():
+        inv.env["fix.stock.location"].create({"name": "dup", "code": inv.central.code})
+        inv.env.flush_all()
 
-        source = inspect.getsource(FixInventoryValuationSuspense)
-        assert "110999" in source
-        assert "STUB-M15-M19-001" in source
 
-    def test_action_reconcile_to_gl(self):
-        from odoo.addons.cd_inventory.models.fix_valuation_suspense import (
-            FixInventoryValuationSuspense,
-        )
+def test_van_location_flags_and_custodian(inv):
+    assert (inv.van.is_van_location, inv.van.is_van_stock, inv.van.technician_id) == (
+        True,
+        True,
+        inv.tech1,
+    )
+    assert not inv.hub.is_van_location
 
-        source = inspect.getsource(FixInventoryValuationSuspense.action_reconcile_to_gl)
-        assert "gl_voucher_ref" in source
-        assert "reconciled" in source
+
+def test_van_audit_publishes_van_reconciled(inv):
+    out = inv.van.action_audit_van_stock(
+        [{"sku": "A", "discrepancy_qty": 0}, {"sku": "B", "discrepancy_qty": 1}]
+    )
+    assert (out["audited_count"], out["discrepancies"], out["accuracy_pct"]) == (2, 1, 50.0)
+    (event,) = _event(inv.env, "van.reconciled", "fix.stock.location", inv.van.id)
+    assert event["discrepancy_qty"] == 1 and inv.van.audit_discrepancy_count == 1
+
+
+def test_empty_van_audit_is_refused(inv):
+    """M15-16: an audit with no lines used to report 100% accuracy."""
+    with pytest.raises(ValidationError, match="at least one audited line"), inv.env.cr.savepoint():
+        inv.van.action_audit_van_stock([])
+
+
+def test_part_reports_the_ledger(inv):
+    assert inv.part.qty_available == 10.0 and inv.part.average_cost == 500.0
+    inv.stock(inv.part, inv.hub, 5.0, 200.0)
+    assert inv.part.qty_available == 15.0
+    assert inv.part.average_cost == pytest.approx((10 * 500 + 5 * 200) / 15, abs=1e-3)
+    inv.stock(inv.part, inv.hub, 5.0, 100.0, cls="consignment")
+    assert inv.part.qty_available == 20.0  # on hand...
+    assert inv.part.average_cost == pytest.approx(
+        (10 * 500 + 5 * 200) / 15, abs=1e-3
+    )  # ...not valued
+
+
+def test_consumption_books_110999_and_publishes(inv):
+    rec = inv.issue(inv.keeper, qty=2.0)
+    rec.with_user(inv.keeper).action_scan_and_consume()
+    entry = (
+        inv.env["fix.inventory.valuation.suspense"].sudo().search([("consumption_id", "=", rec.id)])
+    )
+    assert (entry.suspense_account_code, entry.entry_type, entry.total_valuation) == (
+        "110999",
+        "consumption",
+        1000.0,
+    )
+    assert entry.stub_reference == "STUB-M15-M19-001"
+    (event,) = _event(inv.env, "stock.consumed", "fix.stock.consumption", rec.id)
+    assert (event["quantity"], event["suspense_entry_id"]) == (2.0, entry.id)
+
+
+def test_return_reverses_and_publishes(inv):
+    rec = inv.issue(inv.keeper, qty=2.0)
+    rec.with_user(inv.keeper).action_scan_and_consume()
+    rec.with_user(inv.keeper).action_return_part("wrong_diagnosis")
+    rows = (
+        inv.env["fix.inventory.valuation.suspense"].sudo().search([("consumption_id", "=", rec.id)])
+    )
+    assert sorted(rows.mapped("total_valuation")) == [-1000.0, 1000.0]
+    assert _event(inv.env, "stock.returned", "fix.stock.consumption", rec.id)
+    assert inv.qty(inv.part, inv.central) == 10.0
+
+
+def test_return_needs_a_known_reason(inv):
+    from odoo.exceptions import UserError
+
+    rec = inv.issue(inv.keeper)
+    rec.with_user(inv.keeper).action_scan_and_consume()
+    with pytest.raises(UserError, match="return reason"), inv.env.cr.savepoint():
+        rec.with_user(inv.keeper).action_return_part("because")

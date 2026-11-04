@@ -87,6 +87,29 @@ class FixWarehouseBin(models.Model):
     name = fields.Char(required=True)
     barcode = fields.Char(index=True, help="RF-scannable bin barcode")
     capacity_qty = fields.Float(default=0.0, help="0 = unconstrained bin")
+    # BRU-WMS-11 (A06 audit M41-6): hazardous items (lithium batteries) go
+    # only into bins of the hazardous storage class; put-away enforces it.
+    storage_class = fields.Selection(
+        [("general", "General"), ("hazardous", "Hazardous (Li-ion / chemical)")],
+        string="Storage Class",
+        required=True,
+        default="general",
+    )
+    # BRU-WMS-03 (A06 audit M41-6): a bin may be dedicated to one ownership
+    # class (brand consignment kept apart from owned stock); put-away enforces it.
+    ownership_class = fields.Selection(
+        [
+            ("any", "Any Class"),
+            ("owned", "Owned Stock"),
+            ("consignment", "Supplier Consignment"),
+            ("customer", "Customer Property"),
+            ("bench", "Bench / WIP"),
+            ("warranty", "Warranty Reserve"),
+        ],
+        string="Ownership Class",
+        required=True,
+        default="any",
+    )
 
     @api.constrains("capacity_qty")
     def _check_capacity(self):

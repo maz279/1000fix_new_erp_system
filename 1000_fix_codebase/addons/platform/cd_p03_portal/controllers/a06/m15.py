@@ -1,8 +1,17 @@
 # A06 · M15 Spare Parts & Inventory — surfaces, packs and KPIs over the part
-# master, locations, issues and reorder rules plus the new on-hand ledger and
-# control documents. Valuation is quantity × recorded unit cost (no layer
-# costing engine is claimed); ABC uses on-hand value, XYZ uses movement recency.
+# master, locations, issues and reorder rules plus the on-hand ledger and
+# control documents. Valuation is quantity × the bucket's weighted-average
+# cost; ABC uses on-hand value, XYZ uses movement recency.
+#
+# A06 audit (2026-11-03): every pack and KPI read sudo().search([]), so a
+# clerk saw other companies' stock and the Stock Value KPI counted supplier
+# consignment and customer property as 1000FiX inventory. Everything below
+# reads as the CALLER (record rules apply), filtered to env.companies, and
+# values only the owned classes (BRU-INV-02). Every workflow transition the
+# screens need is declared in its surface's `actions`.
 import datetime
+
+from .writable import WRITABLE as _WRITABLE
 
 SURFACES = {
     "fix.stock.onhand": {"order": "part_id, location_id", "limit": 400, "actions": set()},
@@ -10,7 +19,7 @@ SURFACES = {
     "fix.stock.consumption": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_scan_and_consume"},
+        "actions": {"action_scan_and_consume", "action_return_part"},
     },
     "fix.stock.receipt": {
         "order": "create_date desc, id desc",
@@ -21,32 +30,70 @@ SURFACES = {
     "fix.stock.transfer": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_dispatch", "action_receive"},
+        "actions": {
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_cancel",
+            "action_dispatch",
+            "action_receive",
+        },
     },
     "fix.stock.transfer.line": {"order": "transfer_id, id", "limit": 400, "actions": set()},
     "fix.stock.count": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_post"},
+        "actions": {"action_submit", "action_post", "action_approve", "action_reject"},
     },
     "fix.stock.count.line": {"order": "count_id, id", "limit": 400, "actions": set()},
     "fix.stock.van.recon": {
         "order": "recon_date desc, id desc",
         "limit": 300,
-        "actions": {"action_confirm"},
+        "actions": {"action_confirm", "action_resolve"},
     },
     "fix.stock.quarantine": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_release", "action_scrap"},
+        "actions": {
+            "action_release",
+            "action_scrap",
+            "action_request_scrap",
+            "action_approve_scrap",
+            "action_reject_scrap",
+        },
     },
     "fix.stock.rtv": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_ship"},
+        "actions": {
+            "action_submit",
+            "action_approve",
+            "action_cancel",
+            "action_ship",
+            "action_mark_credited",
+        },
     },
-    "fix.reorder.rule": {"order": "name", "limit": 300, "actions": {"action_trigger_reorder"}},
+    "fix.reorder.rule": {
+        "order": "name",
+        "limit": 300,
+        "actions": {"action_trigger_reorder", "action_activate", "action_archive_rule"},
+    },
 }
+
+# Surfaces whose write whitelist the lead generates from the forms
+# (controllers/form_fields.py --a06). Served once writable.py lists them, so
+# the package never imports a surface without a whitelist.
+_PENDING_SURFACES = {
+    "fix.stock.class.change": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+}
+SURFACES.update({m: c for m, c in _PENDING_SURFACES.items() if m in _WRITABLE})
+
+# The owned classes: consignment and customer property are held, never valued.
+_VALUED = ("owned", "van", "bench", "warranty")
 
 _OWNERSHIP_LABELS = {
     "owned": "Owned Stock",
@@ -70,8 +117,19 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _mine(env, model, domain=None, **kw):
+    """The caller's records of this model in the companies they work in."""
+    records = env[model]
+    company = [("company_id", "in", env.companies.ids)] if "company_id" in records._fields else []
+    return records.search(company + list(domain or []), **kw)
+
+
 def _onhand(env):
-    return env["fix.stock.onhand"].sudo().search([])
+    return _mine(env, "fix.stock.onhand")
+
+
+def _value(rows):
+    return sum((r.qty or 0.0) * (r.unit_cost or 0.0) for r in rows if r.ownership_class in _VALUED)
 
 
 def ownership_classes(env, date_from=None, date_to=None, **params):
@@ -83,7 +141,7 @@ def ownership_classes(env, date_from=None, date_to=None, **params):
                 "ownership": label,
                 "lines": len(recs),
                 "qty": round(sum(recs.mapped("qty")), 3),
-                "value": round(sum((r.qty or 0.0) * (r.unit_cost or 0.0) for r in recs), 2),
+                "value": round(_value(recs), 2),
             }
         )
     rows.sort(key=lambda r: -r["value"])
@@ -93,8 +151,8 @@ def ownership_classes(env, date_from=None, date_to=None, **params):
         {"ownership": "Ownership Class", "lines": "Lines", "qty": "Quantity", "value": "Value"},
         rows,
         [
-            "Value = on-hand quantity × the row's recorded unit cost. Consignment "
-            "and customer property are held, not owned — the class keeps them apart."
+            "Value = on-hand quantity × the bucket's average cost. Consignment and "
+            "customer property are held, not owned: they carry no value (BRU-INV-02)."
         ],
         totals={
             "ownership": "Total",
@@ -108,7 +166,9 @@ def ownership_classes(env, date_from=None, date_to=None, **params):
 
 def availability(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in _onhand(env).filtered(lambda r: (r.available_qty or 0.0) > 0):
+    for rec in _onhand(env).filtered(
+        lambda r: (r.available_qty or 0.0) > 0 and r.stock_status == "unrestricted"
+    ):
         rows.append(
             {
                 "part": rec.part_id.part_number,
@@ -132,17 +192,18 @@ def availability(env, date_from=None, date_to=None, **params):
             "unit_cost": "Unit Cost",
         },
         rows,
-        ["Available = on-hand − reserved, per location and ownership class."],
+        [
+            "Available = unrestricted on-hand − reserved, per location and ownership "
+            "class; quarantined, in-transit and staged stock is not available."
+        ],
         totals={"part": "Total", "available": round(sum(r["available"] for r in rows), 3)},
         empty="No available stock recorded yet.",
     )
 
 
 def genealogy(env, date_from=None, date_to=None, **params):
-    consumptions = (
-        env["fix.stock.consumption"].sudo().search([], order="create_date desc", limit=300)
-    )
-    lots = env["fix.stock.lot"].sudo().search([])
+    consumptions = _mine(env, "fix.stock.consumption", order="create_date desc", limit=300)
+    lots = _mine(env, "fix.stock.lot")
     rows = []
     for rec in consumptions:
         lot = (
@@ -194,7 +255,7 @@ def genealogy(env, date_from=None, date_to=None, **params):
 
 
 def van_stock(env, date_from=None, date_to=None, **params):
-    vans = env["fix.stock.location"].sudo().search([("is_van_location", "=", True)])
+    vans = _mine(env, "fix.stock.location", [("is_van_location", "=", True)])
     rows = []
     for rec in _onhand(env).filtered(lambda r: r.location_id.is_van_location):
         rows.append(
@@ -237,7 +298,7 @@ def van_stock(env, date_from=None, date_to=None, **params):
 
 def valuation_by_class(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in _onhand(env):
+    for rec in _onhand(env).filtered(lambda r: r.ownership_class in _VALUED):
         rows.append(
             {
                 "part": rec.part_id.part_number,
@@ -251,7 +312,7 @@ def valuation_by_class(env, date_from=None, date_to=None, **params):
         )
     rows.sort(key=lambda r: -r["value"])
     return _pack(
-        "Stock Valuation by Class — quantity × recorded unit cost",
+        "Stock Valuation by Class — quantity × weighted-average cost",
         ["part", "location", "ownership", "qty", "unit_cost", "value", "method"],
         {
             "part": "Part",
@@ -264,8 +325,9 @@ def valuation_by_class(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "This is a recorded-cost valuation, not a FIFO layer engine: the method "
-            "column states what the row is valued under, and every value is qty × unit cost."
+            "Each bucket carries its weighted-average cost (receipts average in; issues, "
+            "transfers and scrap leave at it). Consignment and customer property are "
+            "excluded: they are not 1000FiX's inventory."
         ],
         totals={
             "part": "Total",
@@ -278,9 +340,9 @@ def valuation_by_class(env, date_from=None, date_to=None, **params):
 
 def ageeing(env, date_from=None, date_to=None, **params):
     today = datetime.date.today()
-    lots = env["fix.stock.lot"].sudo().search([])
+    lots = _mine(env, "fix.stock.lot", [("status", "=", "in_stock")])
     rows = []
-    for lot in lots.filtered(lambda ln: ln.status == "in_stock"):
+    for lot in lots:
         age = (today - lot.received_on).days if lot.received_on else 0
         if age > 365:
             bucket, action = ">365 days", "Write-off review"
@@ -327,7 +389,7 @@ def ageeing(env, date_from=None, date_to=None, **params):
 
 def abc_segmentation(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in _onhand(env):
+    for rec in _onhand(env).filtered(lambda r: r.ownership_class in _VALUED):
         value = (rec.qty or 0.0) * (rec.unit_cost or 0.0)
         last = rec.last_move_date
         if last and (datetime.date.today() - last).days <= 30:
@@ -385,8 +447,10 @@ def abc_segmentation(env, date_from=None, date_to=None, **params):
 
 
 def accuracy_audit(env, date_from=None, date_to=None, **params):
-    counts = env["fix.stock.count"].sudo().search([])
-    lines = env["fix.stock.count.line"].sudo().search([])
+    counts = _mine(env, "fix.stock.count")
+    # blind counts: the expected quantity is revealed once a count is posted
+    # (or to an Inventory Controller); open counts are listed without it
+    lines = env["fix.stock.count.line"].search([("count_id", "in", counts.ids)])
     rows = []
     for line in lines:
         rows.append(
@@ -440,7 +504,7 @@ def accuracy_audit(env, date_from=None, date_to=None, **params):
 
 
 def van_variance(env, date_from=None, date_to=None, **params):
-    recons = env["fix.stock.van.recon"].sudo().search([])
+    recons = _mine(env, "fix.stock.van.recon")
     rows = []
     for rec in recons:
         rows.append(
@@ -482,7 +546,7 @@ def van_variance(env, date_from=None, date_to=None, **params):
 
 
 def transfer_performance(env, date_from=None, date_to=None, **params):
-    transfers = env["fix.stock.transfer"].sudo().search([])
+    transfers = _mine(env, "fix.stock.transfer")
     rows = []
     for rec in transfers:
         days = "—"
@@ -520,7 +584,65 @@ def transfer_performance(env, date_from=None, date_to=None, **params):
     )
 
 
+def suspense_integrity(env, date_from=None, date_to=None, **params):
+    """S0 (read-only): is the initial-count baseline loaded twice, and how
+    does the pending M19 suspense compare with the on-hand value?"""
+    data = env["fix.inventory.valuation.suspense"].get_baseline_integrity()
+    rows = []
+    for item in data["companies"]:
+        rows.append(
+            {
+                "company": item["company"],
+                "pending_entries": item["pending_entries"],
+                "pending_total": item["pending_total"],
+                "baseline_total": item["baseline_total"],
+                "duplicate_rows": item["duplicate_extra_rows"],
+                "duplicate_value": item["duplicate_excess_value"],
+                "onhand_value": item["onhand_value"],
+                "gap_vs_onhand": item["gap_vs_onhand"],
+                "status": "Baseline loaded more than once"
+                if item["baseline_duplicated"]
+                else ("Gap to on-hand" if abs(item["gap_vs_onhand"]) > 0.01 else "Consistent"),
+            }
+        )
+    return _pack(
+        "Valuation Suspense Integrity — baseline duplicates and suspense vs on-hand",
+        [
+            "company",
+            "pending_entries",
+            "pending_total",
+            "baseline_total",
+            "duplicate_rows",
+            "duplicate_value",
+            "onhand_value",
+            "gap_vs_onhand",
+            "status",
+        ],
+        {
+            "company": "Company",
+            "pending_entries": "Pending Entries",
+            "pending_total": "Pending Total",
+            "baseline_total": "Baseline (initial count)",
+            "duplicate_rows": "Duplicate Rows",
+            "duplicate_value": "Duplicated Value",
+            "onhand_value": "On-hand Value",
+            "gap_vs_onhand": "Gap vs On-hand",
+            "status": "Status",
+        },
+        rows,
+        [
+            "A duplicate is a pending initial-count row identical to another (part, "
+            "reference, quantity, unit cost). This report changes nothing: removing "
+            "duplicates before the 2026-11-30 M19 cutover is a Finance decision.",
+            "Gap = baseline after de-duplication + every later movement − the on-hand "
+            "value of the owned classes.",
+        ],
+        empty="No pending valuation suspense entries.",
+    )
+
+
 REPORTS = {
+    "suspense_integrity": suspense_integrity,
     "ownership_classes": ownership_classes,
     "availability": availability,
     "genealogy": genealogy,
@@ -535,29 +657,28 @@ REPORTS = {
 
 
 def kpis(env):
+    """Read as the caller, in the caller's companies; only owned stock is valued."""
     onhand = _onhand(env)
-    value = sum((r.qty or 0.0) * (r.unit_cost or 0.0) for r in onhand)
+    value = _value(onhand)
     stocked_parts = len(onhand.filtered(lambda r: (r.qty or 0.0) > 0).mapped("part_id"))
-    parts = env["fix.spare.part"].sudo().search([])
-    stockouts = len(
-        parts.filtered(
-            lambda p: (p.qty_available or 0.0) <= (p.min_qty or 0.0) and p.state == "active"
-        )
-    )
+    parts = _mine(env, "fix.spare.part", [("state", "=", "active")])
+    stockouts = len(parts.filtered(lambda p: (p.qty_available or 0.0) <= (p.min_qty or 0.0)))
     today = datetime.date.today()
     month_start = today.replace(day=1)
     van_var = sum(
         abs(r.variance or 0.0)
-        for r in env["fix.stock.van.recon"].sudo().search([])
-        if r.recon_date and r.recon_date >= month_start
+        for r in _mine(env, "fix.stock.van.recon", [("recon_date", ">=", month_start)])
     )
+    company = [("company_id", "in", env.companies.ids)]
     return {
         "stock_value": round(value, 2),
         "stocked_skus": stocked_parts,
         "stockout_skus": stockouts,
-        "pending_counts": env["fix.stock.count"].sudo().search_count([("state", "=", "draft")]),
-        "open_transfers": env["fix.stock.transfer"]
-        .sudo()
-        .search_count([("state", "in", ("draft", "dispatched"))]),
+        "pending_counts": env["fix.stock.count"].search_count(
+            [*company, ("state", "in", ("draft", "recount", "to_approve"))]
+        ),
+        "open_transfers": env["fix.stock.transfer"].search_count(
+            [*company, ("state", "in", ("draft", "submitted", "approved", "dispatched"))]
+        ),
         "van_variance_pcs": round(van_var, 3),
     }

@@ -90,6 +90,24 @@ The module depends on the following prerequisite modules:
 - **Nightly Reconciliation**: Automated integrity checks run via standard cron schedules to detect orphan records or stalled state transactions.
 - **Data Retention & Pruning**: Outbox payloads and temporary staging buffers are pruned according to data governance retention windows (90-day hot retention).
 
+### 4.1a Inventory controls (A06 remediation, Nov 2026)
+- **Roles** (`cd_wms_structure`): Storekeeper and Warehouse Operator (admin is a member);
+  Inventory Controller ships EMPTY and is the second person on every inventory approval
+  (count variances, write-offs, van discrepancies, transfers, class changes, RTV, bin unblock,
+  part status / standard cost). A controller never approves what they raised, counted,
+  quarantined or blocked.
+- **Configuration** (`ir.config_parameter`, default `0` = every case needs approval):
+  `cd_inventory.count_variance_tolerance_pct`, `cd_inventory.van_variance_tolerance_pct`,
+  `cd_inventory.writeoff_approval_threshold` (BDT), `cd_inventory.transfer_approval_threshold` (BDT).
+- **Cron**: `M15: replenishment sweep (reorder rules)` runs `check_replenishment_alerts()` hourly.
+- **Valuation suspense**: system-written only; reconciled only by the M19 cutover
+  (`cd_gl_ext` period close). `fix.inventory.valuation.suspense.get_baseline_integrity()` and the
+  workspace report *Valuation Suspense Integrity* show a duplicated initial-count baseline and the
+  gap to the on-hand value. They change nothing: removing duplicates is a Finance decision.
+- **Ledger**: `fix.stock.onhand` is written only by movements; stock has a status
+  (unrestricted / quarantine / in transit / staged) and only unrestricted stock is reserved or
+  issued. Receipts value at weighted-average cost.
+
 ### 4.2 Standard Operational Procedures
 1. **Module Deployment**:
    ```bash

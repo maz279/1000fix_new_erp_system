@@ -1,25 +1,50 @@
 # cd_inventory — M15->M19 Inventory Valuation Suspense Account Model (GV-005 Stub).
-# All inventory stock consumption and baseline loads post valuation to suspense account 110999
-# until General Ledger (M19) cutover in Wave 3 / Phase R04.
+# Inventory movements and baseline loads post valuation to suspense account
+# 110999 until General Ledger (M19) cutover in Wave 3 / Phase R04.
+#
+# A06 audit (2026-11-03) M15-7 / S0: the ledger M19 will clear was editable
+# by every user (a clerk marked an entry reconciled at 0 and created a
+# BDT 500,000 "initial_count" entry), and on fix_dev the initial baseline is
+# loaded TWICE (2 x 1,900 rows, BDT 50.4M pending against BDT 12.6M of
+# stock). The model is now system-written only: no user ACL creates or
+# writes it, every field is guarded, rows cannot be deleted, and "reconciled"
+# is reachable only through the M19 cutover (cd_gl_ext period close, which
+# proves a posted journal entry clears the pending total) or trusted code.
+# get_baseline_integrity() reports a duplicated baseline and the suspense
+# against the on-hand value so Finance sees the problem; it changes nothing.
 from __future__ import annotations
 
 from datetime import datetime
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
+
+from .fix_inventory_approval import VALUED_CLASSES
+
+# How each entry type moves the company's stock value. Consumption and return
+# predate this file and carry the VALUE CONSUMED (an issue +, its return -);
+# every later type carries the stock movement itself (+ in, - out).
+STOCK_EFFECT = {
+    "consumption": -1.0,
+    "return": -1.0,
+    "initial_count": 1.0,
+    "revaluation": 1.0,
+    "receipt": 1.0,
+    "adjustment": 1.0,
+    "write_off": 1.0,
+    "rtv": 1.0,
+    "shipment": 1.0,
+    "class_change": 1.0,
+}
 
 
 class FixInventoryValuationSuspense(models.Model):
-    """M15 Inventory Valuation Suspense Entries (GV-005 STUB-M15-M19-001).
-
-    Maintains double-entry suspense valuation for all physical parts movements
-    prior to full M19 Financial GL activation.
-    """
+    """M15 Inventory Valuation Suspense Entries (GV-005 STUB-M15-M19-001)."""
 
     _name = "fix.inventory.valuation.suspense"
     _description = "Inventory Valuation Suspense Entry"
     _order = "create_date desc, id desc"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
     company_id = fields.Many2one(
         "res.company",
@@ -51,6 +76,7 @@ class FixInventoryValuationSuspense(models.Model):
         index=True,
         ondelete="set null",
     )
+    source_ref = fields.Char(string="Source Document", index=True)
     product_id = fields.Many2one(
         "fix.spare.part",
         string="Spare Part",
@@ -79,6 +105,12 @@ class FixInventoryValuationSuspense(models.Model):
             ("return", "Job Return"),
             ("revaluation", "Inventory Revaluation"),
             ("initial_count", "Physical Baseline Migration"),
+            ("receipt", "Goods Receipt"),
+            ("adjustment", "Count / Van Adjustment"),
+            ("write_off", "Scrap / Write-off"),
+            ("rtv", "Return to Vendor"),
+            ("shipment", "Warehouse Shipment"),
+            ("class_change", "Ownership-Class Change"),
         ],
         string="Entry Type",
         required=True,
@@ -128,8 +160,36 @@ class FixInventoryValuationSuspense(models.Model):
         "loader (migrations/load_inventory.py) - never edited, never copied",
     )
 
+    # Every stored business field is evidence for the M19 cutover: none is typed.
+    _SYSTEM_FIELDS = (
+        "company_id",
+        "operating_unit_id",
+        "name",
+        "name_bn",
+        "consumption_id",
+        "source_ref",
+        "product_id",
+        "quantity",
+        "unit_cost",
+        "total_valuation",
+        "entry_type",
+        "suspense_account_code",
+        "status",
+        "gl_cutover_ref",
+        "reconciled_at",
+        "legacy_reference",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | set(self._SYSTEM_FIELDS)
+
     @api.model_create_multi
     def create(self, vals_list):
+        if not self.env.su:
+            raise AccessError(
+                "Valuation suspense entries are written by the stock movements "
+                "themselves; they cannot be created by hand."
+            )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 seq = self.env["ir.sequence"].next_by_code("fix.inventory.valuation.suspense")
@@ -138,16 +198,168 @@ class FixInventoryValuationSuspense(models.Model):
                 vals["total_valuation"] = vals["quantity"] * vals["unit_cost"]
         return super().create(vals_list)
 
-    def action_reconcile_to_gl(self, gl_voucher_ref: str) -> dict:
-        """Mark suspense entry reconciled against M19 General Ledger."""
-        self.ensure_one()
-        if not gl_voucher_ref:
-            raise UserError("GL Voucher reference is mandatory for reconciliation.")
-        self.write(
+    def write(self, vals):
+        if self and not self._fix_guard_open():
+            touched = set(vals) & set(self._SYSTEM_FIELDS)
+            if touched:
+                self._fix_guard_refuse(touched)
+        return super().write(vals)
+
+    def unlink(self):
+        if not self.env.su:
+            raise UserError(
+                "Valuation suspense entries are audit evidence for the M19 cutover and "
+                "cannot be deleted."
+            )
+        return super().unlink()
+
+    # ------------------------------------------------------------------ posting
+    @api.model
+    def _fix_post(
+        self, entry_type, part, quantity, unit_cost, source_ref, location=None, ownership="owned"
+    ):
+        """Book one movement (system path). Non-owned classes (consignment,
+        customer property) are held stock and never valued (BRU-INV-02)."""
+        if ownership not in VALUED_CLASSES or not quantity:
+            return self.browse()
+        company = (location.company_id if location else False) or part.company_id
+        operating_unit = (location.operating_unit_id if location else False) or (
+            part.operating_unit_id
+        )
+        return self.sudo().create(
             {
-                "status": "reconciled",
-                "gl_cutover_ref": gl_voucher_ref,
-                "reconciled_at": fields.Datetime.now(),
+                "company_id": company.id,
+                "operating_unit_id": operating_unit.id if operating_unit else False,
+                "product_id": part.id,
+                "quantity": quantity,
+                "unit_cost": unit_cost or 0.0,
+                "total_valuation": round(quantity * (unit_cost or 0.0), 2),
+                "entry_type": entry_type,
+                "source_ref": source_ref or False,
+                "suspense_account_code": "110999",
+                "status": "pending_gl_cutover",
             }
         )
-        return {"status": "reconciled", "entry": self.name, "gl_voucher": gl_voucher_ref}
+
+    # ------------------------------------------------------------ reconciliation
+    def action_reconcile_to_gl(self, gl_voucher_ref: str) -> dict:
+        """Mark suspense entries reconciled against an M19 cutover journal.
+
+        Trusted code (sudo) may call it. Otherwise the voucher must be the
+        POSTED cutover journal entry of an M19 period close of the entry's
+        company (cd_gl_ext's action_reconcile_inventory_suspense, which has
+        already proved that the entry clears the pending total); a typed
+        voucher reference reconciles nothing."""
+        if not gl_voucher_ref:
+            raise UserError("GL Voucher reference is mandatory for reconciliation.")
+        if not self.env.su:
+            self._fix_check_cutover_voucher(gl_voucher_ref)
+        now = fields.Datetime.now()
+        for rec in self:
+            if rec.status != "pending_gl_cutover":
+                raise UserError("Suspense entry %s is not pending GL cutover." % rec.name)
+            rec.sudo()._guarded().write(
+                {"status": "reconciled", "gl_cutover_ref": gl_voucher_ref, "reconciled_at": now}
+            )
+        if len(self) == 1:
+            return {"status": "reconciled", "entry": self.name, "gl_voucher": gl_voucher_ref}
+        return {"status": "reconciled", "entries": len(self), "gl_voucher": gl_voucher_ref}
+
+    def _fix_check_cutover_voucher(self, voucher):
+        if "account.move" not in self.env or "fix.period.close" not in self.env:
+            raise AccessError("Suspense entries are reconciled only by the M19 GL cutover.")
+        Close = self.env["fix.period.close"].sudo()
+        for company in self.mapped("company_id"):
+            move = (
+                self.env["account.move"]
+                .sudo()
+                .search(
+                    [
+                        ("name", "=", voucher),
+                        ("company_id", "=", company.id),
+                        ("state", "=", "posted"),
+                    ],
+                    limit=1,
+                )
+            )
+            close = (
+                Close.search(
+                    [("company_id", "=", company.id), ("cutover_move_id", "=", move.id)], limit=1
+                )
+                if move and "cutover_move_id" in Close._fields
+                else Close.browse()
+            )
+            if not move or not close:
+                raise AccessError(
+                    "%s is not the posted cutover journal entry of an M19 period close of %s: "
+                    "suspense entries are reconciled only by the GL cutover."
+                    % (voucher, company.name)
+                )
+
+    # ------------------------------------------------------- integrity report
+    @api.model
+    def get_baseline_integrity(self, company_ids=None) -> dict:
+        """Read-only: is the initial-count baseline loaded more than once, and
+        how does the pending suspense compare with the on-hand value?
+
+        A duplicate is a pending `initial_count` row identical to another in
+        company, part, reference, quantity and unit cost. Nothing is changed:
+        removing duplicates is a Finance decision taken before the
+        2026-11-30 cutover. Reads as the caller (company rules apply)."""
+        companies = (
+            self.env["res.company"].browse(company_ids) if company_ids else self.env.companies
+        )
+        result = []
+        Onhand = self.env["fix.stock.onhand"]
+        for company in companies:
+            pending = self.search(
+                [("company_id", "=", company.id), ("status", "=", "pending_gl_cutover")]
+            )
+            baseline = pending.filtered(lambda e: e.entry_type == "initial_count")
+            groups = {}
+            for entry in baseline:
+                key = (
+                    entry.product_id.id,
+                    entry.legacy_reference or entry.name,
+                    round(entry.quantity, 4),
+                    round(entry.unit_cost, 4),
+                )
+                groups.setdefault(key, []).append(entry)
+            duplicate_groups = [rows for rows in groups.values() if len(rows) > 1]
+            extra_rows = sum(len(rows) - 1 for rows in duplicate_groups)
+            excess_value = round(
+                sum(rows[0].total_valuation * (len(rows) - 1) for rows in duplicate_groups), 2
+            )
+            baseline_total = round(sum(baseline.mapped("total_valuation")), 2)
+            movement_value = round(
+                sum(
+                    e.total_valuation * STOCK_EFFECT.get(e.entry_type, 1.0)
+                    for e in pending - baseline
+                ),
+                2,
+            )
+            buckets = Onhand.search(
+                [("company_id", "=", company.id), ("ownership_class", "in", VALUED_CLASSES)]
+            )
+            onhand_value = round(sum((b.qty or 0.0) * (b.unit_cost or 0.0) for b in buckets), 2)
+            implied = round(baseline_total - excess_value + movement_value, 2)
+            result.append(
+                {
+                    "company_id": company.id,
+                    "company": company.name,
+                    "pending_entries": len(pending),
+                    "pending_total": round(sum(pending.mapped("total_valuation")), 2),
+                    "baseline_entries": len(baseline),
+                    "baseline_total": baseline_total,
+                    "duplicate_groups": len(duplicate_groups),
+                    "duplicate_extra_rows": extra_rows,
+                    "duplicate_excess_value": excess_value,
+                    "baseline_after_dedup": round(baseline_total - excess_value, 2),
+                    "movement_value": movement_value,
+                    "onhand_value": onhand_value,
+                    "implied_stock_value": implied,
+                    "gap_vs_onhand": round(implied - onhand_value, 2),
+                    "baseline_duplicated": bool(duplicate_groups),
+                }
+            )
+        return {"companies": result}

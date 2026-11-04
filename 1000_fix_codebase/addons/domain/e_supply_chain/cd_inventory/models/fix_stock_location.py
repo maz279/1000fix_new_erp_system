@@ -14,7 +14,9 @@ class FixStockLocation(models.Model):
 
     _name = "fix.stock.location"
     _description = "Inventory Location & Van Stock"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    # A06 audit (2026-11-03): the status and the audit stamps were free
+    # fields; they now change only through their actions.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
 
     company_id = fields.Many2one(
         "res.company",
@@ -95,6 +97,22 @@ class FixStockLocation(models.Model):
             loc.is_van_stock = val
             loc.is_van_location = val
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "last_audit_date",
+            "audit_discrepancy_count",
+        }
+
+    def action_set_active(self):
+        self._guarded().write({"state": "active"})
+        return True
+
+    def action_set_inactive(self):
+        """An inactive location moves no stock (every movement checks it)."""
+        self._guarded().write({"state": "inactive"})
+        return True
+
     @api.constrains("location_type", "technician_id")
     def _check_van_technician(self):
         for loc in self:
@@ -109,18 +127,19 @@ class FixStockLocation(models.Model):
         if self.location_type != "van":
             raise ValidationError("Van stock audit can only be performed on van stock locations.")
 
-        total_audited = len(audited_skus) if audited_skus else 0
-        discrepancies = sum(1 for s in (audited_skus or []) if s.get("discrepancy_qty", 0) != 0)
+        if not audited_skus:
+            # A06 audit M15-16: an audit with no lines used to report 100%
+            # accuracy; nothing audited is not an accurate van.
+            raise ValidationError("A van stock audit needs at least one audited line.")
+        total_audited = len(audited_skus)
+        discrepancies = sum(1 for s in audited_skus if s.get("discrepancy_qty", 0) != 0)
 
-        self.last_audit_date = fields.Date.today()
-        self.audit_discrepancy_count = discrepancies
+        self._guarded().write(
+            {"last_audit_date": fields.Date.today(), "audit_discrepancy_count": discrepancies}
+        )
 
         # Emit van.reconciled outbox event
-        accuracy_pct = (
-            100.0
-            if total_audited == 0
-            else round((total_audited - discrepancies) / total_audited * 100.0, 1)
-        )
+        accuracy_pct = round((total_audited - discrepancies) / total_audited * 100.0, 1)
         event_payload = {
             "van_id": self.id,
             "van_code": self.code,

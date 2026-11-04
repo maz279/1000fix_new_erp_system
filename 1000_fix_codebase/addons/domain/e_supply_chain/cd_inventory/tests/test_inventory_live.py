@@ -1,5 +1,11 @@
 # cd_inventory live-ORM tests — M15 spare parts, locations, consumption,
 # valuation suspense (GV-005), reorder engine (M43 seam), graded stock.
+#
+# A06 remediation: the part's on-hand is the location ledger (it used to be
+# typed into qty_available here), the issue takes the van's own bucket, the
+# replenishment rule reads its own location, and an empty van audit is
+# refused. The tests that asserted the old behaviour were rewritten to the
+# ledger (see the comments on each).
 import functools
 import json
 import logging
@@ -11,6 +17,8 @@ import pytest
 from odoo.exceptions import UserError, ValidationError
 
 import libs.py.fix_events as fix_events
+
+from .conftest import make_service_order
 
 # per-run tag: unique keys (part number, location codes, serials) never
 # collide with a concurrent run on fix_test
@@ -39,6 +47,11 @@ def _failing_publish(*_args, **_kwargs):
 
 
 class _Ctx(SimpleNamespace):
+    @functools.cached_property
+    def job(self):
+        """A real service order: an issue is charged to a real job (A06 M15-10)."""
+        return make_service_order(self.env, self.branch, TAG)
+
     @functools.cached_property
     def branch(self):
         """Created on first use, on its OWN company: fix.entity is UNIQUE per
@@ -80,10 +93,20 @@ def ctx(odoo_env):
             "barcode": BARCODE,
             "qr_code": QR,
             "unit_cost": 450.0,
-            "qty_available": 10.0,
         }
     )
+    # the van holds 10 (the van class of the ledger); qty_available follows
+    env["fix.stock.onhand"]._apply(part, van, "van", 10.0, 450.0)
     return _Ctx(env=env, ou=ou, technician=technician, hub=hub, van=van, part=part)
+
+
+def _set_hub_stock(ctx, qty):
+    """Put exactly `qty` of the part at the hub (the rule's location)."""
+    Onhand = ctx.env["fix.stock.onhand"]
+    row = Onhand._bucket(ctx.part, ctx.hub, "owned")
+    current = row.qty if row else 0.0
+    if qty != current:
+        Onhand._apply(ctx.part, ctx.hub, "owned", qty - current, 450.0)
 
 
 # --- spare part master -------------------------------------------------------------
@@ -173,9 +196,13 @@ def test_van_audit_reconciles_and_publishes(ctx):
     ]
 
 
-def test_empty_van_audit_is_fully_accurate(ctx):
-    out = ctx.van.action_audit_van_stock()
-    assert (out["audited_count"], out["discrepancies"], out["accuracy_pct"]) == (0, 0, 100.0)
+def test_empty_van_audit_is_refused(ctx):
+    """A06 M15-16: an audit with no lines used to report 100% accuracy."""
+    with (
+        pytest.raises(ValidationError, match="at least one audited line"),
+        ctx.env.cr.savepoint(),
+    ):
+        ctx.van.action_audit_van_stock()
 
 
 def test_audit_is_van_only(ctx):
@@ -249,7 +276,7 @@ def test_reconcile_needs_a_voucher(ctx, ref):
 
 def _consumption(ctx, **vals):
     base = {
-        "service_order_ref": "SO000777",
+        "service_order_ref": ctx.job.name,
         "product_id": ctx.part.id,
         "location_id": ctx.van.id,
         "technician_id": ctx.technician.id,
@@ -269,7 +296,9 @@ def test_consumption_numbering_and_cost(ctx):
 
 
 def test_scan_and_consume_deducts_values_and_publishes(ctx):
-    rec = _consumption(ctx, work_order_ref="WO00042", serial_number="IMEI-1")
+    # A06 M15-10: a work-order reference must name a real work order; this
+    # issue is charged to its service order only
+    rec = _consumption(ctx, serial_number="IMEI-1")
     out = rec.action_scan_and_consume()
     # 10 on hand - 2 consumed = 8; valuation 2 x 450 = 900.00
     assert ctx.part.qty_available == 8.0
@@ -292,8 +321,8 @@ def test_scan_and_consume_deducts_values_and_publishes(ctx):
     assert event == {
         "consumption_id": rec.id,
         "consumption_ref": rec.name,
-        "service_order_ref": "SO000777",
-        "work_order_ref": "WO00042",
+        "service_order_ref": ctx.job.name,
+        "work_order_ref": "",
         "part_id": ctx.part.id,
         "part_number": PN,
         "quantity": 2.0,
@@ -330,10 +359,13 @@ def test_consume_without_a_part_is_refused(ctx):
 
 def test_serialized_part_needs_a_serial(ctx):
     ctx.part.is_serialized = True
-    rec = _consumption(ctx)
+    ctx.env["fix.stock.lot"].create(
+        {"name": f"IMEI-{TAG}", "part_id": ctx.part.id, "location_id": ctx.van.id, "qty": 1.0}
+    )
+    rec = _consumption(ctx, quantity=1.0)
     with pytest.raises(ValidationError, match=f"{PN} is serialized"), ctx.env.cr.savepoint():
         rec.action_scan_and_consume()
-    rec.serial_number = "IMEI-356789"
+    rec.serial_number = f"IMEI-{TAG}"  # a serial received at this van
     rec.action_scan_and_consume()
     assert rec.state == "consumed"
 
@@ -341,7 +373,9 @@ def test_serialized_part_needs_a_serial(ctx):
 def test_insufficient_stock_is_refused(ctx):
     rec = _consumption(ctx, quantity=11.0)
     with (
-        pytest.raises(UserError, match=f"Insufficient stock for {PN}: 10.0 available, 11.0"),
+        pytest.raises(
+            UserError, match=f"Insufficient stock for {PN} at {VAN}: 10.0 available, 11.0"
+        ),
         ctx.env.cr.savepoint(),
     ):
         rec.action_scan_and_consume()
@@ -349,8 +383,8 @@ def test_insufficient_stock_is_refused(ctx):
 
 
 def test_consume_survives_an_outbox_failure(ctx, monkeypatch, caplog):
+    rec = _consumption(ctx)  # the job exists before the outbox goes down
     monkeypatch.setattr(fix_events, "publish", _failing_publish)
-    rec = _consumption(ctx)
     with caplog.at_level(logging.ERROR):
         out = rec.action_scan_and_consume()
     assert (out["status"], ctx.part.qty_available) == ("consumed", 8.0)
@@ -372,7 +406,12 @@ def test_return_restores_stock_and_reverses_valuation(ctx):
         [("consumption_id", "=", rec.id), ("entry_type", "=", "return")]
     )
     assert (reversal.quantity, reversal.total_valuation) == (-2.0, -900.0)
-    assert out == {"status": "returned", "consumption_ref": rec.name, "restored_qty": 10.0}
+    assert out == {
+        "status": "returned",
+        "consumption_ref": rec.name,
+        "restored_qty": 10.0,
+        "quarantine": None,
+    }
     (event,) = _events(ctx.env, "stock.returned", "fix.stock.consumption", rec.id)
     assert (event["return_reason"], event["quantity"], event["suspense_entry_id"]) == (
         "wrong_diagnosis",
@@ -438,14 +477,15 @@ def test_rule_quantities_are_validated(ctx):
 
 
 def test_current_stock_and_suggestion(ctx):
-    ctx.part.qty_available = 3.0
+    # the rule reads ITS location (the hub), not the company-wide aggregate
+    _set_hub_stock(ctx, 3.0)
     rule = _rule(ctx)
     # 3 on hand <= min 5 -> order up to max: 20 - 3 = 17
     assert (rule.current_stock, rule.suggested_order_qty) == (3.0, 17.0)
-    ctx.part.qty_available = 5.0  # at the reorder point
+    _set_hub_stock(ctx, 5.0)  # at the reorder point
     rule.invalidate_recordset(["current_stock", "suggested_order_qty"])
     assert rule.suggested_order_qty == 15.0
-    ctx.part.qty_available = 10.0  # above the reorder point
+    _set_hub_stock(ctx, 10.0)  # above the reorder point
     rule.invalidate_recordset(["current_stock", "suggested_order_qty"])
     assert rule.suggested_order_qty == 0.0
 
@@ -468,7 +508,7 @@ def test_dynamic_reorder_point_static_and_m43(ctx):
 
 
 def test_trigger_reorder_alerts_and_publishes(ctx):
-    ctx.part.qty_available = 3.0
+    _set_hub_stock(ctx, 3.0)
     rule = _rule(ctx)
     out = rule.action_trigger_reorder()
     assert out == {
@@ -477,7 +517,7 @@ def test_trigger_reorder_alerts_and_publishes(ctx):
         "part": PN,
         "order_qty": 17.0,
     }
-    assert rule.state == "alert"
+    assert rule.state in ("alert", "ordered")  # "ordered" when a requisition was drafted
     assert rule.last_alert_date
     (event,) = _events(ctx.env, "reorder.triggered", "fix.reorder.rule", rule.id)
     assert event == {
@@ -498,9 +538,12 @@ def test_trigger_reorder_alerts_and_publishes(ctx):
     }
 
 
-def test_trigger_reorder_orders_at_least_one(ctx):
-    ctx.part.qty_available = 25.0  # above max 20: 20 - 25 < 1
-    assert _rule(ctx).action_trigger_reorder()["order_qty"] == 1.0
+def test_trigger_reorder_refused_above_the_reorder_point(ctx):
+    """A06 M15-12: the manual trigger used to alert with stock above the
+    minimum (and order "at least one" above the maximum)."""
+    _set_hub_stock(ctx, 25.0)
+    with pytest.raises(UserError, match="above the reorder point"), ctx.env.cr.savepoint():
+        _rule(ctx).action_trigger_reorder()
 
 
 def test_trigger_reorder_survives_an_outbox_failure(ctx, monkeypatch, caplog):
@@ -508,27 +551,31 @@ def test_trigger_reorder_survives_an_outbox_failure(ctx, monkeypatch, caplog):
     rule = _rule(ctx)
     with caplog.at_level(logging.ERROR):
         out = rule.action_trigger_reorder()
-    assert (out["status"], rule.state) == ("alert_triggered", "alert")
+    assert out["status"] == "alert_triggered" and rule.state in ("alert", "ordered")
     assert "reorder.triggered event publish failed" in caplog.text
 
 
 def test_replenishment_sweep(ctx):
     Rule = ctx.env["fix.reorder.rule"]
-    baseline = Rule.search_count([("state", "in", ["active", "alert"])])
-    low_part = ctx.part.copy({"part_number": f"LOW-{TAG}", "qty_available": 3.0})
-    ok_part = ctx.part.copy({"part_number": f"OK-{TAG}", "qty_available": 10.0})
+    Onhand = ctx.env["fix.stock.onhand"]
+    baseline = Rule.search_count([("state", "in", ["active", "alert", "ordered"])])
+    low_part = ctx.part.copy({"part_number": f"LOW-{TAG}"})
+    ok_part = ctx.part.copy({"part_number": f"OK-{TAG}"})
+    Onhand._apply(low_part, ctx.hub, "owned", 3.0, 450.0)
+    Onhand._apply(ok_part, ctx.hub, "owned", 10.0, 450.0)
+    Onhand._apply(ok_part, ctx.van, "van", 10.0, 450.0)
     low = _rule(ctx, spare_part_id=low_part.id)
     recovered = _rule(ctx, spare_part_id=ok_part.id, state="alert")
     steady = _rule(ctx, spare_part_id=ok_part.id, location_id=ctx.van.id)
-    archived = _rule(ctx, spare_part_id=low_part.id, state="archived")
+    archived = _rule(ctx, spare_part_id=low_part.id, location_id=ctx.van.id, state="archived")
     out = Rule.check_replenishment_alerts()
     assert out["rules_checked"] == baseline + 3
     mine = [d for d in out["details"] if d["rule"] == low.name]
     assert mine == [
         {"status": "alert_triggered", "rule": low.name, "part": f"LOW-{TAG}", "order_qty": 17.0}
     ]
-    assert (low.state, recovered.state, steady.state, archived.state) == (
-        "alert",
+    assert low.state in ("alert", "ordered")
+    assert (recovered.state, steady.state, archived.state) == (
         "active",  # stock back above min: the alert clears
         "active",
         "archived",  # archived rules are never swept

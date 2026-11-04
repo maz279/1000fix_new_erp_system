@@ -1,4 +1,7 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_warehouse,fix.warehouse,model_fix_warehouse,base.group_user,1,1,1,0
-access_fix_warehouse_zone,fix.warehouse.zone,model_fix_warehouse_zone,base.group_user,1,1,1,0
-access_fix_warehouse_bin,fix.warehouse.bin,model_fix_warehouse_bin,base.group_user,1,1,1,1
+access_fix_warehouse,fix.warehouse,model_fix_warehouse,base.group_user,1,0,0,0
+access_fix_warehouse_zone,fix.warehouse.zone,model_fix_warehouse_zone,base.group_user,1,0,0,0
+access_fix_warehouse_bin,fix.warehouse.bin,model_fix_warehouse_bin,base.group_user,1,0,0,0
+access_fix_warehouse_operator,fix.warehouse operator,model_fix_warehouse,group_warehouse_operator,1,1,1,0
+access_fix_warehouse_zone_operator,fix.warehouse.zone operator,model_fix_warehouse_zone,group_warehouse_operator,1,1,1,0
+access_fix_warehouse_bin_operator,fix.warehouse.bin operator,model_fix_warehouse_bin,group_warehouse_operator,1,1,1,0
