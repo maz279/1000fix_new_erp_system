@@ -564,8 +564,11 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_approve" type="object" string="Approve"
-                            class="btn-primary" invisible="state != 'draft'"/>
+                    <!-- A02 audit B1: decided from the M63 approval inbox -->
+                    <button name="action_request_approval" type="object" string="Request Approval"
+                            class="btn-primary"
+                            invisible="state != 'draft' or approval_state == 'pending'"/>
+                    <field name="approval_state" invisible="1"/>
                     <button name="action_apply" type="object" string="Apply to Billing"
                             invisible="state != 'approved'"/>
                     <field name="state" widget="statusbar"/>
@@ -747,8 +750,11 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <button name="action_approve" type="object" string="Approve"
-                            class="btn-primary" invisible="state != 'draft'"/>
+                    <!-- A02 audit B1: CAB / change manager decide from the M63 inbox -->
+                    <button name="action_request_approval" type="object" string="Request CAB Approval"
+                            class="btn-primary"
+                            invisible="state != 'draft' or approval_state == 'pending'"/>
+                    <field name="approval_state" invisible="1"/>
                     <button name="action_reject" type="object" string="Reject"
                             invisible="state not in ('draft', 'approved')"/>
                     <button name="action_implement" type="object" string="Mark Implemented"

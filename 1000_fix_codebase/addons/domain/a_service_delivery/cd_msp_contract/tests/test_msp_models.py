@@ -3,7 +3,7 @@
 
 import json
 from contextlib import contextmanager
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -36,6 +36,7 @@ def msp(odoo_env):
             "code": "MSP-CTR-1",
             "name": "Managed endpoints",
             "family": "managed",
+            "state": "active",  # A02 audit M05-P2: MSP work needs a term in force
             "annual_value": 54000.0,
             "customer_id": client.id,
             "operating_unit_id": ou.id,
@@ -81,7 +82,7 @@ def _events(env, aggregate, rec_id):
     )
 
 
-def _alert(msp, asset=None, state="new", created=None):
+def _alert(msp, asset=None, state="new", created=None, resolved_in=None):
     alert = msp.env["fix.msp.alert"].create(
         {
             "msp_contract_id": msp.msp.id,
@@ -95,6 +96,11 @@ def _alert(msp, asset=None, state="new", created=None):
         msp.env.cr.execute(
             "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s", (created, alert.id)
         )
+        if resolved_in is not None:
+            msp.env.cr.execute(
+                "UPDATE fix_msp_alert SET resolved_at = %s WHERE id = %s",
+                (created + timedelta(hours=resolved_in), alert.id),
+            )
         msp.env.invalidate_all()
     return alert
 
@@ -215,7 +221,9 @@ def test_generate_button_reports_the_previous_calendar_month(msp):
     """Regression: the form button called action_monthly_report without its
     required ``period`` - every click raised a TypeError."""
     env = msp.env
-    _alert(msp, state="resolved", created=datetime(2026, 2, 3, 10, 0))
+    # A02 audit M05-P2: within SLA is measured against the resolution
+    # target (minor: 24 h). Resolved in 2 h is within; open past it is a breach.
+    _alert(msp, state="resolved", created=datetime(2026, 2, 3, 10, 0), resolved_in=2)
     _alert(msp, state="new", created=datetime(2026, 2, 28, 23, 0))
     _alert(msp, state="resolved", created=datetime(2026, 3, 1, 0, 30))  # March: excluded
     _alert(msp, state="resolved", created=datetime(2026, 1, 31, 23, 59))  # January: excluded

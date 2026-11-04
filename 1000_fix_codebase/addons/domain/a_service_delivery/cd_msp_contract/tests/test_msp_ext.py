@@ -41,6 +41,7 @@ def ms(odoo_env):
             "name": "MS Ext Contract",
             "customer_id": customer.id,
             "family": "managed",
+            "state": "active",  # A02 audit M05-P2: MSP work needs a term in force
             "operating_unit_id": ou.id,
             "date_start": fields.Date.today(),
             "date_end": fields.Date.today().replace(year=fields.Date.today().year + 1),
@@ -84,6 +85,16 @@ def test_alert_full_lifecycle_to_resolved(ms):
     alert.action_acknowledge()
     alert.action_to_ticket()
     assert alert.state == "ticketed" and alert.order_id
+    # A02 audit M05-P2: a ticketed alert resolves on its order's outcome
+    assert alert.order_id.contract_id == ms.msp.contract_id
+    with pytest.raises(UserError, match="resolves when service order"):
+        alert.action_resolve(note="Disk replaced on-site")
+    # the order's outcome, set as its workflow would (the walk itself is M01's)
+    ms.env.flush_all()
+    ms.env.cr.execute(
+        "UPDATE fix_service_order SET state = 'ready' WHERE id = %s", (alert.order_id.id,)
+    )
+    ms.env.invalidate_all()
     alert.action_resolve(note="Disk replaced on-site")
     assert alert.state == "resolved"
     assert alert.resolved_at and alert.resolution_note == "Disk replaced on-site"
@@ -102,9 +113,11 @@ def test_alert_resolve_refuses_resolved(ms):
     alert = ms.env["fix.msp.alert"].create(
         {"msp_contract_id": ms.msp.id, "asset_id": ms.asset.id, "message": "x"}
     )
-    alert.action_resolve()
-    with pytest.raises(UserError, match="cannot be resolved"):
+    with pytest.raises(UserError, match="resolution note"):
         alert.action_resolve()
+    alert.action_resolve(note="flapping sensor")
+    with pytest.raises(UserError, match="cannot be resolved"):
+        alert.action_resolve(note="again")
 
 
 # --- remote session guards -------------------------------------------------

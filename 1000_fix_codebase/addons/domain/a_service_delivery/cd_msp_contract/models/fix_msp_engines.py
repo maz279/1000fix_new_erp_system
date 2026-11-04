@@ -20,9 +20,24 @@ from .msp_roles import (
     GROUP_CREDIT_APPROVER,
     GROUP_ENGINEER,
     has_any,
+    require_no_overlap,
     require_other_person,
     require_role,
+    require_user_role,
 )
+
+# A02 audit M05-P1 (patch exception): whether a patch install also needs an
+# open approved maintenance window, and a recorded pre-deployment test. Off
+# keeps today's behaviour; when on, an install outside them needs a routed
+# exception (action_request_exception). A business decision.
+PATCH_WINDOW_PARAM = "cd_msp_contract.patch_install_requires_window"
+PATCH_TEST_PARAM = "cd_msp_contract.patch_install_requires_test"
+
+
+def _param_on(env, key, default="0") -> bool:
+    raw = env["ir.config_parameter"].sudo().get_param(key, default)
+    return str(raw or "").strip().lower() not in ("", "0", "false", "no", "off")
+
 
 # ---------------------------------------------------------------- runbooks
 
@@ -79,12 +94,18 @@ class FixMspRunbook(models.Model):
                 (r.finished_at or r.started_at for r in book.run_ids), default=False
             )
 
-    def action_execute(self, asset=None, alert_id=None):
+    def action_execute(self, asset=None, alert_id=None, evidence=None):
         """Record an execution of this runbook against an asset. ``asset``
         accepts an asset id or an agent identifier (the workspace prompt
         sends free text). The run is created and finished in one call —
         the operator clicks AFTER performing the steps; optionally the
-        asset's open alert is resolved with a note."""
+        asset's open alert is resolved with a note.
+
+        A02 audit M05-P2: a run was logged 'success' with no evidence and
+        resolved the alert. Resolving now needs the operator's evidence (what
+        the steps showed), recorded on the run; a ticketed alert is left to
+        its service order's outcome."""
+        evidence = (evidence or "").strip()
         for book in self:
             if not book.active:
                 raise UserError("Runbook %s is archived — reactivate it first" % book.name)
@@ -112,6 +133,11 @@ class FixMspRunbook(models.Model):
             alert = None
             if alert_id:
                 alert = self.env["fix.msp.alert"].browse(int(alert_id)).exists()
+            if book.auto_resolve_alert and len(evidence) < 10:
+                raise UserError(
+                    "Runbook %s resolves the asset's alert: record the evidence of the "
+                    "execution (what the steps showed, at least 10 characters)." % book.name
+                )
             run = (
                 self.env["fix.msp.runbook.run"]
                 ._guarded()
@@ -123,20 +149,19 @@ class FixMspRunbook(models.Model):
                         "state": "success",
                         "started_at": fields.Datetime.now(),
                         "finished_at": fields.Datetime.now(),
-                        "output_note": "Executed via workspace/ops console",
+                        "output_note": evidence or "Executed via workspace/ops console",
                     }
                 )
             )
             if book.auto_resolve_alert and not alert:
                 alert = self.env["fix.msp.alert"].search(
-                    [
-                        ("asset_id", "=", target.id),
-                        ("state", "in", ("new", "acked", "ticketed")),
-                    ],
+                    [("asset_id", "=", target.id), ("state", "in", ("new", "acked"))],
                     limit=1,
                 )
-            if book.auto_resolve_alert and alert and alert.state != "resolved":
-                alert.action_resolve(note="Runbook '%s' executed (run #%s)" % (book.name, run.id))
+            if book.auto_resolve_alert and alert and alert.state in ("new", "acked"):
+                alert.action_resolve(
+                    note="Runbook '%s' executed (run #%s): %s" % (book.name, run.id, evidence)
+                )
             publish(
                 self.env,
                 "msp.runbook_executed",
@@ -145,6 +170,11 @@ class FixMspRunbook(models.Model):
                 {"runbook": book.name, "asset": target.agent_id},
             )
         return True
+
+    def action_execute_with_evidence(self, evidence=""):
+        """Workspace button: log an execution with its evidence (needed when
+        the runbook resolves the asset's alert)."""
+        return self.action_execute(evidence=evidence)
 
 
 class FixMspRunbookRun(models.Model):
@@ -277,8 +307,18 @@ class FixMspPatchUpdate(models.Model):
 
     _name = "fix.msp.patch.update"
     _description = "MSP Patch Update"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+
+    # A02 audit B1 (patch exception): approval of the patch itself stays a
+    # role decision; an EXCEPTION to the install rules (deploy outside an
+    # approved window, or skip the pre-deployment test) is a routed M63
+    # decision. A critical patch goes to the CAB, any other to the change
+    # manager; never to the engineer who asked for it.
+    _approval_domain = "msp_patch_exception"
+    _approval_apply_method = "action_approve_exception"
+    _approval_routed = True
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -318,6 +358,26 @@ class FixMspPatchUpdate(models.Model):
     installed_at = fields.Datetime(readonly=True)
     deferred_until = fields.Date(readonly=True)
     fail_note = fields.Char(string="Failure Note", copy=False, readonly=True)
+    tested_at = fields.Datetime(string="Pre-Deployment Test Passed At", readonly=True, copy=False)
+    tested_by_id = fields.Many2one("res.users", string="Tested By", readonly=True, copy=False)
+    test_note = fields.Char(string="Test Evidence", readonly=True, copy=False)
+    exception_kind = fields.Selection(
+        [
+            ("outside_window", "Deploy Outside an Approved Window"),
+            ("skip_test", "Skip the Pre-Deployment Test"),
+            ("both", "Outside a Window and Without a Test"),
+        ],
+        string="Install Exception",
+        readonly=True,
+        copy=False,
+    )
+    exception_reason = fields.Text(string="Exception Justification", readonly=True, copy=False)
+    exception_approved_by_id = fields.Many2one(
+        "res.users", string="Exception Approved By", readonly=True, copy=False
+    )
+    exception_approved_at = fields.Datetime(
+        string="Exception Approved At", readonly=True, copy=False
+    )
 
     # Odoo 19: models.Constraint replaces the legacy _sql_constraints list
     _asset_patch_unique = models.Constraint(
@@ -335,7 +395,134 @@ class FixMspPatchUpdate(models.Model):
             "installed_at",
             "deferred_until",
             "fail_note",
+            "tested_at",
+            "tested_by_id",
+            "test_note",
+            "exception_kind",
+            "exception_reason",
+            "exception_approved_by_id",
+            "exception_approved_at",
         }
+
+    # ---- the install exception (A02 audit B1) ----------------------------
+    def _approval_group_xmlid(self):
+        return GROUP_CAB if self.severity == "critical" else GROUP_CHANGE_MANAGER
+
+    def _approval_needed(self) -> bool:
+        return bool(
+            self.exception_kind and not self.exception_approved_at and self.state != "installed"
+        )
+
+    def _install_exception_covers(self, kind) -> bool:
+        self.ensure_one()
+        return bool(
+            self.exception_approved_at
+            and self.approval_state == "approved"
+            and self.exception_kind in (kind, "both")
+        )
+
+    def action_record_test(self, note=""):
+        """Record that the patch passed its pre-deployment (pilot / ring) test."""
+        note = (note or "").strip()
+        for upd in self:
+            require_role(self.env, [GROUP_ENGINEER], "Recording a patch test")
+            if upd.state == "installed":
+                raise UserError("Patch %s is already installed." % (upd.identifier or upd.title))
+            if len(note) < 5:
+                raise UserError("Describe the test evidence (pilot ring, result).")
+            upd._guarded().write(
+                {
+                    "tested_at": fields.Datetime.now(),
+                    "tested_by_id": self.env.uid,
+                    "test_note": note,
+                }
+            )
+        return True
+
+    def action_request_exception(self, kind="outside_window", reason=""):
+        """Ask for an exception to the install rules; the M63 engine routes it
+        to the CAB (critical patch) or the change manager."""
+        reason = (reason or "").strip()
+        if kind not in dict(self._fields["exception_kind"].selection):
+            raise UserError("An exception is one of: outside_window, skip_test, both.")
+        for upd in self:
+            require_role(self.env, [GROUP_ENGINEER], "Requesting a patch install exception")
+            if upd.state == "installed":
+                raise UserError("Patch %s is already installed." % (upd.identifier or upd.title))
+            if len(reason) < 10:
+                raise UserError("Justify the exception: why it cannot wait for a window or test.")
+            if upd.approval_state == "pending":
+                raise UserError("An exception for this patch is already awaiting approval.")
+            upd._guarded().write(
+                {
+                    "exception_kind": kind,
+                    "exception_reason": reason,
+                    "exception_approved_by_id": False,
+                    "exception_approved_at": False,
+                    "approval_state": "none",
+                }
+            )
+            upd.action_request_approval(justification=reason)
+        return True
+
+    def action_request_window_exception(self, reason=""):
+        """Workspace button: install outside an approved maintenance window."""
+        return self.action_request_exception(kind="outside_window", reason=reason)
+
+    def action_request_test_exception(self, reason=""):
+        """Workspace button: install without the pre-deployment test."""
+        return self.action_request_exception(kind="skip_test", reason=reason)
+
+    def action_approve_exception(self):
+        """Grant the install exception: only from the approver's inbox."""
+        self._approval_assert_routed()
+        for upd in self:
+            if not upd.exception_kind or upd.state == "installed":
+                raise UserError("There is no open install exception to approve.")
+            require_user_role(
+                self.env,
+                upd._approval_authority_user(),
+                [upd._approval_group_xmlid()],
+                "Approving an install exception for a %s patch" % upd.severity,
+            )
+            require_no_overlap(
+                self.env,
+                upd._approval_acting_users(),
+                upd.create_uid | upd.approval_request_id.requested_by_id,
+                "Approving a patch install exception",
+            )
+            upd._guarded().write(
+                {
+                    "exception_approved_by_id": self.env.uid,
+                    "exception_approved_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def _install_gate(self):
+        """Refuse an install outside the business's window / test rules unless
+        an approved exception covers it (A02 audit B1)."""
+        self.ensure_one()
+        name = self.identifier or self.title
+        if _param_on(self.env, PATCH_WINDOW_PARAM):
+            Window = self.env["fix.msp.maintenance.window"].sudo()
+            windows = Window.search([("state", "=", "active")])
+            in_window = any(w._msp_open_for(self.msp_contract_id) for w in windows)
+            if not in_window and not self._install_exception_covers("outside_window"):
+                raise UserError(
+                    "Patch %s may be installed only inside an approved maintenance window "
+                    "that is open now for this contract, or with an approved install "
+                    "exception (Request Exception)." % name
+                )
+        if (
+            _param_on(self.env, PATCH_TEST_PARAM)
+            and not self.tested_at
+            and not self._install_exception_covers("skip_test")
+        ):
+            raise UserError(
+                "Patch %s has no recorded pre-deployment test. Record the test, or "
+                "request an approved exception to skip it." % name
+            )
 
     def _auto_approving_policy(self):
         """The approved auto-approve policy that covers this patch, if any. A
@@ -402,6 +589,7 @@ class FixMspPatchUpdate(models.Model):
                     "Patch %s is '%s' - only an approved patch can be marked installed."
                     % (upd.identifier or upd.title, upd.state)
                 )
+            upd._install_gate()
             upd._guarded().write({"state": "installed", "installed_at": fields.Datetime.now()})
             publish(
                 self.env,
@@ -449,6 +637,14 @@ class FixMspSlaCredit(models.Model):
     _description = "MSP SLA Credit"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "create_date desc"
+
+    # A02 audit B1: the credit approval is a routed M63 decision. A computed
+    # credit goes to the SLA credit approvers; a manual one to the DOFA tier
+    # its amount needs (Tier 4). Pressing Approve on the record is refused.
+    _approval_domain = "msp_sla_credit"
+    _approval_apply_method = "action_approve"
+    _approval_group = GROUP_CREDIT_APPROVER
+    _approval_routed = True
 
     # BRU-RMS-06: "manual credits need CFO approval", so every manual amount
     # is Tier 4. A business change to the ladder is this one list.
@@ -576,11 +772,27 @@ class FixMspSlaCredit(models.Model):
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
+    # ---- the M63 route (A02 audit B1) --------------------------------------
+    def _approval_tier(self):
+        # Only a manual figure has a DOFA tier; a computed credit is decided by
+        # the credit approvers (the engine then routes to _approval_group).
+        return self._dofa_current_tier() if self.is_manual else False
+
+    def _approval_needed(self) -> bool:
+        return self.state == "draft" and (self.credit_amount or 0.0) > 0.0
+
+    def _approval_amount(self) -> float:
+        return abs(self.credit_amount or 0.0)
+
+    def _approval_excluded(self):
+        return (super()._approval_excluded() | self.manual_set_by_id).sudo()
+
     # ---- the amount -----------------------------------------------------
     @api.depends(
         "service_report_id.sla_attainment",
         "service_report_id.alert_count",
         "service_report_id.resolved_count",
+        "service_report_id.breached_count",
         "msp_contract_id.sla_target_pct",
         "msp_contract_id.monthly_value",
         "manual_amount",
@@ -596,7 +808,10 @@ class FixMspSlaCredit(models.Model):
                 shortfall = min(max(target - attainment, 0.0), 100.0)
                 amount = round((contract.monthly_value or 0.0) * shortfall / 100.0, 2)
                 credit.attainment_pct = attainment
-                credit.breach_count = report.alert_count - report.resolved_count
+                # measured breaches when the report carries them (A02 audit M05-P2)
+                credit.breach_count = report.breached_count or max(
+                    report.alert_count - report.resolved_count - report.pending_count, 0
+                )
                 credit.computed_amount = min(amount, contract.monthly_value or 0.0)
             else:
                 credit.attainment_pct = 0.0
@@ -645,9 +860,11 @@ class FixMspSlaCredit(models.Model):
         if typed and not self._fix_guard_open():
             typed._guarded().write({"manual_set_by_id": self.env.user.id})
         # The approval covers the amount that was approved: a different amount
-        # voids it at once (A02 audit M05-2, probe S2).
+        # voids it at once (A02 audit M05-2, probe S2), and the M63 approval
+        # with it (A02 audit B1).
         for credit in self.filtered(lambda c: c.state == "approved"):
             if abs((credit.credit_amount or 0.0) - (credit.approved_amount or 0.0)) > 0.005:
+                credit._approval_void("the credit amount changed after approval")
                 credit._guarded().write(
                     {
                         "state": "draft",
@@ -673,6 +890,9 @@ class FixMspSlaCredit(models.Model):
         return records
 
     def action_approve(self):
+        """The M63 engine's apply method: runs only from the approver's inbox
+        (A02 audit B1), in the approver's environment."""
+        self._approval_assert_routed()
         for credit in self:
             if credit.state != "draft":
                 raise UserError("Credit %s is not draft" % credit.id)
@@ -688,9 +908,19 @@ class FixMspSlaCredit(models.Model):
                 credit.action_dofa_approve()
                 credit._dofa_assert_approved("The manual SLA credit")
             else:
-                require_role(self.env, [GROUP_CREDIT_APPROVER], "Approving an SLA credit")
-            require_other_person(
-                self.env, credit.create_uid | credit.manual_set_by_id, "Approving an SLA credit"
+                require_user_role(
+                    self.env,
+                    credit._approval_authority_user(),
+                    [GROUP_CREDIT_APPROVER],
+                    "Approving an SLA credit",
+                )
+            require_no_overlap(
+                self.env,
+                credit._approval_acting_users(),
+                credit.create_uid
+                | credit.manual_set_by_id
+                | credit.approval_request_id.requested_by_id,
+                "Approving an SLA credit",
             )
             credit._guarded().write(
                 {
@@ -730,12 +960,35 @@ class FixMspSlaCredit(models.Model):
                 "msp.sla_credit_applied",
                 "fix.msp.sla.credit",
                 credit.id,
-                {
-                    "contract": credit.msp_contract_id.name,
-                    "period": credit.period_label,
-                    "amount": credit.approved_amount,
-                },
+                credit._msp_credit_note_payload(),
             )
+
+    def _msp_credit_note_payload(self) -> dict:
+        """What the M20 credit note needs (A02 audit B1/B2, raised by the
+        finance stream): who is credited, under which contract, for which
+        period, how much, and who approved it. Ids, not only names."""
+        self.ensure_one()
+        msp = self.msp_contract_id
+        contract = msp.contract_id
+        partner = contract.customer_id.commercial_partner_id or contract.customer_id
+        return {
+            "contract": msp.name,
+            "period": self.period_label,
+            "amount": self.approved_amount,
+            "credit_id": self.id,
+            "msp_contract_id": msp.id,
+            "contract_id": contract.id,
+            "contract_code": contract.code or "",
+            "partner_id": partner.id,
+            "partner_name": partner.name or "",
+            "currency": self.currency_id.name or "BDT",
+            "company_id": self.company_id.id,
+            "operating_unit_id": self.operating_unit_id.id or msp.operating_unit_id.id or False,
+            "service_report_id": self.service_report_id.id or False,
+            "is_manual": bool(self.is_manual),
+            "approved_by_id": self.approved_by_id.id,
+            "approval_request": self.approval_request_id.name or "",
+        }
 
 
 # ------------------------------------------------------------- on-call rota
@@ -776,11 +1029,61 @@ class FixMspOncallShift(models.Model):
         # an input, and a field write activated a second overlapping primary.
         return super()._fix_guarded_fields() | {"state"}
 
+    # A02 audit M05-P2: an active shift's cover is what the rota promised;
+    # moving it would silently open a gap or an overlap.
+    _LIVE_FROZEN_FIELDS = {"start_at", "end_at", "level", "technician_id", "company_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and self[:1].state in ("active", "closed"):
+            return locked | self._LIVE_FROZEN_FIELDS
+        return locked
+
+    def write(self, vals):
+        if not self._fix_guard_open():
+            for shift in self.filtered(lambda s: s.id and s.state in ("active", "closed")):
+                changed = [
+                    n
+                    for n in self._LIVE_FROZEN_FIELDS & set(vals)
+                    if shift._fix_guard_differs(n, vals[n], shift[n])
+                ]
+                if changed:
+                    raise UserError(
+                        "%s cannot change on a shift that is %s. Close it and plan a new "
+                        "shift." % (", ".join(sorted(changed)), shift.state)
+                    )
+        return super().write(vals)
+
     @api.constrains("start_at", "end_at")
     def _check_window(self):
         for shift in self:
             if shift.end_at <= shift.start_at:
                 raise UserError("On-call shift %s must end after it starts" % shift.name)
+
+    @api.constrains("start_at", "end_at", "level", "state", "company_id")
+    def _check_no_overlap(self):
+        """A02 audit M05-P2: one pager per level at any moment. The check ran
+        only at activation, so a planned shift could be moved over an active
+        one. A real constraint over every shift that is not closed, searched
+        as the system so a shift in another operating unit still counts."""
+        for shift in self.filtered(lambda s: s.state != "closed"):
+            clash = self.sudo().search(
+                [
+                    ("id", "!=", shift.id),
+                    ("state", "in", ("planned", "active")),
+                    ("level", "=", shift.level),
+                    ("company_id", "=", shift.company_id.id),
+                    ("start_at", "<", shift.end_at),
+                    ("end_at", ">", shift.start_at),
+                ],
+                limit=1,
+            )
+            if clash:
+                raise ValidationError(
+                    "Shift %s overlaps the %s %s shift %s - only one person carries the "
+                    "%s pager at a time."
+                    % (shift.name, clash.state, shift.level, clash.name, shift.level)
+                )
 
     @api.model
     def current_primary(self):
@@ -790,6 +1093,9 @@ class FixMspOncallShift(models.Model):
 
     def action_activate(self):
         for shift in self:
+            require_role(
+                self.env, [GROUP_ENGINEER, GROUP_CHANGE_MANAGER], "Activating an on-call shift"
+            )
             if shift.state != "planned":
                 raise UserError("Shift %s is not planned" % shift.name)
             # A02 audit M05-12: two overlapping active shifts at one level make
@@ -823,6 +1129,9 @@ class FixMspOncallShift(models.Model):
 
     def action_close(self):
         for shift in self:
+            require_role(
+                self.env, [GROUP_ENGINEER, GROUP_CHANGE_MANAGER], "Closing an on-call shift"
+            )
             if shift.state != "active":
                 raise UserError("Shift %s is not active" % shift.name)
             shift._guarded().write({"state": "closed"})
@@ -1004,6 +1313,8 @@ class FixMspMaintenanceWindow(models.Model):
                     "end_at": fields.Datetime.to_string(window.end_at),
                 },
             )
+            # an approval of a window already running opens it now (B4)
+            window._msp_publish_boundaries()
 
     def action_close(self):
         """Close the window early (it closes on its own at its end time)."""
@@ -1016,6 +1327,7 @@ class FixMspMaintenanceWindow(models.Model):
             window._guarded().write(
                 {"closed_at": fields.Datetime.now(), "closed_by_id": self.env.user.id}
             )
+            window._msp_publish_boundaries()
 
 
 # ------------------------------------------------------- problem & change
@@ -1039,8 +1351,17 @@ class FixMspChangeRecord(models.Model):
 
     _name = "fix.msp.change.record"
     _description = "MSP Problem & Change Record"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin carries fix.guarded.mixin.
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "create_date desc"
+
+    # A02 audit B1: CAB approval (and the emergency change manager's) is a
+    # routed M63 decision: the requester asks, the engine routes to a CAB
+    # member (emergency: a change manager) who is neither the creator nor the
+    # named requester, and only that inbox task applies action_approve.
+    _approval_domain = "msp_change"
+    _approval_apply_method = "action_approve"
+    _approval_routed = True
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -1151,6 +1472,7 @@ class FixMspChangeRecord(models.Model):
         return locked | self._msp_frozen_fields() if self else locked
 
     def write(self, vals):
+        voided = self.browse()
         if not self._fix_guard_open():
             for rec in self.filtered("id"):
                 changed = [
@@ -1167,7 +1489,47 @@ class FixMspChangeRecord(models.Model):
                             dict(rec._fields["state"].selection)[rec.state].lower(),
                         )
                     )
-        return super().write(vals)
+            # A02 audit B1: a request covers the change as it was asked for.
+            voided = self.filtered(
+                lambda r: r.id
+                and r.approval_state == "pending"
+                and any(
+                    r._fix_guard_differs(n, vals[n], r[n])
+                    for n in self._APPROVED_FROZEN_FIELDS & set(vals)
+                )
+            )
+        result = super().write(vals)
+        if voided:
+            voided._approval_void("the change was edited while its approval was pending")
+        return result
+
+    # ---- the M63 route (A02 audit B1) --------------------------------------
+    def _approval_group_xmlid(self):
+        return GROUP_CHANGE_MANAGER if self.emergency else GROUP_CAB
+
+    def _approval_needed(self) -> bool:
+        return self.state == "draft"
+
+    def _approval_excluded(self):
+        return (super()._approval_excluded() | self._msp_requesters()).sudo()
+
+    def _msp_check_rollback(self):
+        if self.risk == "high" and not (self.rollback_plan or "").strip():
+            raise UserError(
+                "Change %s is high risk: document the backout and rollback plan "
+                "before it is approved (BRU-RMS-08)." % self.name
+            )
+
+    def action_request_approval(self, justification=None):
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("Only a draft change is sent for approval.")
+            rec._msp_check_rollback()
+        return super().action_request_approval(justification=justification)
+
+    def _approval_on_rejected(self, comment):
+        for rec in self.filtered(lambda r: r.state == "draft"):
+            rec._guarded().write({"state": "rejected", "resolution_note": comment or None})
 
     @api.depends("change_type")
     def _compute_emergency(self):
@@ -1179,19 +1541,27 @@ class FixMspChangeRecord(models.Model):
         return self.create_uid | self.requested_by.user_id
 
     def action_approve(self):
+        """The M63 engine's apply method: only an inbox task runs it (A02
+        audit B1). Role and segregation are checked again here, on the
+        approver's authority (the absent approver when a delegate decides)."""
+        self._approval_assert_routed()
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Record %s is not draft" % rec.id)
+            authority = rec._approval_authority_user()
             if rec.emergency:
-                require_role(self.env, [GROUP_CHANGE_MANAGER], "Approving an emergency change")
-            else:
-                require_role(self.env, [GROUP_CAB], "Approving a change (CAB)")
-            require_other_person(self.env, rec._msp_requesters(), "Approving a change")
-            if rec.risk == "high" and not (rec.rollback_plan or "").strip():
-                raise UserError(
-                    "Change %s is high risk: document the backout and rollback plan "
-                    "before it is approved (BRU-RMS-08)." % rec.name
+                require_user_role(
+                    self.env, authority, [GROUP_CHANGE_MANAGER], "Approving an emergency change"
                 )
+            else:
+                require_user_role(self.env, authority, [GROUP_CAB], "Approving a change (CAB)")
+            require_no_overlap(
+                self.env,
+                rec._approval_acting_users(),
+                rec._msp_requesters() | rec.approval_request_id.requested_by_id,
+                "Approving a change",
+            )
+            rec._msp_check_rollback()
             rec._guarded().write(
                 {
                     "state": "approved",
@@ -1368,6 +1738,10 @@ class FixMspContractEngines(models.Model):
         Credit = self.env["fix.msp.sla.credit"]
         Report = self.env["fix.msp.service.report"]
         for contract in self:
+            # A02 audit M05-P2: no credit is owed on a contract whose M08 term
+            # never came into force (draft / pending signature).
+            if contract._msp_never_in_force():
+                continue
             reports = contract.report_ids
             missing = Report
             if reports:

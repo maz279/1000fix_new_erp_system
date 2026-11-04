@@ -8,6 +8,11 @@
 # quotations, backup plans & restore tests), so every registry screen, KPI
 # and report below is LIVE over real models. The Z4 step-up access action
 # is whitelisted too: it fails closed without a valid TOTP code (SC-002).
+#
+# A02 audit P1/P2 (2026-11-04): named Z4 staff, the forensic image record and
+# verification, the verified handover (target serial, one-time code) and the
+# routed re-quote price change (Request / Recall Approval; the lab manager
+# decides in the M63 inbox).
 import logging
 from datetime import date, datetime
 
@@ -27,6 +32,12 @@ SURFACES = {
             "action_take_custody",
             "action_log_custody_transfer",
             "action_route_to_z4",
+            "action_assign_staff",
+            "action_assign_me",
+            "action_record_image",
+            "action_verify_image",
+            "action_confirm_target_serial",
+            "action_request_handover_otp",
             "action_record_destructive_consent",
             "action_start_recovery",
             "action_recovered",
@@ -75,7 +86,14 @@ SURFACES = {
     "fix.data.quote": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_send", "action_accept", "action_decline", "action_requote"},
+        "actions": {
+            "action_send",
+            "action_accept",
+            "action_decline",
+            "action_requote",
+            "action_request_approval",
+            "action_recall_approval",
+        },
     },
     "fix.data.backup.plan": {
         "order": "id desc",

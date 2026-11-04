@@ -44,6 +44,7 @@ def ms(odoo_env):
             "name": "MS Engines Contract",
             "customer_id": customer.id,
             "family": "managed",
+            "state": "active",  # A02 audit M05-P2: MSP work needs a term in force
             "operating_unit_id": ou.id,
             "date_start": fields.Date.today(),
             "date_end": fields.Date.today().replace(year=fields.Date.today().year + 1),
@@ -104,12 +105,15 @@ def test_runbook_execute_records_run_and_resolves_alert(ms):
             "operating_unit_id": ms.ou.id,
         }
     )
-    book.action_execute(asset="AGT-MSENG-1", alert_id=alert.id)
+    # A02 audit M05-P2: resolving the alert needs the execution's evidence
+    with pytest.raises(UserError, match="record the evidence"):
+        book.action_execute(asset="AGT-MSENG-1", alert_id=alert.id)
+    book.action_execute(asset="AGT-MSENG-1", alert_id=alert.id, evidence="pruned logs; 40 GB free")
 
     run = env["fix.msp.runbook.run"].search([("runbook_id", "=", book.id)])
     assert len(run) == 1
     assert run.state == "success" and run.asset_id == ms.asset
-    assert run.output_note == "Executed via workspace/ops console"
+    assert run.output_note == "pruned logs; 40 GB free"
     events = _events(env, "fix.msp.runbook.run", run.id)
     assert events.mapped("event_type") == ["msp.runbook_executed"]
     # auto-resolve fired on the linked alert
@@ -265,11 +269,16 @@ def test_sla_credit_compute_approve_apply(ms):
     assert credit.state == "applied"
     events = _events(env, "fix.msp.sla.credit", credit.id)
     applied = events.filtered(lambda e: e.event_type == "msp.sla_credit_applied")
-    assert json.loads(applied.payload) == {
+    payload = json.loads(applied.payload)
+    # what the M20 credit note needs (A02 audit B1): contract, partner, amount, period
+    assert {k: payload[k] for k in ("contract", "period", "amount")} == {
         "contract": ms.msp.name,
         "period": "2026-09",
         "amount": 4500.0,
     }
+    assert payload["contract_id"] == ms.msp.contract_id.id
+    assert payload["partner_id"] == ms.msp.contract_id.customer_id.commercial_partner_id.id
+    assert payload["currency"] == "BDT" and payload["credit_id"] == credit.id
     with pytest.raises(UserError):
         credit.action_apply()  # already applied
 

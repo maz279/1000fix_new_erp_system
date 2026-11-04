@@ -26,6 +26,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence_data.xml",
+        "data/ir_cron.xml",
         "views/cd_data_case_views.xml",
     ],
     "installable": True,

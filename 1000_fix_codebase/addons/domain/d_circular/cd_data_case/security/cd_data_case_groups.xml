@@ -45,5 +45,14 @@
             <field name="comment">Opens recovered customer data in Z4 through the TOTP step-up access, which writes an audit row per read.</field>
         </record>
 
+        <!-- A02 audit B1: a re-quote that raises the price (or drops no-data-no-fee)
+             is a routed M63 decision. Ships EMPTY: a business appointment. -->
+        <record id="group_data_lab_manager" model="res.groups">
+            <field name="name">Data Recovery Lab Manager</field>
+            <field name="privilege_id" ref="privilege_data_services"/>
+            <field name="implied_ids" eval="[(4, ref('group_data_recovery_operator'))]"/>
+            <field name="comment">Approves, from the M63 approval inbox, a re-quotation that raises the price the customer was quoted or drops the no-data-no-fee guarantee. Never a re-quote the manager raised.</field>
+        </record>
+
     </data>
 </odoo>

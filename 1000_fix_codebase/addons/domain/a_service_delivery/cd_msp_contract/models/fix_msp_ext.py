@@ -19,6 +19,8 @@ CONSENT_TTL_PARAM = "cd_msp_contract.remote_consent_ttl_minutes"
 CONSENT_TTL_DEFAULT = 10
 CONSENT_MAX_ATTEMPTS = 3
 RECORDING_REQUIRED_PARAM = "cd_msp_contract.remote_session_recording_required"
+# The service-order states that count as the ticket's outcome (A02 audit M05-P2).
+ALERT_ORDER_OUTCOMES = ("ready", "delivered", "closed")
 _CONSENT_SCOPE = "cd_msp_contract.remote_consent"
 
 
@@ -46,10 +48,28 @@ class FixMspAlertExt(models.Model):
         but no method ever set it — resolution was only reachable by direct
         field writes in tests. Resolving stamps the time, records the note
         and links back to the service order's outcome."""
+        note = (note or "").strip()
         for alert in self:
             if alert.state not in ("ticketed", "acked", "new"):
                 raise UserError(
                     "Alert %s cannot be resolved from state '%s'." % (alert.id, alert.state)
+                )
+            # A02 audit M05-P2 (probe A3): resolve needed no ticket and no note,
+            # and 4 of 6 resolved alerts had no order. A ticketed alert resolves
+            # on its service order's outcome; any other needs the operator's note.
+            if alert.state == "ticketed":
+                order = alert.order_id.sudo()
+                if order and order.state not in ALERT_ORDER_OUTCOMES:
+                    raise UserError(
+                        "Alert %s is ticketed: it resolves when service order %s is "
+                        "resolved (ready, delivered or closed); it is '%s'."
+                        % (alert.id, order.name, order.state)
+                    )
+                if order:
+                    note = note or "Service order %s %s" % (order.name, order.state)
+            if len(note) < 5:
+                raise UserError(
+                    "Write the resolution note for alert %s: what was found and fixed." % alert.id
                 )
             alert._guarded().write(
                 {
@@ -206,6 +226,7 @@ class FixRemoteSessionExt(models.Model):
             raise UserError("The client's consent is already captured for this session.")
         if session.asset_id.msp_contract_id != session.msp_contract_id:
             raise UserError("The asset is not covered by this session's contract.")
+        session.msp_contract_id._msp_assert_entitled("Asking the client for remote-session consent")
         party = session._consent_party()
         if not party:
             raise UserError("The contract has no customer to ask for consent.")
@@ -330,6 +351,8 @@ class FixRemoteSessionExt(models.Model):
                     "Session on %s already ended at %s — open a new session."
                     % (session.asset_id.hostname or session.asset_id.agent_id, session.ended_at)
                 )
+            # A02 audit M05-P2: 12 sessions ran on draft contracts.
+            session.msp_contract_id._msp_assert_entitled("Starting a remote session")
         result = super().action_start()
         self._guarded().write({"started": True, "started_at": fields.Datetime.now()})
         return result

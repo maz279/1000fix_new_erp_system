@@ -81,10 +81,16 @@ export const SCREENS = {
       { m: 'action_log_custody_transfer', l: 'Log Custody Transfer', ask: 'Handed to (name)', kwarg: 'handler' },
       { m: 'action_route_to_z4', l: 'Route to Z4' },
       { m: 'action_record_destructive_consent', l: 'Record Destructive Consent', ask: 'Customer OTP / portal consent reference', kwarg: 'reference' },
+      { m: 'action_assign_me', l: 'Assign Me as Technician' },
+      { m: 'action_assign_staff', l: 'Assign Z4 Custodian', ask: 'Z4 custodian login', kwarg: 'custodian' },
+      { m: 'action_record_image', l: 'Record Forensic Image', ask: 'Source SHA-256 and image SHA-256 (space separated)', kwarg: 'hashes' },
+      { m: 'action_verify_image', l: 'Verify Image (second person)', ask: 'Image SHA-256 you recomputed', kwarg: 'recomputed_hash' },
       { m: 'action_start_recovery', l: 'Start Recovery' },
       { m: 'action_recovered', l: 'Mark Recovered' },
+      { m: 'action_confirm_target_serial', l: 'Confirm Target Drive Serial', ask: 'Serial read off the target drive', kwarg: 'serial' },
+      { m: 'action_request_handover_otp', l: 'Send Handover Code' },
       { m: 'action_mark_unrecoverable', l: 'Mark Unrecoverable', ask: 'Reason (no data, no fee)', kwarg: 'reason' },
-      { m: 'action_handover', l: 'Secure Handover', ask: 'Handover handler name', kwarg: 'handler' },
+      { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
       { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
       { m: 'action_close', l: 'Close Case' }
     ] },
@@ -125,7 +131,10 @@ export const SCREENS = {
       { m: 'action_send', l: 'Send Quote' },
       { m: 'action_accept', l: 'Record Customer Acceptance', ask: 'Customer OTP / portal acceptance reference (blank = the signed quotation attached to the quote)', kwarg: 'acceptance_reference' },
       { m: 'action_decline', l: 'Decline' },
-      { m: 'action_requote', l: 'Re-quote (new version)' }
+      { m: 'action_requote', l: 'Re-quote (new version)' },
+      /* A02 audit B1: a re-quote that raises the price is approved by the lab manager in the M63 inbox */
+      { m: 'action_request_approval', l: 'Request Price-Change Approval', ask: 'Why the price rises', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   /* the console = what is awaiting secure handover / purge right now */
   'M06-handover': { kind: 'model_list', model: 'fix.data.recovery.case', create: false,
@@ -133,7 +142,7 @@ export const SCREENS = {
     domain: [['state', 'in', ['recovered', 'handover']]],
     stateField: 'state',
     actions: [
-      { m: 'action_handover', l: 'Secure Handover', ask: 'Handover handler name', kwarg: 'handler' },
+      { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
       { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
       { m: 'action_access_recovered_data', l: 'Z4 Access (TOTP)', ask: '6-digit authenticator code (SC-002)', kwarg: 'step_up_token' }
     ] },
@@ -200,7 +209,8 @@ Object.assign(SCREENS, {
       { id: 'case', label: '1. Case Identity & Media', bn: '১. কেস তথ্য ও মিডিয়া', icon: '💾', badge: '9' },
       { id: 'forensic', label: '2. Forensic Triage & Hash', bn: '২. ফরেনসিক ট্রায়াজ ও হ্যাশ', icon: '🔍', badge: '7' },
       { id: 'custody', label: '3. Chain of Custody', bn: '৩. কাস্টডি লেজার', icon: '🔒', badge: '3' },
-      { id: 'security', label: '4. Z4 TOTP & Secure Purge', bn: '৪. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '7' }
+      { id: 'security', label: '4. Z4 TOTP & Secure Purge', bn: '৪. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '7' },
+      { id: 'handover', label: '5. Z4 Staff, Imaging & Handover', bn: '৫. জেড৪ কর্মী, ইমেজ ও হস্তান্তর', icon: '🤝', badge: '15' }
     ],
     sections: [
       { tab: 'case', title: 'Case Registration & Media Classification', note: 'Intake, custody, recovery, secure handover with purge after a verified certificate. Z4 residency routing is statutory (SC-002).',
@@ -222,7 +232,7 @@ Object.assign(SCREENS, {
           { name: 'interface_type', label: 'Physical Interface Protocol' },
           { name: 'firmware_revision', label: 'Controller / ROM Firmware Version' },
           { name: 'write_blocker_serial', label: 'Hardware Write-Blocker S/N' },
-          { name: 'image_sha256_hash', label: 'Bit-Stream Forensic Clone SHA-256 Digest' },
+          { name: 'image_sha256_hash', label: 'Bit-Stream Forensic Clone SHA-256 Digest (set by Record Image)', readonly: true },
           { name: 'donor_drive_serial', label: 'Matched Donor Drive / Head Stack S/N' }
         ] },
       { tab: 'custody', title: 'Single-Source Append-Only Chain of Custody Log',
@@ -240,6 +250,27 @@ Object.assign(SCREENS, {
           { name: 'destructive_consent_at', label: 'Destructive-Work Consent Recorded At', readonly: true },
           { name: 'destructive_consent_reference', label: 'Customer Consent Reference (OTP / Portal)', readonly: true },
           { name: 'destructive_consent_by_id', label: 'Consent Recorded By', readonly: true }
+        ] },
+      /* A02 audit M06-P2: named Z4 staff, imaging as a verified step, and the
+       * handover to a verified recipient against a receipt */
+      { tab: 'handover', title: 'Named Z4 Staff, Verified Image & Verified Handover',
+        note: 'Only the assigned technician and Z4 custodian work the recovered data. A case is marked recovered on a verified image; handover needs the recipient (the customer or a contact), their one-time code or ID number, a signed receipt attached to the case (named receipt...) and the target drive serial confirmed.',
+        fields: [
+          { name: 'assigned_technician_id', label: 'Assigned Technician', readonly: true },
+          { name: 'z4_custodian_id', label: 'Assigned Z4 Custodian', readonly: true },
+          { name: 'image_source_sha256', label: 'Source Media SHA-256', readonly: true },
+          { name: 'imaged_by_id', label: 'Imaged By', readonly: true },
+          { name: 'image_verified_at', label: 'Image Verified At', readonly: true },
+          { name: 'image_verified_by_id', label: 'Image Verified By', readonly: true },
+          { name: 'encrypted_target_serial', label: 'Encrypted Handover Target Drive S/N' },
+          { name: 'handover_recipient_id', label: 'Handover Recipient (customer or contact)' },
+          { name: 'target_serial_confirmed_at', label: 'Target Drive Serial Confirmed At', readonly: true },
+          { name: 'handover_verification_method', label: 'Recipient Verified By', readonly: true },
+          { name: 'handover_verification_ref', label: 'Verification Reference', readonly: true },
+          { name: 'handover_receipt_attachment_id', label: 'Signed Handover Receipt', readonly: true },
+          { name: 'handover_at', label: 'Handed Over At', readonly: true },
+          { name: 'retention_until', label: 'Retain Recovered Data Until', readonly: true },
+          { name: 'retention_flagged_at', label: 'Retention Overdue Flagged At', readonly: true }
         ] }
     ]
   },
@@ -287,7 +318,7 @@ Object.assign(SCREENS, {
       draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined' } },
     tabs: [
       { id: 'quote', label: '1. Quotation Scope', bn: '১. কোটেশন বিবরণ', icon: '📄', badge: '5' },
-      { id: 'economics', label: '2. No-Data-No-Fee Economics', bn: '২. নো-ডেটা-নো-ফি ও চার্জ', icon: '💰', badge: '8' }
+      { id: 'economics', label: '2. No-Data-No-Fee Economics', bn: '২. নো-ডেটা-নো-ফি ও চার্জ', icon: '💰', badge: '11' }
     ],
     sections: [
       { tab: 'quote', title: 'Recovery Quotation Header', note: 'A firm quote for the recovery work; free evaluation verdict feeds the scope.',
@@ -307,7 +338,10 @@ Object.assign(SCREENS, {
           { name: 'signed_quote_attachment_id', label: 'Customer Signed Quotation PDF', readonly: true },
           { name: 'acceptance_channel', label: 'Customer Acceptance Channel', readonly: true },
           { name: 'customer_acceptance_reference', label: 'Customer OTP / Portal Reference', readonly: true },
-          { name: 'accepted_by_id', label: 'Acceptance Recorded By', readonly: true }
+          { name: 'accepted_by_id', label: 'Acceptance Recorded By', readonly: true },
+          { name: 'supersedes_id', label: 'Re-quote Of', readonly: true },
+          { name: 'approval_state', label: 'Price Change Approval (M63 inbox)', readonly: true },
+          { name: 'requote_approved_by_id', label: 'Price Change Approved By', readonly: true }
         ] }
     ]
   },
