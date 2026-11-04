@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M59 automation (A09 workflow audit C5 / P10: 0 crons on any HSE model)
+     and the in-Odoo consumers of its events (M59-F15). Every method is
+     idempotent and runs as superuser. The settings are business decisions
+     (A09 report section 7) and keep the values the code used before. -->
+<odoo>
+    <data noupdate="1">
+        <!-- BLA s.80 / BLR r.70 (spec Q-04, labour counsel): the code has always
+             computed 2 working days. -->
+        <record id="param_dife_notice_working_days" model="ir.config_parameter">
+            <field name="key">cd_hse.dife_notice_working_days</field>
+            <field name="value">2</field>
+        </record>
+        <!-- BRU-HSE-09: no tolerance is stated in the repository; 0 escalates
+             as soon as the expected end passes (silence is the failure mode). -->
+        <record id="param_loneworker_tolerance_minutes" model="ir.config_parameter">
+            <field name="key">cd_hse.loneworker_tolerance_minutes</field>
+            <field name="value">0</field>
+        </record>
+        <!-- BLR r.81: the committee form's own label said "Min 6". -->
+        <record id="param_committee_min_members" model="ir.config_parameter">
+            <field name="key">cd_hse.committee_min_members</field>
+            <field name="value">6</field>
+        </record>
+        <!-- 5x5 matrix bands (company convention): low up to 4, medium up to 9,
+             high up to 16, critical above. -->
+        <record id="param_risk_band_bounds" model="ir.config_parameter">
+            <field name="key">cd_hse.risk_band_bounds</field>
+            <field name="value">4,9,16</field>
+        </record>
+        <!-- BRU-HSE-16 "defined cycle": no figure in the repository; 0 = no review date. -->
+        <record id="param_hazard_review_days" model="ir.config_parameter">
+            <field name="key">cd_hse.hazard_review_days</field>
+            <field name="value">0</field>
+        </record>
+
+        <record id="consumer_hse_incident_alert" model="fix.event.consumer">
+            <field name="name">M59: a serious incident alerts the HSE Officers and DIFE authority (BRU-HSE-03)</field>
+            <field name="event_type">hse.incident_reported</field>
+            <field name="model">fix.hse.incident</field>
+            <field name="method">consume_incident_reported</field>
+            <field name="module">cd_hse</field>
+        </record>
+        <record id="consumer_hse_loneworker_escalated" model="fix.event.consumer">
+            <field name="name">M59: an overdue lone worker alerts the buddy and HSE Officers (AUT-HSE-05)</field>
+            <field name="event_type">hse.loneworker.escalated</field>
+            <field name="model">fix.hse.loneworker</field>
+            <field name="method">consume_loneworker_escalated</field>
+            <field name="module">cd_hse</field>
+        </record>
+    </data>
+
+    <!-- T-12: missed check-out evaluation every 5 minutes. -->
+    <record id="cron_hse_loneworker_missed" model="ir.cron">
+        <field name="name">M59: Escalate missed lone-worker check-outs</field>
+        <field name="model_id" ref="model_fix_hse_loneworker"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_escalate_missed_checkouts()</field>
+        <field name="interval_number">5</field>
+        <field name="interval_type">minutes</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="cron_hse_dife_notice_clock" model="ir.cron">
+        <field name="name">M59: Escalate the DIFE accident-notice clock</field>
+        <field name="model_id" ref="model_fix_statutory_accident_register"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_escalate_dife_notices()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="cron_hse_committee_meetings" model="ir.cron">
+        <field name="name">M59: Flag safety committees with an overdue meeting</field>
+        <field name="model_id" ref="model_fix_safety_committee"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_flag_overdue_meetings()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="cron_hse_hazard_reviews" model="ir.cron">
+        <field name="name">M59: Flag hazards due for review</field>
+        <field name="model_id" ref="model_fix_hse_hazard"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_flag_hazard_reviews()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

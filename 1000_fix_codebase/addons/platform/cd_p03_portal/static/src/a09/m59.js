@@ -11,7 +11,7 @@ export const MODULE = {
     { l: 'Lost-Time Injuries', m: 'lost_time_injuries' },
     { l: 'Near-Miss MTD', m: 'near_miss_mtd' },
     { l: 'Statutory Clock', m: 'statutory_clock' },
-    { l: 'PPE Types Stocked', m: 'ppe_compliance' },
+    { l: 'PPE Stock Compliance', m: 'ppe_compliance', suffix: '%' },
     { l: 'Drills Completed', m: 'drills_completed' }
   ],
   groups: [
@@ -22,7 +22,8 @@ export const MODULE = {
     { en: 'Risk', screens: [
       { id: 'M59-hazards', en: 'Hazard Register', bn: 'ঝুঁকি রেজিস্টার', t: 'g' },
       { id: 'M59-jsa', en: 'JSA & Safe Procedures', bn: 'কাজের নিরাপত্তা বিশ্লেষণ', t: 'g' },
-      { id: 'M59-ppe', en: 'PPE Issue Register', bn: 'পিপিই', t: 'g' }
+      { id: 'M59-ppe', en: 'PPE Stock Register', bn: 'পিপিই', t: 'g' },
+      { id: 'M59-ppe-issue', en: 'PPE Issue Register', bn: 'পিপিই বিতরণ', t: 'g' }
     ]},
     { en: 'Incidents', screens: [
       { id: 'M59-report', en: 'Incident & Near-Miss Reporting', bn: 'ঘটনা রিপোর্ট', t: 'g' },
@@ -37,6 +38,8 @@ export const MODULE = {
     { en: 'Programme', screens: [
       { id: 'M59-drills', en: 'Drills & Training', bn: 'মহড়া', t: 'g' },
       { id: 'M59-committee', en: 'Safety Committee', bn: 'নিরাপত্তা কমিটি', t: 'g' },
+      { id: 'M59-committee-members', en: 'Committee Members', bn: 'কমিটির সদস্য', t: 'g' },
+      { id: 'M59-committee-meetings', en: 'Committee Meetings', bn: 'কমিটির সভা', t: 'g' },
       { id: 'M59-wellbeing', en: 'Occupational Health', bn: 'পেশাগত স্বাস্থ্য', t: 'g' }
     ]}
   ],
@@ -60,27 +63,56 @@ export const SCREENS = {
     cols: ['name', 'branch_id', 'inspector_id', 'inspected_on', 'findings_count', 'critical_findings', 'state'],
     actions: [{ m: 'action_complete', l: 'Complete Inspection' }] },
   'M59-statutory-accident-register': { kind: 'model_list', model: 'fix.statutory.accident.register',
-    cols: ['name', 'register_entry_no', 'employee_id', 'accident_date', 'affected_body_part', 'lost_work_days', 'notice_form_type', 'dife_notified', 'dife_ack_ref'],
-    actions: [{ m: 'action_notify_dife', l: 'Mark DIFE Notified' }] },
+    cols: ['name', 'register_entry_no', 'employee_id', 'accident_date', 'notice_due', 'notice_form_type', 'dife_notified', 'notified_late', 'dife_ack_ref', 'approval_state', 'state'],
+    /* A09 audit M59-F5/F8: the notice is recorded by the notification
+     * authority with the Form 27 on file; compensation is approved from the
+     * M63 inbox, not here. */
+    actions: [
+      { m: 'action_notify_dife', l: 'Record DIFE Notice', ask: 'DIFE dispatch / acknowledgement reference', kwarg: 'notice_ref' },
+      { m: 'action_request_approval', l: 'Request Compensation Approval' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_close', l: 'Close Entry' }
+    ] },
   'M59-hazards': { kind: 'model_list', model: 'fix.hse.hazard', stateField: 'state',
-    cols: ['name', 'hazard_type', 'likelihood', 'severity', 'risk_score', 'residual_risk', 'state'],
-    actions: [{ m: 'action_control', l: 'Mark Controlled' }, { m: 'action_close', l: 'Close' }] },
+    cols: ['name', 'hazard_type', 'likelihood', 'severity', 'risk_score', 'residual_score', 'residual_risk', 'next_review_date', 'state'],
+    actions: [{ m: 'action_control', l: 'Record Controls' }, { m: 'action_review', l: 'Record Review' }, { m: 'action_close', l: 'Close (another HSE Officer)' }] },
   'M59-jsa': { kind: 'model_list', model: 'fix.hse.jsa', stateField: 'state',
-    cols: ['name', 'job_type', 'ppe_required', 'approved_by_id', 'approved_on', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve JSA' }] },
+    cols: ['name', 'job_type', 'revision', 'ppe_required', 'approved_by_id', 'approved_on', 'approval_state', 'state'],
+    /* A09 audit M59-F9: approved from another HSE Officer's inbox. */
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval' },
+      { m: 'action_recall_approval', l: 'Recall Approval' },
+      { m: 'action_revise', l: 'New Revision' },
+      { m: 'action_retire', l: 'Retire' }
+    ] },
+  /* A09 M59-F13: an issue to one worker, acknowledged by that worker only. */
+  'M59-ppe-issue': { kind: 'model_list', model: 'fix.ppe.issue',
+    cols: ['employee_id', 'ppe_id', 'quantity', 'issued_on', 'replace_by', 'issued_by_id', 'acknowledged', 'acknowledged_on'],
+    actions: [{ m: 'action_acknowledge', l: 'Acknowledge Receipt' }] },
+  'M59-committee-members': { kind: 'model_list', model: 'fix.safety.committee.member',
+    cols: ['committee_id', 'employee_id', 'side', 'term_start'] },
+  'M59-committee-meetings': { kind: 'model_list', model: 'fix.safety.committee.meeting',
+    cols: ['committee_id', 'meeting_date', 'minutes', 'actions'] },
   'M59-ppe': { kind: 'model_list', model: 'fix.ppe.register', stateField: 'state',
-    cols: ['name', 'item_type', 'regulatory_standard', 'stock_quantity', 'min_required_quantity', 'state'],
-    actions: [{ m: 'check_replenishment', l: 'Check Replenishment' }] },
+    cols: ['name', 'item_type', 'regulatory_standard', 'stock_quantity', 'min_required_quantity', 'state'] },
   'M59-report': { kind: 'model_list', model: 'fix.hse.incident', stateField: 'state',
     cols: ['name', 'incident_type', 'severity', 'branch_id', 'accident_datetime', 'notice_due', 'notice_form', 'dife_notice_ref', 'state'],
     actions: [
-      { m: 'action_dispatch_dife_notice', l: 'Dispatch DIFE Notice (s.80)' },
+      { m: 'action_dispatch_dife_notice', l: 'Record DIFE Notice (s.80)', ask: 'DIFE dispatch / acknowledgement reference', kwarg: 'notice_ref' },
       { m: 'action_investigate', l: 'Investigate' },
+      { m: 'action_escalate', l: 'Escalate Severity', ask: 'Why is the severity raised?', kwarg: 'reason' },
+      { m: 'action_record_action_taken', l: 'Record Action Taken' },
+      { m: 'action_verify_capa', l: 'Verify CAPA' },
       { m: 'action_close', l: 'Close Incident' }
     ] },
   'M59-investigate': { kind: 'model_list', model: 'fix.hse.incident', stateField: 'state',
-    cols: ['name', 'incident_type', 'severity', 'branch_id', 'reported_at', 'state'],
-    actions: [{ m: 'action_investigate', l: 'Investigate' }, { m: 'action_close', l: 'Close Incident' }] },
+    cols: ['name', 'incident_type', 'severity', 'branch_id', 'reported_at', 'capa_owner_id', 'capa_due_date', 'capa_verified_by_id', 'state'],
+    actions: [
+      { m: 'action_investigate', l: 'Investigate' },
+      { m: 'action_record_action_taken', l: 'Record Action Taken' },
+      { m: 'action_verify_capa', l: 'Verify CAPA' },
+      { m: 'action_close', l: 'Close Incident' }
+    ] },
   'M59-statutory': { kind: 'table_report', module: 'M59', report: 'statutory_compliance', title: 'Statutory Notification Clock', period: true },
   'M59-loneworker': { kind: 'model_list', model: 'fix.hse.loneworker', stateField: 'state',
     cols: ['name', 'employee_id', 'checkin_time', 'expected_end', 'buddy_id', 'state'],
@@ -88,13 +120,25 @@ export const SCREENS = {
   'M59-road': { kind: 'model_list', model: 'fix.hse.roadcheck',
     cols: ['name', 'employee_id', 'vehicle_ref', 'checked_on', 'tyres_ok', 'brakes_ok', 'documents_ok', 'passed'] },
   'M59-battery': { kind: 'model_list', model: 'fix.hazardous.substance.register', stateField: 'state',
-    cols: ['name', 'un_number', 'storage_location', 'current_stock_litres', 'max_allowable_litres', 'msds_on_file', 'fire_suppression_type', 'state'] },
+    cols: ['name', 'un_number', 'storage_location', 'current_stock_litres', 'max_allowable_litres', 'msds_on_file', 'fire_suppression_type', 'state'],
+    actions: [
+      { m: 'action_quarantine', l: 'Quarantine', ask: 'Why is it quarantined?', kwarg: 'reason' },
+      { m: 'action_release', l: 'Release from Quarantine' }
+    ] },
   'M59-drills': { kind: 'model_list', model: 'fix.hse.drill', stateField: 'state',
-    cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'participants', 'state'],
-    actions: [{ m: 'action_complete', l: 'Mark Completed' }] },
+    cols: ['name', 'drill_type', 'scheduled_on', 'completed_on', 'participants', 'duration_min', 'state'],
+    actions: [{ m: 'action_complete', l: 'Mark Completed' }, { m: 'action_cancel', l: 'Cancel' }] },
   'M59-committee': { kind: 'model_list', model: 'fix.safety.committee',
-    cols: ['name', 'branch_id', 'formation_date', 'chairperson_id', 'secretary_id', 'member_count', 'meeting_frequency', 'last_meeting_date', 'next_meeting_date'],
-    actions: [{ m: 'action_record_meeting', l: 'Record Meeting' }] },
+    cols: ['name', 'branch_id', 'formation_date', 'chairperson_id', 'secretary_id', 'member_count', 'meeting_frequency', 'last_meeting_date', 'next_meeting_date', 'dife_registered', 'state'],
+    /* A09 audit M59-F12: constituted only with a valid composition; a
+     * meeting is a record with its minutes; DIFE registration needs the
+     * acknowledgement on file. */
+    actions: [
+      { m: 'action_activate', l: 'Constitute' },
+      { m: 'action_record_meeting', l: 'Record Meeting', ask: 'Minutes of the meeting', kwarg: 'minutes_text' },
+      { m: 'action_record_dife_registration', l: 'Record DIFE Registration', ask: 'DIFE registration reference', kwarg: 'registration_ref' },
+      { m: 'action_dissolve', l: 'Dissolve' }
+    ] },
   'M59-wellbeing': { kind: 'model_list', model: 'fix.hse.health', stateField: 'state',
     cols: ['name', 'employee_id', 'record_type', 'record_date', 'valid_until', 'fitness', 'restrictions', 'clinician', 'state'],
     actions: [{ m: 'action_close', l: 'Close Record' }] },
@@ -126,7 +170,7 @@ export const SCREENS = {
         title: 'Workplace Incident Particulars',
         note: 'Incident severity classification under Department of Inspection for Factories and Establishments (DIFE) regulations.',
         fields: [
-          { name: 'name', label: 'Incident Reference' },
+          { name: 'name', label: 'Incident Reference', readonly: true },
           { name: 'incident_type', required: true, label: 'Incident Type' },
           { name: 'severity', required: true, label: 'Severity Classification' },
           { name: 'branch_id', label: 'Incident Location / Branch' },
@@ -139,13 +183,13 @@ export const SCREENS = {
         title: 'Statutory DIFE Notification Clock (BLA s.80 + BLR r.70) & Form 28 Register',
         note: 'Two-working-day statutory notice deadline (Forms 27/27a/27b) and Form 28 accident register link.',
         fields: [
-          { name: 'reported_at', label: 'Reported Timestamp' },
+          { name: 'reported_at', label: 'Reported Timestamp', readonly: true },
           { name: 'accident_datetime', label: 'Actual Accident Timestamp' },
-          { name: 'notice_due', label: '2-Working-Day DIFE Notice Deadline' },
-          { name: 'notice_form', label: 'Statutory Notice Form (27 / 27a / 27b)' },
-          { name: 'immediate_notification_required', label: 'Immediate Phone/Fax Notice Required' },
-          { name: 'dife_notice_ref', label: 'DIFE Notice Dispatch Ref' },
-          { name: 'statutory_record_id', label: 'Form 28 Accident Register Record' },
+          { name: 'notice_due', label: '2-Working-Day DIFE Notice Deadline', readonly: true },
+          { name: 'notice_form', label: 'Statutory Notice Form (27 / 27a / 27b)', readonly: true },
+          { name: 'immediate_notification_required', label: 'Immediate Phone/Fax Notice Required', readonly: true },
+          { name: 'dife_notice_ref', label: 'DIFE Notice Dispatch Ref', readonly: true },
+          { name: 'statutory_record_id', label: 'Form 28 Accident Register Record', readonly: true },
           { name: 'description', type: 'text', label: 'Factual Event Description' }
         ]
       },
@@ -154,8 +198,13 @@ export const SCREENS = {
         title: 'Root Cause & Corrective Actions',
         note: 'Root cause analysis and corrective action to prevent recurrence.',
         fields: [
+          { name: 'root_cause', type: 'text', label: 'Root Cause (BRU-HSE-05)' },
+          { name: 'investigation_findings', type: 'text', label: 'Investigation Findings' },
           { name: 'corrective_action', type: 'text', label: 'Corrective & Preventive Action (CAPA)' },
-          { name: 'state', required: true, label: 'Incident Lifecycle State' }
+          { name: 'capa_owner_id', label: 'CAPA Owner' },
+          { name: 'capa_due_date', label: 'CAPA Due Date' },
+          { name: 'capa_verified_by_id', label: 'CAPA Verified By (another HSE Officer)', readonly: true },
+          { name: 'state', label: 'Incident Lifecycle State', readonly: true }
         ]
       }
     ]
@@ -191,10 +240,14 @@ export const SCREENS = {
         fields: [
           { name: 'likelihood', required: true, label: 'Likelihood Score (1-5)' },
           { name: 'severity', required: true, label: 'Severity Score (1-5)' },
-          { name: 'risk_score', label: 'Initial Risk Score (L x S)' },
+          { name: 'risk_score', label: 'Initial Risk Score (L x S)', readonly: true },
           { name: 'controls', type: 'text', label: 'Control Measures Implemented' },
-          { name: 'residual_risk', label: 'Residual Risk Level' },
-          { name: 'state', required: true, label: 'Hazard State' }
+          { name: 'residual_likelihood', label: 'Residual Likelihood (1-5)' },
+          { name: 'residual_severity', label: 'Residual Severity (1-5)' },
+          { name: 'residual_score', label: 'Residual Score (L x S)', readonly: true },
+          { name: 'next_review_date', label: 'Next Review Due', readonly: true },
+          { name: 'residual_risk', label: 'Residual Risk Level', readonly: true },
+          { name: 'state', label: 'Hazard State', readonly: true }
         ]
       }
     ]
@@ -220,7 +273,10 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'JSA Title' },
           { name: 'job_type', required: true, label: 'Job / Task Category' },
           { name: 'ppe_required', label: 'Mandatory PPE Required' },
-          { name: 'approved_by_id', label: 'Safety Officer Approval' }
+          { name: 'approved_by_id', label: 'Safety Officer Approval', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'revision', label: 'Revision', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true }
         ]
       },
       {
@@ -265,7 +321,7 @@ export const SCREENS = {
           { name: 'stock_quantity', label: 'Current In-Stock Quantity' },
           { name: 'min_required_quantity', label: 'Minimum Required Threshold' },
           { name: 'company_id', label: 'Company' },
-          { name: 'state', label: 'Stock Adequacy State' }
+          { name: 'state', label: 'Stock Adequacy State', readonly: true }
         ]
       }
     ]
@@ -301,7 +357,7 @@ export const SCREENS = {
           { name: 'clinician', label: 'Examining Medical Officer' },
           { name: 'fitness', required: true, label: 'Clinical Fitness Status' },
           { name: 'restrictions', label: 'Operational Work Restrictions' },
-          { name: 'state', required: true, label: 'Record State' }
+          { name: 'state', label: 'Record State', readonly: true }
         ]
       }
     ]
@@ -324,7 +380,7 @@ export const SCREENS = {
         title: 'Facility & Workshop Safety Walkthrough',
         note: 'Periodic branch workshop, ESD bench, and fire safety inspection.',
         fields: [
-          { name: 'name', label: 'Inspection Reference' },
+          { name: 'name', label: 'Inspection Reference', readonly: true },
           { name: 'branch_id', required: true, label: 'Inspected Branch / Hub' },
           { name: 'inspector_id', required: true, label: 'Lead Safety Inspector' },
           { name: 'inspected_on', required: true, label: 'Inspection Date' }
@@ -335,10 +391,17 @@ export const SCREENS = {
         title: 'Non-Conformities & Corrective Actions',
         note: 'Critical findings and remediation notes.',
         fields: [
-          { name: 'findings_count', label: 'Total Findings Count' },
-          { name: 'critical_findings', label: 'Critical Safety Violations' },
+          { name: 'fire_extinguisher_ok', label: 'Fire Extinguisher Inspected & Valid' },
+          { name: 'emergency_exit_ok', label: 'Emergency Exits Unobstructed' },
+          { name: 'first_aid_ok', label: 'First Aid Box Stocked (BLR r.67)' },
+          { name: 'electrical_ok', label: 'Electrical Wiring & Grounding Safe' },
+          { name: 'esd_grounding_ok', label: 'ESD Benches & Mats Grounded' },
+          { name: 'fume_extraction_ok', label: 'Soldering Fume Extractor Operational' },
+          { name: 'chemical_storage_ok', label: 'IPA & Solvents in Flammable Cabinet' },
+          { name: 'findings_count', label: 'Total Findings Count', readonly: true },
+          { name: 'critical_findings', label: 'Critical Safety Violations', readonly: true },
           { name: 'findings', type: 'text', label: 'Inspection Observations & CAPA' },
-          { name: 'state', required: true, label: 'Inspection State' }
+          { name: 'state', label: 'Inspection State', readonly: true }
         ]
       }
     ]
@@ -360,9 +423,9 @@ export const SCREENS = {
         title: 'Form 28 Statutory Accident Register Entry (BLA s.90 + BLR r.73)',
         note: 'Immutable statutory register entry once notified to DIFE.',
         fields: [
-          { name: 'name', label: 'Register Record Reference' },
-          { name: 'register_entry_no', label: 'Form 28 Serial Entry No' },
-          { name: 'incident_id', label: 'Source HSE Incident' },
+          { name: 'name', label: 'Register Record Reference', readonly: true },
+          { name: 'register_entry_no', label: 'Form 28 Serial Entry No', readonly: true },
+          { name: 'incident_id', label: 'Source HSE Incident', readonly: true },
           { name: 'employee_id', required: true, label: 'Injured Worker / Technician' },
           { name: 'accident_date', required: true, label: 'Accident Date' }
         ]
@@ -384,10 +447,18 @@ export const SCREENS = {
         note: 'Tracks Form 27/27a/27b notice acknowledgement and Form 28 half-yearly return.',
         fields: [
           { name: 'notice_form_type', label: 'Submitted Notice Form Type' },
-          { name: 'dife_notified', label: 'Notified to DIFE Inspector' },
-          { name: 'dife_notification_date', label: 'DIFE Notification Date' },
-          { name: 'dife_ack_ref', label: 'DIFE Acknowledgement Receipt No' },
-          { name: 'half_year_return_due', label: 'Half-Yearly Return Due Date' }
+          { name: 'dife_notified', label: 'Notified to DIFE Inspector', readonly: true },
+          { name: 'dife_notification_date', label: 'DIFE Notification Date', readonly: true },
+          { name: 'dife_ack_ref', label: 'DIFE Acknowledgement Receipt No', readonly: true },
+          { name: 'notice_due', label: 'DIFE Notice Deadline', readonly: true },
+          { name: 'notified_late', label: 'Notified After the Deadline', readonly: true },
+          { name: 'dife_notice_file', type: 'binary', label: 'Form 27 / 27(a) as Dispatched' },
+          { name: 'compensation_basis', label: 'Compensation Basis (BLA Ch. XII)' },
+          { name: 'compensation_proposed', label: 'Assessed Compensation (BDT)' },
+          { name: 'compensation_reason', type: 'text', label: 'Assessment Workings' },
+          { name: 'statutory_compensation_bdt', label: 'Approved Compensation (BDT)', readonly: true },
+          { name: 'approval_state', label: 'Compensation Approval', readonly: true },
+          { name: 'half_year_return_due', label: 'Half-Yearly Return Due Date', readonly: true }
         ]
       }
     ]
@@ -410,7 +481,7 @@ export const SCREENS = {
         title: 'Field Technician Lone-Worker Session',
         note: 'Monitors late-night or remote premises field service visits.',
         fields: [
-          { name: 'name', label: 'Session Reference' },
+          { name: 'name', label: 'Session Reference', readonly: true },
           { name: 'employee_id', required: true, label: 'Field Technician' },
           { name: 'checkin_time', required: true, label: 'Check-In Timestamp' },
           { name: 'expected_end', required: true, label: 'Expected Check-Out Timestamp' }
@@ -423,7 +494,7 @@ export const SCREENS = {
         fields: [
           { name: 'buddy_id', label: 'Assigned Safety Buddy' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'Session State' }
+          { name: 'state', label: 'Session State', readonly: true }
         ]
       }
     ]
@@ -444,7 +515,7 @@ export const SCREENS = {
         title: 'Field Service Motorcycle / Van Identification',
         note: 'Daily pre-dispatch road safety inspection.',
         fields: [
-          { name: 'name', label: 'Check Reference' },
+          { name: 'name', label: 'Check Reference', readonly: true },
           { name: 'employee_id', required: true, label: 'Rider / Technician' },
           { name: 'vehicle_ref', required: true, label: 'Vehicle Registration / Fleet No' },
           { name: 'checked_on', required: true, label: 'Inspection Date' }
@@ -459,7 +530,9 @@ export const SCREENS = {
           { name: 'brakes_ok', label: 'Front & Rear Brakes OK' },
           { name: 'lights_ok', label: 'Headlights, Indicators & Horn OK' },
           { name: 'documents_ok', label: 'BRTA License, Fitness & Insurance Valid' },
-          { name: 'passed', label: 'Overall Road Safety Check Passed' }
+          { name: 'licence_number', label: 'Driving Licence No.' },
+          { name: 'licence_expiry', label: 'Licence Valid Until' },
+          { name: 'passed', label: 'Overall Road Safety Check Passed', readonly: true }
         ]
       }
     ]
@@ -497,7 +570,7 @@ export const SCREENS = {
           { name: 'max_allowable_litres', label: 'Maximum Allowable Volume (L / kg)' },
           { name: 'msds_on_file', label: 'Safety Data Sheet (MSDS) Displayed' },
           { name: 'fire_suppression_type', label: 'Required Fire Suppression Agent' },
-          { name: 'state', label: 'Compliance State' }
+          { name: 'state', label: 'Compliance State', readonly: true }
         ]
       }
     ]
@@ -531,9 +604,11 @@ export const SCREENS = {
         title: 'Completion & Headcount Participation',
         note: 'Feeds the M59 Drill Calendar Coverage report.',
         fields: [
-          { name: 'completed_on', label: 'Actual Completion Date' },
+          { name: 'completed_on', label: 'Actual Completion Date', readonly: true },
           { name: 'participants', label: 'Participating Staff Count' },
-          { name: 'state', required: true, label: 'Drill State' }
+          { name: 'duration_min', label: 'Duration (minutes)' },
+          { name: 'findings', label: 'Findings' },
+          { name: 'state', label: 'Drill State', readonly: true }
         ]
       }
     ]
@@ -559,7 +634,7 @@ export const SCREENS = {
           { name: 'formation_date', required: true, label: 'Constitution Date' },
           { name: 'chairperson_id', label: 'Committee Chairperson' },
           { name: 'secretary_id', label: 'Committee Secretary' },
-          { name: 'member_count', label: 'Total Members Count (Min 6)' }
+          { name: 'member_count', label: 'Total Members Count (Min 6)', readonly: true }
         ]
       },
       {
@@ -568,8 +643,11 @@ export const SCREENS = {
         note: 'Tracks statutory quarterly safety committee meetings.',
         fields: [
           { name: 'meeting_frequency', label: 'Meeting Frequency' },
-          { name: 'last_meeting_date', label: 'Last Meeting Date' },
-          { name: 'next_meeting_date', label: 'Next Scheduled Meeting Date' }
+          { name: 'last_meeting_date', label: 'Last Meeting Date', readonly: true },
+          { name: 'next_meeting_date', label: 'Next Meeting Due', readonly: true },
+          { name: 'dife_registration_file', type: 'binary', label: 'DIFE Registration Acknowledgement' },
+          { name: 'dife_registered', label: 'DIFE Registered', readonly: true },
+          { name: 'state', label: 'Committee State', readonly: true }
         ]
       }
     ]

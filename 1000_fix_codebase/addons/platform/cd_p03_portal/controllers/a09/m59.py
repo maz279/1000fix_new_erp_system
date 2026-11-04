@@ -3,20 +3,39 @@
 # lone-worker/road safety, drills, committee and occupational health.
 import datetime
 
+# A09 workflow audit (M59-F2..F12): every state on these surfaces moves only
+# through the actions below; approvals (JSA, injury compensation) are
+# requested here and decided from the M63 inbox, so their apply methods are
+# not offered on the screens.
 SURFACES = {
     "fix.hse.hazard": {
         "order": "risk_score desc, id desc",
         "limit": 300,
-        "actions": {"action_control", "action_close"},
+        "actions": {"action_control", "action_review", "action_close"},
     },
-    "fix.hse.jsa": {"order": "job_type", "limit": 300, "actions": {"action_approve"}},
-    "fix.ppe.register": {"order": "name", "limit": 500, "actions": {"check_replenishment"}},
+    "fix.hse.jsa": {
+        "order": "job_type",
+        "limit": 300,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_revise",
+            "action_retire",
+        },
+    },
+    "fix.ppe.register": {"order": "name", "limit": 500, "actions": set()},
+    "fix.ppe.issue": {"order": "issued_on desc", "limit": 500, "actions": {"action_acknowledge"}},
+    "fix.safety.committee.member": {"order": "committee_id, side", "limit": 500, "actions": set()},
+    "fix.safety.committee.meeting": {"order": "meeting_date desc", "limit": 300, "actions": set()},
     "fix.hse.incident": {
         "order": "reported_at desc, id desc",
         "limit": 400,
         "actions": {
             "action_investigate",
+            "action_record_action_taken",
+            "action_verify_capa",
             "action_close",
+            "action_escalate",
             "action_notify_dife",
             "action_dispatch_dife_notice",
         },
@@ -24,7 +43,12 @@ SURFACES = {
     "fix.statutory.accident.register": {
         "order": "accident_date desc",
         "limit": 300,
-        "actions": {"action_notify_dife"},
+        "actions": {
+            "action_notify_dife",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_close",
+        },
     },
     "fix.hse.loneworker": {
         "order": "checkin_time desc, id desc",
@@ -32,16 +56,25 @@ SURFACES = {
         "actions": {"action_checkout", "action_escalate"},
     },
     "fix.hse.roadcheck": {"order": "checked_on desc, id desc", "limit": 400, "actions": set()},
-    "fix.hazardous.substance.register": {"order": "name", "limit": 200, "actions": set()},
+    "fix.hazardous.substance.register": {
+        "order": "name",
+        "limit": 200,
+        "actions": {"action_quarantine", "action_release"},
+    },
     "fix.hse.drill": {
         "order": "scheduled_on desc, id desc",
         "limit": 200,
-        "actions": {"action_complete"},
+        "actions": {"action_complete", "action_cancel"},
     },
     "fix.safety.committee": {
         "order": "formation_date desc",
         "limit": 100,
-        "actions": {"action_record_meeting"},
+        "actions": {
+            "action_activate",
+            "action_record_meeting",
+            "action_record_dife_registration",
+            "action_dissolve",
+        },
     },
     "fix.hse.health": {
         "order": "record_date desc, id desc",
@@ -148,13 +181,15 @@ def leading_indicators(env, date_from=None, date_to=None, **params):
 
 
 def statutory_compliance(env, date_from=None, date_to=None, **params):
-    """Statutory notification clock from the accident register (the model that
-    actually carries the DIFE flag and lost work days)."""
+    """Statutory notification clock from the accident register: the deadline,
+    whether it has passed, and whether the notice went late (BLA s.80)."""
     registers = env["fix.statutory.accident.register"].search([])
+    now = datetime.datetime.now()
     rows = []
     for reg in registers:
         reported = reg.accident_date
         days = (datetime.date.today() - reported).days if reported else None
+        overdue = bool(not reg.dife_notified and reg.notice_due and now > reg.notice_due)
         rows.append(
             {
                 "record": reg.name,
@@ -163,14 +198,18 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
                 "body_part": reg.affected_body_part or "—",
                 "lost_days": reg.lost_work_days,
                 "days_open": days if days is not None else "—",
+                "notice_due": str(reg.notice_due or "—"),
+                "overdue": "OVERDUE" if overdue else "No",
                 "notified": "Yes" if reg.dife_notified else "No",
                 "notice_date": str(reg.dife_notification_date or "—"),
+                "late": "Late" if reg.notified_late else ("On time" if reg.dife_notified else "—"),
             }
         )
     rows.sort(key=lambda r: r["date"], reverse=True)
     pending = len([r for r in rows if r["notified"] == "No"])
+    overdue = len([r for r in rows if r["overdue"] == "OVERDUE"])
     return _pack(
-        "Statutory Compliance — %d accident(s) awaiting DIFE notice" % pending,
+        "Statutory Compliance — %d awaiting DIFE notice, %d past the deadline" % (pending, overdue),
         [
             "record",
             "employee",
@@ -178,8 +217,11 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
             "body_part",
             "lost_days",
             "days_open",
+            "notice_due",
+            "overdue",
             "notified",
             "notice_date",
+            "late",
         ],
         {
             "record": "Statutory Record",
@@ -188,13 +230,17 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
             "body_part": "Body Part",
             "lost_days": "Lost Days",
             "days_open": "Days Open",
+            "notice_due": "Notice Deadline",
+            "overdue": "Past Deadline",
             "notified": "DIFE Notified",
             "notice_date": "Notice Date",
+            "late": "Notice Timeliness",
         },
         rows,
         [
-            "Reads the statutory accident register (BLR 2015 Rule 80): the DIFE notice flag and "
-            "lost work days live there, not on the HSE incident."
+            "Reads the statutory accident register (BLA 2006 s.80 / BLR 2015 r.70, Form 28 "
+            "under r.73). The deadline is the incident's computed notice window; a plain "
+            "employee sees only the entries that name them."
         ],
         totals={"record": "Total", "lost_days": sum(r["lost_days"] for r in rows)},
         empty="No statutory accident records.",
@@ -237,8 +283,8 @@ def ppe_compliance(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "The register holds PPE item types and stock, not per-employee issue rows: compliance "
-            "here means stock at or above the item's minimum threshold."
+            "Stock compliance: an item type is compliant when its stock is above its minimum. "
+            "Issues to employees and their acknowledgements are kept on fix.ppe.issue."
         ],
         totals={"item": "Total", "stock": sum(r["stock"] for r in rows)},
         empty="No PPE items recorded.",
@@ -319,6 +365,11 @@ def kpis(env):
         "lost_time_injuries": len(lost_time),
         "near_miss_mtd": len(near_miss),
         "statutory_clock": len(pending_dife),
-        "ppe_compliance": len(ppe),  # registered PPE item types (stocked), not a rate
+        # a rate: the share of PPE item types whose stock is above the minimum
+        "ppe_compliance": round(
+            len(ppe.filtered(lambda p: p.state == "compliant")) / len(ppe) * 100.0, 1
+        )
+        if ppe
+        else 0.0,
         "drills_completed": len(drills),
     }
