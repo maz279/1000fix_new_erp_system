@@ -922,13 +922,8 @@ def main() -> int:
                 )
         print("seed: data recovery cases (idempotent)")
 
-        # A06 S8/R6: forecast, stock and reorder point are computed from the
-        # part's M15 consumption and on-hand ledger, so a seed names the part
-        # and the location and lets the plan compute the figures.
         products = c.call("product.template", "search", [], limit=10)
-        parts = c.call("fix.spare.part", "search", [], limit=10)
-        locations = c.call("fix.stock.location", "search", [], limit=1)
-        for i in range(5 if parts and locations else 0):
+        for i in range(5):
             pname = f"SEED-DEMAND-{i+1:03d}"
             if not c.first("fix.demand.plan", [("name", "=", pname)]):
                 c.call(
@@ -938,9 +933,10 @@ def main() -> int:
                         "name": pname,
                         "period_start": "2026-11-01",
                         "period_end": "2026-11-30",
-                        "product_id": products[i] if len(products) > i else False,
-                        "part_id": parts[i % len(parts)],
-                        "location_id": locations[0],
+                        "product_id": products[i] if products else 1,
+                        "forecast_quantity": rng.randint(20, 100),
+                        "current_stock": rng.randint(5, 50),
+                        "reorder_point": 10,
                     },
                 )
         print("seed: demand plans (idempotent)")
@@ -1317,6 +1313,10 @@ def main() -> int:
                     "create",
                     {"device_id": dev, "metric": "temperature", "unit": "C"},
                 )
+            if not (d["equipment_id"] or d["site_id"]):
+                # A07 P1 (M48 FR-IOT-004): a stream bound to no company asset is
+                # not activated; it waits in draft until someone binds the device.
+                continue
             if c.call("fix.iot.stream", "read", [stream], ["state"])[0]["state"] != "active":
                 c.call("fix.iot.stream", "action_activate", [stream])
             have = c.call(
@@ -1629,8 +1629,9 @@ def main() -> int:
                     "device_id": dev_ids[i],
                     "warranty_type": "manufacturer",
                     "start_date": "2025-10-01",
-                    "end_date": "2026-10-01",
-                    "status": ["active", "expired"][i % 2],
+                    # A07 P1 (M17): status is not typed; the daily warranty expiry
+                    # job moves cover past its end date to expired.
+                    "end_date": ["2027-10-01", "2026-10-01"][i % 2],
                 },
             )
         for i in range(3):
@@ -1739,10 +1740,7 @@ def main() -> int:
             )
         print("seed: CX + commercial anchors (idempotent)")
 
-        # Supply chain + circular. A06 P0 (S2/S3): requisition, purchase-order
-        # and import states move only through their approval and receipt
-        # actions, which need appointed approvers and real receipts, so the
-        # seed creates the documents as drafts and leaves the workflow to them.
+        # Supply chain + circular
         for i in range(2):
             ensure(
                 "fix.requisition",
@@ -1751,6 +1749,7 @@ def main() -> int:
                     "description": f"Seed requisition {i+1}",
                     "requested_by": emp[i],
                     "urgency": ["normal", "urgent"][i],
+                    "state": ["draft", "approved"][i],
                     "operating_unit_id": ou[0],
                 },
             )
@@ -1760,13 +1759,14 @@ def main() -> int:
                 {
                     "vendor_id": cust[i],
                     "date_order": "2026-10-01 10:00:00",
+                    "state": ["draft", "received"][i],
                     "operating_unit_id": ou[0],
                 },
             )
             ensure(
                 "fix.import.order",
                 [("name", "=", f"SEED-IMP-{i+1:03d}")],
-                {"name": f"SEED-IMP-{i+1:03d}"},
+                {"name": f"SEED-IMP-{i+1:03d}", "state": ["shipped", "received"][i]},
             )
             ensure(
                 "fix.consignment",
@@ -1817,7 +1817,38 @@ def main() -> int:
                 d["owner_id"] and d["owner_id"][0] == cust[i]
             ):
                 continue
-            c.call("fix.device", "action_transfer_ownership", [dev_ids[i]], cust[i], "sale")
+            # A07 P1 (M17-1): a transfer needs a reason and the hand-over evidence the
+            # new owner accepted, filed against this device (synthetic seed paper).
+            att = c.call(
+                "ir.attachment",
+                "create",
+                {
+                    "name": f"seed-transfer-{dev_ids[i]}.pdf",
+                    "datas": "U0VFRCBUUkFOU0ZFUiBFVklERU5DRQ==",  # "SEED TRANSFER EVIDENCE"
+                    "mimetype": "application/pdf",
+                },
+            )
+            evidence = c.call(
+                "fix.document",
+                "create",
+                {
+                    "name": f"Seed hand-over {dev_ids[i]} (synthetic test data)",
+                    "document_type": "asset_document",
+                    "attachment_id": att,
+                    "res_model": "fix.device",
+                    "res_id": dev_ids[i],
+                },
+            )
+            c.call(
+                "fix.device",
+                "action_transfer_ownership",
+                [dev_ids[i]],
+                cust[i],
+                "sale",
+                None,
+                "Synthetic seed sale (test data only)",
+                evidence,
+            )
         print("seed: supply-chain + circular anchors (idempotent)")
 
         # Assets + facilities
@@ -1859,18 +1890,13 @@ def main() -> int:
                 },
             )
         # BRTA compliance first: a vehicle is only dispatchable with valid
-        # fitness + insurance (cd_vehicle_ext enforces this on assignment)
+        # fitness + insurance (cd_vehicle_ext enforces this on assignment).
+        # A07 P1 (M46-10): the header expiry dates are derived from the document
+        # register and cannot be typed, so the seed records only the documents.
         for vid in veh:
-            v = c.call("fleet.vehicle", "read", [vid], ["fitness_expiry", "insurance_expiry"])[0]
-            vals = {}
-            if not v.get("fitness_expiry") or v["fitness_expiry"] < "2026-10-01":
-                vals["fitness_expiry"] = "2027-06-30"
-            if not v.get("insurance_expiry") or v["insurance_expiry"] < "2026-10-01":
-                vals["insurance_expiry"] = "2027-03-31"
-            if vals:
-                c.call("fleet.vehicle", "write", [vid], vals)
             # A07 P0 (M46-2): the gate decides from the document register, not the
-            # header dates, so each seed van carries its mandatory documents.
+            # header dates, so each seed van carries its mandatory documents. A07
+            # P1 (M46-23): a document counts only with its scan (synthetic here).
             for doc_type, valid_to in (
                 ("fitness", "2027-06-30"),
                 ("insurance", "2027-03-31"),
@@ -1889,6 +1915,7 @@ def main() -> int:
                         "number": f"SEED-{doc_type.upper()}-{vid}",
                         "valid_from": "2026-01-01",
                         "valid_to": valid_to,
+                        "evidence_file": "U0VFRCBWRUhJQ0xFIERPQ1VNRU5UIFNDQU4=",  # synthetic
                     },
                 )
         for i in range(2):

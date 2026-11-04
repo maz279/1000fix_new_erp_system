@@ -140,13 +140,15 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       running: 'Running', completed: 'Completed', failed: 'Failed', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Instance', note: 'A running instance can be completed, failed or escalated; the escalation feeds the escalation report.',
+      { title: 'Instance', note: 'A running instance can be completed, failed or escalated; the escalation feeds the escalation report. Its start, finish and state are set by those actions, never typed. The DoA Administrator keeps this register.',
         fields: [
           { name: 'automation_id', label: 'Definition' },
           { name: 'res_model', label: 'Record Model' },
           { name: 'res_id', label: 'Record ID' },
-          { name: 'started_at', required: true, label: 'Started At' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'started_at', readonly: true, label: 'Started At' },
+          { name: 'finished_at', readonly: true, label: 'Finished At' },
+          { name: 'escalated', readonly: true, label: 'Escalated' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -157,7 +159,7 @@ export const SCREENS = {
     title: 'Approval Chain (DoA Level)',
     back: 'M63-doa',
     sections: [
-      { title: 'Delegation of Authority', note: 'One threshold per decision domain and currency (database UNIQUE). The approver role is the chain level that owns decisions above this amount.',
+      { title: 'Delegation of Authority', note: 'Only a DoA Administrator changes the rule book. One row per decision domain, model, currency and effective date; a new ruling is a new dated row. The condition must be a valid domain on the target model (checked on save). Threshold and approver role are reference text: the DOFA ladder sets the tier.',
         fields: [
           { name: 'name', label: 'Rule Name' },
           { name: 'decision_domain', required: true, label: 'Decision Domain' },
@@ -167,7 +169,7 @@ export const SCREENS = {
           { name: 'approver_role', label: 'Approver Role' },
           { name: 'notes', label: 'Notes' }
         ] },
-      { title: 'How the Approval Runs', note: 'Any one approver or all of them; the SLA before a reminder, counted in working hours on the calendar (empty: the branch calendar, then the company default, then clock hours); how many escalations to the next tier (or the named target); and what happens when those run out too.',
+      { title: 'How the Approval Runs', note: 'An approver group may only narrow who is asked: it must imply the tier group (or the approval\'s own group), else it is ignored, and it must have members. Any one approver or all of them; the SLA before a reminder, counted in working hours on the calendar (empty: the branch calendar, then the company default, then clock hours); how many escalations to the next tier (or the named target); and what happens when those run out too.',
         fields: [
           { name: 'approver_group_id', label: 'Approver Group (no DOFA amount)' },
           { name: 'approval_policy', required: true, label: 'Voting Policy' },
@@ -211,14 +213,15 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', active: 'Active', expired: 'Expired' } },
     sections: [
-      { title: 'Substitution', note: 'While active, the delegate receives the absent approver\'s task-inbox items; end cannot precede start (database CHECK).',
+      { title: 'Substitution', note: 'Record your own absence (a DoA Administrator or HR manager may record it for you). It starts today or later and is born a draft; you or your manager activate it. The delegate must hold the authority he receives (the same approval tier or higher). While active, the delegate receives your task-inbox items; when it ends they come back to you.',
         fields: [
           { name: 'absent_approver_id', required: true, label: 'Absent Approver' },
           { name: 'delegate_id', required: true, label: 'Delegate' },
           { name: 'start_date', required: true, label: 'Start' },
           { name: 'end_date', required: true, label: 'End' },
           { name: 'reason', label: 'Reason' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'activated_by_id', readonly: true, label: 'Activated By' },
+          { name: 'state', readonly: true, label: 'State' }
         ] }
     ]
   },
@@ -231,18 +234,18 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       pending: 'Pending', done: 'Done', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Task', note: 'Decide it with Approve, Reject or Return. The approver, due date and state are set by the approval engine and cannot be typed.',
+      { title: 'Task', note: 'Decide it with Approve, Reject or Return. Every field is set by the approval engine and cannot be typed. A task you hold for an absent approver goes back to him if the delegation has ended.',
         fields: [
-          { name: 'task_type', required: true, label: 'Task Type' },
-          { name: 'instance_id', label: 'Workflow Instance' },
+          { name: 'task_type', readonly: true, label: 'Task Type' },
+          { name: 'instance_id', readonly: true, label: 'Workflow Instance' },
           { name: 'res_name', readonly: true, label: 'Record' },
           { name: 'tier', readonly: true, label: 'Tier' },
           { name: 'amount', readonly: true, label: 'Amount' },
           { name: 'requested_by_id', readonly: true, label: 'Requested By' },
           { name: 'assigned_user_id', readonly: true, label: 'Approver' },
           { name: 'on_behalf_of_id', readonly: true, label: 'On Behalf Of' },
-          { name: 'assigned_to_id', label: 'Assigned To (employee)' },
-          { name: 'created_at', required: true, label: 'Created At' },
+          { name: 'assigned_to_id', readonly: true, label: 'Assigned To (employee)' },
+          { name: 'created_at', readonly: true, label: 'Created At' },
           { name: 'due_at', readonly: true, label: 'Due At' },
           { name: 'comment', readonly: true, label: 'Decision Comment' },
           { name: 'state', readonly: true, label: 'State' }

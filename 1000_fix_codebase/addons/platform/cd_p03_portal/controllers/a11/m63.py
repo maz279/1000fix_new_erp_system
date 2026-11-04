@@ -3,12 +3,71 @@
 # substitutions, business rules and the AUT/escalation signals.
 import datetime
 
+# A11 audit E1: the fields /p03/model/write accepts on each M63 surface,
+# exactly what the M63 workspace forms (static/src/a11/m63.js) offer as
+# editable. A surface with no form accepts nothing. Workflow fields (states,
+# stamps, the approver, the version) are never listed: they change only
+# through their actions. The ACL still decides who may write at all: the
+# rule book (matrix, rules, automations, instances) is the DoA
+# Administrator's. Kept in step with the forms by test_a11_e1_e4.py.
+WRITABLE = {
+    "fix.automation": frozenset(
+        {"code", "trigger", "engine", "engine_ref", "failure_policy", "active"}
+    ),
+    "fix.workflow.instance": frozenset({"automation_id", "res_model", "res_id"}),
+    "fix.workflow.task": frozenset(),
+    "fix.approval.matrix": frozenset(
+        {
+            "name",
+            "decision_domain",
+            "res_model",
+            "condition",
+            "threshold",
+            "approver_role",
+            "notes",
+            "approver_group_id",
+            "approval_policy",
+            "sla_hours",
+            "calendar_id",
+            "max_escalations",
+            "escalate_to_id",
+            "final_action",
+            "date_from",
+            "date_to",
+            "active",
+        }
+    ),
+    "fix.approval.request": frozenset(),
+    "fix.approval.history": frozenset(),
+    "fix.approval.substitution": frozenset(
+        {"absent_approver_id", "delegate_id", "start_date", "end_date", "reason"}
+    ),
+    "fix.business.rule": frozenset(
+        {
+            "code",
+            "name",
+            "domain_area",
+            "rule_type",
+            "expression",
+            "error_message",
+            "automation_id",
+            "active",
+        }
+    ),
+}
+
 SURFACES = {
-    "fix.automation": {"order": "code", "limit": 300, "actions": set()},
+    "fix.automation": {
+        "order": "code",
+        "limit": 300,
+        "actions": set(),
+        "writable": WRITABLE["fix.automation"],
+    },
     "fix.workflow.instance": {
         "order": "started_at desc, id desc",
         "limit": 400,
         "actions": {"action_complete", "action_fail", "action_escalate"},
+        "writable": WRITABLE["fix.workflow.instance"],
     },
     "fix.workflow.task": {
         "order": "created_at desc, id desc",
@@ -16,22 +75,40 @@ SURFACES = {
         # R7: decided only by the assignee; the record's own approve method
         # runs inside the decision with the DOFA checks.
         "actions": {"action_approve", "action_reject", "action_return"},
+        "writable": WRITABLE["fix.workflow.task"],
     },
     "fix.approval.matrix": {
         "order": "res_model, decision_domain, date_from desc, id",
         "limit": 200,
         "actions": {"action_test_rule"},
+        "writable": WRITABLE["fix.approval.matrix"],
     },
     # Read-only evidence: requests change only through their tasks, and the
     # history refuses every write.
-    "fix.approval.request": {"order": "requested_at desc, id desc", "limit": 500, "actions": set()},
-    "fix.approval.history": {"order": "at desc, id desc", "limit": 1000, "actions": set()},
+    "fix.approval.request": {
+        "order": "requested_at desc, id desc",
+        "limit": 500,
+        "actions": set(),
+        "writable": WRITABLE["fix.approval.request"],
+    },
+    "fix.approval.history": {
+        "order": "at desc, id desc",
+        "limit": 1000,
+        "actions": set(),
+        "writable": WRITABLE["fix.approval.history"],
+    },
     "fix.approval.substitution": {
         "order": "start_date desc, id desc",
         "limit": 200,
         "actions": {"action_activate", "action_expire"},
+        "writable": WRITABLE["fix.approval.substitution"],
     },
-    "fix.business.rule": {"order": "code", "limit": 300, "actions": {"action_new_version"}},
+    "fix.business.rule": {
+        "order": "code",
+        "limit": 300,
+        "actions": {"action_new_version"},
+        "writable": WRITABLE["fix.business.rule"],
+    },
 }
 
 
@@ -253,7 +330,11 @@ def approval_kpis(env, date_from=None, date_to=None, **params):
         for tier, n in sorted(k["approved_by_tier"].items())
     ]
     rows += [
-        {"measure": "Approver = creator (must be 0)", "value": k["approver_is_creator"]},
+        {
+            "measure": "Approver = creator, requester, amount-changer or their delegate "
+            "(must be 0)",
+            "value": k["approver_is_creator"],
+        },
         {"measure": "Approvals voided by a change", "value": k["voided_by_change"]},
         {"measure": "Escalations", "value": k["escalations"]},
         {"measure": "Median cycle time (h)", "value": k["median_cycle_hours"]},
@@ -295,8 +376,9 @@ def a02_control_figures(env) -> dict:
         approved = Shift.sudo().search([("supervisor_variance_approved_by", "!=", False)])
         out["cash_variance_self_approved"] = len(
             approved.filtered(
-                lambda s: s.supervisor_variance_approved_by
-                in (s.counted_by | s.operator_id.user_id)
+                lambda s: (
+                    s.supervisor_variance_approved_by in (s.counted_by | s.operator_id.user_id)
+                )
             )
         )
     Cert = env.get("fix.data.wipe.certificate")
@@ -315,8 +397,10 @@ def a02_control_figures(env) -> dict:
     if Field is not None:
         done = Field.sudo().search([("state", "=", "completed")])
         evidenced = done.filtered(
-            lambda f: (f.customer_otp_verified or f.customer_signature_attachment_id)
-            and f.post_work_photo_attachment_id
+            lambda f: (
+                (f.customer_otp_verified or f.customer_signature_attachment_id)
+                and f.post_work_photo_attachment_id
+            )
         )
         out["field_completion_evidence_pct"] = _pct(len(evidenced), len(done))
     return out

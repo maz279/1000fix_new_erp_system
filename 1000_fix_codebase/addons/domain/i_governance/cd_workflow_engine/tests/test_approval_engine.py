@@ -235,7 +235,11 @@ class TestDelegationAndEscalation:
     def test_an_absent_approvers_delegate_decides_on_their_behalf(self, env, make_user, complaint):
         raiser = make_user()
         absent = make_user(T2, employee=True)
-        delegate = make_user(employee=True)  # holds no tier of their own
+        # A11 audit E2: a delegate must hold the authority he receives (the
+        # same tier or higher). This used to delegate Tier 2 to a user with
+        # no tier at all, which the policy now refuses. Tier 3 keeps the
+        # delegate out of the Tier-2 routing on his own account.
+        delegate = make_user(T3, employee=True)
         env["fix.approval.substitution"].create(
             {
                 "absent_approver_id": absent.employee_ids[0].id,
@@ -257,7 +261,7 @@ class TestDelegationAndEscalation:
 
     def test_a_delegate_cannot_approve_what_they_raised(self, env, make_user, complaint):
         absent = make_user(T2, employee=True)
-        delegate = make_user(employee=True)
+        delegate = make_user(T3, employee=True)  # A11 E2: delegate holds the tier
         env["fix.approval.substitution"].create(
             {
                 "absent_approver_id": absent.employee_ids[0].id,

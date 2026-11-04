@@ -18,6 +18,7 @@ CD-M63-01/02/04: process automation.
     "category": "Operations/Automation",
     "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox", "cd_rbac_ext"],
     "data": [
+        "security/fix_workflow_engine_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/workflow_ops_sequences.xml",

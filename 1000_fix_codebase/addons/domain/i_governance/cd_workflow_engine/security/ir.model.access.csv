@@ -1,9 +1,13 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_automation,fix.automation,model_fix_automation,base.group_user,1,1,1,0
-access_fix_approval_matrix,fix.approval.matrix,model_fix_approval_matrix,base.group_user,1,1,1,0
-access_fix_workflow_instance,fix.workflow.instance,model_fix_workflow_instance,base.group_user,1,1,1,0
-access_fix_workflow_task,fix.workflow.task,model_fix_workflow_task,base.group_user,1,1,1,0
-access_fix_business_rule,fix.business.rule,model_fix_business_rule,base.group_user,1,1,1,0
+access_fix_automation,fix.automation,model_fix_automation,base.group_user,1,0,0,0
+access_fix_automation_doa_admin,fix.automation doa admin,model_fix_automation,group_doa_administrator,1,1,1,0
+access_fix_approval_matrix,fix.approval.matrix,model_fix_approval_matrix,base.group_user,1,0,0,0
+access_fix_approval_matrix_doa_admin,fix.approval.matrix doa admin,model_fix_approval_matrix,group_doa_administrator,1,1,1,0
+access_fix_workflow_instance,fix.workflow.instance,model_fix_workflow_instance,base.group_user,1,0,0,0
+access_fix_workflow_instance_doa_admin,fix.workflow.instance doa admin,model_fix_workflow_instance,group_doa_administrator,1,1,1,0
+access_fix_workflow_task,fix.workflow.task,model_fix_workflow_task,base.group_user,1,1,0,0
+access_fix_business_rule,fix.business.rule,model_fix_business_rule,base.group_user,1,0,0,0
+access_fix_business_rule_doa_admin,fix.business.rule doa admin,model_fix_business_rule,group_doa_administrator,1,1,1,0
 access_fix_approval_substitution,fix.approval.substitution,model_fix_approval_substitution,base.group_user,1,1,1,0
 access_fix_approval_request,fix.approval.request,model_fix_approval_request,base.group_user,1,0,0,0
 access_fix_approval_history,fix.approval.history,model_fix_approval_history,base.group_user,1,0,0,0

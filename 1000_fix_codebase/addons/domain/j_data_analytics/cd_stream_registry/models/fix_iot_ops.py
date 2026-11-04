@@ -56,11 +56,14 @@ SUPPRESSION_APPROVER_GROUP = "cd_entity_config.group_dofa_tier_4"
 def _assert_authority(rec, xmlid, what):
     """The deciding user (the absent approver when a delegate decides) must
     hold the group the request was routed to: the matrix row's group when one
-    names it, otherwise `xmlid`. Superuser code is trusted."""
+    names it and that group implies `xmlid` (a rule may only narrow who
+    decides, A11 audit E3), otherwise `xmlid`. Superuser code is trusted."""
     if rec.env.su:
         return
     row = rec.approval_request_id.sudo().matrix_id
-    group = row.approver_group_id or rec.env.ref(xmlid)
+    coded = rec.env.ref(xmlid)
+    narrowed = row.approver_group_id
+    group = narrowed if narrowed and coded in narrowed.sudo().all_implied_ids else coded
     if rec._approval_authority_user() not in group.sudo().all_user_ids:
         raise UserError("%s requires %s authority." % (what, group.display_name))
 

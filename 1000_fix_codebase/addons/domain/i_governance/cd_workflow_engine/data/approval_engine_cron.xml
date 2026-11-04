@@ -15,5 +15,20 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+        <!--
+          A11 audit E2 (M63-5): an approval substitution past its end date
+          expires, and the open tasks routed through it go back to the absent
+          approver. On fix_dev one substitution stayed "active" a day after it
+          ended, because nothing ever expired one.
+        -->
+        <record id="ir_cron_approval_substitution_expire" model="ir.cron">
+            <field name="name">M63: expire ended approval substitutions</field>
+            <field name="model_id" ref="model_fix_approval_substitution"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_substitutions()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

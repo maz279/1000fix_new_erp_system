@@ -30,7 +30,7 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 from odoo.models import BaseModel
 from odoo.tools.safe_eval import safe_eval
 
@@ -83,7 +83,30 @@ HISTORY_EVENTS = [
     ("reminded", "Reminder Sent"),
     ("escalated", "Escalated"),
     ("expired", "Final Action on Expiry"),
+    ("handed_back", "Handed Back by an Ended Delegation"),
 ]
+
+# A11 audit E4 (M63-6): an approval covers WHO is paid, in WHICH currency and
+# WHAT kind of concession, as much as how much. After a BDT 800 refund to the
+# customer was approved, the clerk re-pointed it to another partner and
+# re-typed it a discount; the approval stood. Whichever of these a model
+# stores is pinned by default (_approval_pinned_fields); a model adds its own.
+APPROVAL_PINNED_DEFAULT = (
+    "partner_id",
+    "customer_id",
+    "vendor_id",
+    "supplier_id",
+    "payee_id",
+    "beneficiary_id",
+    "counterparty_id",
+    "currency_id",
+    "concession_type",
+)
+
+
+class _VoteDryRun(Exception):
+    """Rolls back the savepoint of a vote's dry run (_approval_check_vote)."""
+
 
 TIER_ORDER = ["tier_0", "tier_1", "tier_2", "tier_3", "tier_4", "tier_5"]
 TIER_GROUP = {
@@ -138,9 +161,8 @@ class FixApprovalMatrix(models.Model):
             ("contract_verification", "Opportunity Contract Verification"),
             ("other", "Other"),
         ],
-        ondelete={
-            key: "cascade"
-            for key in (
+        ondelete=dict.fromkeys(
+            (
                 "concession",
                 "campaign_budget",
                 "loyalty_adjustment",
@@ -153,8 +175,9 @@ class FixApprovalMatrix(models.Model):
                 "creative",
                 "contract_verification",
                 "other",
-            )
-        },
+            ),
+            "cascade",
+        ),
     )
     threshold = fields.Monetary(required=False)
     approver_role = fields.Char(required=False)
@@ -201,6 +224,69 @@ class FixApprovalMatrix(models.Model):
     date_to = fields.Date(string="Effective To")
     active = fields.Boolean(default=True)
 
+    # ---- validation on save (A11 audit E1, M63-7) ---------------------------
+    # A malformed condition crashed every request of its domain with a
+    # SyntaxError, and a row pointed at an empty group left every record of
+    # the domain with "No one can approve". Both are refused when saved.
+    def _condition_models(self):
+        """The models a row's condition is evaluated against."""
+        self.ensure_one()
+        if self.res_model:
+            return [self.res_model] if self.res_model in self.env else []
+        return [
+            name
+            for name, model in self.env.registry.items()
+            if not model._abstract
+            and not model._transient
+            and getattr(model, "_approval_domain", None) == self.decision_domain
+        ]
+
+    def _parse_condition(self, record=None):
+        """The row's condition as a domain; ValueError when it is not one."""
+        self.ensure_one()
+        try:
+            domain = safe_eval(self.condition)
+        except Exception as exc:  # any parse failure is a bad rule
+            raise ValueError("it is not a valid domain (%s)" % exc) from exc
+        if not isinstance(domain, list | tuple):
+            raise ValueError("it must be a list such as [('severity', '=', 'critical')]")
+        return list(domain)
+
+    @api.constrains("condition", "res_model", "decision_domain")
+    def _check_condition(self):
+        for row in self.filtered("condition"):
+            try:
+                domain = row._parse_condition()
+                for name in row._condition_models():
+                    Model = self.env[name].sudo().with_context(active_test=False)
+                    # Field names and operators are checked by building the
+                    # query; a real row (if any) is evaluated in memory too.
+                    Model.search_count(domain, limit=1)
+                    Model.search([], limit=1).filtered_domain(domain)
+            except ValueError as exc:
+                raise ValidationError(
+                    "Approval rule %s: the condition %r is refused: %s."
+                    % (row.display_name, row.condition, exc)
+                ) from exc
+            except Exception as exc:
+                raise ValidationError(
+                    "Approval rule %s: the condition %r does not apply to the records it "
+                    "targets (%s: %s)." % (row.display_name, row.condition, type(exc).__name__, exc)
+                ) from exc
+
+    @api.constrains("approver_group_id", "active")
+    def _check_approver_group_holders(self):
+        for row in self.filtered(lambda r: r.active and r.approver_group_id):
+            holders = row.approver_group_id.sudo().all_user_ids.filtered(
+                lambda u: u.active and not u.share
+            )
+            if not holders:
+                raise ValidationError(
+                    "Approval rule %s names %s as its approver group, which nobody "
+                    "holds: every record it matches could not be approved. Appoint "
+                    "the group's members first." % (row.display_name, row.approver_group_id.name)
+                )
+
     @api.model
     def _match(self, record):
         """The rule in force for `record`, or an empty recordset (default rule).
@@ -232,7 +318,16 @@ class FixApprovalMatrix(models.Model):
         for row in rows:
             if not row.condition:
                 return row
-            if record.sudo().filtered_domain(safe_eval(row.condition)):
+            try:
+                hit = record.sudo().filtered_domain(row._parse_condition())
+            except Exception as exc:  # a legacy row saved before validation
+                _logger.warning("Approval rule %s has an invalid condition: %s", row.id, exc)
+                raise UserError(
+                    "Approval rule %s has an invalid condition (%r), so %s cannot be "
+                    "routed. A DoA Administrator must correct the rule."
+                    % (row.display_name, row.condition, record.display_name)
+                ) from exc
+            if hit:
                 return row
         return self.browse()
 
@@ -310,6 +405,35 @@ class FixApprovableMixin(models.AbstractModel):
         """Hook: what a rejection does to the record beyond its approval state."""
         return None
 
+    def _approval_check_vote(self):
+        """A vote that does not yet complete the request (policy 'all', other
+        approvers still to decide) must still be one this approver may cast:
+        the record's own approve method runs as a DRY RUN, so its tier,
+        segregation-of-duties and justification checks apply to this voter,
+        and is rolled back, so nothing is stamped before the quorum is met
+        (A11 audit E4, M63-3)."""
+        try:
+            with self.env.cr.savepoint():
+                self._approval_apply()
+                raise _VoteDryRun()
+        except _VoteDryRun:
+            pass
+
+    def _approval_clear_stamp(self, reason):
+        """Hook: withdraw what the approve method stamped on the record. The
+        DOFA models clear their DOFA stamp (and model flags tied to it)."""
+        return None
+
+    def _approval_pinned_fields(self) -> set:
+        """Fields whose change voids a pending or granted approval, like the
+        amount does (A11 audit E4, M63-6): the payee, counterparty, currency
+        and type the approval was given for. Extend with super()."""
+        return {
+            name
+            for name in APPROVAL_PINNED_DEFAULT
+            if name in self._fields and self._fields[name].store
+        }
+
     # ---- the deciding task ------------------------------------------------
     def _approval_task(self):
         task = self.env.context.get(TASK_KEY)
@@ -347,17 +471,70 @@ class FixApprovableMixin(models.AbstractModel):
     def _approval_rule_value(self, rule, key):
         return rule[key] if rule else DEFAULT_RULE[key]
 
-    def _approval_group_for(self, rule, tier):
-        if rule.approver_group_id:
-            return rule.approver_group_id
+    def _approval_authority_group(self, tier):
+        """The CODE-declared group whose holders may decide: the DOFA tier's
+        group, else the model's `_approval_group` / `_approval_group_xmlid()`.
+        Never read from the rule book (A11 audit E3, M63-2)."""
         xmlid = TIER_GROUP.get(tier) if tier else self._approval_group_xmlid()
-        return self.env.ref(xmlid, raise_if_not_found=False) if xmlid else None
+        group = self.env.ref(xmlid, raise_if_not_found=False) if xmlid else None
+        return group if group and group._name == "res.groups" else None
+
+    @api.model
+    def _approval_group_narrows(self, group, authority):
+        """True when every holder of `group` also holds `authority`: the
+        group IS the authority, or implies it."""
+        if not (group and authority):
+            return False
+        group = group.sudo()
+        return group == authority or authority in group.all_implied_ids
+
+    def _approval_group_for(self, rule, tier):
+        """Who is asked. A11 audit E3 (M63-2): the matrix row being decided
+        under used to name the group that both routed AND authorised the
+        decision, so a salesperson pointed `contract_verification` at his own
+        group and verified a colleague's contract. Now the authority is the
+        coded group; a row's approver group may only NARROW it (a group that
+        implies the coded one, e.g. one branch's managers), and is ignored
+        otherwise."""
+        authority = self._approval_authority_group(tier)
+        narrower = rule.approver_group_id if rule else None
+        if narrower and self._approval_group_narrows(narrower, authority):
+            return narrower
+        if narrower:
+            _logger.info(
+                "Approval rule %s names %s, which does not narrow %s; ignored.",
+                rule.id,
+                narrower.name,
+                authority.name if authority else "no coded group",
+            )
+        return authority
 
     def _approval_excluded(self):
         """Requester, creator and whoever last changed the amount never
         decide the record (A03 audit R7, W3)."""
         self.ensure_one()
         return (self.env.user | self.create_uid | self.approval_amount_changed_by_id).sudo()
+
+    def _approval_excluded_for(self, request):
+        """Everyone who must not be handed `request`, whoever runs the code.
+
+        A11 audit E4 (M63-4): `_approval_excluded()` reads env.user as the
+        requester; the escalation cron runs as the superuser, so a Tier-2
+        manager who requested a Tier-1 approval was escalated his own
+        request and approved it. The request's stored requester, the
+        record's creator, the amount-changer and everyone already assigned
+        (or represented) on the request are excluded explicitly."""
+        excluded = self._approval_excluded()
+        if request:
+            req = request.sudo()
+            excluded |= (
+                req.requested_by_id
+                | req.record_creator_id
+                | req.amount_changed_by_id
+                | req.task_ids.mapped("assigned_user_id")
+                | req.task_ids.mapped("on_behalf_of_id")
+            )
+        return excluded.sudo()
 
     def _approval_holders(self, group):
         self.ensure_one()
@@ -378,27 +555,14 @@ class FixApprovableMixin(models.AbstractModel):
             users = local or users
         return users - self._approval_excluded()
 
-    def _approval_substitutes(self, users):
-        """[(assignee, on_behalf_of or None)] after today's active substitutions."""
-        today = fields.Date.context_today(self)
-        subs = (
-            self.env["fix.approval.substitution"]
-            .sudo()
-            .search(
-                [
-                    ("state", "=", "active"),
-                    ("start_date", "<=", today),
-                    ("end_date", ">=", today),
-                ]
-            )
-        )
-        delegate_of = {}
-        for sub in subs:
-            absent = sub.absent_approver_id.user_id
-            delegate = sub.delegate_id.user_id
-            if absent and delegate and delegate.active:
-                delegate_of[absent.id] = delegate
-        excluded = self._approval_excluded()
+    def _approval_substitutes(self, users, excluded=None):
+        """[(assignee, on_behalf_of or None)] after today's valid substitutions
+        (active, in date, and a delegate the policy allows). A delegate who is
+        excluded (creator, requester, amount-changer, already on the request)
+        does not take the task: the absent approver keeps it."""
+        delegate_of = self.env["fix.approval.substitution"].sudo()._active_delegates()
+        if excluded is None:
+            excluded = self._approval_excluded()
         out, seen = [], set()
         for user in users:
             delegate = delegate_of.get(user.id)
@@ -422,8 +586,9 @@ class FixApprovableMixin(models.AbstractModel):
         return exact or users
 
     def _approval_resolve(self, rule, tier):
-        users = self._approval_holders(self._approval_group_for(rule, tier))
-        if tier and not rule.approver_group_id:
+        group = self._approval_group_for(rule, tier)
+        users = self._approval_holders(group)
+        if tier and group and group == self._approval_authority_group(tier):
             users = self._approval_lowest_competent(users, tier)
         return self._approval_substitutes(users)
 
@@ -478,6 +643,7 @@ class FixApprovableMixin(models.AbstractModel):
                     "amount": rec._approval_amount(),
                     "requested_by_id": rec.env.user.id,
                     "record_creator_id": rec.create_uid.id,
+                    "amount_changed_by_id": rec.sudo().approval_amount_changed_by_id.id,
                     "justification": justification or False,
                     "approval_policy": rec._approval_rule_value(rule, "approval_policy"),
                     "company_id": (rec.company_id.id if "company_id" in rec._fields else False)
@@ -515,6 +681,7 @@ class FixApprovableMixin(models.AbstractModel):
             if req.requested_by_id != rec.env.user and not rec.env.su:
                 raise UserError("Only the person who requested the approval can recall it.")
             req._finish("recalled", "recalled", rec.env.user, record_state="none")
+            rec.sudo()._approval_clear_stamp("the approval request %s was recalled" % req.name)
         return True
 
     def _approval_void(self, reason):
@@ -527,11 +694,29 @@ class FixApprovableMixin(models.AbstractModel):
                 rec._guarded().write({"approval_state": "none"})
                 if req:
                     req._log("voided", comment=reason)
+            # A11 audit E4 (M63-3): a voided approval leaves no stamp behind.
+            # The state is already 'none', so the DOFA void this triggers does
+            # not come back here.
+            rec.sudo()._approval_clear_stamp(reason)
 
     def write(self, vals):
         if set(vals) <= _APPROVAL_BOOKKEEPING:
             return super().write(vals)
         pending = self.filtered(lambda r: r.approval_state == "pending")
+        # A11 audit E4 (M63-6): the payee, counterparty, currency and type are
+        # pinned like the amount. Same trust split: a user's change voids a
+        # pending or granted approval; superuser code voids a pending one.
+        pinned = self._approval_pinned_fields() & set(vals) if self else set()
+        watched = (
+            (
+                pending
+                if self.env.su
+                else self.filtered(lambda r: r.approval_state in ("pending", "approved"))
+            )
+            if pinned
+            else self.browse()
+        )
+        terms_before = {rec.id: {f: rec.sudo()[f] for f in pinned} for rec in watched}
         # W3: a user's write is measured on every record, to learn who moved
         # the amount. Superuser code (crons, seeds, service calls) is trusted,
         # as the guard trusts it, and is measured only where a request is
@@ -553,6 +738,24 @@ class FixApprovableMixin(models.AbstractModel):
                 rec._approval_void(
                     "the amount changed from %.2f to %.2f while approval was pending; "
                     "request it again." % (before[rec.id], rec.sudo()._approval_amount())
+                )
+        moved = {}
+        for rec in watched:
+            names = [f for f in pinned if rec.sudo()[f] != terms_before[rec.id][f]]
+            if names:
+                moved[rec] = names
+        if moved and not self.env.su:
+            # Whoever re-pointed the approval must not be the one to sign it off.
+            self.browse([r.id for r in moved])._guarded().write(
+                {"approval_amount_changed_by_id": self.env.uid}
+            )
+        for rec, names in moved.items():
+            if rec.approval_state in ("pending", "approved"):
+                labels = ", ".join(rec._fields[n].string or n for n in sorted(names))
+                rec._approval_void(
+                    "%s changed after the approval was %s; it covered the terms it was "
+                    "given for. Request it again."
+                    % (labels, "requested" if rec.approval_state == "pending" else "granted")
                 )
         return result
 
@@ -590,6 +793,14 @@ class FixDofaMixin(models.AbstractModel):
         self._approval_void(reason)
         return super()._dofa_void_approval(reason)
 
+    def _approval_clear_stamp(self, reason):
+        # Through the model's own void, so flags tied to the stamp (e.g. a
+        # complaint's concession_approved) go with it.
+        stamped = self.filtered("dofa_approved")
+        if stamped:
+            stamped._dofa_void_approval(reason)
+        return super()._approval_clear_stamp(reason)
+
 
 class FixApprovalRequest(models.Model):
     """One round of approval for one record."""
@@ -621,6 +832,13 @@ class FixApprovalRequest(models.Model):
     amount = fields.Float(readonly=True)
     requested_by_id = fields.Many2one("res.users", required=True, readonly=True, index=True)
     record_creator_id = fields.Many2one("res.users", readonly=True)
+    amount_changed_by_id = fields.Many2one(
+        "res.users",
+        string="Amount / Terms Last Changed By",
+        readonly=True,
+        help="Who last changed the amount or a pinned term before the request. "
+        "Never an approver of this request.",
+    )
     requested_at = fields.Datetime(required=True, default=fields.Datetime.now, readonly=True)
     justification = fields.Text(readonly=True)
     approval_policy = fields.Selection(
@@ -852,11 +1070,17 @@ class FixApprovalRequest(models.Model):
             {"request": self.name, "state": state, "decided_by": user.id},
         )
 
+    def _completed_by(self, task):
+        """True when approving `task` completes this request: policy 'any',
+        or the last open task under 'all'."""
+        self.ensure_one()
+        open_tasks = self.task_ids.filtered(lambda t: t.state == "pending" and t != task)
+        return self.approval_policy != "all" or not open_tasks
+
     def _task_approved(self, task, comment=None):
         self.ensure_one()
         self._log("task_approved", user=self.env.user, task=task, comment=comment)
-        open_tasks = self.task_ids.filtered(lambda t: t.state == "pending" and t != task)
-        if self.approval_policy == "all" and open_tasks:
+        if not self._completed_by(task):
             return
         self._finish(
             "approved",
@@ -869,18 +1093,18 @@ class FixApprovalRequest(models.Model):
 
     # ---- escalation --------------------------------------------------------
     def _next_tier_holders(self, record):
+        # A11 audit E4 (M63-4): the cron runs as the superuser, so the
+        # exclusions are read from the request, not from env.user.
+        excluded = record._approval_excluded_for(self)
         target = self.matrix_id.escalate_to_id
         if target:
-            return [(target, None)] if target not in record._approval_excluded() else []
+            return [(target, None)] if target not in excluded else []
         if self.tier not in TIER_ORDER or self.tier == "tier_5":
             return []
         nxt = TIER_ORDER[TIER_ORDER.index(self.tier) + 1]
         group = self.env.ref(TIER_GROUP[nxt], raise_if_not_found=False)
-        assigned = self.task_ids.mapped("assigned_user_id") | self.task_ids.mapped(
-            "on_behalf_of_id"
-        )
-        users = record._approval_lowest_competent(record._approval_holders(group), nxt) - assigned
-        return record._approval_substitutes(users)
+        users = record._approval_lowest_competent(record._approval_holders(group), nxt) - excluded
+        return record._approval_substitutes(users, excluded)
 
     @api.model
     def cron_escalate_overdue(self):
@@ -947,6 +1171,17 @@ class FixApprovalRequest(models.Model):
                 )
 
     # ---- KPIs (R11) --------------------------------------------------------
+    def _decided_by_a_conflicted_user(self):
+        """A11 audit E4 (M63-11): the decider, or whom he acted for, is the
+        record's creator, the requester, or whoever changed the amount or a
+        pinned term. A delegate of the requester counts as the requester."""
+        self.ensure_one()
+        conflicted = self.record_creator_id | self.requested_by_id | self.amount_changed_by_id
+        record = self._record(self.env(su=True))
+        if record and "approval_amount_changed_by_id" in record._fields:
+            conflicted |= record.approval_amount_changed_by_id
+        return bool((self.decided_by_id | self.on_behalf_of_id) & conflicted)
+
     @api.model
     def approval_kpis(self):
         reqs = self.sudo().search([])
@@ -965,11 +1200,10 @@ class FixApprovalRequest(models.Model):
             "pending_24_72h": sum(1 for a in ages if 24 <= a < 72),
             "pending_over_72h": sum(1 for a in ages if a >= 72),
             "approved_by_tier": by_tier,
-            # Should always be 0: the engine never routes to the creator.
+            # Should always be 0: the engine never routes to the creator, the
+            # requester, the amount-changer, or a delegate acting for them.
             "approver_is_creator": len(
-                approved.filtered(
-                    lambda r: r.decided_by_id and r.decided_by_id == r.record_creator_id
-                )
+                approved.filtered(lambda r: r._decided_by_a_conflicted_user())
             ),
             "voided_by_change": len(history.filtered(lambda h: h.event == "voided")),
             "escalations": len(history.filtered(lambda h: h.event == "escalated")),
@@ -1032,14 +1266,26 @@ class FixWorkflowTask(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         # A task that could be created, reassigned or marked done by hand
-        # would be an approval anyone can type (A03 audit, M63 row).
+        # would be an approval anyone can type (A03 audit, M63 row). A11
+        # audit E1 (M63-10): the rest of the task was still open, so a plain
+        # user re-typed a colleague's pending approval as a "review" (hiding
+        # it from Approval Chains) and back-dated `created_at` (the cycle-time
+        # KPI). Every field is now set by the engine; the decision comment is
+        # written by the decision itself.
         return super()._fix_guarded_fields() | {
+            "name",
+            "company_id",
+            "instance_id",
+            "task_type",
+            "created_at",
+            "assigned_to_id",
             "state",
             "decision",
             "decided_at",
             "request_id",
             "assigned_user_id",
             "on_behalf_of_id",
+            "activity_id",
             "res_model",
             "res_id",
             "due_at",
@@ -1076,6 +1322,90 @@ class FixWorkflowTask(models.Model):
             )
         if self.request_id and self.request_id.state != "pending":
             raise UserError("The approval request is no longer pending.")
+        if self.request_id:
+            # A11 audit E4 (M63-4): whoever routed it here, the requester,
+            # the record's creator and the amount-changer never decide it,
+            # nor does a delegate acting for one of them.
+            req = self.request_id.sudo()
+            conflicted = req.requested_by_id | req.record_creator_id | req.amount_changed_by_id
+            acting = self.env.user | self.on_behalf_of_id
+            if conflicted & acting:
+                raise UserError(
+                    "Segregation of duties: %s requested, raised or changed %s and cannot "
+                    "decide its approval." % ((conflicted & acting)[:1].name, req.res_name)
+                )
+
+    # ---- delegation at the moment of decision (A11 audit E2, M63-5) ----------
+    def _delegation_lapsed(self) -> bool:
+        """A task routed to a delegate is decided only while the delegation
+        holds: active, in date, and a delegate the policy still allows."""
+        self.ensure_one()
+        if not self.on_behalf_of_id:
+            return False
+        Sub = self.env["fix.approval.substitution"].sudo()
+        return not Sub._is_valid_delegation(self.on_behalf_of_id, self.assigned_user_id)
+
+    def _approval_hand_back(self, reason):
+        """Give a delegated task back to the absent approver it was routed for."""
+        for task in self.sudo().filtered(lambda t: t.state == "pending" and t.on_behalf_of_id):
+            principal = task.on_behalf_of_id
+            delegate = task.assigned_user_id
+            req = task.request_id
+            if task.activity_id:
+                task.activity_id.unlink()
+            twin = req.task_ids.filtered(
+                lambda t, p=principal: t.state == "pending" and t.assigned_user_id == p
+            )
+            if twin:
+                # The absent approver already holds a task on this request.
+                task._guarded().write({"state": "cancelled"})
+            else:
+                vals = {
+                    "assigned_user_id": principal.id,
+                    "assigned_to_id": principal.employee_ids[:1].id or False,
+                    "on_behalf_of_id": False,
+                    "activity_id": False,
+                }
+                record = req._record(self.env(su=True)) if req else None
+                if record and hasattr(record, "activity_schedule"):
+                    vals["activity_id"] = record.activity_schedule(
+                        "mail.mail_activity_data_todo",
+                        date_deadline=(task.due_at or fields.Datetime.now()).date(),
+                        summary="Approve %s" % req.name,
+                        note="%s awaits your decision in the M63 approval inbox (handed back "
+                        "from %s)." % (req.res_name, delegate.name),
+                        user_id=principal.id,
+                    ).id
+                task._guarded().write(vals)
+            if req:
+                req._log(
+                    "handed_back",
+                    user=principal,
+                    comment="%s; task handed back from %s to %s"
+                    % (reason, delegate.name, principal.name),
+                )
+
+    @api.model
+    def _handed_back_notice(self, tasks):
+        if not tasks:
+            return True
+        return {
+            "type": "ir.actions.client",
+            "tag": "display_notification",
+            "params": {
+                "title": "Delegation no longer valid",
+                "message": "Your delegation for %s has ended or no longer qualifies; the "
+                "task went back to %s and was not decided."
+                % (
+                    ", ".join(tasks.mapped("request_id.res_name"))
+                    or ", ".join(tasks.mapped("name")),
+                    ", ".join(tasks.sudo().mapped("assigned_user_id.name")),
+                ),
+                "type": "warning",
+                "sticky": True,
+            },
+            "handed_back": tasks.ids,
+        }
 
     def _decide(self, decision, comment):
         self._guarded().write(
@@ -1090,8 +1420,13 @@ class FixWorkflowTask(models.Model):
             self.activity_id.sudo().unlink()
 
     def action_approve(self, comment=None):
+        handed = self.browse()
         for task in self:
             task._decide_check()
+            if task._delegation_lapsed():
+                task._approval_hand_back("the delegation for this approval is no longer valid")
+                handed |= task
+                continue
             req = task.request_id.sudo()
             if req:
                 # In the approver's env, not the request's sudo one: an apply
@@ -1102,15 +1437,27 @@ class FixWorkflowTask(models.Model):
                     raise UserError("The record this approval was for no longer exists.")
                 # The record's own approve method, in the approver's env, with
                 # the task in context: DOFA tier, SoD and justification apply.
-                record.with_context(**{TASK_KEY: task})._approval_apply()
+                # A11 audit E4 (M63-3): it is APPLIED only by the vote that
+                # completes the request; an earlier vote under 'all' is a dry
+                # run of the same checks.
+                record = record.with_context(**{TASK_KEY: task})
+                if req._completed_by(task):
+                    record._approval_apply()
+                else:
+                    record._approval_check_vote()
             task._decide("approved", comment)
             if req:
                 req.with_user(self.env.user)._task_approved(task, comment)
-        return True
+        return self._handed_back_notice(handed)
 
     def action_reject(self, comment=None):
+        handed = self.browse()
         for task in self:
             task._decide_check()
+            if task._delegation_lapsed():
+                task._approval_hand_back("the delegation for this approval is no longer valid")
+                handed |= task
+                continue
             req = task.request_id.sudo()
             if req and not (comment or "").strip():
                 raise UserError("State why this approval is rejected.")
@@ -1127,14 +1474,21 @@ class FixWorkflowTask(models.Model):
                 record = req._record(self.env)
                 if record:
                     record.with_context(**{TASK_KEY: task})._approval_on_rejected(comment)
-        return True
+                    # A11 audit E4 (M63-3): a rejected request leaves no stamp.
+                    record.sudo()._approval_clear_stamp("rejected in %s" % req.name)
+        return self._handed_back_notice(handed)
 
     def action_return(self, comment=None):
         """Send it back to the requester for more information."""
+        handed = self.browse()
         for task in self:
             task._decide_check()
             if not task.request_id:
                 raise UserError("Only a routed approval can be returned for information.")
+            if task._delegation_lapsed():
+                task._approval_hand_back("the delegation for this approval is no longer valid")
+                handed |= task
+                continue
             if not (comment or "").strip():
                 raise UserError("Say what information is needed.")
             task._decide("returned", comment)
@@ -1146,4 +1500,4 @@ class FixWorkflowTask(models.Model):
                 comment=comment,
                 record_state="returned",
             )
-        return True
+        return self._handed_back_notice(handed)

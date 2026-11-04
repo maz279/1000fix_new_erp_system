@@ -300,7 +300,7 @@ class TestAmountChangerExcluded:
     def test_a_delegate_who_changed_the_amount_is_not_routed_to(self, env, make_user, complaint):
         raiser = make_user()
         absent = make_user(T2, employee=True)
-        delegate = make_user(employee=True)
+        delegate = make_user(T3, employee=True)  # A11 E2: delegate holds the tier
         env["fix.approval.substitution"].create(
             {
                 "absent_approver_id": absent.employee_ids[0].id,
