@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "notification.failed",
-  "description": "Published by cd_contact_centre through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_contact_centre through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -48,7 +48,7 @@
           "type": "integer"
         },
         "error": {
-          "description": "Type not statically derivable from `error` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_notif_delivery.py:580)."
+          "description": "Type not statically derivable at every publish site."
         }
       },
       "additionalProperties": false

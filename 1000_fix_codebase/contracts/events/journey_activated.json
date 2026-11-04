@@ -52,7 +52,7 @@
           "type": "integer"
         },
         "enrolled": {
-          "description": "Type not statically derivable from `enrolled` (addons/domain/b_customer_engagement/cd_campaign/models/fix_journey_runtime.py:195)."
+          "description": "Type not statically derivable from `enrolled` (addons/domain/b_customer_engagement/cd_campaign/models/fix_journey_runtime.py:198)."
         }
       },
       "additionalProperties": false

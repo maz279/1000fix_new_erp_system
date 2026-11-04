@@ -49,7 +49,7 @@
           ]
         },
         "reason": {
-          "description": "Type not statically derivable from `verdict['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:433)."
+          "description": "Type not statically derivable from `verdict['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:703)."
         },
         "basis_attempted": {
           "type": "string"

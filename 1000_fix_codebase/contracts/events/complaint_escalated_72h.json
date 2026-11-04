@@ -35,7 +35,9 @@
         "complaint",
         "severity",
         "operating_unit_id",
-        "hours_open"
+        "hours_open",
+        "escalation_owner_id",
+        "owner_id"
       ],
       "properties": {
         "complaint": {
@@ -52,6 +54,19 @@
         },
         "hours_open": {
           "type": "integer"
+        },
+        "escalation_owner_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "owner_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

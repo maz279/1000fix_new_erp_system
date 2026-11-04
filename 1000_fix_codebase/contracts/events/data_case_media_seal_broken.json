@@ -40,11 +40,7 @@
           "type": "string"
         },
         "witness_user_id": {
-          "type": [
-            "integer",
-            "boolean",
-            "null"
-          ]
+          "type": "integer"
         }
       },
       "additionalProperties": false

@@ -42,13 +42,13 @@
           "type": "string"
         },
         "to_queue": {
-          "description": "Type not statically derivable from `action['queue'].code if action['queue'] else None` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:246)."
+          "description": "Type not statically derivable from `action['queue'].code if action['queue'] else None` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:277)."
         },
         "action": {
-          "description": "Type not statically derivable from `action['action']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:246)."
+          "description": "Type not statically derivable from `action['action']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:277)."
         },
         "reason": {
-          "description": "Type not statically derivable from `action['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:246)."
+          "description": "Type not statically derivable from `action['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workitem.py:277)."
         }
       },
       "additionalProperties": false

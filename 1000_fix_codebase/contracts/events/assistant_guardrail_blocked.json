@@ -44,7 +44,7 @@
           "type": "null"
         },
         "reason": {
-          "description": "Type not statically derivable from `verdict['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_assistant_llm.py:278)."
+          "description": "Type not statically derivable from `verdict['reason']` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_assistant_llm.py:436)."
         }
       },
       "additionalProperties": false

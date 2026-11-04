@@ -48,7 +48,7 @@
           "type": "string"
         },
         "days_remaining": {
-          "description": "Type not statically derivable from `(rec.expires_on - today).days` (addons/domain/h_people/cd_competency/models/fix_competency.py:594)."
+          "description": "Type not statically derivable from `(rec.expires_on - today).days` (addons/domain/h_people/cd_competency/models/fix_competency.py:689)."
         }
       },
       "additionalProperties": false

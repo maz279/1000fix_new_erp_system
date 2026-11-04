@@ -44,10 +44,10 @@
           "type": "string"
         },
         "source_model": {
-          "description": "Type not statically derivable from `source_model` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workstream.py:166)."
+          "description": "Type not statically derivable from `source_model` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workstream.py:190)."
         },
         "source_id": {
-          "description": "Type not statically derivable from `source_id` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workstream.py:166)."
+          "description": "Type not statically derivable from `source_id` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_workstream.py:190)."
         },
         "queue": {
           "type": "string"

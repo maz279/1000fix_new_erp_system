@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "payroll.offcycle_paid",
-  "description": "Published by cd_payroll_bd through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_payroll_bd through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -48,6 +48,12 @@
           "type": "string"
         },
         "batch_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "mfs_disbursement_id": {
           "type": "integer"
         }
       },

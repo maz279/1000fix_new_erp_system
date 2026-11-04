@@ -44,7 +44,7 @@
           "type": "string"
         },
         "reason": {
-          "description": "Type not statically derivable from `reason` (addons/domain/h_people/cd_competency/models/fix_competency.py:479)."
+          "description": "Type not statically derivable from `reason` (addons/domain/h_people/cd_competency/models/fix_competency.py:533)."
         }
       },
       "additionalProperties": false

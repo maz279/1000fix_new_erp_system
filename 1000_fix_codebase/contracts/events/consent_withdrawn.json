@@ -39,13 +39,16 @@
       ],
       "properties": {
         "purpose": {
-          "type": "string"
+          "description": "Type not statically derivable from `rec.purpose` (addons/platform/cd_party_master/models/fix_consent.py:185 via _emit_consent_event() at addons/platform/cd_party_master/models/fix_consent.py:199)."
         },
         "channel": {
-          "type": "string"
+          "description": "Type not statically derivable from `rec.channel` (addons/platform/cd_party_master/models/fix_consent.py:185 via _emit_consent_event() at addons/platform/cd_party_master/models/fix_consent.py:199)."
         },
         "state": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean"
+          ]
         },
         "notice_version": {
           "type": [

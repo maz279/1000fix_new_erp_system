@@ -44,7 +44,10 @@
           "type": "string"
         },
         "lead_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "lead": {
           "type": [

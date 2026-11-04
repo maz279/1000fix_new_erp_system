@@ -49,7 +49,7 @@
           ]
         },
         "presence": {
-          "description": "Type not statically derivable from `status_rec.code` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_routing.py:358)."
+          "description": "Type not statically derivable from `status_rec.code` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_cc_routing.py:375)."
         },
         "receives_work": {
           "type": "boolean"

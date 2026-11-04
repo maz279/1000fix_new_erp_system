@@ -138,9 +138,12 @@ def test_a_reversed_merge_is_not_repointed(env, merged):
 
 def test_the_relay_delivers_to_both_consumers(env):
     Consumer = env["fix.event.consumer"]
-    mine = Consumer.search(
-        [("event_type", "=", "party.merged"), ("module", "=", "cd_service_order")]
+    # the two subscriptions this module declares (data/fix_party_merge_consumers.xml);
+    # a database built by another branch may hold further cd_service_order rows
+    mine = env.ref("cd_service_order.consumer_party_merged_service_order") | env.ref(
+        "cd_service_order.consumer_party_merged_device"
     )
+    assert set(mine.mapped("event_type")) == {"party.merged"}
     assert set(mine.mapped("model")) == {"fix.service.order", "fix.device"}
     (Consumer.search([]) - mine).write({"active": False})
     mine.write({"active_from": env.cr.now() - timedelta(minutes=1)})

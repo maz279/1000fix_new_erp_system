@@ -53,7 +53,7 @@
           ]
         },
         "channel": {
-          "description": "Type not statically derivable from `channel` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:595)."
+          "description": "Type not statically derivable from `channel` (addons/domain/b_customer_engagement/cd_contact_centre/models/fix_contact_centre.py:867)."
         },
         "scale": {
           "type": "string"

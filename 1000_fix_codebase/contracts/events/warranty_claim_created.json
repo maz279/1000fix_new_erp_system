@@ -42,7 +42,7 @@
           "type": "string"
         },
         "order_id": {
-          "description": "Type not statically derivable from `order_id` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:287)."
+          "description": "Type not statically derivable from `order_id` (addons/domain/a_service_delivery/cd_warranty_claims/models/fix_warranty_claims.py:292)."
         },
         "brand_id": {
           "type": "integer"

@@ -44,7 +44,10 @@
           "type": "number"
         },
         "batch_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false
