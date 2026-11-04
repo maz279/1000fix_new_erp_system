@@ -23,8 +23,14 @@ degrades to M61, accepted AR-006 5.4):
   cron; the waiver is an approved, reasoned fix.certification.waiver;
   assessments follow the pass mark; OJT signed off by the mentor; ISO
   evidence submitted and accepted by different users with a file
+- A09 round 2: consumers of certification.expired/.suspended/.revoked
+  (dispatcher to-dos on not-started jobs; starting work re-checks
+  eligibility) and training.passed (competence evidence); the statutory /
+  safety certification class escalated to M59 on lapse; the yearly training
+  budget with routed over-budget approval; the attempt-limit escalation;
+  the repair tier on work orders
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Learning",
@@ -43,6 +49,7 @@ degrades to M61, accepted AR-006 5.4):
         "security/fix_a09_privacy_rules.xml",
         "data/competency_ops_sequences.xml",
         "data/fix_a09_competency_data.xml",
+        "data/fix_a09_m22_r2_data.xml",
         "views/fix_competency_views.xml",
     ],
     "installable": True,

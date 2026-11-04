@@ -27,10 +27,19 @@ SURFACES = {
         "limit": 500,
         "actions": {"action_pass", "action_fail"},
     },
+    # BRU-LMS-09: the attempt that reaches the limit is escalated; a
+    # Training Manager grants the retake.
     "fix.competency.assessment": {
         "order": "assessed_on desc, id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_grant_retake"},
+    },
+    # BRU-LMS-10: the yearly budget, and the routed over-budget request.
+    "fix.training.budget": {"order": "year desc, company_id", "limit": 50, "actions": set()},
+    "fix.training.budget.exception": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
     },
     "fix.learning.path": {"order": "name", "limit": 100, "actions": set()},
     "fix.ojt.record": {

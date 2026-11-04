@@ -35,6 +35,12 @@ TIER_RANK = {"l1": 1, "l2": 2, "l3": 3, "l4": 4}
 
 TRAINING = "cd_competency.group_training"
 VERIFIER = "cd_competency.group_certification_verifier"
+# Who is told when a technician loses a certification a job depends on, and
+# who is escalated to when a statutory / safety certification lapses (M59).
+DISPATCHER = "cd_field_service.group_fix_field_service_manager"
+HSE_OFFICER = "cd_hse.group_hse_officer"
+# Work orders that have not started: the gate re-checks them when they start.
+WORK_ORDER_OPEN = ("pending", "assigned")
 
 TIERS = [
     ("l1", "L1 - Modular Replacement"),
@@ -72,6 +78,44 @@ def require_group(env, xmlid, what):
         return
     group = env.ref(xmlid, raise_if_not_found=False)
     raise AccessError("%s needs the %s role." % (what, group.name if group else xmlid))
+
+
+def group_users(env, xmlid, company=None):
+    """Active internal holders of a group (empty when it is not installed)."""
+    group = env.ref(xmlid, raise_if_not_found=False)
+    if not group:
+        return env["res.users"]
+    users = group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+    if company:
+        users = users.filtered(lambda u: company in u.company_ids)
+    return users.sorted("id")
+
+
+def open_activity_once(record, user, summary, note, deadline=None):
+    """A to-do for `user` on `record`, unless the same one is already open."""
+    Activity = record.env["mail.activity"].sudo()
+    if Activity.search_count(
+        [
+            ("res_model", "=", record._name),
+            ("res_id", "=", record.id),
+            ("user_id", "=", user.id),
+            ("summary", "=", summary),
+        ]
+    ):
+        return False
+    record.sudo().activity_schedule(
+        "mail.mail_activity_data_todo",
+        date_deadline=deadline or fields.Date.today(),
+        summary=summary,
+        note=note,
+        user_id=user.id,
+    )
+    return True
+
+
+def licence_checker(employee):
+    """hr.employee._fix_driving_licence when cd_hse provides it, else None."""
+    return getattr(employee, "_fix_driving_licence", None)
 
 
 def expiry_lead_days(env):
@@ -143,6 +187,16 @@ class FixCompetency(models.Model):
         string="Validity (months)",
         help="Expiry of a certificate issued after a training pass (0 = the verifier "
         "types the expiry date).",
+    )
+    # BRU-LMS-07 / FR-LMS-015: electrical, refrigerant and gas-handling work
+    # needs a statutory or safety certification; its lapse is escalated to
+    # Health & Safety (M59), not only blocked.
+    certification_class = fields.Selection(
+        [("standard", "Operational"), ("safety", "Statutory / Safety")],
+        string="Certification Class",
+        required=True,
+        default="standard",
+        help="Statutory / Safety: a lapse is escalated to the HSE Officers (M59).",
     )
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
@@ -550,9 +604,50 @@ class FixCertification(models.Model):
                 "certification.expired",
                 "fix.certification",
                 rec.id,
-                {"employee": rec.employee_id.name, "competency": rec.competency_id.code},
+                {
+                    "employee": rec.employee_id.name,
+                    "employee_id": rec.employee_id.id,
+                    "competency": rec.competency_id.code,
+                },
             )
+        lapsed.filtered(
+            lambda r: r.competency_id.certification_class == "safety"
+        )._fix_escalate_safety_lapse()
         return lapsed
+
+    def _fix_escalate_safety_lapse(self):
+        """BRU-LMS-07: a lapsed statutory / safety certification is escalated
+        to Health & Safety: a to-do for each HSE Officer (the Training
+        Managers when M59 is not installed or has no officer) and an event
+        M59 can consume."""
+        for rec in self.sudo():
+            emp = rec.employee_id
+            users = group_users(self.env, HSE_OFFICER, rec.company_id) or group_users(
+                self.env, TRAINING, rec.company_id
+            )
+            summary = "Safety certification lapsed: %s / %s" % (emp.name, rec.competency_id.code)
+            for user in users - emp.user_id:
+                open_activity_once(
+                    rec,
+                    user,
+                    summary,
+                    "The statutory / safety certification %s of %s lapsed on %s. The "
+                    "technician is blocked from work that needs it; record the HSE "
+                    "follow-up (M59)." % (rec.competency_id.name, emp.name, rec.expires_on),
+                )
+            publish(
+                self.env,
+                "certification.safety_lapsed",
+                "fix.certification",
+                rec.id,
+                {
+                    "employee_id": emp.id,
+                    "certification_id": rec.id,
+                    "competency": rec.competency_id.code,
+                    "expired_on": str(rec.expires_on or ""),
+                },
+            )
+        return True
 
     def action_mark_expired(self):
         """Manual sweep of the selected certifications (the cron does it daily)."""
@@ -607,6 +702,33 @@ class FixCertification(models.Model):
 
     # ---- FR-LMS-039 -----------------------------------------------------------
     @api.model
+    def _fix_driving_licence_problem(self, employee, day):
+        """FR-HSE-019 / BRU-HSE-07: vehicle-based work needs a driving licence
+        valid on `day`. The licence lives in M59/M46 (cd_hse provides
+        hr.employee._fix_driving_licence); cd_competency does not depend on
+        it, so a check that cannot run FAILS CLOSED. None when the licence
+        is valid."""
+        emp = employee.sudo()
+        check = licence_checker(emp)
+        if check is None:
+            return (
+                "FR-HSE-019: the job needs a vehicle and no driving-licence check is "
+                "installed (fail-closed)"
+            )
+        try:
+            licence, reason = check(day)
+        except Exception as exc:  # the licence register itself is unavailable
+            return (
+                "FR-HSE-019: the driving licence of %s could not be checked (%s; "
+                "fail-closed)" % (emp.name, exc)
+            )
+        if not licence:
+            return "FR-HSE-019: vehicle-based work refused: %s" % (
+                reason or "no valid driving licence"
+            )
+        return None
+
+    @api.model
     def dispatch_eligibility(
         self,
         employee,
@@ -614,6 +736,7 @@ class FixCertification(models.Model):
         brand_id=None,
         repair_tier=None,
         fail_closed=False,
+        requires_vehicle=False,
     ):
         """FR-LMS-039 — the dispatch eligibility check (brand + device + tier aware).
 
@@ -625,6 +748,10 @@ class FixCertification(models.Model):
         if not employee:
             return False, "no technician assigned"
         today = fields.Date.today()
+        if requires_vehicle:
+            problem = self._fix_driving_licence_problem(employee, today)
+            if problem:
+                return False, problem
         certs = self.search(
             [
                 ("employee_id", "=", employee.id),
@@ -697,6 +824,19 @@ class FixCertification(models.Model):
                 for comp in scoped:
                     if comp.id in held:
                         return True, "certified for %s" % device_type
+                short = tier_blocked.filtered(lambda c: c.competency_id in scoped)
+                if short:
+                    held_tier = short[0].repair_tier or short[0].competency_id.repair_tier
+                    return False, (
+                        "FR-LMS-039: %s is certified for %s at tier %s, below the %s "
+                        "required by this job"
+                        % (
+                            employee.name,
+                            device_type,
+                            (held_tier or "?").upper(),
+                            (repair_tier or "?").upper(),
+                        )
+                    )
                 return False, (
                     "FR-LMS-039: %s holds no ACTIVE certification for %s"
                     % (employee.name, device_type)
@@ -736,6 +876,13 @@ class FixTrainingCourse(models.Model):
         "pointer; authoring degrades without M61 (accepted)",
     )
     competency_id = fields.Many2one("fix.competency", string="Certifies Towards")
+    currency_id = fields.Many2one(
+        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+    )
+    # BRU-LMS-10: what one seat costs against the year's training budget.
+    cost_per_seat = fields.Monetary(
+        string="Cost per Seat", currency_field="currency_id", default=0.0
+    )
     enrollment_ids = fields.One2many("fix.training.enrollment", "course_id", string="Enrollments")
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
@@ -951,6 +1098,9 @@ class FixWorkOrderEligibilityExt(models.Model):
     certification_waiver_id = fields.Many2one(
         "fix.certification.waiver", string="Approved Waiver", readonly=True, ondelete="set null"
     )
+    # A09 round 2: the tier the job needs (L1 modular ... L4 firmware); the
+    # eligibility check then demands a certification at that tier or above.
+    repair_tier = fields.Selection(TIERS, string="Required Repair Tier")
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
     def _fix_guarded_fields(self) -> set:
@@ -971,25 +1121,73 @@ class FixWorkOrderEligibilityExt(models.Model):
             return True
         return waiver._fix_covers_target("fix.work.order", self.id, self.technician_id)
 
+    def _fix_certification_problem(self, technician=None):
+        """Why the technician may not take this job (None when they may)."""
+        self.ensure_one()
+        tech = technician or self.technician_id
+        if not tech or (not technician and self._fix_waiver_covers()):
+            return None
+        # order_id is required on fix.work.order, so the device is reachable
+        device = self.sudo().order_id.device_id
+        device_type = device.device_type or None
+        brand = device.device_model_id.brand_id if device and device.device_model_id else None
+        eligible, reason = self.env["fix.certification"].dispatch_eligibility(
+            tech,
+            device_type=device_type,
+            brand_id=brand,
+            repair_tier=self.repair_tier or None,
+            fail_closed=True,
+        )
+        return None if eligible else reason
+
     def action_check_certification(self):
-        # Every record is checked (the loop used to `return True` after the
-        # first one, waving the rest of a multi-record call through).
+        # Every record is checked (the loop used to return after the first
+        # one, waving the rest of a multi-record call through).
         for rec in self:
-            if not rec.technician_id or rec._fix_waiver_covers():
-                continue
-            # order_id is required on fix.work.order, so the device is reachable
-            device_type = rec.order_id.device_id.device_type or None
-            brand = (
-                rec.order_id.device_id.device_model_id.brand_id
-                if rec.order_id.device_id and rec.order_id.device_id.device_model_id
-                else None
-            )
-            eligible, reason = self.env["fix.certification"].dispatch_eligibility(
-                rec.technician_id, device_type=device_type, brand_id=brand, fail_closed=True
-            )
-            if not eligible:
+            reason = rec._fix_certification_problem()
+            if reason:
                 raise UserError("M22 eligibility: assignment blocked — %s" % reason)
         return True
+
+    def _fix_assert_may_start(self):
+        """A job starts only while its technician is still eligible: a
+        certification that lapsed, was suspended or revoked after the
+        assignment stops the work from starting (FR-LMS-013)."""
+        for rec in self:
+            reason = rec._fix_certification_problem()
+            if reason:
+                raise UserError(
+                    "M22 eligibility: work on %s cannot start — %s" % (rec.display_name, reason)
+                )
+        return True
+
+    def _fix_flag_certification_lost(self, certification, event_type):
+        """Consumer side: tell a dispatcher that a not-started job's
+        technician lost the certification it needs. The job is not changed;
+        starting it is refused until it is reassigned or waived."""
+        flagged = self.browse()
+        for rec in self.sudo():
+            if rec.state not in WORK_ORDER_OPEN or not rec.technician_id:
+                continue
+            reason = rec._fix_certification_problem()
+            if not reason:
+                continue
+            users = group_users(self.env, DISPATCHER, rec.company_id) or rec.create_uid
+            summary = "Reassign %s: certification %s" % (
+                rec.display_name,
+                event_type.split(".")[-1],
+            )
+            for user in users[:1]:
+                if open_activity_once(
+                    rec,
+                    user,
+                    summary,
+                    "%s (%s) no longer qualifies for this job: %s. Reassign it or request "
+                    "a certification waiver before work starts."
+                    % (rec.technician_id.name, certification.display_name, reason),
+                ):
+                    flagged |= rec
+        return flagged
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1041,4 +1239,8 @@ class FixWorkOrderEligibilityExt(models.Model):
                     )
             for rec in self:
                 rec.action_check_certification()
+        elif "repair_tier" in vals:
+            self.filtered("technician_id").action_check_certification()
+        if vals.get("state") == "in_progress":
+            self._fix_assert_may_start()
         return result

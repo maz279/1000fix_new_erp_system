@@ -44,3 +44,31 @@ def certify_for_dispatch(env, employee, device_type="smartphone"):
             "expires_on": today + timedelta(days=365),
         }
     )
+
+
+def licence_for_driving(env, employee, expiry_days=365):
+    """Give `employee` a valid driving licence (M46 `fix.driver`: active, with
+    a class and an expiry). Vehicle-based field dispatch checks it
+    (FR-HSE-019, A09 round 2) and fails closed without it. No-op when the
+    fleet register is not installed."""
+    env = env(su=True)
+    if "fix.driver" not in env:
+        return None
+    Driver = env["fix.driver"]
+    driver = Driver.search([("employee_id", "=", employee.id)], limit=1)
+    vals = {
+        "state": "active",
+        "license_class": "light",
+        "license_expiry": fields.Date.today() + timedelta(days=expiry_days),
+    }
+    if driver:
+        driver.write(vals)
+        return driver
+    return Driver.create(
+        {
+            "name": employee.name,
+            "employee_id": employee.id,
+            "license_no": "FX-DL-%d" % employee.id,
+            **vals,
+        }
+    )

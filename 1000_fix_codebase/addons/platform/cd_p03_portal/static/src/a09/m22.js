@@ -31,6 +31,8 @@ export const MODULE = {
       { id: 'M22-catalogue', en: 'Course Catalogue', bn: 'কোর্স তালিকা', t: 'g' },
       { id: 'M22-paths', en: 'Learning Paths', bn: 'শেখার পথ', t: 'g' },
       { id: 'M22-schedule', en: 'Schedule & Attendance', bn: 'সূচি ও উপস্থিতি', t: 'g' },
+      { id: 'M22-budget', en: 'Training Budget', bn: 'প্রশিক্ষণ বাজেট', t: 'g' },
+      { id: 'M22-budget-exceptions', en: 'Over-Budget Requests', bn: 'বাজেট-অতিরিক্ত অনুরোধ', t: 'g' },
       { id: 'M22-ojt', en: 'OJT & Mentoring', bn: 'কর্মস্থল প্রশিক্ষণ', t: 'g' }
     ]},
     { en: 'Evidence', screens: [
@@ -44,7 +46,7 @@ export const MODULE = {
     ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices'] }],
     ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix'] }],
     ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility'] }],
-    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-schedule'] }],
+    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'] }],
     ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt'] }],
     ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso'] }]
   ] }
@@ -52,12 +54,13 @@ export const MODULE = {
 
 export const SCREENS = {
   'M22-framework': { kind: 'model_list', model: 'fix.competency',
-    cols: ['code', 'name', 'brand_id', 'device_category_id', 'repair_tier', 'required_for_dispatch'] },
+    cols: ['code', 'name', 'brand_id', 'device_category_id', 'repair_tier', 'certification_class', 'required_for_dispatch'] },
   'M22-devices': { kind: 'model_list', model: 'fix.device.category',
     cols: ['code', 'name', 'name_bn', 'repair_tier_floor', 'active'] },
   'M22-matrix': { kind: 'table_report', module: 'M22', report: 'skill_gap_heatmap', title: 'Skill Matrix', period: true },
   'M22-assessments': { kind: 'model_list', model: 'fix.competency.assessment',
-    cols: ['name', 'employee_id', 'competency_id', 'assessed_on', 'level', 'score', 'passed'] },
+    cols: ['name', 'employee_id', 'competency_id', 'assessed_on', 'level', 'score', 'passed', 'attempt_escalated', 'retake_granted_by_id'],
+    actions: [{ m: 'action_grant_retake', l: 'Grant Retake (Training Manager)', ask: 'Why a further attempt is allowed', kwarg: 'reason' }] },
   'M22-register': { kind: 'model_list', model: 'fix.certification', stateField: 'state',
     cols: ['employee_id', 'competency_id', 'brand_id', 'device_category_id', 'repair_tier', 'issued_on', 'expires_on', 'evidence_ref', 'approval_state', 'state', 'status'],
     actions: [{ m: 'action_grant', l: 'Request Grant (to Verifier)' }, { m: 'action_recall_approval', l: 'Recall Grant Request' },
@@ -77,13 +80,20 @@ export const SCREENS = {
     actions: [{ m: 'action_suspend', l: 'Hard Block Dispatch (M02)', ask: 'Reason for blocking dispatch', kwarg: 'reason' },
               { m: 'action_reinstate', l: 'Lift Block (verifier)', ask: 'Reason for lifting the block', kwarg: 'reason' }] },
   'M22-catalogue': { kind: 'model_list', model: 'fix.training.course',
-    cols: ['code', 'name', 'competency_id', 'content_ref'],
+    cols: ['code', 'name', 'competency_id', 'cost_per_seat', 'content_ref'],
     actions: [{ m: 'action_enroll', l: 'Enroll Techs', ask: 'Employee ids to enroll, comma-separated', kwarg: 'employees' }] },
   'M22-paths': { kind: 'model_list', model: 'fix.learning.path',
     cols: ['name', 'target_role', 'min_level', 'active'] },
   'M22-schedule': { kind: 'model_list', model: 'fix.training.enrollment', stateField: 'state',
-    cols: ['course_id', 'employee_id', 'completed_on', 'state'],
+    cols: ['course_id', 'employee_id', 'cost', 'budget_year', 'budget_exception_id', 'completed_on', 'evidence_id', 'state'],
     actions: [{ m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' }] },
+  'M22-budget': { kind: 'model_list', model: 'fix.training.budget',
+    cols: ['name', 'year', 'company_id', 'amount', 'consumed', 'remaining'] },
+  'M22-budget-exceptions': { kind: 'model_list', model: 'fix.training.budget.exception', stateField: 'state',
+    cols: ['name', 'course_id', 'year', 'seats', 'amount', 'requested_by_id', 'approval_state', 'state'],
+    actions: [{ m: 'action_request_approval', l: 'Request Approval (Training Budget Approver)' },
+              { m: 'action_recall_approval', l: 'Recall Approval' },
+              { m: 'action_cancel', l: 'Cancel' }] },
   'M22-ojt': { kind: 'model_list', model: 'fix.ojt.record',
     cols: ['name', 'employee_id', 'mentor_id', 'date_from', 'hours', 'outcome', 'signed_off_by_id'],
     actions: [{ m: 'action_sign_off', l: 'Mentor Sign-off', ask: 'Outcome: competent, extended or discontinued', kwarg: 'outcome' }] },
@@ -176,6 +186,7 @@ export const SCREENS = {
         note: 'Successful course completion earns this core skill on technician matrix.',
         fields: [
           { name: 'competency_id', label: 'Certifies Towards Competency' },
+          { name: 'cost_per_seat', label: 'Cost per Seat (BDT, against the training budget)' },
           { name: 'operating_unit_id', label: 'Operating Unit' }
         ]
       }
@@ -245,6 +256,7 @@ export const SCREENS = {
           { name: 'device_type', required: true, label: 'Device Family' },
           { name: 'repair_tier', required: true, label: 'Required Repair Tier (L1-L4)' },
           { name: 'required_for_dispatch', label: 'Mandatory for M02 Work Order Dispatch' },
+          { name: 'certification_class', label: 'Certification Class (Statutory / Safety escalates to M59 on lapse)' },
           { name: 'pass_mark', label: 'Assessment Pass Mark (%)' },
           { name: 'attempt_limit', label: 'Assessment Attempt Limit (0 = none)' },
           { name: 'validity_months', label: 'Certificate Validity (months)' }
@@ -315,7 +327,10 @@ export const SCREENS = {
           { name: 'assessed_on', required: true, label: 'Assessment Date' },
           { name: 'level', required: true, label: 'Assessed Repair Level (L1-L4)' },
           { name: 'score', label: 'Practical Score (0-100)' },
-          { name: 'passed', readonly: true, label: 'Assessment Passed (score vs pass mark)' }
+          { name: 'passed', readonly: true, label: 'Assessment Passed (score vs pass mark)' },
+          { name: 'attempt_escalated', readonly: true, label: 'Attempt Limit Reached (escalated)' },
+          { name: 'retake_granted_by_id', readonly: true, label: 'Retake Granted By' },
+          { name: 'retake_reason', readonly: true, label: 'Retake Reason' }
         ]
       }
     ]
@@ -351,7 +366,76 @@ export const SCREENS = {
           { name: 'completed_on', readonly: true, label: 'Completion Date' },
           { name: 'state', readonly: true, label: 'Enrollment State' },
           { name: 'assessment_id', readonly: true, label: 'Qualifying Assessment' },
-          { name: 'certification_id', readonly: true, label: 'Draft Certification' }
+          { name: 'certification_id', readonly: true, label: 'Draft Certification' },
+          { name: 'cost', readonly: true, label: 'Seat Cost (BDT)' },
+          { name: 'budget_year', readonly: true, label: 'Budget Year' },
+          { name: 'budget_exception_id', readonly: true, label: 'Over-Budget Approval' },
+          { name: 'evidence_id', readonly: true, label: 'Competence Evidence (ISO 9001 cl. 7.2)' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-budget': {
+    kind: 'model_form',
+    model: 'fix.training.budget',
+    title: 'Training Budget',
+    back: 'M22-budget',
+    tabs: [
+      { id: 'budget', label: 'Year & Amount', bn: 'বছর ও পরিমাণ', icon: '💰', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'budget',
+        title: 'Yearly Training Budget (BRU-LMS-10)',
+        note: 'Set by the Training Budget Approver. Every enrolment commits its course seat cost; past the budget an enrolment needs an approved over-budget request. No budget for a year means none is ruled.',
+        fields: [
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'year', required: true, label: 'Year' },
+          { name: 'amount', required: true, label: 'Budget (BDT)' },
+          { name: 'consumed', readonly: true, label: 'Committed (BDT)' },
+          { name: 'remaining', readonly: true, label: 'Remaining (BDT)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-budget-exception': {
+    kind: 'model_form',
+    model: 'fix.training.budget.exception',
+    title: 'Over-Budget Training Request',
+    back: 'M22-budget-exceptions',
+    status: { field: 'state', labels: {
+      draft: 'Draft', pending: 'Awaiting Approval', approved: 'Approved',
+      rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'request', label: 'Request', bn: 'অনুরোধ', icon: '📝', badge: '5' },
+      { id: 'decision', label: 'Decision', bn: 'সিদ্ধান্ত', icon: '🖋️', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'request',
+        title: 'Seats Past the Budget',
+        note: 'Raised by a Training Manager; decided from the approval inbox by the Training Budget Approver, never by the requester or a technician it names.',
+        fields: [
+          { name: 'course_id', required: true, label: 'Course' },
+          { name: 'year', required: true, label: 'Budget Year' },
+          { name: 'seats', required: true, label: 'Seats' },
+          { name: 'amount', readonly: true, label: 'Over-Budget Amount (BDT)' },
+          { name: 'reason', required: true, type: 'text', label: 'Justification' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Routed Approval',
+        note: 'An approved request lets the named technicians (or any, when none is named) take up to its seats.',
+        fields: [
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' }
         ]
       }
     ]
@@ -464,7 +548,9 @@ export const FORM_CHIPS = {
     'fix.competency.assessment': 'M22-form-assessment',
     'fix.training.enrollment': 'M22-form-enrollment',
     'fix.ojt.record': 'M22-form-ojt',
-    'fix.audit.evidence': 'M22-form-evidence'
+    'fix.audit.evidence': 'M22-form-evidence',
+    'fix.training.budget': 'M22-form-budget',
+    'fix.training.budget.exception': 'M22-form-budget-exception'
   },
   'M22:__by_screen__': {
     'M22-framework': 'M22-form-competency',
@@ -476,7 +562,9 @@ export const FORM_CHIPS = {
     'M22-paths': 'M22-form-path',
     'M22-schedule': 'M22-form-enrollment',
     'M22-ojt': 'M22-form-ojt',
-    'M22-iso': 'M22-form-evidence'
+    'M22-iso': 'M22-form-evidence',
+    'M22-budget': 'M22-form-budget',
+    'M22-budget-exceptions': 'M22-form-budget-exception'
   }
 };
 

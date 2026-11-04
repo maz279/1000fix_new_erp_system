@@ -98,7 +98,8 @@ def test_expiry_sweep_lapses_expired_certificates(ctx):
     assert (lapsed.status, valid.status) == ("expired", "active")
     assert (lapsed.state, valid.state) == ("lapsed", "valid")
     assert _events(ctx.env, "certification.expired", lapsed.id) == [
-        {"employee": "Tech Mamun", "competency": "SP-L2"}
+        # employee_id lets the round-2 consumer find the technician's jobs
+        {"employee": "Tech Mamun", "employee_id": ctx.tech.id, "competency": "SP-L2"}
     ]
     assert _events(ctx.env, "certification.expired", valid.id) == []
 
