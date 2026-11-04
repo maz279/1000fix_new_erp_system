@@ -14,6 +14,7 @@ from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_hr_core.tests.residency_memory import install
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a09 import m21 as m21_surfaces
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -102,6 +103,13 @@ def _events(env, event_type, aggregate_id=None):
     if aggregate_id is not None:
         domain.append(("aggregate_id", "=", aggregate_id))
     return [json.loads(r.payload) for r in env["fix.event.outbox"].search(domain, order="id")]
+
+
+@pytest.fixture(autouse=True)
+def residency(monkeypatch):
+    """NID / birth registration / e-TIN go to the resident store (round 2);
+    an in-memory store stands in so the values round-trip in these tests."""
+    return install(monkeypatch)
 
 
 @pytest.fixture
@@ -1092,7 +1100,11 @@ def test_line_manager_reads_own_reports_movement_only(w):
 
 def test_bank_and_identity_changes_are_tracked(w):
     """M21-9 / BRU-HCM-07: a bank change wrote 0 tracking rows. Tracking is
-    written at commit (precommit hook), which the test runs explicitly."""
+    written at commit (precommit hook), which the test runs explicitly.
+
+    Round 2: the NID is held in the resident store, so its change is on the
+    history as a note naming the field; a tracking row would have copied the
+    number into the regional database (old and new value in clear)."""
     target = _emp(w.env)
     w.env.cr.precommit.run()
     Tracking = w.env["mail.tracking.value"].sudo()
@@ -1102,7 +1114,11 @@ def test_bank_and_identity_changes_are_tracked(w):
     w.env.cr.precommit.run()
     rows = Tracking.search([("mail_message_id.res_id", "=", target.id)])
     assert len(rows) > before
-    assert {"routing_number", "nid_number"} <= set(rows.mapped("field_id.name"))
+    assert "routing_number" in set(rows.mapped("field_id.name"))
+    assert "1234567812" not in (rows.mapped("new_value_char") + rows.mapped("old_value_char"))
+    notes = target.message_ids.mapped("body")
+    assert any("NID recorded" in (b or "") for b in notes)
+    assert not any("1234567812" in (b or "") for b in notes)
 
 
 def test_workspace_form_locks_the_payroll_channel(w, call):

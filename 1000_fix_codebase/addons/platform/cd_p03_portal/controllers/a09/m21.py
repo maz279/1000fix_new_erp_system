@@ -82,6 +82,8 @@ SURFACES = {
             "action_cancel",
             # defined by cd_payroll_bd (M56): pays the pinned settlement
             "action_create_settlement_payment",
+            # A09 round 2: BLA s.31, issued by HR on a cleared exit
+            "action_issue_service_certificate",
         },
     },
     "fix.hr.document": {
@@ -128,6 +130,19 @@ SURFACES = {
             "action_suspend",
             "action_end_suspension",
             "action_withdraw",
+        },
+    },
+    # A09 round 2: BLA s.27(3A) absence without leave. The deemed resignation
+    # (action_deem_resigned) is decided from the executive's approval inbox.
+    "fix.hr.abandonment": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_issue_notice",
+            "action_record_explanation",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
         },
     },
 }
@@ -424,8 +439,76 @@ def form6a_register(env, date_from=None, date_to=None, **params):
     )
 
 
+def identity_access_log(env, date_from=None, date_to=None, **params):
+    """Who read which employee's NID, birth registration or e-TIN (BRU-HCM-07),
+    read as the caller: the log is the HR Manager's, others are refused."""
+    domain = []
+    if date_from:
+        domain.append(("read_at", ">=", "%s 00:00:00" % date_from))
+    if date_to:
+        domain.append(("read_at", "<=", "%s 23:59:59" % date_to))
+    logs = env["fix.hr.identity.access.log"].search(domain, limit=2000)
+    labels = dict(env["fix.hr.identity.access.log"]._fields["field_name"].selection)
+    rows = [
+        {
+            "read_at": str(log.read_at),
+            "user": log.user_id.name,
+            "employee": log.employee_name or "",
+            "field": labels.get(log.field_name, log.field_name),
+            "purpose": log.purpose or "",
+            "superuser": "Yes" if log.as_superuser else "No",
+        }
+        for log in logs
+    ]
+    return _pack(
+        "Identity Read Log — %d reads" % len(rows),
+        ["read_at", "user", "employee", "field", "purpose", "superuser"],
+        {
+            "read_at": "Read At",
+            "user": "Read By",
+            "employee": "Employee",
+            "field": "Identifier",
+            "purpose": "Purpose",
+            "superuser": "System Context",
+        },
+        rows,
+        [
+            "BRU-HCM-07: every read of an NID, birth registration or e-TIN value is logged; "
+            "the log is append-only and never shows the value."
+        ],
+        empty="No identity value was read in the period.",
+    )
+
+
+def data_cleanup(env, date_from=None, date_to=None, **params):
+    """Data clean-up findings for the business to decide (read-only)."""
+    rows = env["hr.employee"].fix_data_cleanup_findings()
+    counts = {}
+    for row in rows:
+        counts[row["category"]] = counts.get(row["category"], 0) + 1
+    return _pack(
+        "Data Clean-up Findings — %d" % len(rows),
+        ["category", "employee", "records", "detail"],
+        {
+            "category": "Finding",
+            "employee": "Employee",
+            "records": "Records",
+            "detail": "Detail",
+        },
+        [{k: r[k] for k in ("category", "employee", "records", "detail")} for r in rows],
+        [
+            "Read-only: nothing is changed. Which record survives, which leave is "
+            "cancelled and who re-verifies a flag is the business's decision.",
+            "; ".join("%s: %d" % kv for kv in sorted(counts.items())) or "No findings.",
+        ],
+        empty="No clean-up findings.",
+    )
+
+
 REPORTS = {
     "form6a_register": form6a_register,
+    "identity_access_log": identity_access_log,
+    "data_cleanup": data_cleanup,
     "headcount_movement": headcount_movement,
     "attrition_analysis": attrition_analysis,
     "probation_conversion": probation_conversion,

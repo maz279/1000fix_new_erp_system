@@ -12,6 +12,9 @@ CRONS = {
     "cd_hr_core.ir_cron_m21_last_working_day": "_cron_process_last_working_days",
     "cd_hr_core.ir_cron_m21_settlement_due": "_cron_flag_overdue_settlements",
     "cd_hr_core.ir_cron_m21_disciplinary_deadlines": "_cron_disciplinary_deadlines",
+    # A09 round 2
+    "cd_hr_core.ir_cron_m21_abandonment_timeline": "_cron_abandonment_timeline",
+    "cd_hr_core.ir_cron_m21_identity_residency": "_cron_identity_residency_move",
 }
 GROUPS = (
     "cd_hr_core.group_hr_legal_counsel",
@@ -32,6 +35,10 @@ ACLS = (
     "cd_hr_core.access_fix_hr_master_change_officer",
     "cd_hr_core.access_fix_hr_disciplinary_case_officer",
     "cd_hr_core.access_fix_hr_disciplinary_case_executive",
+    # A09 round 2
+    "cd_hr_core.access_fix_hr_identity_access_log_manager",
+    "cd_hr_core.access_fix_hr_abandonment_officer",
+    "cd_hr_core.access_fix_hr_abandonment_executive",
 )
 M21_MODELS = (
     "hr.employee",
@@ -43,6 +50,7 @@ M21_MODELS = (
     "fix.hr.experience",
     "fix.hr.master.change",
     "fix.hr.disciplinary.case",
+    "fix.hr.abandonment",
 )
 
 
@@ -131,3 +139,35 @@ def test_the_mover_consumer_is_subscribed(odoo_env):
         "consume_employee_moved",
         True,
     )
+
+
+def test_the_role_change_consumer_is_subscribed(odoo_env):
+    sub = odoo_env.ref("cd_hr_core.event_consumer_employee_role_changed_review")
+    assert (sub.event_type, sub.model, sub.method, sub.active) == (
+        "employee.role_changed",
+        "hr.employee",
+        "consume_employee_role_changed",
+        True,
+    )
+
+
+def test_round2_surfaces_actions_and_reports_are_served():
+    actions = {model: conf["actions"] for model, conf in a09.SURFACES.items()}
+    assert "action_issue_service_certificate" in actions["fix.hr.exit"]
+    assert {"action_issue_notice", "action_record_explanation", "action_request_approval"} <= (
+        actions["fix.hr.abandonment"]
+    )
+    assert "action_deem_resigned" not in actions["fix.hr.abandonment"]  # inbox only
+    assert "fix.hr.abandonment" in form_fields.surface_models("a09")
+    assert {"identity_access_log", "data_cleanup"} <= set(m21.REPORTS)
+
+
+def test_the_identity_hash_key_exists_and_the_fields_are_not_stored(odoo_env):
+    """The HMAC key is created at install; the three identifiers are computed
+    (held in the resident store), their hashes and the pointer are stored."""
+    assert odoo_env["ir.config_parameter"].sudo().get_param("cd_hr_core.identity_hash_key")
+    fields_ = odoo_env["hr.employee"]._fields
+    for name in ("nid_number", "tin_number", "birth_reg_number"):
+        assert not fields_[name].store and fields_[name].inverse and fields_[name].search
+    for name in ("nid_hash", "tin_hash", "birth_reg_hash", "residency_ref"):
+        assert fields_[name].store

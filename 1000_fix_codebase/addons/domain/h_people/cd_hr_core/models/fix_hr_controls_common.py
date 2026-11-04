@@ -48,6 +48,14 @@ CLEAR_IT = "cd_hr_core.group_clearance_it"
 CLEAR_ASSETS = "cd_hr_core.group_clearance_assets"
 
 
+def mask(value):
+    """An identifier for a generated document: only its last four characters."""
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    return "*" * max(len(value) - 4, 0) + value[-4:]
+
+
 def check_format(value, pattern, label):
     """Raise a clear message when `value` (if any) does not match `pattern`."""
     if value and not pattern.match(str(value).strip()):

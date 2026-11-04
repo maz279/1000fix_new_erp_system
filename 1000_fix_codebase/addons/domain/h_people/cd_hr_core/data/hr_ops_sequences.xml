@@ -36,5 +36,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_hr_abandonment" model="ir.sequence">
+            <field name="name">Absence Without Leave Case (s.27(3A))</field>
+            <field name="code">fix.hr.abandonment</field>
+            <field name="prefix">HAB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

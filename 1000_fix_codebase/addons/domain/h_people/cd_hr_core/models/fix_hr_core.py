@@ -7,6 +7,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import get_migration_manager, normalize_bus_event, publish
 
+from .fix_hr_controls_common import mask
+
 # Bangladesh Labour Act 2006 statutory leave entitlements (SC-008, DoD-17), in days
 STATUTORY_LEAVE = {
     "casual": 10,  # s. 115 casual leave with full wages (non-cumulative)
@@ -82,11 +84,9 @@ class HrEmployeeCdCoreExt(models.Model):
     )
 
     # Statutory Identifiers & Tax Compliance (ITA 2023 Sections 261 & 264 PSR)
-    birth_reg_number = fields.Char(
-        string="17-Digit Birth Registration Number",
-        help="Birth Registration Certificate number (BRIS)",
-        groups=HR_PRIVATE,
-    )
+    # birth_reg_number, nid_number and tin_number are held in the
+    # Bangladesh-resident store (A09 M21-A6, BRU-HCM-06): see
+    # fix_hr_identity_residency.py. hr_employee keeps a pointer and a keyed hash.
     psr_ack_number = fields.Char(
         string="Tax Return Ack No (PSR)",
         help="Proof of Submission of Return (Section 264, Income Tax Act 2023)",
@@ -158,11 +158,8 @@ class HrEmployeeCdCoreExt(models.Model):
         help="Additional BDT 50,000 exemption per disabled child under Finance Act",
         groups=HR_PRIVATE,
     )
-    passport_number = fields.Char(
-        string="International Passport Number",
-        help="International Passport Number",
-        groups=HR_PRIVATE,
-    )
+    # passport_number: held in the Bangladesh-resident store
+    # (fix_hr_identity_residency.py)
     driving_license_no = fields.Char(
         string="BRTA Driving License Number",
         help="Driving license number for field mobility",
@@ -460,7 +457,7 @@ class HrEmployeeCdCoreExt(models.Model):
         default="spouse",
         groups=HR_PRIVATE,
     )
-    nominee_nid = fields.Char(string="Nominee National ID / Birth Reg", groups=HR_PRIVATE)
+    # nominee_nid: held in the Bangladesh-resident store (fix_hr_identity_residency.py)
     nominee_pct = fields.Float(
         string="Nominee Share % (BLA s.19 & 131)", default=100.0, groups=HR_PRIVATE
     )
@@ -590,18 +587,6 @@ class HrEmployeeCdCoreExt(models.Model):
         string="Religion",
         help="Religion (Required for statutory festival holiday bonus entitlement rules)",
         groups=HR_PRIVATE,
-    )
-    nid_number = fields.Char(
-        string="National ID (NID / Smart Card)",
-        help="10-digit smart card or 17-digit national identity number",
-        groups=HR_PRIVATE,
-        tracking=True,
-    )
-    tin_number = fields.Char(
-        string="e-TIN Number",
-        help="12-digit Taxpayer Identification Number for NBR withholding (Form 23)",
-        groups=HR_PRIVATE,
-        tracking=True,
     )
     tax_zone = fields.Char(
         string="NBR Tax Zone",
@@ -777,14 +762,16 @@ class HrEmployeeCdCoreExt(models.Model):
         """BLR 2015 Rule 21 / BLA 2006 s.6-9: Generate Form 7 Service Book entry and reset 15-day clock."""
         docs = self.env["fix.hr.document"]
         today = fields.Date.context_today(self)
-        for rec in self:
+        for rec in self.with_context(fix_identity_read_purpose="Form 7 service book (masked)"):
             payload = (
                 f"FORM 7 - SERVICE BOOK (Bangladesh Labour Rules 2015, Rule 21)\n"
                 f"Service Book No: {rec.service_book_number or 'SB-' + (rec.employee_code or str(rec.id))}\n"
                 f"Worker Name: {rec.name}\n"
                 f"Father's Name: {rec.father_name or ''}\n"
                 f"Mother's Name: {rec.mother_name or ''}\n"
-                f"NID / Smart Card: {rec.nid_number or ''}\n"
+                # an unsigned generated draft carries the last four digits only;
+                # the signed service book is the record (fix.hr.document)
+                f"NID / Smart Card: {mask(rec.nid_number)}\n"
                 f"Identification Mark: {rec.identification_mark or ''}\n"
                 f"Designation / Band: {rec.job_title or ''} ({rec.job_band or ''})\n"
                 f"Joining Date: {rec.joining_date or ''}\n"
@@ -854,7 +841,10 @@ class HrEmployeeCdCoreExt(models.Model):
     @api.model
     def action_export_form6a_register(self, domain=None):
         """BLR 2015 Rule 20 / BLA 2006 s.9: Export Form 6(a) Worker Register."""
-        emps = self.search(domain or [])
+        # every NID read is logged (BRU-HCM-07); this names why it was read
+        emps = self.with_context(fix_identity_read_purpose="Form 6(a) register").search(
+            domain or []
+        )
         rows = []
         for idx, emp in enumerate(emps, start=1):
             rows.append(

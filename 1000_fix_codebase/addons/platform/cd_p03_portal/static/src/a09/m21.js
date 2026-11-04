@@ -33,6 +33,7 @@ export const MODULE = {
       { id: 'M21-exit', en: 'Exit & Settlement', bn: 'প্রস্থান', t: 'g' },
       { id: 'M21-master-change', en: 'Master Changes', bn: 'তথ্য পরিবর্তন', t: 'g' },
       { id: 'M21-disciplinary', en: 'Disciplinary', bn: 'শৃঙ্খলা', t: 'g' },
+      { id: 'M21-abandonment', en: 'Absence Without Leave (s.27(3A))', bn: 'বিনা ছুটিতে অনুপস্থিতি', t: 'g' },
       { id: 'M21-movement', en: 'Movement History', bn: 'চলাচলের ইতিহাস', t: 'r' }
     ]},
     { en: 'Documents', screens: [
@@ -42,9 +43,15 @@ export const MODULE = {
     ]},
     { en: 'Self-Service', screens: [
       { id: 'M21-ess', en: 'ESS / MSS', bn: 'স্ব-সেবা', t: 'r' }
+    ]},
+    /* A09 round 2: the identity read log (HR Manager) and the read-only
+     * clean-up findings the business decides from. */
+    { en: 'Governance', screens: [
+      { id: 'M21-rpt-identity-log', en: 'Identity Read Log', bn: 'পরিচয় তথ্য পাঠের লগ', t: 'r' },
+      { id: 'M21-rpt-cleanup', en: 'Data Clean-up Findings', bn: 'তথ্য পরিচ্ছন্নতা', t: 'r' }
     ]}
   ],
-  reports: ['Headcount & Movement', 'Attrition Analysis', 'Probation Conversion', 'Establishment Register', 'Org Distribution', 'Form 6(a) Register'],
+  reports: ['Headcount & Movement', 'Attrition Analysis', 'Probation Conversion', 'Establishment Register', 'Org Distribution', 'Form 6(a) Register', 'Identity Read Log', 'Data Clean-up Findings'],
   forms: ['Employee', 'Transfer', 'Promotion', 'Exit Clearance'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
@@ -129,7 +136,19 @@ export const SCREENS = {
       { m: 'action_request_approval', l: 'Route Settlement to Finance', states: ['cleared'] },
       { m: 'action_recall_approval', l: 'Recall Settlement Request', states: ['cleared'] },
       { m: 'action_create_settlement_payment', l: 'Create Settlement Payment (Payroll)', states: ['settled'] },
+      { m: 'action_issue_service_certificate', l: 'Issue Service Certificate (s.31)', states: ['cleared', 'settled'] },
       { m: 'action_cancel', l: 'Cancel', states: ['draft', 'notice'] }
+    ] },
+  /* BLA s.27(3A): HR serves the notice; the cron opens the self-defence
+   * window and routes the deemed resignation to the executive's inbox. */
+  'M21-abandonment': { kind: 'model_list', model: 'fix.hr.abandonment', stateField: 'state',
+    cols: ['name', 'employee_id', 'absence_start_date', 'absent_days', 'notice_date', 'reply_due', 'hearing_due', 'approval_state', 'exit_id', 'state'],
+    actions: [
+      { m: 'action_issue_notice', l: 'Serve s.27(3A) Notice', states: ['draft'] },
+      { m: 'action_record_explanation', l: 'Record Explanation / Rejoined', states: ['noticed', 'hearing', 'decision'] },
+      { m: 'action_request_approval', l: 'Request Decision', states: ['hearing'] },
+      { m: 'action_recall_approval', l: 'Recall Decision Request', states: ['decision'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'noticed', 'hearing', 'decision'] }
     ] },
   'M21-movement': { kind: 'table_report', module: 'M21', report: 'headcount_movement', title: 'Movement History', period: true },
   'M21-appointment': { kind: 'model_list', model: 'fix.hr.document',
@@ -155,6 +174,8 @@ export const SCREENS = {
   'M21-rpt-probation': { kind: 'table_report', module: 'M21', report: 'probation_conversion', title: 'Probation Conversion', period: true },
   'M21-rpt-establishment': { kind: 'table_report', module: 'M21', report: 'establishment_register', title: 'Establishment Register', period: true },
   'M21-rpt-form6a': { kind: 'table_report', module: 'M21', report: 'form6a_register', title: 'Form 6(a) Worker Register (BLR r.20)', period: false },
+  'M21-rpt-identity-log': { kind: 'table_report', module: 'M21', report: 'identity_access_log', title: 'Identity Read Log (BRU-HCM-07, HR Manager)', period: true },
+  'M21-rpt-cleanup': { kind: 'table_report', module: 'M21', report: 'data_cleanup', title: 'Data Clean-up Findings (read-only)', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M21-form-employee': {
@@ -919,7 +940,10 @@ export const SCREENS = {
           { name: 'notice_shortfall_treatment', label: 'Notice Shortfall Treatment' },
           { name: 'chief_inspector_notified_on', label: 'Retrenchment: Chief Inspector / CBA Copy Sent' },
           { name: 'disciplinary_case_id', label: 'Disciplinary Case (dismissal)' },
-          { name: 'last_working_day', required: true, label: 'Last Working Day' },
+          { name: 'abandonment_id', label: 'Absence Case (s.27(3A))', readonly: true },
+          { name: 'death_at_work', label: 'Death at Work / Work Accident (s.19: 45 days)' },
+          { name: 'death_certificate_file', label: 'Death Certificate', type: 'file' },
+          { name: 'last_working_day', required: true, label: 'Last Working Day (date of death for s.19)' },
           { name: 'reason', label: 'Separation Reason' },
           { name: 'state', required: true, label: 'Workflow State', readonly: true }
         ]
@@ -948,6 +972,8 @@ export const SCREENS = {
           { name: 'settlement_overdue', label: 'Settlement Overdue', readonly: true },
           { name: 'approval_state', label: 'Finance Approval (M63)', readonly: true },
           { name: 'settled_on', label: 'Settled On', readonly: true },
+          { name: 'nominee_payout_lines', label: 'Nominee Split (s.19, pinned)', readonly: true },
+          { name: 'service_certificate_id', label: 'Service Certificate (s.31)', readonly: true },
           { name: 'currency_id', label: 'Currency' }
         ]
       }
@@ -1197,6 +1223,51 @@ export const SCREENS = {
       }
     ]
   },
+  'M21-form-abandonment': {
+    kind: 'model_form',
+    model: 'fix.hr.abandonment',
+    title: 'Absence Without Leave (BLA s.27(3A))',
+    back: 'M21-abandonment',
+    status: { field: 'state', labels: {
+      draft: 'Draft', noticed: 'Notice Served', hearing: 'Self-Defence Window', decision: 'Awaiting Decision',
+      deemed: 'Deemed Resigned', explained: 'Explained / Rejoined', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'absence', label: 'Absence & Notices', bn: 'অনুপস্থিতি ও নোটিশ', icon: '📅', badge: '9' },
+      { id: 'decision', label: 'Explanation & Decision', bn: 'জবাব ও সিদ্ধান্ত', icon: '⚖️', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'absence',
+        title: 'Absence and the s.27(3A) Timeline',
+        note: 'More than 10 days absent without leave: a notice gives 10 days to explain or rejoin, then 7 more days for self-defence (company settings).',
+        fields: [
+          { name: 'name', label: 'Case Reference', readonly: true },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'absence_start_date', required: true, label: 'First Day of Absence' },
+          { name: 'absent_days', label: 'Days Absent', readonly: true },
+          { name: 'notes', label: 'Attempts to Contact' },
+          { name: 'notice_date', label: 'Notice Served On', readonly: true },
+          { name: 'reply_due', label: 'Explanation Due', readonly: true },
+          { name: 'hearing_notice_date', label: 'Second Notice On', readonly: true },
+          { name: 'hearing_due', label: 'Self-Defence Due', readonly: true }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Explanation and the Routed Decision',
+        note: 'The deemed resignation is decided from the executive approval inbox; the case officer and the worker never decide it. It opens the abandonment exit.',
+        fields: [
+          { name: 'explanation', label: 'Worker Explanation / Rejoining' },
+          { name: 'explanation_received_on', label: 'Explanation Received On', readonly: true },
+          { name: 'approval_state', label: 'Decision Approval (M63)', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_on', label: 'Decided On', readonly: true },
+          { name: 'exit_id', label: 'Exit Opened', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ]
+      }
+    ]
+  },
   'M21-form-disciplinary': {
     kind: 'model_form',
     model: 'fix.hr.disciplinary.case',
@@ -1343,6 +1414,8 @@ export const REPORT_ROUTES = {
   'M21:Probation Conversion': 'M21-rpt-probation',
   'M21:Establishment Register': 'M21-rpt-establishment',
   'M21:Form 6(a) Register': 'M21-rpt-form6a',
+  'M21:Identity Read Log': 'M21-rpt-identity-log',
+  'M21:Data Clean-up Findings': 'M21-rpt-cleanup',
   'M21:Org Distribution': 'M21-orgchart'
 };
 
@@ -1375,7 +1448,8 @@ export const FORM_CHIPS = {
     'fix.hr.education': 'M21-form-education',
     'fix.hr.experience': 'M21-form-experience',
     'fix.hr.master.change': 'M21-form-master-change',
-    'fix.hr.disciplinary.case': 'M21-form-disciplinary'
+    'fix.hr.disciplinary.case': 'M21-form-disciplinary',
+    'fix.hr.abandonment': 'M21-form-abandonment'
   },
   'M21:__by_screen__': {
     'M21-leave-type': 'M21-form-leave-type',
@@ -1390,7 +1464,8 @@ export const FORM_CHIPS = {
     'M21-education': 'M21-form-education',
     'M21-experience': 'M21-form-experience',
     'M21-master-change': 'M21-form-master-change',
-    'M21-disciplinary': 'M21-form-disciplinary'
+    'M21-disciplinary': 'M21-form-disciplinary',
+    'M21-abandonment': 'M21-form-abandonment'
   }
 };
 

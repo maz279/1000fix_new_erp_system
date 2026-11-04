@@ -14,7 +14,7 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_hr_controls_common import NID_RE, OFFICER
+from .fix_hr_controls_common import OFFICER
 
 SERVICE_BOOK_FROZEN = (
     "employee_id",
@@ -154,13 +154,8 @@ class FixHrDependantControls(models.Model):
                     "(BLA s.19 / s.131)." % (rec.employee_id.name, total)
                 )
 
-    @api.constrains("nid")
-    def _check_nid(self):
-        for rec in self:
-            if rec.nid and not NID_RE.match(rec.nid.strip()):
-                raise ValidationError(
-                    "Dependant NID / birth registration %r is not valid." % rec.nid
-                )
+    # The dependant's NID format is checked by its inverse, before the value is
+    # routed to the resident store (fix_hr_identity_residency.py).
 
 
 class FixHrEducationControls(models.Model):

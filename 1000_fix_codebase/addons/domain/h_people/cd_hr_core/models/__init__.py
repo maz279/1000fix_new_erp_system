@@ -6,4 +6,8 @@ from . import fix_people_approval, fix_hr_controls_common, fix_hr_settings
 from . import fix_hr_core, fix_hr_ops, res_users_people
 from . import fix_people_interfaces, fix_leave_controls
 from . import fix_hr_contract_controls, fix_hr_movement_controls, fix_hr_disciplinary
-from . import fix_hr_exit_controls, fix_hr_document_controls, fix_hr_master_controls
+
+# the identity residency before the master controls (they import its IDENTITY)
+from . import fix_hr_exit_controls, fix_hr_document_controls, fix_hr_identity_residency
+from . import fix_hr_master_controls, fix_hr_exit_lifecycles, fix_hr_cleanup_report
+from . import fix_hr_cost_centre

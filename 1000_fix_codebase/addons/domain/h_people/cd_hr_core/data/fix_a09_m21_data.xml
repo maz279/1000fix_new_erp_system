@@ -69,7 +69,43 @@
             <field name="method">consume_employee_moved</field>
             <field name="module">cd_hr_core</field>
         </record>
+
+        <!-- A09 round 2 -->
+        <!-- C3: employee.role_changed opens one role access review. The role to
+             group mapping (fix.role.group_id) is not ruled, so access is
+             re-certified by a person, never changed automatically. -->
+        <record id="event_consumer_employee_role_changed_review" model="fix.event.consumer">
+            <field name="name">M21: open a role-change access review on employee.role_changed</field>
+            <field name="event_type">employee.role_changed</field>
+            <field name="model">hr.employee</field>
+            <field name="method">consume_employee_role_changed</field>
+            <field name="module">cd_hr_core</field>
+        </record>
+        <!-- BLA s.27(3A): unanswered notices move the absence case on and
+             route the deemed-resignation decision. -->
+        <record id="ir_cron_m21_abandonment_timeline" model="ir.cron">
+            <field name="name">M21: absence without leave timeline (s.27(3A) notices and decision)</field>
+            <field name="model_id" ref="model_fix_hr_abandonment"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_abandonment_timeline()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-HCM-06: rows the upgrade could not move (store down then). -->
+        <record id="ir_cron_m21_identity_residency" model="ir.cron">
+            <field name="name">M21: move clear NID / birth registration / e-TIN to the resident store</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_identity_residency_move()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
+
+    <!-- The HMAC key of the identity hashes, created once (never rotated by code). -->
+    <function model="hr.employee" name="_fix_identity_ensure_hash_key"/>
 
     <!-- Every upgrade: re-derive the dossier flags from the verified
          documents (rows saved before they became computed kept "True"). -->

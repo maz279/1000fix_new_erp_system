@@ -35,3 +35,34 @@ class ResCompanyHrSettings(models.Model):
         "rate is not in the A09 benchmark. 0 = not ruled: a suspension cannot start "
         "until labour counsel rules the rate.",
     )
+    # BLA s.27(3A) absence without leave (A09 benchmark §2.3 item 7, Verified [45]):
+    # more than 10 days absent, a notice giving 10 days to explain or rejoin,
+    # then 7 more days for self-defence, then deemed released from the first
+    # day of absence. The 2026 amendment was not read in its gazetted text, so
+    # the three counts are settings holding the verified 2013 text.
+    fix_hr_abandon_absence_days = fields.Integer(
+        string="Abandonment: Days Absent Before the Notice (s.27(3A))",
+        default=10,
+        help="DECISION: BLA s.27(3A) 2013 text (verified): absence of more than 10 days "
+        "without leave or information. Confirm against the 2026 gazette.",
+    )
+    fix_hr_abandon_reply_days = fields.Integer(
+        string="Abandonment: Days to Explain or Rejoin (s.27(3A))",
+        default=10,
+        help="DECISION: BLA s.27(3A) 2013 text (verified): the notice gives 10 days.",
+    )
+    fix_hr_abandon_hearing_days = fields.Integer(
+        string="Abandonment: Further Days for Self-Defence (s.27(3A))",
+        default=7,
+        help="DECISION: BLA s.27(3A) 2013 text (verified): 7 more days before the worker is "
+        "deemed released.",
+    )
+    # BLA s.19 death in service (benchmark §2.3 item 8): after more than 2 years
+    # (2013, verified); the 2026 Act reportedly cuts it to 1 year (Secondary).
+    # Payroll (cd_payroll_bd, I1) computes the benefit and reads this setting.
+    fix_hr_death_benefit_min_service_years = fields.Float(
+        string="Death Benefit: Minimum Continuous Service (years, s.19)",
+        default=2.0,
+        help="DECISION: BLA s.19 2013 text (verified): more than 2 years of continuous "
+        "service. The 2026 amendment reportedly reads 1 year (secondary source only).",
+    )

@@ -24,7 +24,6 @@ from libs.py.fix_events import publish
 
 from .fix_hr_controls_common import (
     BANK_ACCOUNT_RE,
-    BIRTH_REG_RE,
     MFS_RE,
     NID_RE,
     OFFICER,
@@ -32,6 +31,7 @@ from .fix_hr_controls_common import (
     TIN_RE,
     digest,
 )
+from .fix_hr_identity_residency import IDENTITY
 
 _logger = logging.getLogger(__name__)
 
@@ -55,14 +55,12 @@ PAY_FIELDS = (
     "overtime_eligible",
 )
 SENSITIVE_FIELDS = set(BANK_FIELDS) | set(IDENTITY_FIELDS) | set(PAY_FIELDS)
+# NID, birth registration and e-TIN are checked by their inverse, before the
+# value is routed to the resident store (fix_hr_identity_residency.py).
 FORMATS = (
-    ("nid_number", NID_RE, "NID (10, 13 or 17 digits)"),
-    ("birth_reg_number", BIRTH_REG_RE, "Birth registration number (17 digits)"),
-    ("tin_number", TIN_RE, "e-TIN (12 digits)"),
     ("routing_number", ROUTING_RE, "BEFTN routing number (9 digits)"),
     ("mfs_account_number", MFS_RE, "MFS wallet number (01XXXXXXXXX)"),
     ("bank_account_number", BANK_ACCOUNT_RE, "Bank account number (6-20 digits)"),
-    ("nominee_nid", NID_RE, "Nominee NID / birth registration (10, 13 or 17 digits)"),
 )
 # fix.hr.document type -> the dossier flag it evidences
 DOSSIER = {
@@ -165,17 +163,12 @@ class HrEmployeeMasterControls(models.Model):
                 if value and not pattern.match(value.strip()):
                     raise ValidationError("%s: %r is not valid." % (label, value))
 
-    @api.constrains("nid_number", "tin_number", "employee_code", "company_id")
+    @api.constrains("employee_code", "company_id")
     def _check_unique_identifiers(self):
+        # One NID / e-TIN per person is checked through their keyed hash
+        # (fix_hr_identity_residency.py): the values are not in this database.
         Employee = self.sudo().with_context(active_test=False)
         for rec in self.sudo():
-            for name, label in (("nid_number", "NID"), ("tin_number", "e-TIN")):
-                value = (rec[name] or "").strip()
-                if value and Employee.search_count([(name, "=", value), ("id", "!=", rec.id)]):
-                    raise ValidationError(
-                        "This %s is already recorded on another employee: one person, "
-                        "one employee record." % label
-                    )
             code = (rec.employee_code or "").strip()
             if code and Employee.search_count(
                 [
@@ -225,7 +218,11 @@ class HrEmployeeMasterControls(models.Model):
                     changed = [
                         n
                         for n in touched
-                        if rec.sudo()._fix_guard_differs(n, vals[n], rec.sudo()[n])
+                        if (
+                            not rec._fix_identity_unchanged(n, vals[n])
+                            if n in IDENTITY
+                            else rec.sudo()._fix_guard_differs(n, vals[n], rec.sudo()[n])
+                        )
                     ]
                     if not changed:
                         continue
@@ -415,6 +412,77 @@ class HrEmployeeMasterControls(models.Model):
         )
         return True
 
+    # ---- employee.role_changed -> role access review (C3) ---------------------
+    ROLE_REVIEW = "Role change access review"
+
+    @api.model
+    def consume_employee_role_changed(self, event):
+        """Relay consumer of employee.role_changed (cd_employee_core publishes it
+        when primary_role_id or additional_role_ids change).
+
+        A role-to-group mapping exists as a field (fix.role.group_id) but is not
+        ruled: no role of the reconciled register carries a group, and the link
+        "is authored once the reconciled 05-04 register loads, never guessed"
+        (cd_rbac_ext). So nothing is granted or removed automatically. One access
+        review opens for the IT clearance owner (or HR), naming the roles, any
+        group they map to and every SoD control the role set breaches. Idempotent:
+        one open review per employee; superuser only (the relay cron)."""
+        if not self.env.su:
+            raise AccessError("The role-change consumer runs from the event relay only.")
+        payload = event.get("payload") or {}
+        emp_id = payload.get("employee_id")
+        if not emp_id and event.get("aggregate") == "hr.employee":
+            emp_id = event.get("aggregate_id")
+        emp = self.with_context(active_test=False).browse(int(emp_id or 0)).exists()
+        if not emp or emp.left_date or not emp.user_id or not emp.user_id.active:
+            return False
+        if emp.activity_ids.filtered(lambda a: a.summary == self.ROLE_REVIEW):
+            return False
+        roles = emp.primary_role_id | emp.additional_role_ids
+        mapped = roles.filtered("group_id")
+        conflicts = (
+            self.env["fix.sod.control"]
+            .sudo()
+            .search(
+                [
+                    ("role_a_id", "in", roles.ids),
+                    ("role_b_id", "in", roles.ids),
+                    ("active", "=", True),
+                ]
+            )
+            if roles and "fix.sod.control" in self.env
+            else []
+        )
+        lines = [
+            "%s's business roles changed: %s."
+            % (emp.name, ", ".join("%s %s" % (r.code, r.name) for r in roles) or "none"),
+            "Odoo groups these roles map to: %s."
+            % (
+                ", ".join("%s -> %s" % (r.code, r.group_id.display_name) for r in mapped)
+                or "none (no role-to-group mapping is ruled)"
+            ),
+        ]
+        if conflicts:
+            lines.append(
+                "SoD conflicts in this role set: %s."
+                % "; ".join("%s %s (%s)" % (c.code, c.name, c.conflict_action) for c in conflicts)
+            )
+        lines.append(
+            "Re-certify the login %s: its groups must fit the new roles and break no SoD "
+            "control. Nothing was changed automatically." % emp.user_id.login
+        )
+        reviewers = (
+            self.env.ref("cd_hr_core.group_clearance_it").all_user_ids
+            or self.env.ref(OFFICER).all_user_ids
+        ).filtered(lambda u: u.active and not u.share and u != emp.user_id)
+        emp.activity_schedule(
+            "mail.mail_activity_data_todo",
+            summary=self.ROLE_REVIEW,
+            note="\n".join(lines),
+            user_id=(reviewers[:1] or self.env.ref("base.user_admin")).id,
+        )
+        return True
+
 
 class ResPartnerBankEmployeeGuard(models.Model):
     """The salary account itself cannot be rewritten behind the master gate."""
@@ -553,7 +621,8 @@ class FixHrMasterChange(models.Model):
     def _fix_snapshot(self):
         self.ensure_one()
         emp = self.employee_id.sudo()
-        current = {t: emp[t] for t in self._fix_values()}
+        # an identity number is compared by its keyed hash: it is never read here
+        current = {t: emp[IDENTITY[t][2]] if t in IDENTITY else emp[t] for t in self._fix_values()}
         current["bank_account_ids"] = emp.bank_account_ids.ids
         return digest(current)
 
@@ -625,6 +694,7 @@ class FixHrMasterChange(models.Model):
                     "state": "applied",
                     "applied_on": fields.Datetime.now(),
                     "applied_by_id": self.env.uid,
+                    **rec._fix_identity_scrub_vals(),
                 }
             )
             publish(
@@ -637,7 +707,8 @@ class FixHrMasterChange(models.Model):
         return True
 
     def _approval_on_rejected(self, comment):
-        self._guarded().write({"state": "rejected"})
+        for rec in self:
+            rec._guarded().write({"state": "rejected", **rec._fix_identity_scrub_vals()})
 
     def action_cancel(self):
         for rec in self:
@@ -650,5 +721,37 @@ class FixHrMasterChange(models.Model):
             req = rec.approval_request_id.sudo()
             if rec.approval_state == "pending" and req.state == "pending":
                 req._finish("recalled", "recalled", self.env.user, record_state="none")
-            rec._guarded().write({"state": "cancelled"})
+            rec._guarded().write({"state": "cancelled", **rec._fix_identity_scrub_vals()})
         return True
+
+    # ---- identity proposals are not kept once decided (BRU-HCM-06) -------------
+    IDENTITY_PROPOSALS = ("proposed_nid_number", "proposed_tin_number")
+
+    def _fix_identity_scrub_vals(self):
+        """A decided request keeps which identity fields it proposed (on its
+        chatter), never the numbers: those live in the resident store."""
+        self.ensure_one()
+        proposed = [p for p in self.IDENTITY_PROPOSALS if self[p]]
+        if proposed:
+            self.message_post(
+                body="Proposed %s removed from this request on closing (held in the "
+                "Bangladesh-resident store once applied)."
+                % ", ".join(self._fields[p].string for p in proposed),
+                subtype_xmlid="mail.mt_note",
+            )
+        return dict.fromkeys(proposed, False)
+
+    @api.model
+    def _fix_scrub_closed_identity_proposals(self):
+        """Upgrade step: requests decided before this build kept the numbers."""
+        if not self.env.su:
+            raise AccessError("Run by the module upgrade only.")
+        self.flush_model()
+        self.env.cr.execute(
+            "UPDATE fix_hr_master_change SET proposed_nid_number = NULL, "
+            "proposed_tin_number = NULL WHERE state IN ('applied', 'rejected', 'cancelled') "
+            "AND (proposed_nid_number IS NOT NULL OR proposed_tin_number IS NOT NULL)"
+        )
+        scrubbed = self.env.cr.rowcount
+        self.invalidate_model(list(self.IDENTITY_PROPOSALS))
+        return scrubbed
