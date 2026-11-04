@@ -38,7 +38,7 @@
 from datetime import datetime, time, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -52,6 +52,10 @@ MAX_CALENDAR_DAYS = 400
 # raised -- the kind of defect that is invisible on re-reading the code and
 # obvious the first time a test runs.
 WEEKDAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+# A02 audit B3: pausing, resuming, succeeding or cancelling a customer's SLA
+# clock by hand is a supervisor's decision (security/fix_service_order_groups.xml).
+SLA_SUPERVISOR_GROUP = "cd_service_order.group_so_supervisor"
 
 
 class FixSlaItem(models.Model):
@@ -138,9 +142,49 @@ class FixSlaKpiInstance(models.Model):
 
     _name = "fix.sla.kpi.instance"
     _description = "SLA KPI Instance"
-    _inherit = ["mail.thread"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "started_at desc, id desc"
     _rec_name = "display_label"
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit B3: any user marked an SLA Succeeded from P03 (or wrote
+        # state='succeeded' through /p03/model/write). The clock and its
+        # outcome move only through start_for / pause / resume / succeed /
+        # cancel and the breach cron; superuser service code is trusted.
+        return super()._fix_guarded_fields() | {
+            "state",
+            "res_model",
+            "res_id",
+            "policy_id",
+            "item_id",
+            "kpi_code",
+            "calendar_id",
+            "target_hours",
+            "started_at",
+            "target_at",
+            "warn_at",
+            "paused_at",
+            "pause_reason",
+            "elapsed_pause_minutes",
+            "succeeded_at",
+            "breached_at",
+            "warned_at",
+            "cancelled_reason",
+            "supersedes_id",
+            "superseded_by_id",
+            "series_index",
+        }
+
+    def _fix_assert_clock_supervisor(self, verb: str) -> None:
+        """Service code (the order's own transitions, the contact centre, the
+        complaint lifecycle) calls these as superuser; a person needs the
+        Service Supervisor role."""
+        if self.env.su or self.env.user.has_group(SLA_SUPERVISOR_GROUP):
+            return
+        raise UserError(
+            "Only a Service Supervisor can %s an SLA clock by hand; the clock otherwise "
+            "follows the record's own workflow." % verb
+        )
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
@@ -383,6 +427,7 @@ class FixSlaKpiInstance(models.Model):
 
     def pause(self, reason=""):
         """Hold the clock. Records when, so resume can price the hold."""
+        self._fix_assert_clock_supervisor("pause")
         for rec in self:
             if rec.state != "in_progress":
                 raise UserError(
@@ -395,7 +440,7 @@ class FixSlaKpiInstance(models.Model):
                 )
             if not (reason or "").strip():
                 raise UserError("Pausing an SLA clock requires a stated reason.")
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "paused",
                     "paused_at": fields.Datetime.now(),
@@ -429,6 +474,7 @@ class FixSlaKpiInstance(models.Model):
         that was left when the pause began, so the hold costs the customer
         nothing and costs us nothing either.
         """
+        self._fix_assert_clock_supervisor("resume")
         successors = self.browse()
         for rec in self:
             if rec.state != "paused":
@@ -464,7 +510,7 @@ class FixSlaKpiInstance(models.Model):
                     "series_index": rec.series_index + 1,
                 }
             )
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "cancelled",
                     "cancelled_reason": "Resumed after a %.1f business-minute "
@@ -492,10 +538,13 @@ class FixSlaKpiInstance(models.Model):
 
     def succeed(self, when=None):
         """The promise was met."""
+        self._fix_assert_clock_supervisor("succeed")
         for rec in self:
             if rec.state not in ("in_progress", "paused"):
                 continue
-            rec.write({"state": "succeeded", "succeeded_at": when or fields.Datetime.now()})
+            rec._guarded().write(
+                {"state": "succeeded", "succeeded_at": when or fields.Datetime.now()}
+            )
             publish(
                 self.env,
                 "sla.instance_succeeded",
@@ -511,10 +560,11 @@ class FixSlaKpiInstance(models.Model):
         return True
 
     def cancel(self, reason=""):
+        self._fix_assert_clock_supervisor("cancel")
         for rec in self:
             if rec.state in ("succeeded", "breached", "cancelled"):
                 continue
-            rec.write(
+            rec._guarded().write(
                 {
                     "state": "cancelled",
                     "cancelled_reason": reason or "cancelled by %s" % self.env.user.name,
@@ -541,7 +591,7 @@ class FixSlaKpiInstance(models.Model):
         now = fields.Datetime.now()
         breached = self.sudo().search([("state", "=", "in_progress"), ("target_at", "<=", now)])
         for rec in breached:
-            rec.write({"state": "breached", "breached_at": now})
+            rec._guarded().write({"state": "breached", "breached_at": now})
             publish(
                 self.env,
                 "sla.instance_breached",
@@ -566,7 +616,7 @@ class FixSlaKpiInstance(models.Model):
             ]
         )
         for rec in warning:
-            rec.write({"warned_at": now})
+            rec._guarded().write({"warned_at": now})
             publish(
                 self.env,
                 "sla.instance_near_breach",
@@ -581,6 +631,56 @@ class FixSlaKpiInstance(models.Model):
                 },
             )
         return {"breached": len(breached), "warned": len(warning)}
+
+    @api.model
+    def consume_sla_instance_breached(self, event: dict) -> dict:
+        """R8 consumer of sla.instance_breached (A02 audit B3): a breached
+        service-order clock was published and then nothing happened. Each
+        Service Supervisor of the order's branch gets a to-do on the order,
+        once per breached instance."""
+        if not self.env.su:
+            raise AccessError("SLA event consumers run only from the event relay.")
+        payload = event.get("payload") or {}
+        if payload.get("res_model") != "fix.service.order":
+            return {"escalated": 0, "reason": "not a service-order clock"}
+        order = self.env["fix.service.order"].sudo().browse(int(payload.get("res_id") or 0))
+        order = order.exists()
+        if not order or order.state in ("closed", "cancelled"):
+            return {"escalated": 0, "reason": "no open service order"}
+        group = self.env.ref(SLA_SUPERVISOR_GROUP, raise_if_not_found=False)
+        users = order._fix_branch_users(group)
+        summary = "SLA breached: %s (%s)" % (order.name, payload.get("kpi") or "resolution")
+        if not users:
+            order.message_post(
+                body="%s. No Service Supervisor is appointed for this branch to escalate to."
+                % summary
+            )
+            return {"escalated": 0, "reason": "no supervisor"}
+        Activity = self.env["mail.activity"].sudo()
+        escalated = 0
+        for user in users:
+            if Activity.search_count(
+                [
+                    ("res_model", "=", order._name),
+                    ("res_id", "=", order.id),
+                    ("user_id", "=", user.id),
+                    ("summary", "=", summary),
+                ]
+            ):
+                continue  # the relay redelivered: escalate once
+            order.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=summary,
+                note="Overdue by %s minutes against policy %s (target %s)."
+                % (
+                    payload.get("overdue_minutes"),
+                    payload.get("policy") or "-",
+                    payload.get("target_at") or "-",
+                ),
+                user_id=user.id,
+            )
+            escalated += 1
+        return {"escalated": escalated}
 
     def write(self, vals):
         """A finished instance is evidence; its clock fields do not move."""

@@ -76,7 +76,10 @@ export const SCREENS = {
     cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status', 'verification_state', 'verified_at', 'verification_blocker'],
     stateField: 'verification_state',
     actions: [
-      { m: 'action_verify', l: 'Verify Proof' },
+      // A02 audit B1: verification is decided from the Warranty Officer's
+      // M63 inbox; the screen requests it.
+      { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_void', l: 'Void Warranty', ask: 'Reason for voiding', kwarg: 'reason' }
     ] },
   'M09-policies': { kind: 'model_list', model: 'fix.warranty.provision.policy', create: false,
@@ -100,7 +103,10 @@ export const SCREENS = {
   'M09-register': { kind: 'model_list', model: 'fix.warranty', stateField: 'status', create: true,
     cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'deductible', 'status', 'verification_state', 'verification_blocker'],
     actions: [
-      { m: 'action_verify', l: 'Verify Proof' },
+      // A02 audit B1: verification is decided from the Warranty Officer's
+      // M63 inbox; the screen requests it.
+      { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_void', l: 'Void Warranty', ask: 'Reason for voiding', kwarg: 'reason' }
     ] },
   'M09-validate': { kind: 'table_report', module: 'M09', report: 'warranty_validation', title: 'Manufacturer Validation', period: false },

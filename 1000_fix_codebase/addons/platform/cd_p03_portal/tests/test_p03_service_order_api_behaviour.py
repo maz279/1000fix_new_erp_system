@@ -360,7 +360,8 @@ def test_get_order_by_name_without_estimate_or_technician(ctrl, world):
     result = ctrl.get_order(order_name=order.name)
     assert result["order"]["id"] == order.id
     assert result["order"]["technician"] == ""
-    assert result["order"]["sla_resolution_deadline"] is None
+    # A02 audit B3: a default SLA policy ships, so every order carries a clock.
+    assert result["order"]["sla_resolution_deadline"] is not None
     assert result["order"]["grand_total"] is None
     assert result["estimate_lines"] == []
 

@@ -1,5 +1,18 @@
 # fix.work.order — the repair execution unit (P04-M03-T02).
 from odoo import api, fields, models
+from odoo.exceptions import UserError
+
+# A02 audit M01-P2: who may assign a technician. M02's dispatcher role is the
+# dispatcher; it is read by xmlid because cd_field_service depends on this
+# module, not the reverse. Without M02 installed only service code assigns.
+DISPATCHER_GROUP = "cd_field_service.group_fix_field_service_manager"
+
+
+def _is_dispatcher(env) -> bool:
+    if env.su:
+        return True
+    group = env.ref(DISPATCHER_GROUP, raise_if_not_found=False)
+    return bool(group) and env.user.has_group(DISPATCHER_GROUP)
 
 
 class FixWorkOrder(models.Model):
@@ -7,8 +20,45 @@ class FixWorkOrder(models.Model):
 
     _name = "fix.work.order"
     _description = "Work Order"
-    _inherit = ["mail.thread", "mail.activity.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "order_id, sequence"
+
+    def _fix_guarded_fields(self) -> set:
+        # A02 audit M01-P2: any user moved a work order to 'assigned' (or
+        # 'completed') with a plain write, via /p03/dispatch/assign too. The
+        # technician app's job-status endpoint is trusted service code.
+        return super()._fix_guarded_fields() | {"state"}
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not _is_dispatcher(self.env) and any(v.get("technician_id") for v in vals_list):
+            raise UserError("Only a dispatcher assigns a technician to a work order.")
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if "technician_id" in vals and not _is_dispatcher(self.env):
+            changed = self.filtered(
+                lambda w: w.technician_id.id != (vals["technician_id"] or False)
+            )
+            if changed:
+                raise UserError(
+                    "Only a dispatcher assigns or re-assigns the technician of a work order "
+                    "(use Assign Technician)."
+                )
+        return super().write(vals)
+
+    def action_assign(self, technician_id=None):
+        """Assign a technician: dispatcher-only (A02 audit M01-P2)."""
+        if not _is_dispatcher(self.env):
+            raise UserError("Only a dispatcher assigns a technician to a work order.")
+        employee = self.env["hr.employee"].browse(int(technician_id or 0)).exists()
+        if not employee:
+            raise UserError("Choose the technician to assign.")
+        for wo in self:
+            if wo.state in ("completed", "failed"):
+                raise UserError("Work order %s is %s." % (wo.name, wo.state))
+            wo._guarded().write({"technician_id": employee.id, "state": "assigned"})
+        return True
 
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company

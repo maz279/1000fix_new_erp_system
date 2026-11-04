@@ -650,6 +650,13 @@ class P03ServiceOrderApiController(http.Controller):
         return its reason, never a bypass."""
         env = request.env
         _require_internal(env)
+        # A02 audit M01-P2: any user assigned a technician here, on the order
+        # and on its work order. Dispatch is the dispatcher's (M02 role);
+        # fix.work.order refuses the assignment for anyone else as well.
+        from odoo.addons.cd_service_order.models.fix_work_order import _is_dispatcher
+
+        if not _is_dispatcher(env):
+            return {"success": False, "error": "Only a dispatcher assigns a technician."}
         order = env["fix.service.order"].browse(order_id)
         if not order.exists():
             return {"success": False, "error": "Order not found"}
@@ -671,7 +678,7 @@ class P03ServiceOrderApiController(http.Controller):
                 work_order = env["fix.work.order"].search([("order_id", "=", order.id)], limit=1)
                 if not work_order:
                     work_order = env["fix.work.order"].create({"order_id": order.id})
-                work_order.write({"technician_id": employee.id, "state": "assigned"})
+                work_order.action_assign(employee.id)
         except Exception as e:
             logger.exception("Dispatch refused for order %s", order_id)
             gate_markers = ("M22", "M55", "eligibility", "availability", "roster")

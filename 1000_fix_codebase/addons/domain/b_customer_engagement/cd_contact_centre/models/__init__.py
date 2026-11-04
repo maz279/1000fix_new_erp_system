@@ -24,3 +24,7 @@ from . import fix_assistant_llm
 # A03 audit W1: open conversations follow a merged party (extends
 # fix.conversation).
 from . import fix_conversation_party_merge
+
+# A02 audit B2: customer notifications for M01 events (extends
+# fix.notif.delivery).
+from . import fix_m01_notifications

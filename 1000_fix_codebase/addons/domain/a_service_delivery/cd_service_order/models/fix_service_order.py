@@ -8,6 +8,8 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from libs.py.fix_events import publish  # FF-28
+
 from . import fix_otp_util
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,7 @@ CANCEL_REASONS = [
     ("duplicate", "Duplicate Order"),
     ("unrepairable", "Unrepairable"),
     ("customer_unreachable", "Customer Unreachable"),
+    ("abandoned", "Device Abandoned (Uncollected)"),
     ("other", "Other (note required)"),
 ]
 _CANCEL_REASON_KEYS = {key for key, _label in CANCEL_REASONS}
@@ -50,6 +53,17 @@ _CANCEL_REASON_KEYS = {key for key, _label in CANCEL_REASONS}
 GROUP_CASHIER = "cd_service_order.group_so_cashier"
 GROUP_QC_INSPECTOR = "cd_service_order.group_so_qc_inspector"
 GROUP_COMMERCIAL_APPROVER = "cd_service_order.group_so_commercial_approver"
+# A02 audit B3: holds, SLA clock decisions and breach escalations.
+GROUP_SUPERVISOR = "cd_service_order.group_so_supervisor"
+# A02 audit B3: the clock every order gets when no policy matches its
+# channel and priority (data/fix_sla_default_policy.xml).
+DEFAULT_SLA_POLICY = "cd_service_order.sla_policy_m01_default"
+# A02 audit M01-P2 (abandoned path): days after Ready before an uncollected
+# device is flagged abandoned. "0" (the default) switches it off - how long a
+# branch keeps a device is a business decision.
+ABANDON_AFTER_DAYS_PARAM = "cd_service_order.abandon_after_days"
+# States where the resolution clock has already finished: no hold applies.
+_SLA_FINISHED_STATES = ("ready", "delivered", "closed", "cancelled")
 
 # Business switches (ir.config_parameter). Each defaults fail-closed where it is
 # a control, or to today's behaviour where it is commercial policy.
@@ -116,9 +130,12 @@ VALID_TRANSITIONS = {
     "awaiting_approval": {"approved", "cancelled"},
     "approved": {"in_repair", "cancelled"},
     "in_repair": {"qc_pending", "cancelled"},
-    "qc_pending": {"ready", "qc_failed"},
-    "qc_failed": {"in_repair"},
-    "ready": {"delivered"},
+    # A02 audit M01-P2: an order can be cancelled after repair too (the
+    # customer declines to collect, or QC proves it unrepairable), with a
+    # reason; a settled amount is then handed to M20 for refund.
+    "qc_pending": {"ready", "qc_failed", "cancelled"},
+    "qc_failed": {"in_repair", "cancelled"},
+    "ready": {"delivered", "cancelled"},
     "delivered": {"closed"},
     "closed": set(),
     "cancelled": set(),
@@ -188,6 +205,16 @@ class FixServiceOrder(models.Model):
             "cancel_reason_code",
             "cancel_note",
             "cancelled_by",
+            # A02 audit B3: a hold pauses the SLA clock, so it is set only by
+            # Defer / Resume (a supervisor), never by ticking a box.
+            "is_deferred_block",
+            "deferred_reason",
+            # A02 audit M01-P2: the abandoned flag and the Ready stamp it
+            # is measured from.
+            "ready_at",
+            "is_abandoned",
+            "abandoned_at",
+            "abandon_reason",
         }
     )
 
@@ -405,9 +432,13 @@ class FixServiceOrder(models.Model):
     )
 
     # Deferred Repair Block
-    is_deferred_block = fields.Boolean(string="Deferred Repair Hold", default=False, tracking=True)
+    is_deferred_block = fields.Boolean(
+        string="Deferred Repair Hold", default=False, readonly=True, copy=False, tracking=True
+    )
     deferred_reason = fields.Selection(
-        [
+        readonly=True,
+        copy=False,
+        selection=[
             ("parts_backorder", "Parts Backorder (Supply Chain Hold)"),
             ("customer_travel", "Customer Unavailable / Travel"),
             ("disputed_liability", "Liability / Estimate Dispute"),
@@ -417,6 +448,12 @@ class FixServiceOrder(models.Model):
     )
     deferred_until = fields.Date(string="Deferred Resumption Date", tracking=True)
     deferred_notes = fields.Text(string="Deferred Hold Justification")
+    # A02 audit M01-P2: a device left uncollected after Ready
+    # (ABANDON_AFTER_DAYS_PARAM). Flagged by the cron, never typed.
+    ready_at = fields.Datetime(string="Ready Since", readonly=True, copy=False)
+    is_abandoned = fields.Boolean(string="Abandoned (Uncollected)", readonly=True, copy=False)
+    abandoned_at = fields.Datetime(readonly=True, copy=False)
+    abandon_reason = fields.Char(string="Abandonment Reason", readonly=True, copy=False)
 
     # Repair warranty (M01 Quality & Release): the service guarantee 1000FiX
     # issues on completed repairs. Complements the device entitlement in
@@ -915,20 +952,73 @@ class FixServiceOrder(models.Model):
             )
 
     def _check_close_gate(self) -> None:
-        """M01-11: settled (verified, covering the amount due) or credit
-        approved, or a zero-charge entitlement. A warranty job's OEM claim is
-        raised by the close itself (AUT-018 consumes service_order.closed)."""
+        """M01-11: settled (verified, covering the amount due), a paid M20
+        invoice, or credit approved; or a zero-charge entitlement.
+
+        A02 audit M01-P2: a warranty job's OEM claim was raised only AFTER the
+        close (AUT-018 consumed service_order.closed), so a job could close
+        with no claim ever raised. action_close now raises it first
+        (_fix_raise_warranty_claim) and the gate refuses a warranty job with
+        no claim while cd_warranty_claims is installed."""
         self.ensure_one()
-        if self.env.su or self._fix_zero_charge_basis():
+        if self.env.su:
+            return
+        basis = self._fix_zero_charge_basis()
+        if basis:
+            Claim = self.env.get("fix.warranty.claim")
+            if (
+                self.order_category == "warranty"
+                and Claim is not None
+                and not Claim.sudo().search_count([("service_order_id", "=", self.id)])
+            ):
+                raise UserError(
+                    "Warranty order %s cannot be closed before its OEM warranty claim is "
+                    "raised (the claim could not be created: check the device's brand and "
+                    "the order's branch)." % self.name
+                )
             return
         due = self._fix_amount_due()
         if due <= 0 or self.payment_settlement_state == "credit_approved":
             return
-        if not self._fix_settlement_covers(due):
+        if not (self._fix_settlement_covers(due) or self._fix_paid_invoice(due)):
             raise UserError(
-                "Order %s cannot be closed: BDT %.2f is due and no verified settlement "
-                "or approved credit covers it." % (self.name, due)
+                "Order %s cannot be closed: BDT %.2f is due and no verified settlement, "
+                "paid invoice or approved credit covers it." % (self.name, due)
             )
+
+    def _fix_paid_invoice(self, due: float) -> bool:
+        """A paid M20 invoice raised for this order that covers ``due``."""
+        self.ensure_one()
+        Invoice = self.env.get("fix.ar.invoice")
+        if Invoice is None:
+            return False
+        paid = Invoice.sudo().search(
+            [
+                ("source_model", "=", self._name),
+                ("source_id", "=", self.id),
+                ("state", "=", "paid"),
+            ]
+        )
+        return sum(paid.mapped("total_payable")) + 0.005 >= due if paid else False
+
+    def _fix_raise_warranty_claim(self) -> None:
+        """Raise the OEM claim of a warranty job before it closes (A02 audit
+        M01-P2). cd_warranty_claims' own entry point, idempotent per order;
+        a failure leaves the close gate to refuse with the reason."""
+        Claim = self.env.get("fix.warranty.claim")
+        if Claim is None:
+            return
+        for order in self.filtered(lambda o: o.order_category == "warranty"):
+            try:
+                with self.env.cr.savepoint():
+                    Claim.sudo().consume_order_completed(
+                        {
+                            "aggregate_id": order.id,
+                            "payload": {"completed_at": fields.Datetime.now()},
+                        }
+                    )
+            except Exception as exc:  # a NOT NULL from the claim module too
+                logger.warning("Warranty claim not raised for %s: %s", order.name, exc)
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -982,27 +1072,16 @@ class FixServiceOrder(models.Model):
         """Hook for side effects on state changes. ``old_state`` is captured
         before the write: reading ``self.state`` here (after it) recorded every
         history entry as "<new> -> <new>"."""
-        self._emit(f"service_order.{new_state}", self)
+        self._fix_publish_state(new_state)
         self.device_id.add_history(
             "service_order", f"Order {self.name}: {old_state} -> {new_state}", order_id=self.id
         )
         now = fields.Datetime.now()
         stamps = {}
-        # FLAW-01.3: Automatic SLA hold clock pausing during customer estimate approval wait
-        hold_states = {"estimate_sent", "awaiting_approval"}
-        if new_state in hold_states and not self.sla_clock_paused:
-            stamps.update(sla_clock_paused=True, sla_paused_at=now)
-            self._fix_sla_instances("pause", "Awaiting the customer's estimate decision")
-        elif (
-            old_state in hold_states
-            and new_state not in hold_states
-            and not self.is_deferred_block
-            and self.sla_clock_paused
-        ):
-            stamps.update(self._fix_resume_stamps(now))
-            self._fix_sla_instances("resume")
 
         # SLA clock events
+        if new_state == "ready":
+            stamps["ready_at"] = now
         if new_state == "intake" and not self.intake_completed_at:
             stamps["intake_completed_at"] = now
         if new_state == "in_repair" and not self.sla_response_at:
@@ -1017,8 +1096,107 @@ class FixServiceOrder(models.Model):
             self._guarded().write(stamps)
         if new_state == "intake":
             self._fix_start_sla()
-        if new_state in ("ready", "delivered", "closed", "cancelled"):
+        if new_state in _SLA_FINISHED_STATES:
+            if self.sla_clock_paused:
+                self._guarded().write(self._fix_resume_stamps(now))
             self._fix_sla_instances("succeed" if new_state != "cancelled" else "cancel")
+        else:
+            # FLAW-01.3 / A02 audit B3: the hold is derived from the order's
+            # state and system-set facts, never from a field a user edits.
+            self._fix_sync_sla_pause()
+
+    def _fix_publish_state(self, new_state: str) -> None:
+        """One LITERAL publish per state (A02 audit B2): the old
+        _emit(f"service_order.{state}") hid every lifecycle event from the
+        event-registry tooling, which reads publish() call sites."""
+        env, agg, payload = self.env, "fix.service.order", self._fix_event_payload()
+        if new_state == "intake":
+            publish(env, "service_order.intake", agg, self.id, payload)
+        elif new_state == "diagnostic":
+            publish(env, "service_order.diagnostic", agg, self.id, payload)
+        elif new_state == "estimate_pending":
+            publish(env, "service_order.estimate_pending", agg, self.id, payload)
+        elif new_state == "estimate_sent":
+            publish(env, "service_order.estimate_sent", agg, self.id, payload)
+        elif new_state == "awaiting_approval":
+            publish(env, "service_order.awaiting_approval", agg, self.id, payload)
+        elif new_state == "approved":
+            publish(env, "service_order.approved", agg, self.id, payload)
+        elif new_state == "in_repair":
+            publish(env, "service_order.in_repair", agg, self.id, payload)
+        elif new_state == "qc_pending":
+            publish(env, "service_order.qc_pending", agg, self.id, payload)
+        elif new_state == "qc_failed":
+            publish(env, "service_order.qc_failed", agg, self.id, payload)
+        elif new_state == "ready":
+            publish(env, "service_order.ready", agg, self.id, payload)
+        elif new_state == "delivered":
+            publish(env, "service_order.delivered", agg, self.id, payload)
+        elif new_state == "closed":
+            publish(env, "service_order.closed", agg, self.id, payload)
+        elif new_state == "cancelled":
+            publish(env, "service_order.cancelled", agg, self.id, payload)
+
+    def _fix_event_payload(self) -> dict:
+        self.ensure_one()
+        return {
+            "order_id": self.id,
+            "service_order_id": self.id,
+            "name": self.name,
+            "device_id": self.device_id.id,
+            "customer_id": self.customer_id.id,
+            "state": self.state,
+        }
+
+    # --- SLA hold (FLAW-01.3, A02 audit B3) ---
+    def _fix_live_pickup_legs(self):
+        """Pickup consignments still bringing the device to us (cd_consignment,
+        read through the registry: M01 does not depend on M03)."""
+        self.ensure_one()
+        if "consignment_ids" not in self._fields:
+            return self.env["fix.service.order"].browse()
+        return self.sudo().consignment_ids.filtered(
+            lambda c: c.consignment_type == "pickup"
+            and c.state in ("draft", "confirmed", "in_transit", "held")
+        )
+
+    def _fix_sla_hold_reason(self) -> str:
+        """Why the resolution clock waits now, or '' when it runs.
+
+        ServiceNow-style pause conditions: awaiting the customer (estimate
+        decision), awaiting parts (a supervisor's deferred hold), awaiting
+        pickup (a live pickup leg). Each is a state or a fact the system
+        sets; none is a box a user ticks."""
+        self.ensure_one()
+        if self.state in _SLA_FINISHED_STATES:
+            return ""
+        if self.state in ("estimate_sent", "awaiting_approval"):
+            return "Awaiting the customer's estimate decision"
+        if self.is_deferred_block:
+            if self.deferred_reason == "parts_backorder":
+                return "Awaiting parts (deferred hold)"
+            label = dict(self._fields["deferred_reason"]._description_selection(self.env)).get(
+                self.deferred_reason, self.deferred_reason or "hold"
+            )
+            return "Deferred hold: %s" % label
+        legs = self._fix_live_pickup_legs()
+        if legs:
+            return "Awaiting pickup (%s)" % ", ".join(legs.mapped("name"))
+        return ""
+
+    def _fix_sync_sla_pause(self) -> None:
+        """Pause or resume the clock to match _fix_sla_hold_reason()."""
+        now = fields.Datetime.now()
+        for order in self:
+            reason = order._fix_sla_hold_reason()
+            if reason:
+                if not order.sla_clock_paused:
+                    order._guarded().write({"sla_clock_paused": True, "sla_paused_at": now})
+                # also catches a clock started while the order was already held
+                order._fix_sla_instances("pause", reason)
+            elif order.sla_clock_paused:
+                order._guarded().write(order._fix_resume_stamps(now))
+                order._fix_sla_instances("resume")
 
     def _fix_resume_stamps(self, now) -> dict:
         minutes = self.sla_total_paused_minutes or 0.0
@@ -1044,10 +1222,20 @@ class FixServiceOrder(models.Model):
                     ("priority", "=", order.priority),
                     ("active", "=", True),
                     ("company_id", "in", [order.company_id.id, False]),
+                    # the contact centre's per-queue answer targets (CC-*)
+                    # are walk_in/normal too; they are not repair promises
+                    ("code", "not =like", "CC-%"),
                 ],
+                order="id",
                 limit=1,
             )
             if not policy:
+                # A02 audit B3: an order whose channel or priority matched no
+                # policy got no clock at all (0 of 930 had a deadline).
+                policy = self.env.ref(DEFAULT_SLA_POLICY, raise_if_not_found=False)
+                policy = policy.sudo() if policy and policy.active else None
+            if not policy:
+                logger.warning("No SLA policy for %s, and the default is archived", order.name)
                 continue
             try:
                 with self.env.cr.savepoint():
@@ -1133,15 +1321,47 @@ class FixServiceOrder(models.Model):
         self._flag_rework()
 
     def action_send_estimate(self):
-        """Send the prepared estimate; sending it moves the order on."""
+        """Send the prepared estimate; sending it moves the order on.
+
+        A02 audit M01-P2: with no estimate at all the order still moved to
+        'estimate_sent' and paused its SLA clock on a quote nobody had. It
+        now needs a draft estimate to send, or one already with the customer
+        (a zero-charge entitlement job has no price to send)."""
         for order in self:
             drafts = order.estimate_ids.filtered(lambda e: e.state == "draft")
             if drafts and order.state in ("diagnostic", "estimate_pending"):
                 drafts.sorted(lambda e: (e.version, e.id))[-1].action_send()
+            elif not (
+                order.estimate_ids.filtered(lambda e: e.state == "sent")
+                # a warranty / AMC / approved-goodwill job has no price to send
+                or order._fix_zero_charge_basis()
+                # trusted service code decides itself, as at approval
+                or self.env.su
+            ):
+                raise UserError(
+                    "Order %s has no estimate to send. Prepare the estimate (parts, labour, "
+                    "diagnostic lines) first." % order.name
+                )
             order._fix_advance("estimate_sent")
 
     def action_await_approval(self):
-        self._fix_advance("awaiting_approval")
+        """The customer has the estimate and its decision is awaited.
+
+        A02 audit M01-P2: this checked nothing. It needs an estimate that is
+        with the customer (sent), still valid, and priced."""
+        today = fields.Date.context_today(self)
+        for order in self:
+            sent = order.estimate_ids.filtered(
+                lambda e: e.state == "sent"
+                and e.line_ids
+                and not (e.expiry_date and e.expiry_date < today)
+            )
+            if not (sent or order._fix_zero_charge_basis() or self.env.su):
+                raise UserError(
+                    "Order %s is not awaiting a decision: it has no valid estimate with the "
+                    "customer. Send (or revise and re-send) the estimate first." % order.name
+                )
+            order._fix_advance("awaiting_approval")
 
     def action_approve(self):
         self._fix_advance("approved")
@@ -1168,9 +1388,9 @@ class FixServiceOrder(models.Model):
         if not (reason or "").strip():
             raise UserError("Give the reason the device cannot be repaired.")
         for order in self:
-            if order.state not in ("diagnostic", "in_repair"):
+            if order.state not in ("diagnostic", "in_repair", "qc_pending", "qc_failed"):
                 raise UserError(
-                    "Order %s is %s: it is marked unrepairable from diagnosis or repair."
+                    "Order %s is %s: it is marked unrepairable from diagnosis, repair or QC."
                     % (order.name, order.state)
                 )
             order.action_cancel(reason_code="unrepairable", note=reason.strip())
@@ -1395,7 +1615,67 @@ class FixServiceOrder(models.Model):
         return True
 
     def action_close(self):
+        # A02 audit M01-P2: the OEM claim is raised before the close gate
+        # checks for it, not after the order is already closed.
+        self.filtered(lambda o: o.state == "delivered")._fix_raise_warranty_claim()
         self._fix_advance("closed")
+
+    # --- comeback within the repair warranty (BRU-SRM-19, A02 M01-P2) ---
+    def action_reopen_comeback(self, reason=None):
+        """The customer is back with the same problem while OUR repair
+        warranty runs: open a linked rework order. service_warranty_until was
+        written and never read, so a comeback was charged as a new job.
+
+        The rework is flagged and linked; it is free only once a commercial
+        approver confirms it (Request Rework Approval), as any rework."""
+        if not (reason or "").strip():
+            raise UserError("Describe the problem the customer came back with.")
+        today = fields.Date.context_today(self)
+        created = self.browse()
+        for order in self:
+            if order.state not in ("delivered", "closed"):
+                raise UserError(
+                    "Order %s is %s: a comeback is opened on a delivered or closed order."
+                    % (order.name, order.state)
+                )
+            if not order.service_warranty_until:
+                raise UserError(
+                    "Order %s has no repair warranty issued; raise a new order instead."
+                    % order.name
+                )
+            if today > order.service_warranty_until:
+                raise UserError(
+                    "The repair warranty of order %s ended on %s; the comeback is a new, "
+                    "chargeable order." % (order.name, order.service_warranty_until)
+                )
+            live = self.search(
+                [("rework_of_id", "=", order.id), ("state", "not in", ("closed", "cancelled"))],
+                limit=1,
+            )
+            if live:
+                raise UserError(
+                    "Order %s already has an open comeback (%s)." % (order.name, live.name)
+                )
+            rework = self.create(
+                {
+                    "device_id": order.device_id.id,
+                    "customer_id": order.customer_id.id,
+                    "branch_id": order.branch_id.id,
+                    "service_type": order.service_type,
+                    "order_category": "rework",
+                    "fault_description": reason.strip(),
+                    "parent_case_id": (order.parent_case_id or order).id,
+                    "state": "intake",
+                }
+            )
+            rework._guarded().write({"is_rework": True, "rework_of_id": order.id})
+            rework.message_post(
+                body="Comeback within the repair warranty of %s (valid until %s): %s"
+                % (order.name, order.service_warranty_until, reason.strip())
+            )
+            order.message_post(body="Comeback opened as %s: %s" % (rework.name, reason.strip()))
+            created |= rework
+        return created.ids
 
     def action_cancel(self, reason_code=None, note=None, reason=None):
         """M01-12: a cancellation needs a reason code. It cancels the open
@@ -1427,8 +1707,6 @@ class FixServiceOrder(models.Model):
                 extra["payment_settlement_state"] = "refund_due"
             order._fix_advance("cancelled", extra)
             if refund:
-                from libs.py.fix_events import publish
-
                 publish(
                     self.env,
                     "service_order.refund_requested",
@@ -1476,8 +1754,10 @@ class FixServiceOrder(models.Model):
             for field_order in live:
                 field_order.action_cancel(reason="%s%s" % (label, ": %s" % note if note else ""))
         if "workshop_job_ids" in self._fields:
+            # A job already confirmed beyond economic repair (M31 BER) has
+            # left the bench; cancelling the order does not touch it (S2).
             live = self.sudo().workshop_job_ids.filtered(
-                lambda j: j.state not in ("delivered", "cancelled")
+                lambda j: j.state not in ("delivered", "cancelled", "unrepairable")
             )
             for job in live:
                 if job.state in ("burn_in", "qc_pending", "ready"):
@@ -1486,6 +1766,35 @@ class FixServiceOrder(models.Model):
                         "finish or fail the bench work first." % (self.name, job.name, job.state)
                     )
                 job.action_cancel()
+        self._fix_cancel_consignments(label, note)
+
+    def _fix_cancel_consignments(self, label, note) -> None:
+        """A02 audit M01-P2: a cancelled order left its pick&drop legs live,
+        so a rider still collected or delivered for it. Each live leg leaves
+        through cd_consignment's own method: its cancel if it has one, else
+        Return (a confirmed, in-transit or held leg goes back to origin with
+        the reason). A draft leg has no exit there; it is reported on the
+        order rather than written to."""
+        self.ensure_one()
+        if "consignment_ids" not in self._fields:
+            return
+        reason = "%s%s" % (label, ": %s" % note if note else "")
+        stuck = []
+        for leg in self.sudo().consignment_ids:
+            if leg.state not in ("draft", "confirmed", "in_transit", "held"):
+                continue
+            cancel = getattr(leg, "action_cancel", None)
+            if cancel is not None:
+                cancel(reason=reason)
+            elif leg.state != "draft":
+                leg.action_return(reason=reason)
+            else:
+                stuck.append(leg.name or str(leg.id))
+        if stuck:
+            self.message_post(
+                body="Draft logistics leg(s) %s were never confirmed; nothing was "
+                "dispatched for them, but they remain on the order." % ", ".join(stuck)
+            )
 
     def _fix_assert_no_live_handoff(self, downstream, label) -> None:
         """A6 / M01-13: one live downstream record per order. Repeat presses
@@ -1498,16 +1807,43 @@ class FixServiceOrder(models.Model):
                 % (self.name, label, ", ".join(downstream.mapped("display_name")))
             )
 
-    # --- the zero-charge approvals (M01-1, A3) ---
+    # --- the zero-charge approvals (M01-1, A3; routed through M63, A02 B1) ---
+    def action_request_goodwill(self, reason=None):
+        """Ask a Service Commercial Approver for a goodwill (zero-charge)
+        repair. The request is routed to the approver's M63 inbox; the
+        approver's decision runs action_approve_goodwill."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason for the goodwill repair.")
+        for order in self:
+            if order.state in ("delivered", "closed", "cancelled"):
+                raise UserError("Order %s is %s." % (order.name, order.state))
+            self.env["fix.so.approval"]._fix_open("goodwill", order, reason.strip())
+        return True
+
+    def action_request_rework_approval(self, reason=None):
+        """Ask a commercial approver to confirm a detected rework is free."""
+        if not (reason or "").strip():
+            raise UserError("Give the reason the rework is free of charge.")
+        for order in self:
+            if not order.is_rework:
+                raise UserError(
+                    "Order %s is not a detected rework (same device and fault category "
+                    "within 30 days)." % order.name
+                )
+            self.env["fix.so.approval"]._fix_open("rework", order, reason.strip())
+        return True
+
     def _fix_assert_commercial_approver(self, what: str) -> None:
         self.ensure_one()
-        user = self.env.user
-        if not (self.env.su or user.has_group(GROUP_COMMERCIAL_APPROVER)):
+        Approval = self.env["fix.so.approval"]
+        # A delegate decides on the absent approver's authority (M63).
+        authority = Approval._fix_authority_user()
+        if not (self.env.su or authority.has_group(GROUP_COMMERCIAL_APPROVER)):
             raise UserError(
                 "%s needs a Service Commercial Approver. No one may approve their own "
                 "zero-charge job; ask an appointed approver." % what
             )
-        if user == self.create_uid and not self.env.su:
+        if self.create_uid in Approval._fix_acting_users() and not self.env.su:
             raise UserError(
                 "Segregation of duties: the person who raised order %s cannot approve "
                 "its %s." % (self.name, what.lower())
@@ -1519,6 +1855,8 @@ class FixServiceOrder(models.Model):
         if not (reason or "").strip():
             raise UserError("Give the reason for the goodwill repair.")
         for order in self:
+            # A02 audit B1: decided from the approver's M63 inbox only.
+            self.env["fix.so.approval"]._fix_assert_routed(order, "goodwill")
             if order.state in ("delivered", "closed", "cancelled"):
                 raise UserError("Order %s is %s." % (order.name, order.state))
             order._fix_assert_commercial_approver("Goodwill")
@@ -1542,6 +1880,7 @@ class FixServiceOrder(models.Model):
         if not (reason or "").strip():
             raise UserError("Give the reason the rework is free of charge.")
         for order in self:
+            self.env["fix.so.approval"]._fix_assert_routed(order, "rework")
             if not order.is_rework:
                 raise UserError(
                     "Order %s is not a detected rework (same device and fault category "
@@ -1715,7 +2054,13 @@ class FixServiceOrder(models.Model):
                 body="Repair warranty issued: %d days (valid until %s)."
                 % (days, order.service_warranty_until)
             )
-            order._emit("service_order.warranty_issued", order)
+            publish(
+                self.env,
+                "service_order.warranty_issued",
+                "fix.service.order",
+                order.id,
+                order._fix_event_payload(),
+            )
 
     # --- W2 Business-Line Actions ---
     def action_swap_device(self, replacement_device_id, reason="unrepairable", grade="grade_a"):
@@ -1737,12 +2082,32 @@ class FixServiceOrder(models.Model):
             body=f"FR-SRM-064: Asset swap triggered. Replacement device {replacement.name} "
             f"assigned with reason '{reason}' and condition '{grade}'."
         )
-        self._emit("service_order.device_swapped", self)
+        publish(
+            self.env,
+            "service_order.device_swapped",
+            "fix.service.order",
+            self.id,
+            self._fix_event_payload(),
+        )
+
+    def _fix_assert_supervisor(self, what: str) -> None:
+        """A02 audit B3: a hold stops the customer's SLA clock, so it is a
+        supervisor's decision, not any user's."""
+        if self.env.su or self.env.user.has_group(GROUP_SUPERVISOR):
+            return
+        raise UserError("%s needs a Service Supervisor." % what)
 
     def action_defer_order(self, reason="parts_backorder", resume_date=None, notes=None):
-        """Pause active SLA clocks and record deferred hold."""
+        """Put the order on a deferred hold (awaiting parts, customer away,
+        dispute, OEM): the SLA clock pauses while it lasts."""
         self.ensure_one()
-        self.write(
+        self._fix_assert_supervisor("Placing an order on a deferred hold")
+        valid = dict(self._fields["deferred_reason"]._description_selection(self.env))
+        if reason not in valid:
+            raise UserError("Unknown hold reason: %s (expected %s)." % (reason, ", ".join(valid)))
+        if self.state in _SLA_FINISHED_STATES:
+            raise UserError("Order %s is %s; it cannot be put on hold." % (self.name, self.state))
+        self._guarded().write(
             {
                 "is_deferred_block": True,
                 "deferred_reason": reason,
@@ -1750,26 +2115,40 @@ class FixServiceOrder(models.Model):
                 "deferred_notes": notes,
             }
         )
-        if not self.sla_clock_paused:
-            # A02 audit sla_02: the hold set no pause time, so it was never timed.
-            self._guarded().write(
-                {"sla_clock_paused": True, "sla_paused_at": fields.Datetime.now()}
-            )
-            self._fix_sla_instances("pause", "Deferred hold: %s" % reason)
+        # A02 audit sla_02: the hold set no pause time, so it was never timed.
+        self._fix_sync_sla_pause()
         self.message_post(
-            body=f"Deferred repair hold activated: {reason}. Resumption target: {resume_date or 'Indefinite'}."
+            body="Deferred repair hold by %s: %s. Resumption target: %s."
+            % (self.env.user.name, valid[reason], resume_date or "Indefinite")
         )
-        self._emit("service_order.deferred", self)
+        publish(
+            self.env,
+            "service_order.deferred",
+            "fix.service.order",
+            self.id,
+            self._fix_event_payload(),
+        )
 
     def action_resume_order(self):
-        """Resume repair order and restart SLA clock."""
+        """Lift the deferred hold; the SLA clock runs again unless another
+        hold (customer decision, pickup) still applies."""
         self.ensure_one()
-        self.write({"is_deferred_block": False})
-        if self.sla_clock_paused and self.state not in ("estimate_sent", "awaiting_approval"):
-            self._guarded().write(self._fix_resume_stamps(fields.Datetime.now()))
-            self._fix_sla_instances("resume")
-        self.message_post(body="Deferred repair hold lifted — order processing resumed.")
-        self._emit("service_order.resumed", self)
+        self._fix_assert_supervisor("Lifting a deferred hold")
+        if not self.is_deferred_block:
+            raise UserError("Order %s is not on a deferred hold." % self.name)
+        self._guarded().write({"is_deferred_block": False})
+        self._fix_sync_sla_pause()
+        self.message_post(
+            body="Deferred repair hold lifted by %s - order processing resumed."
+            % self.env.user.name
+        )
+        publish(
+            self.env,
+            "service_order.resumed",
+            "fix.service.order",
+            self.id,
+            self._fix_event_payload(),
+        )
 
     # --- Idempotency (T08, DI-04) ---
     @api.model_create_multi
@@ -1828,7 +2207,13 @@ class FixServiceOrder(models.Model):
             if rec.state == "intake":
                 rec._guarded().write({"intake_completed_at": fields.Datetime.now()})
                 rec._fix_start_sla()
-            rec._emit("service_order.created", rec)
+            publish(
+                self.env,
+                "service_order.created",
+                "fix.service.order",
+                rec.id,
+                rec._fix_event_payload(),
+            )
         created = iter(records.ids)
         return self.browse([rid or next(created) for rid in result_ids])
 
@@ -1929,20 +2314,3 @@ class FixServiceOrder(models.Model):
                         "a commercial approver confirms the rework." % original.name
                     )
                 )
-
-    def _emit(self, event_type: str, rec) -> None:
-        from libs.py.fix_events import publish
-
-        publish(
-            self.env,
-            event_type,
-            "fix.service.order",
-            rec.id,
-            {
-                "order_id": rec.id,
-                "name": rec.name,
-                "device_id": rec.device_id.id,
-                "customer_id": rec.customer_id.id,
-                "state": rec.state,
-            },
-        )

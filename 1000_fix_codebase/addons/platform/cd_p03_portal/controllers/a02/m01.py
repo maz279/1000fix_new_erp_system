@@ -43,8 +43,15 @@ SURFACES = {
             "action_verify_settlement",
             "action_send_delivery_otp",
             "action_verify_delivery_otp",
-            "action_approve_goodwill",
-            "action_approve_rework",
+            # A02 audit B1: goodwill and zero-charge rework are REQUESTED here
+            # and decided from the approver's M63 inbox (the approve methods
+            # refuse a direct press, so they are not offered).
+            "action_request_goodwill",
+            "action_request_rework_approval",
+            # A02 audit M01-P2 / B3: comeback within the repair warranty, and
+            # the supervisor's deferred hold
+            "action_reopen_comeback",
+            "action_defer_order",
             "action_change_category",
             "action_override_priority",
             "action_fail_qc",
@@ -66,7 +73,9 @@ SURFACES = {
         "actions": {
             "action_send",
             "action_approve",
-            "action_manager_approve",
+            # A02 audit B1: the BRU-SRM-08 manager key is requested here and
+            # given from the branch manager's M63 inbox.
+            "action_request_manager_key",
             "action_dofa_approve",
             # R7: a seller may also route the discount through the M63 inbox.
             "action_request_approval",
@@ -127,7 +136,9 @@ SURFACES = {
         "limit": 200,
         # verified_by/verified_at shipped readonly with nothing to set them,
         # and 'pending' had no exit (A04 audit, 2026-11-01).
-        "actions": {"action_verify", "action_void"},
+        # A02 audit B1: verification is requested here and decided from the
+        # Warranty Officer's M63 inbox.
+        "actions": {"action_request_approval", "action_recall_approval", "action_void"},
     },
     "fix.device.history": {
         "order": "id desc",

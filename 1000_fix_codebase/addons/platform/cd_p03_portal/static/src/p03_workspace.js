@@ -1452,6 +1452,53 @@ ${(data.notes || []).length ? `<div class="notes">${data.notes.map((n) => "• "
         }
     }
 
+    /* A02 audit M01-P2: the order actions of the screen (m01.js SO_ACTIONS)
+     * that apply to this row's state. The server remains the authority. */
+    soActionsFor(row) {
+        const cfg = this.state.gl && this.state.gl.soCfg;
+        const list = (cfg && cfg.actions) || [];
+        return list.filter((a) => !a.states || a.states.includes(row.state));
+    }
+
+    soPickAction(row, ev) {
+        const key = ev.target.value;
+        ev.target.value = "";
+        if (key) this.soRunAction(row, key);
+    }
+
+    /** Run one order action: prompt for each server argument (`asks`), add
+     * the fixed ones (`kw`), and report the backend's answer. */
+    async soRunAction(row, key) {
+        const cfg = this.soActionsFor(row).find((a) => a.id === key);
+        if (!cfg) return;
+        const kwargs = Object.assign({}, cfg.kw || {});
+        const asks = cfg.asks || [];
+        for (const ask of asks) {
+            const value = window.prompt(row.name + " — " + this.t(ask.label));
+            if (value === null) return;
+            kwargs[ask.kwarg] = ask.number ? Number(value) : value;
+        }
+        if (!asks.length && !window.confirm(row.name + " — " + this.t(cfg.l) + "?")) return;
+        this.state.gl.soBusy = row.id;
+        try {
+            const res = await this.rpc("/p03/model/action", {
+                model: "fix.service.order",
+                ids: [row.id],
+                method: cfg.m,
+                kwargs,
+            });
+            const result = (res && res.result) || {};
+            if (res && res.success && result.verified !== false) {
+                this.showToast(row.name + " — " + this.t(cfg.l) + " ✓");
+                await this.loadGlData();
+            } else {
+                this.showToast((res && res.error) || result.error || this.t("Action refused by the backend."));
+            }
+        } finally {
+            this.state.gl.soBusy = null;
+        }
+    }
+
     /* Board pipeline: the 14 AS-06 states folded into board columns with
      * live counts from /p03/stats.by_state. */
     get boardColumns() {

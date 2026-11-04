@@ -13,6 +13,7 @@ import pytest
 from odoo import Command
 from odoo import fields as odoo_fields
 from odoo.addons.cd_service_order.models.fix_service_order import SERVICE_ORDER_STATES
+from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import UserError, ValidationError
 
 
@@ -146,6 +147,7 @@ def test_full_lifecycle_records_history_events_and_sla_clocks(base):
     )
     assert payload == {
         "order_id": order.id,
+        "service_order_id": order.id,  # A02 audit B2 hand-back contract
         "name": name,
         "device_id": base.device.id,
         "customer_id": base.customer.id,
@@ -505,6 +507,8 @@ def test_send_emits_estimate_sent(base):
     assert json.loads(event.payload) == {
         "estimate_id": est.id,
         "order_id": est.order_id.id,
+        # A02 audit B2: the S2/S3 hand-back contract key
+        "service_order_id": est.order_id.id,
         "version": 1,
         "state": "sent",
         # (3000 + 500) * 1.15
@@ -558,9 +562,13 @@ def test_approval_above_25000_needs_customer_then_manager(base):
             ],
         }
     )
-    with _refused(base.env, UserError, "Branch Manager authority"):
-        est.action_manager_approve()  # the superuser holds no Tier 2
-    est.with_user(manager).action_manager_approve()
+    # A02 audit B1: the key is requested, and given from the manager's M63
+    # inbox; pressed directly by the manager it is refused.
+    with _refused(base.env, UserError, "approver's inbox"):
+        est.with_user(manager).action_manager_approve()
+    est.action_request_manager_key("34.5k repair")
+    req = base.env["fix.so.approval"].search([("estimate_id", "=", est.id)], limit=1)
+    approve_via_inbox(req, manager)
     assert est.manager_approval_uid == manager
     est.action_approve()
     assert est.state == "approved"

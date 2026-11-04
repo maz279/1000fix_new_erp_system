@@ -20,7 +20,9 @@ class FixWarranty(models.Model):
 
     _name = "fix.warranty"
     _description = "Warranty"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # fix.approvable.mixin carries fix.guarded.mixin (A02 audit B1: the
+    # verification is routed, fix_warranty_approval.py).
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "device_id, start_date desc"
 
     def _fix_guarded_fields(self) -> set:

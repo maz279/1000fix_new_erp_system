@@ -94,9 +94,55 @@ export const MODULE = {
  * order surfaces (/p03/orders/list scopes + /p03/stats); model_list uses the
  * generic whitelisted reader (/p03/model/records + /p03/model/action);
  * table_report calls the module's REPORTS (/p03/model/report). */
+/* A02 audit M01-P2: the whitelisted order actions that had no button (a
+ * chargeable order could not be delivered from the workspace: no OTP button).
+ * Shown on the order lists per row, filtered by the row's state; `asks`
+ * prompts for each server argument in turn, `kw` adds fixed arguments. The
+ * server decides: roles, segregation of duties and gates apply there. */
+const SO_OPEN = ['draft', 'intake', 'diagnostic', 'estimate_pending', 'estimate_sent',
+  'awaiting_approval', 'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready'];
+const SO_PRICED = ['approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready', 'delivered'];
+const SO_ACTIONS = [
+  { id: 'send_otp', m: 'action_send_delivery_otp', l: 'Send Delivery OTP', states: ['ready'] },
+  { id: 'verify_otp', m: 'action_verify_delivery_otp', l: 'Verify Delivery OTP', states: ['ready'],
+    asks: [{ kwarg: 'otp', label: 'Handover code the customer read out' }] },
+  { id: 'settle_counter', m: 'action_mark_settled', l: 'Record Counter Payment', states: SO_PRICED,
+    kw: { source: 'counter' },
+    asks: [{ kwarg: 'amount_bdt', label: 'Amount received (BDT)', number: true },
+      { kwarg: 'reference', label: 'Cash receipt / MFS transaction reference' }] },
+  { id: 'settle_m20', m: 'action_mark_settled', l: 'Settle from M20 Receipt', states: SO_PRICED,
+    kw: { source: 'm20_receipt' }, asks: [{ kwarg: 'reference', label: 'Confirmed M20 receipt number' }] },
+  { id: 'verify_settlement', m: 'action_verify_settlement', l: 'Verify Settlement', states: SO_PRICED },
+  { id: 'goodwill', m: 'action_request_goodwill', l: 'Request Goodwill (approver inbox)', states: SO_OPEN,
+    asks: [{ kwarg: 'reason', label: 'Reason for the goodwill repair' }] },
+  { id: 'rework', m: 'action_request_rework_approval', l: 'Request Zero-Charge Rework', states: SO_OPEN,
+    asks: [{ kwarg: 'reason', label: 'Why the rework is free of charge' }] },
+  { id: 'category', m: 'action_change_category', l: 'Change Category',
+    states: ['draft', 'intake', 'diagnostic', 'estimate_pending'],
+    asks: [{ kwarg: 'category', label: 'New category: standard, warranty, amc, rework, rental, refurbishment, recycling or goodwill' },
+      { kwarg: 'reason', label: 'Reason for the re-classification' }] },
+  { id: 'priority', m: 'action_override_priority', l: 'Override Priority', states: SO_OPEN,
+    asks: [{ kwarg: 'priority', label: 'New priority: normal, high, urgent or emergency' },
+      { kwarg: 'reason', label: 'Justification for the override' }] },
+  { id: 'field_order', m: 'action_create_field_order', l: 'Create Field Order',
+    states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
+  { id: 'workshop_job', m: 'action_create_workshop_job', l: 'Create Workshop Job',
+    states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
+  { id: 'defer', m: 'action_defer_order', l: 'Defer / Hold (supervisor)', states: SO_OPEN,
+    asks: [{ kwarg: 'reason', label: 'Hold reason: parts_backorder, customer_travel, disputed_liability or third_party_vendor' },
+      { kwarg: 'notes', label: 'Hold justification' }] },
+  { id: 'unrepairable', m: 'action_mark_unrepairable', l: 'Mark Unrepairable',
+    states: ['diagnostic', 'in_repair', 'qc_pending', 'qc_failed'],
+    asks: [{ kwarg: 'reason', label: 'Why the device cannot be repaired' }] },
+  { id: 'cancel', m: 'action_cancel', l: 'Cancel Order', states: SO_OPEN,
+    asks: [{ kwarg: 'reason', label: 'Reason: customer_declined, estimate_declined, duplicate, unrepairable, customer_unreachable, abandoned, or other: <note>' }] },
+  { id: 'comeback', m: 'action_reopen_comeback', l: 'Open Comeback (repair warranty)', states: ['delivered', 'closed'],
+    asks: [{ kwarg: 'reason', label: 'The problem the customer came back with' }] }
+];
+
 export const SCREENS = {
   'M01-board': { kind: 'so_board' },
-  'M01-all': { kind: 'so_list', scope: 'all' },
+  'M01-all': { kind: 'so_list', scope: 'all', actions: SO_ACTIONS },
   'M01-intake': { kind: 'so_intake' },
   'M01-channels': { kind: 'table_report', module: 'M01', report: 'channel_intake', period: true },
   'M01-hotline': { kind: 'model_list', model: 'fix.token.queue', create: false,
@@ -153,8 +199,8 @@ export const SCREENS = {
           { name: 'sla_clock_paused', label: 'SLA Clock Paused', readonly: true },
           { name: 'sla_paused_at', label: 'SLA Paused Since', readonly: true },
           { name: 'sla_total_paused_minutes', label: 'Cumulative Paused SLA (Minutes)', readonly: true },
-          { name: 'is_deferred_block', label: 'Order on Deferred Hold' },
-          { name: 'deferred_reason', label: 'Deferred Hold Reason' },
+          { name: 'is_deferred_block', label: 'Order on Deferred Hold (Defer / Resume)', readonly: true },
+          { name: 'deferred_reason', label: 'Deferred Hold Reason (set by Defer)', readonly: true },
           { name: 'deferred_until', label: 'Deferred Resumption Date' },
           { name: 'deferred_notes', label: 'Hold Justification Notes', type: 'text' },
         ]},
@@ -182,9 +228,9 @@ export const SCREENS = {
       ]}
     ] },
   'M01-types': { kind: 'table_report', module: 'M01', report: 'type_matrix', period: false },
-  'M01-wip': { kind: 'so_list', scope: 'wip' },
-  'M01-holds': { kind: 'so_list', scope: 'holds' },
-  'M01-rework': { kind: 'so_list', scope: 'rework' },
+  'M01-wip': { kind: 'so_list', scope: 'wip', actions: SO_ACTIONS },
+  'M01-holds': { kind: 'so_list', scope: 'holds', actions: SO_ACTIONS },
+  'M01-rework': { kind: 'so_list', scope: 'rework', actions: SO_ACTIONS },
   'M01-templates': { kind: 'model_list', model: 'fix.diagnostic.node', create: false,
     cols: ['code', 'name', 'parent_id', 'is_terminal', 'fault_code', 'recommended_action'] },
   'M01-fault': { kind: 'model_list', model: 'fix.fault.code', create: false,
@@ -199,7 +245,8 @@ export const SCREENS = {
       { m: 'action_send_customer_otp', l: 'Send Approval Code' },
       { m: 'action_verify_customer_otp', l: 'Verify Approval Code', ask: 'Code the customer read out', kwarg: 'otp' },
       { m: 'action_record_signed_approval', l: 'Record Signed Approval' },
-      { m: 'action_manager_approve', l: 'Manager Approve' },
+      /* A02 audit B1: the BRU-SRM-08 key is given from the branch manager's M63 inbox */
+      { m: 'action_request_manager_key', l: 'Request Manager Key', ask: 'Why the second key is needed', kwarg: 'justification' },
       { m: 'action_approve', l: 'Approve' },
       { m: 'action_reject', l: 'Reject' },
       { m: 'action_revise', l: 'Revise' }
@@ -211,7 +258,9 @@ export const SCREENS = {
     /* A02 audit M01-W1: pending cover becomes active only when a Warranty
      * Officer (not the registrar) verifies its proof. */
     actions: [
-      { m: 'action_verify', l: 'Verify Proof' },
+      /* A02 audit B1: verification is decided from the Warranty Officer's M63 inbox */
+      { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
       { m: 'action_void', l: 'Void', ask: 'Reason for voiding', kwarg: 'reason' }
     ] },
   'M01-sla': { kind: 'model_list', model: 'fix.sla.policy', create: false,
@@ -228,7 +277,7 @@ export const SCREENS = {
   'M01-reports': { kind: 'model_list', model: 'fix.device.history', create: false,
     cols: ['event_type', 'description', 'device_id', 'service_order_id', 'create_date'],
     domain: [['event_type', 'in', ['service_order', 'qc', 'warranty', 'repair']]] },
-  'M01-rwty': { kind: 'so_list', scope: 'rwty' },
+  'M01-rwty': { kind: 'so_list', scope: 'rwty', actions: SO_ACTIONS },
 
   /* ============ D365 IN-WORKSPACE FORM SCREENS (forensic audit D-M01) ============
    * Service Order Record, Estimate, QC, and Hold/Release render INSIDE the
@@ -284,8 +333,8 @@ export const SCREENS = {
           { name: 'sla_clock_paused', label: 'SLA Clock Paused', readonly: true },
           { name: 'sla_paused_at', label: 'SLA Paused Since', readonly: true },
           { name: 'sla_total_paused_minutes', label: 'Cumulative Paused SLA (Minutes)', readonly: true },
-          { name: 'is_deferred_block', label: 'Order on Deferred Hold' },
-          { name: 'deferred_reason', label: 'Deferred Hold Reason' },
+          { name: 'is_deferred_block', label: 'Order on Deferred Hold (Defer / Resume)', readonly: true },
+          { name: 'deferred_reason', label: 'Deferred Hold Reason (set by Defer)', readonly: true },
           { name: 'deferred_until', label: 'Deferred Resumption Date' },
           { name: 'deferred_notes', label: 'Hold Justification Notes', type: 'text' },
         ]},
@@ -331,8 +380,8 @@ export const SCREENS = {
       { tab: 'hold', title: 'Deferred Hold Execution & SLA Pause',
         note: 'Orders on deferred hold pause SLA countdown clocks until the resumption date (FR-SRM-088).',
         fields: [
-          { name: 'is_deferred_block', label: 'Order on Deferred Hold' },
-          { name: 'deferred_reason', label: 'Deferred Hold Reason' },
+          { name: 'is_deferred_block', label: 'Order on Deferred Hold (Defer / Resume)', readonly: true },
+          { name: 'deferred_reason', label: 'Deferred Hold Reason (set by Defer)', readonly: true },
           { name: 'deferred_until', label: 'Deferred Resumption Date' },
           { name: 'sla_clock_paused', label: 'SLA Clock Paused', readonly: true },
           { name: 'sla_paused_at', label: 'SLA Paused Since', readonly: true },
@@ -459,9 +508,10 @@ export const SCREENS = {
     cols: ['started_at', 'display_label', 'res_model', 'res_id', 'kpi_code', 'state', 'target_at', 'elapsed_pause_minutes', 'series_index'],
     stateField: 'state',
     actions: [
-      { m: 'pause', l: 'Pause' },
-      { m: 'resume', l: 'Resume' },
-      { m: 'succeed', l: 'Succeed' }
+      /* A02 audit B3: Service Supervisor only (enforced by the model) */
+      { m: 'pause', l: 'Pause (supervisor)', ask: 'Reason for the pause', kwarg: 'reason' },
+      { m: 'resume', l: 'Resume (supervisor)' },
+      { m: 'succeed', l: 'Succeed (supervisor)' }
     ],
     note: 'A resume cancels the instance and creates a new one, so these are an append-only series per record rather than a mutable row.' },
   'M01-form-sla-instance': {
@@ -477,20 +527,21 @@ export const SCREENS = {
       {
         tab: 'clock',
         title: 'What Is Promised, Against What Calendar',
+        /* A02 audit B3: an instance is the clock's evidence; it moves only through its actions */
         note: 'The calendar is STAMPED at creation: a later edit does not retroactively move this instance\'s target.',
         fields: [
-        { name: 'display_label', label: 'Instance' },
-        { name: 'res_model', label: 'Record Model', required: true },
-        { name: 'res_id', label: 'Record ID', required: true },
-        { name: 'partner_id', label: 'Customer' },
-        { name: 'policy_id', label: 'Policy', required: true },
-        { name: 'item_id', label: 'SLA Item' },
-        { name: 'kpi_code', label: 'KPI', required: true },
-        { name: 'calendar_id', label: 'Business Hours Used' },
-        { name: 'target_hours', label: 'Target (hours)', required: true },
-        { name: 'started_at', label: 'Started', required: true },
-        { name: 'target_at', label: 'Deadline', required: true },
-        { name: 'warn_at', label: 'Warn At' }
+        { name: 'display_label', label: 'Instance', readonly: true },
+        { name: 'res_model', label: 'Record Model', readonly: true },
+        { name: 'res_id', label: 'Record ID', readonly: true },
+        { name: 'partner_id', label: 'Customer', readonly: true },
+        { name: 'policy_id', label: 'Policy', readonly: true },
+        { name: 'item_id', label: 'SLA Item', readonly: true },
+        { name: 'kpi_code', label: 'KPI', readonly: true },
+        { name: 'calendar_id', label: 'Business Hours Used', readonly: true },
+        { name: 'target_hours', label: 'Target (hours)', readonly: true },
+        { name: 'started_at', label: 'Started', readonly: true },
+        { name: 'target_at', label: 'Deadline', readonly: true },
+        { name: 'warn_at', label: 'Warn At', readonly: true }
         ]
       },
       {
@@ -498,13 +549,13 @@ export const SCREENS = {
         title: 'Pause And Elapsed Time',
         note: 'Whether hold time counts depends on whether the pause and the resume fell inside working hours — a pause at 18:00 lifted at 09:00 spans fifteen clock hours and, on a 9-to-6 calendar, zero business minutes.',
         fields: [
-        { name: 'state', label: 'State', required: true },
-        { name: 'paused_at', label: 'Paused At' },
-        { name: 'pause_reason', label: 'Pause Reason' },
-        { name: 'elapsed_pause_minutes', label: 'Elapsed Time (min)' },
-        { name: 'succeeded_at', label: 'Succeeded At' },
-        { name: 'breached_at', label: 'Breached At' },
-        { name: 'warned_at', label: 'Warned At' }
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'paused_at', label: 'Paused At', readonly: true },
+        { name: 'pause_reason', label: 'Pause Reason', readonly: true },
+        { name: 'elapsed_pause_minutes', label: 'Elapsed Time (min)', readonly: true },
+        { name: 'succeeded_at', label: 'Succeeded At', readonly: true },
+        { name: 'breached_at', label: 'Breached At', readonly: true },
+        { name: 'warned_at', label: 'Warned At', readonly: true }
         ]
       },
       {
@@ -512,10 +563,10 @@ export const SCREENS = {
         title: 'The Append-Only Series',
         note: 'A resume does not restart this timer: it cancels the instance and creates a new one. The chain is how many times a record was held, and for how long — which is what a disputed SLA claim turns on.',
         fields: [
-        { name: 'series_index', label: 'Position In Series' },
-        { name: 'supersedes_id', label: 'Supersedes' },
-        { name: 'superseded_by_id', label: 'Superseded By' },
-        { name: 'cancelled_reason', label: 'Cancellation Reason' }
+        { name: 'series_index', label: 'Position In Series', readonly: true },
+        { name: 'supersedes_id', label: 'Supersedes', readonly: true },
+        { name: 'superseded_by_id', label: 'Superseded By', readonly: true },
+        { name: 'cancelled_reason', label: 'Cancellation Reason', readonly: true }
         ]
       }
     ]
