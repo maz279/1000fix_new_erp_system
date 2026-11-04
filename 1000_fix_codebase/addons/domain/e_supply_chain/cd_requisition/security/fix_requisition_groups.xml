@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M16 Procurement roles (A06 workflow audit 2026-11-03, S1).
+
+  cd_requisition declared no group: every M16 model granted base.group_user
+  read/write/create, so one plain user raised, approved, sent and received a
+  BDT 5M purchase order. The powers now sit with roles:
+
+  - Buyer: raises and sends purchase orders, runs RFQ events, records bids,
+    proposes awards, keeps blanket agreements and expediting cases.
+  - Receiver: posts goods receipts against sent purchase orders and records
+    the inspection outcome. Never the requester or buyer of the same PO.
+  - Procurement Approver: decides the awards that need a second person (not
+    the lowest compliant bid, or fewer bids than the minimum) and activates
+    blanket agreements. Never the evaluator who proposed it.
+  - Procurement Manager: records the documented exception for a PO with no
+    requisition, cancels an acknowledged PO and short-closes a partly
+    received one.
+
+  Requisition and PO approval itself is NOT a role here: it is routed by
+  amount on the DOFA ladder (cd_entity_config tier groups) through the M63
+  approval engine. Any employee may still raise a requisition.
+
+  Buyer and Receiver carry the development admin so the workspace keeps
+  working (segregation of duties still applies to it). The approver and
+  manager groups ship EMPTY: who holds them is a business appointment.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fix_procurement" model="res.groups.privilege">
+            <field name="name">Procurement &amp; Sourcing</field>
+            <field name="description">Buying, receiving and sourcing roles of the M16 procurement module.</field>
+            <field name="sequence">42</field>
+        </record>
+
+        <record id="group_fix_procurement_buyer" model="res.groups">
+            <field name="name">Buyer</field>
+            <field name="privilege_id" ref="privilege_fix_procurement"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Raises purchase orders from approved requisitions, requests their approval and sends them; runs RFQ events, records sealed bids and proposes awards; keeps blanket agreements and expediting cases.</field>
+        </record>
+
+        <record id="group_fix_procurement_receiver" model="res.groups">
+            <field name="name">Receiver</field>
+            <field name="privilege_id" ref="privilege_fix_procurement"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Posts goods receipts against sent purchase orders and confirms the inspection outcome. Cannot receive a PO they requested or bought.</field>
+        </record>
+
+        <record id="group_fix_procurement_approver" model="res.groups">
+            <field name="name">Procurement Approver</field>
+            <field name="privilege_id" ref="privilege_fix_procurement"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="comment">Decides awards that are not to the lowest compliant bid or rest on fewer bids than the minimum, and activates blanket agreements. Never decides an award they proposed.</field>
+        </record>
+
+        <record id="group_fix_procurement_manager" model="res.groups">
+            <field name="name">Procurement Manager</field>
+            <field name="privilege_id" ref="privilege_fix_procurement"/>
+            <field name="implied_ids" eval="[(4, ref('group_fix_procurement_buyer'))]"/>
+            <field name="comment">Records the documented exception for a purchase order with no requisition (never on a PO they raised), cancels acknowledged purchase orders and short-closes partly received ones.</field>
+        </record>
+
+    </data>
+</odoo>

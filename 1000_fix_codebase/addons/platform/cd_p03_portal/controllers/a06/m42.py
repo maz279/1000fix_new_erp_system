@@ -3,12 +3,31 @@
 # reviews, risk and compliance screening.
 import datetime
 
+# A06 workflow audit (2026-11-03) M42-9/M42-10: the supplier surface had no
+# action at all (status was changed by typing it). Every lifecycle step is an
+# action here; the forms no longer offer status, state or scores.
 SURFACES = {
-    "fix.supplier": {"order": "name", "limit": 300, "actions": set()},
+    # A06 S7 (M42-3): a bank-detail change is a proposal a second person
+    # confirms; the supplier stays payment-blocked until then.
+    "fix.supplier.bank.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_propose", "action_confirm", "action_reject"},
+    },
+    "fix.supplier": {
+        "order": "name",
+        "limit": 300,
+        "actions": {
+            "action_suspend",
+            "action_block",
+            "action_request_reinstatement",
+            "action_approve_reinstatement",
+        },
+    },
     "fix.supplier.document": {
         "order": "valid_to desc, id desc",
         "limit": 400,
-        "actions": set(),
+        "actions": {"action_verify"},
     },
     "fix.supplier.qualification": {
         "order": "create_date desc, id desc",
@@ -28,7 +47,7 @@ SURFACES = {
     "fix.supplier.performance": {
         "order": "period desc, id desc",
         "limit": 300,
-        "actions": {"action_publish"},
+        "actions": {"action_compute", "action_publish"},
     },
     "fix.supplier.car": {
         "order": "due_date desc, id desc",
@@ -48,7 +67,7 @@ SURFACES = {
     "fix.supplier.screening": {
         "order": "screened_on desc, id desc",
         "limit": 300,
-        "actions": {"action_clear", "action_flag"},
+        "actions": {"action_clear", "action_flag", "action_clear_hit"},
     },
 }
 
@@ -65,15 +84,25 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _mine(env, model, domain=None):
+    """The caller's records (their rights), limited to their companies."""
+    return env[model].search([("company_id", "in", env.companies.ids), *list(domain or [])])
+
+
+def _of_my_suppliers(env, model, domain=None, order=None):
+    return env[model].search(
+        [("supplier_id.company_id", "in", env.companies.ids), *list(domain or [])],
+        order=order,
+    )
+
+
 def _suppliers(env):
-    return env["fix.supplier"].sudo().search([])
+    return _mine(env, "fix.supplier")
 
 
 def scorecard_league(env, date_from=None, date_to=None, **params):
-    cards = (
-        env["fix.supplier.performance"]
-        .sudo()
-        .search([("state", "=", "published")], order="period desc, id desc")
+    cards = _of_my_suppliers(
+        env, "fix.supplier.performance", [("state", "=", "published")], "period desc, id desc"
     )
     latest = {}
     for card in cards:
@@ -134,7 +163,7 @@ def scorecard_league(env, date_from=None, date_to=None, **params):
 
 
 def car_closure(env, date_from=None, date_to=None, **params):
-    cars = env["fix.supplier.car"].sudo().search([])
+    cars = _of_my_suppliers(env, "fix.supplier.car")
     rows = []
     for car in cars:
         days = "—"
@@ -186,7 +215,7 @@ def car_closure(env, date_from=None, date_to=None, **params):
 
 
 def risk_heat(env, date_from=None, date_to=None, **params):
-    risks = env["fix.supplier.risk"].sudo().search([])
+    risks = _of_my_suppliers(env, "fix.supplier.risk")
     buckets = {}
     for risk in risks:
         key = (risk.likelihood, risk.impact, risk.band)
@@ -227,10 +256,8 @@ def risk_heat(env, date_from=None, date_to=None, **params):
 def contract_coverage(env, date_from=None, date_to=None, **params):
     suppliers = _suppliers(env)
     active = suppliers.filtered(lambda s: s.status == "active")
-    docs = (
-        env["fix.supplier.document"]
-        .sudo()
-        .search([("doc_type", "=", "contract"), ("is_valid", "=", True)])
+    docs = _of_my_suppliers(
+        env, "fix.supplier.document", [("doc_type", "=", "contract"), ("is_valid", "=", True)]
     )
     covered = set(docs.mapped("supplier_id").ids)
     rows = []
@@ -260,7 +287,7 @@ def contract_coverage(env, date_from=None, date_to=None, **params):
 
 def compliance_log(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in env["fix.supplier.screening"].sudo().search([]):
+    for rec in _of_my_suppliers(env, "fix.supplier.screening"):
         rows.append(
             {
                 "screening": rec.name,
@@ -288,7 +315,10 @@ def compliance_log(env, date_from=None, date_to=None, **params):
             "notes": "Notes",
         },
         rows,
-        ["A hit can never be cleared; it is flagged and stays in the log."],
+        [
+            "A hit is never rewritten: it stays in the log, and only a Supplier Approver's "
+            "clearance (with the reason) marks it cleared."
+        ],
         empty="No compliance screenings recorded yet.",
     )
 
@@ -306,12 +336,12 @@ def kpis(env):
     suppliers = _suppliers(env)
     today = datetime.date.today()
     horizon = today + datetime.timedelta(days=90)
-    docs = env["fix.supplier.document"].sudo().search([])
+    docs = _of_my_suppliers(env, "fix.supplier.document")
     expiring = docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
-    cars = env["fix.supplier.car"].sudo().search([])
-    risks = env["fix.supplier.risk"].sudo().search([])
-    quals = env["fix.supplier.qualification"].sudo().search([])
-    screenings = env["fix.supplier.screening"].sudo().search([])
+    cars = _of_my_suppliers(env, "fix.supplier.car")
+    risks = _of_my_suppliers(env, "fix.supplier.risk")
+    quals = _of_my_suppliers(env, "fix.supplier.qualification")
+    screenings = _of_my_suppliers(env, "fix.supplier.screening")
     return {
         "active_suppliers": len(suppliers.filtered(lambda s: s.status == "active")),
         "qualified_pending": len(quals.filtered(lambda q: q.state in ("draft", "in_review"))),

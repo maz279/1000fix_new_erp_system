@@ -124,6 +124,26 @@ def test_grni_from_po_receipts_less_invoiced_quantity(ap, call):
             ],
         }
     )
+    # A06 S3/S7: goods are received only on an approved, sent PO to an active
+    # supplier. Approval routing is tested in cd_requisition; here the PO is
+    # put in the approved state directly so the report's arithmetic is tested.
+    supplier = env["fix.supplier"].create(
+        {"name": ap["vendor"].name, "partner_id": ap["vendor"].id, "status": "active"}
+    )
+    for doc_type in ("trade_licence", "tin", "vat"):
+        env["fix.supplier.document"].create(
+            {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
+        )
+    po.action_record_requisition_exception(reason="A08 GRNI report test PO")
+    po._guarded().write(
+        {
+            "approval_state": "approved",
+            "dofa_approved": True,
+            "dofa_approved_tier": po._dofa_current_tier(),
+            "dofa_approved_amount": po.amount_total,
+        }
+    )
+    po.action_send()
     po.action_record_receipt({po.line_ids.id: 3.0})
     _bill(ap, 3000.0, qty=1.0, po=po)
     res = call(env(user=ap["acc"]), "model_report", module="M52", report="grni_accruals")

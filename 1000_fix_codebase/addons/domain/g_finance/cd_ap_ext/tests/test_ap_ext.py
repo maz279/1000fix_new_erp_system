@@ -63,97 +63,12 @@ class TestThreeWayMatch:
         )
         assert "call" not in masked
 
-    def test_live_negative_match_qty_variance_blocks_and_refuses_payment(self):
-        """G3-06b: Live negative test — quantity invoiced > quantity received strictly blocks."""
-        from unittest.mock import MagicMock
-
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
-        from odoo.exceptions import UserError
-
-        class MockRecordset(list):
-            def filtered(self, predicate):
-                return MockRecordset([x for x in self if predicate(x)])
-
-            def __getitem__(self, item):
-                res = super().__getitem__(item)
-                return MockRecordset(res) if isinstance(res, list) else res
-
-            def __getattr__(self, name):
-                if len(self) == 1:
-                    return getattr(self[0], name)
-                raise AttributeError(name)
-
-        inv = MagicMock()
-        line = MagicMock()
-        line.product_id.id = 101
-        line.description = "Spare Battery Pack"
-        line.quantity = 10.0
-        line.unit_price = 500.0
-
-        po_line = MagicMock()
-        po_line.product_id.id = 101
-        po_line.qty_ordered = 10.0
-        po_line.qty_received = 4.0
-        po_line.unit_price = 500.0
-
-        po = MagicMock()
-        po.line_ids = MockRecordset([po_line])
-
-        inv.requisition_id = po
-        inv.line_ids = [line]
-
-        FixVendorInvoice._compute_match([inv])
-        assert inv.match_state == "blocked"
-        assert "received 4.00 < invoiced 10.00" in inv.match_detail
-
-        with pytest.raises(UserError, match="G3-06: an unmatched vendor invoice cannot be paid"):
-            FixVendorInvoice.action_request_payment([inv])
-
-    def test_live_negative_match_price_variance_blocks_and_refuses_payment(self):
-        """G3-06b: Live negative test — unit price invoiced > PO price strictly blocks."""
-        from unittest.mock import MagicMock
-
-        from odoo.addons.cd_ap_ext.models.fix_ap_ext import FixVendorInvoice
-        from odoo.exceptions import UserError
-
-        class MockRecordset(list):
-            def filtered(self, predicate):
-                return MockRecordset([x for x in self if predicate(x)])
-
-            def __getitem__(self, item):
-                res = super().__getitem__(item)
-                return MockRecordset(res) if isinstance(res, list) else res
-
-            def __getattr__(self, name):
-                if len(self) == 1:
-                    return getattr(self[0], name)
-                raise AttributeError(name)
-
-        inv = MagicMock()
-        line = MagicMock()
-        line.product_id.id = 202
-        line.description = "Display Panel"
-        line.quantity = 1.0
-        line.unit_price = 3500.0  # above PO price
-
-        po_line = MagicMock()
-        po_line.product_id.id = 202
-        po_line.qty_ordered = 1.0
-        po_line.qty_received = 1.0
-        po_line.unit_price = 3000.0
-
-        po = MagicMock()
-        po.line_ids = MockRecordset([po_line])
-
-        inv.requisition_id = po
-        inv.line_ids = [line]
-
-        FixVendorInvoice._compute_match([inv])
-        assert inv.match_state == "blocked"
-        assert "price above PO" in inv.match_detail
-
-        with pytest.raises(UserError, match="G3-06: an unmatched vendor invoice cannot be paid"):
-            FixVendorInvoice.action_request_payment([inv])
+    # A06 audit (2026-11-03): the two "live negative" match tests here fed
+    # _compute_match MagicMock stand-ins for the PO line's typed qty_received
+    # and live unit_price - the inputs the A06 fix stopped the match from
+    # reading. They are now real-ORM tests in test_a06_m16_match.py
+    # (test_m16_qty_variance_blocks_and_refuses_payment,
+    # test_m16_price_variance_blocks_and_refuses_payment).
 
 
 class TestExpenseClaim:

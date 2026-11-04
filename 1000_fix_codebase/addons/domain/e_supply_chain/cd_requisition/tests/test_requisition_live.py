@@ -1,10 +1,18 @@
 # cd_requisition live-ORM tests — M16 PO / receipt (three-way match inputs).
+#
+# A06 audit (2026-11-03): these tests sent unapproved POs to unregistered
+# vendors, acknowledged them as staff, received goods on draft POs and approved
+# requisitions as the IT administrator - each of which is now refused. They
+# run as the system here, so the business gates (an approved requisition or a
+# documented exception, an active supplier, a PO approval) are seeded the way
+# the approval engine leaves them; the role and segregation checks are in
+# test_a06_m16_controls.py.
 import json
-import uuid
-from datetime import date, datetime
+from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from odoo import fields
 from odoo.exceptions import UserError
 
 
@@ -25,6 +33,13 @@ def ctx(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
     vendor = env["res.partner"].create({"name": "Gazi Spares Ltd."})
+    supplier = env["fix.supplier"].create(
+        {"name": vendor.name, "partner_id": vendor.id, "status": "active"}
+    )
+    for doc_type in ("trade_licence", "tin", "vat"):
+        env["fix.supplier.document"].create(
+            {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
+        )
     compressor, capacitor = env["product.product"].create(
         [{"name": "Compressor 1.5T"}, {"name": "Run Capacitor 35uF"}]
     )
@@ -54,6 +69,26 @@ def _po(ctx, lines=None, **vals):
     )
 
 
+def _approved(po):
+    """The state the M63 engine leaves an approved PO in."""
+    po.action_record_requisition_exception(reason="test PO without requisition")
+    po._guarded().write(
+        {
+            "approval_state": "approved",
+            "dofa_approved": True,
+            "dofa_approved_tier": po._dofa_current_tier(),
+            "dofa_approved_amount": po.amount_total,
+        }
+    )
+    return po
+
+
+def _sent(ctx, **vals):
+    po = _approved(_po(ctx, **vals))
+    po.action_send()
+    return po
+
+
 # --- purchase order -------------------------------------------------------------
 
 
@@ -77,12 +112,20 @@ def test_explicit_po_reference_is_kept(ctx):
 
 
 def test_send_publishes_po_issued(ctx):
-    po = _po(ctx)
-    po.action_send()
-    assert po.state == "sent"
+    po = _sent(ctx)
+    assert po.state == "sent" and po.sent_at
     assert _events(ctx.env, "po.issued", "fix.purchase.order", po.id) == [
         {"po_ref": po.name, "vendor_id": ctx.vendor.id, "amount_total": 1360.0, "currency": "BDT"}
     ]
+    assert po.line_ids.mapped("approved_unit_price") == [500.0, 120.0]
+
+
+def test_unapproved_po_is_not_sent(ctx):
+    po = _po(ctx)
+    po.action_record_requisition_exception(reason="test PO without requisition")
+    with pytest.raises(UserError, match="not been approved"), ctx.env.cr.savepoint():
+        po.action_send()
+    assert po.state == "draft"
 
 
 def test_only_a_sent_po_is_acknowledged(ctx):
@@ -90,59 +133,69 @@ def test_only_a_sent_po_is_acknowledged(ctx):
         pytest.raises(UserError, match="Only a sent PO can be acknowledged"),
         ctx.env.cr.savepoint(),
     ):
-        _po(ctx).action_acknowledge()
+        _po(ctx).action_acknowledge_on_behalf(evidence="vendor e-mail 2026-03-02")
 
 
-def test_acknowledge_with_the_vendors_timestamp(ctx):
-    po = _po(ctx)
-    po.action_send()
-    po.action_acknowledge(acknowledged_at=datetime(2026, 3, 2, 10, 30))
-    assert (po.state, po.acknowledged_at) == ("acknowledged", datetime(2026, 3, 2, 10, 30))
+def test_staff_acknowledgement_is_on_behalf_with_evidence(ctx):
+    po = _sent(ctx)
+    with pytest.raises(UserError, match="P05 portal"), ctx.env.cr.savepoint():
+        po.action_acknowledge()
+    po.action_acknowledge_on_behalf(
+        evidence="vendor e-mail 2026-03-02", confirmed_date="2026-03-09"
+    )
+    assert (po.state, po.ack_channel, po.vendor_confirmed_date) == (
+        "acknowledged",
+        "buyer_on_behalf",
+        date(2026, 3, 9),
+    )
+    assert po.acknowledged_at
     assert _events(ctx.env, "po.acknowledged", "fix.purchase.order", po.id) == [
-        {"po_ref": po.name, "vendor_id": ctx.vendor.id}
+        {
+            "po_ref": po.name,
+            "vendor_id": ctx.vendor.id,
+            "channel": "buyer_on_behalf",
+            "confirmed_date": "2026-03-09",
+        }
     ]
 
 
-def test_acknowledge_defaults_to_now(ctx):
-    po = _po(ctx)
-    po.action_send()
-    po.action_acknowledge()
-    assert po.acknowledged_at
-
-
 def test_partial_then_full_receipt(ctx):
-    po = _po(ctx)
+    po = _sent(ctx)
     compressor_line, capacitor_line = po.line_ids
     po.action_record_receipt({compressor_line.id: 1.0})
     assert po.state == "partially_received"
     assert (compressor_line.qty_received, capacitor_line.qty_received) == (1.0, 0.0)
     po.action_record_receipt({compressor_line.id: 1.0, capacitor_line.id: 3.0})
-    assert po.state == "received"
+    assert po.state == "received" and po.received_on == fields.Date.context_today(po)
+    assert len(po.receipt_ids) == 2 and set(po.receipt_ids.mapped("state")) == {"posted"}
     events = _events(ctx.env, "goods.received", "fix.purchase.order.line", compressor_line.id)
-    assert events == [
-        {"po_ref": po.name, "product_id": ctx.compressor.id, "qty_received": 1.0},
-        {"po_ref": po.name, "product_id": ctx.compressor.id, "qty_received": 1.0},
-    ]
-    assert _events(ctx.env, "goods.received", "fix.purchase.order.line", capacitor_line.id) == [
-        {"po_ref": po.name, "product_id": ctx.capacitor.id, "qty_received": 3.0}
-    ]
+    assert [e["qty_received"] for e in events] == [1.0, 1.0]
+    assert {e["vendor_id"] for e in events} == {ctx.vendor.id}
+    assert {e["po_id"] for e in events} == {po.id}
+    cap = _events(ctx.env, "goods.received", "fix.purchase.order.line", capacitor_line.id)
+    assert [(e["product_id"], e["qty_received"]) for e in cap] == [(ctx.capacitor.id, 3.0)]
 
 
-def test_receipt_of_nothing_keeps_the_state(ctx):
-    po = _po(ctx)
-    po.action_send()
-    po.action_record_receipt({po.line_ids[0].id: 0.0})  # zero: no movement
+def test_receipt_of_nothing_is_refused(ctx):
+    po = _sent(ctx)
+    with pytest.raises(UserError, match="Nothing to receive"), ctx.env.cr.savepoint():
+        po.action_record_receipt({po.line_ids[0].id: 0.0})
     assert po.state == "sent"
     assert _events(ctx.env, "goods.received", "fix.purchase.order.line", po.line_ids[0].id) == []
 
 
 def test_over_receipt_is_refused(ctx):
-    po = _po(ctx)
+    po = _sent(ctx)
     with (
         pytest.raises(UserError, match=r"Received 3.00 outside 0..2.00 for Compressor 1.5T"),
         ctx.env.cr.savepoint(),
     ):
         po.action_record_receipt({po.line_ids[0].id: 3.0})
+
+
+def test_receipt_only_on_a_sent_po(ctx):
+    with pytest.raises(UserError, match="sent or acknowledged"), ctx.env.cr.savepoint():
+        _po(ctx).action_record_receipt({1: 1.0})
 
 
 def test_line_quantities_are_validated(ctx):
@@ -154,11 +207,8 @@ def test_line_quantities_are_validated(ctx):
         ctx.env.cr.savepoint(),
     ):
         Line.create({**base, "qty_ordered": 0.0})
-    with (
-        pytest.raises(UserError, match=r"Received -1.00 outside 0..1.00 for \?"),
-        ctx.env.cr.savepoint(),
-    ):
-        Line.create({**base, "qty_received": -1.0})
+    line = Line.create({**base, "qty_ordered": 1.0})
+    assert line.qty_received == 0.0  # only posted receipts move it
 
 
 # --- requisition approval authority -----------------------------------------------
@@ -168,12 +218,18 @@ def test_line_quantities_are_validated(ctx):
 def requisition_ctx(ctx):
     env = ctx.env
     employee = env["hr.employee"].create({"name": "Karim Store Keeper"})
-    clerk = env["res.users"].create(
-        {
-            "name": "Stores Clerk",
-            "login": f"req-stores-clerk-{uuid.uuid4().hex[:8]}",
-            "group_ids": [(6, 0, [env.ref("base.group_user").id])],
-        }
+    clerk = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Stores Clerk",
+                "login": "req-stores-clerk-a06",
+                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+                "assigned_operating_unit_ids": [(6, 0, ctx.ou.ids)],
+                "default_operating_unit_id": ctx.ou.id,
+            }
+        )
     )
 
     def make(amount):
@@ -189,20 +245,20 @@ def requisition_ctx(ctx):
     return SimpleNamespace(env=env, make=make, clerk=clerk)
 
 
-def test_requisition_within_authority_is_approved_by_anyone(requisition_ctx):
-    req = requisition_ctx.make(25000.0)  # at the threshold, not above
+def test_no_requisition_is_approved_by_pressing_approve(requisition_ctx):
+    """The 25,000 'anyone may approve' band is gone: every requisition with a
+    value is approved from the M63 inbox by a DOFA tier holder."""
+    req = requisition_ctx.make(25000.0)
     assert (req.state, req.urgency) == ("draft", "normal")
-    req.with_user(requisition_ctx.clerk).action_approve()
-    assert req.state == "approved"
-
-
-def test_large_requisition_needs_cfo_level(requisition_ctx):
-    req = requisition_ctx.make(25000.01)
-    with (
-        pytest.raises(UserError, match="above BDT 25000 require CFO-level approval"),
-        requisition_ctx.env.cr.savepoint(),
-    ):
+    with pytest.raises(UserError), requisition_ctx.env.cr.savepoint():
         req.with_user(requisition_ctx.clerk).action_approve()
     assert req.state == "draft"
-    req.action_approve()  # superuser: base.group_system
-    assert req.state == "approved"
+
+
+def test_large_requisition_is_not_the_it_administrators(requisition_ctx):
+    req = requisition_ctx.make(25000.01)
+    req.with_user(requisition_ctx.clerk).action_submit()
+    assert req.state == "submitted"
+    with pytest.raises(UserError), requisition_ctx.env.cr.savepoint():
+        req.with_user(requisition_ctx.env.ref("base.user_admin")).action_approve()
+    assert req.state == "submitted" and not req.dofa_approved

@@ -53,5 +53,13 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A06 R5: the PO goods receipt (GRN) referencing the PO lines. -->
+        <record id="seq_fix_purchase_receipt" model="ir.sequence">
+            <field name="name">Purchase Goods Receipt</field>
+            <field name="code">fix.purchase.receipt</field>
+            <field name="prefix">PGRN/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

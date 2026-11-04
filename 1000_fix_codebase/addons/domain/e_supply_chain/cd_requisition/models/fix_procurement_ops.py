@@ -1,76 +1,64 @@
-# fix_procurement_ops — M16: RFQ sourcing events with bids and awards, blanket
-# agreements, expediting, inspection outcomes, plus the requisition → PO
-# conversion and the PO fields the OTD / cycle-time / maverick reports need.
-# The module loads before cd_inventory, so references use product.product (the
-# same basis as the existing PO lines), never fix.spare.part.
+# fix_procurement_ops — M16: RFQ sourcing events with sealed bids and awards,
+# blanket agreements, expediting and inspection outcomes. The requisition and
+# PO themselves are in fix_requisition.py, the PO goods receipt in
+# fix_purchase_receipt.py. The module loads before cd_inventory, so references
+# use product.product (the basis of the PO lines), never fix.spare.part.
+#
+# A06 audit (2026-11-03), M16-5/7/9/10 and R7: bids were accepted on draft and
+# closed RFQs, re-priced after close and readable by every user while open; an
+# award went to a non-lowest bid with no rationale, on an open RFQ, twice, to
+# an unregistered vendor's expired bid and on one bid (live: to the company's
+# own partner record); a blanket cap was decorative; inspection outcomes were
+# typed and editable after confirmation; every state was writable. Now each
+# state moves only by its action (fix.guarded.mixin) and:
+#   - bids are sealed until close (record rule), received only while the RFQ is
+#     open, and fixed once it closes;
+#   - an award goes to the lowest compliant bid, or carries a rationale that
+#     a Procurement Approver other than the evaluator decides; fewer bids than
+#     the minimum need a recorded exception decided the same way; one live
+#     award per RFQ; never to the company's own partner; the PO is raised
+#     from the award at no more than the awarded price;
+#   - a blanket is activated by an approver, its cap and window fixed while
+#     active, consumed only by call-offs linked to it, and expires by cron;
+#   - an inspection belongs to a receipt line, its outcome is derived from
+#     the quantities, and it is final once confirmed.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from libs.py.fix_events import publish  # FF-28
 
-class FixRequisitionExtend(models.Model):
-    _inherit = "fix.requisition"
+from .fix_requisition import (
+    GROUP_APPROVER,
+    GROUP_BUYER,
+    GROUP_RECEIVER,
+    ISSUED_PO_STATES,
+    float_param,
+    has_role,
+    require_role,
+)
 
-    product_id = fields.Many2one("product.product", string="Product", index=True)
-    qty = fields.Float(string="Quantity", default=1.0)
-    vendor_id = fields.Many2one("res.partner", string="Preferred Vendor", index=True)
-
-    def action_convert_to_po(self):
-        """Create the PO from an approved requisition, one line at the
-        requisition's estimated unit price. The PO keeps the requisition link
-        so maverick spend (a PO with no approved requisition) is measurable."""
-        orders = self.env["fix.purchase.order"]
-        for req in self:
-            if req.state != "approved":
-                raise UserError("Convert an approved requisition")
-            if not req.product_id or (req.qty or 0.0) <= 0:
-                raise UserError("A requisition needs a product and a positive quantity to convert")
-            if not req.vendor_id:
-                raise UserError("A requisition needs a vendor before it can become a PO")
-            if req.purchase_order_id:
-                raise UserError("Requisition %s is already converted" % req.description)
-            unit_price = (req.estimate_amount or 0.0) / (req.qty or 1.0)
-            order = orders.create(
-                {
-                    "operating_unit_id": req.operating_unit_id.id,
-                    "branch_id": req.branch_id.id,
-                    "vendor_id": req.vendor_id.id,
-                    "state": "draft",
-                    "requisition_id": req.id,
-                    "line_ids": [
-                        (
-                            0,
-                            0,
-                            {
-                                "product_id": req.product_id.id,
-                                "description": req.description,
-                                "qty_ordered": req.qty,
-                                "unit_price": unit_price,
-                            },
-                        )
-                    ],
-                }
-            )
-            req.write({"state": "converted", "purchase_order_id": order.id})
+# BRU-PRO-06: minimum compliant quotations for an award, and the value at or
+# below which a single quotation suffices. Business decisions (A06 §7 B5):
+# defaults 3 and 0 (every award needs three quotes or a recorded exception).
+PARAM_MIN_BIDS = "cd_requisition.rfq_min_bids"
+PARAM_COMPETITIVE_THRESHOLD = "cd_requisition.rfq_competitive_threshold"
 
 
-class FixPurchaseOrderExtend(models.Model):
-    _inherit = "fix.purchase.order"
+class FixApprovalMatrixProcurement(models.Model):
+    """M16 decision domains on the M63 DoA register."""
 
-    requisition_id = fields.Many2one("fix.requisition", string="Source Requisition", index=True)
-    promised_date = fields.Date(string="Promised Date")
-    received_on = fields.Date(string="Received On")
+    _inherit = "fix.approval.matrix"
 
-    def action_record_receipt(self, receipts=None):
-        res = super().action_record_receipt(receipts or {})
-        for order in self:
-            if order.state == "received" and not order.received_on:
-                order.received_on = fields.Date.context_today(self)
-        return res
+    decision_domain = fields.Selection(
+        selection_add=[("purchase_order", "Purchase Order")],
+        ondelete={"purchase_order": "cascade"},
+    )
 
 
 class FixProcurementRfq(models.Model):
     _name = "fix.procurement.rfq"
     _description = "RFQ Event"
+    _inherit = ["fix.guarded.mixin"]
     _order = "create_date desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -78,6 +66,12 @@ class FixProcurementRfq(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     description = fields.Char(required=True)
+    requisition_id = fields.Many2one(
+        "fix.requisition",
+        string="Source Requisition",
+        index=True,
+        help="The approved requisition this sourcing event buys for; the award's PO converts it.",
+    )
     product_id = fields.Many2one("product.product", string="Product", required=True)
     qty = fields.Float(string="Quantity", default=1.0)
     required_by = fields.Date(string="Required By")
@@ -95,10 +89,23 @@ class FixProcurementRfq(models.Model):
         required=True,
         default="draft",
     )
+    opened_at = fields.Datetime(readonly=True, copy=False)
+    closed_at = fields.Datetime(readonly=True, copy=False)
     bid_ids = fields.One2many("fix.procurement.bid", "rfq_id", string="Bids")
     notes = fields.Text()
 
+    RFQ_FIXED = ("product_id", "qty", "currency_id", "requisition_id")
+
     _qty_positive = models.Constraint("CHECK (qty > 0)", "RFQ quantity must be positive")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "opened_at", "closed_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.RFQ_FIXED)
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -109,24 +116,40 @@ class FixProcurementRfq(models.Model):
                 )
         return super().create(vals_list)
 
+    def write(self, vals):
+        fixed = set(self.RFQ_FIXED) & set(vals)
+        if fixed and not self._fix_guard_has_token():
+            for rec in self:
+                if rec.state != "draft" and any(
+                    rec._fix_guard_differs(n, vals[n], rec[n]) for n in fixed
+                ):
+                    raise UserError(
+                        "RFQ %s is %s: what is being bought is fixed once bids are invited."
+                        % (rec.name, rec.state)
+                    )
+        return super().write(vals)
+
     def action_open(self):
         for rec in self:
+            require_role(self.env, GROUP_BUYER, "Opening an RFQ")
             if rec.state != "draft":
                 raise UserError("Open a draft RFQ")
-            rec.state = "open"
+            rec._guarded().write({"state": "open", "opened_at": fields.Datetime.now()})
 
     def action_close(self):
         for rec in self:
+            require_role(self.env, GROUP_BUYER, "Closing an RFQ")
             if rec.state != "open":
                 raise UserError("Close an open RFQ")
-            if not rec.bid_ids:
+            if not rec.sudo().bid_ids:
                 raise UserError("An RFQ cannot close without at least one bid")
-            rec.state = "closed"
+            rec._guarded().write({"state": "closed", "closed_at": fields.Datetime.now()})
 
 
 class FixProcurementBid(models.Model):
     _name = "fix.procurement.bid"
     _description = "Supplier Bid"
+    _inherit = ["fix.guarded.mixin"]
     _order = "rfq_id, unit_price"
 
     name = fields.Char(required=True, default="New")
@@ -140,6 +163,7 @@ class FixProcurementBid(models.Model):
     unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id", required=True)
     lead_time_days = fields.Integer(string="Lead Time (days)", default=7)
     valid_until = fields.Date()
+    received_at = fields.Datetime(readonly=True, copy=False, default=fields.Datetime.now)
     state = fields.Selection(
         [("received", "Received"), ("awarded", "Awarded"), ("lost", "Lost")],
         required=True,
@@ -147,23 +171,63 @@ class FixProcurementBid(models.Model):
     )
     notes = fields.Char()
 
+    BID_FIXED = (
+        "rfq_id",
+        "vendor_id",
+        "currency_id",
+        "unit_price",
+        "lead_time_days",
+        "valid_until",
+    )
+
     _price_positive = models.Constraint("CHECK (unit_price > 0)", "Bid price must be positive")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "received_at"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(b.rfq_id.state != "open" for b in self):
+            locked |= set(self.BID_FIXED)
+        return locked
 
     @api.model_create_multi
     def create(self, vals_list):
+        Rfq = self.env["fix.procurement.rfq"].sudo()
         for vals in vals_list:
+            rfq = Rfq.browse(vals.get("rfq_id")).exists()
+            if not rfq or rfq.state != "open":
+                raise UserError(
+                    "A bid is received only while its RFQ is open for bids (RFQ %s is %s)."
+                    % (rfq.name or "?", rfq.state or "missing")
+                )
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.procurement.bid") or "BID/New"
                 )
         return super().create(vals_list)
 
+    def write(self, vals):
+        fixed = set(self.BID_FIXED) & set(vals)
+        if fixed and not self._fix_guard_has_token():
+            for rec in self:
+                if rec.sudo().rfq_id.state != "open" and any(
+                    rec._fix_guard_differs(n, vals[n], rec[n]) for n in fixed
+                ):
+                    raise UserError(
+                        "Bid %s is sealed: its RFQ is %s, so the price, vendor and terms are "
+                        "final." % (rec.name, rec.sudo().rfq_id.state)
+                    )
+        return super().write(vals)
+
 
 class FixProcurementAward(models.Model):
-    """The award decision: created once per RFQ, marking the winning bid."""
+    """The award decision: one live award per RFQ, to the lowest compliant
+    bid or with a rationale a second person approves."""
 
     _name = "fix.procurement.award"
     _description = "Award Decision"
+    _inherit = ["fix.guarded.mixin"]
     _order = "decided_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -177,33 +241,301 @@ class FixProcurementAward(models.Model):
         "fix.procurement.bid", string="Winning Bid", required=True, ondelete="restrict"
     )
     decided_on = fields.Date(required=True, default=fields.Date.context_today)
-    rationale = fields.Char()
-    state = fields.Selection(
-        [("decided", "Decided"), ("cancelled", "Cancelled")],
-        required=True,
-        default="decided",
+    rationale = fields.Char(help="Mandatory when the award is not to the lowest compliant bid.")
+    exception_reason = fields.Char(
+        string="Bid-Count Exception",
+        help="Mandatory when fewer compliant bids than the minimum were received.",
     )
+    state = fields.Selection(
+        [("proposed", "Proposed"), ("decided", "Decided"), ("cancelled", "Cancelled")],
+        required=True,
+        default="proposed",
+    )
+    lowest_bid_id = fields.Many2one(
+        "fix.procurement.bid", string="Lowest Compliant Bid", readonly=True, copy=False
+    )
+    is_lowest = fields.Boolean(string="Lowest Compliant", readonly=True, copy=False)
+    compliant_bid_count = fields.Integer(readonly=True, copy=False)
+    min_bids = fields.Integer(string="Minimum Bids", readonly=True, copy=False)
+    needs_approval = fields.Boolean(readonly=True, copy=False)
+    decided_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    decided_at = fields.Datetime(readonly=True, copy=False)
+    approved_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    purchase_order_id = fields.Many2one("fix.purchase.order", readonly=True, copy=False)
+    cancel_reason = fields.Char(readonly=True, copy=False)
+
+    AWARD_GUARDED = {
+        "state",
+        "lowest_bid_id",
+        "is_lowest",
+        "compliant_bid_count",
+        "min_bids",
+        "needs_approval",
+        "decided_by_id",
+        "decided_at",
+        "approved_by_id",
+        "purchase_order_id",
+        "cancel_reason",
+    }
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | self.AWARD_GUARDED
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self:
+            locked |= {"rfq_id", "bid_id", "decided_on"}
+            if any(r.state != "proposed" for r in self):
+                locked |= {"rationale", "exception_reason"}
+        return locked
+
+    # ---- compliance -------------------------------------------------------
+    def _a06_bid_problems(self, bid):
+        """Why `bid` cannot win: expired, the company's own partner, or a
+        vendor M42 has not activated."""
+        bid = bid.sudo()
+        problems = []
+        today = fields.Date.context_today(self)
+        if bid.valid_until and bid.valid_until < today:
+            problems.append("the bid expired on %s" % bid.valid_until)
+        own = self.env["res.company"].sudo().search([]).mapped("partner_id.commercial_partner_id")
+        if bid.vendor_id.commercial_partner_id in own:
+            problems.append("the bidder is the company's own partner record")
+        problems += self.env["fix.purchase.order"]._fix_vendor_blockers(bid.vendor_id)
+        return problems
+
+    def _a06_validate_proposal(self):
+        self.ensure_one()
+        rfq, bid = self.rfq_id.sudo(), self.bid_id.sudo()
+        if bid.rfq_id != rfq:
+            raise UserError("The winning bid must belong to the awarded RFQ")
+        if rfq.state != "closed":
+            raise UserError(
+                "Award after the bid window closes (RFQ %s is %s)." % (rfq.name, rfq.state)
+            )
+        live = self.sudo().search_count(
+            [
+                ("rfq_id", "=", rfq.id),
+                ("state", "in", ("proposed", "decided")),
+                ("id", "!=", self.id),
+            ]
+        )
+        if live:
+            raise UserError(
+                "RFQ %s already has a live award. Cancel it before proposing another." % rfq.name
+            )
+        problems = self._a06_bid_problems(bid)
+        if problems:
+            raise UserError("Bid %s cannot be awarded: %s." % (bid.name, "; ".join(problems)))
+        compliant = rfq.bid_ids.filtered(lambda b: not self._a06_bid_problems(b))
+        lowest = compliant.sorted(lambda b: (b.unit_price, b.id))[:1]
+        is_lowest = bid.unit_price <= lowest.unit_price + 0.005
+        threshold = float_param(self.env, PARAM_COMPETITIVE_THRESHOLD, 0.0)
+        value = (bid.unit_price or 0.0) * (rfq.qty or 0.0)
+        min_bids = 1 if value <= threshold else int(float_param(self.env, PARAM_MIN_BIDS, 3))
+        if not is_lowest and not (self.rationale or "").strip():
+            raise UserError(
+                "BRU-PRO-07: bid %s (%.2f) is not the lowest compliant bid (%s at %.2f). Record "
+                "the rationale; a Procurement Approver other than you decides it."
+                % (bid.name, bid.unit_price, lowest.name, lowest.unit_price)
+            )
+        if len(compliant) < min_bids and not (self.exception_reason or "").strip():
+            raise UserError(
+                "BRU-PRO-06: RFQ %s has %d compliant bid(s); %d are required at BDT %.2f. "
+                "Record the exception (e.g. single source); a Procurement Approver decides it."
+                % (rfq.name, len(compliant), min_bids, value)
+            )
+        needs = (not is_lowest) or len(compliant) < min_bids
+        self._guarded().write(
+            {
+                "lowest_bid_id": lowest.id,
+                "is_lowest": is_lowest,
+                "compliant_bid_count": len(compliant),
+                "min_bids": min_bids,
+                "needs_approval": needs,
+            }
+        )
+        return needs
+
+    def _a06_apply_decision(self):
+        self.ensure_one()
+        rfq = self.rfq_id.sudo()
+        rfq.bid_ids.filtered(lambda b, won=self.bid_id: b != won)._guarded().write(
+            {"state": "lost"}
+        )
+        self.bid_id.sudo()._guarded().write({"state": "awarded"})
+        rfq._guarded().write({"state": "awarded"})
+        self._guarded().write(
+            {
+                "state": "decided",
+                "decided_by_id": self.env.uid,
+                "decided_at": fields.Datetime.now(),
+                "approved_by_id": self.env.uid if self.needs_approval else False,
+            }
+        )
+        publish(
+            self.env,
+            "rfq.awarded",
+            "fix.procurement.award",
+            self.id,
+            {
+                "rfq": rfq.name,
+                "bid": self.bid_id.name,
+                "vendor_id": self.bid_id.vendor_id.id,
+                "unit_price": self.bid_id.unit_price,
+                "lowest": self.is_lowest,
+            },
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
+        require_role(self.env, GROUP_BUYER, "Proposing an award")
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.procurement.award") or "AWRD/New"
                 )
-        records = super().create(vals_list)
-        for rec in records:
-            if rec.bid_id.rfq_id != rec.rfq_id:
-                raise UserError("The winning bid must belong to the awarded RFQ")
-            rec.rfq_id.bid_ids.filtered(lambda b, won=rec.bid_id: b != won).write({"state": "lost"})
-            rec.bid_id.write({"state": "awarded"})
-            rec.rfq_id.state = "awarded"
+        # A refused proposal leaves nothing behind (no orphan "live" award).
+        with self.env.cr.savepoint():
+            records = super().create(vals_list)
+            for rec in records:
+                if not rec._a06_validate_proposal():
+                    rec._a06_apply_decision()
         return records
+
+    def write(self, vals):
+        if not self._fix_guard_has_token():
+            if {"rfq_id", "bid_id"} & set(vals) and any(
+                rec._fix_guard_differs(n, vals[n], rec[n])
+                for rec in self
+                for n in {"rfq_id", "bid_id"} & set(vals)
+            ):
+                raise UserError(
+                    "An award's RFQ and winning bid are fixed; cancel it and propose again."
+                )
+            if {"rationale", "exception_reason"} & set(vals) and any(
+                r.state != "proposed" for r in self
+            ):
+                raise UserError("A decided award's rationale is part of the record and is final.")
+        return super().write(vals)
+
+    def unlink(self):
+        if any(r.state == "decided" for r in self):
+            raise UserError("A decided award is evidence and cannot be deleted; cancel it.")
+        return super().unlink()
+
+    def action_decide(self):
+        """Decide a proposed award. One that is not to the lowest compliant
+        bid, or rests on fewer bids than the minimum, is decided by a
+        Procurement Approver who did not propose it (the evaluator)."""
+        for rec in self:
+            if rec.state != "proposed":
+                raise UserError("Award %s is %s." % (rec.name, rec.state))
+            if rec.needs_approval:
+                require_role(self.env, GROUP_APPROVER, "Deciding this award")
+                if not self.env.su and self.env.user == rec.create_uid:
+                    raise UserError(
+                        "Segregation of duties: you proposed award %s; another Procurement "
+                        "Approver decides it." % rec.name
+                    )
+            else:
+                require_role(self.env, GROUP_BUYER, "Deciding an award")
+            problems = rec._a06_bid_problems(rec.bid_id)
+            if problems:
+                raise UserError(
+                    "Bid %s cannot be awarded: %s." % (rec.bid_id.name, "; ".join(problems))
+                )
+            rec._a06_apply_decision()
+        return True
+
+    def action_cancel(self, reason=None):
+        for rec in self:
+            if rec.state == "cancelled":
+                raise UserError("Award %s is already cancelled." % rec.name)
+            if not (reason or "").strip():
+                raise UserError("State why award %s is cancelled." % rec.name)
+            if rec.state == "decided":
+                if rec.purchase_order_id and rec.purchase_order_id.state != "cancelled":
+                    raise UserError(
+                        "Award %s has PO %s; cancel the PO first."
+                        % (rec.name, rec.purchase_order_id.name)
+                    )
+                require_role(self.env, GROUP_APPROVER, "Cancelling a decided award")
+                rfq = rec.rfq_id.sudo()
+                rfq.bid_ids._guarded().write({"state": "received"})
+                rfq._guarded().write({"state": "closed"})
+            else:
+                require_role(self.env, GROUP_BUYER, "Cancelling an award proposal")
+            rec._guarded().write({"state": "cancelled", "cancel_reason": reason.strip()})
+        return True
+
+    def action_create_po(self):
+        """Raise the PO from the decided award, at the awarded price and the
+        RFQ quantity; it converts the RFQ's approved requisition when there is
+        one, and is approved like any PO before it is sent."""
+        Order = self.env["fix.purchase.order"]
+        for rec in self:
+            require_role(self.env, GROUP_BUYER, "Raising a PO from an award")
+            if rec.state != "decided":
+                raise UserError(
+                    "Raise the PO from a decided award (%s is %s)." % (rec.name, rec.state)
+                )
+            if rec.purchase_order_id and rec.purchase_order_id.state != "cancelled":
+                raise UserError(
+                    "Award %s already has PO %s." % (rec.name, rec.purchase_order_id.name)
+                )
+            rfq, bid = rec.rfq_id.sudo(), rec.bid_id.sudo()
+            Order._fix_vendor_gate(bid.vendor_id, "Raising a PO from award %s" % rec.name)
+            req = rfq.requisition_id
+            if req and (req.state != "approved" or req.purchase_order_id):
+                raise UserError(
+                    "Requisition %s behind RFQ %s is %s; it cannot be converted by this award."
+                    % (req.display_name, rfq.name, req.state)
+                )
+            if req:
+                req._dofa_assert_approved("Converting requisition %s" % req.display_name)
+            ou = (
+                req.operating_unit_id if req else False
+            ) or self.env.user.default_operating_unit_id
+            if not ou:
+                ou = self.env["operating.unit"].search(
+                    [("company_id", "=", rec.company_id.id)], limit=1
+                )
+            order = Order._guarded().create(
+                {
+                    "operating_unit_id": ou.id,
+                    "branch_id": req.branch_id.id if req else False,
+                    "vendor_id": bid.vendor_id.id,
+                    "currency_id": bid.currency_id.id,
+                    "award_id": rec.id,
+                    "requisition_id": req.id if req else False,
+                    "dofa_justification": (req.dofa_justification if req else False)
+                    or "Award %s on RFQ %s: %s"
+                    % (rec.name, rfq.name, rec.rationale or "lowest compliant bid"),
+                    "line_ids": [
+                        (
+                            0,
+                            0,
+                            {
+                                "product_id": rfq.product_id.id,
+                                "description": rfq.description,
+                                "qty_ordered": rfq.qty,
+                                "unit_price": bid.unit_price,
+                            },
+                        )
+                    ],
+                }
+            )
+            if req:
+                req._guarded().write({"state": "converted", "purchase_order_id": order.id})
+            rec._guarded().write({"purchase_order_id": order.id})
+        return True
 
 
 class FixProcurementBlanket(models.Model):
     _name = "fix.procurement.blanket"
     _description = "Blanket Agreement"
+    _inherit = ["fix.guarded.mixin"]
     _order = "valid_to desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -218,34 +550,71 @@ class FixProcurementBlanket(models.Model):
     )
     cap_amount = fields.Monetary(string="Cap Amount", currency_field="currency_id")
     consumed_amount = fields.Monetary(
-        string="Consumed (POs in window)",
+        string="Called Off",
         currency_field="currency_id",
         compute="_compute_consumed",
+        help="Issued purchase orders linked to this agreement (drafts and cancellations excluded).",
     )
     remaining_amount = fields.Monetary(
         string="Remaining", currency_field="currency_id", compute="_compute_consumed"
     )
     state = fields.Selection(
-        [("active", "Active"), ("expired", "Expired"), ("cancelled", "Cancelled")],
+        [
+            ("draft", "Draft"),
+            ("active", "Active"),
+            ("expired", "Expired"),
+            ("cancelled", "Cancelled"),
+        ],
         required=True,
-        default="active",
+        default="draft",
     )
+    activated_by_id = fields.Many2one("res.users", readonly=True, copy=False)
+    activated_at = fields.Datetime(readonly=True, copy=False)
+    terms_changed_by_id = fields.Many2one(
+        "res.users",
+        string="Terms Last Changed By",
+        readonly=True,
+        copy=False,
+        help="Never the one who activates the agreement.",
+    )
+    order_ids = fields.One2many("fix.purchase.order", "blanket_id", string="Call-Off Orders")
+
+    BLANKET_TERMS = ("vendor_id", "cap_amount", "valid_from", "valid_to", "currency_id")
 
     _dates_ordered = models.Constraint(
         "CHECK (valid_to >= valid_from)", "The blanket end date cannot precede its start"
     )
 
-    @api.depends("cap_amount", "vendor_id", "valid_from", "valid_to")
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "state",
+            "activated_by_id",
+            "activated_at",
+            "terms_changed_by_id",
+        }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.state != "draft" for r in self):
+            locked |= set(self.BLANKET_TERMS)
+        return locked
+
+    def _consumed_amount(self, exclude=None):
+        self.ensure_one()
+        orders = (
+            self.env["fix.purchase.order"]
+            .sudo()
+            .search([("blanket_id", "=", self.id), ("state", "in", ISSUED_PO_STATES)])
+        )
+        if exclude:
+            orders -= exclude.sudo()
+        return round(sum(orders.mapped("amount_total")), 2)
+
+    @api.depends("cap_amount", "order_ids.state", "order_ids.amount_total")
     def _compute_consumed(self):
-        orders = self.env["fix.purchase.order"].sudo()
         for rec in self:
-            domain = [("vendor_id", "=", rec.vendor_id.id), ("state", "!=", "cancelled")]
-            if rec.valid_from:
-                domain.append(("date_order", ">=", rec.valid_from))
-            if rec.valid_to:
-                domain.append(("date_order", "<=", rec.valid_to))
-            consumed = sum(orders.search(domain).mapped("amount_total"))
-            rec.consumed_amount = round(consumed, 2)
+            consumed = rec._consumed_amount() if rec.id else 0.0
+            rec.consumed_amount = consumed
             rec.remaining_amount = round((rec.cap_amount or 0.0) - consumed, 2)
 
     @api.model_create_multi
@@ -255,12 +624,89 @@ class FixProcurementBlanket(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.procurement.blanket") or "BLKT/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        if not self.env.su:
+            records._guarded().write({"terms_changed_by_id": self.env.uid})
+        return records
+
+    def write(self, vals):
+        terms = set(self.BLANKET_TERMS) & set(vals)
+        changed = self.browse()
+        if terms and not self._fix_guard_has_token():
+            for rec in self:
+                if not any(rec._fix_guard_differs(n, vals[n], rec[n]) for n in terms):
+                    continue
+                if rec.state != "draft":
+                    raise UserError(
+                        "Blanket agreement %s is %s: its vendor, cap and validity are fixed. "
+                        "Revise it (back to draft, re-approved) to change them."
+                        % (rec.name, rec.state)
+                    )
+                changed |= rec
+        result = super().write(vals)
+        if changed and not self.env.su:
+            changed._guarded().write({"terms_changed_by_id": self.env.uid})
+        return result
+
+    def action_activate(self):
+        """A Procurement Approver who neither created nor last changed the
+        terms activates the agreement."""
+        for rec in self:
+            require_role(self.env, GROUP_APPROVER, "Activating a blanket agreement")
+            if rec.state != "draft":
+                raise UserError("Activate a draft agreement (%s is %s)." % (rec.name, rec.state))
+            if not self.env.su and self.env.user in (rec.create_uid | rec.terms_changed_by_id):
+                raise UserError(
+                    "Segregation of duties: you created or changed blanket agreement %s; another "
+                    "approver activates it." % rec.name
+                )
+            if (rec.cap_amount or 0.0) <= 0:
+                raise UserError("Blanket agreement %s needs a positive cap." % rec.name)
+            if rec.valid_to < fields.Date.context_today(rec):
+                raise UserError("Blanket agreement %s ended on %s." % (rec.name, rec.valid_to))
+            self.env["fix.purchase.order"]._fix_vendor_gate(
+                rec.vendor_id, "Activating blanket agreement %s" % rec.name
+            )
+            rec._guarded().write(
+                {
+                    "state": "active",
+                    "activated_by_id": self.env.uid,
+                    "activated_at": fields.Datetime.now(),
+                }
+            )
+        return True
+
+    def action_revise(self):
+        for rec in self:
+            require_role(self.env, GROUP_BUYER, "Revising a blanket agreement")
+            if rec.state != "active":
+                raise UserError("Revise an active agreement (%s is %s)." % (rec.name, rec.state))
+            rec._guarded().write(
+                {"state": "draft", "activated_by_id": False, "activated_at": False}
+            )
+        return True
+
+    def action_cancel(self):
+        for rec in self:
+            if not (has_role(self.env, GROUP_BUYER) or has_role(self.env, GROUP_APPROVER)):
+                require_role(self.env, GROUP_BUYER, "Cancelling a blanket agreement")
+            if rec.state == "cancelled":
+                raise UserError("Blanket agreement %s is already cancelled." % rec.name)
+            rec._guarded().write({"state": "cancelled"})
+        return True
+
+    @api.model
+    def _cron_expire_blankets(self):
+        today = fields.Date.context_today(self)
+        expired = self.sudo().search([("state", "=", "active"), ("valid_to", "<", today)])
+        expired._guarded().write({"state": "expired"})
+        return expired
 
 
 class FixProcurementExpedite(models.Model):
     _name = "fix.procurement.expedite"
     _description = "Expediting Case"
+    _inherit = ["fix.guarded.mixin"]
     _order = "create_date desc, id desc"
 
     name = fields.Char(required=True, default="New")
@@ -273,13 +719,17 @@ class FixProcurementExpedite(models.Model):
     )
     reason = fields.Char(required=True)
     promised_date = fields.Date()
-    follow_up_date = fields.Date()
+    follow_up_date = fields.Date(readonly=True)
+    resolved_on = fields.Date(readonly=True, copy=False)
     state = fields.Selection(
         [("open", "Open"), ("chased", "Chased"), ("resolved", "Resolved")],
         required=True,
         default="open",
     )
     notes = fields.Text()
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "follow_up_date", "resolved_on"}
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -292,40 +742,67 @@ class FixProcurementExpedite(models.Model):
 
     def action_chase(self):
         for rec in self:
+            require_role(self.env, GROUP_BUYER, "Chasing a vendor")
             if rec.state != "open":
                 raise UserError("Chase an open case")
-            rec.write({"state": "chased", "follow_up_date": fields.Date.context_today(self)})
+            rec._guarded().write(
+                {"state": "chased", "follow_up_date": fields.Date.context_today(self)}
+            )
 
-    def action_resolve(self):
+    def action_resolve(self, note=None):
         for rec in self:
+            require_role(self.env, GROUP_BUYER, "Resolving an expediting case")
             if rec.state == "resolved":
                 raise UserError("This case is already resolved")
-            rec.state = "resolved"
+            text = (note or "").strip()
+            if not text and not (rec.notes or "").strip():
+                raise UserError("Record how case %s was resolved." % rec.name)
+            vals = {"state": "resolved", "resolved_on": fields.Date.context_today(self)}
+            if text:
+                vals["notes"] = ((rec.notes or "") + "\n" + text).strip()
+            rec._guarded().write(vals)
 
 
 class FixProcurementInspection(models.Model):
-    """The inspection outcome of a delivery (the receipt itself is M15's)."""
+    """The inspection outcome of a receipt line (BRU-PRO-11). The accepted
+    quantity feeds the receipt line, and only accepted goods are matchable."""
 
     _name = "fix.procurement.inspection"
     _description = "Goods Inspection Outcome"
+    _inherit = ["fix.guarded.mixin"]
     _order = "inspected_on desc, id desc"
 
     name = fields.Char(required=True, default="New")
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    receipt_ref = fields.Char(string="Receipt Reference", required=True)
+    receipt_line_id = fields.Many2one(
+        "fix.purchase.receipt.line",
+        string="Receipt Line",
+        index=True,
+        ondelete="restrict",
+        help="The goods receipt line this inspection judges.",
+    )
+    purchase_order_id = fields.Many2one(
+        related="receipt_line_id.receipt_id.purchase_order_id",
+        store=True,
+        readonly=True,
+        string="Purchase Order",
+    )
+    receipt_ref = fields.Char(string="Receipt Reference")
     product_id = fields.Many2one("product.product", string="Product", required=True)
     qty_received = fields.Float(string="Received")
     qty_accepted = fields.Float(string="Accepted")
     qty_rejected = fields.Float(string="Rejected", compute="_compute_rejected", store=True)
     outcome = fields.Selection(
         [("accepted", "Accepted"), ("partial", "Partially Accepted"), ("rejected", "Rejected")],
-        required=True,
-        default="accepted",
+        compute="_compute_rejected",
+        store=True,
+        help="Derived from the quantities, never typed.",
     )
     inspected_on = fields.Date(required=True, default=fields.Date.context_today)
     inspector_id = fields.Many2one("hr.employee", string="Inspector")
+    confirmed_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     state = fields.Selection([("draft", "Draft"), ("done", "Done")], required=True, default="draft")
     notes = fields.Char()
 
@@ -334,22 +811,116 @@ class FixProcurementInspection(models.Model):
         "Accepted quantity must be between 0 and the received quantity",
     )
 
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"state", "outcome", "confirmed_by_id"}
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self and any(r.receipt_line_id for r in self):
+            locked |= {"product_id", "qty_received", "receipt_ref"}
+        if self and any(r.state == "done" for r in self):
+            locked |= {
+                "receipt_line_id",
+                "receipt_ref",
+                "product_id",
+                "qty_received",
+                "qty_accepted",
+                "inspected_on",
+                "inspector_id",
+            }
+        return locked
+
     @api.depends("qty_received", "qty_accepted")
     def _compute_rejected(self):
         for rec in self:
-            rec.qty_rejected = round((rec.qty_received or 0.0) - (rec.qty_accepted or 0.0), 3)
+            received = rec.qty_received or 0.0
+            accepted = rec.qty_accepted or 0.0
+            rec.qty_rejected = round(received - accepted, 3)
+            if received and accepted >= received - 1e-6:
+                rec.outcome = "accepted"
+            elif accepted <= 1e-6:
+                rec.outcome = "rejected"
+            else:
+                rec.outcome = "partial"
 
     @api.model_create_multi
     def create(self, vals_list):
+        Line = self.env["fix.purchase.receipt.line"].sudo()
         for vals in vals_list:
+            line = Line.browse(vals.get("receipt_line_id")).exists()
+            if line:
+                vals["product_id"] = line.product_id.id
+                vals["qty_received"] = line.qty_received
+                vals["receipt_ref"] = line.receipt_id.name
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.procurement.inspection") or "INSP/New"
                 )
         return super().create(vals_list)
 
+    def write(self, vals):
+        if not self._fix_guard_has_token():
+            if any(r.state == "done" for r in self) and set(vals) - {"notes"}:
+                raise UserError("A confirmed inspection is final; only its notes can change.")
+            if "receipt_line_id" in vals:
+                line = (
+                    self.env["fix.purchase.receipt.line"]
+                    .sudo()
+                    .browse(vals["receipt_line_id"])
+                    .exists()
+                )
+                if line:
+                    vals = dict(
+                        vals,
+                        product_id=line.product_id.id,
+                        qty_received=line.qty_received,
+                        receipt_ref=line.receipt_id.name,
+                    )
+            elif {"product_id", "qty_received"} & set(vals) and any(
+                r.receipt_line_id for r in self
+            ):
+                raise UserError(
+                    "An inspection of a receipt line takes its product and quantity from it."
+                )
+        return super().write(vals)
+
     def action_confirm(self):
         for rec in self:
+            require_role(self.env, GROUP_RECEIVER, "Confirming an inspection outcome")
             if rec.state != "draft":
                 raise UserError("Confirm a draft inspection")
-            rec.state = "done"
+            line = rec.receipt_line_id.sudo()
+            if not line:
+                raise UserError(
+                    "Inspection %s judges no receipt line. Link the goods receipt line it "
+                    "inspects." % rec.name
+                )
+            if line.receipt_id.state != "posted":
+                raise UserError("Receipt %s is not posted." % line.receipt_id.name)
+            if line.inspection_ids.filtered(lambda i, me=rec: i != me and i.state == "done"):
+                raise UserError(
+                    "Receipt line %s already has a confirmed inspection." % line.display_name
+                )
+            rec._guarded().write(
+                {
+                    "state": "done",
+                    "qty_received": line.qty_received,
+                    "confirmed_by_id": self.env.uid,
+                }
+            )
+            if rec.qty_rejected > 0:
+                order = line.receipt_id.purchase_order_id
+                # Hand-off to M15: rejected goods go to RTV or quarantine.
+                publish(
+                    self.env,
+                    "inspection.rejected",
+                    "fix.procurement.inspection",
+                    rec.id,
+                    {
+                        "po_ref": order.name,
+                        "vendor_id": order.vendor_id.commercial_partner_id.id,
+                        "product_id": rec.product_id.id,
+                        "qty_rejected": rec.qty_rejected,
+                        "receipt_ref": line.receipt_id.name,
+                    },
+                )

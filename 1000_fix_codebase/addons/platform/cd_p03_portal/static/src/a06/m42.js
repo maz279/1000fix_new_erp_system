@@ -56,11 +56,24 @@ export const MODULE = {
 
 export const SCREENS = {
   'M42-suppliers': { kind: 'model_list', model: 'fix.supplier', stateField: 'status',
-    cols: ['name', 'supplier_code', 'partner_id', 'segment', 'category', 'status'] },
+    cols: ['name', 'supplier_code', 'partner_id', 'segment', 'category', 'payment_block', 'status'],
+    actions: [
+      { m: 'action_suspend', l: 'Suspend', ask: 'Reason for suspending the supplier', kwarg: 'reason' },
+      { m: 'action_block', l: 'Block (blacklist)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
+      { m: 'action_request_reinstatement', l: 'Request Reinstatement', ask: 'Why the supplier should be reinstated', kwarg: 'reason' },
+      { m: 'action_approve_reinstatement', l: 'Approve Reinstatement (approver)' }
+    ] },
   'M42-segments': { kind: 'model_list', model: 'fix.supplier',
-    cols: ['name', 'segment', 'category', 'status'] },
+    cols: ['name', 'segment', 'category', 'status'],
+    actions: [
+      { m: 'action_suspend', l: 'Suspend', ask: 'Reason for suspending the supplier', kwarg: 'reason' },
+      { m: 'action_block', l: 'Block (blacklist)', ask: 'Reason for blocking the supplier', kwarg: 'reason' },
+      { m: 'action_request_reinstatement', l: 'Request Reinstatement', ask: 'Why the supplier should be reinstated', kwarg: 'reason' },
+      { m: 'action_approve_reinstatement', l: 'Approve Reinstatement (approver)' }
+    ] },
   'M42-docs': { kind: 'model_list', model: 'fix.supplier.document', stateField: 'state',
-    cols: ['name', 'supplier_id', 'doc_type', 'number', 'valid_to', 'is_valid', 'state'] },
+    cols: ['name', 'supplier_id', 'doc_type', 'number', 'valid_to', 'is_valid', 'verified_by_id', 'state'],
+    actions: [{ m: 'action_verify', l: 'Verify (second person)' }] },
   'M42-qualification': { kind: 'model_list', model: 'fix.supplier.qualification', stateField: 'state',
     cols: ['name', 'supplier_id', 'stage', 'submitted_on', 'score', 'state'],
     actions: [
@@ -76,7 +89,10 @@ export const SCREENS = {
     actions: [{ m: 'action_complete', l: 'Complete' }] },
   'M42-scorecards': { kind: 'model_list', model: 'fix.supplier.performance', stateField: 'state',
     cols: ['name', 'supplier_id', 'period', 'total_score', 'grade', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish' }] },
+    actions: [
+      { m: 'action_compute', l: 'Compute from PO / Receipts' },
+      { m: 'action_publish', l: 'Publish' }
+    ] },
   'M42-cars': { kind: 'model_list', model: 'fix.supplier.car', stateField: 'state',
     cols: ['name', 'supplier_id', 'issue', 'severity', 'due_date', 'is_overdue', 'state'],
     actions: [
@@ -93,7 +109,8 @@ export const SCREENS = {
     cols: ['name', 'supplier_id', 'screening_type', 'result', 'screened_on', 'state'],
     actions: [
       { m: 'action_clear', l: 'Clear' },
-      { m: 'action_flag', l: 'Flag' }
+      { m: 'action_flag', l: 'Flag' },
+      { m: 'action_clear_hit', l: 'Clear Hit (approver)', ask: 'Why the hit is a false positive (evidence reference)', kwarg: 'reason' }
     ] },
 
   /* Report chips -> their own computed pack */
@@ -113,7 +130,7 @@ export const SCREENS = {
       prospect: 'Prospect', qualified: 'Qualified', active: 'Active',
       suspended: 'Suspended', deactivated: 'Deactivated' } },
     sections: [
-      { title: 'Profile', note: 'One supplier record per partner. The status moves prospect → qualified (qualification approved) → active (activation gate passed).',
+      { title: 'Profile', note: 'One supplier record per partner. The status moves only by its actions: prospect → qualified (qualification approved) → active (activation gate, decided by a Supplier Approver) → suspended / blocked; a suspended or blocked supplier returns only through an approved reinstatement. Bank details change only through a confirmed bank-change request.',
         fields: [
           { name: 'name', required: true, label: 'Supplier Name' },
           { name: 'partner_id', required: true, label: 'Contact Partner' },
@@ -121,7 +138,6 @@ export const SCREENS = {
           { name: 'category', label: 'Spend Category' },
           { name: 'buyer_id', label: 'Buyer' },
           { name: 'onboarded_on', label: 'Onboarded On' },
-          { name: 'status', required: true, label: 'Status' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -135,15 +151,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       valid: 'Valid', pending: 'Pending', expired: 'Expired' } },
     sections: [
-      { title: 'Document', note: 'Validity is the state AND the end date: an expired date makes the document invalid even if marked valid.',
+      { title: 'Document', note: 'A document becomes valid only when a second user verifies it against its number and file (Verify). Changing it afterwards returns it to pending; an expired end date makes it invalid and suspends an active supplier.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'doc_type', required: true, label: 'Document Type' },
           { name: 'number', label: 'Document Number' },
           { name: 'valid_from', label: 'Valid From' },
           { name: 'valid_to', label: 'Valid To' },
-          { name: 'file_ref', label: 'File Reference' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'file_ref', label: 'File Reference' }
         ] }
     ]
   },
@@ -156,14 +171,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', in_review: 'In Review', approved: 'Approved', rejected: 'Rejected' } },
     sections: [
-      { title: 'Qualification', note: 'Stage walks documents → site audit → samples → finance → activation; approval moves the supplier to qualified.',
+      { title: 'Qualification', note: 'Stage walks documents → site audit → samples → finance → activation. A Supplier Approver who did not score or audit it approves a score at or above the threshold; approval moves the supplier to qualified, and the score is then final.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'stage', required: true, label: 'Stage' },
           { name: 'submitted_on', required: true, label: 'Submitted On' },
           { name: 'auditor_id', label: 'Auditor' },
           { name: 'score', label: 'Score (0–100)' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -177,7 +191,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', activated: 'Activated', blocked: 'Blocked' } },
     sections: [
-      { title: 'Gate', note: 'Activation requires an approved qualification and valid trade licence, TIN and VAT documents; a refusal records the blockers.',
+      { title: 'Gate', note: 'Activation requires an approved qualification of this supplier, verified unexpired trade licence, TIN and VAT documents, no unresolved screening hit and no critical open risk; a Supplier Approver other than the preparer activates.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'qualification_id', label: 'Qualification' }
@@ -198,7 +212,6 @@ export const SCREENS = {
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'due_on', required: true, label: 'Due On' },
           { name: 'outcome', label: 'Outcome' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -211,16 +224,15 @@ export const SCREENS = {
     back: 'M42-scorecards',
     status: { field: 'state', labels: { draft: 'Draft', published: 'Published' } },
     sections: [
-      { title: 'Scorecard', note: 'Total = quality 35% + delivery 30% + cost 20% + responsiveness 15%; grade bands A ≥85 / B ≥70 / C ≥55 / D.',
+      { title: 'Scorecard', note: 'Compute fills quality (accepted / received at inspection), delivery (receipts on or before the confirmed date), cost (lines at or below the previous price) and responsiveness (POs acknowledged within the SLA) from the month\'s POs and receipts; components with no data are excluded. Total = quality 35% + delivery 30% + cost 20% + responsiveness 15%; grade A ≥85 / B ≥70 / C ≥55 / D. Published cards are final; two D grades in a row raise a CAR.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'period', required: true, label: 'Period (YYYY-MM)' },
-          { name: 'quality_score', label: 'Quality' },
-          { name: 'delivery_score', label: 'Delivery' },
-          { name: 'cost_score', label: 'Cost' },
-          { name: 'responsiveness_score', label: 'Responsiveness' },
-          { name: 'reviewed_on', required: true, label: 'Reviewed On' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'quality_score', readonly: true, label: 'Quality' },
+          { name: 'delivery_score', readonly: true, label: 'Delivery' },
+          { name: 'cost_score', readonly: true, label: 'Cost' },
+          { name: 'responsiveness_score', readonly: true, label: 'Responsiveness' },
+          { name: 'reviewed_on', required: true, label: 'Reviewed On' }
         ] }
     ]
   },
@@ -233,7 +245,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', actioned: 'Actioned', closed: 'Closed' } },
     sections: [
-      { title: 'Corrective Action', note: 'Marking actioned needs the action plan; closing needs the actioned state. Overdue is computed against the due date.',
+      { title: 'Corrective Action', note: 'Marking actioned needs the action plan; closing (verification) is done by someone other than the raiser. Overdue is computed against today.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'issue', required: true, label: 'Issue' },
@@ -241,8 +253,7 @@ export const SCREENS = {
           { name: 'raised_on', required: true, label: 'Raised On' },
           { name: 'due_date', required: true, label: 'Due Date' },
           { name: 'root_cause', type: 'text', label: 'Root Cause' },
-          { name: 'action_plan', type: 'text', label: 'Action Plan' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'action_plan', type: 'text', label: 'Action Plan' }
         ] }
     ]
   },
@@ -259,8 +270,7 @@ export const SCREENS = {
           { name: 'review_type', required: true, label: 'Type' },
           { name: 'review_date', required: true, label: 'Review Date' },
           { name: 'attendees', label: 'Attendees' },
-          { name: 'outcomes', type: 'text', label: 'Outcomes' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'outcomes', type: 'text', label: 'Outcomes' }
         ] }
     ]
   },
@@ -279,8 +289,7 @@ export const SCREENS = {
           { name: 'likelihood', label: 'Likelihood (1–5)' },
           { name: 'impact', label: 'Impact (1–5)' },
           { name: 'assessed_on', required: true, label: 'Assessed On' },
-          { name: 'mitigation', type: 'text', label: 'Mitigation' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'mitigation', type: 'text', label: 'Mitigation' }
         ] }
     ]
   },
@@ -293,14 +302,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       pending: 'Pending', cleared: 'Cleared', flagged: 'Flagged' } },
     sections: [
-      { title: 'Screening', note: 'A hit can never be cleared — it is flagged and kept in the log.',
+      { title: 'Screening', note: 'A recorded hit is never rewritten: flagging it suspends an active supplier, and only a Supplier Approver other than the recorder clears it, with the reason.',
         fields: [
           { name: 'supplier_id', required: true, label: 'Supplier' },
           { name: 'screening_type', required: true, label: 'Screening Type' },
           { name: 'result', required: true, label: 'Result' },
           { name: 'screened_on', required: true, label: 'Screened On' },
           { name: 'reference', label: 'Reference' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]

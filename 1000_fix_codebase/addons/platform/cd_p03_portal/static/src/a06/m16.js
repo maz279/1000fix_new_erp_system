@@ -64,7 +64,11 @@ export const SCREENS = {
   'M16-prs': { kind: 'model_list', model: 'fix.requisition', stateField: 'state',
     cols: ['description', 'branch_id', 'vendor_id', 'qty', 'estimate_amount', 'urgency', 'state'],
     actions: [
-      { m: 'action_approve', l: 'Approve' },
+      { m: 'action_submit', l: 'Submit for Approval' },
+      { m: 'action_request_approval', l: 'Request Approval (re-route)' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_reset_draft', l: 'Back to Draft' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Reason for cancelling the requisition', kwarg: 'reason' },
       { m: 'action_convert_to_po', l: 'Convert to PO' }
     ] },
   'M16-consol': { kind: 'table_report', module: 'M16', report: 'consolidation', title: 'Cross-Branch Consolidation', period: false },
@@ -77,25 +81,41 @@ export const SCREENS = {
   'M16-compare': { kind: 'model_list', model: 'fix.procurement.bid', stateField: 'state',
     cols: ['rfq_id', 'vendor_id', 'unit_price', 'lead_time_days', 'valid_until', 'state'] },
   'M16-award': { kind: 'model_list', model: 'fix.procurement.award', stateField: 'state',
-    cols: ['name', 'rfq_id', 'bid_id', 'decided_on', 'rationale', 'state'] },
-  'M16-pos': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
-    cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'],
+    cols: ['name', 'rfq_id', 'bid_id', 'decided_on', 'is_lowest', 'rationale', 'needs_approval', 'state'],
     actions: [
+      { m: 'action_decide', l: 'Decide Award' },
+      { m: 'action_create_po', l: 'Raise PO from Award' },
+      { m: 'action_cancel', l: 'Cancel Award', ask: 'Reason for cancelling the award', kwarg: 'reason' }
+    ] },
+  'M16-pos': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
+    cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_submit_for_approval', l: 'Request Approval', ask: 'Business justification for the PO', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_record_requisition_exception', l: 'No-Requisition Exception (manager)', ask: 'Why this PO has no requisition', kwarg: 'reason' },
       { m: 'action_send', l: 'Send PO' },
-      { m: 'action_acknowledge', l: 'Acknowledge' }
+      { m: 'action_acknowledge_on_behalf', l: 'Acknowledge on Behalf', ask: "The vendor's confirmation this rests on (e-mail / letter / call reference)", kwarg: 'evidence' },
+      { m: 'action_create_change_order', l: 'Raise Change Order' },
+      { m: 'action_cancel', l: 'Cancel PO', ask: 'Reason for cancelling the PO', kwarg: 'reason' },
+      { m: 'action_close', l: 'Close PO', ask: 'Reason (needed to close a partly received PO short)', kwarg: 'reason' }
     ] },
   'M16-blanket': { kind: 'model_list', model: 'fix.procurement.blanket', stateField: 'state',
-    cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount', 'consumed_amount', 'remaining_amount', 'state'] },
+    cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount', 'consumed_amount', 'remaining_amount', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate (approver)' },
+      { m: 'action_revise', l: 'Revise Terms' },
+      { m: 'action_cancel', l: 'Cancel Agreement' }
+    ] },
   'M16-expedite': { kind: 'model_list', model: 'fix.procurement.expedite', stateField: 'state',
     cols: ['name', 'purchase_order_id', 'reason', 'promised_date', 'follow_up_date', 'state'],
     actions: [
       { m: 'action_chase', l: 'Chase' },
-      { m: 'action_resolve', l: 'Resolve' }
+      { m: 'action_resolve', l: 'Resolve', ask: 'How the case was resolved', kwarg: 'note' }
     ] },
   'M16-grn': { kind: 'model_list', model: 'fix.stock.receipt', stateField: 'state', create: false,
     cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'] },
   'M16-inspection': { kind: 'model_list', model: 'fix.procurement.inspection', stateField: 'state',
-    cols: ['name', 'receipt_ref', 'product_id', 'qty_received', 'qty_accepted', 'outcome', 'state'],
+    cols: ['name', 'receipt_ref', 'purchase_order_id', 'product_id', 'qty_received', 'qty_accepted', 'outcome', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Outcome' }] },
   'M16-match': { kind: 'table_report', module: 'M16', report: 'three_way', title: '3-Way Match Workbench', period: false },
   'M16-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend Analysis', period: false },
@@ -118,11 +138,13 @@ export const SCREENS = {
     title: 'Purchase Requisition',
     back: 'M16-prs',
     status: { field: 'state', labels: {
-      draft: 'Draft', approved: 'Approved', converted: 'Converted to PO', rejected: 'Rejected' } },
+      draft: 'Draft', submitted: 'Submitted for Approval', approved: 'Approved',
+      converted: 'Converted to PO', rejected: 'Rejected', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Request', note: 'Approve, then Convert to PO: the conversion needs a product, quantity and vendor and keeps the requisition link for maverick-spend analysis.',
+      { title: 'Request', note: 'Submit for approval: it is routed by amount (related requisitions of the same requester in the split window are added) to a DOFA tier holder other than you, who decides it in the approval inbox. A change to amount, quantity, product or vendor after submission returns it to draft. Then a buyer converts it to a PO.',
         fields: [
           { name: 'description', required: true, label: 'Description' },
+          { name: 'justification', type: 'text', label: 'Business Justification' },
           { name: 'product_id', label: 'Product' },
           { name: 'qty', label: 'Quantity' },
           { name: 'vendor_id', label: 'Preferred Vendor' },
@@ -143,14 +165,14 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', open: 'Open for Bids', closed: 'Closed', awarded: 'Awarded' } },
     sections: [
-      { title: 'RFQ', note: 'Open the event, record supplier bids, then award one; awarding marks the other bids lost.',
+      { title: 'RFQ', note: 'Open the event, record sealed bids (hidden from others until close), close it, then propose the award: the lowest compliant bid is decided at once; any other bid, or fewer bids than the minimum, needs a rationale or exception that a Procurement Approver decides.',
         fields: [
           { name: 'description', required: true, label: 'Description' },
+          { name: 'requisition_id', label: 'Source Requisition' },
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'qty', label: 'Quantity' },
           { name: 'required_by', label: 'Required By' },
           { name: 'target_price', label: 'Target Price' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -164,21 +186,22 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', sent: 'Sent', acknowledged: 'Acknowledged',
       partially_received: 'Partially Received', received: 'Received',
-      closed: 'Closed', cancelled: 'Cancelled' } },
+      closed: 'Closed', cancelled: 'Cancelled', superseded: 'Superseded by Change Order' } },
     sections: [
-      { title: 'Order', note: 'The PO is the ordered side of the three-way match. Send it, then the vendor acknowledges.',
+      { title: 'Order', note: 'The PO is the ordered side of the three-way match. It needs an approved requisition (or a manager\'s documented exception) and an active M42 supplier; request approval (routed by amount), then send it. Once sent it is locked: changes go through a change order that is approved again. The vendor acknowledges in the P05 portal.',
         fields: [
           { name: 'vendor_id', required: true, label: 'Vendor' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'branch_id', label: 'Deliver-to Branch' },
           { name: 'date_order', required: true, label: 'Order Date' },
-          { name: 'promised_date', label: 'Promised Date' }
+          { name: 'promised_date', label: 'Promised Date' },
+          { name: 'blanket_id', label: 'Blanket Agreement (call-off)' }
         ] }
     ],
     lines: {
       field: 'line_ids',
       title: 'Order Lines',
-      note: 'Ordered quantity must be positive; the received quantity can never exceed it.',
+      note: 'Ordered quantity must be positive. Received quantities come from posted goods receipts only.',
       fields: [
         { name: 'product_id', required: true, label: 'Product' },
         { name: 'description', label: 'Description' },
@@ -248,14 +271,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       received: 'Received', awarded: 'Awarded', lost: 'Lost' } },
     sections: [
-      { title: 'Bid', note: 'One bid per vendor per RFQ; price and lead time are the comparison basis.',
+      { title: 'Bid', note: 'Bids are received only while the RFQ is open, stay sealed until it closes and cannot change afterwards.',
         fields: [
           { name: 'rfq_id', required: true, label: 'RFQ' },
           { name: 'vendor_id', required: true, label: 'Vendor' },
           { name: 'unit_price', required: true, label: 'Unit Price' },
           { name: 'lead_time_days', label: 'Lead Time (days)' },
           { name: 'valid_until', label: 'Valid Until' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -266,15 +288,15 @@ export const SCREENS = {
     model: 'fix.procurement.award',
     title: 'Award Decision',
     back: 'M16-award',
-    status: { field: 'state', labels: { decided: 'Decided', cancelled: 'Cancelled' } },
+    status: { field: 'state', labels: { proposed: 'Proposed', decided: 'Decided', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Award', note: 'Saving an award marks the winning bid awarded, the others lost, and the RFQ awarded.',
+      { title: 'Award', note: 'One live award per closed RFQ, never to an expired bid, an inactive supplier or the company itself. The lowest compliant bid is decided at once; any other bid needs a rationale, and fewer bids than the minimum an exception, decided by a Procurement Approver other than you.',
         fields: [
           { name: 'rfq_id', required: true, label: 'RFQ' },
           { name: 'bid_id', required: true, label: 'Winning Bid' },
           { name: 'decided_on', required: true, label: 'Decided On' },
-          { name: 'rationale', label: 'Rationale' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'rationale', label: 'Rationale (not the lowest bid)' },
+          { name: 'exception_reason', label: 'Bid-Count Exception' }
         ] }
     ]
   },
@@ -285,15 +307,14 @@ export const SCREENS = {
     title: 'Blanket Agreement',
     back: 'M16-blanket',
     status: { field: 'state', labels: {
-      active: 'Active', expired: 'Expired', cancelled: 'Cancelled' } },
+      draft: 'Draft', active: 'Active', expired: 'Expired', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Agreement', note: 'Consumed is the total of this vendor\'s non-cancelled POs inside the window — computed, not typed.',
+      { title: 'Agreement', note: 'A Procurement Approver other than you activates the agreement; its cap and window are then fixed (Revise returns it to draft). Called off = the issued POs linked to it; a call-off beyond the cap or the window is refused at send. It expires by itself after its end date.',
         fields: [
           { name: 'vendor_id', required: true, label: 'Vendor' },
           { name: 'valid_from', required: true, label: 'Valid From' },
           { name: 'valid_to', required: true, label: 'Valid To' },
-          { name: 'cap_amount', label: 'Cap Amount' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'cap_amount', label: 'Cap Amount' }
         ] }
     ]
   },
@@ -306,13 +327,11 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       open: 'Open', chased: 'Chased', resolved: 'Resolved' } },
     sections: [
-      { title: 'Case', note: 'Chase stamps the follow-up date; resolve closes the case.',
+      { title: 'Case', note: 'Chase stamps the follow-up date; resolve records how the case was closed.',
         fields: [
           { name: 'purchase_order_id', required: true, label: 'Purchase Order' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'promised_date', label: 'Promised Date' },
-          { name: 'follow_up_date', label: 'Follow-up Date' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
     ]
@@ -325,16 +344,12 @@ export const SCREENS = {
     back: 'M16-inspection',
     status: { field: 'state', labels: { draft: 'Draft', done: 'Done' } },
     sections: [
-      { title: 'Inspection', note: 'Rejected = received − accepted; the receipt itself stays M15\'s document.',
+      { title: 'Inspection', note: 'An inspection judges one posted goods-receipt line: the product and received quantity come from it, the outcome is derived (rejected = received − accepted), and only the accepted quantity can be invoiced. Final once confirmed.',
         fields: [
-          { name: 'receipt_ref', required: true, label: 'Receipt Reference' },
-          { name: 'product_id', required: true, label: 'Product' },
-          { name: 'qty_received', label: 'Received' },
+          { name: 'receipt_line_id', required: true, label: 'Receipt Line' },
           { name: 'qty_accepted', label: 'Accepted' },
-          { name: 'outcome', required: true, label: 'Outcome' },
           { name: 'inspected_on', required: true, label: 'Inspected On' },
           { name: 'inspector_id', label: 'Inspector' },
-          { name: 'state', required: true, label: 'State' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]

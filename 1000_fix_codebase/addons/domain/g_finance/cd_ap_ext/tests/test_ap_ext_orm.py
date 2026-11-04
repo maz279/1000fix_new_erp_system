@@ -44,18 +44,60 @@ def ap(odoo_env):
     return {"env": env, "ou": ou, "vendor": vendor, "screen": screen, "battery": battery}
 
 
-def _po(ap, lines):
-    """lines: [(product, qty_ordered, qty_received, unit_price)]"""
-    return ap["env"]["fix.purchase.order"].create(
+def _issued_po(env, ou, vendor, lines):
+    """A PO the way M16 leaves it for the three-way match (A06 S6): approved,
+    sent to an active supplier, with POSTED and inspected receipts. lines:
+    [(product, qty_ordered, qty_received, unit_price)]. The match reads
+    received quantity only from posted receipt lines and the price from the
+    approval, so a PO line can no longer be created with a typed qty_received.
+    """
+    if "fix.supplier" in env and not env["fix.supplier"].search([("partner_id", "=", vendor.id)]):
+        supplier = env["fix.supplier"].create(
+            {"name": vendor.name, "partner_id": vendor.id, "status": "active"}
+        )
+        for doc_type in ("trade_licence", "tin", "vat"):
+            env["fix.supplier.document"].create(
+                {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
+            )
+    po = env["fix.purchase.order"].create(
         {
-            "operating_unit_id": ap["ou"].id,
-            "vendor_id": ap["vendor"].id,
+            "operating_unit_id": ou.id,
+            "vendor_id": vendor.id,
             "line_ids": [
-                (0, 0, {"product_id": p.id, "qty_ordered": o, "qty_received": r, "unit_price": u})
-                for p, o, r, u in lines
+                (0, 0, {"product_id": p.id, "qty_ordered": o, "unit_price": u})
+                for p, o, _r, u in lines
             ],
         }
     )
+    po.action_record_requisition_exception(reason="AP test PO without requisition")
+    po._guarded().write(
+        {
+            "approval_state": "approved",
+            "dofa_approved": True,
+            "dofa_approved_tier": po._dofa_current_tier(),
+            "dofa_approved_amount": po.amount_total,
+        }
+    )
+    po.action_send()
+    receive(po, {pol.id: r for pol, (_p, _o, r, _u) in zip(po.line_ids, lines, strict=False) if r})
+    return po
+
+
+def receive(po, quantities):
+    """Post a receipt of {po_line_id: qty} and pass its inspection."""
+    if not quantities:
+        return
+    po.action_record_receipt(quantities)
+    receipt = po.receipt_ids.sorted("id")[-1]
+    for line in receipt.line_ids:
+        po.env["fix.procurement.inspection"].create(
+            {"receipt_line_id": line.id, "qty_accepted": line.qty_received}
+        ).action_confirm()
+
+
+def _po(ap, lines):
+    """lines: [(product, qty_ordered, qty_received, unit_price)]"""
+    return _issued_po(ap["env"], ap["ou"], ap["vendor"], lines)
 
 
 def _invoice(ap, lines, po=None):
@@ -146,7 +188,7 @@ class TestThreeWayMatch:
         po = _po(ap, [(ap["screen"], 2.0, 0.0, 1000.0)])
         inv = _invoice(ap, [(ap["screen"], "Screen", 2.0, 1000.0, {})], po)
         assert inv.match_state == "blocked"
-        po.line_ids.qty_received = 2.0
+        receive(po, {po.line_ids.id: 2.0})
         assert inv.match_state == "matched"
 
 

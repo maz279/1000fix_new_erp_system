@@ -145,7 +145,9 @@ class FixVendorInvoice(models.Model):
         store=True,
         string="Three-Way Match",
     )
-    match_detail = fields.Text(readonly=True)
+    # Computed with the state (A06 S6): read on its own it was a stale column
+    # that only refreshed when match_state happened to be read first.
+    match_detail = fields.Text(readonly=True, compute="_compute_match", store=True)
     # Approval workflow (A08)
     approval_state = fields.Selection(
         [
@@ -209,6 +211,17 @@ class FixVendorInvoice(models.Model):
     # Every quantity/price/receipt the match reads is a dependency: with
     # only ("line_ids", "requisition_id") an invoice line edited AFTER
     # matching kept its stale 'matched' state and could be paid (G3-06).
+    #
+    # A06 audit (2026-11-03), M16-4/7/8 (S6): the match read the PO line's
+    # typed qty_received and live unit_price, per bill and per line, so a
+    # buyer raising the PO price unblocked a bill, a typed receipt matched,
+    # two bills (or two lines) for one receipt both matched, and a 10/10
+    # inspection rejection still matched. It now reads:
+    #   - the ACCEPTED quantity of POSTED goods-receipt lines (inspection
+    #     outcome applied; goods awaiting inspection are not matchable);
+    #   - less what earlier live bills on the same PO already invoiced, so a
+    #     receipt line is invoiced once, whoever submits the second bill;
+    #   - the price the PO approval covered (approved_unit_price).
     @api.depends(
         "bill_type",
         "requisition_id",
@@ -217,12 +230,22 @@ class FixVendorInvoice(models.Model):
         "line_ids.unit_price",
         "requisition_id.line_ids.product_id",
         "requisition_id.line_ids.qty_ordered",
-        "requisition_id.line_ids.qty_received",
         "requisition_id.line_ids.unit_price",
+        "requisition_id.line_ids.approved_unit_price",
+        "requisition_id.line_ids.approved_qty",
+        "requisition_id.line_ids.receipt_line_ids.state",
+        "requisition_id.line_ids.receipt_line_ids.qty_received",
+        "requisition_id.line_ids.receipt_line_ids.qty_accepted",
+        "requisition_id.line_ids.receipt_line_ids.inspection_state",
+        "requisition_id.vendor_invoice_ids.approval_state",
+        "requisition_id.vendor_invoice_ids.bill_type",
+        "requisition_id.vendor_invoice_ids.line_ids.product_id",
+        "requisition_id.vendor_invoice_ids.line_ids.quantity",
     )
     def _compute_match(self) -> None:
-        """G3-06: the three-way check — invoice lines vs the PO's ordered
-        and RECEIVED quantities. Any variance beyond tolerance BLOCKS."""
+        """G3-06: the three-way check — invoice lines vs the PO's approved
+        price and the goods accepted on posted receipts that no earlier bill
+        has claimed. Any variance beyond tolerance BLOCKS."""
         TOLERANCE = Decimal("0.01")
         for inv in self:
             if inv.bill_type == "non_po":
@@ -233,32 +256,70 @@ class FixVendorInvoice(models.Model):
                 inv.match_state = "unmatched"
                 inv.match_detail = "No purchase order linked"
                 continue
-            received = {r.product_id.id: r.qty_received for r in inv.requisition_id.line_ids}
-            ordered = {r.product_id.id: r.qty_ordered for r in inv.requisition_id.line_ids}
-            problems = []
+            po = inv.requisition_id.sudo()
+            my_id = inv._origin.id or inv.id
+            saved = isinstance(my_id, int)
+            earlier = po.vendor_invoice_ids.filtered(
+                lambda other, me=my_id, saved=saved: (
+                    other.id != me
+                    and other.bill_type == "po"
+                    and other.approval_state != "rejected"
+                    and (not saved or other.id < me)
+                )
+            )
+            po_lines = {}
+            for po_line in po.line_ids:
+                po_lines.setdefault(po_line.product_id.id, []).append(po_line)
+            invoiced, label, order = {}, {}, []
             for line in inv.line_ids:
                 pid = line.product_id.id
-                if pid not in ordered:
-                    problems.append("%s: not on the PO" % line.description)
+                if pid not in invoiced:
+                    invoiced[pid] = 0.0
+                    label[pid] = line.description
+                    order.append(pid)
+                invoiced[pid] += line.quantity or 0.0
+            problems = []
+            for pid in order:
+                if pid not in po_lines:
+                    problems.append("%s: not on the PO" % label[pid])
                     continue
-                if Decimal(str(received.get(pid, 0.0))) < Decimal(str(line.quantity)):
-                    problems.append(
-                        "%s: received %.2f < invoiced %.2f"
-                        % (line.description, received.get(pid, 0.0), line.quantity)
-                    )
-                if (
-                    Decimal(str(line.unit_price))
-                    > Decimal(
-                        str(
-                            inv.requisition_id.line_ids.filtered(
-                                lambda po_line: po_line.product_id.id == pid  # noqa: B023 - filtered() runs it now, same iteration
-                            )[:1].unit_price
-                            or 0
+                pols = po_lines[pid]
+                receipts = [r for pol in pols for r in pol.receipt_line_ids if r.state == "posted"]
+                accepted = sum(r.qty_accepted for r in receipts)
+                awaiting = sum(r.qty_received for r in receipts if r.inspection_state == "pending")
+                rejected = sum(r.qty_rejected for r in receipts)
+                prior = sum(
+                    other_line.quantity or 0.0
+                    for other in earlier
+                    for other_line in other.line_ids
+                    if other_line.product_id.id == pid
+                )
+                qty_ok = Decimal(str(round(accepted - prior, 6))) >= Decimal(str(invoiced[pid]))
+                if not qty_ok:
+                    if prior:
+                        text = (
+                            "%s: received %.2f, %.2f already invoiced on other bills, "
+                            "invoiced %.2f" % (label[pid], accepted, prior, invoiced[pid])
                         )
-                    )
-                    + TOLERANCE
-                ):
-                    problems.append("%s: price above PO" % line.description)
+                    else:
+                        text = "%s: received %.2f < invoiced %.2f" % (
+                            label[pid],
+                            accepted,
+                            invoiced[pid],
+                        )
+                    if awaiting:
+                        text += " (%.2f awaiting inspection)" % awaiting
+                    if rejected:
+                        text += " (%.2f rejected at inspection)" % rejected
+                    problems.append(text)
+                approved = [p.approved_unit_price for p in pols if p.approved_qty]
+                basis = max(approved) if approved else max(p.unit_price for p in pols)
+                lines = inv.line_ids.filtered(lambda ln, p=pid: ln.product_id.id == p)
+                ceiling = Decimal(str(basis or 0)) + TOLERANCE
+                if any(Decimal(str(ln.unit_price)) > ceiling for ln in lines):
+                    problems.append("%s: price above PO" % label[pid])
+                elif not approved and qty_ok:
+                    problems.append("%s: PO price not approved" % label[pid])
             if problems:
                 inv.match_state = "blocked"
                 inv.match_detail = "\n".join(problems)
@@ -617,6 +678,17 @@ class FixVendorInvoice(models.Model):
                     "operating_unit_id": inv.operating_unit_id.id,
                 },
             )
+
+
+class FixPurchaseOrderVendorBills(models.Model):
+    """The bills against a PO: the three-way match reads what earlier bills
+    already claimed (A06 S6)."""
+
+    _inherit = "fix.purchase.order"
+
+    vendor_invoice_ids = fields.One2many(
+        "fix.vendor.invoice", "requisition_id", string="Vendor Bills", readonly=True
+    )
 
 
 class FixVendorInvoiceLine(models.Model):

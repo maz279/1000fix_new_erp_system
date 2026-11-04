@@ -133,25 +133,60 @@ def _bill(a, price, qty=1.0, ref=None, po=None, **vals):
     )
 
 
-def _po(a, qty, price):
-    return a["env"]["fix.purchase.order"].create(
+def _issued_po(env, ou, vendor, lines):
+    """A PO the way M16 leaves it for the three-way match (A06 S6): approved,
+    sent to an active supplier, with POSTED and inspected receipts. lines:
+    [(product, qty_ordered, qty_received, unit_price)]. The match reads
+    received quantity only from posted receipt lines and the price from the
+    approval, so a PO line can no longer be created with a typed qty_received.
+    """
+    if "fix.supplier" in env and not env["fix.supplier"].search([("partner_id", "=", vendor.id)]):
+        supplier = env["fix.supplier"].create(
+            {"name": vendor.name, "partner_id": vendor.id, "status": "active"}
+        )
+        for doc_type in ("trade_licence", "tin", "vat"):
+            env["fix.supplier.document"].create(
+                {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
+            )
+    po = env["fix.purchase.order"].create(
         {
-            "operating_unit_id": a["ou"].id,
-            "vendor_id": a["vendor"].id,
+            "operating_unit_id": ou.id,
+            "vendor_id": vendor.id,
             "line_ids": [
-                (
-                    0,
-                    0,
-                    {
-                        "product_id": a["product"].id,
-                        "qty_ordered": qty,
-                        "qty_received": qty,
-                        "unit_price": price,
-                    },
-                )
+                (0, 0, {"product_id": p.id, "qty_ordered": o, "unit_price": u})
+                for p, o, _r, u in lines
             ],
         }
     )
+    po.action_record_requisition_exception(reason="AP test PO without requisition")
+    po._guarded().write(
+        {
+            "approval_state": "approved",
+            "dofa_approved": True,
+            "dofa_approved_tier": po._dofa_current_tier(),
+            "dofa_approved_amount": po.amount_total,
+        }
+    )
+    po.action_send()
+    receive(po, {pol.id: r for pol, (_p, _o, r, _u) in zip(po.line_ids, lines, strict=False) if r})
+    return po
+
+
+def receive(po, quantities):
+    """Post a receipt of {po_line_id: qty} and pass its inspection."""
+    if not quantities:
+        return
+    po.action_record_receipt(quantities)
+    receipt = po.receipt_ids.sorted("id")[-1]
+    for line in receipt.line_ids:
+        po.env["fix.procurement.inspection"].create(
+            {"receipt_line_id": line.id, "qty_accepted": line.qty_received}
+        ).action_confirm()
+
+
+def _po(a, qty, price):
+    """A received PO for the bill (see _issued_po)."""
+    return _issued_po(a["env"], a["ou"], a["vendor"], [(a["product"], qty, qty, price)])
 
 
 def _approve(a, bill):

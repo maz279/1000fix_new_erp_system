@@ -71,5 +71,13 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A06 S7: supplier bank-detail change proposals. -->
+        <record id="seq_fix_supplier_bank_change" model="ir.sequence">
+            <field name="name">Supplier Bank-Detail Change</field>
+            <field name="code">fix.supplier.bank.change</field>
+            <field name="prefix">SBANK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

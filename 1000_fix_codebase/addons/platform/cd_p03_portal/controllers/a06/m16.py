@@ -3,16 +3,43 @@
 # receipt and RTV screens read M15's documents (single-owner surfaces).
 import datetime
 
+# A06 workflow audit (2026-11-03) M16-9/M16-13: every transition the screens
+# need is declared here; approval itself is decided in the M63 inbox (the
+# requisition and PO approvals are routed), never by a button on the record.
 SURFACES = {
+    # A06 R5: the goods receipt against a PO line (M16-6); posting it feeds
+    # the three-way match, so it is posted by its action only.
+    "fix.purchase.receipt": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_post", "action_cancel"},
+    },
+    "fix.purchase.receipt.line": {"order": "id desc", "limit": 500, "actions": set()},
     "fix.requisition": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_convert_to_po"},
+        "actions": {
+            "action_submit",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_reset_draft",
+            "action_cancel",
+            "action_convert_to_po",
+        },
     },
     "fix.purchase.order": {
         "order": "date_order desc, id desc",
         "limit": 300,
-        "actions": {"action_send", "action_acknowledge"},
+        "actions": {
+            "action_submit_for_approval",
+            "action_recall_approval",
+            "action_record_requisition_exception",
+            "action_send",
+            "action_acknowledge_on_behalf",
+            "action_create_change_order",
+            "action_cancel",
+            "action_close",
+        },
     },
     "fix.purchase.order.line": {"order": "order_id, id", "limit": 400, "actions": set()},
     "fix.procurement.rfq": {
@@ -21,8 +48,16 @@ SURFACES = {
         "actions": {"action_open", "action_close"},
     },
     "fix.procurement.bid": {"order": "rfq_id, unit_price", "limit": 400, "actions": set()},
-    "fix.procurement.award": {"order": "decided_on desc, id desc", "limit": 200, "actions": set()},
-    "fix.procurement.blanket": {"order": "valid_to desc, id desc", "limit": 200, "actions": set()},
+    "fix.procurement.award": {
+        "order": "decided_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_decide", "action_cancel", "action_create_po"},
+    },
+    "fix.procurement.blanket": {
+        "order": "valid_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_revise", "action_cancel"},
+    },
     "fix.procurement.expedite": {
         "order": "create_date desc, id desc",
         "limit": 200,
@@ -35,7 +70,7 @@ SURFACES = {
     },
 }
 
-_OPEN_REQ = ("draft", "approved")
+_OPEN_REQ = ("draft", "submitted", "approved")
 _OPEN_PO = ("draft", "sent", "acknowledged", "partially_received")
 
 
@@ -51,12 +86,17 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _company_domain(env, field="company_id"):
+    return [(field, "in", env.companies.ids)]
+
+
 def _orders(env):
-    return env["fix.purchase.order"].sudo().search([])
+    """The caller's purchase orders (their own rights, their companies)."""
+    return env["fix.purchase.order"].search(_company_domain(env))
 
 
 def _lines(env):
-    return env["fix.purchase.order.line"].sudo().search([])
+    return env["fix.purchase.order.line"].search(_company_domain(env, "order_id.company_id"))
 
 
 def _category(product):
@@ -165,7 +205,8 @@ def match_exception(env, date_from=None, date_to=None, **params):
 def otd_by_vendor(env, date_from=None, date_to=None, **params):
     buckets = {}
     for order in _orders(env):
-        if not order.received_on or not order.promised_date:
+        due = order.vendor_confirmed_date or order.promised_date
+        if not order.received_on or not due:
             continue
         key = order.vendor_id.name
         row = buckets.setdefault(
@@ -179,11 +220,11 @@ def otd_by_vendor(env, date_from=None, date_to=None, **params):
             },
         )
         row["pos"] += 1
-        if order.received_on <= order.promised_date:
+        if order.received_on <= due:
             row["on_time"] += 1
         else:
             row["late"] += 1
-            row["late_days"] += (order.received_on - order.promised_date).days
+            row["late_days"] += (order.received_on - due).days
     rows = []
     for row in buckets.values():
         row["otd_pct"] = round((row["on_time"] / row["pos"]) * 100.0, 1) if row["pos"] else 0.0
@@ -202,8 +243,9 @@ def otd_by_vendor(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Only POs with both a promised and a received date count; a missing "
-            "date is excluded rather than guessed."
+            "Only POs with both a due date (vendor-confirmed, else promised) and a "
+            "received date count; a missing date is excluded rather than guessed. Both "
+            "dates are stamped by their actions and cannot be edited."
         ],
         totals={
             "vendor": "Total",
@@ -267,7 +309,9 @@ def price_variance(env, date_from=None, date_to=None, **params):
 def maverick_spend(env, date_from=None, date_to=None, **params):
     orders = _orders(env)
     spend_orders = orders.filtered(lambda o: o.state != "cancelled")
-    maverick = spend_orders.filtered(lambda o: not o.requisition_id)
+    maverick = spend_orders.filtered(
+        lambda o: not o.requisition_id or o.requisition_id.state != "converted"
+    )
     total = sum(spend_orders.mapped("amount_total"))
     maverick_total = sum(maverick.mapped("amount_total"))
     rows = []
@@ -279,18 +323,20 @@ def maverick_spend(env, date_from=None, date_to=None, **params):
                 "amount": round(order.amount_total or 0.0, 2),
                 "state": dict(order._fields["state"].selection).get(order.state),
                 "date": str(order.date_order)[:10] if order.date_order else "—",
+                "exception": "documented" if order.no_requisition_exception else "none",
             }
         )
     rows.sort(key=lambda r: -r["amount"])
     return _pack(
         "Maverick Spend — POs with no approved requisition behind them",
-        ["po", "vendor", "amount", "state", "date"],
+        ["po", "vendor", "amount", "state", "date", "exception"],
         {
             "po": "PO",
             "vendor": "Vendor",
             "amount": "Amount",
             "state": "State",
             "date": "Order Date",
+            "exception": "Manager Exception",
         },
         rows,
         [
@@ -343,7 +389,7 @@ def po_cycle_time(env, date_from=None, date_to=None, **params):
 
 
 def consolidation(env, date_from=None, date_to=None, **params):
-    reqs = env["fix.requisition"].sudo().search([])
+    reqs = env["fix.requisition"].search(_company_domain(env))
     buckets = {}
     for req in reqs:
         key = (
@@ -425,41 +471,59 @@ def price_history(env, date_from=None, date_to=None, **params):
     )
 
 
+def _invoiced(env, order, product):
+    """Quantity billed on live (not rejected) bills, under the caller's rights."""
+    if "fix.vendor.invoice.line" not in env:
+        return None
+    lines = env["fix.vendor.invoice.line"].search(
+        [
+            ("invoice_id.requisition_id", "=", order.id),
+            ("invoice_id.approval_state", "!=", "rejected"),
+            ("product_id", "=", product.id),
+        ]
+    )
+    return round(sum(lines.mapped("quantity")), 3)
+
+
 def three_way(env, date_from=None, date_to=None, **params):
     rows = []
     for line in _lines(env):
         order = line.order_id
-        if order.state in ("draft", "cancelled"):
+        if order.state in ("draft", "cancelled", "superseded"):
             continue
+        invoiced = _invoiced(env, order, line.product_id)
         rows.append(
             {
                 "po": order.name,
                 "product": line.product_id.display_name,
                 "ordered": round(line.qty_ordered or 0.0, 3),
                 "received": round(line.qty_received or 0.0, 3),
-                "invoice_qty": "—",
-                "variance": round((line.qty_received or 0.0) - (line.qty_ordered or 0.0), 3),
+                "accepted": round(line.qty_accepted or 0.0, 3),
+                "invoice_qty": "—" if invoiced is None else invoiced,
+                "variance": round((line.qty_accepted or 0.0) - (invoiced or 0.0), 3),
                 "state": dict(order._fields["state"].selection).get(order.state),
             }
         )
     rows.sort(key=lambda r: str(r["po"]), reverse=True)
     return _pack(
         "3-Way Match Workbench — order, receipt and invoice",
-        ["po", "product", "ordered", "received", "invoice_qty", "variance", "state"],
+        ["po", "product", "ordered", "received", "accepted", "invoice_qty", "variance", "state"],
         {
             "po": "PO",
             "product": "Product",
             "ordered": "Ordered",
             "received": "Received",
+            "accepted": "Accepted",
             "invoice_qty": "Invoiced",
-            "variance": "Received − Ordered",
+            "variance": "Accepted − Invoiced",
             "state": "State",
         },
         rows,
         [
-            "Ordered and received come from the PO. The invoice leg is not linked "
-            "to the PO in this module yet (M20/M52 own AP bills) — it is shown as "
-            "'—', not invented."
+            "Received and accepted come from POSTED goods receipts (accepted = passed "
+            "inspection); invoiced is the quantity on live bills against the PO "
+            "(fix.vendor.invoice.requisition_id). A negative variance is billed but not "
+            "accepted: the three-way match blocks it."
         ],
         empty="No received purchase order lines yet.",
     )
@@ -479,8 +543,8 @@ REPORTS = {
 
 
 def kpis(env):
-    reqs = env["fix.requisition"].sudo().search([])
-    rfqs = env["fix.procurement.rfq"].sudo().search([])
+    reqs = env["fix.requisition"].search(_company_domain(env))
+    rfqs = env["fix.procurement.rfq"].search(_company_domain(env))
     orders = _orders(env)
     today = datetime.date.today()
     month_start = today.replace(day=1)
@@ -491,8 +555,12 @@ def kpis(env):
         and order.date_order
         and order.date_order.date() >= month_start
     )
-    received = orders.filtered(lambda o: o.received_on and o.promised_date)
-    on_time = received.filtered(lambda o: o.received_on <= o.promised_date)
+    received = orders.filtered(
+        lambda o: o.received_on and (o.vendor_confirmed_date or o.promised_date)
+    )
+    on_time = received.filtered(
+        lambda o: o.received_on <= (o.vendor_confirmed_date or o.promised_date)
+    )
     exceptions = 0
     for line in _lines(env):
         order = line.order_id

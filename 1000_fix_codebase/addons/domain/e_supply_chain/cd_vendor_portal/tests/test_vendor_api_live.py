@@ -1,5 +1,12 @@
 # cd_vendor_portal live tests — the P05 vendor API controller, driven
 # directly with a fake `request` bound to the rolled-back `odoo_env`.
+#
+# A06 audit (2026-11-03): these tests sent unapproved POs to vendors with no
+# supplier record, acknowledged them as staff with no evidence and recorded
+# deliveries on draft POs - all now refused. The fixture seeds what the
+# workflows leave (active suppliers, an approved and sent PO, a posted and
+# inspected receipt); the attacks are in test_a06_m42_controls.py and
+# cd_requisition's test_a06_m16_controls.py.
 from datetime import date
 from types import SimpleNamespace
 
@@ -55,6 +62,14 @@ def api(odoo_env, monkeypatch):
     compressor, capacitor, fan = env["product.product"].create(
         [{"name": "Compressor 1.5T"}, {"name": "Run Capacitor 35uF"}, {"name": "Fan Motor"}]
     )
+    for partner in (vendor, other_vendor):
+        sup = env["fix.supplier"].create(
+            {"name": partner.name, "partner_id": partner.id, "status": "active"}
+        )
+        for doc_type in ("trade_licence", "tin", "vat"):
+            env["fix.supplier.document"].create(
+                {"supplier_id": sup.id, "doc_type": doc_type, "state": "valid"}
+            )
 
     def po(vendor_rec=vendor, lines=((compressor, 2.0, 12500.0), (capacitor, 3.0, 120.0))):
         return env["fix.purchase.order"].create(
@@ -68,7 +83,22 @@ def api(odoo_env, monkeypatch):
             }
         )
 
+    def send(order):
+        """Approved and sent, as the M63 engine and the buyer leave it."""
+        order.action_record_requisition_exception(reason="vendor API test PO")
+        order._guarded().write(
+            {
+                "approval_state": "approved",
+                "dofa_approved": True,
+                "dofa_approved_tier": order._dofa_current_tier(),
+                "dofa_approved_amount": order.amount_total,
+            }
+        )
+        order.action_send()
+        return order
+
     return SimpleNamespace(
+        send=send,
         ctl=vendor_api.VendorApiController(),
         env=env,
         ou=ou,
@@ -120,10 +150,9 @@ def test_list_scopes_to_the_vendor_and_formats_money(api):
 
 
 def test_list_filters_by_state(api):
-    sent = api.po()
+    sent = api.send(api.po())
     api.po()  # stays draft
-    sent.action_send()
-    sent.action_acknowledge()
+    sent.action_acknowledge_on_behalf(evidence="vendor e-mail 2026-11-03")
     out = api.ctl.purchase_orders(vendor_id=api.vendor.id, state="acknowledged")
     assert [row["id"] for row in out["purchase_orders"]] == [sent.id]
     assert out["purchase_orders"][0]["acknowledged_at"] == str(sent.acknowledged_at)
@@ -152,15 +181,21 @@ def test_unknown_po(api):
     assert out["error"]["code"] == "no_po"
 
 
-def test_acknowledge_a_sent_po(api):
-    order = api.po()
-    order.action_send()
+def test_staff_acknowledge_needs_the_vendors_evidence(api):
+    order = api.send(api.po())
     out = api.ctl.purchase_orders(po_id=str(order.id), action="acknowledge")
+    assert out["error"]["code"] == "po_rejected" and order.state == "sent"
+    out = api.ctl.purchase_orders(
+        po_id=str(order.id), action="acknowledge", evidence="vendor letter GS/118"
+    )
     assert out == {"purchase_order": {"id": order.id, "state": "acknowledged"}}
+    assert order.ack_channel == "buyer_on_behalf" and order.ack_evidence == "vendor letter GS/118"
 
 
 def test_acknowledging_a_draft_is_rejected_with_the_reason(api):
-    out = api.ctl.purchase_orders(po_id=api.po().id, action="acknowledge")
+    out = api.ctl.purchase_orders(
+        po_id=api.po().id, action="acknowledge", evidence="vendor letter GS/119"
+    )
     assert out == {
         "error": {"code": "po_rejected", "message": "Only a sent PO can be acknowledged"}
     }
@@ -173,7 +208,7 @@ def test_delivery_needs_receipts(api):
 
 
 def test_delivery_confirmation_records_receipts(api):
-    order = api.po()
+    order = api.send(api.po())
     compressor_line, capacitor_line = order.line_ids
     out = api.ctl.purchase_orders(
         po_id=order.id, action="deliver", receipts={str(compressor_line.id): "1"}
@@ -188,8 +223,17 @@ def test_delivery_confirmation_records_receipts(api):
     assert (compressor_line.qty_received, capacitor_line.qty_received) == (2.0, 3.0)
 
 
-def test_over_delivery_is_rejected(api):
+def test_delivery_on_a_draft_po_is_rejected(api):
     order = api.po()
+    out = api.ctl.purchase_orders(
+        po_id=order.id, action="deliver", receipts={order.line_ids[0].id: 1}
+    )
+    assert out["error"]["code"] == "po_rejected"
+    assert "sent or acknowledged" in out["error"]["message"]
+
+
+def test_over_delivery_is_rejected(api):
+    order = api.send(api.po())
     out = api.ctl.purchase_orders(
         po_id=order.id, action="deliver", receipts={order.line_ids[0].id: 5}
     )
@@ -201,8 +245,13 @@ def test_over_delivery_is_rejected(api):
 
 
 def _received_po(api):
-    order = api.po()
+    order = api.send(api.po())
     order.action_record_receipt({line.id: line.qty_ordered for line in order.line_ids})
+    for line in order.receipt_ids.line_ids:
+        inspection = api.env["fix.procurement.inspection"].create(
+            {"receipt_line_id": line.id, "qty_accepted": line.qty_received}
+        )
+        inspection.action_confirm()
     return order
 
 
@@ -367,7 +416,8 @@ def _as_vendor(api, monkeypatch, user):
 def test_a_vendor_sees_only_its_own_pos_and_invoices(api, monkeypatch):
     """Regression: _vendor_domain returned [] for a vendor session - every
     vendor listed every PO and invoice; a client vendor_id is now ignored."""
-    mine, theirs = api.po(), api.po(vendor_rec=api.other_vendor)
+    mine, theirs = api.send(api.po()), api.po(vendor_rec=api.other_vendor)
+    draft = api.po()
     Invoice = api.env["fix.vendor.invoice"]
     my_inv = Invoice.create(
         {"vendor_id": api.vendor.id, "invoice_ref": "V-OWN", "operating_unit_id": api.ou.id}
@@ -380,10 +430,11 @@ def test_a_vendor_sees_only_its_own_pos_and_invoices(api, monkeypatch):
         r["id"] for r in api.ctl.purchase_orders(vendor_id=api.other_vendor.id)["purchase_orders"]
     }
     assert mine.id in pos and theirs.id not in pos
+    assert draft.id not in pos  # an unapproved draft is not shown to the vendor
     invs = {r["id"] for r in api.ctl.invoices(vendor_id=api.other_vendor.id)["invoices"]}
     assert my_inv.id in invs and their_inv.id not in invs
     # a foreign PO is "not found" for every action
-    theirs.action_send()
+    api.send(theirs)
     assert api.ctl.purchase_orders(po_id=theirs.id, action="acknowledge")["error"]["code"] == (
         "no_po"
     )
@@ -391,11 +442,11 @@ def test_a_vendor_sees_only_its_own_pos_and_invoices(api, monkeypatch):
 
 
 def test_a_vendor_acknowledges_its_po_but_cannot_record_receipts(api, monkeypatch):
-    order = api.po()
-    order.action_send()
+    order = api.send(api.po())
     _as_vendor(api, monkeypatch, _vendor_user(api, api.vendor, "gazi2@vendor.test"))
-    out = api.ctl.purchase_orders(po_id=order.id, action="acknowledge")
+    out = api.ctl.purchase_orders(po_id=order.id, action="acknowledge", delivery_date="2026-12-01")
     assert out == {"purchase_order": {"id": order.id, "state": "acknowledged"}}
+    assert order.ack_channel == "portal" and str(order.vendor_confirmed_date) == "2026-12-01"
     out = api.ctl.purchase_orders(
         po_id=order.id, action="deliver", receipts={order.line_ids[0].id: 1}
     )

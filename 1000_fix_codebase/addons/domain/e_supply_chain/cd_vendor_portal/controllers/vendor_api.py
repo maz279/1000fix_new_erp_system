@@ -10,6 +10,15 @@
 # views/fix_vendor_portal_views.xml enforce the same at the ORM. Vendors may
 # acknowledge POs and submit invoices; goods RECEIPTS are recorded by
 # internal warehouse users only.
+#
+# A06 audit (2026-11-03), M16-8/11, V05/V06: the vendor chose its own
+# withholding category (goods billed as manpower, TDS cut by 80%) and could
+# bill one receipt twice; the buyer acknowledged POs on the vendor's behalf
+# with no evidence. Now the withholding category comes from the vendor's tax
+# profile (the supplier master), never from the request; the match counts a
+# receipt line once (cd_ap_ext); a vendor acknowledges its own PO here, and
+# a staff acknowledgement is an on-behalf record that needs the evidence. A
+# vendor never sees an unapproved draft PO.
 
 from odoo import http
 from odoo.exceptions import UserError, ValidationError
@@ -86,8 +95,20 @@ def _own_po(po_id, kwargs):
         return _vendor_env()["fix.purchase.order"]
     domain = [("id", "=", po_id)]
     if not _is_staff():
-        domain += _vendor_domain(kwargs)
+        # a vendor acts on what was issued to it, never an unapproved draft
+        domain += [*_vendor_domain(kwargs), ("state", "!=", "draft")]
     return _vendor_env()["fix.purchase.order"].search(domain, limit=1)
+
+
+def _master_tds_category(partner, company):
+    """The TDS category recorded on the vendor's tax profile, if it is one of
+    the Tax Rate Master codes the invoice line accepts."""
+    env = request.env(su=True)
+    profile = env["fix.vendor.tax.profile"].for_partner(partner, company)
+    code = (profile.default_tds_category or "").strip() if profile else ""
+    field = env["fix.vendor.invoice.line"]._fields["tds_category"]
+    allowed = {key for key, _label in field.selection}
+    return code if code in allowed else None
 
 
 class VendorApiController(http.Controller):
@@ -102,6 +123,9 @@ class VendorApiController(http.Controller):
         if kwargs.get("po_id") and kwargs.get("action"):
             return self._act_on_po(**kwargs)
         domain = _vendor_domain(kwargs)
+        if not _is_staff():
+            # a vendor sees what was issued to it, never an unapproved draft
+            domain.append(("state", "!=", "draft"))
         state = kwargs.get("state")
         if state:
             domain.append(("state", "=", state))
@@ -146,7 +170,15 @@ class VendorApiController(http.Controller):
             )
         try:
             if action == "acknowledge":
-                order.action_acknowledge()
+                confirmed = kwargs.get("delivery_date") or None
+                if _is_staff():
+                    # staff record the vendor's confirmation received another
+                    # way: an on-behalf acknowledgement needs its evidence
+                    order.action_acknowledge_on_behalf(
+                        evidence=kwargs.get("evidence"), confirmed_date=confirmed
+                    )
+                else:
+                    order.action_acknowledge(confirmed_date=confirmed)
             else:
                 # delivery confirmation: {line_id: qty_received_this_delivery}
                 receipts = kwargs.get("receipts") or {}
@@ -208,10 +240,13 @@ class VendorApiController(http.Controller):
         if not lines:
             return _error(
                 "missing_lines",
-                "lines [{product_id, description, quantity, "
-                "unit_price, tds_category?}] are required",
+                "lines [{product_id, description, quantity, unit_price}] are required",
             )
         Invoice = _vendor_env()["fix.vendor.invoice"]
+        # The withholding category is the payee's, from its tax profile (the
+        # supplier master); a category sent by the portal is ignored. With no
+        # profile category the model default applies and AP reviews it.
+        tds_category = _master_tds_category(po.vendor_id, po.company_id)
         vals = {
             "vendor_id": int(vendor_id),
             "invoice_ref": kwargs.get("invoice_ref"),
@@ -229,7 +264,7 @@ class VendorApiController(http.Controller):
                         "description": line.get("description", ""),
                         "quantity": float(line.get("quantity", 1.0)),
                         "unit_price": float(line.get("unit_price", 0.0)),
-                        "tds_category": line.get("tds_category", "service_general"),
+                        **({"tds_category": tds_category} if tds_category else {}),
                     },
                 )
                 for line in lines
