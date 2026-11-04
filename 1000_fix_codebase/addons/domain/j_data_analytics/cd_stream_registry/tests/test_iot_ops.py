@@ -145,6 +145,8 @@ def test_prediction_creates_one_work_order(ctx):
             "confidence": 0.8,
             "estimated_days_to_failure": 12,
             "outcome": "pending",
+            # A07 P1 BRU-IOT-10: only a published M26 model's output is applied.
+            "model_name": "m26.predictive.maintenance",
         }
     )
     assert prediction.name == f"PDM-{TAG}"
@@ -167,6 +169,7 @@ def test_prescriptive_action_lifecycle(ctx):
             "equipment_id": equipment.id,
             "prediction": "failure_predicted",
             "estimated_days_to_failure": 9,
+            "model_name": "m26.predictive.maintenance",
         }
     )
     # A07 P0 recipe: dispatch needs a technician and done records an outcome.
@@ -177,6 +180,7 @@ def test_prescriptive_action_lifecycle(ctx):
     assert action.name.startswith("IACT/")
     action.action_approve()
     action.action_dispatch()
+    action.outcome_evidence_ref = "JC-OPS-1"  # A07 P1: completion needs evidence
     action.action_done(outcome="confirmed", note="worn bearing")
     assert action.state == "done"
     assert prediction.outcome == "confirmed"

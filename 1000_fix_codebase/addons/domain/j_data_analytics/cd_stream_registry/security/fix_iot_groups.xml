@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M48 IoT Telemetry & Predictive Maintenance roles (A07 P1, 2026-11-04;
+     audit M48-10, D7: the module defined no group and every permission came
+     from base.group_user). Spec §13:
+
+     - IoT Operator (R13 Remote Support Engineer): works the alert queue
+       (acknowledge, resolve) and dispatches and completes prescriptive
+       actions.
+     - IoT Administrator (R33 IT / System Administrator): the stream, device,
+       adapter and rule registry, provisioning and ingestion. Implies Operator.
+     - IoT Manager (R02 CTO): owns the module; approves rule suppressions and
+       retention / downsampling changes; deletes configuration. Implies
+       Administrator.
+     - IoT Consent Officer (R04 CCO / R22 Account Manager): verifies telemetry
+       consents and relaxes a stream's consent policy. Deliberately NOT implied
+       by the administrator groups: consent policy is separated from collection
+       configuration (spec §13 SoD).
+
+     The dev admin is a member of each so existing work keeps running; the
+     segregation-of-duties checks still apply to it. Appointing the real
+     holders is business decision B1. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_iot" model="res.groups.privilege">
+            <field name="name">IoT Telemetry &amp; Predictive Maintenance</field>
+            <field name="description">Streams, devices, ingestion, alerting, prescriptive actions, retention and telemetry consent (M48).</field>
+            <field name="sequence">48</field>
+        </record>
+
+        <record id="group_iot_operator" model="res.groups">
+            <field name="name">IoT Operator</field>
+            <field name="privilege_id" ref="privilege_iot"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Acknowledges and resolves IoT alerts, and dispatches and completes approved prescriptive actions (spec R13). Cannot record the outcome of an intervention they performed.</field>
+        </record>
+
+        <record id="group_iot_admin" model="res.groups">
+            <field name="name">IoT Administrator</field>
+            <field name="privilege_id" ref="privilege_iot"/>
+            <field name="implied_ids" eval="[(4, ref('group_iot_operator'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Registers devices, streams, protocol adapters and alert rules, ingests telemetry and requests suppressions and retention changes (spec R33).</field>
+        </record>
+
+        <record id="group_iot_manager" model="res.groups">
+            <field name="name">IoT Manager (CTO)</field>
+            <field name="privilege_id" ref="privilege_iot"/>
+            <field name="implied_ids" eval="[(4, ref('group_iot_admin'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves alert-rule suppressions (BRU-IOT-15/16) and retention, compression and downsampling changes (BRU-IOT-06) requested by someone else, and deletes IoT configuration (spec R02).</field>
+        </record>
+
+        <record id="group_iot_consent_officer" model="res.groups">
+            <field name="name">IoT Consent Officer</field>
+            <field name="privilege_id" ref="privilege_iot"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Records and verifies telemetry consents against their evidence, closes manual revocation treatments and relaxes a stream's consent policy (spec R04 / R22). Cannot verify a consent they recorded.</field>
+        </record>
+
+    </data>
+</odoo>

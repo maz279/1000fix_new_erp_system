@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M48 scheduled jobs (A07 P1, 2026-11-04; audit D9: the module had no ir.cron
+  and no cron method, so every date-driven rule never ran).
+
+  - Liveness (every 15 minutes): an active stream with no reading for its
+    silence window turns silent, a gap is opened, telemetry.stream_silent is
+    published, and a device whose every live stream fell silent goes offline
+    with an alert (AUT-IOT-03, BRU-IOT-09).
+  - Consent expiry (daily): a lapsed consent suspends the streams it covered
+    that need one and no other valid consent covers.
+  - Suppression expiry (daily): a rule suppression ends at its expiry even on a
+    stream that receives no reading (BRU-IOT-16).
+  - Retention (daily): raw readings are aggregated per active downsampling
+    policy and the compression is measured; raw / aggregate deletion runs only
+    when cd_stream_registry.retention_purge_enabled = 1 (default off).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_iot_liveness" model="ir.cron">
+            <field name="name">M48: mark silent streams and offline devices</field>
+            <field name="model_id" ref="model_fix_iot_stream"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_liveness()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_consent_expiry" model="ir.cron">
+            <field name="name">M48: suspend streams whose telemetry consent lapsed</field>
+            <field name="model_id" ref="model_fix_iot_consent"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_consent_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_suppression_expiry" model="ir.cron">
+            <field name="name">M48: end alert-rule suppressions past their expiry</field>
+            <field name="model_id" ref="model_fix_iot_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_lapse_suppressions()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_retention" model="ir.cron">
+            <field name="name">M48: aggregate telemetry and apply retention</field>
+            <field name="model_id" ref="model_fix_iot_downsample"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_retention()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

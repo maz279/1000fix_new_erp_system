@@ -19,9 +19,14 @@
         "cd_workflow_engine",
     ],
     "data": [
+        # A07 P1 (2026-11-04): the spec's roles, their ACLs, the company fence
+        # on the six un-ruled models, and the scheduler.
+        "security/fix_iot_groups.xml",
         "security/fix_isolation_rules.xml",
+        "security/fix_iot_scope_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/ir_cron.xml",
         "views/cd_stream_registry_views.xml",
     ],
     "installable": True,

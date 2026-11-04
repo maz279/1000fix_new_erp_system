@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04) M48-9: six M48 models (streams, adapters, rules,
+     downsampling policies, prescriptive actions, consents) had no company and
+     no record rule, so any internal user in any company read and edited every
+     consent, rule and action (BRU-IOT-17). Each now carries a company (its
+     own, or its parent's) and is fenced to the user's allowed companies, as
+     the generated fix_isolation_rules.xml does for the other four. The new
+     platform records (gaps, aggregates, retention changes) are fenced too.
+     An adapter with no company is shared protocol configuration. -->
+<odoo>
+    <record id="rule_fix_iot_stream_company" model="ir.rule">
+        <field name="name">fix.iot.stream: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_stream"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_adapter_company" model="ir.rule">
+        <field name="name">fix.iot.adapter: allowed companies (or shared)</field>
+        <field name="model_id" ref="model_fix_iot_adapter"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_rule_company" model="ir.rule">
+        <field name="name">fix.iot.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_downsample_company" model="ir.rule">
+        <field name="name">fix.iot.downsample: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_downsample"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_action_company" model="ir.rule">
+        <field name="name">fix.iot.action: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_action"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_consent_company" model="ir.rule">
+        <field name="name">fix.iot.consent: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_consent"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_retention_change_company" model="ir.rule">
+        <field name="name">fix.iot.retention.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_retention_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_gap_company" model="ir.rule">
+        <field name="name">fix.iot.gap: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_gap"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_iot_telemetry_rollup_company" model="ir.rule">
+        <field name="name">fix.iot.telemetry.rollup: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_telemetry_rollup"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

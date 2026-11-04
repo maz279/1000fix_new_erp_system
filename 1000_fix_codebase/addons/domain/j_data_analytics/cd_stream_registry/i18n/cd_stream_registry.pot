@@ -149,3 +149,513 @@ msgstr ""
 #: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__meter
 msgid "Smart Meter"
 msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__acked_by
+msgid "Acknowledged By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__acked_on
+msgid "Acknowledged On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__activated_on
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__activated_on
+msgid "Activated On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rolled_until
+msgid "Aggregated Up To"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rollup_ids
+msgid "Aggregates"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rollup_points
+msgid "Aggregates Written"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__rule_ids
+msgid "Alert Rules"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__applied_on
+msgid "Applied On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approved_by
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__applied_by
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approved_on
+msgid "Approved On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__cooldown_suppressed
+msgid "Breaches Held by Cooldown"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__breach_since
+msgid "Breaching Since"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__completed_by
+msgid "Completed By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__completed_on
+msgid "Completed On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__retention_days
+msgid "Compressed Retention (days)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__consent_policy
+msgid "Consent Policy"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__cooldown_min
+msgid "Cooldown (minutes)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__credential_ref
+msgid "Credential Reference"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__credential_rotated_on
+msgid "Credential Rotated On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__current_days
+msgid "Current Retention (days)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__partner_id
+msgid "Customer"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__partner_id
+msgid "Customer (data subject)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__compression_pct
+msgid "Design Reduction %"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__detected_at
+msgid "Detected At"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__device_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__device_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__device_id
+msgid "Device"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disable_reason
+msgid "Disable Reason"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disabled_by
+msgid "Disabled By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disabled_on
+msgid "Disabled On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_document_id
+msgid "Disclosure Given"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__dispatched_on
+msgid "Dispatched On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__downsample_id
+msgid "Downsampling Policy"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__feature_window_from
+msgid "Feature Window From"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__feature_window_to
+msgid "Feature Window To"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__duration_min
+msgid "For (minutes)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__gap_ids
+msgid "Gaps"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__evidence_ref
+msgid "Grant Evidence"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__granted_by
+msgid "Granted By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__last_rollup_on
+msgid "Last Aggregation Run"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__last_alert_on
+msgid "Last Alert Raised"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__last_evaluated
+msgid "Last Evaluated"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__last_occurrence_on
+msgid "Last Occurrence"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__last_seen
+msgid "Last Seen"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__last_value
+msgid "Latest Value"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__measured_compression_pct
+msgid "Measured Compression %"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__model_name
+msgid "Model"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__model_published
+msgid "Model Published (M26)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__occurrence_count
+msgid "Occurrences"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome
+msgid "Outcome"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome_evidence_ref
+msgid "Outcome Evidence"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_action_id
+msgid "Outcome From Action"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome_note
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_note
+msgid "Outcome Note"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_recorded_by
+msgid "Outcome Recorded By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_recorded_on
+msgid "Outcome Recorded On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__downsample_id
+msgid "Policy"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__prediction_id
+msgid "Prediction"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__action_ids
+msgid "Prescriptive Actions"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__proposed_days
+msgid "Proposed Retention (days)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_threshold
+msgid "Proposed Threshold"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__adapter_id
+msgid "Protocol Adapter"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__raw_interval_sec
+msgid "Raw Interval (s)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__points
+msgid "Raw Readings"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__raw_points_rolled
+msgid "Raw Readings Aggregated"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__retention_days
+msgid "Raw Retention (days)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__points_expected
+msgid "Readings Missed"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__readings_treated
+msgid "Readings Treated"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__requested_by
+msgid "Requested By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolution_note
+msgid "Resolution"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolved_by
+msgid "Resolved By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolved_on
+msgid "Resolved On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__gap_to
+msgid "Resumed At"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_at
+msgid "Revoked At"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_by
+msgid "Revoked By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_on
+msgid "Revoked On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__rule_id
+msgid "Rule"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__sample_interval_sec
+msgid "Sample Interval (s)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__signal_groups_permitted
+msgid "Signals Permitted"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__gap_from
+msgid "Silent Since"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__site_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__site_id
+msgid "Site"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__stream_id
+msgid "Stream"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__stream_id
+msgid "Stream (raw retention)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__had_reading
+msgid "Stream Had Readings"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__stream_ids
+msgid "Streams"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_until
+msgid "Suppressed Until"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_kind
+msgid "Suppression"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppressed_by
+msgid "Suppression Approved By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppressed_on
+msgid "Suppression Approved On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_reason
+msgid "Suppression Reason"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_requested_by
+msgid "Suppression Requested By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__target_interval_sec
+msgid "Target Interval (s)"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__technician_id
+msgid "Technician"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__telemetry_ids
+msgid "Telemetry"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_threshold
+msgid "Threshold Before Suppression"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__treatment_state
+msgid "Treatment"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revocation_treatment
+msgid "Treatment on Revocation"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__treatment_note
+msgid "Treatment Record"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__trigger_value
+msgid "Trigger Value"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verification
+msgid "Verification"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verified_by
+msgid "Verified By"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verified_on
+msgid "Verified On"
+msgstr ""
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revocation_evidence_ref
+msgid "Withdrawal Evidence"
+msgstr ""
