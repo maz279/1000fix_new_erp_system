@@ -16,29 +16,53 @@ WRITABLE = {
         {
             "calibrated_on",
             "certificate_ref",
+            "decision_note",
             "equipment_id",
             "next_due",
             "notes",
             "performed_by",
+            "reading_ids",
             "result",
             "standard_ref",
             "supersedes_id",
             "trace_no",
         }
     ),
+    "fix.calibration.impact": frozenset(
+        {
+            "disposition",
+            "disposition_note",
+        }
+    ),
+    "fix.calibration.profile": frozenset(
+        {
+            "equipment_id",
+            "interval_change_reason",
+            "interval_months",
+            "point_ids",
+            "proposed_interval_months",
+            "provider_requirement",
+            "required_traceability",
+            "verification_only",
+        }
+    ),
     "fix.device": frozenset(
         {
             "branch_id",
             "device_model_id",
+            "eol_customer_instruction",
             "estate_id",
             "imei_1",
             "imei_2",
             "legacy_reference",
-            "lifecycle_stage",
             "mac_address",
             "owner_id",
             "purchase_date",
             "serial_number",
+            "transfer_evidence_document_id",
+            "transfer_reason",
+            "transfer_to_partner_id",
+            "transfer_type_pending",
         }
     ),
     "fix.device.component": frozenset(
@@ -46,9 +70,14 @@ WRITABLE = {
             "device_id",
             "installed_on",
             "notes",
+            "ownership_class",
             "part_name",
+            "part_number",
+            "product_id",
             "serial_no",
             "source_ref",
+            "technician_id",
+            "warranty_until",
         }
     ),
     "fix.device.condition": frozenset(
@@ -64,13 +93,18 @@ WRITABLE = {
     ),
     "fix.device.custody": frozenset(
         {
+            "accessories_reconciled",
+            "accessory_notes",
+            "condition_id",
             "custodian_id",
             "device_id",
             "event",
             "event_date",
+            "evidence_document_id",
             "from_party_id",
             "notes",
             "reference",
+            "signature_ref",
             "to_party_id",
         }
     ),
@@ -85,6 +119,7 @@ WRITABLE = {
             "site",
         }
     ),
+    "fix.device.identifier": frozenset(),
     "fix.device.identity": frozenset(
         {
             "duplicate_device_id",
@@ -94,16 +129,8 @@ WRITABLE = {
             "primary_device_id",
         }
     ),
-    "fix.device.ownership": frozenset(
-        {
-            "device_id",
-            "from_partner_id",
-            "notes",
-            "to_partner_id",
-            "transfer_date",
-            "transfer_type",
-        }
-    ),
+    "fix.device.merge": frozenset(),
+    "fix.device.ownership": frozenset(),
     "fix.device.part.compatibility": frozenset(
         {
             "active",
@@ -160,10 +187,14 @@ WRITABLE = {
     "fix.equipment.kit": frozenset(
         {
             "active",
+            "branch_id",
             "code",
             "description",
+            "issue_due_on",
+            "issue_to_id",
             "line_ids",
             "name",
+            "return_condition",
         }
     ),
     "fix.equipment.oos": frozenset(
@@ -217,13 +248,19 @@ WRITABLE = {
         {
             "actual_cost",
             "assigned_to",
+            "assigned_type",
             "completion_notes",
             "description",
             "equipment_id",
             "estimated_cost",
+            "hazard_type",
+            "high_risk",
+            "invoice_ref",
             "name",
+            "permit_precautions",
             "scheduled_date",
             "site_id",
+            "vendor_id",
             "work_type",
         }
     ),
@@ -232,6 +269,7 @@ WRITABLE = {
             "action_type",
             "name",
             "notes",
+            "outcome_evidence_ref",
             "prediction_id",
             "priority",
             "scheduled_on",
@@ -241,6 +279,8 @@ WRITABLE = {
     "fix.iot.adapter": frozenset(
         {
             "auth_mode",
+            "credential_ref",
+            "credential_rotated_on",
             "endpoint",
             "name",
             "protocol",
@@ -250,11 +290,16 @@ WRITABLE = {
     "fix.iot.consent": frozenset(
         {
             "device_id",
+            "disclosure_document_id",
+            "evidence_ref",
+            "granted_by",
             "granted_on",
             "name",
             "notes",
             "partner_id",
             "purpose",
+            "revocation_treatment",
+            "signal_groups_permitted",
             "site_id",
             "subject_type",
             "valid_to",
@@ -270,6 +315,27 @@ WRITABLE = {
             "operating_unit_id",
             "partner_id",
             "site_id",
+        }
+    ),
+    "fix.iot.downsample": frozenset(
+        {
+            "aggregation",
+            "name",
+            "raw_interval_sec",
+            "retention_days",
+            "stream_id",
+            "target_interval_sec",
+        }
+    ),
+    "fix.iot.gap": frozenset(),
+    "fix.iot.retention.change": frozenset(
+        {
+            "change_type",
+            "downsample_id",
+            "name",
+            "proposed_days",
+            "reason",
+            "stream_id",
         }
     ),
     "fix.iot.rule": frozenset(
@@ -288,6 +354,7 @@ WRITABLE = {
     "fix.iot.stream": frozenset(
         {
             "adapter_id",
+            "consent_policy",
             "device_id",
             "metric",
             "name",
@@ -296,8 +363,19 @@ WRITABLE = {
             "unit",
         }
     ),
+    "fix.maintenance.demand": frozenset(
+        {
+            "branch_id",
+            "description",
+            "device_id",
+            "scheduled_date",
+            "site_id",
+            "technician_id",
+        }
+    ),
     "fix.site": frozenset(
         {
+            "accountable_manager_id",
             "address",
             "branch_id",
             "closure_assets_recovered",
@@ -309,7 +387,14 @@ WRITABLE = {
             "lease_start",
             "monthly_rent",
             "name",
+            "occupancy_basis",
             "operating_unit_id",
+            "readiness_notes",
+            "ready_connectivity",
+            "ready_equipment",
+            "ready_power",
+            "ready_security",
+            "ready_signage",
             "site_type",
         }
     ),
@@ -341,6 +426,7 @@ WRITABLE = {
         {
             "description",
             "incident_type",
+            "injuries_flag",
             "name",
             "occurred_on",
             "resolution",
@@ -358,6 +444,7 @@ WRITABLE = {
             "monthly_rent",
             "name",
             "notes",
+            "notice_period_days",
             "proposed_end_date",
             "proposed_escalation_pct",
             "proposed_monthly_rent",
@@ -365,9 +452,10 @@ WRITABLE = {
             "start_date",
         }
     ),
+    "fix.site.lease.extract": frozenset(),
+    "fix.site.lease.schedule": frozenset(),
     "fix.site.licence": frozenset(
         {
-            "is_valid",
             "issued_on",
             "licence_type",
             "name",
@@ -380,6 +468,7 @@ WRITABLE = {
     "fix.site.pm": frozenset(
         {
             "cost",
+            "interval_months",
             "name",
             "notes",
             "provider_id",
@@ -391,6 +480,8 @@ WRITABLE = {
     "fix.site.project": frozenset(
         {
             "budget",
+            "budget_change_reason",
+            "budget_proposed",
             "name",
             "notes",
             "planned_on",
@@ -398,22 +489,25 @@ WRITABLE = {
             "site_id",
         }
     ),
+    "fix.site.risk.exception": frozenset(
+        {
+            "decision_notes",
+        }
+    ),
     "fix.site.safety": frozenset(
         {
             "equipment_type",
-            "last_check",
+            "inspection_interval_months",
             "name",
             "next_check",
             "notes",
             "ref",
             "site_id",
-            "state",
         }
     ),
     "fix.site.utility": frozenset(
         {
             "amount",
-            "flagged",
             "name",
             "notes",
             "period",
@@ -429,7 +523,11 @@ WRITABLE = {
             "damage_cost",
             "description",
             "driver_id",
+            "evidence_file",
+            "injury",
+            "insurer_id",
             "occurred_on",
+            "police_ref",
             "settlement_amount",
             "vehicle_id",
         }
@@ -451,6 +549,7 @@ WRITABLE = {
     "fix.vehicle.document": frozenset(
         {
             "doc_type",
+            "evidence_file",
             "number",
             "valid_from",
             "valid_to",
@@ -464,6 +563,8 @@ WRITABLE = {
             "filled_on",
             "litres",
             "odometer",
+            "receipt_file",
+            "receipt_no",
             "station",
             "vehicle_id",
         }
@@ -478,6 +579,7 @@ WRITABLE = {
     "fix.vehicle.pm": frozenset(
         {
             "cost",
+            "due_date",
             "due_odometer",
             "notes",
             "odometer",
@@ -492,16 +594,15 @@ WRITABLE = {
             "fuel_level_pct",
             "last_ping",
             "odometer",
-            "state",
             "vehicle_id",
         }
     ),
     "fleet.vehicle": frozenset(
         {
             "branch_id",
-            "fitness_expiry",
             "fix_driver_id",
-            "insurance_expiry",
+            "fix_licence_class_required",
+            "fix_tank_capacity_l",
             "license_plate",
             "model_id",
             "operating_unit_id",

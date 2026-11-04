@@ -1,0 +1,98 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "telemetry.consent_revoked",
+  "description": "Published by cd_stream_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "telemetry.consent_revoked"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_stream_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "consent",
+        "subject_type",
+        "device_id",
+        "site_id",
+        "partner_id",
+        "treatment",
+        "treatment_state",
+        "readings_treated",
+        "streams_suspended",
+        "evidence_ref"
+      ],
+      "properties": {
+        "consent": {
+          "type": "string"
+        },
+        "subject_type": {
+          "type": "string"
+        },
+        "device_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "site_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "partner_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "treatment": {
+          "type": "string"
+        },
+        "treatment_state": {
+          "description": "Type not statically derivable from `vals['treatment_state']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1999)."
+        },
+        "readings_treated": {
+          "description": "Type not statically derivable from `vals['readings_treated']` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:1999)."
+        },
+        "streams_suspended": {
+          "type": "array"
+        },
+        "evidence_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_stream_registry",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

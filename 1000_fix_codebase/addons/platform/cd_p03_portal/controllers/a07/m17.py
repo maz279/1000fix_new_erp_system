@@ -13,13 +13,21 @@ SURFACES = {
         "order": "id desc",
         "limit": 400,
         # A07 audit M17-8: the lifecycle moves only through these. Scrap is a
-        # routed M63 decision (Tier 2, never the requester); here it is only
-        # requested. Lost is cleared by someone other than the flagger.
+        # routed M63 decision (Device Quality Manager, never the requester);
+        # here it is only requested. A Branch Manager other than the flagger
+        # clears a lost flag. A07 P1 (2026-11-04): the governed ownership
+        # transfer (agent, reason, evidence staged on the form), the
+        # provisional identity confirmation and the lifecycle decisions.
         "actions": {
             "action_mark_lost",
             "action_clear_lost",
             "action_request_approval",
             "action_recall_approval",
+            "action_transfer_ownership",
+            "action_confirm_identity",
+            "action_set_vintage",
+            "action_set_end_of_support",
+            "action_set_obsolete",
         },
     },
     # fix.device.history is declared by M01 — read through the merge.
@@ -51,7 +59,20 @@ SURFACES = {
     "fix.device.component": {
         "order": "installed_on desc, id desc",
         "limit": 400,
-        "actions": {"action_remove"},
+        "actions": {"action_remove", "action_dispose_returned", "action_dispose_scrapped"},
+    },
+    # A07 P2 (2026-11-04): the identifier history (read-only; a Branch Manager
+    # records the NEIR result of an IMEI) and the merge lineage (a Device
+    # Quality Manager reverses a merge inside its window).
+    "fix.device.identifier": {
+        "order": "device_id, identifier_type, captured_at desc, id desc",
+        "limit": 400,
+        "actions": {"action_neir_registered", "action_neir_deregistered", "action_neir_blocked"},
+    },
+    "fix.device.merge": {
+        "order": "merged_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_reverse"},
     },
     "fix.device.part.compatibility": {"order": "id desc", "limit": 400, "actions": set()},
 }
@@ -69,21 +90,28 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _visible_device_ids(env):
+    """The devices the caller may open: their own record rules decide
+    (company AND operating unit). Superuser reads see every device."""
+    return env["fix.device"].search([]).ids
+
+
 def _scoped(env, model, domain=None):
-    """sudo() read for a report or KPI, fenced to the caller's companies.
+    """sudo() read for a report or KPI, fenced to what the caller may see.
 
     A07 audit (2026-11-03) M17-6: every pack read `sudo().search([])`, so a
     user of one company saw another company's devices, owners and IMEIs.
-    Satellite models carry no company_id; they follow their device."""
+    A07 P1 (2026-11-04): the company fence still let an OU2 clerk read an OU1
+    customer's device and owner in Asset 360 and count it in the KPIs. Device
+    rows and satellite rows now follow the devices the caller's own record
+    rules let him open; other models keep the company fence."""
     Model = env[model].sudo()
-    if "company_id" in Model._fields:
-        fence = _company_domain(env, model)
+    if model == "fix.device":
+        fence = [("id", "in", _visible_device_ids(env))]
+    elif "device_id" in Model._fields:
+        fence = [("device_id", "in", _visible_device_ids(env))]
     else:
-        fence = [
-            "|",
-            ("device_id.company_id", "=", False),
-            ("device_id.company_id", "in", env.user.company_ids.ids),
-        ]
+        fence = _company_domain(env, model)
     return Model.search(list(domain or []) + fence)
 
 
@@ -398,9 +426,9 @@ def custody_exceptions(env, date_from=None, date_to=None, **params):
                 "note": "lost without recovery"
                 if event.event == "lost"
                 and not custody.filtered(
-                    lambda c, d=event.device_id, dt=event.event_date: c.device_id.id == d.id
-                    and c.event == "found"
-                    and c.event_date >= dt
+                    lambda c, d=event.device_id, dt=event.event_date: (
+                        c.device_id.id == d.id and c.event == "found" and c.event_date >= dt
+                    )
                 )
                 else dict(event._fields["event"].selection).get(event.event),
             }
@@ -545,9 +573,9 @@ def kpis(env):
     open_lost = 0
     for event in lost:
         found = custody.filtered(
-            lambda c, d=event.device_id, dt=event.event_date: c.device_id.id == d.id
-            and c.event == "found"
-            and c.event_date >= dt
+            lambda c, d=event.device_id, dt=event.event_date: (
+                c.device_id.id == d.id and c.event == "found" and c.event_date >= dt
+            )
         )
         if not found:
             open_lost += 1

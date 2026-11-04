@@ -255,3 +255,449 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_facility.field_fix_site__work_order_ids
 msgid "Work Orders"
 msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__accountable_manager_id
+msgid "Accountable Manager"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__anomaly_basis
+msgid "Anomaly Basis"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__flagged
+msgid "Anomaly Flagged"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__tag
+msgid "Asset Tag"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_assets_recovered
+msgid "Assets Recovered"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__assigned_type
+msgid "Assigned To"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_project__budget_change_reason
+msgid "Budget Change Reason"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_ceo_approved_at
+msgid "CEO Signed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_cfo_approved_at
+msgid "CFO Signed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__closed_at
+msgid "Closed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__closed_by_id
+msgid "Closed By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completed_at
+msgid "Completed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completed_by_id
+msgid "Completed By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__completion_notes
+msgid "Completion Evidence"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_connectivity
+msgid "Connectivity Live"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_extract__consumed_by_m19_at
+msgid "Consumed by M19 At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__current_rent
+msgid "Current Monthly Rent"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decided_at
+msgid "Decided At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_by_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decided_by_id
+msgid "Decided By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_on
+msgid "Decided On"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__decision_notes
+msgid "Decision Basis"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision_notes
+msgid "Decision Notes"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__review_due_on
+msgid "Decision Review Date"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_deposit_settled
+msgid "Deposit Recovered / Written Off"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_equipment
+msgid "Equipment Complement Installed (M45)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__escalation_pct
+msgid "Escalation %"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__hazard_type
+msgid "Hazard"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__high_risk
+msgid "High-Risk Job (Permit to Work)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__hse_case_ref
+msgid "HSE Case (M59)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__extract_ids
+msgid "IFRS 16 Extracts"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__asset_ids
+msgid "Infrastructure Assets"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__injuries_flag
+msgid "Injury Involved"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__inspection_interval_months
+msgid "Inspection Interval (months)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_condition__inspector_id
+msgid "Inspector"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_incident__hse_notice_due_on
+msgid "Inspector Notice Due (s.80)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease_schedule__invoice_ref
+msgid "Invoice Ref (M52)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__licence_id
+msgid "Lapsed Licence"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__last_checked_by_id
+msgid "Last Checked By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__lessor_id
+msgid "Lessor"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__number
+msgid "Licence Number"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_risk_exception__licence_type
+msgid "Licence Type"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_licences_surrendered
+msgid "Licences Surrendered"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__modification_open
+msgid "Modification Open"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__modification_reason
+msgid "Modification Reason"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__next_pm_id
+msgid "Next PM"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_condition__occupancy_pct
+msgid "Occupancy %"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__opened_on
+msgid "Operational Since"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_opsdir_approved_at
+msgid "Operations Director Signed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__review_state
+msgid "Payment Hold"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_approved_at
+msgid "Permit Approved At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_approved_by_id
+msgid "Permit Approved By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_precautions
+msgid "Permit Precautions"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__permit_valid_to
+msgid "Permit Valid To"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_power
+msgid "Power Connected"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_project__budget_proposed
+msgid "Proposed Budget"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_end_date
+msgid "Proposed End Date"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_escalation_pct
+msgid "Proposed Escalation %"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__proposed_monthly_rent
+msgid "Proposed Monthly Rent"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__pm_id
+msgid "Raised by PM"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__readiness_notes
+msgid "Readiness Evidence"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__closure_notes
+msgid "Recovery Notes"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_decision
+msgid "Renewal Decision"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__notice_period_days
+msgid "Renewal Notice (days)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__renewal_notice_date
+msgid "Renewal Notice Deadline"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__schedule_ids
+msgid "Rent Schedule"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__interval_months
+msgid "Repeat Every (months)"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__retire_reason
+msgid "Retirement Reason"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__review_notes
+msgid "Review Notes"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__reviewed_at
+msgid "Reviewed At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__reviewed_by_id
+msgid "Reviewed By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_security
+msgid "Security Arrangements in Place"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_asset__serial_no
+msgid "Serial No"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__provider_id
+msgid "Service Provider"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__ready_signage
+msgid "Signage Installed / Permitted"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_ceo_approved_by_id
+msgid "Status Change: CEO Sign-off"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_cfo_approved_by_id
+msgid "Status Change: CFO Sign-off"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__status_opsdir_approved_by_id
+msgid "Status Change: Operations Director"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__suspended_reason
+msgid "Suspension Reason"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_safety__ref
+msgid "Tag / Reference"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_lease__terminated_reason
+msgid "Termination Reason"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__unit
+msgid "Unit"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_utility__usage
+msgid "Usage"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_licence__is_valid
+msgid "Valid Today"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__vendor_id
+msgid "Vendor"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__invoice_ref
+msgid "Vendor Invoice Ref"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verification_notes
+msgid "Verification Notes"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verified_at
+msgid "Verified At"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__verified_by_id
+msgid "Verified By"
+msgstr ""
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site_pm__work_order_id
+msgid "Work Order"
+msgstr ""

@@ -1,2 +1,3 @@
 # cd_facility models.
-from . import fix_facility, fix_facility_ops
+# ruff: noqa: I001
+from . import fix_facility, fix_facility_ops, fix_facility_compliance

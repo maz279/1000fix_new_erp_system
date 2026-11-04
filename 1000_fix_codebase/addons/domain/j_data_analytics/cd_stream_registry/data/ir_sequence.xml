@@ -50,5 +50,20 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A07 P1 (2026-11-04): gaps and retention changes. -->
+        <record id="seq_fix_iot_gap" model="ir.sequence">
+            <field name="name">IoT Telemetry Gap</field>
+            <field name="code">fix.iot.gap</field>
+            <field name="prefix">IGAP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_iot_retention_change" model="ir.sequence">
+            <field name="name">IoT Retention Change</field>
+            <field name="code">fix.iot.retention.change</field>
+            <field name="prefix">IRET/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 P1 wiring round 2 (2026-11-04): M46 -> M02. The vehicle link of a field
+  order lives in this bridge, so its consumers do too. Both are idempotent:
+  an order or assignment already flagged is left alone, and a clearance
+  touches only the flags that still name its off-road record.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_vehicle_off_road" model="fix.event.consumer">
+            <field name="name">M02: a van taken off the road flags its open field orders for re-dispatch</field>
+            <field name="event_type">vehicle.off_road</field>
+            <field name="model">fix.field.order</field>
+            <field name="method">consume_vehicle_off_road</field>
+            <field name="module">cd_vehicle_dispatch</field>
+        </record>
+
+        <record id="consumer_vehicle_available" model="fix.event.consumer">
+            <field name="name">M02: a van back in service clears the re-dispatch flags its off-road record set</field>
+            <field name="event_type">vehicle.available</field>
+            <field name="model">fix.field.order</field>
+            <field name="method">consume_vehicle_available</field>
+            <field name="module">cd_vehicle_dispatch</field>
+        </record>
+
+    </data>
+</odoo>

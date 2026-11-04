@@ -1,0 +1,166 @@
+# Bengali (Bangladesh) translation for cd_asset_workorder_spine.
+# Field labels (FF-25 / DoD-08, AS-12).
+msgid ""
+msgstr ""
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__calibration_due
+msgid "Calibration Due"
+msgstr "ক্যালিব্রেশন বকেয়া"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__partner_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__device_id
+msgid "Customer Device (M17)"
+msgstr "গ্রাহকের ডিভাইস (M17)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__dismissed_by_id
+msgid "Dismissed By"
+msgstr "খারিজকারী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__equipment_id
+msgid "Equipment (M45)"
+msgstr "যন্ত্রপাতি (M45)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_recheck__impact_id
+msgid "Impact Assessment (M45)"
+msgstr "প্রভাব মূল্যায়ন (M45)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_recheck__equipment_id
+msgid "Instrument"
+msgstr "যন্ত্র"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__iot_device_id
+msgid "IoT Device (M48)"
+msgstr "IoT ডিভাইস (M48)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__device_pm_id
+msgid "M17 Device Plan"
+msgstr "M17 ডিভাইস পরিকল্পনা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__equipment_pm_id
+msgid "M45 PM Job"
+msgstr "M45 PM কাজ"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__vehicle_pm_id
+msgid "M46 Service"
+msgstr "M46 সার্ভিসিং"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__operating_unit_id
+msgid "Operating Unit"
+msgstr "পরিচালন ইউনিট"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__prediction_id
+msgid "Prediction (M48)"
+msgstr "পূর্বাভাস (M48)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__iot_action_id
+msgid "Prescriptive Action (M48)"
+msgstr "নির্দেশনামূলক পদক্ষেপ (M48)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__routed_by_id
+msgid "Routed By"
+msgstr "রুটিংকারী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__service_order_id
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_recheck__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__site_id
+msgid "Site (M47)"
+msgstr "সাইট (M47)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__source_ref
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__source_log
+msgid "Source Updates"
+msgstr "উৎসের হালনাগাদ"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_recheck__job_refs
+msgid "Suspect Uses"
+msgstr "সন্দেহজনক ব্যবহার"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__technician_id
+msgid "Technician / Engineer"
+msgstr "টেকনিশিয়ান / প্রকৌশলী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_recheck__use_count
+msgid "Uses"
+msgstr "ব্যবহারের সংখ্যা"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__vehicle_id
+msgid "Vehicle (M46)"
+msgstr "যানবাহন (M46)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__blocker
+msgid "What It Needs"
+msgstr "যা প্রয়োজন"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_maintenance_demand__work_order_id
+msgid "Work Order"
+msgstr "ওয়ার্ক অর্ডার"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__device_id
+msgid "Device (M17)"
+msgstr "ডিভাইস (M17)"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__flag_event_id
+msgid "Flag Event"
+msgstr "ফ্ল্যাগ ইভেন্ট"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__reason
+msgid "Reported"
+msgstr "প্রতিবেদন"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__flagged_by_id
+msgid "Flagged By"
+msgstr "ফ্ল্যাগকারী"
+
+#. module: cd_asset_workorder_spine
+#: model:ir.model.fields,field_description:cd_asset_workorder_spine.field_fix_service_order_device_hold__cleared_by_id
+msgid "Cleared By"
+msgstr "ফ্ল্যাগ প্রত্যাহারকারী"

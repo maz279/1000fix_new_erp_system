@@ -71,5 +71,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_site_risk_exception" model="ir.sequence">
+            <field name="name">Site Operating-Risk Exception</field>
+            <field name="code">fix.site.risk.exception</field>
+            <field name="prefix">SRISK/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "equipment.impact_assessment_raised",
+  "description": "Published by cd_equipment_register through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "equipment.impact_assessment_raised"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_equipment_register"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "impact",
+        "equipment",
+        "calibration_id",
+        "period_from",
+        "period_to",
+        "affected_uses",
+        "job_refs",
+        "source_refs",
+        "ncr"
+      ],
+      "properties": {
+        "impact": {
+          "type": "string"
+        },
+        "equipment": {
+          "type": "string"
+        },
+        "calibration_id": {
+          "type": "integer"
+        },
+        "period_from": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "period_to": {
+          "type": "string"
+        },
+        "affected_uses": {
+          "type": "integer"
+        },
+        "job_refs": {
+          "type": "array"
+        },
+        "source_refs": {
+          "type": "array"
+        },
+        "ncr": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_equipment_register",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

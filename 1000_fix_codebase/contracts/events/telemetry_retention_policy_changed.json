@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "telemetry.retention_policy_changed",
+  "description": "Published by cd_stream_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "telemetry.retention_policy_changed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_stream_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "change",
+        "change_type",
+        "target_model",
+        "target",
+        "from_days",
+        "to_days",
+        "approved_by"
+      ],
+      "properties": {
+        "change": {
+          "type": "string"
+        },
+        "change_type": {
+          "type": "string"
+        },
+        "target_model": {
+          "description": "Type not statically derivable from `target._name` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2223)."
+        },
+        "target": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "from_days": {
+          "type": "integer"
+        },
+        "to_days": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "approved_by": {
+          "description": "Type not statically derivable from `self.env.uid` (addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py:2223)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_stream_registry",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_stream_registry/models/fix_iot_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

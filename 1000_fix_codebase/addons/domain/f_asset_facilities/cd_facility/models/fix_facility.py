@@ -30,19 +30,38 @@ ESTATE_COST_DOFA_THRESHOLDS = [
     (float("inf"), "tier_4"),
 ]
 
-# Site closure and reopening (spec §8.1: "CEO + CFO"). No role groups exist
-# yet (P1), so the DOFA tier groups whose labels match are used: CFO = Tier 4
-# "CFO / CCO / COO", CEO = Tier 5 "Managing Director / Board". Two separate
-# sign-offs, by two different people, CFO first.
+# Site status changes (spec §8.1). Each transition is a routed M63 decision;
+# the sign-offs it needs are taken in order, each by a different person who
+# is neither the requester nor the creator.
+#   planned   -> operational: readiness gate, Operations Director (BRU-FAC-04)
+#   suspended -> operational: cause resolved, Operations Director (§8.1)
+#   operational -> closed and closed -> planned (reopen): CFO then CEO.
+# No CFO or CEO group exists, so the DOFA tier groups whose labels match are
+# used: CFO = Tier 4 "CFO / CCO / COO", CEO = Tier 5 "Managing Director /
+# Board" (P0). The Operations Director is the M47 role (P1).
 SITE_STATUS_STAGES = {
+    "opsdir": ("cd_facility.group_operations_director", "Operations Director"),
     "cfo": ("cd_entity_config.group_dofa_tier_4", "CFO (DOFA Tier 4)"),
     "ceo": ("cd_entity_config.group_dofa_tier_5", "CEO (DOFA Tier 5)"),
 }
+SITE_TRANSITION_STAGES = {
+    "planned": ("opsdir",),
+    "suspended": ("opsdir",),
+    "active": ("cfo", "ceo"),
+    "closed": ("cfo", "ceo"),
+}
 SITE_STATUS_STAMPS = (
+    "status_opsdir_approved_by_id",
+    "status_opsdir_approved_at",
     "status_cfo_approved_by_id",
     "status_cfo_approved_at",
     "status_ceo_approved_by_id",
     "status_ceo_approved_at",
+)
+SITE_SIGNERS = (
+    "status_opsdir_approved_by_id",
+    "status_cfo_approved_by_id",
+    "status_ceo_approved_by_id",
 )
 # BRU-FAC-15 recovery checklist: what a closing site must have settled when
 # it still holds an active lease, an open work order or a valid licence.
@@ -52,12 +71,35 @@ CLOSURE_CHECKLIST = (
     "closure_deposit_settled",
     "closure_notes",
 )
+# BRU-FAC-04 readiness gate (§8.1: lease, trade licence, fire licence, power,
+# connectivity, safety equipment, security, equipment complement, signage).
+# The lease, licences and safety equipment are read from their registers;
+# the rest are attested by the requester and pinned by the sign-off.
+READINESS_ATTESTED = (
+    "ready_power",
+    "ready_connectivity",
+    "ready_security",
+    "ready_equipment",
+    "ready_signage",
+)
+READINESS_PINNED = (
+    *READINESS_ATTESTED,
+    "readiness_notes",
+    "accountable_manager_id",
+    "occupancy_basis",
+)
+# §8.1 lists both licences in the readiness gate. Configurable because the
+# licence set per local authority is confirmed at build time (Q-02).
+READINESS_LICENCES_PARAM = "cd_facility.readiness_licence_types"
+READINESS_LICENCES_DEFAULT = "trade,fire"
 
 WO_OPEN_STATES = ("draft", "scheduled", "in_progress")
 # Once the work is complete its cost and evidence are the record of what was
 # done and spent: they are frozen (a reopen unfreezes them).
 WO_COST_FROZEN_STATES = ("completed", "verified", "cancelled")
 WO_FROZEN_FIELDS = ("estimated_cost", "actual_cost", "completion_notes")
+WO_PERMIT_STAMPS = ("permit_approved_by_id", "permit_approved_at", "permit_valid_to")
+WO_PERMIT_PINNED = ("high_risk", "hazard_type", "permit_precautions")
 
 
 def _changes(records, vals) -> bool:
@@ -117,8 +159,11 @@ class FixSite(models.Model):
     # lease, a 600k deposit, an open work order and a valid licence. A status
     # change is now a routed M63 decision signed by the CFO and then the CEO
     # (neither the requester nor the creator), and a closure with open
-    # obligations needs the recovery checklist. The readiness gate (planned /
-    # fitting out) is P2 and not built here.
+    # obligations needs the recovery checklist.
+    # A07 P1 (2026-11-04) M47-5/BRU-FAC-04: a new site is born Planned and
+    # becomes operational only through the readiness gate, signed off by the
+    # Operations Director; a licence lapse can suspend it (named decision on
+    # the risk exception), and it resumes only with the Operations Director.
     _approval_domain = "site_status"
     _approval_apply_method = "action_approve_status_change"
     _approval_group = SITE_STATUS_STAGES["cfo"][0]
@@ -153,8 +198,40 @@ class FixSite(models.Model):
     work_order_ids = fields.One2many("fix.facility.work.order", "site_id", string="Work Orders")
     asset_ids = fields.One2many("fix.site.asset", "site_id", string="Infrastructure Assets")
     state = fields.Selection(
-        [("active", "Active"), ("closed", "Closed")], default="active", required=True, tracking=True
+        [
+            ("planned", "Planned / Fitting Out"),
+            ("active", "Operational"),
+            ("suspended", "Suspended"),
+            ("closed", "Closed"),
+        ],
+        default="planned",
+        required=True,
+        tracking=True,
     )
+    # BRU-FAC-06: exactly one accountable manager per site.
+    accountable_manager_id = fields.Many2one(
+        "res.users",
+        string="Accountable Manager",
+        tracking=True,
+        help="The one person accountable for the site's facility and compliance matters "
+        "(BRU-FAC-06). Required by the readiness gate.",
+    )
+    occupancy_basis = fields.Selection(
+        [("leased", "Leased"), ("owned", "Owned"), ("licensed", "Licensed")],
+        default="leased",
+        required=True,
+        help="A leased or licensed site needs an active lease to pass the readiness gate.",
+    )
+    ready_power = fields.Boolean(string="Power Connected")
+    ready_connectivity = fields.Boolean(string="Connectivity Live")
+    ready_security = fields.Boolean(string="Security Arrangements in Place")
+    ready_equipment = fields.Boolean(string="Equipment Complement Installed (M45)")
+    ready_signage = fields.Boolean(string="Signage Installed / Permitted")
+    readiness_notes = fields.Text(
+        string="Readiness Evidence", help="References for the attested readiness items"
+    )
+    opened_on = fields.Date(string="Operational Since", readonly=True, copy=False)
+    suspended_reason = fields.Char(string="Suspension Reason", readonly=True, copy=False)
     closure_assets_recovered = fields.Boolean(
         string="Assets Recovered",
         help="Plant, equipment (M45), stock (M15) and vehicles (M46) recovered and reconciled",
@@ -167,6 +244,12 @@ class FixSite(models.Model):
     closure_notes = fields.Text(
         string="Recovery Notes", help="What was recovered, surrendered and settled, with references"
     )
+    status_opsdir_approved_by_id = fields.Many2one(
+        "res.users", string="Status Change: Operations Director", readonly=True, copy=False
+    )
+    status_opsdir_approved_at = fields.Datetime(
+        string="Operations Director Signed At", readonly=True, copy=False
+    )
     status_cfo_approved_by_id = fields.Many2one(
         "res.users", string="Status Change: CFO Sign-off", readonly=True, copy=False
     )
@@ -177,28 +260,30 @@ class FixSite(models.Model):
     status_ceo_approved_at = fields.Datetime(string="CEO Signed At", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state"} | set(SITE_STATUS_STAMPS)
+        return (
+            super()._fix_guarded_fields()
+            | {"state", "opened_on", "suspended_reason"}
+            | set(SITE_STATUS_STAMPS)
+        )
 
     def write(self, vals):
-        # The CFO and CEO sign off the closure with the checklist as it then
-        # read (the approval's pin): ticking or editing it afterwards voids
-        # the sign-offs, so the approvers always saw what is executed.
+        # The sign-offs are given on the checklist as it then read (the
+        # approval's pin): changing the closure checklist or the readiness
+        # attestations afterwards voids them, so the approvers always saw
+        # what is executed.
         voided = self.browse()
-        if not self._fix_guard_has_token() and set(CLOSURE_CHECKLIST) & set(vals):
-            checklist = {k: vals[k] for k in CLOSURE_CHECKLIST if k in vals}
+        pinned = set(CLOSURE_CHECKLIST) | set(READINESS_PINNED)
+        if not self._fix_guard_has_token() and pinned & set(vals):
+            checklist = {k: vals[k] for k in pinned if k in vals}
             voided = self.filtered(
                 lambda r: (
-                    (
-                        r.approval_state in ("pending", "approved")
-                        or r.status_cfo_approved_by_id
-                        or r.status_ceo_approved_by_id
-                    )
+                    (r.approval_state in ("pending", "approved") or any(r[f] for f in SITE_SIGNERS))
                     and _changes(r, checklist)
                 )
             )
         result = super().write(vals)
         if voided:
-            voided._site_void_status_approval("the closure checklist changed after sign-off")
+            voided._site_void_status_approval("the checklist changed after sign-off")
         return result
 
     def action_link_assets(self):
@@ -211,14 +296,13 @@ class FixSite(models.Model):
                 {"site": rec.name, "assets_count": len(rec.equipment_ids)},
             )
 
-    # ---- status-change approval (CFO, then CEO) ----------------------------
+    # ---- status-change approval -------------------------------------------
     def _site_stage(self):
-        """The sign-off the status change still needs: 'cfo', 'ceo' or None."""
+        """The sign-off the next status change still needs, or None."""
         self.ensure_one()
-        if not self.status_cfo_approved_by_id:
-            return "cfo"
-        if not self.status_ceo_approved_by_id:
-            return "ceo"
+        for stage in SITE_TRANSITION_STAGES.get(self.state, ()):
+            if not self["status_%s_approved_by_id" % stage]:
+                return stage
         return None
 
     def _approval_group_xmlid(self):
@@ -234,17 +318,21 @@ class FixSite(models.Model):
         return users
 
     def _approval_excluded(self):
-        # the CFO who signed first is not also the second signature
-        return super()._approval_excluded() | self.status_cfo_approved_by_id.sudo()
+        # an earlier signatory is not also the next signature
+        signed = self.env["res.users"]
+        for name in SITE_SIGNERS:
+            signed |= self[name]
+        return super()._approval_excluded() | signed.sudo()
 
     def _approval_needed(self) -> bool:
-        return self.state in ("active", "closed") and bool(self._site_stage())
+        return self.state in SITE_TRANSITION_STAGES and bool(self._site_stage())
 
     def _approval_on_rejected(self, comment):
         self._site_void_status_approval("the status change was rejected: %s" % (comment or ""))
 
     def _site_void_status_approval(self, reason):
-        for rec in self:
+        # a service write: it also runs in the env of a rejecting approver
+        for rec in self.sudo():
             if any(rec[f] for f in SITE_STATUS_STAMPS) or rec.approval_state != "none":
                 rec._guarded().write(dict.fromkeys(SITE_STATUS_STAMPS, False))
                 rec._approval_void(reason)
@@ -302,16 +390,90 @@ class FixSite(models.Model):
                     % (rec.name, ", ".join(items))
                 )
 
-    def action_request_approval(self, justification=None):
-        """Route the next status change (close an active site, reopen a closed
-        one) for the CFO sign-off, then again for the CEO's."""
+    @api.model
+    def _readiness_licence_types(self) -> list:
+        raw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(READINESS_LICENCES_PARAM, READINESS_LICENCES_DEFAULT)
+        )
+        return [t.strip() for t in (raw or "").split(",") if t.strip()]
+
+    def _site_readiness_items(self) -> list:
+        """The readiness-gate items still outstanding (BRU-FAC-04). Empty = pass."""
+        self.ensure_one()
+        env = self.env
+        out = []
+        if not self.accountable_manager_id:
+            out.append("an accountable manager (BRU-FAC-06)")
+        if self.occupancy_basis != "owned" and not env["fix.site.lease"].sudo().search_count(
+            [("site_id", "=", self.id), ("state", "=", "active")]
+        ):
+            out.append("an active lease")
+        licences = env["fix.site.licence"].sudo().search([("site_id", "=", self.id)])
+        labels = dict(env["fix.site.licence"]._fields["licence_type"].selection)
+        for ltype in self._readiness_licence_types():
+            if not licences.filtered(lambda ln, t=ltype: ln.licence_type == t and ln.is_valid):
+                out.append("a current %s" % labels.get(ltype, ltype).lower())
+        safety = env["fix.site.safety"].sudo().search([("site_id", "=", self.id)])
+        if not safety:
+            out.append("safety equipment on the register")
+        elif safety.filtered(lambda s: s.state == "overdue"):
+            out.append("no overdue safety equipment")
+        for name in READINESS_ATTESTED:
+            if not self[name]:
+                out.append(self._fields[name].string.lower())
+        return out
+
+    def _site_check_ready(self):
         for rec in self:
-            if rec.state == "active":
+            items = rec._site_readiness_items()
+            if items:
+                raise UserError(
+                    "%s has not passed the readiness gate (BRU-FAC-04). Outstanding: %s."
+                    % (rec.name, "; ".join(items))
+                )
+
+    def _site_open_exceptions(self):
+        return (
+            self.env["fix.site.risk.exception"]
+            .sudo()
+            .search([("site_id", "in", self.ids), ("state", "in", ("open", "continue", "suspend"))])
+        )
+
+    def _site_check_resumable(self):
+        for rec in self:
+            open_ex = rec._site_open_exceptions()
+            if open_ex:
+                raise UserError(
+                    "%s cannot resume while its operating-risk exception(s) %s are unresolved: "
+                    "record the renewed licence first."
+                    % (rec.name, ", ".join(open_ex.mapped("name")))
+                )
+
+    def _site_require_lead(self, what):
+        if not self.env.su and not self.env.user.has_group(
+            "cd_facility.group_branch_operations_lead"
+        ):
+            raise UserError("%s is requested by a Branch Operations Lead." % what)
+
+    def action_request_approval(self, justification=None):
+        """Route the next status change for its sign-off(s): the readiness
+        gate or a resumption (Operations Director), a closure or a reopening
+        (CFO, then CEO)."""
+        for rec in self:
+            if rec.state == "planned":
+                rec._site_require_lead("The readiness gate")
+                rec._site_check_ready()
+            elif rec.state == "suspended":
+                rec._site_require_lead("Resuming a suspended site")
+                rec._site_check_resumable()
+            elif rec.state == "active":
                 rec._site_check_closable()
         return super().action_request_approval(justification=justification)
 
     def action_approve_status_change(self):
-        """The M63 apply method: one sign-off per inbox decision, CFO first.
+        """The M63 apply method: one sign-off per inbox decision, in order.
         A direct press is refused (_approval_assert_routed)."""
         self._approval_assert_routed()
         # Superuser code with no deciding task (data loading, service calls).
@@ -319,9 +481,15 @@ class FixSite(models.Model):
         authority = self._approval_authority_user()
         acting = self._approval_acting_users()
         now = fields.Datetime.now()
+        what = {
+            "planned": "readiness gate",
+            "suspended": "resumption",
+            "active": "closure",
+            "closed": "reopening",
+        }
         for rec in self:
             stage = rec._site_stage()
-            if not stage or rec.state not in ("active", "closed"):
+            if not stage:
                 raise UserError("%s has no status change awaiting sign-off." % rec.name)
             group, label = SITE_STATUS_STAGES[stage]
             if not trusted:
@@ -331,29 +499,42 @@ class FixSite(models.Model):
                         "%s does not hold." % (label, authority.name)
                     )
                 requester = rec.approval_request_id.sudo().requested_by_id
-                if acting & (rec.create_uid | requester | rec.status_cfo_approved_by_id):
+                signed = rec.env["res.users"]
+                for name in SITE_SIGNERS:
+                    signed |= rec[name]
+                if acting & (rec.create_uid | requester | signed):
                     raise UserError(
-                        "Segregation of duties: the creator, the requester and the first "
+                        "Segregation of duties: the creator, the requester and an earlier "
                         "signatory cannot sign off this site status change."
                     )
-            rec._guarded().write(
+            # stamped as a service after the checks above: the CFO and CEO
+            # sign without holding an M47 write right on the site
+            rec.sudo()._guarded().write(
                 {
                     "status_%s_approved_by_id" % stage: self.env.uid,
                     "status_%s_approved_at" % stage: now,
                 }
             )
-            rec.message_post(
-                body="%s sign-off for %s recorded by %s."
-                % (label, "closure" if rec.state == "active" else "reopening", self.env.user.name)
+            rec.sudo().message_post(
+                body="%s sign-off for the %s recorded by %s."
+                % (label, what.get(rec.state, "status change"), self.env.user.name)
             )
         return True
 
     def _site_assert_status_approved(self, what):
         for rec in self:
-            if rec._site_stage():
+            stage = rec._site_stage()
+            if stage:
                 raise UserError(
-                    "%s %s needs the CFO and the CEO sign-off. Use Request Approval: the "
-                    "approval engine routes it to them in turn." % (what, rec.name)
+                    "%s %s needs the %s sign-off. Use Request Approval: the approval engine "
+                    "routes it to the signatories in turn."
+                    % (
+                        what,
+                        rec.name,
+                        " then ".join(
+                            SITE_STATUS_STAGES[s][1] for s in SITE_TRANSITION_STAGES[rec.state]
+                        ),
+                    )
                 )
 
     def _site_consume_status_approval(self):
@@ -361,13 +542,89 @@ class FixSite(models.Model):
             {**dict.fromkeys(SITE_STATUS_STAMPS, False), "approval_state": "none"}
         )
 
+    def _site_status_event(self, before, reason=None, approver=None):
+        for rec in self:
+            publish(
+                self.env,
+                "site.status_changed",
+                "fix.site",
+                rec.id,
+                {
+                    "site": rec.name,
+                    "site_id": rec.id,
+                    "company_id": rec.company_id.id,
+                    "from_status": before,
+                    "to_status": rec.state,
+                    "reason": reason or None,
+                    "approver": approver or None,
+                },
+            )
+
+    def action_open(self):
+        """Readiness gate passed: the site becomes operational (BRU-FAC-04)."""
+        for rec in self:
+            if rec.state != "planned":
+                raise UserError("Only a planned site passes the readiness gate.")
+            rec._site_check_ready()
+            rec._site_assert_status_approved("Opening")
+            signatory = rec.status_opsdir_approved_by_id.name
+            rec._guarded().write({"state": "active", "opened_on": fields.Date.context_today(rec)})
+            rec._site_consume_status_approval()
+            rec.message_post(body="Readiness gate passed; site operational (%s)." % signatory)
+            publish(
+                self.env,
+                "site.readiness_gate_passed",
+                "fix.site",
+                rec.id,
+                {
+                    "site": rec.name,
+                    "site_id": rec.id,
+                    "signatory": signatory,
+                    "accountable_manager": rec.accountable_manager_id.name,
+                    "checklist": [rec._fields[n].string for n in READINESS_ATTESTED],
+                    "outstanding": [],
+                },
+            )
+            rec._site_status_event("planned", "readiness gate passed", signatory)
+        return True
+
+    def _site_suspend(self, reason, decided_by):
+        """Suspend an operational site on a named decision (the risk
+        exception's suspend decision). Not a button of its own."""
+        for rec in self:
+            if rec.state != "active":
+                raise UserError(
+                    "Only an operational site can be suspended (%s is %s)." % (rec.name, rec.state)
+                )
+            rec._site_void_status_approval("the site was suspended")
+            rec._guarded().write({"state": "suspended", "suspended_reason": reason})
+            rec.message_post(body="Site suspended by %s: %s." % (decided_by.name, reason))
+            rec._site_status_event("active", reason, decided_by.name)
+        return True
+
+    def action_resume(self):
+        """A suspended site resumes once the cause is resolved, on the
+        Operations Director's routed sign-off (§8.1)."""
+        for rec in self:
+            if rec.state != "suspended":
+                raise UserError("Only a suspended site can resume.")
+            rec._site_check_resumable()
+            rec._site_assert_status_approved("Resuming")
+            signatory = rec.status_opsdir_approved_by_id.name
+            rec._guarded().write({"state": "active", "suspended_reason": False})
+            rec._site_consume_status_approval()
+            rec.message_post(body="Site resumed (%s)." % signatory)
+            rec._site_status_event("suspended", "cause resolved and re-verified", signatory)
+        return True
+
     def action_close(self):
         for rec in self:
             if rec.state != "active":
-                raise UserError("Only an active site can be closed.")
+                raise UserError("Only an operational site can be closed.")
             rec._site_check_closable()
             rec._site_assert_status_approved("Closing")
             open_items = rec._site_open_items()
+            approver = rec.status_ceo_approved_by_id.name
             rec._guarded().write({"state": "closed"})
             rec._site_consume_status_approval()
             rec.message_post(
@@ -379,24 +636,33 @@ class FixSite(models.Model):
                     else "",
                 )
             )
+            rec._site_status_event("active", "closure approved", approver)
         return True
 
     def action_reopen(self):
+        """A closed site reopens into Planned: it passes the readiness gate
+        again before it operates."""
         for rec in self:
             if rec.state != "closed":
                 raise UserError("Only a closed site can be reopened.")
             rec._site_assert_status_approved("Reopening")
+            approver = rec.status_ceo_approved_by_id.name
             # a reopened site starts any later closure with a fresh checklist
             rec._guarded().write(
                 {
-                    "state": "active",
+                    "state": "planned",
+                    "opened_on": False,
                     "closure_assets_recovered": False,
                     "closure_licences_surrendered": False,
                     "closure_deposit_settled": False,
                 }
             )
             rec._site_consume_status_approval()
-            rec.message_post(body="Site reopened by %s." % self.env.user.name)
+            rec.message_post(
+                body="Site reopened by %s; it operates again after the readiness gate."
+                % self.env.user.name
+            )
+            rec._site_status_event("closed", "reopening approved", approver)
         return True
 
 
@@ -492,6 +758,45 @@ class FixFacilityWorkOrder(models.Model):
     verified_by_id = fields.Many2one("res.users", string="Verified By", readonly=True, copy=False)
     verified_at = fields.Datetime(string="Verified At", readonly=True, copy=False)
     verification_notes = fields.Text(string="Verification Notes", readonly=True, copy=False)
+    # A07 P1 (2026-11-04) M47-7 / FR-FAC-033: who does the work. A vendor job
+    # names the vendor before it is scheduled, and its invoice reference is
+    # captured at verification for M52 (AUT-FAC-09).
+    assigned_type = fields.Selection(
+        [("internal", "Internal"), ("vendor", "Approved Vendor")],
+        string="Assigned To",
+        default="internal",
+        required=True,
+    )
+    vendor_id = fields.Many2one("res.partner", string="Vendor", index=True)
+    invoice_ref = fields.Char(
+        string="Vendor Invoice Ref", copy=False, help="Routed to M52 with the cost at verification"
+    )
+    pm_id = fields.Many2one(
+        "fix.site.pm", string="Raised by PM", readonly=True, copy=False, ondelete="set null"
+    )
+    # A07 P2 (2026-11-04): permit to work for high-risk jobs (hot work,
+    # electrical isolation, work at height, confined space). A high-risk job
+    # does not start without a permit approved by a Facility Manager who
+    # neither raised the job nor does it, and valid on the start date.
+    high_risk = fields.Boolean(string="High-Risk Job (Permit to Work)")
+    hazard_type = fields.Selection(
+        [
+            ("hot_work", "Hot Work"),
+            ("electrical", "Electrical Isolation"),
+            ("height", "Work at Height"),
+            ("confined_space", "Confined Space"),
+            ("other", "Other"),
+        ],
+        string="Hazard",
+    )
+    permit_precautions = fields.Text(
+        string="Permit Precautions", help="Isolation, PPE, fire watch, rescue arrangements"
+    )
+    permit_approved_by_id = fields.Many2one(
+        "res.users", string="Permit Approved By", readonly=True, copy=False
+    )
+    permit_approved_at = fields.Datetime(string="Permit Approved At", readonly=True, copy=False)
+    permit_valid_to = fields.Date(string="Permit Valid To", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -501,6 +806,8 @@ class FixFacilityWorkOrder(models.Model):
             "verified_by_id",
             "verified_at",
             "verification_notes",
+            "pm_id",
+            *WO_PERMIT_STAMPS,
         }
 
     def _wo_site_pinned(self) -> bool:
@@ -514,6 +821,8 @@ class FixFacilityWorkOrder(models.Model):
                 locked |= set(WO_FROZEN_FIELDS)
             if self._wo_site_pinned():
                 locked.add("site_id")
+            if self.state in ("verified", "cancelled"):
+                locked.add("invoice_ref")
         return locked
 
     @api.model_create_multi
@@ -524,10 +833,44 @@ class FixFacilityWorkOrder(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.facility.work.order")
                     or f"FWO/{datetime.now().strftime('%Y%m%d%H%M%S')}"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for rec in records:
+            publish(
+                self.env,
+                "facility.work_order_raised",
+                "fix.facility.work.order",
+                rec.id,
+                {
+                    "order": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "work_type": rec.work_type,
+                    "high_risk": bool(rec.high_risk),
+                    "estimated_cost": float(rec.estimated_cost or 0.0),
+                    "source": "pm" if rec.pm_id else "request",
+                },
+            )
+        return records
 
     def write(self, vals):
+        voided_permit = self.browse()
         if self and not self._fix_guard_open():
+            # the permit is approved for the hazard and precautions as written
+            permit = {k: vals[k] for k in WO_PERMIT_PINNED if k in vals}
+            if permit:
+                voided_permit = self.filtered(
+                    lambda r: r.permit_approved_by_id and _changes(r, permit)
+                )
+                if (
+                    "high_risk" in vals
+                    and not vals["high_risk"]
+                    and self.filtered(lambda r: r.high_risk)
+                    and not self.env.user.has_group("cd_facility.group_facility_manager")
+                ):
+                    raise UserError(
+                        "Only a Facility Manager may take the permit-to-work requirement "
+                        "off a high-risk job."
+                    )
             frozen = {k: vals[k] for k in WO_FROZEN_FIELDS if k in vals}
             if frozen and _changes(
                 self.filtered(lambda r: r.state in WO_COST_FROZEN_STATES), frozen
@@ -544,7 +887,14 @@ class FixFacilityWorkOrder(models.Model):
                     "A scheduled or approved work order stays on its site. Cancel it and raise "
                     "a new one for the other site."
                 )
-        return super().write(vals)
+        result = super().write(vals)
+        if voided_permit:
+            voided_permit._guarded().write(dict.fromkeys(WO_PERMIT_STAMPS, False))
+            for rec in voided_permit:
+                rec.message_post(
+                    body="Permit to work withdrawn: its hazard or precautions changed."
+                )
+        return result
 
     def _wo_require_state(self, allowed, what):
         for rec in self:
@@ -566,6 +916,10 @@ class FixFacilityWorkOrder(models.Model):
     def action_schedule(self, date=None):
         self._wo_require_state(("draft",), "be scheduled")
         for rec in self:
+            if rec.assigned_type == "vendor" and not rec.vendor_id:
+                raise UserError(
+                    "Name the vendor of %s before it is scheduled (FR-FAC-033)." % rec.name
+                )
             rec._dofa_assert_approved("Scheduling work order %s" % rec.name)
             vals = {"state": "scheduled"}
             if date:
@@ -578,6 +932,7 @@ class FixFacilityWorkOrder(models.Model):
         for rec in self:
             # an estimate raised after scheduling voided the approval
             rec._dofa_assert_approved("Starting work order %s" % rec.name)
+            rec._wo_assert_permit()
             rec._guarded().write({"state": "in_progress"})
         return True
 
@@ -619,13 +974,28 @@ class FixFacilityWorkOrder(models.Model):
 
     def action_verify(self, notes=None):
         """Branch verification closes the work order (BRU-FAC-07, §13 SoD):
-        by someone who neither raised nor completed it."""
+        by a Facility Manager who neither raised nor completed it. The cost
+        and the vendor invoice reference then go to M52 (AUT-FAC-09)."""
         self._wo_require_state(("completed",), "be verified")
         for rec in self:
-            if not self.env.su and self.env.user in (rec.create_uid | rec.completed_by_id):
+            if not self.env.su:
+                if not self.env.user.has_group("cd_facility.group_facility_manager"):
+                    raise UserError(
+                        "Branch verification of %s is done by a Facility Manager." % rec.name
+                    )
+                if self.env.user in (rec.create_uid | rec.completed_by_id):
+                    raise UserError(
+                        "Segregation of duties: %s was raised or completed by you; another "
+                        "person verifies the work." % rec.name
+                    )
+            if (
+                rec.assigned_type == "vendor"
+                and rec.actual_cost
+                and not (rec.invoice_ref or "").strip()
+            ):
                 raise UserError(
-                    "Segregation of duties: %s was raised or completed by you; another person "
-                    "verifies the work." % rec.name
+                    "Record the vendor invoice reference of %s before verifying it: the cost "
+                    "goes to M52 against that invoice." % rec.name
                 )
             rec._guarded().write(
                 {
@@ -634,6 +1004,89 @@ class FixFacilityWorkOrder(models.Model):
                     "verified_at": fields.Datetime.now(),
                     "verification_notes": (notes or "").strip() or False,
                 }
+            )
+            # BRU-FAC-20 / AUT-FAC-09: the cost hand-off to M52 (the bridge
+            # consumes it); the actual cost, never the estimate in its place.
+            publish(
+                self.env,
+                "facility.work_order_closed",
+                "fix.facility.work.order",
+                rec.id,
+                {
+                    "order": rec.name,
+                    "site": rec.site_id.name,
+                    "site_id": rec.site_id.id,
+                    "company_id": rec.company_id.id,
+                    "work_type": rec.work_type,
+                    "assigned_type": rec.assigned_type,
+                    "vendor_id": rec.vendor_id.id or None,
+                    "vendor": rec.vendor_id.name or None,
+                    "cost": float(rec.actual_cost or 0.0),
+                    "estimated_cost": float(rec.estimated_cost or 0.0),
+                    "currency": rec.currency_id.name,
+                    "invoice_ref": rec.invoice_ref or None,
+                    "verified_by": self.env.user.name,
+                    "completed_at": fields.Datetime.to_string(rec.completed_at),
+                    "verified_at": fields.Datetime.to_string(rec.verified_at),
+                },
+            )
+        return True
+
+    # ---- permit to work ----------------------------------------------------
+    def _wo_assert_permit(self):
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if not rec.high_risk:
+                continue
+            if not rec.permit_approved_by_id or not rec.permit_valid_to:
+                raise UserError(
+                    "%s is a high-risk job: it starts only under an approved permit to work."
+                    % rec.name
+                )
+            if rec.permit_valid_to < today:
+                raise UserError(
+                    "The permit to work of %s expired on %s: approve a new one."
+                    % (rec.name, rec.permit_valid_to)
+                )
+
+    def action_approve_permit(self, valid_to=None):
+        """Approve the permit to work for a high-risk job. Valid for the day
+        unless a later date is given; no permit period is invented."""
+        today = fields.Date.context_today(self)
+        try:
+            until = fields.Date.to_date(valid_to) if valid_to else today
+        except ValueError as exc:
+            raise UserError("Permit end date %r is not a date (YYYY-MM-DD)." % valid_to) from exc
+        if until < today:
+            raise UserError("A permit to work cannot end before today.")
+        for rec in self:
+            if not rec.high_risk:
+                raise UserError("%s is not marked high-risk: no permit is needed." % rec.name)
+            if rec.state not in WO_OPEN_STATES:
+                raise UserError("A permit is approved for open work only.")
+            if not rec.hazard_type or not (rec.permit_precautions or "").strip():
+                raise UserError(
+                    "Record the hazard and the precautions of %s before its permit is approved."
+                    % rec.name
+                )
+            if not self.env.su:
+                if not self.env.user.has_group("cd_facility.group_facility_manager"):
+                    raise UserError("A permit to work is approved by a Facility Manager.")
+                doer = rec.assigned_to.sudo().user_id
+                if self.env.user in (rec.create_uid | doer):
+                    raise UserError(
+                        "Segregation of duties: the raiser or the assigned engineer of %s does "
+                        "not approve its permit to work." % rec.name
+                    )
+            rec._guarded().write(
+                {
+                    "permit_approved_by_id": self.env.uid,
+                    "permit_approved_at": fields.Datetime.now(),
+                    "permit_valid_to": until,
+                }
+            )
+            rec.message_post(
+                body="Permit to work approved by %s until %s." % (self.env.user.name, until)
             )
         return True
 

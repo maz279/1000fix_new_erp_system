@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 P1 bridge (2026-11-04), report §6 P1 "Event consumers" / "One work-order
+  spine". Each consumer is idempotent: a demand is keyed on its source item
+  (fix.maintenance.demand: source model, record, key), and one source item
+  raises at most one open work order or service order.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_equipment_calibration_due" model="fix.event.consumer">
+            <field name="name">Spine: M45 calibration due raises a calibration work order</field>
+            <field name="event_type">equipment.calibration_due</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_equipment_calibration_due</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_vehicle_service_due" model="fix.event.consumer">
+            <field name="name">Spine: M46 vehicle service due raises a service work order</field>
+            <field name="event_type">vehicle.service_due</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_service_due</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_iot_action_dispatched" model="fix.event.consumer">
+            <field name="name">Spine: M48 dispatched intervention raises a work order (internal) or an M01 preventive order (customer premises)</field>
+            <field name="event_type">iot.action_dispatched</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_iot_action_dispatched</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_predictive_maintenance_wo_created" model="fix.event.consumer">
+            <field name="name">Spine: M48 predicted failure raises a work order (internal) or an M01 preventive order (customer premises)</field>
+            <field name="event_type">predictive_maintenance.wo_created</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_predictive_wo_created</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_device_maintenance_due" model="fix.event.consumer">
+            <field name="name">Spine: M17 device maintenance due raises the M01 preventive order</field>
+            <field name="event_type">device.maintenance_due</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_device_maintenance_due</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_vehicle_assigned" model="fix.event.consumer">
+            <field name="name">Spine: a vehicle booked while its maintenance work order is open is flagged on both</field>
+            <field name="event_type">vehicle.assigned</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_assigned</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <!-- A07 P1 wiring (2026-11-04): FF-48 events that had no consumer. -->
+        <record id="consumer_equipment_out_of_service" model="fix.event.consumer">
+            <field name="name">Spine: an M45 out-of-service hold raises its repair or calibration work</field>
+            <field name="event_type">equipment.out_of_service</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_equipment_out_of_service</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_equipment_returned_to_service" model="fix.event.consumer">
+            <field name="name">Spine: an item back in service dismisses its pending demand (a routed WO is told)</field>
+            <field name="event_type">equipment.returned_to_service</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_equipment_returned_to_service</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_telemetry_stream_silent" model="fix.event.consumer">
+            <field name="name">Spine: a silent M48 stream raises an inspection of its asset (internal WO or M01 order)</field>
+            <field name="event_type">telemetry.stream_silent</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_telemetry_stream_silent</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_facility_work_order_reopened" model="fix.event.consumer">
+            <field name="name">Spine: a reopened work order puts its demand back to routed</field>
+            <field name="event_type">facility.work_order_reopened</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_facility_work_order_reopened</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_equipment_impact_assessment_raised" model="fix.event.consumer">
+            <field name="name">M01: an M45 impact assessment flags the service orders behind its suspect uses</field>
+            <field name="event_type">equipment.impact_assessment_raised</field>
+            <field name="model">fix.service.order.recheck</field>
+            <field name="method">consume_impact_assessment_raised</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_equipment_impact_assessment_closed" model="fix.event.consumer">
+            <field name="name">M01: the M45 disposition is recorded on the re-check flags</field>
+            <field name="event_type">equipment.impact_assessment_closed</field>
+            <field name="model">fix.service.order.recheck</field>
+            <field name="method">consume_impact_assessment_closed</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_iot_intervention_outcome_recorded" model="fix.event.consumer">
+            <field name="name">M26: an M48 intervention outcome becomes the model's ground-truth row</field>
+            <field name="event_type">iot.intervention_outcome_recorded</field>
+            <field name="model">fix.ml.inference.run</field>
+            <field name="method">consume_iot_intervention_outcome</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <!-- A07 P1 wiring round 2 (2026-11-04): M46 vehicle and M17 flag events. -->
+        <record id="consumer_vehicle_defect_raised" model="fix.event.consumer">
+            <field name="name">Spine: a failed pre-use check raises the repair of the vehicle's defect</field>
+            <field name="event_type">vehicle.defect_raised</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_defect_raised</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_vehicle_telematics_silent" model="fix.event.consumer">
+            <field name="name">Spine: a silent vehicle telematics device raises its inspection</field>
+            <field name="event_type">vehicle.telematics_silent</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_telematics_silent</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_device_flagged" model="fix.event.consumer">
+            <field name="name">M01: a device reported lost/stolen puts a hold on its open service orders</field>
+            <field name="event_type">device.flagged</field>
+            <field name="model">fix.service.order.device.hold</field>
+            <field name="method">consume_device_flagged</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <record id="consumer_device_flag_cleared" model="fix.event.consumer">
+            <field name="name">M01: a cleared lost/stolen flag is recorded on its service order holds</field>
+            <field name="event_type">device.flag_cleared</field>
+            <field name="model">fix.service.order.device.hold</field>
+            <field name="method">consume_device_flag_cleared</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+    </data>
+</odoo>

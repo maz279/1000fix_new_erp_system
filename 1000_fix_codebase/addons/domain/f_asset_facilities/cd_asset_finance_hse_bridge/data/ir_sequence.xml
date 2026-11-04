@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_asset_finance_request" model="ir.sequence">
+            <field name="name">M49 Capitalisation / Disposal Request</field>
+            <field name="code">fix.asset.finance.request</field>
+            <field name="prefix">M49REQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_asset_cost_entry" model="ir.sequence">
+            <field name="name">M52 Asset Cost Entry</field>
+            <field name="code">fix.asset.cost.entry</field>
+            <field name="prefix">M52COST/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

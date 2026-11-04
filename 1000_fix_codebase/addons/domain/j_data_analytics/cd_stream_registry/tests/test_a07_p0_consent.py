@@ -22,6 +22,13 @@ PARAM = "cd_stream_registry.consent_required_for"
 m48 = importlib.import_module("odoo.addons.cd_p03_portal.controllers.a07.m48")
 
 
+# A07 P1 (2026-11-04): ingest is the IoT Administrator's, and a consent grants
+# only once a Consent Officer recorded or verified it. These suites test the
+# consent rules, so the clerks hold both roles (test_a07_p1_roles tests the
+# roles and the verification themselves).
+ROLES = ("cd_stream_registry.group_iot_admin", "cd_stream_registry.group_iot_consent_officer")
+
+
 def _user(env, login):
     ou = env["operating.unit"].search([], limit=1)
     return (
@@ -31,7 +38,9 @@ def _user(env, login):
             {
                 "name": login,
                 "login": login,
-                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+                "group_ids": [
+                    (6, 0, [env.ref("base.group_user").id] + [env.ref(g).id for g in ROLES])
+                ],
                 "assigned_operating_unit_ids": [(6, 0, ou.ids)],
                 "default_operating_unit_id": ou.id,
             }
@@ -80,6 +89,12 @@ def consent(c, user=None, **kw):
     }
     vals.update(kw)
     return c.env["fix.iot.consent"].with_user(user or c.clerk).create(vals)
+
+
+def _today(c):
+    """The consent's own "today" (the user's time zone, Asia/Dhaka here): the
+    machine's date.today() differs from it for six hours a day."""
+    return fields.Date.context_today(c.env["fix.iot.consent"])
 
 
 def refused(env, fn):
@@ -153,7 +168,7 @@ def test_future_dated_reading_refused(c):
 def test_facility_sensor_exempt_under_default_scope_but_not_under_all(c):
     c.stream.with_user(c.clerk).ingest(1.0)  # equipment-bound, no consent: exempt
     c.env["ir.config_parameter"].sudo().set_param(PARAM, "all")
-    with pytest.raises(UserError, match="no active, in-date telemetry consent"):
+    with pytest.raises(UserError, match="in-date telemetry consent"):
         c.stream.with_user(c.clerk).ingest(1.0)
     consent(c)
     c.stream.with_user(c.clerk).ingest(1.0)
@@ -178,8 +193,11 @@ def test_default_scope_refuses_personal_or_unbound_streams_without_consent(c, ca
         dev = c.device_fn("P0M48-VAN", site_id=c.site.id)
         s = c.stream_fn(dev, metric="gps_speed_kph")
     else:
+        # A07 P1 BRU-IOT-02: an unbound device's stream can no longer be
+        # activated; one activated before that rule still needs a consent.
         dev = c.device_fn("P0M48-ORPH")
-        s = c.stream_fn(dev)
+        s = c.env["fix.iot.stream"].create({"device_id": dev.id, "metric": "vibration"})
+        s._guarded().write({"state": "active"})
     with pytest.raises(UserError, match="Ingest refused"):
         s.with_user(c.clerk).ingest(1.0)
     assert not c.env["fix.iot.telemetry"].search_count([("device_id", "=", dev.id)])
@@ -193,19 +211,20 @@ def test_site_and_customer_consents_cover_their_devices(c):
     s1 = c.stream_fn(van, metric="gps_lat")
     consent(c, subject_type="site", device_id=False, site_id=c.site.id)
     s1.with_user(c.clerk).ingest(23.8)
-    cust = c.device_fn("P0M48-CUST2", partner_id=c.partner.id)
+    # A07 P1 BRU-IOT-02: a customer device still monitors a bound asset.
+    cust = c.device_fn("P0M48-CUST2", partner_id=c.partner.id, equipment_id=c.equipment.id)
     s2 = c.stream_fn(cust)
     consent(c, subject_type="customer", device_id=False, partner_id=c.partner.id)
     s2.with_user(c.clerk).ingest(1.0)
     # a customer consent for ANOTHER customer does not cover it
     other = c.env["res.partner"].create({"name": f"P0M48 Other {TAG}"})
-    cust3 = c.device_fn("P0M48-CUST3", partner_id=other.id)
+    cust3 = c.device_fn("P0M48-CUST3", partner_id=other.id, equipment_id=c.equipment.id)
     s3 = c.stream_fn(cust3)
     assert refused(c.env, lambda: s3.with_user(c.clerk).ingest(1.0))
 
 
 def test_expired_future_and_revoked_consents_do_not_cover(c):
-    today = date.today()
+    today = _today(c)
     tracker = c.device_fn("P0M48-T2", device_type="tracker", equipment_id=c.equipment.id)
     s = c.stream_fn(tracker)
     consent(
@@ -279,11 +298,11 @@ def test_consent_must_name_subject_and_valid_dates(c):
     assert refused(c.env, lambda: consent(c, subject_type="site", device_id=False))
     assert refused(
         c.env,
-        lambda: consent(c, granted_on=date.today(), valid_to=date.today() - timedelta(days=1)),
+        lambda: consent(c, granted_on=_today(c), valid_to=_today(c) - timedelta(days=1)),
     )
     ok = consent(c, subject_type="customer", device_id=False, partner_id=c.partner.id)
     assert ok.state == "active"
-    same_day = consent(c, granted_on=date.today(), valid_to=date.today())
+    same_day = consent(c, granted_on=_today(c), valid_to=_today(c))
     assert same_day._fix_is_valid()
 
 
@@ -346,7 +365,12 @@ def test_rul_healthy_without_rul_not_imminent_and_precision_no_data(c):
 def test_kpis_and_reports_scoped_to_caller_companies(c):
     other = c.env["res.company"].create({"name": f"P0M48 Other Co {TAG}"})
     foreign = c.env["fix.iot.device"].create(
-        {"name": f"P0M48 Foreign {TAG}", "device_id": f"FOR-{TAG}", "company_id": other.id}
+        {
+            "name": f"P0M48 Foreign {TAG}",
+            "device_id": f"FOR-{TAG}",
+            "company_id": other.id,
+            "site_id": c.env["fix.site"].create({"name": f"P0M48 Foreign Site {TAG}"}).id,
+        }
     )
     fstream = c.env["fix.iot.stream"].create({"device_id": foreign.id, "metric": "vibration"})
     fstream.action_activate()

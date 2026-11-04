@@ -19,7 +19,11 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2 import IntegrityError
 
 TAG = "A7RC"
-TIER_2 = "cd_entity_config.group_dofa_tier_2"
+# A07 P1 (2026-11-04): merge and scrap are decided by the Device Quality
+# Manager (BRU-AST-04); P0 used DOFA Tier 2 as a stand-in. A lost flag is
+# cleared by a Branch Manager (BRU-AST-09).
+TIER_2 = "cd_device_registry.group_device_quality_manager"
+BRANCH_MGR = "cd_device_registry.group_device_branch_manager"
 REFUSED = (UserError, ValidationError, AccessError, IntegrityError)
 
 
@@ -64,6 +68,7 @@ def c(odoo_env):
     x.clerk2 = _user(env, f"{TAG.lower()}_clerk2")
     x.manager = _user(env, f"{TAG.lower()}_mgr", [TIER_2])
     x.manager2 = _user(env, f"{TAG.lower()}_mgr2", [TIER_2])
+    x.bm = _user(env, f"{TAG.lower()}_bm", [BRANCH_MGR])
     x.owner = env["res.partner"].create({"name": f"{TAG} Owner"})
     x.other = env["res.partner"].create({"name": f"{TAG} Other"})
     x.today = fields.Date.context_today(env["fix.device"])
@@ -147,10 +152,13 @@ def test_lost_flag_stamps_who_and_when_and_another_user_clears(c, p03):
     # SoD: the flagger never clears his own flag
     with pytest.raises(UserError, match="Segregation"), c.env.cr.savepoint():
         as_clerk.action_clear_lost("found it")
-    d.with_user(c.clerk2).action_clear_lost("recovered at Uttara branch")
-    assert (d.state, d.lost_cleared_by_id) == ("transferred", c.clerk2)
+    # P1: a plain user other than the flagger no longer clears it either
+    with pytest.raises(AccessError, match="Branch Manager"), c.env.cr.savepoint():
+        d.with_user(c.clerk2).action_clear_lost("found it")
+    d.with_user(c.bm).action_clear_lost("recovered at Uttara branch")
+    assert (d.state, d.lost_cleared_by_id) == ("transferred", c.bm)
     with pytest.raises(UserError, match="flagged lost"), c.env.cr.savepoint():
-        d.with_user(c.clerk2).action_clear_lost("twice")
+        d.with_user(c.bm).action_clear_lost("twice")
 
 
 def test_scrap_is_routed_to_tier2_and_never_self_approved(c):
@@ -171,7 +179,7 @@ def test_scrap_is_routed_to_tier2_and_never_self_approved(c):
     assert task.decision == "approved"
     assert (d.state, d.scrapped_by_id, d.approval_state) == ("scrapped", c.manager2, "approved")
     with (
-        pytest.raises(UserError, match="cannot be scrapped|needs no approval"),
+        pytest.raises(UserError, match=r"cannot be scrapped|needs no approval"),
         c.env.cr.savepoint(),
     ):
         as_clerk.action_request_approval(justification="again")
@@ -186,7 +194,10 @@ def test_a_pending_scrap_is_voided_by_an_ownership_transfer(c):
     d = dev(c)
     d.with_user(c.clerk).action_request_approval(justification="customer abandoned it")
     assert d.approval_state == "pending"
-    d.with_user(c.clerk).action_transfer_ownership(c.other.id)
+    # P1: the transfer is recorded by an agent with a reason and evidence
+    d.with_user(c.bm).action_transfer_ownership(
+        c.other.id, reason="sold to a neighbour", evidence_document_id=_doc(c).id
+    )
     assert d.approval_state == "none" and d.approval_request_id.state == "voided"
     assert d.state == "transferred"
 
@@ -387,6 +398,13 @@ def test_pm_done_rolls_next_due_on_and_state_is_guarded(c):
         pm.action_complete()
     pm.action_resume()
     assert pm.state == "active"
+
+
+def _doc(c):
+    att = c.env["ir.attachment"].create({"name": "deed.pdf", "raw": b"%PDF-1.4 a7rc"})
+    return c.env["fix.document"].create(
+        {"name": "Sale deed", "attachment_id": att.id, "document_type": "contract"}
+    )
 
 
 def _months(n):

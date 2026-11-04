@@ -55,3 +55,16 @@ class FixDeviceOwnership(models.Model):
         required=True,
     )
     notes = fields.Text()
+    # A07 P1 (2026-11-04) FR-AST-017/018: the transfer reason, the evidence the
+    # acquiring party accepted, who recorded it and through which channel.
+    reason = fields.Char(string="Transfer Reason")
+    evidence_document_id = fields.Many2one("fix.document", string="Transfer Evidence")
+    recorded_by_id = fields.Many2one("res.users", string="Recorded By")
+    channel = fields.Selection(
+        [
+            ("back_office", "Back office (registry agent)"),
+            ("customer_portal", "Customer portal (the owner)"),
+            ("system", "System / data migration"),
+        ],
+        string="Channel",
+    )

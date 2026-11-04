@@ -13,6 +13,7 @@ A07 audit 2026-11-03 (working/A07_evidence/module_findings/M46.md):
 - M46-13 PM done forged by write, with no odometer and a negative cost.
 """
 
+import base64
 import types
 from datetime import timedelta
 
@@ -27,6 +28,12 @@ from psycopg2 import Error as PgError
 
 TAG = "A7FR"
 TIER_2 = "cd_entity_config.group_dofa_tier_2"
+# A07 P1: these attacks are on the guards and the segregation of duties, so
+# the staff hold the role that does the work (Logistics Manager, which
+# implies the Fleet Officer); the role itself is tested in
+# test_a07_p1_fleet_controls.py. Fixture updated for P1.
+LM = "cd_vehicle_ext.group_logistics_manager"
+SCAN = base64.b64encode(b"%PDF-1.4 scanned").decode()
 REFUSED = (UserError, ValidationError, AccessError, PgError)
 
 
@@ -66,13 +73,14 @@ def c(odoo_env):
     env = odoo_env
     x = types.SimpleNamespace(env=env)
     x.today = dhaka_today(env["fix.vehicle.check"])
-    x.clerk = _user(env, f"{TAG.lower()}_clerk")
-    x.clerk2 = _user(env, f"{TAG.lower()}_clerk2")
+    x.clerk = _user(env, f"{TAG.lower()}_clerk", [LM])
+    x.clerk2 = _user(env, f"{TAG.lower()}_clerk2", [LM])
     x.approver = _user(env, f"{TAG.lower()}_appr", [TIER_2])
     brand = env["fleet.vehicle.model.brand"].create({"name": f"{TAG} Brand"})
     model = env["fleet.vehicle.model"].create({"name": f"{TAG} Van", "brand_id": brand.id})
     x.van = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-1"})
     x.van2 = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-2"})
+    x.insurer = env["res.partner"].create({"name": f"{TAG} Insurer"})
     emp = env["hr.employee"].create({"name": f"{TAG} Driver"})
     x.driver = env["fix.driver"].create(
         {
@@ -143,7 +151,14 @@ def offroad(c, user=None, vehicle=None):
 
 
 def accident(c, user=None, **kw):
-    vals = {"vehicle_id": c.van.id, "description": "Side collision", "damage_cost": 50000}
+    # A07 P1: a claim closes with its insurer and evidence on record
+    vals = {
+        "vehicle_id": c.van.id,
+        "description": "Side collision",
+        "damage_cost": 50000,
+        "insurer_id": c.insurer.id,
+        "evidence_file": SCAN,
+    }
     vals.update(kw)
     return c.env["fix.vehicle.accident"].with_user(user or c.clerk).create(vals)
 
@@ -151,10 +166,11 @@ def accident(c, user=None, **kw):
 # ================================================== guarded fields (D1)
 def _targets(c):
     """(record as clerk2, field, forged value) for every guarded field."""
+    # A07 P1: no fuel for an off-road van, so the fill is recorded first
+    fuel_rec = fill(c, 10000)
     off = offroad(c)
     chk = ok_check(c, c.van)
     pm = c.env["fix.vehicle.pm"].with_user(c.clerk).create({"vehicle_id": c.van.id})
-    fuel_rec = fill(c, 10000)
     acc = accident(c)
     doc = (
         c.env["fix.vehicle.document"]
@@ -267,7 +283,12 @@ def test_new_document_without_end_date_is_not_valid(c, p03):
     assert past.state == "expired"
     # the proper path: a dated document is valid, and the P03 form creates it
     good = Doc.create(
-        {"vehicle_id": c.van.id, "doc_type": "tax", "valid_to": c.today + timedelta(days=90)}
+        {
+            "vehicle_id": c.van.id,
+            "doc_type": "tax",
+            "valid_to": c.today + timedelta(days=90),
+            "evidence_file": SCAN,  # A07 P1: valid only with its scan
+        }
     )
     assert good.state == "valid" and good.is_valid
     res = p03.write(
@@ -389,16 +410,22 @@ def test_fill_needs_driver_and_amount_and_no_negative_amount(c):
 
 @pytest.mark.parametrize("rule", ["odometer_back", "over_capacity", "duplicate", "offroad"])
 def test_exception_rules_hold_the_fill(c, rule):
+    """A07 P1: a user's fill breaking a hard rule is refused at entry; the
+    same fill loaded as superuser (a fuel-card feed) is held for review."""
     fill(c, 12000)
     if rule == "odometer_back":
-        f = fill(c, 9000, litres=35)
+        vals = {"odometer": 9000, "litres": 35}
     elif rule == "over_capacity":
-        f = fill(c, 12500, litres=5000, amount=600000)
+        vals = {"odometer": 12500, "litres": 5000, "amount": 600000}
     elif rule == "duplicate":
-        f = fill(c, 12000, user=c.clerk2)
+        vals = {"odometer": 12000}
     else:
         offroad(c)
-        f = fill(c, 12500, litres=30)
+        vals = {"odometer": 12500, "litres": 30}
+    assert "refused" in refused(c.env, lambda: fill(c, user=c.clerk2, **vals))
+    f = c.env["fix.vehicle.fuel"].create(
+        {"vehicle_id": c.van.id, "driver_id": c.driver.id, "litres": 40, "amount": 4500, **vals}
+    )
     assert f.review_state == "held", f.exception_flags
     assert f.exception_flags.split(",") == [rule]
     assert f.exception_summary
@@ -406,13 +433,15 @@ def test_exception_rules_hold_the_fill(c, rule):
 
 def test_tank_capacity_is_a_parameter(c):
     c.env["ir.config_parameter"].sudo().set_param(TANK_CAPACITY_PARAM, "50")
-    assert fill(c, 10000, litres=60).exception_flags == "over_capacity"
+    assert "tank capacity" in refused(c.env, lambda: fill(c, 10000, litres=60))
     assert fill(c, 10600, litres=45).review_state == "none"
 
 
 def test_held_fill_is_reviewed_by_someone_other_than_the_recorder(c, p03):
     fill(c, 12000)
-    f = fill(c, 9000, litres=35)
+    # A07 P1: more distance than a full tank covers (100 L x 60 km/l) is held
+    f = fill(c, 19000, litres=35)
+    assert f.review_state == "held" and f.exception_flags == "odometer_jump"
     assert "Segregation of duties" in refused(
         c.env, lambda: f.action_clear_exception(note="looks fine")
     )
@@ -452,14 +481,17 @@ def test_only_the_recorder_corrects_an_unreviewed_fill(c, p03):
     assert "error" in res and f.amount == 4500
     f.write({"amount": 4600})  # the recorder corrects their own fill
     assert f.amount == 4600 and f.review_state == "none"
-    f.write({"litres": 400})  # ...and the correction is re-checked
-    assert f.review_state == "held" and "over_capacity" in f.exception_flags
+    # ...and the correction is re-checked: refused, or held for review
+    assert "tank capacity" in refused(c.env, lambda: f.write({"litres": 400}))
+    f.write({"odometer": 99000})
+    assert f.review_state == "none"  # the first fill has no previous one
+    g = fill(c, 200000)
+    assert g.review_state == "held" and "odometer_jump" in g.exception_flags
 
 
 def test_rejected_fill_is_not_the_previous_reading(c):
     fill(c, 10000)
-    bad = fill(c, 99000, litres=30)  # a typo odometer, not flagged on its own
-    bad.write({"litres": 3000})  # ...made implausible, so it is held
+    bad = fill(c, 99000, litres=30)  # a typo odometer: beyond a full tank, held
     assert bad.review_state == "held"
     assert "reason" in refused(c.env, lambda: bad.with_user(c.clerk2).action_reject_fill())
     bad.with_user(c.clerk2).action_reject_fill(reason="Odometer typo, wrong litres")
@@ -540,7 +572,7 @@ def test_settlement_above_tier_0_is_routed_and_pinned(c):
 def test_settlement_is_never_routed_to_its_reporter(c):
     """The engine never routes a record to its creator, requester or the
     person who set the amount, even when they hold the tier."""
-    reporter = _user(c.env, f"{TAG.lower()}_rep", [TIER_2])
+    reporter = _user(c.env, f"{TAG.lower()}_rep", [TIER_2, LM])
     a = accident(c, user=reporter, claim_ref="INS-3")
     a.action_claim()
     a.write({"settlement_amount": 10000})

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 audit (2026-11-04) M17-6: ownership, custody, condition, identity,
+     component, PM, history and identifier rows had no record rule, so a clerk
+     of one operating unit read the parties and identifiers of a device he
+     cannot open. A satellite row follows its device: the device's company and
+     operating unit decide who reads it (the generated isolation file covers
+     only models that carry their own company/OU, so these live here). -->
+<odoo>
+    <record id="rule_fix_device_ownership_scope" model="ir.rule">
+        <field name="name">fix.device.ownership: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_ownership"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_custody_scope" model="ir.rule">
+        <field name="name">fix.device.custody: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_custody"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_condition_scope" model="ir.rule">
+        <field name="name">fix.device.condition: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_condition"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_component_scope" model="ir.rule">
+        <field name="name">fix.device.component: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_component"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_pm_scope" model="ir.rule">
+        <field name="name">fix.device.pm: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_pm"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_history_scope" model="ir.rule">
+        <field name="name">fix.device.history: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_history"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_identifier_scope" model="ir.rule">
+        <field name="name">fix.device.identifier: follows the device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_identifier"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('device_id.company_id', '=', False), ('device_id.company_id', 'in', company_ids), '|', ('device_id.operating_unit_id', '=', False), ('device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- An identity resolution and a merge are seen where either device is. -->
+    <record id="rule_fix_device_identity_scope" model="ir.rule">
+        <field name="name">fix.device.identity: follows the surviving device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_identity"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('primary_device_id.company_id', '=', False), ('primary_device_id.company_id', 'in', company_ids), '|', ('primary_device_id.operating_unit_id', '=', False), ('primary_device_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_device_merge_scope" model="ir.rule">
+        <field name="name">fix.device.merge: follows the surviving device's company and operating unit</field>
+        <field name="model_id" ref="model_fix_device_merge"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['&amp;', '|', ('survivor_id.company_id', '=', False), ('survivor_id.company_id', 'in', company_ids), '|', ('survivor_id.operating_unit_id', '=', False), ('survivor_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

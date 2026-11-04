@@ -92,6 +92,8 @@ def test_preventive_work_order_only_for_predicted_failures(odoo_env):
             "prediction": "failure_predicted",
             "confidence": 0.92,
             "estimated_days_to_failure": 6,
+            # A07 P1 BRU-IOT-10: only a published M26 model's output is applied.
+            "model_name": "m26.predictive.maintenance",
         }
     )
     failing.action_create_preventive_wo()

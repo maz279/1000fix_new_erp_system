@@ -17,7 +17,10 @@ class FixWarrantyExpiry(models.Model):
 
     @api.model
     def _cron_expire_warranties(self):
-        """Expire active or pending cover whose end date has passed."""
+        """Expire active or pending cover whose end date has passed.
+
+        A07 P1 (M17, AUT-AST-10) runs in the same job: each expiry is published
+        as device.warranty_expired, and cover about to end is announced once."""
         today = fields.Date.context_today(self)
         stale = self.sudo().search(
             [("status", "in", ("active", "pending")), ("end_date", "<", today)]
@@ -30,7 +33,9 @@ class FixWarrantyExpiry(models.Model):
                     warranty.message_post(
                         body="Warranty expired: its cover ended on %s." % warranty.end_date
                     )
+                    warranty._announce_expired()
                     expired += 1
             except Exception:
                 logger.exception("Could not expire warranty %s", warranty.id)
+        self._announce_expiring_cover()
         return expired

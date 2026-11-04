@@ -25,8 +25,15 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 TAG = uuid.uuid4().hex[:6].upper()
 REFUSED = (UserError, ValidationError, AccessError)
-T2 = "cd_entity_config.group_dofa_tier_2"
-T4 = "cd_entity_config.group_dofa_tier_4"
+# A07 P1 (2026-11-04): the approvers are the spec's roles. A prescriptive
+# action goes to the Operations Director (M47) when that role is installed,
+# else the DOFA Tier 2 stand-in; a suppression goes to the IoT Manager (CTO).
+# The clerks hold the IoT Administrator role (which implies IoT Operator):
+# since P1 a plain internal user can no longer author rules, ingest, work the
+# alert queue or dispatch, and these suites test the governance on top.
+IOT_ADMIN = "cd_stream_registry.group_iot_admin"
+T4 = "cd_stream_registry.group_iot_manager"
+MODEL = "m26.predictive.maintenance"  # the published M26 PdM model (catalog data)
 
 
 def refused(env, fn):
@@ -63,9 +70,10 @@ def c(odoo_env):
         )
 
     x = types.SimpleNamespace(env=env, user=user)
-    x.clerk, x.clerk2 = user(), user()
-    x.mgr = user(T2)  # operations manager tier: approves prescriptive actions
-    x.cto = user(T4)  # C-level tier: approves rule suppressions
+    x.clerk, x.clerk2 = user(IOT_ADMIN), user(IOT_ADMIN)
+    x.t2 = env["fix.iot.action"]._approval_group_xmlid()
+    x.mgr = user(x.t2)  # Operations Director (or Tier 2): approves prescriptive actions
+    x.cto = user(T4)  # IoT Manager (CTO): approves rule suppressions
     x.equipment = env["fix.equipment"].create(
         {"code": f"R48-EQ-{TAG}", "name": f"R48 Generator {TAG}", "category": "Electrical"}
     )
@@ -87,6 +95,7 @@ def pred(c, user=None, **kw):
         "prediction": "failure_predicted",
         "confidence": 0.8,
         "estimated_days_to_failure": 10,
+        "model_name": MODEL,
     }
     vals.update(kw)
     return c.env["fix.predictive.maintenance"].with_user(user or c.clerk).create(vals)
@@ -172,7 +181,7 @@ def test_action_state_and_stamps_are_guarded(c, p03):
 
 
 def test_proposer_and_requester_never_decide(c):
-    c.clerk.group_ids = [(4, c.env.ref(T2).id)]  # the proposer also holds Tier 2
+    c.clerk.group_ids = [(4, c.env.ref(c.t2).id)]  # the proposer also holds the approver role
     a = act(c)
     a.with_user(c.clerk).action_request_approval(justification="bearing noise")
     assert a.approval_state == "pending"
@@ -205,6 +214,9 @@ def test_action_full_path_records_the_outcome(c, p03):
     assert refused(c.env, lambda: a.with_user(c.clerk).action_done())
     assert refused(c.env, lambda: a.with_user(c.clerk).action_done(outcome="confirmed"))
     assert refused(c.env, lambda: a.with_user(c.clerk).action_done_confirmed(note="  "))
+    # A07 P1: and outcome evidence.
+    assert refused(c.env, lambda: a.with_user(c.clerk).action_done_confirmed(note="worn"))
+    a.with_user(c.clerk).write({"outcome_evidence_ref": "JC-48-001"})
     r = p03.action(
         model="fix.iot.action",
         ids=[a.id],
@@ -226,6 +238,7 @@ def test_not_confirmed_outcome_is_a_false_alarm(c):
     a = act(c, technician_id=c.tech.id)
     approve_via_inbox(a, c.mgr, requester=c.clerk)
     a.with_user(c.clerk2).action_dispatch()
+    a.with_user(c.clerk2).write({"outcome_evidence_ref": "JC-48-002"})
     a.with_user(c.clerk2).action_done_not_confirmed(note="no wear found")
     assert a.outcome == "not_confirmed" and a.prediction_id.outcome == "false_alarm"
 
@@ -233,8 +246,16 @@ def test_not_confirmed_outcome_is_a_false_alarm(c):
 def test_approved_terms_are_pinned(c):
     a = act(c, action_type="inspect", priority="low")
     approve_via_inbox(a, c.mgr, requester=c.clerk)
-    a.with_user(c.clerk).write({"priority": "high"})
+    # A07 P1 M48-12: an approved action's terms are refused outright ...
+    assert refused(c.env, lambda: a.with_user(c.clerk).write({"priority": "high"}))
+    assert (a.state, a.priority) == ("approved", "low")
+    # ... and change only after Revise Terms, which needs a reason and withdraws
+    # the approval, so the changed terms are approved again.
+    assert refused(c.env, lambda: a.with_user(c.clerk).action_revise_terms())
+    a.with_user(c.clerk).action_revise_terms(reason="vibration rose: replace, not inspect")
     assert (a.state, a.approval_state, a.approved_by.id) == ("proposed", "none", False)
+    assert "vibration rose" in a.revision_note
+    a.with_user(c.clerk).write({"priority": "high"})
     # A change while approval is pending voids the request.
     a.with_user(c.clerk).action_request_approval()
     req = a.approval_request_id
@@ -311,11 +332,14 @@ def test_pause_routed_to_someone_other_than_requester_and_author(c):
     assert (r.state, r.suppressed_by, r.approval_state) == ("paused", c.cto, "approved")
     _, raised = c.stream.ingest(50.0)
     assert not raised
-    # Resuming restores alerting at once, for anyone.
+    # Resuming restores alerting at once. A07 P1: the alert raised before the
+    # pause is still open, so the new breach is counted on it (FR-IOT-033).
+    alert = c.env["fix.iot.alert"].search([("rule_id", "=", r.id)])
+    assert len(alert) == 1 and alert.occurrence_count == 1
     r.with_user(c.clerk).action_activate()
     assert (r.state, r.suppression_kind, r.suppressed_by.id) == ("active", False, False)
     _, raised = c.stream.ingest(50.0)
-    assert len(raised) == 1
+    assert not raised and alert.occurrence_count == 2
 
 
 def test_tightening_applies_directly_loosening_is_routed(c):
@@ -378,9 +402,11 @@ def test_alert_resolves_only_after_ack_with_a_note(c, p03):
     assert "error" in res and alert.state == "new"
     assert refused(
         c.env,
-        lambda: c.env["fix.iot.alert"]
-        .with_user(c.clerk)
-        .create({"device_id": c.device.id, "message": "born resolved", "state": "resolved"}),
+        lambda: (
+            c.env["fix.iot.alert"]
+            .with_user(c.clerk)
+            .create({"device_id": c.device.id, "message": "born resolved", "state": "resolved"})
+        ),
     )
     alert.with_user(c.clerk).action_ack()
     assert (alert.state, alert.acked_by) == ("acked", c.clerk)
@@ -426,9 +452,11 @@ def test_stream_adapter_device_state_guarded(c):
     )
     assert refused(
         c.env,
-        lambda: c.env["fix.iot.stream"]
-        .with_user(c.clerk)
-        .create({"device_id": c.device.id, "metric": "humidity", "state": "active"}),
+        lambda: (
+            c.env["fix.iot.stream"]
+            .with_user(c.clerk)
+            .create({"device_id": c.device.id, "metric": "humidity", "state": "active"})
+        ),
     )
     assert refused(c.env, lambda: s.with_user(c.clerk).write({"state": "active"}))
     s.with_user(c.clerk).action_activate()

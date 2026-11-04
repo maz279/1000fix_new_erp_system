@@ -35,13 +35,13 @@ def refused(env, exc=HELD, match=None):
     env.invalidate_all()
 
 
-def _user(env, tag, company=None):
+def _user(env, tag, company=None, groups=()):
     n = next(_SEQ)
     ou = env["operating.unit"].search([], limit=1)
     vals = {
         "name": "M45 %s %d" % (tag, n),
         "login": "a07.m45.%s.%d@a07.test" % (tag, n),
-        "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+        "group_ids": [(6, 0, [env.ref("base.group_user").id] + [env.ref(g).id for g in groups])],
         "assigned_operating_unit_ids": [(6, 0, ou.ids)],
         "default_operating_unit_id": ou.id,
     }
@@ -58,6 +58,10 @@ class M45:
         self.today = fields.Date.today()
         self.clerk, self.clerk_emp = _user(env, "clerk")
         self.clerk2, self.clerk2_emp = _user(env, "clerk2")
+        # A07 P1: returning an instrument to service is the Quality Manager's
+        self.qm, self.qm_emp = _user(
+            env, "qm", groups=("cd_equipment_register.group_quality_manager",)
+        )
         self.n = 0
 
     def eq(self, **kw):
@@ -143,6 +147,12 @@ def test_fail_after_a_pass_makes_unfit_and_a_new_pass_restores(m):
     assert not m.usable(e)
     assert (e.calibration_state, e.next_calibration) == ("failed", False)
     m.cal(e, on=m.today, due=m.today + timedelta(days=365))  # same day, later record
+    assert e.calibration_state == "current"
+    # A07 P1: the fail put the instrument out of service (spec 8.1); it is fit
+    # again once a Quality Manager accepts the new pass and returns it
+    assert e.operational_status == "out_of_service" and not m.usable(e)
+    hold = m.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
+    hold.with_user(m.qm).action_resolve()
     assert m.usable(e)
 
 
@@ -197,9 +207,10 @@ def test_unfit_instrument_cannot_be_issued(m, kind):
         m.cal(e, result="fail")
     elif kind == "overdue":
         m.cal(e, on=m.today - timedelta(days=400), due=m.today - timedelta(days=1))
-    with refused(m.env, UserError, "Cannot issue"):
+    # A07 P1: a failed instrument is also out of service, refused on that ground
+    with refused(m.env, UserError, "Cannot issue|cannot be issued"):
         m.issue(e)
-    assert e.operational_status == "available"
+    assert e.operational_status == ("out_of_service" if kind == "failed" else "available")
     assert not m.env["fix.equipment.issue"].search([("equipment_id", "=", e.id)])
 
 
@@ -405,6 +416,10 @@ def test_reports_and_kpis_are_fenced_to_the_callers_companies(m):
     theirs = m.env["fix.equipment"].create(
         {"code": "A7P0-OTHERCO", "name": "OtherCo meter", "company_id": other.id}
     )
+    # issued and used first: since A07 P1 the failed calibration below puts the
+    # instrument out of service, and an out-of-service item is not issued
+    m.env["fix.equipment.usage"].create({"equipment_id": theirs.id, "job_ref": "OTHER"})
+    m.env["fix.equipment.issue"].create({"equipment_id": theirs.id, "custodian_id": m.clerk_emp.id})
     m.env["fix.calibration"].create(
         {
             "equipment_id": theirs.id,
@@ -415,8 +430,6 @@ def test_reports_and_kpis_are_fenced_to_the_callers_companies(m):
             "result": "fail",
         }
     )
-    m.env["fix.equipment.usage"].create({"equipment_id": theirs.id, "job_ref": "OTHER"})
-    m.env["fix.equipment.issue"].create({"equipment_id": theirs.id, "custodian_id": m.clerk_emp.id})
     from odoo.addons.cd_p03_portal.controllers.a07 import m45
 
     for name in m45.REPORTS:

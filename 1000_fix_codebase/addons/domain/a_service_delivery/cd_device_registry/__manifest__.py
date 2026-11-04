@@ -29,7 +29,11 @@ order against a device, permanently.
         "security/fix_device_registry_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        # A07 P1 (2026-11-04): satellite rows follow their device's scope.
+        "security/fix_device_registry_rules.xml",
         "data/ir_sequence.xml",
+        # A07 P1: warranty expiry and maintenance-due jobs.
+        "data/ir_cron.xml",
         # A03 audit W1: party.merged consumer (re-points are logged).
         "data/fix_party_merge_consumers.xml",
         # A02 audit B4: warranty expiry.

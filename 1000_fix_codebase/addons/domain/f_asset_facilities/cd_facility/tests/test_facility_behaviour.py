@@ -57,7 +57,8 @@ def _sign_off_status(sites):
 def test_site_defaults(odoo_env):
     site = _site(odoo_env)
     assert site.site_type == "branch"
-    assert site.state == "active"
+    # A07 P1: a new site is born Planned and operates after the readiness gate
+    assert site.state == "planned"
 
 
 def test_link_assets_publishes_asset_count(odoo_env):
@@ -76,7 +77,8 @@ def test_link_assets_publishes_asset_count(odoo_env):
 
 
 def test_site_close_and_reopen(odoo_env):
-    sites = _site(odoo_env, name="A") | _site(odoo_env, name="B")
+    # operational sites (trusted superuser data, as seeded live sites are)
+    sites = _site(odoo_env, name="A", state="active") | _site(odoo_env, name="B", state="active")
     # A07 P0 recipe: a status change needs the CFO and CEO sign-offs first,
     # and each pair of sign-offs is consumed by the change it authorised
     with pytest.raises(UserError, match="sign-off"), odoo_env.cr.savepoint():
@@ -88,7 +90,8 @@ def test_site_close_and_reopen(odoo_env):
         sites.action_reopen()
     _sign_off_status(sites)
     sites.action_reopen()
-    assert set(sites.mapped("state")) == {"active"}
+    # A07 P1: a reopened site passes the readiness gate again
+    assert set(sites.mapped("state")) == {"planned"}
 
 
 def test_work_order_name_falls_back_to_timestamp(odoo_env):

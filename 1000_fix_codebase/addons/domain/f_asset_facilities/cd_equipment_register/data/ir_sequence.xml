@@ -36,5 +36,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_calibration_impact" model="ir.sequence">
+            <field name="name">Calibration Impact Assessment</field>
+            <field name="code">fix.calibration.impact</field>
+            <field name="prefix">EIMP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

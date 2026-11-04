@@ -9,8 +9,33 @@
 # only in its transition methods, through `_guarded()`. A record in a terminal
 # state is frozen for users. Superuser code (seeds, data loads, sudo service
 # calls) stays trusted.
+#
+# A07 P1 (2026-11-04): the ops rows carry their equipment's company and
+# operating unit (record rules, M45-10); custody, out-of-service, loss and
+# transfer changes publish events (T-08, M45-12); a nightly job escalates
+# overdue custody; a kit is issued and returned as one unit.
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+from libs.py.fix_events import publish
+
+from .fix_equipment import ROLE_CUSTODIAN, ROLE_QM, m45_require_role
+
+# AUT-EAM-08: notify the holder when the return date passes, escalate to the
+# branch manager at +3 days and to the Quality Manager at +7 (spec §11).
+CUSTODY_ESCALATION_DAYS = ((7, 3), (3, 2), (1, 1))
+
+
+def _ops_company(comodel="equipment_id"):
+    return fields.Many2one(
+        related="%s.company_id" % comodel, store=True, index=True, string="Company"
+    )
+
+
+def _ops_unit(comodel="equipment_id"):
+    return fields.Many2one(
+        related="%s.operating_unit_id" % comodel, store=True, index=True, string="Operating Unit"
+    )
 
 
 class FixEquipmentExtend(models.Model):
@@ -21,6 +46,8 @@ class FixEquipmentExtend(models.Model):
             ("available", "Available"),
             ("issued", "Issued"),
             ("out_of_service", "Out of Service"),
+            # A07 P1 (2026-11-04) FR-EAM-039: not found at a physical count
+            ("missing", "Lost / Missing"),
             ("retired", "Retired"),
         ],
         required=True,
@@ -29,11 +56,13 @@ class FixEquipmentExtend(models.Model):
     )
 
     def _m45_released_status(self):
-        """The status an item returns to when a hold on it ends: out of
-        service while another out-of-service record is open, issued while an
-        issue is open, otherwise available."""
+        """The status an item returns to when a hold on it ends: missing while
+        a count has not found it again, out of service while an out-of-service
+        record is open, issued while an issue is open, otherwise available."""
         self.ensure_one()
         rec = self.sudo()
+        if rec.missing_verification_id:
+            return "missing"
         if rec.env["fix.equipment.oos"].search_count(
             [("equipment_id", "=", rec.id), ("state", "=", "open")]
         ):
@@ -52,9 +81,14 @@ class FixCalibrationExtend(models.Model):
     trace_no = fields.Char(string="Trace Number")
 
 
+# A kit's member list is fixed while any member is out on a kit issue.
+KIT_ISSUE_FIELDS = {"accountable_employee_id", "completeness_checked_at"}
+
+
 class FixEquipmentKit(models.Model):
     _name = "fix.equipment.kit"
     _description = "Equipment Kit"
+    _inherit = ["fix.guarded.mixin"]
     _order = "name"
 
     name = fields.Char(required=True)
@@ -65,8 +99,100 @@ class FixEquipmentKit(models.Model):
     description = fields.Text()
     line_ids = fields.One2many("fix.equipment.kit.line", "kit_id", string="Equipment")
     active = fields.Boolean(default=True)
+    # A07 P1 (2026-11-04) M45-13 / FR-EAM-007: a kit is issued and returned as
+    # one unit, with one accountable holder and a completeness check.
+    branch_id = fields.Many2one("fix.branch", string="Branch")
+    accountable_employee_id = fields.Many2one(
+        "hr.employee",
+        string="Accountable Holder",
+        readonly=True,
+        help="Who holds the kit now; set by Issue Kit, cleared by Return Kit.",
+    )
+    issue_to_id = fields.Many2one(
+        "hr.employee", string="Issue To", help="The holder the next Issue Kit hands it to."
+    )
+    issue_due_on = fields.Date(string="Return Due")
+    return_condition = fields.Selection(
+        [("good", "Serviceable"), ("damaged", "Damaged / Faulty")],
+        string="Condition on Return",
+        help="Recorded on every member when the kit is returned.",
+    )
+    completeness_checked_at = fields.Datetime(string="Completeness Checked", readonly=True)
+    issue_ids = fields.One2many("fix.equipment.issue", "kit_id", string="Kit Issues")
+    state = fields.Selection(
+        [("available", "Available"), ("issued", "Issued"), ("partial", "Partly Issued")],
+        compute="_compute_kit_state",
+        string="Kit Status",
+    )
 
     _code_unique = models.Constraint("UNIQUE (code)", "Kit code must be unique")
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | KIT_ISSUE_FIELDS
+
+    @api.depends("issue_ids.state", "line_ids")
+    def _compute_kit_state(self):
+        for rec in self:
+            open_issues = rec.sudo().issue_ids.filtered(lambda i: i.state == "issued")
+            if not open_issues:
+                rec.state = "available"
+            elif len(open_issues.mapped("equipment_id")) >= len(rec.sudo().line_ids):
+                rec.state = "issued"
+            else:
+                rec.state = "partial"
+
+    def _m45_open_issues(self):
+        self.ensure_one()
+        return (
+            self.env["fix.equipment.issue"]
+            .sudo()
+            .search([("kit_id", "=", self.id), ("state", "=", "issued")])
+        )
+
+    def action_issue_kit(self):
+        """Issue every member to one holder, all or none (each member passes
+        the issue checks: fit, available, not already out)."""
+        for rec in self:
+            if not rec.line_ids:
+                raise UserError("Kit %s has no equipment to issue." % rec.name)
+            if rec._m45_open_issues():
+                raise UserError("Kit %s is already out; return it first." % rec.name)
+            if not rec.issue_to_id:
+                raise UserError("Choose who the kit is issued to (Issue To).")
+            # the token lets Issue Kit set kit_id; every issue check still runs
+            Issue = self.env["fix.equipment.issue"]._guarded()
+            for line in rec.line_ids:
+                Issue.create(
+                    {
+                        "equipment_id": line.equipment_id.id,
+                        "custodian_id": rec.issue_to_id.id,
+                        "due_on": rec.issue_due_on or False,
+                        "reference": "Kit %s" % rec.code,
+                        "kit_id": rec.id,
+                    }
+                )
+            rec._guarded().write({"accountable_employee_id": rec.issue_to_id.id})
+        return True
+
+    def action_return_kit(self):
+        """Return every member still out on the kit issue, with the kit's
+        condition, and stamp the completeness check: every member is back."""
+        for rec in self:
+            open_issues = rec._m45_open_issues()
+            if not open_issues:
+                raise UserError("Kit %s is not out on issue." % rec.name)
+            missing = rec.line_ids.mapped("equipment_id") - open_issues.mapped("equipment_id")
+            stray = missing.filtered(lambda e: e.sudo().operational_status == "issued")
+            if stray:
+                raise UserError(
+                    "Kit %s is incomplete: %s is out on another issue. Return it to the kit "
+                    "first." % (rec.name, ", ".join(stray.mapped("name")))
+                )
+            open_issues.with_env(self.env).action_return(condition=rec.return_condition or None)
+            rec._guarded().write(
+                {"accountable_employee_id": False, "completeness_checked_at": fields.Datetime.now()}
+            )
+        return True
 
 
 class FixEquipmentKitLine(models.Model):
@@ -78,10 +204,37 @@ class FixEquipmentKitLine(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade"
     )
+    company_id = fields.Many2one(related="kit_id.company_id", store=True, index=True)
 
     _unique_equipment = models.Constraint(
         "UNIQUE (kit_id, equipment_id)", "An equipment item appears once per kit"
     )
+
+    def _m45_check_kit_home(self, kits):
+        if self.env.su:
+            return
+        for kit in kits:
+            if kit._m45_open_issues():
+                raise UserError(
+                    "Kit %s is out on issue: its members change only once it is returned."
+                    % kit.name
+                )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        kits = self.env["fix.equipment.kit"].browse(
+            [v.get("kit_id") for v in vals_list if v.get("kit_id")]
+        )
+        self._m45_check_kit_home(kits)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        self._m45_check_kit_home(self.mapped("kit_id"))
+        return super().write(vals)
+
+    def unlink(self):
+        self._m45_check_kit_home(self.mapped("kit_id"))
+        return super().unlink()
 
 
 # An issue that has been returned is closed custody history.
@@ -107,6 +260,8 @@ class FixEquipmentIssue(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     custodian_id = fields.Many2one("hr.employee", string="Custodian", required=True)
     reference = fields.Char(string="Job / Ticket Ref")
     issued_on = fields.Date(required=True, default=fields.Date.context_today)
@@ -129,11 +284,25 @@ class FixEquipmentIssue(models.Model):
     # issues due 30 Oct still read False). It is computed at read time now,
     # with a search method so the overdue filters and KPIs keep working.
     is_overdue = fields.Boolean(compute="_compute_overdue", search="_search_is_overdue")
+    # A07 P1 (2026-11-04): the kit this member went out with, and the
+    # escalation level the nightly job reached (AUT-EAM-08)
+    kit_id = fields.Many2one("fix.equipment.kit", string="Kit", readonly=True, index=True)
+    overdue_level = fields.Integer(
+        string="Overdue Escalation",
+        readonly=True,
+        help="0 none, 1 holder notified, 2 branch manager (+3 days), 3 Quality Manager (+7 days).",
+    )
 
     def _fix_guarded_fields(self) -> set:
         # M45-5: an issue forged to "returned" by write left the item "issued"
         # with no return date; only action_return closes an issue.
-        guarded = super()._fix_guarded_fields() | {"state", "returned_on"}
+        # A07 P1: only Issue Kit links a member to its kit
+        guarded = super()._fix_guarded_fields() | {
+            "state",
+            "returned_on",
+            "overdue_level",
+            "kit_id",
+        }
         if any(rec.state == "returned" for rec in self):
             guarded |= ISSUE_RETURNED_FROZEN
         return guarded
@@ -167,7 +336,7 @@ class FixEquipmentIssue(models.Model):
                 continue
             # custody truth holds for every caller, superuser included: these
             # are facts about the item, not approvals
-            if equipment.operational_status in ("out_of_service", "retired"):
+            if equipment.operational_status in ("out_of_service", "retired", "missing"):
                 label = dict(equipment._fields["operational_status"].selection).get(
                     equipment.operational_status
                 )
@@ -206,6 +375,20 @@ class FixEquipmentIssue(models.Model):
                     % rec.equipment_id.name
                 )
 
+    def _m45_publish(self, event_type, **extra):
+        for rec in self:
+            payload = {
+                "equipment": rec.equipment_id.code,
+                "issue": rec.name,
+                "custodian": rec.custodian_id.name,
+                "custodian_id": rec.custodian_id.id,
+                "due_on": str(rec.due_on) if rec.due_on else None,
+                "reference": rec.reference or "",
+                "kit": rec.kit_id.code or None,
+            }
+            payload.update(extra)
+            publish(self.env, event_type, "fix.equipment.issue", rec.id, payload)
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -218,6 +401,7 @@ class FixEquipmentIssue(models.Model):
             if rec.state == "issued":
                 rec._m45_check_issuable()
                 rec.equipment_id._guarded().write({"operational_status": "issued"})
+                rec._m45_publish("equipment.issued")
         return records
 
     def write(self, vals):
@@ -237,39 +421,82 @@ class FixEquipmentIssue(models.Model):
     def action_return(self, condition=None):
         """Close the issue with the item's condition (BRU-EAM-10): a
         serviceable item goes back to available, a damaged one out of
-        service. `condition` may be passed, or set on the issue first."""
+        service. `condition` may be passed, or set on the issue first.
+
+        A07 P1 (2026-11-04): a return with no condition stated no longer
+        keeps the item out on custody (the holder could not hand it back);
+        custody closes and the item waits out of service for a condition
+        check by a store keeper (spec §8.1: Issued -> Available only with a
+        passed condition check)."""
         conditions = dict(self._fields["return_condition"].selection)
         if condition is not None and condition not in conditions:
             raise UserError("Condition on return must be one of: %s" % ", ".join(conditions))
+        # the return opens a damaged / inspection hold (system hold types)
+        Hold = self.env["fix.equipment.oos"]._guarded()
         for rec in self:
             if rec.state != "issued":
                 raise UserError("Return an issued item")
             cond = condition or rec.return_condition
-            if not cond and not self.env.su:
-                raise UserError(
-                    "Record the condition of %s on return (serviceable or damaged) before "
-                    "returning it." % rec.equipment_id.name
-                )
             vals = {"state": "returned", "returned_on": fields.Date.context_today(self)}
             if cond:
                 vals["return_condition"] = cond
             rec._guarded().write(vals)
             equipment = rec.equipment_id
+            detail = (rec.condition_in or "").strip() or "no detail recorded"
             if cond == "damaged":
                 # the hold is opened by the returner, so the returner cannot
                 # also resolve it (see fix.equipment.oos.action_resolve)
-                self.env["fix.equipment.oos"].create(
+                Hold.create(
                     {
                         "equipment_id": equipment.id,
-                        "reason": "Returned damaged (%s): %s"
-                        % (rec.name, (rec.condition_in or "").strip() or "no detail recorded"),
+                        "reason": "Returned damaged (%s): %s" % (rec.name, detail),
+                        "hold_type": "damaged",
+                    }
+                )
+            elif not cond and not self.env.su:
+                Hold.create(
+                    {
+                        "equipment_id": equipment.id,
+                        "reason": "Returned without a condition check (%s): %s"
+                        % (rec.name, detail),
+                        "hold_type": "inspection",
                     }
                 )
             elif equipment.operational_status == "issued":
                 # an item put out of service while it was out on issue stays out
                 # of service; only the issued status is released (A07 M45-5)
                 equipment._guarded().write({"operational_status": equipment._m45_released_status()})
+            days = (rec.returned_on - rec.issued_on).days if rec.issued_on else None
+            rec._m45_publish("equipment.returned", condition=cond or None, days_held=days)
         return True
+
+    # ---- A07 P1 (2026-11-04): custody queries and the nightly job -----------
+    @api.model
+    def m45_open_custody_for_employee(self, employees):
+        """The open equipment custody of the given hr.employee records (M21
+        exit clearance, BRU-EAM-09 / AUT-EAM-09): read as superuser, so HR
+        sees every item an employee still holds, in any branch."""
+        employees = employees if isinstance(employees, models.BaseModel) else None
+        if not employees:
+            return self.sudo().browse()
+        return self.sudo().search([("custodian_id", "in", employees.ids), ("state", "=", "issued")])
+
+    @api.model
+    def cron_custody_overdue(self):
+        """Daily (FR-EAM-015, AUT-EAM-08): escalate open issues past their
+        expected return; one event per escalation level, so a re-run sends
+        nothing new."""
+        today = fields.Date.context_today(self)
+        escalated = 0
+        for rec in self.sudo().search(self._search_is_overdue("in", [True])):
+            days = (today - rec.due_on).days
+            level = next((lvl for limit, lvl in CUSTODY_ESCALATION_DAYS if days >= limit), 0)
+            if level <= rec.overdue_level:
+                continue
+            rec._guarded().write({"overdue_level": level})
+            rec._m45_publish("equipment.custody_overdue", days_overdue=days, escalation_level=level)
+            escalated += 1
+        return escalated
 
 
 TRANSFER_STATES = [
@@ -302,6 +529,8 @@ class FixEquipmentTransfer(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     from_branch_id = fields.Many2one(
         "fix.branch", string="From Branch", help="Where the item sits: taken from the register."
     )
@@ -360,28 +589,25 @@ class FixEquipmentTransfer(models.Model):
             if not equipment.exists():
                 continue
             self._m45_check_movable(equipment)
+            # A07 P1 (2026-11-04): the origin is always the register's. A typed
+            # origin was refused (P0); it is now simply replaced by where the
+            # item is, so the record is true whatever the caller sent.
             origin = {
                 "from_branch_id": equipment.branch_id.id or False,
                 "from_custodian_id": equipment.custodian_id.id or False,
             }
             for key, actual in origin.items():
-                typed = vals.get(key) or False
-                if not self.env.su and typed and typed != actual:
-                    raise UserError(
-                        "%s is registered at %s with %s: a transfer starts from where the "
-                        "item is, not from a typed origin"
-                        % (
-                            equipment.name,
-                            equipment.branch_id.name or "no branch",
-                            equipment.custodian_id.name or "no custodian",
-                        )
-                    )
                 if not self.env.su or key not in vals:
                     vals[key] = actual
         return super().create(vals_list)
 
+    def _m45_check_store_keeper(self, what):
+        # spec §13: transfers are store-keeper work (R18), or the Quality Manager's
+        m45_require_role(self.env, (ROLE_CUSTODIAN, ROLE_QM), what)
+
     def action_dispatch(self):
         """The sender hands the item over; it stays theirs until receipt."""
+        self._m45_check_store_keeper("Dispatching a transfer")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Dispatch a draft transfer")
@@ -416,6 +642,7 @@ class FixEquipmentTransfer(models.Model):
     def action_receive(self):
         """Receipt confirmed by someone other than the sender (BRU-EAM-22);
         only now do the equipment's branch and custodian move."""
+        self._m45_check_store_keeper("Confirming receipt of a transfer")
         for rec in self:
             if rec.state != "dispatched":
                 raise UserError("Confirm receipt of a dispatched transfer")
@@ -436,6 +663,21 @@ class FixEquipmentTransfer(models.Model):
             if rec.to_custodian_id:
                 moved["custodian_id"] = rec.to_custodian_id.id
             equipment._guarded().write(moved)
+            # A07 P1: M49 needs the transfer trigger (spec §10.2)
+            publish(
+                self.env,
+                "equipment.transferred",
+                "fix.equipment.transfer",
+                rec.id,
+                {
+                    "equipment": equipment.sudo().code,
+                    "transfer": rec.name,
+                    "from_branch": rec.from_branch_id.name or None,
+                    "to_branch": rec.to_branch_id.name,
+                    "from_custodian_id": rec.from_custodian_id.id or None,
+                    "to_custodian_id": rec.to_custodian_id.id or None,
+                },
+            )
         return True
 
     def action_cancel(self):
@@ -457,6 +699,8 @@ class FixEquipmentVerification(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     campaign_ref = fields.Char(string="Campaign", required=True)
     verified_on = fields.Date(required=True, default=fields.Date.context_today)
     location = fields.Char()
@@ -488,16 +732,79 @@ class FixEquipmentVerification(models.Model):
             # the result is derived from what was found, never typed
             vals["state"] = "missing" if vals.get("found") is False else "verified"
         records = super(FixEquipmentVerification, self._guarded()).create(vals_list)
-        return records.with_env(self.env)
+        records = records.with_env(self.env)
+        records.filtered(lambda r: r.state == "missing")._m45_mark_missing()
+        records.filtered(lambda r: r.state == "verified")._m45_recover()
+        return records
 
     def write(self, vals):
         res = super().write(vals)
         if "found" in vals and not vals["found"]:
             # found -> not found after the count: the result follows (M45 D2)
-            self.filtered(lambda r: not r.found and r.state == "verified")._guarded().write(
-                {"state": "missing"}
-            )
+            lost = self.filtered(lambda r: not r.found and r.state == "verified")
+            lost._guarded().write({"state": "missing"})
+            lost._m45_mark_missing()
         return res
+
+    def _m45_mark_missing(self):
+        """A07 P1 (2026-11-04) FR-EAM-039 / AUT-EAM-13: not found at the count
+        = the item is missing: unusable, not issuable, not transferable, and
+        the loss is published for M49 / M21 / M23."""
+        for rec in self:
+            equipment = rec.equipment_id.sudo()
+            if equipment.operational_status == "retired":
+                continue
+            custodian = (
+                self.env["fix.equipment.issue"]
+                .sudo()
+                .search([("equipment_id", "=", equipment.id), ("state", "=", "issued")], limit=1)
+                .custodian_id
+            ) or equipment.custodian_id
+            equipment._guarded().write({"missing_verification_id": rec.id})
+            equipment._m45_sync_status()
+            publish(
+                self.env,
+                "equipment.lost",
+                "fix.equipment.verification",
+                rec.id,
+                {
+                    "equipment": equipment.code,
+                    "verification": rec.name,
+                    "campaign": rec.campaign_ref,
+                    "custodian": custodian.name or None,
+                    "custodian_id": custodian.id or None,
+                    "value": equipment.acquisition_cost or 0.0,
+                },
+            )
+
+    def _m45_recover(self):
+        """A count that finds a missing item recovers it (spec §8.1 Lost ->
+        Available, branch manager / store keeper)."""
+        for rec in self:
+            equipment = rec.equipment_id.sudo()
+            if not equipment.missing_verification_id:
+                continue
+            m45_require_role(
+                self.env, (ROLE_CUSTODIAN, ROLE_QM), "Recording a missing item as found"
+            )
+            lost = equipment.missing_verification_id
+            equipment._guarded().write({"missing_verification_id": False})
+            equipment._m45_sync_status()
+            publish(
+                self.env,
+                "equipment.recovered",
+                "fix.equipment.verification",
+                rec.id,
+                {"equipment": equipment.code, "verification": rec.name, "missing_since": lost.name},
+            )
+
+
+OOS_HOLD_TYPES = [
+    ("fault", "Fault raised"),
+    ("calibration", "Calibration (failed, overdue or rejected)"),
+    ("damaged", "Returned damaged"),
+    ("inspection", "Returned without a condition check"),
+]
 
 
 class FixEquipmentOutOfService(models.Model):
@@ -510,7 +817,16 @@ class FixEquipmentOutOfService(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     reason = fields.Char(required=True)
+    # A07 P1 (2026-11-04): why the item is held decides how it returns: a
+    # condition check (inspection, store keeper) or an accepted re-calibration
+    # (everything else, Quality Manager).
+    hold_type = fields.Selection(OOS_HOLD_TYPES, required=True, default="fault")
+    calibration_id = fields.Many2one(
+        "fix.calibration", string="Triggering Calibration", readonly=True, ondelete="restrict"
+    )
     started_on = fields.Date(required=True, default=fields.Date.context_today)
     resolved_on = fields.Date(readonly=True)
     resolved_by_id = fields.Many2one("res.users", string="Resolved By", readonly=True)
@@ -535,9 +851,10 @@ class FixEquipmentOutOfService(models.Model):
             "resolved_on",
             "resolved_by_id",
             "resolution_calibration_id",
+            "calibration_id",
         }
         if self:
-            guarded |= {"equipment_id"}
+            guarded |= {"equipment_id", "hold_type"}
         if any(rec.state == "resolved" for rec in self):
             guarded |= {"reason"}
         return guarded
@@ -549,11 +866,30 @@ class FixEquipmentOutOfService(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.equipment.oos") or "EOOS/New"
                 )
+            if not self._fix_guard_open() and vals.get("hold_type") not in (None, "fault"):
+                # the other hold types are opened by the system (calibration,
+                # return); a user raises a fault
+                self._fix_guard_refuse(["hold_type"])
         records = super().create(vals_list)
         for rec in records:
-            if rec.equipment_id.sudo().operational_status == "retired":
+            equipment = rec.equipment_id.sudo()
+            if equipment.operational_status == "retired":
                 raise UserError("%s is retired: it is out of use for good" % rec.equipment_id.name)
-            rec.equipment_id._guarded().write({"operational_status": "out_of_service"})
+            rec.equipment_id._m45_sync_status()
+            publish(
+                self.env,
+                "equipment.out_of_service",
+                "fix.equipment.oos",
+                rec.id,
+                {
+                    "equipment": equipment.code,
+                    "hold": rec.name,
+                    "hold_type": rec.hold_type,
+                    "reason": rec.reason,
+                    "effective_from": str(rec.started_on),
+                    "branch": equipment.branch_id.name or None,
+                },
+            )
         return records
 
     def _m45_recalibration(self):
@@ -565,7 +901,7 @@ class FixEquipmentOutOfService(models.Model):
         latest = equipment._m45_latest_calibration()
         if (
             latest
-            and equipment.calibration_state == "current"
+            and equipment.calibration_state in ("current", "pending")
             and latest.calibrated_on >= self.started_on
             and latest.create_date >= self.create_date
         ):
@@ -574,26 +910,62 @@ class FixEquipmentOutOfService(models.Model):
 
     def action_resolve(self):
         """Back to service only with a re-calibration, by someone other than
-        the person who opened the hold (spec §8.1, SOD-07)."""
+        the person who opened the hold (spec §8.1, SOD-07).
+
+        A07 P1/P2 (2026-11-04): returning an item to service is the Quality
+        Manager's decision (a store keeper's for a condition check), and the
+        re-calibration is accepted by a second person: the resolver may not be
+        whoever recorded it, unless another Quality Manager has already
+        accepted it at its usage decision. Resolving records that acceptance."""
         for rec in self:
             if rec.state != "open":
                 raise UserError("Resolve an open out-of-service record")
             equipment = rec.equipment_id
             if equipment.sudo().operational_status == "retired":
                 raise UserError("%s is retired and cannot return to service" % equipment.name)
-            recal = rec._m45_recalibration()
+            inspection = rec.hold_type == "inspection"
+            recal = None if inspection else rec._m45_recalibration()
             if not self.env.su:
+                if inspection:
+                    m45_require_role(
+                        self.env,
+                        (ROLE_CUSTODIAN, ROLE_QM),
+                        "The condition check of a returned item",
+                    )
+                else:
+                    m45_require_role(self.env, (ROLE_QM,), "Returning an item to service")
                 if rec.create_uid == self.env.user:
                     raise UserError(
                         "Segregation of duties: you opened %s, so another person must "
                         "accept the re-calibration and return the item to service." % rec.name
                     )
-                if not recal:
+                if inspection:
+                    problem = equipment.sudo()._m45_calibration_problem()
+                    if problem:
+                        raise UserError(
+                            "%s passed its condition check but stays out of service: %s"
+                            % (equipment.name, problem)
+                        )
+                elif not recal:
                     raise UserError(
                         "%s cannot return to service without a passing calibration "
                         "recorded after it went out of service (on or after %s)."
                         % (equipment.name, rec.started_on)
                     )
+                elif recal.decision_state != "accepted" and recal.create_uid == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: you recorded the re-calibration of %s, so "
+                        "another Quality Manager accepts it and returns the item to service."
+                        % equipment.name
+                    )
+            if recal and recal.decision_state == "pending":
+                recal.sudo()._guarded().write(
+                    {
+                        "decision_state": "accepted",
+                        "decided_by_id": self.env.user.id,
+                        "decided_on": fields.Datetime.now(),
+                    }
+                )
             rec._guarded().write(
                 {
                     "state": "resolved",
@@ -602,8 +974,20 @@ class FixEquipmentOutOfService(models.Model):
                     "resolution_calibration_id": recal.id if recal else False,
                 }
             )
-            if equipment.sudo().operational_status == "out_of_service":
-                equipment._guarded().write({"operational_status": equipment._m45_released_status()})
+            equipment._m45_sync_status()
+            publish(
+                self.env,
+                "equipment.returned_to_service",
+                "fix.equipment.oos",
+                rec.id,
+                {
+                    "equipment": equipment.sudo().code,
+                    "hold": rec.name,
+                    "calibration_id": recal.id if recal else None,
+                    "effective_from": str(rec.resolved_on),
+                    "status": equipment.sudo().operational_status,
+                },
+            )
         return True
 
 
@@ -617,6 +1001,8 @@ class FixEquipmentPm(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     pm_type = fields.Selection(
         [("preventive", "Preventive"), ("corrective", "Corrective")],
         required=True,
@@ -679,14 +1065,27 @@ class FixEquipmentPm(models.Model):
         return True
 
 
+# What the system stamps on a use: never typed.
+USAGE_SYSTEM_FIELDS = {
+    "calibration_id",
+    "fitness_state_at_use",
+    "used_by_id",
+    "source_model",
+    "source_res_id",
+}
+
+
 class FixEquipmentUsage(models.Model):
     _name = "fix.equipment.usage"
     _description = "Equipment Usage per Job"
+    _inherit = ["fix.guarded.mixin"]
     _order = "used_on desc, id desc"
 
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment", required=True, ondelete="cascade", index=True
     )
+    company_id = _ops_company()
+    operating_unit_id = _ops_unit()
     job_ref = fields.Char(string="Job / Work Order", required=True)
     service_order_ref = fields.Char(string="Service Order")
     used_on = fields.Date(required=True, default=fields.Date.context_today)
@@ -697,8 +1096,32 @@ class FixEquipmentUsage(models.Model):
         default="na",
     )
     notes = fields.Char()
+    # A07 P1 (2026-11-04) spec §10.1: which calibration certified the
+    # instrument at the moment of use, and who used it. M31 QC writes its own
+    # rows (source = the workshop job), so the impact assessment sees them.
+    calibration_id = fields.Many2one(
+        "fix.calibration", string="Calibration at Use", readonly=True, ondelete="restrict"
+    )
+    fitness_state_at_use = fields.Char(string="Calibration Status at Use", readonly=True)
+    used_by_id = fields.Many2one("res.users", string="Recorded By", readonly=True)
+    source_model = fields.Char(readonly=True)
+    source_res_id = fields.Integer(readonly=True)
 
     _uses_positive = models.Constraint("CHECK (uses > 0)", "Usage count must be positive")
+
+    def _fix_guarded_fields(self) -> set:
+        guarded = super()._fix_guarded_fields() | USAGE_SYSTEM_FIELDS
+        if any(rec.source_model for rec in self):
+            # a use written by another module's record is that record's evidence
+            guarded |= {
+                "equipment_id",
+                "job_ref",
+                "service_order_ref",
+                "used_on",
+                "uses",
+                "qc_result",
+            }
+        return guarded
 
     # A07 audit (2026-11-03) M45-4 (BRU-EAM-02): usage was recorded on overdue
     # and out-of-service instruments; the fitness gate was only a button. A use
@@ -710,14 +1133,45 @@ class FixEquipmentUsage(models.Model):
         for rec in self:
             rec.equipment_id.action_assert_usable()
 
+    def _m45_stamp(self):
+        for rec in self:
+            equipment = rec.equipment_id.sudo()
+            rec.sudo()._guarded().write(
+                {
+                    "calibration_id": equipment._m45_latest_calibration().id or False,
+                    "fitness_state_at_use": equipment.calibration_state,
+                    "used_by_id": self.env.uid,
+                }
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         records._m45_check_fit_for_use()
+        records._m45_stamp()
         return records
 
     def write(self, vals):
         res = super().write(vals)
         if "equipment_id" in vals:
             self._m45_check_fit_for_use()
+            self._m45_stamp()
         return res
+
+    @api.model
+    def m45_record_qc_use(self, equipment, job_ref, qc_result, source=None, service_order_ref=None):
+        """The service another module calls after its own fitness check (M31
+        QC): write the usage row as superuser, stamped with the calibration at
+        use. `source` is the record the measurement belongs to."""
+        equipment = equipment.sudo()
+        if not equipment:
+            return self.browse()
+        vals = {
+            "equipment_id": equipment.id,
+            "job_ref": job_ref,
+            "qc_result": qc_result,
+            "service_order_ref": service_order_ref or False,
+        }
+        if source is not None:
+            vals.update({"source_model": source._name, "source_res_id": source.id})
+        return self.sudo().create([vals])

@@ -100,6 +100,33 @@ def _scoped_partner(kwargs):
     return request.env.user.partner_id.id
 
 
+# A07 audit (2026-11-04) M17-6: any internal login passed `partner_id` to
+# /customer/devices and read that customer's full serials, IMEIs and history
+# as superuser, whatever branch it served. Acting for a customer on the device
+# endpoints is the Device Registry Agent's support view (R08), and the devices
+# returned are only those the agent's own record rules let him open.
+DEVICE_SUPPORT_GROUP = "cd_device_registry.group_device_registry_user"
+
+
+def _device_support_partner(kwargs):
+    """The customer the device endpoint acts for, and the environment that may
+    read that customer's devices; or an error payload."""
+    partner_id = _to_int(kwargs.get("partner_id"))
+    user = request.env.user
+    if partner_id and user and user._is_internal() and partner_id != user.partner_id.id:
+        if not user.has_group(DEVICE_SUPPORT_GROUP):
+            return (
+                None,
+                None,
+                _error(
+                    "not_permitted",
+                    "Acting for a customer on their devices needs the Device Registry Agent role",
+                ),
+            )
+        return partner_id, request.env, None
+    return request.env.user.partner_id.id, _su_env(), None
+
+
 def _normalize_bd_phone(phone):
     """``01XXXXXXXXX`` for a valid Bangladesh mobile number, else ``None``."""
     cleaned = "".join(c for c in str(phone or "").strip() if c.isdigit())
@@ -310,11 +337,13 @@ class CustomerApiController(http.Controller):
         if kwargs.get("action") == "register" or kwargs.get("device_model_id"):
             return self._register_device(**kwargs)
 
-        partner = _scoped_partner(kwargs)
-        devices = _su_env()["fix.device"].search([("owner_id", "=", partner)], limit=100)
+        partner, env, err = _device_support_partner(kwargs)
+        if err:
+            return err
+        devices = env["fix.device"].search([("owner_id", "=", partner)], limit=100)
         result = []
         for d in devices:
-            history = _su_env()["fix.device.history"].search(
+            history = env["fix.device.history"].search(
                 [("device_id", "=", d.id)], limit=10, order="date desc"
             )
             result.append(
@@ -341,7 +370,9 @@ class CustomerApiController(http.Controller):
 
     def _register_device(self, **kwargs):
         """Register a new customer device into the M17 device registry."""
-        partner = _scoped_partner(kwargs)
+        partner, _env, err = _device_support_partner(kwargs)
+        if err:
+            return err
         model_id = kwargs.get("device_model_id")
         if not model_id:
             return _error("missing_model", "device_model_id is required")
@@ -452,7 +483,7 @@ class CustomerApiController(http.Controller):
         if not device_id:
             return _error(
                 "missing_device",
-                "device_id is required (M17 — every order needs " "an identified device)",
+                "device_id is required (M17 — every order needs an identified device)",
             )
         device = _su_env()["fix.device"].browse(_to_int(device_id) or 0).exists()
         if not device or device.owner_id.id != partner:

@@ -1,8 +1,22 @@
 # fix_stream_registry — M48: IoT telemetry, alerting, PdM (P11-M03).
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+# A07 P1 (2026-11-04) BRU-IOT-10 / FR-IOT-040: where a prediction's model is
+# checked against the M26 registry. "use" (default): the prediction is
+# recorded, but nothing APPLIES it - no prescriptive action is approved and no
+# preventive work order is raised - unless its model is a published M26
+# predictive-maintenance model. "create": a prediction naming an unpublished
+# model is refused outright. M26 (cd_ml_services) depends on this module, so
+# the registry is read at run time, never imported.
+MODEL_CHECK_PARAM = "cd_stream_registry.prediction_model_check"
+
+
+def _require_operator(env, what):
+    if not (env.su or env.user.has_group("cd_stream_registry.group_iot_operator")):
+        raise AccessError("%s requires the IoT Operator role." % what)
 
 
 class FixIotDevice(models.Model):
@@ -62,26 +76,65 @@ class FixIotDevice(models.Model):
     alert_ids = fields.One2many("fix.iot.alert", "device_id", string="Alerts")
 
     def action_telemetry_received(self, health):
+        """Gateway hook: a device reported its health with a reading.
+
+        A07 P1 (2026-11-04) M48-4: any internal user called this public method
+        and marked a device with no readings `online`. Liveness is derived from
+        received readings (ingest) and from the silence cron; only the platform
+        (the superuser gateway service) reports it here."""
+        if not self.env.su:
+            raise AccessError(
+                "Device health is set by the readings it sends, not by hand: ingest a "
+                "reading through its stream instead."
+            )
+        return self._fix_telemetry_received(health)
+
+    def _fix_telemetry_received(self, health, at=None):
         """Update on telemetry; unhealthy transitions raise alerts."""
-        for rec in self:
+        at = at or fields.Datetime.now()
+        for rec in self.sudo():
             became_unhealthy = health != "online" and rec.status == "online"
-            rec._guarded().write({"status": health, "last_telemetry": fields.Datetime.now()})
+            last = max(rec.last_telemetry, at) if rec.last_telemetry else at
+            rec._guarded().write({"status": health, "last_telemetry": last})
             if became_unhealthy:
-                alert = self.env["fix.iot.alert"].create(
-                    {
-                        "device_id": rec.id,
-                        "severity": "major" if health == "offline" else "minor",
-                        "message": f"{rec.name} became {health}",
-                    }
-                )
-                # The aggregate is the ALERT (it was published with the
-                # device's id under the fix.iot.alert aggregate).
-                publish(
-                    self.env,
-                    "iot.alert_raised",
-                    "fix.iot.alert",
-                    alert.id,
-                    {"device": rec.device_id, "health": health},
+                rec._fix_raise_health_alert(health)
+
+    def _fix_raise_health_alert(self, health, note=None):
+        self.ensure_one()
+        alert = (
+            self.env["fix.iot.alert"]
+            .sudo()
+            .create(
+                {
+                    "company_id": self.company_id.id,
+                    "operating_unit_id": self.operating_unit_id.id,
+                    "device_id": self.id,
+                    "severity": "major" if health == "offline" else "minor",
+                    "message": f"{self.name} became {health}" + (f" ({note})" if note else ""),
+                }
+            )
+        )
+        # The aggregate is the ALERT (it was published with the
+        # device's id under the fix.iot.alert aggregate).
+        publish(
+            self.env,
+            "iot.alert_raised",
+            "fix.iot.alert",
+            alert.id,
+            {"device": self.device_id, "health": health},
+        )
+        return alert
+
+    def _fix_mark_offline(self):
+        """The silence cron: every live stream of the device fell silent. The
+        last-reading stamp is NOT moved (it is the last real reading)."""
+        for rec in self.sudo():
+            was_online = rec.status == "online"
+            rec._guarded().write({"status": "offline"})
+            if was_online:
+                since = rec.last_telemetry
+                rec._fix_raise_health_alert(
+                    "offline", "no reading since %s" % since if since else "never reported"
                 )
 
 
@@ -116,7 +169,36 @@ class FixIotTelemetry(models.Model):
                 "Telemetry is recorded only through the stream's ingest, which checks the "
                 "telemetry consent and evaluates the alert rules."
             )
+        self._fix_check_duplicates(vals_list)
         return super().create(vals_list)
+
+    def _fix_check_duplicates(self, vals_list):
+        """A07 P1 (2026-11-04) M48-4 / FR-IOT-018: a reading carrying its own
+        source timestamp is unique on device, signal and time, so a gateway
+        replay after reconnection does not double a series. A reading the
+        server stamps (no timestamp given) is a fresh message by definition."""
+        seen = set()
+        for vals in vals_list:
+            if not vals.get("timestamp"):
+                continue
+            key = (
+                vals.get("device_id"),
+                vals.get("metric"),
+                fields.Datetime.to_datetime(vals["timestamp"]),
+            )
+            if key in seen or self.sudo().search_count(
+                [
+                    ("device_id", "=", key[0]),
+                    ("metric", "=", key[1]),
+                    ("timestamp", "=", key[2]),
+                ],
+                limit=1,
+            ):
+                raise ValidationError(
+                    "Duplicate reading refused: device %s already has a %s reading at %s "
+                    "(FR-IOT-018)." % (key[0], key[1], key[2])
+                )
+            seen.add(key)
 
     @api.constrains("timestamp")
     def _check_timestamp_not_future(self):
@@ -164,6 +246,13 @@ class FixIotAlert(models.Model):
             "resolved_on",
             "resolved_by",
             "resolution_note",
+            # A07 P1: what the evaluator recorded (FR-IOT-033 dedup).
+            "rule_id",
+            "stream_id",
+            "trigger_value",
+            "last_value",
+            "occurrence_count",
+            "last_occurrence_on",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -199,6 +288,19 @@ class FixIotAlert(models.Model):
     resolved_on = fields.Datetime(string="Resolved On", readonly=True)
     resolved_by = fields.Many2one("res.users", string="Resolved By", readonly=True)
     resolution_note = fields.Text(string="Resolution", readonly=True)
+    # A07 P1 (2026-11-04) FR-IOT-033 / spec fix.alert: which rule raised it, on
+    # which stream, at what value; repeated breaches are counted on the open
+    # alert instead of raising new ones.
+    rule_id = fields.Many2one(
+        "fix.iot.rule", string="Rule", readonly=True, ondelete="set null", index=True
+    )
+    stream_id = fields.Many2one(
+        "fix.iot.stream", string="Stream", readonly=True, ondelete="set null"
+    )
+    trigger_value = fields.Float(string="Trigger Value", readonly=True)
+    last_value = fields.Float(string="Latest Value", readonly=True)
+    occurrence_count = fields.Integer(string="Occurrences", default=1, readonly=True)
+    last_occurrence_on = fields.Datetime(string="Last Occurrence", readonly=True)
     state = fields.Selection(
         [("new", "New"), ("acked", "Acknowledged"), ("resolved", "Resolved")],
         default="new",
@@ -213,6 +315,8 @@ class FixIotAlert(models.Model):
         return super().create(vals_list)
 
     def action_ack(self):
+        # A07 P1 (2026-11-04): the alert queue is the IoT operator's (spec R13).
+        _require_operator(self.env, "Acknowledging an alert")
         for rec in self:
             if rec.state != "new":
                 raise UserError("Acknowledge a new alert")
@@ -221,6 +325,7 @@ class FixIotAlert(models.Model):
             )
 
     def action_resolve(self, resolution_note=None):
+        _require_operator(self.env, "Resolving an alert")
         note = (resolution_note or "").strip()
         for rec in self:
             if rec.state == "resolved":
@@ -284,7 +389,20 @@ class FixPredictiveMaintenance(models.Model):
     estimated_days_to_failure = fields.Integer(
         string="Days to Failure", help="The ML model's estimate; 0 = imminent"
     )
-    model_name = fields.Char(string="Model", help="The M26 model that produced this score")
+    model_name = fields.Char(
+        string="Model",
+        help="The code of the published M26 model (fix.ml.model) that produced this score",
+    )
+    # A07 P1 (2026-11-04) BRU-IOT-11: the feature window the score was computed
+    # on, so the output can be reproduced.
+    feature_window_from = fields.Datetime(string="Feature Window From")
+    feature_window_to = fields.Datetime(string="Feature Window To")
+    model_published = fields.Boolean(
+        string="Model Published (M26)",
+        compute="_compute_model_published",
+        help="True when Model names a production predictive-maintenance model in the "
+        "M26 registry. Only such predictions drive interventions (BRU-IOT-10).",
+    )
     last_evaluated = fields.Datetime(string="Last Evaluated")
     outcome = fields.Selection(
         [
@@ -319,6 +437,56 @@ class FixPredictiveMaintenance(models.Model):
             if (rec.estimated_days_to_failure or 0) < 0:
                 raise ValidationError("Days to failure cannot be negative.")
 
+    @api.constrains("feature_window_from", "feature_window_to")
+    def _check_feature_window(self):
+        for rec in self:
+            if (
+                rec.feature_window_from
+                and rec.feature_window_to
+                and rec.feature_window_to < rec.feature_window_from
+            ):
+                raise ValidationError("The feature window cannot end before it starts.")
+
+    @api.constrains("model_name")
+    def _check_model_on_create(self):
+        param = self.env["ir.config_parameter"].sudo().get_param(MODEL_CHECK_PARAM) or "use"
+        if param == "create":
+            for rec in self:
+                rec._fix_assert_published_model("Recording prediction %s" % rec.name)
+
+    def _fix_published_model(self):
+        """The production M26 predictive-maintenance model this prediction
+        names, or None (also None when M26 is not installed)."""
+        self.ensure_one()
+        if "fix.ml.model" not in self.env or not (self.model_name or "").strip():
+            return None
+        model = (
+            self.env["fix.ml.model"]
+            .sudo()
+            .search(
+                [
+                    ("code", "=", self.model_name.strip()),
+                    ("kind", "=", "predictive_maintenance"),
+                    ("status", "=", "production"),
+                ],
+                limit=1,
+            )
+        )
+        return model or None
+
+    def _compute_model_published(self):
+        for rec in self:
+            rec.model_published = bool(rec._fix_published_model())
+
+    def _fix_assert_published_model(self, what):
+        for rec in self:
+            if not rec._fix_published_model():
+                raise UserError(
+                    "%s refused: prediction %s names model '%s', which is not a published "
+                    "(production) M26 predictive-maintenance model. An unpublished model is "
+                    "never applied (BRU-IOT-10)." % (what, rec.name, rec.model_name or "")
+                )
+
     def _fix_record_outcome(self, outcome, note, action):
         """Record what an intervention found (called by fix.iot.action's
         action_done, which has already checked its own state). As superuser:
@@ -343,6 +511,7 @@ class FixPredictiveMaintenance(models.Model):
                 raise UserError("Only failure predictions create preventive work orders")
             if rec.work_order_created:
                 raise UserError("Work order already created for this prediction")
+            rec._fix_assert_published_model("Raising a preventive work order")
             rec._guarded().write({"work_order_created": True})
             publish(
                 self.env,

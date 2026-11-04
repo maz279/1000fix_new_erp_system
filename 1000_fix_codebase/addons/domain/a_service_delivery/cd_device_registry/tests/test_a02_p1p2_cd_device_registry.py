@@ -59,8 +59,14 @@ def m(odoo_env):
     x.registrar = _user(env, "registrar", [OFFICER])
     x.officer = _user(env, "officer", [OFFICER])
     x.clerk = _user(env, "clerk")
-    att = env["ir.attachment"].create({"name": "receipt.pdf", "datas": b"JVBERg=="})
-    x.proof = env["fix.document"].create({"name": "Purchase receipt", "attachment_id": att.id})
+
+    def proof():
+        # one receipt per warranty: A07 M17-13 files a proof against the
+        # warranty it verified, so the same paper cannot prove a second one
+        att = env["ir.attachment"].create({"name": "receipt.pdf", "datas": b"JVBERg=="})
+        return env["fix.document"].create({"name": "Purchase receipt", "attachment_id": att.id})
+
+    x.proof = proof
 
     def device():
         x.n += 1
@@ -82,7 +88,7 @@ def _warranty(m, user, **kw):
         "device_id": m.device().id,
         "start_date": today - timedelta(days=10),
         "end_date": today + timedelta(days=355),
-        "proof_document_id": m.proof.id,
+        "proof_document_id": m.proof().id,
     }
     vals.update(kw)
     return m.env["fix.warranty"].with_user(user).create(vals)

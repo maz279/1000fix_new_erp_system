@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M47 scheduled jobs (A07 audit 2026-11-03 D9 / M47-15; P1 build 2026-11-04).
+
+  M47 had no ir.cron at all: no licence, lease or safety date ever expired,
+  alerted or escalated, and no PM ever raised a work order. Each job below
+  is daily, idempotent and superuser-safe; every effect writes through the
+  model's guarded transition path.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_site_licence_expiry" model="ir.cron">
+            <field name="name">M47: licence expiry alerts, lapse and risk exceptions</field>
+            <field name="model_id" ref="model_fix_site_licence"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_licence_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_site_lease_critical_dates" model="ir.cron">
+            <field name="name">M47: lease critical dates, renewal decisions and expiry</field>
+            <field name="model_id" ref="model_fix_site_lease"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_lease_critical_dates()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_site_safety_due" model="ir.cron">
+            <field name="name">M47: safety equipment past inspection (unfit to M59)</field>
+            <field name="model_id" ref="model_fix_site_safety"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_safety_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_site_pm_due" model="ir.cron">
+            <field name="name">M47: building PM due raises its work order</field>
+            <field name="model_id" ref="model_fix_site_pm"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_pm_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_site_utility_anomaly" model="ir.cron">
+            <field name="name">M47: evaluate utility bills for anomalies</field>
+            <field name="model_id" ref="model_fix_site_utility"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_utility_anomaly()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

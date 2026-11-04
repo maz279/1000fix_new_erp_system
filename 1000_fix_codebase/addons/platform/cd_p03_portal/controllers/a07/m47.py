@@ -11,10 +11,20 @@ SURFACES = {
     # A07 P0 recipe (2026-11-03): workflow fields are guarded on the models;
     # every transition below checks its source state, and the approvals are
     # requested here and decided from the approver's M63 inbox.
+    # A07 P1/P2 (2026-11-04): the readiness gate (Open), resumption, permit
+    # to work, lease renewal decisions, utility anomaly review and the
+    # operating-risk exception decisions; the rent schedule and the IFRS 16
+    # extracts are read-only registers.
     "fix.site": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_close", "action_reopen", "action_request_approval"},
+        "actions": {
+            "action_open",
+            "action_resume",
+            "action_close",
+            "action_reopen",
+            "action_request_approval",
+        },
     },
     "fix.site.condition": {
         "order": "inspected_on desc, id desc",
@@ -41,7 +51,25 @@ SURFACES = {
             "action_apply_modification",
             "action_expire",
             "action_terminate",
+            "action_decide_renew",
+            "action_decide_renegotiate",
+            "action_decide_exit",
         },
+    },
+    "fix.site.lease.schedule": {
+        "order": "lease_id, due_date",
+        "limit": 600,
+        "actions": set(),
+    },
+    "fix.site.lease.extract": {
+        "order": "lease_id, version desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.site.risk.exception": {
+        "order": "raised_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_decide_continue", "action_decide_suspend"},
     },
     "fix.site.licence": {
         "order": "valid_to desc, id desc",
@@ -51,7 +79,7 @@ SURFACES = {
     "fix.site.utility": {
         "order": "period desc, id desc",
         "limit": 400,
-        "actions": {"action_flag"},
+        "actions": {"action_flag", "action_release", "action_confirm_anomaly"},
     },
     "fix.site.pm": {
         "order": "scheduled_on desc, id desc",
@@ -69,6 +97,7 @@ SURFACES = {
             "action_verify",
             "action_reopen",
             "action_cancel",
+            "action_approve_permit",
         },
     },
     "fix.site.safety": {
@@ -84,7 +113,19 @@ SURFACES = {
     "fix.site.project": {
         "order": "planned_on desc, id desc",
         "limit": 200,
-        "actions": {"action_start", "action_done", "action_request_approval"},
+        "actions": {
+            "action_start",
+            "action_done",
+            "action_request_approval",
+            "action_revise_budget",
+        },
+    },
+    # A07 P1 work-order spine (cd_asset_workorder_spine): the queue of maintenance
+    # demands that wait for a missing fact before they route.
+    "fix.maintenance.demand": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_route", "action_dismiss"},
     },
 }
 
@@ -195,9 +236,21 @@ def critical_dates(env, date_from=None, date_to=None, **params):
     today = _today(env)
     horizon = today + datetime.timedelta(days=180)
     rows = []
-    # An active lease past its end date stays listed (negative days-left):
-    # nothing expires a lease automatically, so it is overdue for a decision.
+    # An active lease past its end date stays listed (negative days-left)
+    # until the daily job expires it; the renewal-notice deadline is listed
+    # while no renewal decision is recorded (BRU-FAC-05).
     for lease in _read(env, "fix.site.lease", [("state", "=", "active")]):
+        notice = lease.renewal_notice_date
+        if notice and notice != lease.end_date and not lease.renewal_decision and notice <= horizon:
+            rows.append(
+                {
+                    "date": str(notice),
+                    "kind": "Lease renewal notice deadline (decision required)",
+                    "site": lease.site_id.name,
+                    "reference": lease.name,
+                    "days_left": (notice - today).days,
+                }
+            )
         if lease.end_date and lease.end_date <= horizon:
             rows.append(
                 {
@@ -262,9 +315,10 @@ def critical_dates(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Negative days-left means the date has passed and the item is overdue. An "
-            "active lease past its end date stays listed until it is expired, renewed or "
-            "terminated.",
+            "Negative days-left means the date has passed and the item is overdue. The "
+            "daily job expires a lease past its end date (unless a modification is open) "
+            "and raises an operating-risk exception for a lapsed licence at an operational "
+            "site.",
             "Licence gaps: an operational site with no current trade licence, or a "
             "licence type held at the site whose every row has lapsed. A licence with no "
             "expiry date is not treated as valid.",
@@ -326,20 +380,27 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
     pms = _read(env, "fix.site.pm")
     orders = _read(env, "fix.facility.work.order")
     rows = []
+    leases = _read(env, "fix.site.lease", [("state", "=", "active")])
     for site in _sites(env):
         utility = sum(
             utilities.filtered(lambda u, sid=site.id: u.site_id.id == sid).mapped("amount")
+        )
+        # FR-FAC-012: the scheduled (escalated) rent of the site's active
+        # leases; the site record's own figure only where no lease exists
+        site_leases = leases.filtered(lambda ln, sid=site.id: ln.site_id.id == sid)
+        rent = (
+            sum(site_leases.mapped("current_rent")) if site_leases else (site.monthly_rent or 0.0)
         )
         pm = sum(pms.filtered(lambda p, sid=site.id: p.site_id.id == sid).mapped("cost"))
         wo = sum(_wo_spend(o) for o in orders.filtered(lambda o, sid=site.id: o.site_id.id == sid))
         rows.append(
             {
                 "site": site.name,
-                "rent": round(site.monthly_rent or 0.0, 2),
+                "rent": round(rent, 2),
                 "utilities": round(utility, 2),
                 "pm": round(pm, 2),
                 "work_orders": round(wo, 2),
-                "total": round((site.monthly_rent or 0.0) + utility + pm + wo, 2),
+                "total": round(rent + utility + pm + wo, 2),
             }
         )
     rows.sort(key=lambda r: -r["total"])
@@ -356,9 +417,11 @@ def cost_per_site(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "The site's monthly rent comes from the site record; utilities, PM and "
-            "work orders are the recorded records (no period filter applied here). "
-            "Work orders count the actual cost of completed and verified work."
+            "Monthly rent is this month's scheduled rent of the site's active leases "
+            "(escalated on each anniversary); the site record's figure is used only where "
+            "no lease is recorded. Utilities, PM and work orders are the recorded records "
+            "(no period filter applied here). Work orders count the actual cost of "
+            "completed and verified work."
         ],
         totals={
             "site": "Total",
@@ -383,8 +446,11 @@ def lease_expiry(env, date_from=None, date_to=None, **params):
                 "lessor": lease.lessor_id.name,
                 "start": str(lease.start_date),
                 "end": str(lease.end_date),
-                "rent": round(lease.monthly_rent, 2),
+                "rent": round(lease.current_rent, 2),
                 "days_left": (lease.end_date - today).days if lease.end_date else "—",
+                "decision": dict(lease._fields["renewal_decision"].selection).get(
+                    lease.renewal_decision, "—"
+                ),
                 "state": (
                     "Active, past end date (no decision recorded)"
                     if lease.state == "active" and lease.end_date and lease.end_date < today
@@ -395,22 +461,23 @@ def lease_expiry(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: r["end"])
     return _pack(
         "Lease Expiry Register",
-        ["lease", "site", "lessor", "start", "end", "rent", "days_left", "state"],
+        ["lease", "site", "lessor", "start", "end", "rent", "days_left", "decision", "state"],
         {
             "lease": "Lease",
             "site": "Site",
             "lessor": "Lessor",
             "start": "Start",
             "end": "End",
-            "rent": "Monthly Rent",
+            "rent": "Current Monthly Rent",
             "days_left": "Days Left",
+            "decision": "Renewal Decision",
             "state": "State",
         },
         rows,
         [
-            "Days-left is computed from the lease end date. A lease still Active after "
-            "its end date is overdue for a renewal, expiry or termination decision; it is "
-            "not changed automatically."
+            "Current monthly rent is this month's row of the rent schedule (the "
+            "commencement rent escalated on each anniversary). Days-left is computed from "
+            "the lease end date; the daily job expires a lease once it has passed."
         ],
         empty="No leases recorded.",
     )
@@ -488,13 +555,26 @@ def utilities_variance(env, date_from=None, date_to=None, **params):
                 "usage": round(utility.usage, 2),
                 "unit": utility.unit or "—",
                 "flagged": utility.flagged,
+                "hold": dict(utility._fields["review_state"].selection).get(utility.review_state),
+                "basis": utility.anomaly_basis or "—",
             }
         )
     rows.sort(key=lambda r: (r["site"], r["period"]))
     flagged = len([r for r in rows if r["flagged"]])
     return _pack(
         "Utilities Variance — recorded accounts and anomaly flags",
-        ["record", "site", "period", "type", "amount", "usage", "unit", "flagged"],
+        [
+            "record",
+            "site",
+            "period",
+            "type",
+            "amount",
+            "usage",
+            "unit",
+            "flagged",
+            "hold",
+            "basis",
+        ],
         {
             "record": "Account",
             "site": "Site",
@@ -504,11 +584,15 @@ def utilities_variance(env, date_from=None, date_to=None, **params):
             "usage": "Usage",
             "unit": "Unit",
             "flagged": "Flagged",
+            "hold": "Payment Hold",
+            "basis": "Anomaly Basis",
         },
         rows,
         [
-            "%d account(s) flagged for review; the flag is a recorded judgement, not "
-            "a statistical detector." % flagged
+            "%d bill(s) flagged. A bill whose amount or usage reaches the configured multiple "
+            "(cd_facility.utility_anomaly_factor, default 2.0 pending business confirmation) "
+            "of its own average over up to the last 3 periods is held from payment until a "
+            "Branch Operations Lead who did not record it releases or confirms it." % flagged
         ],
         totals={"record": "Total", "amount": round(sum(r["amount"] for r in rows), 2)},
         empty="No utility accounts recorded.",
@@ -611,6 +695,16 @@ def kpis(env):
         # gaps, not rows: lapsed / undated / missing per active site and type
         "licences_expired": len(_licence_gaps(env, sites, licences, today)),
         "utilities_flagged": len(utilities.filtered(lambda u: u.flagged)),
+        "utilities_held": len(utilities.filtered(lambda u: u.review_state == "held")),
+        "risk_exceptions_open": len(
+            _read(
+                env,
+                "fix.site.risk.exception",
+                [("state", "in", ("open", "continue", "suspend"))],
+            )
+        ),
+        "sites_planned": len(sites.filtered(lambda s: s.state == "planned")),
+        "sites_suspended": len(sites.filtered(lambda s: s.state == "suspended")),
         "utilities_cost_per_sqft": cost_per_sqft,
         "utilities_cost_period": period,
         "open_work_orders": len(orders.filtered(lambda o: o.state not in (*_WO_DONE, "cancelled"))),

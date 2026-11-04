@@ -19,9 +19,13 @@ CD-M47-01 (P10) — Facility & Branch Infrastructure.
         "cd_workflow_engine",
     ],
     "data": [
+        # A07 P1: the M47 roles load before the ACLs that name them
+        "security/cd_facility_groups.xml",
         "security/fix_isolation_rules.xml",
+        "security/fix_facility_scope_rules.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        "data/ir_cron.xml",
         "views/cd_facility_views.xml",
     ],
     "installable": True,

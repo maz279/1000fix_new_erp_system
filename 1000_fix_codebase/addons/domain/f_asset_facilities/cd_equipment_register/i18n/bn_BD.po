@@ -87,3 +87,347 @@ msgstr "স্ট্যান্ডার্ড রেফারেন্স"
 #: model:ir.ui.menu,name:cd_equipment_register.menu_ws_equipment
 msgid "Test Equipment"
 msgstr "পরীক্ষা যন্ত্রপাতি"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__accountable_employee_id
+msgid "Accountable Holder"
+msgstr "দায়বদ্ধ ধারক"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__acquisition_cost
+msgid "Acquisition Cost"
+msgstr "অধিগ্রহণ ব্যয়"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__affected_uses
+msgid "Affected Use Count"
+msgstr "প্রভাবিত ব্যবহারের সংখ্যা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__usage_ids
+msgid "Affected Uses"
+msgstr "প্রভাবিত ব্যবহারসমূহ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__as_found
+msgid "As Found"
+msgstr "প্রাপ্ত মান (As-Found)"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__as_left
+msgid "As Left"
+msgstr "চূড়ান্ত মান (As-Left)"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__reading_ids
+msgid "As-Found / As-Left Readings"
+msgstr "প্রাপ্ত (As-Found) / চূড়ান্ত (As-Left) রিডিং"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__as_found_out_of_tolerance
+msgid "As-Found Out of Tolerance"
+msgstr "প্রাপ্ত মান সহনসীমার বাইরে"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__calibration_id
+msgid "Calibration at Use"
+msgstr "ব্যবহারকালীন ক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile__interval_months
+msgid "Calibration Interval (months)"
+msgstr "ক্যালিব্রেশন বিরতি (মাস)"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__profile_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_profile_id
+msgid "Calibration Profile"
+msgstr "ক্যালিব্রেশন প্রোফাইল"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_profile_ids
+msgid "Calibration Profiles"
+msgstr "ক্যালিব্রেশন প্রোফাইলসমূহ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_state
+msgid "Calibration Status"
+msgstr "ক্যালিব্রেশন অবস্থা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__fitness_state_at_use
+msgid "Calibration Status at Use"
+msgstr "ব্যবহারকালীন ক্যালিব্রেশন অবস্থা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_verification__campaign_ref
+msgid "Campaign"
+msgstr "যাচাই ক্যাম্পেইন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__decided_by_id
+msgid "Closed By"
+msgstr "বন্ধকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__decided_on
+msgid "Closed On"
+msgstr "বন্ধের তারিখ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__completeness_checked_at
+msgid "Completeness Checked"
+msgstr "পূর্ণতা যাচাইয়ের সময়"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_issue__return_condition
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__return_condition
+msgid "Condition on Return"
+msgstr "ফেরতকালীন অবস্থা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__supersedes_id
+msgid "Corrects"
+msgstr "সংশোধিত পূর্ববর্তী রেকর্ড"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__decided_by_id
+msgid "Decided By"
+msgstr "সিদ্ধান্তদাতা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__decided_on
+msgid "Decided On"
+msgstr "সিদ্ধান্তের তারিখ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__dispatched_by_id
+msgid "Dispatched By"
+msgstr "প্রেরণকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_issue__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__line_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit_line__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_oos__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_pm__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__equipment_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_verification__equipment_id
+msgid "Equipment"
+msgstr "যন্ত্রপাতি"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__in_tolerance_found
+msgid "Found In Tolerance"
+msgstr "প্রাপ্ত মান সহনসীমার মধ্যে"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__from_branch_id
+msgid "From Branch"
+msgstr "প্রেরক শাখা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__from_custodian_id
+msgid "From Custodian"
+msgstr "পূর্ববর্তী রক্ষক"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__impact_id
+msgid "Impact Assessment"
+msgstr "প্রভাব মূল্যায়ন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile__interval_change_reason
+msgid "Interval Change Justification"
+msgstr "বিরতি পরিবর্তনের যৌক্তিকতা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__issue_to_id
+msgid "Issue To"
+msgstr "ইস্যু গ্রহীতা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_issue__reference
+msgid "Job / Ticket Ref"
+msgstr "কাজ / টিকিট রেফারেন্স"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__job_ref
+msgid "Job / Work Order"
+msgstr "কাজ / ওয়ার্ক অর্ডার"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_issue__kit_id
+msgid "Kit"
+msgstr "কিট"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__issue_ids
+msgid "Kit Issues"
+msgstr "কিট ইস্যুসমূহ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__state
+msgid "Kit Status"
+msgstr "কিটের অবস্থা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__last_good_calibration_id
+msgid "Last Good Calibration"
+msgstr "সর্বশেষ সঠিক ক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__in_tolerance_left
+msgid "Left In Tolerance"
+msgstr "চূড়ান্ত মান সহনসীমার মধ্যে"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile_point__tolerance_low
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__tolerance_low
+msgid "Lower Limit"
+msgstr "নিম্নসীমা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile_point__name
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__point_id
+msgid "Measurement Point"
+msgstr "পরিমাপ বিন্দু"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile__point_ids
+msgid "Measurement Points"
+msgstr "পরিমাপ বিন্দুসমূহ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__missing_verification_id
+msgid "Missing Since Verification"
+msgstr "যে যাচাইয়ে নিখোঁজ পাওয়া গেছে"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__ncr_ref
+msgid "NCR"
+msgstr "NCR"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__ncr_res_id
+msgid "NCR id"
+msgstr "NCR আইডি"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_issue__overdue_level
+msgid "Overdue Escalation"
+msgstr "বিলম্বজনিত এসকেলেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__name
+msgid "Point"
+msgstr "বিন্দু"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile__proposed_interval_months
+msgid "Proposed Interval (months)"
+msgstr "প্রস্তাবিত বিরতি (মাস)"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_oos__resolution_calibration_id
+msgid "Re-calibration"
+msgstr "পুনঃক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__received_by_id
+msgid "Received By"
+msgstr "গ্রহণকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__used_by_id
+msgid "Recorded By"
+msgstr "লিপিবদ্ধকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_oos__resolved_by_id
+msgid "Resolved By"
+msgstr "সমাধানকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_kit__issue_due_on
+msgid "Return Due"
+msgstr "ফেরতের নির্ধারিত তারিখ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__service_order_ref
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__superseded_by_id
+msgid "Superseded By"
+msgstr "প্রতিস্থাপনকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__period_from
+msgid "Suspect From"
+msgstr "সন্দেহজনক সময়কালের শুরু"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_impact__period_to
+msgid "Suspect To"
+msgstr "সন্দেহজনক সময়কালের শেষ"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_pm__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__to_branch_id
+msgid "To Branch"
+msgstr "প্রাপক শাখা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_transfer__to_custodian_id
+msgid "To Custodian"
+msgstr "নতুন রক্ষক"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_oos__calibration_id
+msgid "Triggering Calibration"
+msgstr "সূচনাকারী ক্যালিব্রেশন"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_profile_point__tolerance_high
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration_reading__tolerance_high
+msgid "Upper Limit"
+msgstr "ঊর্ধ্বসীমা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__decision_state
+msgid "Usage Decision"
+msgstr "ব্যবহার সিদ্ধান্ত"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__decision_note
+msgid "Usage Decision Note"
+msgstr "ব্যবহার সিদ্ধান্ত নোট"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_usage__uses
+msgid "Uses"
+msgstr "ব্যবহারের সংখ্যা"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment_verification__verifier_id
+msgid "Verifier"
+msgstr "যাচাইকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__retired_by_id
+msgid "Write-Off Approved By"
+msgstr "অবলোপন অনুমোদনকারী"
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__retirement_reason
+msgid "Write-Off Reason"
+msgstr "অবলোপনের কারণ"

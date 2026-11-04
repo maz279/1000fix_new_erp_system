@@ -12,6 +12,11 @@ vehicle dispatchable and creates or refreshes the day's fix.vehicle.assignment.
 A separate module on purpose: cd_vehicle_ext stays independent of M02, and a
 server whose database has not installed this bridge never loads it, so the
 fix.field.order extension cannot break M02 before it is deliberately installed.
+
+A07 P1 wiring (2026-11-04): vehicle.off_road flags every open field order in
+that van for today or later for re-dispatch (a field and a dispatcher
+activity, never a state change) and marks the conflict on the van's
+assignments; vehicle.available clears those flags, recording who and when.
 """,
     "version": "19.0.0.1.0",
     "license": "LGPL-3",
@@ -23,6 +28,10 @@ fix.field.order extension cannot break M02 before it is deliberately installed.
     ],
     "data": [
         "data/ir_config_parameter.xml",
+        # A07 P1 wiring round 2: vehicle.off_road / vehicle.available
+        # (fix.event.consumer comes with cd_event_outbox, a dependency of
+        # cd_vehicle_ext: no new dependency here)
+        "data/fix_event_consumers.xml",
         "views/fix_field_order_vehicle_views.xml",
     ],
     "installable": True,

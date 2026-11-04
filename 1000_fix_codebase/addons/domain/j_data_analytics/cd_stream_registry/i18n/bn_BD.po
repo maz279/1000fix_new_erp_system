@@ -1,7 +1,8 @@
 # Bengali for cd_stream_registry (P11).
 msgid ""
 msgstr ""
-"Language: bn_BD"
+"Project-Id-Version: Odoo Server 19.0\n"
+"Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
@@ -146,3 +147,518 @@ msgstr "সাইট (M47)"
 #: model:ir.model.fields.selection,name:cd_stream_registry.selection__fix_iot_device__device_type__meter
 msgid "Smart Meter"
 msgstr "স্মার্ট মিটার"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__acked_by
+msgid "Acknowledged By"
+msgstr "স্বীকৃতিদাতা"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__acked_on
+msgid "Acknowledged On"
+msgstr "স্বীকৃতির তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__activated_on
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__activated_on
+msgid "Activated On"
+msgstr "সক্রিয়করণের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rolled_until
+msgid "Aggregated Up To"
+msgstr "যে পর্যন্ত একত্রিত"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rollup_ids
+msgid "Aggregates"
+msgstr "সমষ্টিসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__rollup_points
+msgid "Aggregates Written"
+msgstr "লিখিত সমষ্টি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__rule_ids
+msgid "Alert Rules"
+msgstr "সতর্কতা নিয়মসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__applied_on
+msgid "Applied On"
+msgstr "প্রয়োগের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approved_by
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__applied_by
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__approved_on
+msgid "Approved On"
+msgstr "অনুমোদনের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__cooldown_suppressed
+msgid "Breaches Held by Cooldown"
+msgstr "কুলডাউনে আটকে থাকা লঙ্ঘন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__breach_since
+msgid "Breaching Since"
+msgstr "সীমা লঙ্ঘন শুরুর সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__completed_by
+msgid "Completed By"
+msgstr "সম্পন্নকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__completed_on
+msgid "Completed On"
+msgstr "সম্পন্ন করার তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__retention_days
+msgid "Compressed Retention (days)"
+msgstr "সংকুচিত ডেটার সংরক্ষণকাল (দিন)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__consent_policy
+msgid "Consent Policy"
+msgstr "সম্মতি নীতি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__cooldown_min
+msgid "Cooldown (minutes)"
+msgstr "কুলডাউন (মিনিট)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__credential_ref
+msgid "Credential Reference"
+msgstr "ক্রেডেনশিয়াল রেফারেন্স"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__credential_rotated_on
+msgid "Credential Rotated On"
+msgstr "ক্রেডেনশিয়াল পরিবর্তনের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__current_days
+msgid "Current Retention (days)"
+msgstr "বর্তমান সংরক্ষণকাল (দিন)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__partner_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_device__partner_id
+msgid "Customer (data subject)"
+msgstr "গ্রাহক (ডেটা সাবজেক্ট)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__compression_pct
+msgid "Design Reduction %"
+msgstr "নকশাকৃত হ্রাস %"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__detected_at
+msgid "Detected At"
+msgstr "শনাক্তের সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__device_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__device_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disable_reason
+msgid "Disable Reason"
+msgstr "নিষ্ক্রিয়করণের কারণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disabled_by
+msgid "Disabled By"
+msgstr "নিষ্ক্রিয়কারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__disabled_on
+msgid "Disabled On"
+msgstr "নিষ্ক্রিয়করণের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__disclosure_document_id
+msgid "Disclosure Given"
+msgstr "প্রদত্ত তথ্য প্রকাশ বিবৃতি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__dispatched_on
+msgid "Dispatched On"
+msgstr "প্রেরণের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__downsample_id
+msgid "Downsampling Policy"
+msgstr "ডাউনস্যাম্পলিং নীতি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__feature_window_from
+msgid "Feature Window From"
+msgstr "ফিচার উইন্ডোর শুরু"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__feature_window_to
+msgid "Feature Window To"
+msgstr "ফিচার উইন্ডোর শেষ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__duration_min
+msgid "For (minutes)"
+msgstr "স্থায়িত্ব (মিনিট)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__gap_ids
+msgid "Gaps"
+msgstr "বিরতিসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__evidence_ref
+msgid "Grant Evidence"
+msgstr "সম্মতির প্রমাণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__granted_by
+msgid "Granted By"
+msgstr "সম্মতিদাতা"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__last_rollup_on
+msgid "Last Aggregation Run"
+msgstr "সর্বশেষ একত্রীকরণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__last_alert_on
+msgid "Last Alert Raised"
+msgstr "সর্বশেষ সতর্কতা উত্থাপনের সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__last_evaluated
+msgid "Last Evaluated"
+msgstr "সর্বশেষ মূল্যায়ন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__last_occurrence_on
+msgid "Last Occurrence"
+msgstr "সর্বশেষ সংঘটন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__last_seen
+msgid "Last Seen"
+msgstr "সর্বশেষ সক্রিয় দেখা গেছে"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__last_value
+msgid "Latest Value"
+msgstr "সর্বশেষ মান"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__measured_compression_pct
+msgid "Measured Compression %"
+msgstr "পরিমাপকৃত সংকোচন %"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__model_name
+msgid "Model"
+msgstr "মডেল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__model_published
+msgid "Model Published (M26)"
+msgstr "মডেল প্রকাশিত (M26)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__occurrence_count
+msgid "Occurrences"
+msgstr "সংঘটনের সংখ্যা"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome
+msgid "Outcome"
+msgstr "ফলাফল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome_evidence_ref
+msgid "Outcome Evidence"
+msgstr "ফলাফলের প্রমাণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_action_id
+msgid "Outcome From Action"
+msgstr "পদক্ষেপ থেকে প্রাপ্ত ফলাফল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__outcome_note
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_note
+msgid "Outcome Note"
+msgstr "ফলাফল নোট"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_recorded_by
+msgid "Outcome Recorded By"
+msgstr "ফলাফল লিপিবদ্ধকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__outcome_recorded_on
+msgid "Outcome Recorded On"
+msgstr "ফলাফল লিপিবদ্ধের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__downsample_id
+msgid "Policy"
+msgstr "নীতি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__prediction_id
+msgid "Prediction"
+msgstr "পূর্বাভাস"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_predictive_maintenance__action_ids
+msgid "Prescriptive Actions"
+msgstr "নির্দেশনামূলক পদক্ষেপসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__proposed_days
+msgid "Proposed Retention (days)"
+msgstr "প্রস্তাবিত সংরক্ষণকাল (দিন)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__proposed_threshold
+msgid "Proposed Threshold"
+msgstr "প্রস্তাবিত থ্রেশহোল্ড"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__adapter_id
+msgid "Protocol Adapter"
+msgstr "প্রোটোকল অ্যাডাপ্টার"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__raw_interval_sec
+msgid "Raw Interval (s)"
+msgstr "কাঁচা ডেটার বিরতি (সেকেন্ড)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__points
+msgid "Raw Readings"
+msgstr "কাঁচা রিডিং"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__raw_points_rolled
+msgid "Raw Readings Aggregated"
+msgstr "একত্রিত কাঁচা রিডিং"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__retention_days
+msgid "Raw Retention (days)"
+msgstr "কাঁচা ডেটার সংরক্ষণকাল (দিন)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__points_expected
+msgid "Readings Missed"
+msgstr "অপ্রাপ্ত রিডিং"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__readings_treated
+msgid "Readings Treated"
+msgstr "প্রক্রিয়াকৃত রিডিং"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__requested_by
+msgid "Requested By"
+msgstr "অনুরোধকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolution_note
+msgid "Resolution"
+msgstr "সমাধান"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolved_by
+msgid "Resolved By"
+msgstr "সমাধানকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__resolved_on
+msgid "Resolved On"
+msgstr "সমাধানের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__gap_to
+msgid "Resumed At"
+msgstr "পুনরায় চালুর সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_at
+msgid "Revoked At"
+msgstr "প্রত্যাহারের সময়"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_by
+msgid "Revoked By"
+msgstr "প্রত্যাহারকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revoked_on
+msgid "Revoked On"
+msgstr "প্রত্যাহারের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__rule_id
+msgid "Rule"
+msgstr "নিয়ম"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__sample_interval_sec
+msgid "Sample Interval (s)"
+msgstr "নমুনা বিরতি (সেকেন্ড)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__signal_groups_permitted
+msgid "Signals Permitted"
+msgstr "অনুমোদিত সিগন্যাল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__gap_from
+msgid "Silent Since"
+msgstr "যে সময় থেকে নীরব"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__site_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__site_id
+msgid "Site"
+msgstr "সাইট"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__stream_id
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_telemetry_rollup__stream_id
+msgid "Stream"
+msgstr "স্ট্রিম"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_retention_change__stream_id
+msgid "Stream (raw retention)"
+msgstr "স্ট্রিম (কাঁচা ডেটার সংরক্ষণকাল)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_gap__had_reading
+msgid "Stream Had Readings"
+msgstr "স্ট্রিমে রিডিং ছিল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_adapter__stream_ids
+msgid "Streams"
+msgstr "স্ট্রিমসমূহ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_until
+msgid "Suppressed Until"
+msgstr "যে পর্যন্ত দমন বহাল"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_kind
+msgid "Suppression"
+msgstr "সতর্কতা দমন"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppressed_by
+msgid "Suppression Approved By"
+msgstr "দমন অনুমোদনকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppressed_on
+msgid "Suppression Approved On"
+msgstr "দমন অনুমোদনের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_reason
+msgid "Suppression Reason"
+msgstr "দমনের কারণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__suppression_requested_by
+msgid "Suppression Requested By"
+msgstr "দমন অনুরোধকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_downsample__target_interval_sec
+msgid "Target Interval (s)"
+msgstr "লক্ষ্য বিরতি (সেকেন্ড)"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_stream__telemetry_ids
+msgid "Telemetry"
+msgstr "টেলিমেট্রি"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_rule__baseline_threshold
+msgid "Threshold Before Suppression"
+msgstr "দমনের আগের থ্রেশহোল্ড"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__treatment_state
+msgid "Treatment"
+msgstr "ডেটার ব্যবস্থা"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revocation_treatment
+msgid "Treatment on Revocation"
+msgstr "প্রত্যাহারে ডেটার ব্যবস্থা"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__treatment_note
+msgid "Treatment Record"
+msgstr "ডেটা ব্যবস্থার রেকর্ড"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_alert__trigger_value
+msgid "Trigger Value"
+msgstr "ট্রিগার মান"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verification
+msgid "Verification"
+msgstr "যাচাই"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verified_by
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__verified_on
+msgid "Verified On"
+msgstr "যাচাইয়ের তারিখ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_consent__revocation_evidence_ref
+msgid "Withdrawal Evidence"
+msgstr "প্রত্যাহারের প্রমাণ"
+
+#. module: cd_stream_registry
+#: model:ir.model.fields,field_description:cd_stream_registry.field_fix_iot_action__revision_note
+msgid "Last Terms Revision"
+msgstr "শর্তাবলির সর্বশেষ সংশোধন"

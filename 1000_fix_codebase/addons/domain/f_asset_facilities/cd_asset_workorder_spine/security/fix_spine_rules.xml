@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 bridge (2026-11-04): a maintenance demand is read in its company
+     and, for internal users, in its operating unit (as the work order is). -->
+<odoo>
+    <record id="rule_fix_maintenance_demand_company" model="ir.rule">
+        <field name="name">fix.maintenance.demand: allowed companies</field>
+        <field name="model_id" ref="model_fix_maintenance_demand"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_maintenance_demand_operating_unit" model="ir.rule">
+        <field name="name">fix.maintenance.demand: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_maintenance_demand"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 P1 wiring: a quality re-check is read where its service order is. -->
+    <record id="rule_fix_service_order_recheck_company" model="ir.rule">
+        <field name="name">fix.service.order.recheck: allowed companies</field>
+        <field name="model_id" ref="model_fix_service_order_recheck"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_service_order_recheck_operating_unit" model="ir.rule">
+        <field name="name">fix.service.order.recheck: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_service_order_recheck"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <!-- A07 P1 wiring round 2: a device hold is read where its service order is. -->
+    <record id="rule_fix_service_order_device_hold_company" model="ir.rule">
+        <field name="name">fix.service.order.device.hold: allowed companies</field>
+        <field name="model_id" ref="model_fix_service_order_device_hold"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_service_order_device_hold_operating_unit" model="ir.rule">
+        <field name="name">fix.service.order.device.hold: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_service_order_device_hold"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+</odoo>

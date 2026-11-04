@@ -21,7 +21,8 @@ m47 = importlib.import_module("odoo.addons.cd_p03_portal.controllers.a07.m47")
 def ctx(odoo_env):
     env = odoo_env
     site = env["fix.site"].create(
-        {"name": f"Site {TAG}", "site_type": "branch", "floor_area_sqm": 1000}
+        # an operational site (A07 P1: new sites are born Planned)
+        {"name": f"Site {TAG}", "site_type": "branch", "floor_area_sqm": 1000, "state": "active"}
     )
     lessor = env["res.partner"].create({"name": f"Lessor {TAG}", "is_company": True})
     return {"env": env, "site": site, "lessor": lessor}

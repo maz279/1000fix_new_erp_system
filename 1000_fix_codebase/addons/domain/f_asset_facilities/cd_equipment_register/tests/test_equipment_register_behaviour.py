@@ -68,9 +68,16 @@ def test_the_latest_calibration_decides(odoo_env):
     assert eq.calibration_state == "failed"
     with pytest.raises(UserError, match="failed its latest calibration"):
         eq.action_assert_usable()
-    # re-calibrated and passed: fit again
+    # re-calibrated and passed: the calibration is current again ...
     _calibrate(odoo_env, eq, TODAY, TODAY + timedelta(days=365))
     assert (eq.calibration_state, eq.next_calibration) == ("current", TODAY + timedelta(days=365))
+    # ... but A07 P1: the fail put it out of service; it is fit once returned
+    assert eq.operational_status == "out_of_service"
+    hold = odoo_env["fix.equipment.oos"].search(
+        [("equipment_id", "=", eq.id), ("state", "=", "open")]
+    )
+    assert hold.hold_type == "calibration"
+    hold.action_resolve()
     assert eq.action_assert_usable() is True
 
 

@@ -124,6 +124,19 @@ def _in_period(day, date_from, date_to):
     return bool(day) and (not date_from or day >= date_from) and (not date_to or day <= date_to)
 
 
+# A07 P1 M46-11 (BRU-FLT-18) [probe 56]: one typo odometer (999,999) published
+# cost/km 0.01 as fact. A fill held by an exception rule is not an accepted
+# reading: it is left out of the distance and the spend until reviewed, and
+# the figure says it is provisional and why. A rejected fill never counts.
+_HELD_WHY = {
+    "odometer_back": "odometer goes backwards",
+    "odometer_jump": "implausible distance",
+    "over_capacity": "above tank capacity",
+    "duplicate": "duplicate",
+    "offroad": "vehicle off-road",
+}
+
+
 def _fill_to_fill(fills):
     """Distance and the fuel that drove it, measured fill to fill.
 
@@ -133,6 +146,27 @@ def _fill_to_fill(fills):
     in the period only opens the range. Fewer than two fills, or an odometer
     that goes backwards between fills, has no measured distance: the figure
     is provisional (BRU-FLT-18), never 0.00 presented as fact."""
+    fills = fills.filtered(lambda f: f.review_state != "rejected")
+    held = fills.filtered(lambda f: f.review_state == "held")
+    fills -= held
+    out = _measure(fills)
+    if held:
+        why = sorted(
+            {
+                _HELD_WHY.get(code, code)
+                for code in ",".join(held.mapped(lambda f: f.exception_flags or "")).split(",")
+                if code
+            }
+        )
+        out["basis"] = "provisional: %d fill(s) held for review left out (%s); %s" % (
+            len(held),
+            ", ".join(why) or "exception",
+            out["basis"],
+        )
+    return out
+
+
+def _measure(fills):
     ordered = fills.sorted(lambda f: (f.filled_on, f.odometer, f.id))
     out = {
         "fills": len(ordered),
@@ -194,10 +228,7 @@ def driver_behaviour(env, date_from=None, date_to=None, **params):
             "damage": "Damage Cost",
         },
         rows,
-        [
-            "Recorded pre-use checks and recorded accidents only; no telematics "
-            "scoring is claimed."
-        ],
+        ["Recorded pre-use checks and recorded accidents only; no telematics scoring is claimed."],
         empty="No drivers registered yet.",
     )
 
@@ -269,8 +300,9 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             "(fuel of the fills after the first + PM cost) / measured km: the first "
             "fill's fuel was burnt before the range began.",
             "Provisional (no figure) where the period has fewer than two fills or the "
-            "odometer goes backwards. Depreciation, insurance, document fees and "
-            "downtime are not included.",
+            "odometer goes backwards. A fill held by a fuel exception rule is left out "
+            "until the Logistics Manager reviews it, and the row is provisional. "
+            "Depreciation, insurance, document fees and downtime are not included.",
         ],
         totals={
             "vehicle": "Total",
@@ -391,7 +423,8 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
             _period_note(date_from, date_to),
             "km/l = (last − first fuel odometer) / litres of the fills after the "
             "first; provisional (no figure) with fewer than two fills or a backwards "
-            "odometer. Fuel-card imports are M52's; these are recorded transactions.",
+            "odometer. Fills held for review are left out until reviewed. Fuel-card "
+            "imports are M52's; these are recorded transactions.",
         ],
         totals={
             "vehicle": "Total",
@@ -430,7 +463,7 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
             "last_service": "Last Scheduled",
         },
         rows,
-        ["Recorded PM/repair jobs only; parts drawn from M15 are not double-counted " "here."],
+        ["Recorded PM/repair jobs only; parts drawn from M15 are not double-counted here."],
         totals={
             "vehicle": "Total",
             "jobs": sum(r["jobs"] for r in rows),
@@ -450,6 +483,7 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
     for vehicle in vehicles:
         vehicle_docs = docs.filtered(lambda d, vid=vehicle.id: d.vehicle_id.id == vid)
         expiring = vehicle_docs.filtered(lambda d: d.valid_to and today <= d.valid_to <= horizon)
+        problems = vehicle._fix_document_problems(today, today).get(vehicle.id, [])
         rows.append(
             {
                 "vehicle": _vehicle_name(vehicle),
@@ -458,27 +492,46 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
                 "insurance": str(vehicle.insurance_expiry) if vehicle.insurance_expiry else "—",
                 "compliant": vehicle.compliance_ok,
                 "valid_docs": len(vehicle_docs.filtered(lambda d: d.is_valid)),
+                "awaiting_scan": len(
+                    vehicle_docs.filtered(lambda d: d.evidence_status != "attached")
+                ),
                 "expiring_90d": len(expiring),
+                "why_not": "; ".join(problems) or "—",
             }
         )
     rows.sort(key=lambda r: (r["compliant"], r["expiring_90d"]))
     return _pack(
         "Statutory Compliance Register — fitness, insurance and documents",
-        ["vehicle", "plate", "fitness", "insurance", "compliant", "valid_docs", "expiring_90d"],
+        [
+            "vehicle",
+            "plate",
+            "fitness",
+            "insurance",
+            "compliant",
+            "valid_docs",
+            "awaiting_scan",
+            "expiring_90d",
+            "why_not",
+        ],
         {
             "vehicle": "Vehicle",
             "plate": "Plate",
-            "fitness": "Fitness (header)",
-            "insurance": "Insurance (header)",
+            "fitness": "Fitness (register)",
+            "insurance": "Insurance (register)",
             "compliant": "Compliant",
             "valid_docs": "Valid Docs",
+            "awaiting_scan": "Awaiting Scan",
             "expiring_90d": "Expiring (90d)",
+            "why_not": "Why Not",
         },
         rows,
         [
-            "Compliant = every mandatory document type is in the register and valid "
-            "today (the dispatch gate's own test). The header fitness and insurance "
-            "dates are shown for information; they do not decide compliance."
+            "Compliant = each mandatory document type's current document (the latest "
+            "recorded one in force) is valid today and carries its evidence scan: the "
+            "dispatch gate's own test. The fitness and insurance dates are read from "
+            "the register. Awaiting Scan counts documents with no scan attached "
+            "(legacy rows recorded before evidence was required count as valid until "
+            "cd_vehicle_ext.legacy_documents_count_valid is switched off)."
         ],
         empty="No vehicles registered yet.",
     )

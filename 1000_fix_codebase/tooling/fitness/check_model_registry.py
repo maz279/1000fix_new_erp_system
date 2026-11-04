@@ -71,6 +71,15 @@ EXEMPT_MODELS = {
     # Domain child/line models (OU inherited from parent)
     "fix.device.history",
     "fix.device.ownership",
+    # A07 P1 insert-only child lines: written only by their parent's service
+    # code, never edited, scoped by record rules through the parent
+    "fix.device.identifier",  # identifier history of a fix.device
+    "fix.calibration.profile.point",  # measurement point of a calibration profile
+    "fix.calibration.reading",  # as-found/as-left reading of a fix.calibration
+    "fix.site.lease.schedule",  # rent schedule row of a fix.site.lease
+    "fix.site.lease.extract",  # IFRS 16 extract version of a fix.site.lease
+    "fix.iot.gap",  # silence interval of a fix.iot.stream
+    "fix.iot.telemetry.rollup",  # downsampled aggregate of a fix.iot.stream
     "fix.estimate.line",
     "fix.qc.item",
     "fix.work.order.part",

@@ -394,6 +394,15 @@ def test_tracking_refs_are_matched_literally(world):
 
 
 def test_partner_id_is_honoured_for_internal_users_only(world):
+    # A07 P1 (2026-11-04) M17-6: acting for a customer on the device
+    # endpoints is the Device Registry Agent's support view; a plain
+    # internal login gets nothing.
+    with _in(_Browser(world.env, world.staff)) as ctrl:
+        plain = ctrl.devices(partner_id=world.alice.partner_id.id)
+    assert plain["error"]["code"] == "not_permitted" and "devices" not in plain
+    world.staff.group_ids = [
+        Command.link(world.env.ref("cd_device_registry.group_device_registry_user").id)
+    ]
     with _in(_Browser(world.env, world.bob)) as ctrl:
         devices = ctrl.devices(partner_id=world.alice.partner_id.id)
     assert {d["serial_number"] for d in devices["devices"]} == {"SN-SEC-B"}

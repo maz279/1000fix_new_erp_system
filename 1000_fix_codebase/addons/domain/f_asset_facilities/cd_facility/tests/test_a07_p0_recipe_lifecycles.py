@@ -22,6 +22,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 REFUSED = (UserError, ValidationError, AccessError)
 WO = "fix.facility.work.order"
 TIER = "cd_entity_config.group_dofa_tier_%d"
+FM = "cd_facility.group_facility_manager"
+BOL = "cd_facility.group_branch_operations_lead"
 
 
 def _user(env, login, company, ou, *groups):
@@ -57,16 +59,19 @@ def c(odoo_env):
             "partner_id": x.co.partner_id.id,
         }
     )
-    x.clerk = _user(env, "a07p0r_m47_clerk", x.co, x.ou)
-    x.clerk2 = _user(env, "a07p0r_m47_clerk2", x.co, x.ou)
-    x.t3 = _user(env, "a07p0r_m47_t3", x.co, x.ou, TIER % 3)
-    x.t4 = _user(env, "a07p0r_m47_t4", x.co, x.ou, TIER % 4)
+    # A07 P1 roles: site, lease and licence records are maintained by a
+    # Facility Manager, a WO is verified by one, an injury is closed by a
+    # Branch Operations Lead
+    x.clerk = _user(env, "a07p0r_m47_clerk", x.co, x.ou, FM)
+    x.clerk2 = _user(env, "a07p0r_m47_clerk2", x.co, x.ou, BOL)
+    x.t3 = _user(env, "a07p0r_m47_t3", x.co, x.ou, TIER % 3, FM)
+    x.t4 = _user(env, "a07p0r_m47_t4", x.co, x.ou, TIER % 4, FM)
     x.t5 = _user(env, "a07p0r_m47_t5", x.co, x.ou, TIER % 5)
     x.cenv = env(user=x.clerk.id, context=dict(env.context, allowed_company_ids=x.co.ids))
-    x.site = (
-        env["fix.site"]
-        .with_user(x.clerk)
-        .create({"name": "A07P0R Branch", "company_id": x.co.id, "floor_area_sqm": 100.0})
+    # an operational site (A07 P1: a new one is born Planned and opens
+    # through the readiness gate, tested in test_a07_p1_site_lifecycle.py)
+    x.site = env["fix.site"].create(
+        {"name": "A07P0R Branch", "company_id": x.co.id, "floor_area_sqm": 100.0, "state": "active"}
     )
     x.landlord = env["res.partner"].create({"name": "A07P0R Landlord"})
     return x
@@ -324,12 +329,24 @@ def test_capex_start_needs_approval_and_budget_raise_voids_it(c, p03):
     assert res.get("success"), res
     p.invalidate_recordset()
     assert p.state == "in_progress"
-    # another user raises the budget mid-project: the approval is withdrawn
-    p.with_user(c.clerk2).write({"budget": 9_000_000.0})
-    assert not p.dofa_approved
+    # A07 P1 M47-81: another user can no longer raise the budget by a plain write
+    # (ORM or P03); the approved budget stands as signed off
+    _refused(p.with_user(c.clerk2).write, {"budget": 9_000_000.0}, match="Revise Budget")
+    res = p03.write(model="fix.site.project", record_id=p.id, values={"budget": 9_000_000.0})
+    p.invalidate_recordset()
+    assert res.get("error") and p.budget == 2_000_000.0 and p.dofa_approved, res
+    # Revise Budget needs a reason and the Facility Manager role
+    p.with_user(c.clerk).write({"budget_proposed": 9_000_000.0})
+    _refused(p.with_user(c.clerk).action_revise_budget, match="reason")
+    plain = _user(c.env, "a07p1_m47_plain", c.co, c.ou)
+    _refused(p.with_user(plain).action_revise_budget, reason="x", match="Facility Manager")
+    # the revision withdraws the approval and is recorded
+    p.with_user(c.clerk).action_revise_budget(reason="Scope grew: second floor")
+    assert p.budget == 9_000_000.0 and not p.dofa_approved
+    assert p.budget_revised_by == c.clerk and "Scope grew" in p.budget_revision_note
     _refused(p.action_done, match="sign-off")
-    # clerk2 moved the amount, so clerk2 never decides it; re-approval
-    approve_via_inbox(p, c.t4, requester=c.clerk, justification="Scope grew")
+    # the reviser moved the amount, so the reviser never decides it; re-approval
+    approve_via_inbox(p, c.t4, requester=c.clerk2, justification="Scope grew")
     p.action_done()
     assert p.state == "done" and p.done_on
     _refused(p.with_user(c.clerk2).write, {"state": "planned"}, match="cannot be set directly")

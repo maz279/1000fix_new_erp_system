@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "device.flagged",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "device.flagged"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_device_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "device_id",
+        "flag",
+        "reason",
+        "source",
+        "serial_number",
+        "imei_1",
+        "imei_2",
+        "flagged_by"
+      ],
+      "properties": {
+        "device_id": {
+          "type": "integer"
+        },
+        "flag": {
+          "type": "string"
+        },
+        "reason": {
+          "description": "Type not statically derivable from `reason` (addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:921 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
+        },
+        "source": {
+          "description": "Type not statically derivable from `source` (addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:921 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
+        },
+        "serial_number": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "imei_1": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "imei_2": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "flagged_by": {
+          "description": "Type not statically derivable from `self.env.uid` (addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:921 via _publish() at addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py:1047)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_device_registry",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

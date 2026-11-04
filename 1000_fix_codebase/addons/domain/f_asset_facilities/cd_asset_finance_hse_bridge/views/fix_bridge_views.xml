@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 P1 (2026-11-04): the hand-off queues the target modules' people work in.
+     Every decision is a button calling the model's controlled action. -->
+<odoo>
+    <!-- ===== M49 capitalisation / disposal requests ===================== -->
+    <record id="view_fix_asset_finance_request_list" model="ir.ui.view">
+        <field name="name">fix.asset.finance.request.list</field>
+        <field name="model">fix.asset.finance.request</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state != 'pending'">
+                <field name="name"/>
+                <field name="kind"/>
+                <field name="source_label"/>
+                <field name="source_ref"/>
+                <field name="operating_unit_id"/>
+                <field name="source_amount"/>
+                <field name="amount"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="state"/>
+                <field name="company_id" groups="base.group_multi_company"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_asset_finance_request_form" model="ir.ui.view">
+        <field name="name">fix.asset.finance.request.form</field>
+        <field name="model">fix.asset.finance.request</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_accept" type="object" string="Accept into M49"
+                            class="btn-primary" invisible="state != 'pending'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state != 'pending'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Source">
+                            <field name="kind"/>
+                            <field name="source_label"/>
+                            <field name="source_ref"/>
+                            <field name="event_type"/>
+                            <field name="source_amount"/>
+                            <field name="custodian_id"/>
+                            <field name="basis"/>
+                        </group>
+                        <group string="Finance">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount" invisible="kind != 'capitalise'"/>
+                            <field name="acquisition_date"/>
+                            <field name="category_id" invisible="kind != 'capitalise'"/>
+                            <field name="fixed_asset_id"/>
+                            <field name="disposal_kind" invisible="kind != 'dispose'"/>
+                            <field name="disposal_id" invisible="kind != 'dispose'"/>
+                            <field name="decision_note"/>
+                            <field name="decided_by_id"/>
+                            <field name="decided_on"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_asset_finance_request" model="ir.actions.act_window">
+        <field name="name">M49 Asset Requests</field>
+        <field name="res_model">fix.asset.finance.request</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===== IFRS 16 lease modification items =========================== -->
+    <record id="view_fix_lease_modification_item_list" model="ir.ui.view">
+        <field name="name">fix.lease.modification.item.list</field>
+        <field name="model">fix.lease.modification.item</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state != 'open'">
+                <field name="name"/>
+                <field name="lease_id"/>
+                <field name="site_lease_id"/>
+                <field name="version"/>
+                <field name="reason"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_lease_modification_item_form" model="ir.ui.view">
+        <field name="name">fix.lease.modification.item.form</field>
+        <field name="model">fix.lease.modification.item</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_mark_remeasured" type="object" string="Mark Remeasured"
+                            class="btn-primary" invisible="state != 'open'"/>
+                    <button name="action_mark_no_change" type="object"
+                            string="No Accounting Change" invisible="state != 'open'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="lease_id"/>
+                            <field name="site_lease_id"/>
+                            <field name="version"/>
+                            <field name="reason"/>
+                        </group>
+                        <group>
+                            <field name="changes"/>
+                            <field name="decision_note"/>
+                            <field name="decided_by_id"/>
+                            <field name="decided_on"/>
+                        </group>
+                    </group>
+                    <field name="extract"/>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_lease_modification_item" model="ir.actions.act_window">
+        <field name="name">IFRS 16 Modification Items</field>
+        <field name="res_model">fix.lease.modification.item</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===== M52 pending cost entries ==================================== -->
+    <record id="view_fix_asset_cost_entry_list" model="ir.ui.view">
+        <field name="name">fix.asset.cost.entry.list</field>
+        <field name="model">fix.asset.cost.entry</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state != 'pending'" decoration-warning="source_changed">
+                <field name="name"/>
+                <field name="cost_type"/>
+                <field name="source_ref"/>
+                <field name="operating_unit_id"/>
+                <field name="vendor_id"/>
+                <field name="invoice_ref"/>
+                <field name="cost_date"/>
+                <field name="amount" sum="Total"/>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="source_changed" column_invisible="1"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_asset_cost_entry_form" model="ir.ui.view">
+        <field name="name">fix.asset.cost.entry.form</field>
+        <field name="model">fix.asset.cost.entry</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_match_bill" type="object" string="Match to Bill"
+                            class="btn-primary" invisible="state != 'pending'"/>
+                    <button name="action_reject" type="object" string="Reject"
+                            invisible="state != 'pending'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name"/></h1></div>
+                    <group>
+                        <group string="Source">
+                            <field name="cost_type"/>
+                            <field name="source_ref"/>
+                            <field name="site_id"/>
+                            <field name="vehicle_id"/>
+                            <field name="detail"/>
+                            <field name="cost_date"/>
+                            <field name="currency_id" invisible="1"/>
+                            <field name="amount"/>
+                            <field name="vendor_id"/>
+                            <field name="invoice_ref"/>
+                            <field name="source_changed"/>
+                        </group>
+                        <group string="Accounts Payable">
+                            <field name="company_id" groups="base.group_multi_company"/>
+                            <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
+                            <field name="match_invoice_id"/>
+                            <field name="vendor_invoice_id"/>
+                            <field name="decision_note"/>
+                            <field name="decided_by_id"/>
+                            <field name="decided_on"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_asset_cost_entry" model="ir.actions.act_window">
+        <field name="name">M52 Asset Cost Entries</field>
+        <field name="res_model">fix.asset.cost.entry</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- ===== hand-off exceptions ========================================= -->
+    <record id="view_fix_bridge_exception_list" model="ir.ui.view">
+        <field name="name">fix.bridge.exception.list</field>
+        <field name="model">fix.bridge.exception</field>
+        <field name="arch" type="xml">
+            <list decoration-muted="state != 'open'">
+                <field name="name"/>
+                <field name="route"/>
+                <field name="source_ref"/>
+                <field name="message"/>
+                <field name="attempts"/>
+                <field name="state"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_bridge_exception_form" model="ir.ui.view">
+        <field name="name">fix.bridge.exception.form</field>
+        <field name="model">fix.bridge.exception</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_retry" type="object" string="Retry"
+                            class="btn-primary" invisible="state != 'open'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="route"/>
+                            <field name="source_ref"/>
+                            <field name="event_type"/>
+                            <field name="role_xmlid"/>
+                            <field name="attempts"/>
+                        </group>
+                        <group>
+                            <field name="message"/>
+                            <field name="employee_id" invisible="route != 'm59_case'"/>
+                            <field name="resolved_by_id"/>
+                            <field name="resolved_at"/>
+                        </group>
+                    </group>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_bridge_exception" model="ir.actions.act_window">
+        <field name="name">Hand-Off Exceptions</field>
+        <field name="res_model">fix.bridge.exception</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_asset_handoffs_root" name="Asset Hand-Offs (A07)"
+              parent="cd_entity_config.menu_fix_operations_root" sequence="230"/>
+    <menuitem id="menu_fix_asset_finance_request" name="M49 Asset Requests"
+              parent="menu_fix_asset_handoffs_root" action="action_fix_asset_finance_request"
+              groups="account.group_account_readonly,account.group_account_user" sequence="10"/>
+    <menuitem id="menu_fix_lease_modification_item" name="IFRS 16 Modification Items"
+              parent="menu_fix_asset_handoffs_root" action="action_fix_lease_modification_item"
+              groups="account.group_account_readonly,account.group_account_user" sequence="20"/>
+    <menuitem id="menu_fix_asset_cost_entry" name="M52 Asset Cost Entries"
+              parent="menu_fix_asset_handoffs_root" action="action_fix_asset_cost_entry"
+              groups="account.group_account_readonly,account.group_account_user" sequence="30"/>
+    <menuitem id="menu_fix_bridge_exception" name="Hand-Off Exceptions"
+              parent="menu_fix_asset_handoffs_root" action="action_fix_bridge_exception"
+              sequence="40"/>
+</odoo>

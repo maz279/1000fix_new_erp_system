@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M46 fleet roles (A07 P1, 2026-11-04; audit M46-17 / D7).
+
+     The module defined no group: all nine fix.* models were create/write for
+     every internal user, and suspensions, returns to service, fuel reviews
+     and claim closes were done by whoever pressed the button.
+
+     - Fleet Officer (spec R15 Logistics Coordinator): Odoo fleet's own
+       "Officer: Manage all vehicles" (fleet.fleet_group_user), the group the
+       audit counts as the Fleet Officer. Not duplicated here: a second officer
+       group would be a second truth about who manages the register. It
+       records statutory documents, drivers and telemetry, suspends and
+       reinstates drivers, completes services and returns vehicles to service.
+     - Logistics Manager (spec business owner, BRU-FLT-09/13): reviews held
+       fuel exceptions and closes insurance claims; deletes a driver or an
+       open service entered in error. Implies the Fleet Officer.
+
+     Drivers and technicians (any employee, spec R10-R12/R16) keep what the
+     spec gives them: pre-use checks, defects (off-road), fuel, incidents and
+     service requests. The admin is a member so daily work keeps running;
+     appointing the real holders is decision B1. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="privilege_fleet_operations" model="res.groups.privilege">
+            <field name="name">Fleet Operations (M46)</field>
+            <field name="description">Fuel exception review and insurance claim closing for the 1000FiX fleet (M46). The Fleet Officer role is Odoo Fleet's "Officer: Manage all vehicles".</field>
+            <field name="sequence">18</field>
+        </record>
+
+        <record id="group_logistics_manager" model="res.groups">
+            <field name="name">Logistics Manager</field>
+            <field name="privilege_id" ref="privilege_fleet_operations"/>
+            <field name="implied_ids" eval="[(4, ref('fleet.fleet_group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Reviews fuel transactions held by an exception rule (never one they recorded) and closes insurance claims (never one they reported). Holds every Fleet Officer right.</field>
+        </record>
+
+    </data>
+</odoo>

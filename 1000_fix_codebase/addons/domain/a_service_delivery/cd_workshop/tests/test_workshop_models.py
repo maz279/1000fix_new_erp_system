@@ -370,6 +370,13 @@ def test_qc_checks_the_test_instrument(ws):
         job.action_pass_qc()
     assert (job.state, job.qc_passed) == ("qc_pending", False)
     calibrate(today, "pass")
+    # A07 P1: the fail put the meter out of service; it is returned to service
+    # (here by the superuser fixture) before QC can use it again
+    with _refused(env, UserError, "Out of Service"):
+        job.action_pass_qc()
+    env["fix.equipment.oos"].search(
+        [("equipment_id", "=", meter.id), ("state", "=", "open")]
+    ).action_resolve()
     job.action_pass_qc()
     assert (job.state, job.qc_passed, job.equipment_id) == ("ready", True, meter)
 

@@ -10,6 +10,13 @@
                 <field name="vehicle_id"/>
                 <field name="vehicle_driver_id"/>
                 <field name="vehicle_assignment_id" readonly="1"/>
+                <!-- A07 P1 wiring: set by vehicle.off_road / vehicle.available only -->
+                <field name="redispatch_required" readonly="1"/>
+                <field name="redispatch_offroad_id" readonly="1" invisible="not redispatch_offroad_id"/>
+                <field name="redispatch_reason" readonly="1" invisible="not redispatch_required"/>
+                <field name="redispatch_cleared_by_id" readonly="1" invisible="not redispatch_cleared_at"/>
+                <field name="redispatch_cleared_at" readonly="1" invisible="not redispatch_cleared_at"/>
+                <field name="redispatch_clear_note" readonly="1" invisible="not redispatch_cleared_at"/>
             </xpath>
         </field>
     </record>
@@ -21,6 +28,7 @@
         <field name="arch" type="xml">
             <xpath expr="//field[@name='order_id']" position="after">
                 <field name="field_order_ids" widget="many2many_tags"/>
+                <field name="offroad_conflict_id" optional="show"/>
             </xpath>
         </field>
     </record>

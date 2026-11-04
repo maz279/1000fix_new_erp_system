@@ -1,0 +1,70 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "lease.critical_date_due",
+  "description": "Published by cd_facility through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "lease.critical_date_due"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_facility"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "lease",
+        "site",
+        "event_type",
+        "due_on",
+        "days_left",
+        "responsible_role"
+      ],
+      "properties": {
+        "lease": {
+          "type": "string"
+        },
+        "site": {
+          "type": "string"
+        },
+        "event_type": {
+          "description": "Type not statically derivable from `kind` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:609)."
+        },
+        "due_on": {
+          "type": "string"
+        },
+        "days_left": {
+          "description": "Type not statically derivable from `(due_on - today).days` (addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py:609)."
+        },
+        "responsible_role": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_facility",
+  "x-publishers": [
+    "addons/domain/f_asset_facilities/cd_facility/models/fix_facility_ops.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}
