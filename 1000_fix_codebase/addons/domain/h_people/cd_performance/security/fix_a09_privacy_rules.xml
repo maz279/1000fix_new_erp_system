@@ -50,4 +50,22 @@
         <!-- no groups: a global rule (an earlier version of this record had them) -->
         <field name="groups" eval="[(5, 0, 0)]"/>
     </record>
+    <!-- Round 2 (BRU-PIC-11/12/17): disputes and clawbacks are the
+         employee's own pay data; a compensation proposal is seen by the
+         manager who raised it and the deciders, not by colleagues. -->
+    <record id="rule_incentive_dispute_own" model="ir.rule">
+        <field name="name">fix.incentive.dispute: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_incentive_dispute"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_incentive_clawback_own" model="ir.rule">
+        <field name="name">fix.incentive.clawback: own and direct reports unless HR or payroll</field>
+        <field name="model_id" ref="model_fix_incentive_clawback"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_performance() else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_compensation_proposal_own" model="ir.rule">
+        <field name="name">fix.compensation.proposal: the proposer and the deciders</field>
+        <field name="model_id" ref="model_fix_compensation_proposal"/>
+        <field name="domain_force">['|', ('proposed_by_id', '=', user.id), (1 if (user.fix_reads_all_performance() or user.has_group('cd_performance.group_compensation')) else 0, '=', 1)]</field>
+    </record>
 </odoo>

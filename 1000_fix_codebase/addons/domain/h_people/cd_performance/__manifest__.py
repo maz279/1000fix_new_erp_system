@@ -19,10 +19,16 @@ CD-M57-01 (P08-M04):
   payroll picks approved lines up (I4) — M57 never writes the payslip;
   review cycle with self-assessment, line-manager rating and routed
   calibration; agreed goals; guarded PIPs; recognition prizes approved
+- A09 round 2: incentive schemes with effective-dated versions approved by
+  the HR Director then the CFO (a run computes only under one, and pins it);
+  joiner/leaver/long-leave proration and minimum service; the dispute
+  window; clawbacks of reworked or credited orders; compensation proposals
+  (manager -> calibration -> Compensation Manager) applied as a new
+  contract version inside the band
 - emits scorecard.published / incentive.granted / incentive.approved /
   recognition.awarded (P08-M04-T09)
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Performance",
@@ -40,6 +46,7 @@ CD-M57-01 (P08-M04):
         "security/ir.model.access.csv",
         "security/fix_a09_privacy_rules.xml",
         "data/perf_ops_sequences.xml",
+        "data/fix_a09_m57_r2_data.xml",
         "views/fix_performance_views.xml",
     ],
     "installable": True,

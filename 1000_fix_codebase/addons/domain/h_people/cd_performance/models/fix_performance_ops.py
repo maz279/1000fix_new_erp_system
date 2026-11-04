@@ -358,6 +358,7 @@ class FixPerfReview(models.Model):
         except (TypeError, ValueError):
             raise UserError("A rating is a number from 1 to 5.") from None
         vals = {field: rating}
+        self.check_access("read")  # record rules: own and direct reports only
         for rec in self:
             rec._fix_check_review_write(vals)
             rec.sudo().write(vals)
@@ -404,28 +405,87 @@ class FixPerfReview(models.Model):
             )
         return True
 
+    def _fix_assert_reviewer(self, what):
+        """The line manager named as reviewer, on a review their record rules
+        let them read (own and direct reports), and nobody else."""
+        self.check_access("read")
+        for rec in self:
+            if self.env.su:
+                continue
+            if not rec.reviewer_id or _user_of(rec.reviewer_id) != self.env.user:
+                raise AccessError(
+                    "Only the reviewer of %s (their line manager) may %s it." % (rec.name, what)
+                )
+
     def action_manager_review(self):
-        """The line manager submits their rating; calibration is then routed
-        to a calibrator who is neither the manager nor the employee."""
+        """The line manager submits their rating and requests calibration."""
+        return self.action_request_calibration()
+
+    def action_request_calibration(self):
+        """The line manager routes their rating to a calibrator who is neither
+        the manager nor the employee (BRU-PIC-13).
+
+        A line manager holds no write access to review records (RAP X-02: no
+        A09 model is writable by base.group_user), so this method is the one
+        narrow way in: it checks the caller is the reviewer of a review they
+        may read, and only then lets the engine stamp the request on the
+        record. The request is raised in the manager's name, so the manager
+        is its requester and can never decide it."""
+        self._fix_assert_reviewer("request calibration of")
         for rec in self:
             if rec.state != "manager_review":
                 raise UserError("%s is not awaiting the manager's rating." % rec.name)
-            if not self.env.su and (
-                not rec.reviewer_id or _user_of(rec.reviewer_id) != self.env.user
-            ):
-                raise AccessError(
-                    "Only the reviewer of %s (their line manager) rates it." % rec.name
-                )
+            if rec.approval_state == "pending":
+                raise UserError("%s is already in calibration." % rec.name)
             if not rec.manager_rating:
                 raise UserError("Record the manager rating first")
             rec.sudo()._guarded().write(
                 {"manager_rated_by_id": self.env.user.id, "manager_rated_at": fields.Datetime.now()}
             )
-            # Raised as the superuser: a line manager holds no write access to
-            # review records (RAP X-02). The manager is still excluded from
-            # deciding it, as its preparer (manager_rated_by_id).
-            rec.sudo().action_request_approval()
-        return True
+        # env.uid stays the manager under sudo(): requested_by_id is the manager.
+        return self.sudo().action_request_approval()
+
+    def action_recall_calibration(self):
+        """The manager who requested calibration withdraws it (to change the
+        rating) while no calibrator has decided."""
+        self._fix_assert_reviewer("recall the calibration of")
+        for rec in self:
+            req = rec.sudo().approval_request_id
+            if rec.approval_state != "pending" or not req or req.state != "pending":
+                raise UserError("%s has no pending calibration to recall." % rec.name)
+            if not self.env.su and req.requested_by_id != self.env.user:
+                raise AccessError("Only the manager who requested the calibration recalls it.")
+        return self.sudo().action_recall_approval()
+
+    def action_propose_compensation(
+        self,
+        proposal=None,
+        proposed_basic=None,
+        justification=None,
+        proposal_type="merit",
+        effective_date=None,
+    ):
+        """BRU-PIC-17: from a closed review, the line manager proposes a merit
+        increase for the report. ``proposal`` is the workspace prompt's one
+        string: '<proposed monthly basic> <justification>'."""
+        self.ensure_one()
+        self._fix_assert_reviewer("propose compensation from")
+        if self.state != "closed":
+            raise UserError("A merit proposal follows a closed (calibrated) review.")
+        Proposal = self.env["fix.compensation.proposal"]
+        if proposal not in (None, False, ""):
+            proposed_basic, justification = Proposal._fix_parse_amount_note(proposal)
+            if proposed_basic is None:
+                raise UserError("Give the proposal as: <proposed monthly basic> <justification>.")
+        rec = Proposal._fix_propose(
+            self.employee_id,
+            proposed_basic,
+            justification,
+            proposal_type=proposal_type,
+            effective_date=effective_date,
+            review=self,
+        )
+        return {"proposal_id": rec.id}
 
     def action_calibrate(self):
         """The approval engine runs this from the calibrator's inbox task

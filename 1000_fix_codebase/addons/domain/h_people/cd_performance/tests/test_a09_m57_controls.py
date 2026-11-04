@@ -137,6 +137,20 @@ def w(odoo_env):
         }
     )
     (x.card1 | x.card2).action_publish()
+    # BRU-PIC-01/02: a run computes only under an approved scheme version.
+    # The superuser stands in for the HR Director and CFO here; the routed
+    # two-signature flow is proven in test_a09_m57_round2.py.
+    x.scheme = env["fix.incentive.scheme"].create(
+        {"name": "A09 M57 scheme %d" % next(_SEQ), "code": "A9S%d" % next(_SEQ)}
+    )
+    x.version = env["fix.incentive.scheme.version"].create(
+        {
+            "scheme_id": x.scheme.id,
+            "date_from": "2031-01-01",
+            "band_base": 20000.0,
+            "state": "approved",
+        }
+    )
     return x
 
 
@@ -156,7 +170,7 @@ def call():
 
 
 def _run(w, user=None, **kw):
-    vals = {"period": PERIOD, "band_base": 20000.0, **kw}
+    vals = {"period": PERIOD, "scheme_id": w.scheme.id, **kw}
     return w.env["fix.incentive.run"].with_user(user or w.officer).create(vals)
 
 
@@ -198,7 +212,8 @@ def test_hr_manager_alone_cannot_create_or_compute_a_run(w):
 
 
 def test_plain_employee_cannot_read_runs_or_band_base(w, call):
-    _run(w, band_base=77777.0)
+    w.version.sudo().band_base = 77777.0
+    _computed_run(w)
     assert not w.env(user=w.plain.id)["fix.incentive.run"].has_access("read")
     out = call(w.env(user=w.hrm.id), "model_report", module="M57", report="incentive_payout")
     assert all(r.get("band_base") != 77777.0 for r in out.get("rows", [])), out
@@ -437,7 +452,7 @@ def test_one_run_per_period_and_company(w):
     _computed_run(w)
     try:
         with w.env.cr.savepoint():
-            _run(w, band_base=40000.0)
+            _run(w)
             w.env.flush_all()
     except Exception as exc:  # the UNIQUE constraint (IntegrityError / ValidationError)
         assert "period" in str(exc).lower() or "unique" in str(exc).lower()

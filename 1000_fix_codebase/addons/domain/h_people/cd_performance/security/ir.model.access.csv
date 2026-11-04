@@ -22,3 +22,16 @@ access_fix_succession_role,fix.succession.plan.role,model_fix_succession_plan,hr
 access_fix_incentive_run_hr,fix.incentive.run.hr,model_fix_incentive_run,hr.group_hr_user,1,0,0,0
 access_fix_compensation_band_hr,fix.compensation.band.hr,model_fix_compensation_band,hr.group_hr_user,1,0,0,0
 access_fix_succession_hr,fix.succession.plan.hr,model_fix_succession_plan,hr.group_hr_user,1,0,0,0
+access_fix_incentive_scheme_user,fix.incentive.scheme.user,model_fix_incentive_scheme,base.group_user,1,0,0,0
+access_fix_incentive_scheme_officer,fix.incentive.scheme.officer,model_fix_incentive_scheme,cd_performance.group_performance_officer,1,1,1,0
+access_fix_incentive_scheme_version_officer,fix.incentive.scheme.version.officer,model_fix_incentive_scheme_version,cd_performance.group_performance_officer,1,1,1,1
+access_fix_incentive_scheme_version_approver,fix.incentive.scheme.version.approver,model_fix_incentive_scheme_version,cd_performance.group_incentive_approver,1,0,0,0
+access_fix_incentive_scheme_version_hrd,fix.incentive.scheme.version.hrd,model_fix_incentive_scheme_version,cd_performance.group_scheme_hr_director,1,1,0,0
+access_fix_incentive_scheme_version_cfo,fix.incentive.scheme.version.cfo,model_fix_incentive_scheme_version,cd_performance.group_scheme_cfo,1,1,0,0
+access_fix_incentive_scheme_version_hr,fix.incentive.scheme.version.hr,model_fix_incentive_scheme_version,hr.group_hr_user,1,0,0,0
+access_fix_incentive_dispute_user,fix.incentive.dispute.user,model_fix_incentive_dispute,base.group_user,1,0,0,0
+access_fix_incentive_dispute_officer,fix.incentive.dispute.officer,model_fix_incentive_dispute,cd_performance.group_performance_officer,1,1,0,0
+access_fix_incentive_clawback_user,fix.incentive.clawback.user,model_fix_incentive_clawback,base.group_user,1,0,0,0
+access_fix_compensation_proposal_user,fix.compensation.proposal.user,model_fix_compensation_proposal,base.group_user,1,0,0,0
+access_fix_compensation_proposal_calibrator,fix.compensation.proposal.calibrator,model_fix_compensation_proposal,cd_performance.group_performance_calibrator,1,1,0,0
+access_fix_compensation_proposal_comp,fix.compensation.proposal.compensation,model_fix_compensation_proposal,cd_performance.group_compensation,1,1,0,0

@@ -29,6 +29,16 @@ def _scorecard(env, name, period, ftf, sla, csat, rework):
     )
 
 
+def _approved_scheme(env, date_from="2026-01-01"):
+    """A scheme with an approved version (the superuser stands in for the HR
+    Director and the CFO; test_a09_m57_round2.py proves the routed flow)."""
+    scheme = env["fix.incentive.scheme"].create({"name": "ORM scheme", "code": "ORM"})
+    env["fix.incentive.scheme.version"].create(
+        {"scheme_id": scheme.id, "date_from": date_from, "band_base": 20000.0, "state": "approved"}
+    )
+    return scheme
+
+
 def test_scorecard_composite_and_publication(odoo_env):
     # Normalized 3-factor: (0.40 x 0.9 + 0.25 x 0.8 + 0.20 x 0.7) / 0.85 - 0.15 x 0.1
     # = (0.36 + 0.20 + 0.14) / 0.85 - 0.015 = 0.70 / 0.85 - 0.015 = 0.8085
@@ -53,7 +63,9 @@ def test_incentive_run_computes_banded_lines_for_payroll(odoo_env):
     _scorecard(odoo_env, "Other Month", "2026-08", 1, 1, 1, 0).action_publish()
     unpublished = _scorecard(odoo_env, "Tech Draft", "2026-09", 1, 1, 1, 0)
     (top | mid | low).action_publish()
-    run = odoo_env["fix.incentive.run"].create({"period": "2026-09", "band_base": 20000.0})
+    run = odoo_env["fix.incentive.run"].create(
+        {"period": "2026-09", "scheme_id": _approved_scheme(odoo_env).id}
+    )
     assert not hasattr(run, "action_apply")
     run.action_compute()
     assert run.state == "computed"
@@ -91,7 +103,9 @@ def test_incentive_run_needs_scorecards(odoo_env):
     odoo_env["ir.config_parameter"].sudo().set_param(
         "cd_performance.incentive_requires_attendance_lock", "0"
     )
-    run = odoo_env["fix.incentive.run"].create({"period": "1999-01", "band_base": 20000.0})
+    run = odoo_env["fix.incentive.run"].create(
+        {"period": "1999-01", "scheme_id": _approved_scheme(odoo_env, "1999-01-01").id}
+    )
     with (
         pytest.raises(UserError, match="No published scorecards for 1999-01"),
         odoo_env.cr.savepoint(),

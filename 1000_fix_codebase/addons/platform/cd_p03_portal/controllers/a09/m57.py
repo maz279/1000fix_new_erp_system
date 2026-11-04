@@ -18,13 +18,18 @@ SURFACES = {
         "order": "period desc, employee_id",
         "limit": 400,
         # Calibration is decided from the approval inbox (M63), never here.
+        # The line manager requests and recalls it and, from a closed
+        # review, proposes compensation (narrow methods: no write ACL).
         "actions": {
             "action_start",
             "action_record_self_rating",
             "action_submit_self_assessment",
             "action_record_manager_rating",
             "action_manager_review",
+            "action_request_calibration",
+            "action_recall_calibration",
             "action_close",
+            "action_propose_compensation",
         },
     },
     "fix.performance.pip": {
@@ -54,7 +59,32 @@ SURFACES = {
             "action_reset_draft",
         },
     },
-    "fix.incentive.line": {"order": "run_id desc, id desc", "limit": 500, "actions": set()},
+    # BRU-PIC-12: the employee disputes their own computed line.
+    "fix.incentive.line": {
+        "order": "run_id desc, id desc",
+        "limit": 500,
+        "actions": {"action_raise_dispute"},
+    },
+    # BRU-PIC-01/02: a version is approved by the HR Director then the CFO,
+    # both from the approval inbox (M63).
+    "fix.incentive.scheme": {"order": "code", "limit": 100, "actions": set()},
+    "fix.incentive.scheme.version": {
+        "order": "scheme_id, date_from desc, version_no desc",
+        "limit": 200,
+        "actions": {"action_request_approval", "action_recall_approval", "action_reset_draft"},
+    },
+    "fix.incentive.dispute": {
+        "order": "raised_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_uphold", "action_reject"},
+    },
+    "fix.incentive.clawback": {"order": "id desc", "limit": 300, "actions": set()},
+    # BRU-PIC-17: the Compensation Manager decides from the approval inbox.
+    "fix.compensation.proposal": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_calibration_review", "action_calibration_return", "action_withdraw"},
+    },
     "fix.compensation.band": {"order": "grade", "limit": 100, "actions": set()},
     "fix.succession.plan": {"order": "position_name", "limit": 100, "actions": set()},
 }

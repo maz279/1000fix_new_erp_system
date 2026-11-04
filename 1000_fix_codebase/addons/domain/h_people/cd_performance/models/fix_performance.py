@@ -47,6 +47,11 @@ PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 # BRU-PIC-07: no calculation before the M55 attendance lock. A company may
 # switch it off with this parameter ("0") while M55 locks are not in use.
 ATTENDANCE_LOCK_PARAM = "cd_performance.incentive_requires_attendance_lock"
+# BRU-PIC-12: days an employee has to dispute a computed line (0 = no window).
+DISPUTE_DAYS_PARAM = "cd_performance.incentive_dispute_days"
+# BRU-PIC-11: a rework or credit within this many days of the order's
+# completion claws its share of the paid incentive back (0 = no clawback).
+CLAWBACK_DAYS_PARAM = "cd_performance.incentive_clawback_days"
 
 
 def rework_clawback_penalty(rework_30d_rate: float) -> float:
@@ -119,6 +124,16 @@ def incentive_amount(score: float, band_base: float) -> float:
     else:
         rate = 0.0
     return round(band_base * rate, 2)
+
+
+def int_param(env, key, default=0):
+    """A non-negative integer setting; a value that is not a number reads as
+    the default."""
+    raw = env["ir.config_parameter"].sudo().get_param(key, str(default))
+    try:
+        return max(int(str(raw).strip() or 0), 0)
+    except (TypeError, ValueError):
+        return default
 
 
 def period_bounds(period):
@@ -308,31 +323,41 @@ class FixPerformanceScorecard(models.Model):
             if not self.env.su and rec.employee_id.user_id == self.env.user:
                 raise UserError("You cannot %s your own scorecard." % what)
 
+    def _fix_counted_orders(self):
+        """The service orders this scorecard counts: the employee's orders
+        completed (delivered or closed) in the period."""
+        self.ensure_one()
+        start, end = period_bounds(self.period)
+        lo = fields.Datetime.to_datetime(start)
+        hi = fields.Datetime.to_datetime(end + timedelta(days=1))
+        return (
+            self.env["fix.service.order"]
+            .sudo()
+            .search(
+                [
+                    ("technician_id", "=", self.employee_id.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("state", "in", ("delivered", "closed")),
+                    "|",
+                    "&",
+                    ("delivered_at", ">=", lo),
+                    ("delivered_at", "<", hi),
+                    "&",
+                    ("delivered_at", "=", False),
+                    "&",
+                    ("closed_at", ">=", lo),
+                    ("closed_at", "<", hi),
+                ]
+            )
+        )
+
     def _fix_service_order_facts(self):
         """FTF, SLA, CSAT and rework for this employee and month, from the
         service orders they completed (M01) and, when M34 is installed, the
         customers' survey ratings. Returns (values, orders counted, basis)."""
         self.ensure_one()
-        start, end = period_bounds(self.period)
-        lo = fields.Datetime.to_datetime(start)
-        hi = fields.Datetime.to_datetime(end + timedelta(days=1))
         SO = self.env["fix.service.order"].sudo()
-        orders = SO.search(
-            [
-                ("technician_id", "=", self.employee_id.id),
-                ("company_id", "=", self.company_id.id),
-                ("state", "in", ("delivered", "closed")),
-                "|",
-                "&",
-                ("delivered_at", ">=", lo),
-                ("delivered_at", "<", hi),
-                "&",
-                ("delivered_at", "=", False),
-                "&",
-                ("closed_at", ">=", lo),
-                ("closed_at", "<", hi),
-            ]
-        )
+        orders = self._fix_counted_orders()
         n = len(orders)
         basis = ["%d completed service order(s) in %s" % (n, self.period)]
         if not n:
@@ -453,13 +478,26 @@ class FixIncentiveRun(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     period = fields.Char(required=True, help="YYYY-MM")
+    scheme_id = fields.Many2one(
+        "fix.incentive.scheme",
+        string="Incentive Scheme",
+        ondelete="restrict",
+        help="Empty: the company's only active scheme.",
+    )
+    # BRU-PIC-01/02: the approved version the run computed under, pinned.
+    scheme_version_id = fields.Many2one(
+        "fix.incentive.scheme.version",
+        string="Scheme Version Applied",
+        readonly=True,
+        ondelete="restrict",
+    )
     band_base = fields.Monetary(
         string="Band Base",
         currency_field="currency_id",
-        required=True,
+        readonly=True,
         groups="%s,%s" % (OFFICER, APPROVER),
-        help="T5-protected compensation input (05-04 4-5): the incentive officer "
-        "who prepares the run and the approver who decides it read it.",
+        help="T5-protected compensation input (05-04 4-5): copied from the approved scheme "
+        "version when the run is computed. Read by the incentive officer and the approver.",
     )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -479,6 +517,13 @@ class FixIncentiveRun(models.Model):
     approved_total = fields.Monetary(
         string="Approved Total", currency_field="currency_id", readonly=True
     )
+    dispute_deadline = fields.Date(
+        string="Disputes Close On",
+        readonly=True,
+        help="BRU-PIC-12: employees dispute their line until this day; approval is "
+        "requested after it. Empty: no dispute window is ruled.",
+    )
+    dispute_ids = fields.One2many("fix.incentive.dispute", "run_id", string="Disputes")
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
     _one_run_per_period = models.Constraint(
@@ -486,17 +531,20 @@ class FixIncentiveRun(models.Model):
     )
 
     _FROZEN_AFTER_DRAFT = frozenset(
-        {"period", "band_base", "company_id", "currency_id", "operating_unit_id"}
+        {"period", "scheme_id", "company_id", "currency_id", "operating_unit_id"}
     )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "state",
+            "scheme_version_id",
+            "band_base",
             "computed_by_id",
             "computed_at",
             "approved_by_id",
             "approved_at",
             "approved_total",
+            "dispute_deadline",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -536,7 +584,7 @@ class FixIncentiveRun(models.Model):
             )
             if frozen:
                 raise UserError(
-                    "A computed or approved incentive run keeps its period and band base "
+                    "A computed or approved incentive run keeps its period and scheme "
                     "(%s). Reset a computed run to draft to change them."
                     % ", ".join(sorted(frozen))
                 )
@@ -546,6 +594,253 @@ class FixIncentiveRun(models.Model):
         if not self.env.su and any(rec.state != "draft" for rec in self):
             raise UserError("Only a draft incentive run can be deleted.")
         return super().unlink()
+
+    # ---- the scheme (BRU-PIC-01/02) ----------------------------------------------
+    def _fix_scheme_version(self):
+        """The scheme and its APPROVED version in force at the period end."""
+        self.ensure_one()
+        _start, end = period_bounds(self.period)
+        scheme = self.scheme_id or self.env["fix.incentive.scheme"]._fix_scheme_for(self.company_id)
+        if not scheme:
+            raise UserError(
+                "Name the incentive scheme this run computes under (the company does not "
+                "have exactly one active scheme)."
+            )
+        version = scheme._fix_version_for(end)
+        if not version:
+            raise UserError(
+                "BRU-PIC-01/02: %s has no version approved by the HR Director and the CFO "
+                "in force on %s. A run computes only under an approved scheme version."
+                % (scheme.display_name, end)
+            )
+        return scheme, version
+
+    # ---- proration and eligibility (FR-PIC-028/032) ----------------------------
+    def _fix_proration(self, employee, version, start, end):
+        """Days the employee earns in the period: joiners from their joining
+        date, leavers to their left date, less approved long leave, and the
+        scheme's minimum service. Calendar days."""
+        emp = employee.sudo()
+        period_days = (end - start).days + 1
+        join = emp.joining_date if "joining_date" in emp._fields else False
+        left = emp.left_date if "left_date" in emp._fields else False
+
+        def out(eligible, days, note):
+            return {
+                "eligible": eligible,
+                "eligible_days": days,
+                "period_days": period_days,
+                "proration_factor": round(days / period_days, 4) if eligible else 0.0,
+                "eligibility_note": note,
+            }
+
+        if version.min_service_days:
+            if not join:
+                return out(
+                    False,
+                    0,
+                    "not eligible: no joining date recorded, and the scheme needs %d days "
+                    "of service" % version.min_service_days,
+                )
+            service = (end - join).days + 1
+            if service < version.min_service_days:
+                return out(
+                    False,
+                    0,
+                    "not eligible: %d days of service on %s, the scheme needs %d"
+                    % (max(service, 0), end, version.min_service_days),
+                )
+        lo = max(start, join) if join else start
+        hi = min(end, left) if left else end
+        if hi < lo:
+            return out(False, 0, "not eligible: not employed in %s" % self.period)
+        days = {lo + timedelta(days=i) for i in range((hi - lo).days + 1)}
+        notes = []
+        if join and join > start:
+            notes.append("joined %s" % join)
+        if left and left < end:
+            notes.append("left %s" % left)
+        if version.long_leave_days and "fix.leave.request" in self.env:
+            leaves = (
+                self.env["fix.leave.request"]
+                .sudo()
+                .search(
+                    [
+                        ("employee_id", "=", emp.id),
+                        ("state", "=", "approved"),
+                        ("date_from", "<=", hi),
+                        ("date_to", ">=", lo),
+                    ]
+                )
+            )
+            for leave in leaves:
+                length = (leave.date_to - leave.date_from).days + 1
+                if length < version.long_leave_days:
+                    continue
+                taken = {leave.date_from + timedelta(days=i) for i in range(length)} & days
+                if taken:
+                    days -= taken
+                    notes.append(
+                        "%d day(s) of long leave (%s to %s)"
+                        % (len(taken), leave.date_from, leave.date_to)
+                    )
+        note = "; ".join(notes) or "full period"
+        return out(True, len(days), "%d of %d days: %s" % (len(days), period_days, note))
+
+    # ---- clawback (BRU-PIC-11) ---------------------------------------------------
+    def _fix_clawback_trigger(self, order, days, since):
+        """(kind, reference, when) of the first rework or credit of `order`
+        raised within `days` of its completion and after `since` (the
+        scorecard computation: a rework already in the score is not clawed
+        back twice). None when there is none."""
+        done = order.delivered_at or order.closed_at
+        if not done:
+            return None
+        limit = done + timedelta(days=days)
+        since = since or done
+        rework = (
+            self.env["fix.service.order"]
+            .sudo()
+            .search(
+                [
+                    ("rework_of_id", "=", order.id),
+                    ("create_date", "<=", limit),
+                    ("create_date", ">", since),
+                ],
+                order="create_date asc",
+                limit=1,
+            )
+        )
+        if rework:
+            return "rework", rework.display_name, rework.create_date
+        if "fix.credit.note" in self.env and "fix.ar.invoice" in self.env:
+            invoices = (
+                self.env["fix.ar.invoice"]
+                .sudo()
+                .search([("source_model", "=", "fix.service.order"), ("source_id", "=", order.id)])
+            )
+            if invoices:
+                note = (
+                    self.env["fix.credit.note"]
+                    .sudo()
+                    .search(
+                        [
+                            ("invoice_id", "in", invoices.ids),
+                            ("state", "in", ("approved", "issued")),
+                            ("create_date", "<=", limit),
+                            ("create_date", ">", since),
+                        ],
+                        order="create_date asc",
+                        limit=1,
+                    )
+                )
+                if note:
+                    return "credit", note.display_name, note.create_date
+        return None
+
+    def _fix_raise_clawbacks(self):
+        """Clawbacks for orders paid in earlier APPROVED runs that were
+        reworked or credited within the window. Each order of each paid line
+        is clawed back once."""
+        self.ensure_one()
+        days = int_param(self.env, CLAWBACK_DAYS_PARAM)
+        Clawback = self.env["fix.incentive.clawback"].sudo()._guarded()
+        if not days:
+            return Clawback.browse()
+        start, _end = period_bounds(self.period)
+        horizon = start - timedelta(days=days + 62)
+        paid = (
+            self.env["fix.incentive.line"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("run_id", "!=", self.id),
+                    ("run_id.state", "=", "approved"),
+                    ("run_id.period", "<", self.period),
+                    ("line_type", "=", "incentive"),
+                    ("amount", ">", 0),
+                ]
+            )
+            .filtered(lambda line: period_bounds(line.run_id.period)[1] >= horizon)
+        )
+        created = Clawback.browse()
+        for line in paid:
+            card = line.scorecard_id.sudo()
+            orders = card._fix_counted_orders()
+            share = round(line.amount / max(card.facts_orders or len(orders), 1), 2)
+            since = card.computed_at or card.published_at
+            done = set(
+                Clawback.search([("source_line_id", "=", line.id)]).mapped("service_order_id").ids
+            )
+            for order in orders:
+                if order.id in done:
+                    continue
+                trigger = self._fix_clawback_trigger(order, days, since)
+                if not trigger:
+                    continue
+                kind, ref, when = trigger
+                created |= Clawback.create(
+                    {
+                        "company_id": self.company_id.id,
+                        "employee_id": line.employee_id.id,
+                        "source_line_id": line.id,
+                        "service_order_id": order.id,
+                        "trigger": kind,
+                        "trigger_ref": ref,
+                        "trigger_at": when,
+                        "amount": share,
+                        "currency_id": line.currency_id.id,
+                    }
+                )
+        return created
+
+    def _fix_recover_clawbacks(self, lines):
+        """Recover open clawbacks from this run's incentive lines, never more
+        than the employee earns in the run: an incentive is not turned into a
+        wage deduction. What is left stays open for the next run."""
+        self.ensure_one()
+        Clawback = self.env["fix.incentive.clawback"].sudo()
+        Line = self.env["fix.incentive.line"]._guarded()
+        earned = {}
+        card_of = {}
+        for line in lines.filtered(lambda r: r.line_type == "incentive" and r.amount > 0):
+            earned[line.employee_id.id] = earned.get(line.employee_id.id, 0.0) + line.amount
+            card_of[line.employee_id.id] = line.scorecard_id.id
+        if not earned:
+            return Line.browse()
+        recovered = Line.browse()
+        for cb in Clawback.search(
+            [
+                ("company_id", "=", self.company_id.id),
+                ("state", "=", "open"),
+                ("employee_id", "in", list(earned)),
+            ],
+            order="id",
+        ):
+            avail = round(earned[cb.employee_id.id], 2)
+            take = round(min(cb.remaining_amount, avail), 2)
+            if take <= 0:
+                continue
+            earned[cb.employee_id.id] = avail - take
+            recovered |= Line.create(
+                {
+                    "run_id": self.id,
+                    "company_id": self.company_id.id,
+                    "scorecard_id": card_of[cb.employee_id.id],
+                    "employee_id": cb.employee_id.id,
+                    "line_type": "clawback",
+                    "clawback_id": cb.id,
+                    "amount": -take,
+                    "gross_amount": -take,
+                    "proration_factor": 1.0,
+                    "eligible": True,
+                    "eligibility_note": "clawback (%s %s on %s)"
+                    % (cb.trigger, cb.trigger_ref, cb.service_order_id.display_name),
+                    "currency_id": self.currency_id.id,
+                }
+            )
+        return recovered
 
     # ---- transitions ----------------------------------------------------------
     def _fix_attendance_lock_required(self):
@@ -578,15 +873,17 @@ class FixIncentiveRun(models.Model):
             )
 
     def action_compute(self):
-        """One line per PUBLISHED scorecard of the period; the banded amount."""
+        """One line per PUBLISHED scorecard of the period, banded by the
+        approved scheme version in force, prorated by days; then clawbacks."""
         require_group(self.env, OFFICER, "Computing an incentive run")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Compute runs from draft only")
-            period_bounds(rec.period)
-            base = rec.sudo().band_base or 0.0
+            start, end = period_bounds(rec.period)
+            scheme, version = rec._fix_scheme_version()
+            base = version.sudo().band_base or 0.0
             if base <= 0:
-                raise UserError("Set a positive band base before computing.")
+                raise UserError("Scheme version %s has no band base." % version.display_name)
             rec._fix_assert_attendance_locked()
             scorecards = self.env["fix.performance.scorecard"].search(
                 [
@@ -597,25 +894,37 @@ class FixIncentiveRun(models.Model):
             )
             if not scorecards:
                 raise UserError("No published scorecards for %s" % rec.period)
-            Line = self.env["fix.incentive.line"]._guarded()
-            Line.create(
-                [
+            vals_list = []
+            for sc in scorecards:
+                gross = version._fix_amount_for(sc.score)
+                pro = rec._fix_proration(sc.employee_id, version, start, end)
+                vals_list.append(
                     {
                         "run_id": rec.id,
                         "company_id": rec.company_id.id,
                         "scorecard_id": sc.id,
                         "employee_id": sc.employee_id.id,
-                        "amount": incentive_amount(sc.score, base),
+                        "line_type": "incentive",
+                        "gross_amount": gross,
+                        "amount": round(gross * pro["proration_factor"], 2),
                         "currency_id": rec.currency_id.id,
+                        **pro,
                     }
-                    for sc in scorecards
-                ]
-            )
+                )
+            lines = self.env["fix.incentive.line"]._guarded().create(vals_list)
+            rec._fix_raise_clawbacks()
+            rec._fix_recover_clawbacks(lines)
+            window = int_param(self.env, DISPUTE_DAYS_PARAM)
+            today = fields.Date.context_today(self)
             rec._guarded().write(
                 {
                     "state": "computed",
+                    "scheme_id": scheme.id,
+                    "scheme_version_id": version.id,
+                    "band_base": base,
                     "computed_by_id": self.env.user.id,
                     "computed_at": fields.Datetime.now(),
+                    "dispute_deadline": today + timedelta(days=window) if window else False,
                 }
             )
         return True
@@ -632,26 +941,57 @@ class FixIncentiveRun(models.Model):
             rec._guarded().write(
                 {
                     "state": "draft",
+                    "scheme_version_id": False,
+                    "band_base": 0.0,
                     "computed_by_id": False,
                     "computed_at": False,
+                    "dispute_deadline": False,
                     "approval_state": "none",
                 }
             )
         return True
 
+    def _fix_assert_disputes_settled(self, requesting=False):
+        """BRU-PIC-12: an open dispute (or an upheld one the run was not
+        recomputed for) blocks approval; the request waits for the window."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if requesting and rec.dispute_deadline and today <= rec.dispute_deadline:
+                raise UserError(
+                    "BRU-PIC-12: employees may dispute their %s line until %s; request the "
+                    "approval after that." % (rec.period, rec.dispute_deadline)
+                )
+            lines = rec.sudo().line_ids
+            blocking = rec.sudo().dispute_ids.filtered(
+                lambda d, lines=lines: (
+                    d.state == "open" or (d.state == "upheld" and d.line_id in lines)
+                )
+            )
+            if blocking:
+                raise UserError(
+                    "%s has %d unsettled dispute(s) (%s): answer them, and recompute the run "
+                    "for an upheld one, before it is approved."
+                    % (rec.period, len(blocking), ", ".join(blocking.mapped("employee_id.name")))
+                )
+
     def action_request_approval(self, justification=None):
         for rec in self:
             if rec.state != "computed" or not rec.line_ids:
                 raise UserError("Compute the run before requesting its approval.")
+        self._fix_assert_disputes_settled(requesting=True)
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
         """Run by the approval engine from the approver's inbox task."""
         self._approval_assert_routed()
         self._people_assert_not_conflicted()
+        self._fix_assert_disputes_settled()
         for rec in self:
             if rec.state != "computed":
                 raise UserError("Only a computed incentive run can be approved.")
+            version = rec.sudo().scheme_version_id
+            if version and version.state != "approved":
+                raise UserError("Scheme version %s is no longer approved." % version.display_name)
             rec._guarded().write(
                 {
                     "state": "approved",
@@ -701,6 +1041,26 @@ class FixIncentiveLine(models.Model):
     run_id = fields.Many2one("fix.incentive.run", required=True, ondelete="cascade")
     scorecard_id = fields.Many2one("fix.performance.scorecard", required=True)
     employee_id = fields.Many2one("hr.employee", required=True)
+    line_type = fields.Selection(
+        [("incentive", "Incentive"), ("clawback", "Clawback Recovery")],
+        default="incentive",
+        required=True,
+        readonly=True,
+    )
+    gross_amount = fields.Monetary(
+        string="Banded Amount",
+        currency_field="currency_id",
+        readonly=True,
+        help="The scheme band's amount for the score, before proration.",
+    )
+    proration_factor = fields.Float(string="Proration", digits=(3, 4), readonly=True, default=1.0)
+    eligible_days = fields.Integer(string="Paid Days", readonly=True)
+    period_days = fields.Integer(string="Days in Period", readonly=True)
+    eligible = fields.Boolean(string="Eligible", readonly=True, default=True)
+    eligibility_note = fields.Char(string="Eligibility / Proration Basis", readonly=True)
+    clawback_id = fields.Many2one(
+        "fix.incentive.clawback", string="Clawback Recovered", readonly=True, ondelete="restrict"
+    )
     amount = fields.Monetary(string="Amount", currency_field="currency_id", readonly=True)
     payslip_ref_id = fields.Integer(string="Applied Payslip ID", readonly=True)
     applied_to_payslip = fields.Boolean(string="Applied to Payslip", default=False, readonly=True)
@@ -708,6 +1068,7 @@ class FixIncentiveLine(models.Model):
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
     run_state = fields.Selection(related="run_id.state", string="Run State")
+    dispute_ids = fields.One2many("fix.incentive.dispute", "line_id", string="Disputes")
     operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
 
     def _fix_guarded_fields(self) -> set:
@@ -716,6 +1077,14 @@ class FixIncentiveLine(models.Model):
             "run_id",
             "scorecard_id",
             "employee_id",
+            "line_type",
+            "gross_amount",
+            "proration_factor",
+            "eligible_days",
+            "period_days",
+            "eligible",
+            "eligibility_note",
+            "clawback_id",
             "amount",
             "currency_id",
             "company_id",
@@ -735,6 +1104,59 @@ class FixIncentiveLine(models.Model):
         if not self._fix_guard_open():
             raise UserError("Incentive lines go only when their draft run is reset.")
         return super().unlink()
+
+    def action_raise_dispute(self, reason=None, dispute=None):
+        """BRU-PIC-12, FR-PIC-014: the employee disputes their own computed
+        line, with a reason, inside the window. A plain employee holds no
+        write access to M57 records (RAP X-02): this method checks who asks
+        and creates the dispute itself."""
+        reason = str((dispute if dispute not in (None, False, "") else reason) or "").strip()
+        if not reason:
+            raise UserError("Say what is wrong with the figure, and on what evidence.")
+        self.check_access("read")  # record rules: the caller's own lines only
+        today = fields.Date.context_today(self)
+        Dispute = self.env["fix.incentive.dispute"].sudo()._guarded()
+        created = Dispute.browse()
+        for line in self.sudo():
+            if not self.env.su and line.employee_id.user_id != self.env.user:
+                raise AccessError("Only %s disputes their incentive line." % line.employee_id.name)
+            run = line.run_id
+            if run.state != "computed":
+                raise UserError(
+                    "The %s run is %s: a line is disputed while the run is computed and "
+                    "not yet approved." % (run.period, run.state)
+                )
+            if not run.dispute_deadline:
+                raise UserError("No dispute window is ruled for incentive runs.")
+            if today > run.dispute_deadline:
+                raise UserError(
+                    "The dispute window for %s closed on %s." % (run.period, run.dispute_deadline)
+                )
+            if line.dispute_ids.filtered(lambda d: d.state == "open"):
+                raise UserError("This line already has an open dispute.")
+            if run.approval_state == "pending":
+                run._approval_void("an employee disputed their line")
+            created |= Dispute.create(
+                {
+                    "company_id": line.company_id.id,
+                    "run_id": run.id,
+                    "line_id": line.id,
+                    "employee_id": line.employee_id.id,
+                    "reason": reason,
+                    "raised_by_id": self.env.user.id,
+                    "raised_at": fields.Datetime.now(),
+                }
+            )
+            officer = run.computed_by_id
+            if officer and officer.active:
+                run.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=today,
+                    summary="Incentive dispute: %s" % line.employee_id.name,
+                    note=reason,
+                    user_id=officer.id,
+                )
+        return {"dispute_ids": created.ids}
 
     def _fix_attach_payslip(self, slip):
         """I4: payroll (M56) records that these approved lines are paid on `slip`.

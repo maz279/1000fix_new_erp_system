@@ -42,11 +42,29 @@
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 
+    <!-- BRU-PIC-01: a scheme version is approved by the HR Director AND the
+         CFO, in that order, as two routed requests decided by two people. -->
+    <record id="group_scheme_hr_director" model="res.groups">
+        <field name="name">Incentive Scheme Approver: HR Director</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">First signature on an incentive scheme version (rates, cut-offs, eligibility, band base), from the approval inbox. Never on a version they requested.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_scheme_cfo" model="res.groups">
+        <field name="name">Incentive Scheme Approver: CFO</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Second signature on an incentive scheme version, after the HR Director's. Never the HR Director who signed it, nor its requester.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
     <record id="group_compensation" model="res.groups">
         <field name="name">Compensation Manager</field>
         <field name="privilege_id" ref="privilege_performance"/>
         <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
-        <field name="comment">Maintains the compensation bands (T5 ranges). Contracts are checked against them (I7).</field>
+        <field name="comment">Maintains the compensation bands (T5 ranges) and approves calibrated compensation proposals from the approval inbox (BRU-PIC-17). Contracts are checked against the bands (I7).</field>
         <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
     </record>
 </odoo>
