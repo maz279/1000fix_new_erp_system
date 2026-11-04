@@ -41,3 +41,15 @@ access_fix_import_landed_approver,fix.import.landed.approver,model_fix_import_la
 access_fix_import_landed_line,fix.import.landed.line,model_fix_import_landed_line,base.group_user,1,0,0,0
 access_fix_bank_facility_import_officer,fix.bank.facility.import.officer,cd_cash_position.model_fix_bank_facility,group_fix_import_officer,1,0,0,0
 access_fix_bank_facility_import_approver,fix.bank.facility.import.approver,cd_cash_position.model_fix_bank_facility,group_fix_import_approver,1,0,0,0
+access_fix_import_restriction,fix.import.restriction,model_fix_import_restriction,base.group_user,1,0,0,0
+access_fix_import_restriction_officer,fix.import.restriction.officer,model_fix_import_restriction,group_fix_import_officer,1,1,1,0
+access_fix_import_restriction_approver,fix.import.restriction.approver,model_fix_import_restriction,group_fix_import_approver,1,1,0,0
+access_fix_import_permit,fix.import.permit,model_fix_import_permit,base.group_user,1,0,0,0
+access_fix_import_permit_officer,fix.import.permit.officer,model_fix_import_permit,group_fix_import_officer,1,1,1,0
+access_fix_import_permit_approver,fix.import.permit.approver,model_fix_import_permit,group_fix_import_approver,1,1,0,0
+access_fix_import_cnf_agent,fix.import.cnf.agent,model_fix_import_cnf_agent,base.group_user,1,0,0,0
+access_fix_import_cnf_agent_officer,fix.import.cnf.agent.officer,model_fix_import_cnf_agent,group_fix_import_officer,1,1,1,0
+access_fix_import_cnf_agent_approver,fix.import.cnf.agent.approver,model_fix_import_cnf_agent,group_fix_import_approver,1,1,0,0
+access_fix_import_insurance,fix.import.insurance,model_fix_import_insurance,base.group_user,1,0,0,0
+access_fix_import_insurance_officer,fix.import.insurance.officer,model_fix_import_insurance,group_fix_import_officer,1,1,1,0
+access_fix_import_insurance_approver,fix.import.insurance.approver,model_fix_import_insurance,group_fix_import_approver,1,1,0,0

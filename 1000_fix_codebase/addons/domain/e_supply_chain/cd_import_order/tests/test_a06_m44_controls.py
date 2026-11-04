@@ -249,7 +249,48 @@ def c(odoo_env):
         {"name": "M44T Shenzhen Parts %s" % tag, "is_company": True}
     )
     x.order = _order(x)
+    # BRU-ITC-12: a licensed C&F agent, active in M42, approved
+    x.agent = _agent(x)
+    x.agent.action_approve()
+    # BRU-ITC-13: FOB puts the transit risk on 1000FiX: cover of the CIF value
+    x.insurer = env["res.partner"].create({"name": "M44T Insurer %s" % tag, "is_company": True})
+    x.cover = _cover(x)
+    x.cover.action_verify()
     return x
+
+
+def _agent(c, **kw):
+    supplier = c.env["fix.supplier"].create(
+        {
+            "name": "M44T C&F Agent %s %s" % (c.tag, kw.get("suffix", "1")),
+            "partner_id": c.env["res.partner"].create({"name": "M44T C&F %s" % c.tag}).id,
+            "status": kw.pop("status", "active"),
+        }
+    )
+    vals = {
+        "name": "M44T Clearing %s" % c.tag,
+        "supplier_id": supplier.id,
+        "licence_no": "CNF-%s-%s" % (c.tag, kw.pop("suffix", "1")),
+        "licence_expiry": c.today + timedelta(days=200),
+    }
+    vals.update(kw)
+    return c.env["fix.import.cnf.agent"].create(vals)
+
+
+def _cover(c, order=None, user=None, **kw):
+    vals = {
+        "order_id": (order or c.order).id,
+        "insurer_id": c.insurer.id,
+        "policy_no": "MC-%s" % c.tag,
+        "currency_id": c.usd.id,
+        "sum_insured": 10600.0,
+        "premium": 100.0,
+        "cover_from": c.today - timedelta(days=1),
+        "cover_to": c.today + timedelta(days=120),
+    }
+    vals.update(kw)
+    Insurance = c.env["fix.import.insurance"]
+    return (Insurance.with_user(user) if user else Insurance).create(vals)
 
 
 def _order(c, user=None, **kw):
@@ -384,6 +425,7 @@ def arrival(c, user=None, **kw):
         "eta": c.today,
         "etd": c.today - timedelta(days=20),
         "free_days": 7,
+        "cnf_agent_id": c.agent.id,
     }
     vals.update(kw)
     return c.env["fix.import.arrival"].with_user(user or c.officer).create(vals)
@@ -395,7 +437,12 @@ def boe(c, user=None, lines=None, **kw):
         if lines is not None
         else [(0, 0, {"order_line_id": ln.id, "quantity": ln.quantity}) for ln in c.order.line_ids]
     )
-    vals = {"order_id": c.order.id, "boe_no": "BE-%s" % c.tag, "line_ids": lines}
+    vals = {
+        "order_id": c.order.id,
+        "boe_no": "BE-%s" % c.tag,
+        "line_ids": lines,
+        "cnf_agent_id": c.agent.id,
+    }
     vals.update(kw)
     return c.env["fix.import.boe"].with_user(user or c.officer).create(vals)
 
@@ -1562,3 +1609,207 @@ def test_m44_1_grni_unconfigured_refuses_receipt(c):
     c.env["ir.config_parameter"].sudo().set_param("cd_import_order.account_code.grni", "")
     _refused(c.order.with_user(c.officer).action_receive, match="cd_import_order.account_code.grni")
     assert c.order.state == "cleared" and not c.order.receipt_id and not _bucket(c, c.part)
+
+
+# ================================================================ BRU-ITC-10 restricted goods
+def _restriction(c, user=None, **kw):
+    vals = {
+        "name": "M44T test restriction %s" % c.tag,
+        "hs_code_pattern": "8524",
+        "restriction_type": "restricted",
+        "permit_type": "TEST-NOC",
+        "issuing_authority": "Test agency",
+        "date_from": c.today - timedelta(days=5),
+    }
+    vals.update(kw)
+    return c.env["fix.import.restriction"].with_user(user or c.officer).create(vals)
+
+
+def _permit(c, restriction, user=None, **kw):
+    vals = {
+        "order_id": c.order.id,
+        "restriction_id": restriction.id,
+        "permit_no": "NOC-%s" % c.tag,
+        "issuer": "Test agency",
+        "valid_to": c.today + timedelta(days=60),
+        "document": "UERGIHRlc3Q=",
+        "document_name": "noc.pdf",
+    }
+    vals.update(kw)
+    return c.env["fix.import.permit"].with_user(user or c.officer).create(vals)
+
+
+def test_m44_bru10_restriction_activated_by_another_approver(c):
+    r = _restriction(c)
+    _refused(r.with_user(c.officer).action_activate, match="Import Approver")
+    c.env.ref(APPROVER).sudo().write({"user_ids": [(4, c.officer.id)]})
+    _refused(r.with_user(c.officer).action_activate, match="Segregation")
+    r.with_user(c.approver).action_activate()
+    _refused(r.with_user(c.officer2).write, {"restriction_type": "prohibited"}, match="frozen")
+    _refused(r.with_user(c.officer).write, {"state": "draft"}, match="workflow")
+
+
+def test_m44_bru10_prohibited_refused_outright(c):
+    r = _restriction(c, restriction_type="prohibited", permit_type=False)
+    r.with_user(c.approver).action_activate()
+    pf = proforma(c)
+    _refused(pf.with_user(c.approver).action_approve, match="prohibited")
+    _refused(
+        lambda: (
+            c.env["fix.import.order.line"]
+            .with_user(c.officer)
+            .create(
+                {
+                    "order_id": c.order.id,
+                    "part_id": c.part.id,
+                    "hs_id": c.hs.id,
+                    "quantity": 1,
+                    "unit_price": 1,
+                }
+            )
+        ),
+        match="prohibited",
+    )
+
+
+def test_m44_bru10_restricted_needs_verified_valid_permit(c):
+    r = _restriction(c)
+    r.with_user(c.approver).action_activate()
+    pf = proforma(c)
+    _refused(pf.with_user(c.approver).action_approve, match="restricted")
+    permit = _permit(c, r)
+    _refused(pf.with_user(c.approver).action_approve, match="restricted")  # not verified
+    _refused(permit.with_user(c.officer).action_verify, match="Import Approver")
+    nodoc = _permit(c, r, permit_no="NOC-NODOC", document=False)
+    _refused(nodoc.with_user(c.approver).action_verify, match="document")
+    permit.with_user(c.approver).action_verify()
+    _refused(
+        permit.with_user(c.officer).write,
+        {"valid_to": c.today + timedelta(days=900)},
+        match="evidence",
+    )
+    pf.with_user(c.approver).action_approve()
+    assert pf.state == "approved"
+
+
+def test_m44_bru10_expired_permit_blocks_lc(c, monkeypatch):
+    r = _restriction(c)
+    r.with_user(c.approver).action_activate()
+    _permit(c, r, valid_to=c.today + timedelta(days=3)).with_user(c.approver).action_verify()
+    stage_proforma(c)
+    letter = lc(c)
+    lca(c, letter).with_user(c.approver).action_approve()
+    later = c.today + timedelta(days=10)
+    monkeypatch.setattr(fields.Date, "context_today", staticmethod(lambda *a, **k: later))
+    _refused(letter.with_user(c.officer).action_apply, match="restricted")
+
+
+def test_m44_bru10_product_restriction(c):
+    r = _restriction(c, hs_code_pattern=False, product_id=c.product.id)
+    r.with_user(c.approver).action_activate()
+    _refused(proforma(c).with_user(c.approver).action_approve, match="restricted")
+
+
+# ================================================================ BRU-ITC-12 C&F agent
+def test_m44_bru12_agent_approval_two_person_and_m42_active(c):
+    agent = _agent(c, suffix="2").with_user(c.officer)
+    agent = (
+        c.env["fix.import.cnf.agent"]
+        .with_user(c.officer)
+        .create(
+            {
+                "name": "M44T officer agent",
+                "supplier_id": agent.supplier_id.id,
+                "licence_no": "CNF-%s-OFF" % c.tag,
+                "licence_expiry": c.today + timedelta(days=200),
+            }
+        )
+    )
+    _refused(agent.with_user(c.officer).action_approve, match="Import Approver")
+    c.env.ref(APPROVER).sudo().write({"user_ids": [(4, c.officer.id)]})
+    _refused(agent.with_user(c.officer).action_approve, match="Segregation")
+    inactive = _agent(c, suffix="3", status="qualified")
+    _refused(inactive.with_user(c.approver).action_approve, match="active in M42")
+    _refused(agent.with_user(c.officer).write, {"state": "approved"}, match="workflow")
+    agent.with_user(c.approver).action_approve()
+    assert agent.is_usable
+    _refused(
+        agent.with_user(c.officer).write,
+        {"licence_expiry": c.today + timedelta(days=900)},
+        match="evidence",
+    )
+
+
+def test_m44_bru12_boe_and_clearance_need_usable_agent(c):
+    stage_shipped(c)
+    bill = boe(c, cnf_agent_id=False)
+    _refused(bill.with_user(c.officer).action_assess, match="name the C&F agent")
+    blocked = _agent(c, suffix="B")
+    blocked.action_approve()
+    blocked.with_user(c.approver).action_block("missed filings")
+    bill.with_user(c.officer).write({"cnf_agent_id": blocked.id})
+    _refused(bill.with_user(c.officer).action_assess, match="not approved")
+    _refused(blocked.with_user(c.approver).action_unblock, match="Segregation")
+    blocked.with_user(c.approver2).action_unblock()
+    bill.with_user(c.officer).action_assess()
+    assert bill.state == "assessed"
+    arr = arrival(c, cnf_agent_id=False)
+    arr.with_user(c.officer).action_arrive()
+    bill.with_user(c.officer).write({"customs_assessed_total": bill.total_tax, "payment_ref": "CH"})
+    bill.with_user(c.finance).action_pay()
+    arr.with_user(c.officer).write({"release_ref": "RO-1"})
+    _refused(arr.with_user(c.officer).action_clear, match="name the C&F agent")
+    # M42 suspends the agent's supplier record: it can no longer be instructed
+    c.agent.supplier_id.sudo()._guarded().write({"status": "suspended"})
+    arr.with_user(c.officer).write({"cnf_agent_id": c.agent.id})
+    _refused(arr.with_user(c.officer).action_clear, match="not active in M42")
+
+
+def test_m44_bru12_licence_expiry_cron(c, monkeypatch):
+    cron = c.env.ref("cd_import_order.ir_cron_import_cnf_expire")
+    assert cron.active and cron.model_id.model == "fix.import.cnf.agent"
+    later = c.today + timedelta(days=201)
+    monkeypatch.setattr(fields.Date, "context_today", staticmethod(lambda *a, **k: later))
+    c.agent.invalidate_recordset()
+    assert not c.agent.is_usable
+    c.env["fix.import.cnf.agent"]._cron_expire()
+    assert c.agent.state == "expired"
+
+
+# ================================================================ BRU-ITC-13 insurance
+def test_m44_bru13_shipment_needs_cover_of_consignment_value(c):
+    doc = shipdoc(c, "bl")
+    c.cover.with_user(c.approver).action_cancel()
+    _refused(doc.with_user(c.officer).action_receive, match="cargo cover")
+    short = _cover(c, policy_no="MC-SHORT", sum_insured=5000.0, premium=100.0)
+    short.with_user(c.approver).action_verify()
+    _refused(doc.with_user(c.officer).action_receive, match="below 100%")
+    c.env["ir.config_parameter"].sudo().set_param("cd_import_order.insurance_cover_pct", "40")
+    doc.with_user(c.officer).action_receive()
+    assert c.order.state == "shipped"
+
+
+def test_m44_bru13_cover_verified_by_another_and_frozen(c):
+    cover = _cover(c, user=c.officer, policy_no="MC-2")
+    _refused(cover.with_user(c.officer).action_verify, match="Import Approver")
+    _refused(cover.with_user(c.officer).write, {"state": "active"}, match="workflow")
+    cover.with_user(c.approver).action_verify()
+    _refused(cover.with_user(c.officer).write, {"sum_insured": 1.0}, match="evidence")
+
+
+def test_m44_bru13_seller_insures_under_cif(c):
+    order = _order(c, name="M44T-CIF-%s" % c.tag, incoterm="cif")
+    c.order = order
+    shipdoc(c, "bl").with_user(c.officer).action_receive()
+    assert order.state == "shipped"
+
+
+def test_m44_bru13_premium_feeds_cif(c):
+    line = c.order.line_ids.filtered(lambda ln: ln.part_id == c.part)
+    assert line.cif_amount == pytest.approx(6000 + 0.6 * (500 + 100))
+    c.cover.with_user(c.approver).action_cancel()
+    _cover(c, policy_no="MC-3", premium=400.0, sum_insured=11000.0).with_user(
+        c.approver
+    ).action_verify()
+    line.invalidate_recordset()
+    assert line.cif_amount == pytest.approx(6000 + 0.6 * (500 + 400))

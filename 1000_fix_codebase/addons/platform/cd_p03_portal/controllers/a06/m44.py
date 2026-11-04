@@ -95,6 +95,26 @@ NEW_SURFACES = {
         "limit": 200,
         "actions": set(),
     },
+    "fix.import.restriction": {
+        "order": "hs_code_pattern, date_from desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.import.permit": {
+        "order": "valid_to desc, id desc",
+        "limit": 300,
+        "actions": {"action_verify", "action_revoke"},
+    },
+    "fix.import.cnf.agent": {
+        "order": "name",
+        "limit": 200,
+        "actions": {"action_approve", "action_block", "action_unblock"},
+    },
+    "fix.import.insurance": {
+        "order": "cover_to desc, id desc",
+        "limit": 300,
+        "actions": {"action_verify", "action_cancel"},
+    },
 }
 for _model, _conf in NEW_SURFACES.items():
     if _model in _WRITABLE:
@@ -500,7 +520,7 @@ def cnf_management(env, date_from=None, date_to=None, **params):
                 "shipment": rec.name,
                 "order": rec.order_id.name,
                 "port": rec.port,
-                "agent": rec.order_id.supplier_id.name if rec.order_id.supplier_id else "—",
+                "agent": rec.cnf_agent_id.name or "—",
                 "clearing_charges": round(landed.clearing_charges, 2) if landed else 0.0,
                 "demurrage_days": rec.demurrage_days,
                 "release": rec.release_ref or "—",
@@ -524,7 +544,7 @@ def cnf_management(env, date_from=None, date_to=None, **params):
             "shipment": "Shipment",
             "order": "Order",
             "port": "Port",
-            "agent": "Supplier (no C&F agent master)",
+            "agent": "C&F Agent",
             "clearing_charges": "Clearing Charges",
             "demurrage_days": "Demurrage Days",
             "release": "Release Order",
@@ -532,8 +552,8 @@ def cnf_management(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Clearing charges come from the shipment's final landed-cost sheet; there is "
-            "no separate C&F agent master in this module (declared)."
+            "Clearing charges come from the shipment's final landed-cost sheet; the agent is "
+            "the licensed C&F agent named on the clearance (BRU-ITC-12)."
         ],
         totals={
             "shipment": "Total",

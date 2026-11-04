@@ -23,6 +23,7 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "cd_inventory",
         "cd_workflow_engine",
         "cd_cash_position",
+        "cd_vendor_portal",
         "account",
     ],
     "data": [

@@ -31,7 +31,9 @@ def test_order_state_is_guarded(odoo_env):
 
 def test_as02_conformance(odoo_env):
     Order = odoo_env["fix.import.order"]
-    for mixin in ("mail.thread", "mail.activity.mixin", "fix.guarded.mixin"):
-        assert mixin in Order._inherit
+    # the registry class carries the mixins (Order._inherit is the last extension's)
+    assert "message_ids" in Order._fields  # mail.thread
+    assert "activity_ids" in Order._fields  # mail.activity.mixin
+    assert Order.browse()._fix_guarded_fields()  # fix.guarded.mixin
     assert "company_id" in Order._fields
     assert "operating_unit_id" in Order._fields

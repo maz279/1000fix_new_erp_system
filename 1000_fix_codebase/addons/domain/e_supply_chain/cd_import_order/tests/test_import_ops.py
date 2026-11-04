@@ -60,6 +60,38 @@ def ctx(odoo_env):
             ],
         }
     )
+    # BRU-ITC-13: FOB, so the importer insures the consignment value
+    cover = env["fix.import.insurance"].create(
+        {
+            "order_id": order.id,
+            "insurer_id": env["res.partner"].create({"name": f"Insurer {TAG}"}).id,
+            "policy_no": f"MC-{TAG}",
+            "currency_id": env.ref("base.BDT").id,
+            "sum_insured": 1000.0,
+            "premium": 0.0,
+            "cover_from": today - timedelta(days=1),
+            "cover_to": today + timedelta(days=60),
+        }
+    )
+    cover.action_verify()
+    # BRU-ITC-12: a licensed C&F agent, active in M42
+    agent = env["fix.import.cnf.agent"].create(
+        {
+            "name": f"Agent {TAG}",
+            "supplier_id": env["fix.supplier"]
+            .create(
+                {
+                    "name": f"Agent supplier {TAG}",
+                    "partner_id": env["res.partner"].create({"name": f"Agent {TAG}"}).id,
+                    "status": "active",
+                }
+            )
+            .id,
+            "licence_no": f"CNF-{TAG}",
+            "licence_expiry": today + timedelta(days=100),
+        }
+    )
+    agent.action_approve()
     return {
         "env": env,
         "today": today,
@@ -69,6 +101,7 @@ def ctx(odoo_env):
         "part": part,
         "hs": hs,
         "tariff": tariff,
+        "agent": agent,
     }
 
 
@@ -128,6 +161,7 @@ def test_duty_cascade_amounts(ctx):
         {
             "order_id": order.id,
             "boe_no": f"BE-{TAG}",
+            "cnf_agent_id": ctx["agent"].id,
             "line_ids": [(0, 0, {"order_line_id": order.line_ids.id, "quantity": 1})],
         }
     )
@@ -159,6 +193,7 @@ def test_boe_assess_requires_documents_and_order_lines(ctx):
         {
             "order_id": order.id,
             "boe_no": f"BE0-{TAG}",
+            "cnf_agent_id": ctx["agent"].id,
             "line_ids": [(0, 0, {"description": "no order line", "assessable_value": 500})],
         }
     )
@@ -181,6 +216,7 @@ def test_arrival_demurrage_and_clearance(ctx):
             "etd": date(2026, 10, 1),
             "eta": date(2026, 10, 10),
             "free_days": 5,
+            "cnf_agent_id": ctx["agent"].id,
         }
     )
     with pytest.raises(UserError, match="bill of lading"), env.cr.savepoint():

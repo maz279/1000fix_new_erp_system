@@ -182,6 +182,7 @@ class FixImportProforma(models.Model):
             if rec.valid_until and rec.valid_until < today(rec):
                 raise UserError("Proforma %s expired on %s." % (rec.proforma_no, rec.valid_until))
             rec.env["fix.import.irc"]._irc_require_valid(order.company_id, "Approving a proforma")
+            order._import_check_eligibility("Approving proforma %s" % rec.proforma_no)
             rec._guarded().write(
                 {
                     "state": "approved",
@@ -489,6 +490,7 @@ class FixImportLc(models.Model):
                 )
             )
         self._lc_facility_check(what, self.amount, self.expiry)
+        order._import_check_eligibility(what)
         if param_bool(self.env, PARAM_LC_REQUIRES_LCA, True):
             lca = (
                 self.env["fix.import.lca"]
@@ -1446,6 +1448,8 @@ class FixImportShipdoc(models.Model):
                 raise UserError(
                     "Record the document reference (B/L, invoice or certificate number) first."
                 )
+            if rec.doc_type == "bl":
+                rec.order_id._import_check_insurance("Shipping under B/L %s" % rec.ref)
             rec._guarded().write({"state": "received", "received_by_id": rec.env.user.id})
             if rec.doc_type == "bl":
                 rec.order_id._import_set_state("shipped", ("draft",))
@@ -1486,6 +1490,9 @@ class FixImportArrival(models.Model):
     # every day the cargo waits at port after it, up to release. Computed.
     demurrage_days = fields.Integer(string="Demurrage Days", compute="_compute_demurrage")
     release_ref = fields.Char(string="Customs Release Order No")
+    cnf_agent_id = fields.Many2one(
+        "fix.import.cnf.agent", string="C&F Agent", ondelete="restrict", index=True
+    )
     cleared_on = fields.Date(string="Cleared On")
     arrived_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     cleared_by_id = fields.Many2one("res.users", readonly=True, copy=False)
@@ -1509,7 +1516,7 @@ class FixImportArrival(models.Model):
         if self.state != "in_transit":
             locked |= {"order_id", "free_days", "eta", "etd"}
         if self.state == "cleared":
-            locked |= {"release_ref", "bl_no", "vessel", "port"}
+            locked |= {"release_ref", "bl_no", "vessel", "port", "cnf_agent_id"}
         return locked
 
     def _fix_form_locked_fields(self) -> set:
@@ -1578,6 +1585,7 @@ class FixImportArrival(models.Model):
         for rec in self:
             if rec.state != "arrived":
                 raise UserError("Clear an arrived shipment")
+            rec.cnf_agent_id._cnf_require_usable("Clearing %s" % rec.name)
             if not (rec.release_ref or "").strip():
                 raise UserError("Record the customs release order number before clearing.")
             boes = (
@@ -1612,7 +1620,15 @@ class FixImportArrival(models.Model):
 
 
 # =============================================================== bill of entry
-BOE_LOCK_ASSESSED = ("order_id", "boe_no", "boe_date", "asycuda_ref", "currency_id", "line_ids")
+BOE_LOCK_ASSESSED = (
+    "order_id",
+    "boe_no",
+    "boe_date",
+    "asycuda_ref",
+    "currency_id",
+    "line_ids",
+    "cnf_agent_id",
+)
 BOE_LOCK_PAID = ("customs_assessed_total", "payment_ref")
 
 
@@ -1629,6 +1645,13 @@ class FixImportBoe(models.Model):
     operating_unit_id = _ou_rel("order_id")
     boe_no = fields.Char(string="Bill of Entry No", required=True, tracking=True)
     asycuda_ref = fields.Char(string="ASYCUDA Reference")
+    cnf_agent_id = fields.Many2one(
+        "fix.import.cnf.agent",
+        string="C&F Agent",
+        ondelete="restrict",
+        index=True,
+        help="The licensed agent who lodges the Bill of Entry (BRU-ITC-12).",
+    )
     boe_date = fields.Date(
         string="Lodgement Date", required=True, default=fields.Date.context_today
     )
@@ -1784,6 +1807,8 @@ class FixImportBoe(models.Model):
                     "Bill of Entry %s cannot be assessed: the document checklist is incomplete "
                     "(missing %s)." % (rec.boe_no, ", ".join(labels.get(d, d) for d in missing))
                 )
+            rec.cnf_agent_id._cnf_require_usable("Lodging Bill of Entry %s" % rec.boe_no)
+            rec.order_id._import_check_eligibility("Assessing Bill of Entry %s" % rec.boe_no)
             rec.line_ids._boe_line_refresh()
             for line in rec.line_ids:
                 if not line.order_line_id or line.order_line_id.order_id != rec.order_id:

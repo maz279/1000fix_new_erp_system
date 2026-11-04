@@ -441,6 +441,9 @@ class FixImportOrderLine(models.Model):
         "order_id.incoterm",
         "order_id.freight_cost",
         "order_id.insurance_cost",
+        "order_id.insurance_ids.state",
+        "order_id.insurance_ids.premium",
+        "order_id.insurance_ids.currency_id",
         "order_id.line_ids.quantity",
         "order_id.line_ids.unit_price",
     )
@@ -452,10 +455,12 @@ class FixImportOrderLine(models.Model):
             total = sum((ln.quantity or 0.0) * (ln.unit_price or 0.0) for ln in order.line_ids)
             share = (rec.fob_amount / total) if total else 0.0
             extra = 0.0
+            # BRU-ITC-13: the verified cover's premium is the insurance in the CIF
+            insurance = order._import_insurance_for_cif() if order else 0.0
             if order.incoterm in ("fob", "exw", False):
-                extra = (order.freight_cost or 0.0) + (order.insurance_cost or 0.0)
+                extra = (order.freight_cost or 0.0) + insurance
             elif order.incoterm == "cfr":
-                extra = order.insurance_cost or 0.0
+                extra = insurance
             rec.cif_amount = round(rec.fob_amount + extra * share, 2)
 
     def _goods_value_bdt(self) -> float:
