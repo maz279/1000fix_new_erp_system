@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_performance roles (A09 workflow audit M57-F5, P5; build brief §6.11).
+
+     cd_performance defined no groups: every write sat on hr.group_hr_manager
+     and an incentive run needed base.group_system (Settings administrator),
+     because band_base and the band ranges were Settings-only fields. The
+     engine therefore ran as admin, with no named maker and no possible checker.
+
+     Four roles, each with one job. The holders are a business decision (A09
+     report §7.1): every role starts with the superuser and the administrator
+     only; appoint real holders before go-live, and never the same person as
+     Incentive Officer and Incentive Approver (the engine refuses a preparer
+     anyway). Loaded BEFORE ir.model.access.csv so the CSV can reference them. -->
+<odoo>
+    <record id="privilege_performance" model="res.groups.privilege">
+        <field name="name">Performance &amp; Incentives</field>
+        <field name="description">1000FiX A09 M57: scorecards, incentives, reviews and compensation bands.</field>
+        <field name="sequence">62</field>
+    </record>
+
+    <record id="group_performance_officer" model="res.groups">
+        <field name="name">Incentive Officer</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Computes and publishes technician scorecards from the service-order facts, prepares incentive runs and requests their approval. Never approves.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_incentive_approver" model="res.groups">
+        <field name="name">Incentive &amp; Recognition Approver</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Decides routed incentive runs and recognition prizes from the approval inbox (FR-PIC-035). Cannot decide a run they computed or in which they have a line.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_performance_calibrator" model="res.groups">
+        <field name="name">Performance Calibrator</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Calibrates manager ratings across managers (BRU-PIC-13), from the approval inbox. Never calibrates a rating they gave or their own review.</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+
+    <record id="group_compensation" model="res.groups">
+        <field name="name">Compensation Manager</field>
+        <field name="privilege_id" ref="privilege_performance"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Maintains the compensation bands (T5 ranges). Contracts are checked against them (I7).</field>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+    </record>
+</odoo>

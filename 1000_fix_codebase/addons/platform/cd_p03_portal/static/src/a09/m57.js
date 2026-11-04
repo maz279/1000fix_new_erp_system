@@ -49,25 +49,33 @@ export const MODULE = {
 export const SCREENS = {
   'M57-goals': { kind: 'model_list', model: 'fix.performance.goal', stateField: 'state',
     cols: ['name', 'employee_id', 'parent_goal_id', 'period', 'weight', 'target_value', 'actual_value', 'state'],
-    actions: [{ m: 'action_activate', l: 'Activate' }, { m: 'action_close', l: 'Close' }] },
+    actions: [{ m: 'action_agree', l: 'Agree Goal (employee / manager)' }, { m: 'action_activate', l: 'Activate' },
+              { m: 'action_close', l: 'Close' }] },
   'M57-kpis': { kind: 'model_list', create: false, model: 'fix.performance.scorecard',
-    cols: ['employee_id', 'period', 'first_time_fix', 'sla_hit', 'csat', 'salvage_ratio', 'rework_30d_rate', 'rework_rate', 'score'],
-    actions: [{ m: 'action_publish', l: 'Publish Scorecard' }] },
+    cols: ['employee_id', 'period', 'first_time_fix', 'sla_hit', 'csat', 'salvage_ratio', 'rework_30d_rate', 'rework_rate', 'score', 'state'],
+    actions: [{ m: 'action_compute_from_orders', l: 'Compute from Service Orders' }, { m: 'action_publish', l: 'Publish Scorecard' }] },
   'M57-reviews': { kind: 'model_list', model: 'fix.performance.review', stateField: 'state',
-    cols: ['name', 'employee_id', 'period', 'manager_rating', 'calibrated_rating', 'state'],
-    actions: [{ m: 'action_manager_review', l: 'Manager Review' }, { m: 'action_calibrate', l: 'Calibrate' },
+    cols: ['name', 'employee_id', 'reviewer_id', 'period', 'self_rating', 'manager_rating', 'calibrated_rating', 'approval_state', 'state'],
+    actions: [{ m: 'action_start', l: 'Open Self-Assessment' },
+              { m: 'action_record_self_rating', l: 'Record My Self Rating', ask: 'Your self rating, 1 to 5', kwarg: 'rating' },
+              { m: 'action_submit_self_assessment', l: 'Submit Self-Assessment' },
+              { m: 'action_record_manager_rating', l: 'Record Manager Rating', ask: 'Your rating of this report, 1 to 5', kwarg: 'rating' },
+              { m: 'action_manager_review', l: 'Submit Manager Rating (to Calibration)' },
               { m: 'action_close', l: 'Close' }] },
   'M57-calibration': { kind: 'table_report', module: 'M57', report: 'calibration_summary', title: 'Calibration Summary', period: true },
   'M57-pips': { kind: 'model_list', model: 'fix.performance.pip', stateField: 'state',
     cols: ['name', 'employee_id', 'start_date', 'end_date', 'outcome', 'state'],
     actions: [{ m: 'action_start', l: 'Start' }, { m: 'action_close', l: 'Close' }] },
   'M57-schemes': { kind: 'model_list', model: 'fix.incentive.run', stateField: 'state',
-    cols: ['period', 'band_base', 'total', 'state'],
-    actions: [{ m: 'action_compute', l: 'Calculate Pool' }, { m: 'action_apply', l: 'Apply to Payroll (M56)' }] },
+    cols: ['period', 'band_base', 'total', 'approval_state', 'state'],
+    actions: [{ m: 'action_compute', l: 'Calculate Pool' }, { m: 'action_request_approval', l: 'Request Approval' },
+              { m: 'action_recall_approval', l: 'Recall Approval' }, { m: 'action_reset_draft', l: 'Reset to Draft' }] },
   'M57-calc': { kind: 'model_list', model: 'fix.incentive.line',
-    cols: ['run_id', 'employee_id', 'scorecard_id', 'amount', 'applied_to_payslip'] },
-  'M57-recognition': { kind: 'model_list', model: 'fix.performance.recognition',
-    cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount', 'citation'] },
+    cols: ['run_id', 'employee_id', 'scorecard_id', 'amount', 'run_state', 'applied_to_payslip'] },
+  'M57-recognition': { kind: 'model_list', model: 'fix.performance.recognition', stateField: 'state',
+    cols: ['name', 'employee_id', 'award_type', 'awarded_on', 'prize_amount', 'citation', 'approval_state', 'state'],
+    actions: [{ m: 'action_award', l: 'Award (no prize)' }, { m: 'action_request_approval', l: 'Request Prize Approval' },
+              { m: 'action_recall_approval', l: 'Recall Approval' }, { m: 'action_cancel', l: 'Cancel' }] },
   'M57-comp': { kind: 'model_list', model: 'fix.compensation.band',
     cols: ['name', 'grade', 'range_min', 'range_mid', 'range_max', 'company_id'] },
   'M57-succession': { kind: 'model_list', model: 'fix.succession.plan',
@@ -107,13 +115,16 @@ export const SCREENS = {
       {
         tab: 'evaluation',
         title: 'Weightage & Evaluation Targets',
-        note: '0–100% weightage across technician scorecards.',
+        note: 'Weights of one employee-period total 100%. The employee and the line manager both agree a goal before it is activated; a closed goal is final.',
         fields: [
           { name: 'weight', required: true, label: 'Weightage (%)' },
           { name: 'target_value', label: 'Target Value' },
           { name: 'actual_value', label: 'Actual Achieved Value' },
           { name: 'unit', label: 'Measurement Unit' },
-          { name: 'state', required: true, label: 'State' }
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'employee_agreed_by_id', readonly: true, label: 'Agreed by Employee' },
+          { name: 'manager_agreed_by_id', readonly: true, label: 'Agreed by Manager' },
+          { name: 'closed_by_id', readonly: true, label: 'Closed By' }
         ]
       }
     ]
@@ -138,19 +149,23 @@ export const SCREENS = {
         note: 'Performance appraisal cycle parameters and participants.',
         fields: [
           { name: 'employee_id', required: true, label: 'Employee' },
-          { name: 'reviewer_id', label: 'Appraising Manager' },
+          { name: 'reviewer_id', label: 'Appraising Manager (the line manager)' },
           { name: 'period', required: true, label: 'Review Period' }
         ]
       },
       {
         tab: 'scoring',
         title: 'Multi-Rater Evaluation Ratings (1–5 Scale)',
-        note: 'Manager review requires rating; calibration aligns across technical peer groups.',
+        note: 'The employee records the self rating and the line manager the manager rating with the list actions; a calibrator who is neither decides the calibration from the approval inbox. A closed review is final.',
         fields: [
-          { name: 'self_rating', label: 'Self Evaluation (1-5)' },
-          { name: 'manager_rating', label: 'Manager Evaluation (1-5)' },
-          { name: 'calibrated_rating', label: 'Calibrated Final Rating (1-5)' },
-          { name: 'state', required: true, label: 'Review State' }
+          { name: 'self_rating', readonly: true, label: 'Self Evaluation (1-5)' },
+          { name: 'manager_rating', readonly: true, label: 'Manager Evaluation (1-5)' },
+          { name: 'calibrated_rating', readonly: true, label: 'Calibrated Final Rating (1-5)' },
+          { name: 'state', readonly: true, label: 'Review State' },
+          { name: 'approval_state', readonly: true, label: 'Calibration Approval' },
+          { name: 'manager_rated_by_id', readonly: true, label: 'Rated By' },
+          { name: 'calibrated_by_id', readonly: true, label: 'Calibrated By' },
+          { name: 'closed_by_id', readonly: true, label: 'Closed By' }
         ]
       }
     ]
@@ -162,7 +177,7 @@ export const SCREENS = {
     title: 'Performance Improvement Plan',
     back: 'M57-pips',
     status: { field: 'state', labels: {
-      draft: 'Draft', active: 'Active', passed: 'Passed', extended: 'Extended', failed: 'Failed' } },
+      draft: 'Draft', active: 'Active', closed: 'Closed' } },
     tabs: [
       { id: 'deficiencies', label: 'Remediation Scope', bn: 'উন্নতির ক্ষেত্র', icon: '⚠️', badge: '5' },
       { id: 'outcome', label: 'Milestones & Outcome', bn: 'ফলাফল ও সিদ্ধান্ত', icon: '📅', badge: '2' }
@@ -186,7 +201,9 @@ export const SCREENS = {
         note: 'Final assessment by HR and department head.',
         fields: [
           { name: 'outcome', label: 'Final Assessment Summary' },
-          { name: 'state', required: true, label: 'PIP Outcome State' }
+          { name: 'state', readonly: true, label: 'PIP State' },
+          { name: 'started_by_id', readonly: true, label: 'Started By' },
+          { name: 'closed_by_id', readonly: true, label: 'Closed By' }
         ]
       }
     ]
@@ -197,6 +214,8 @@ export const SCREENS = {
     model: 'fix.performance.recognition',
     title: 'Spot Recognition',
     back: 'M57-recognition',
+    status: { field: 'state', labels: {
+      draft: 'Draft', awarded: 'Awarded', cancelled: 'Cancelled' } },
     tabs: [
       { id: 'award', label: 'Award Particulars', bn: 'পুরস্কারের বিবরণ', icon: '🏆', badge: '4' },
       { id: 'citation', label: 'Merit Citation', bn: 'প্রশংসাপত্র', icon: '📜', badge: '1' }
@@ -205,12 +224,15 @@ export const SCREENS = {
       {
         tab: 'award',
         title: 'Recognition Category & Token',
-        note: 'Technician of the Month, Customer Delight, First-Time-Fix Champion award.',
+        note: 'A prize is a payment: it is approved by the Incentive Approver and paid and taxed through payroll. Nobody awards themself.',
         fields: [
           { name: 'employee_id', required: true, label: 'Employee' },
           { name: 'award_type', required: true, label: 'Recognition Category' },
           { name: 'awarded_on', required: true, label: 'Award Date' },
-          { name: 'prize_amount', label: 'Cash / Voucher Prize (BDT)' }
+          { name: 'prize_amount', label: 'Cash / Voucher Prize (BDT)' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'approval_state', readonly: true, label: 'Prize Approval' },
+          { name: 'awarded_by_id', readonly: true, label: 'Awarded / Approved By' }
         ]
       },
       {
@@ -248,12 +270,15 @@ export const SCREENS = {
       {
         tab: 'metrics',
         title: 'Weighted Service Delivery KPIs (40% FTFR + 25% SLA + 20% CSAT)',
-        note: 'Normalized 0.0–1.0 ratios driving the reachable 1.00 composite score.',
+        note: 'Computed from the completed service orders (M01) and survey ratings (M34) by Compute from Service Orders; never typed (BRU-PIC-03).',
         fields: [
-          { name: 'first_time_fix', label: 'First-Time Fix Ratio (0.0 - 1.0)' },
-          { name: 'sla_hit', label: 'SLA Compliance Ratio (0.0 - 1.0)' },
-          { name: 'csat', label: 'Customer Satisfaction Ratio (0.0 - 1.0)' },
-          { name: 'score', label: 'Computed Composite Score (0.0 - 1.0)' }
+          { name: 'first_time_fix', readonly: true, label: 'First-Time Fix Ratio (0.0 - 1.0)' },
+          { name: 'sla_hit', readonly: true, label: 'SLA Compliance Ratio (0.0 - 1.0)' },
+          { name: 'csat', readonly: true, label: 'Customer Satisfaction Ratio (0.0 - 1.0)' },
+          { name: 'score', readonly: true, label: 'Computed Composite Score (0.0 - 1.0)' },
+          { name: 'facts_orders', readonly: true, label: 'Service Orders Counted' },
+          { name: 'facts_basis', readonly: true, label: 'Computation Basis' },
+          { name: 'state', readonly: true, label: 'Scorecard State' }
         ]
       },
       {
@@ -261,11 +286,11 @@ export const SCREENS = {
         title: 'Component Salvage Recovery (15%) & 30-Day Rework Clawback',
         note: 'Board-level salvage value vs target, and 30-day repeat repair penalty ramp above 3% threshold.',
         fields: [
-          { name: 'salvage_value', label: 'Actual Salvaged Parts Value (BDT)' },
+          { name: 'salvage_value', readonly: true, label: 'Actual Salvaged Parts Value (BDT)' },
           { name: 'salvage_target', label: 'Monthly Salvage Target (BDT)' },
-          { name: 'salvage_ratio', label: 'Salvage Achievement Ratio (0.0 - 1.0)' },
-          { name: 'rework_30d_rate', label: '30-Day Repeat Repair Rate (0.0 - 1.0)' },
-          { name: 'rework_rate', label: 'General Rework Rate (0.0 - 1.0)' }
+          { name: 'salvage_ratio', readonly: true, label: 'Salvage Achievement Ratio (0.0 - 1.0)' },
+          { name: 'rework_30d_rate', readonly: true, label: '30-Day Repeat Repair Rate (0.0 - 1.0)' },
+          { name: 'rework_rate', readonly: true, label: 'General Rework Rate (0.0 - 1.0)' }
         ]
       }
     ]
@@ -277,7 +302,7 @@ export const SCREENS = {
     title: 'Incentive Calculation Run',
     back: 'M57-schemes',
     status: { field: 'state', labels: {
-      draft: 'Draft', calculated: 'Calculated', approved: 'Approved', paid: 'Applied to Payroll' } },
+      draft: 'Draft', computed: 'Computed', approved: 'Approved' } },
     tabs: [
       { id: 'pool', label: 'Scheme Pool & Period', bn: 'প্রণোদনা তহবিল ও সময়কাল', icon: '💰', badge: '4' },
       { id: 'status', label: 'Payroll Sync & State', bn: 'বেতন সমন্বয় ও অবস্থা', icon: '⚙️', badge: '2' }
@@ -286,21 +311,25 @@ export const SCREENS = {
       {
         tab: 'pool',
         title: 'Incentive Scheme Pool Parameters',
-        note: 'Monthly technician incentive pool calculation (15% / 10% / 5% / 0% score bands).',
+        note: 'Monthly technician incentive pool calculation (15% / 8% / 4% / 0% of the band base at scores of 0.90 / 0.75 / 0.60 / below). One run per period and company.',
         fields: [
           { name: 'period', required: true, label: 'Payroll Period (YYYY-MM)' },
           { name: 'band_base', required: true, label: 'Scheme Band Base Amount (BDT)' },
-          { name: 'total', label: 'Total Computed Pool Payout (BDT)' },
+          { name: 'total', readonly: true, label: 'Total Computed Pool Payout (BDT)' },
           { name: 'company_id', label: 'Company' }
         ]
       },
       {
         tab: 'status',
         title: 'Governance & M56 Payslip Push Status',
-        note: 'Applying the run pushes incentive line amounts directly to M56 payslips.',
+        note: 'An approved run is final; payroll (M56) picks its lines up. M57 never writes a payslip (BRU-PIC-09). The approver is never the preparer or anyone with a line on the run.',
         fields: [
           { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'state', required: true, label: 'Run State' }
+          { name: 'state', readonly: true, label: 'Run State' },
+          { name: 'approval_state', readonly: true, label: 'Approval' },
+          { name: 'computed_by_id', readonly: true, label: 'Computed By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_total', readonly: true, label: 'Approved Total (BDT)' }
         ]
       }
     ]
@@ -319,21 +348,21 @@ export const SCREENS = {
       {
         tab: 'payout',
         title: 'Individual Technician Incentive Calculation',
-        note: 'Computed from technician composite scorecard band.',
+        note: 'Computed by the run from the published scorecard band; lines are never typed.',
         fields: [
-          { name: 'run_id', required: true, label: 'Incentive Run' },
-          { name: 'employee_id', required: true, label: 'Technician / Employee' },
-          { name: 'scorecard_id', required: true, label: 'Source Scorecard' },
-          { name: 'amount', label: 'Incentive Payout Amount (BDT)' }
+          { name: 'run_id', readonly: true, label: 'Incentive Run' },
+          { name: 'employee_id', readonly: true, label: 'Technician / Employee' },
+          { name: 'scorecard_id', readonly: true, label: 'Source Scorecard' },
+          { name: 'amount', readonly: true, label: 'Incentive Payout Amount (BDT)' }
         ]
       },
       {
         tab: 'payroll',
         title: 'M56 Payroll Integration Trace',
-        note: 'Tracks idempotent push to the employee monthly payslip.',
+        note: 'Set by payroll (M56) when it pays the approved line; a line is paid on one payslip only.',
         fields: [
-          { name: 'applied_to_payslip', label: 'Applied to M56 Payslip' },
-          { name: 'payslip_ref_id', label: 'Linked Payslip Record ID' }
+          { name: 'applied_to_payslip', readonly: true, label: 'Applied to M56 Payslip' },
+          { name: 'payslip_ref_id', readonly: true, label: 'Linked Payslip Record ID' }
         ]
       }
     ]

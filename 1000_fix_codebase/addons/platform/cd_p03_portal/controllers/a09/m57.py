@@ -7,17 +7,25 @@ SURFACES = {
     "fix.performance.goal": {
         "order": "period desc, employee_id",
         "limit": 400,
-        "actions": {"action_activate", "action_close"},
+        "actions": {"action_agree", "action_activate", "action_close"},
     },
     "fix.performance.scorecard": {
         "order": "period desc, employee_id",
         "limit": 400,
-        "actions": {"action_publish"},
+        "actions": {"action_compute_from_orders", "action_publish"},
     },
     "fix.performance.review": {
         "order": "period desc, employee_id",
         "limit": 400,
-        "actions": {"action_manager_review", "action_calibrate", "action_close"},
+        # Calibration is decided from the approval inbox (M63), never here.
+        "actions": {
+            "action_start",
+            "action_record_self_rating",
+            "action_submit_self_assessment",
+            "action_record_manager_rating",
+            "action_manager_review",
+            "action_close",
+        },
     },
     "fix.performance.pip": {
         "order": "start_date desc, id desc",
@@ -27,12 +35,24 @@ SURFACES = {
     "fix.performance.recognition": {
         "order": "awarded_on desc, id desc",
         "limit": 200,
-        "actions": set(),
+        "actions": {
+            "action_award",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+        },
     },
     "fix.incentive.run": {
         "order": "period desc, id desc",
         "limit": 100,
-        "actions": {"action_compute", "action_apply"},
+        # I4: approval is routed to the Incentive Approver's inbox; payroll
+        # (M56) picks the approved lines up. There is no "apply" any more.
+        "actions": {
+            "action_compute",
+            "action_request_approval",
+            "action_recall_approval",
+            "action_reset_draft",
+        },
     },
     "fix.incentive.line": {"order": "run_id desc, id desc", "limit": 500, "actions": set()},
     "fix.compensation.band": {"order": "grade", "limit": 100, "actions": set()},
@@ -94,13 +114,15 @@ def rating_distribution(env, date_from=None, date_to=None, **params):
 def incentive_payout(env, date_from=None, date_to=None, **params):
     """Incentive payout by run and scheme band."""
     runs = env["fix.incentive.run"].search([])
+    # band_base is T5: shown only to the roles the field allows (A09 M57-06).
+    sees_base = env.su or bool(env["fix.incentive.run"].fields_get(["band_base"]))
     rows = []
     for run in runs:
         lines = env["fix.incentive.line"].search([("run_id", "=", run.id)])
         rows.append(
             {
                 "period": run.period,
-                "band_base": round(float(run.band_base or 0.0), 2),
+                "band_base": round(float(run.band_base or 0.0), 2) if sees_base else "—",
                 "lines": len(lines),
                 "total": round(float(run.total or 0.0), 2),
                 "state": dict(run._fields["state"].selection).get(run.state, run.state),
@@ -117,7 +139,10 @@ def incentive_payout(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["The run total is the sum of its line amounts; the band base is the scheme's base value."],
+        [
+            "The run total is the sum of its line amounts; the band base is the scheme's base "
+            "value (shown to the incentive roles only). Payroll pays approved runs only."
+        ],
         totals={
             "period": "Total",
             "lines": sum(r["lines"] for r in rows),
@@ -157,7 +182,10 @@ def technician_scorecards(env, date_from=None, date_to=None, **params):
             "score": "Composite",
         },
         rows,
-        ["Composite score is the model's weighted calculation over FTF, SLA, CSAT and rework."],
+        [
+            "Composite score is the model's weighted calculation over FTF, SLA, CSAT and rework, "
+            "computed from the technician's completed service orders (never typed)."
+        ],
         totals={
             "employee": "Average",
             "score": round(sum(r["score"] for r in rows) / len(rows), 3) if rows else 0.0,
@@ -252,7 +280,9 @@ def kpis(env):
     runs = env["fix.incentive.run"].search([])
     today = datetime.date.today()
     month = today.strftime("%Y-%m")
-    pool_mtd = sum(float(r.total or 0.0) for r in runs if r.period == month)
+    approved = runs.filtered(lambda r: r.state == "approved")
+    # One run per period and company: the pool is the approved run's total.
+    pool_mtd = sum(float(r.total or 0.0) for r in approved if r.period == month)
     closed = len(reviews.filtered(lambda r: r.state == "closed"))
     employees = env["hr.employee"].search_count([])
     goals_active = len(goals.filtered(lambda g: g.state in ("active", "achieved", "missed")))
@@ -262,9 +292,7 @@ def kpis(env):
         "goal_coverage": round(goals_active / employees * 100.0, 1) if employees else 0.0,
         "calibration_sessions": len(reviews.filtered(lambda r: r.state == "calibrated")),
         "pips_active": len(pips),
-        "incentive_accuracy": round(
-            len(runs.filtered(lambda r: r.state in ("approved", "paid"))) / len(runs) * 100.0, 1
-        )
-        if runs
-        else 0.0,
+        # A09 M57-22: the share of runs that reached approval (the states the
+        # model really has; it counted 'approved'/'paid' when neither existed).
+        "incentive_accuracy": round(len(approved) / len(runs) * 100.0, 1) if runs else 0.0,
     }
